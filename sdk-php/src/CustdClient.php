@@ -241,6 +241,11 @@ final class CustdClient
         return new Admin\OAuthClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    public function adminSites(): Admin\SiteClient
+    {
+        return new Admin\SiteClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
     /**
      * @param array<string, mixed> $event
      */

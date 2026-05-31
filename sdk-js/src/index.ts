@@ -127,6 +127,38 @@ export type AdminOAuthClientSecretResponse = {
   clientSecret: string;
 };
 
+export type AdminSiteCreate = {
+  companySlug: string;
+  name: string;
+  identityMode: "cookieless" | "extended";
+  allowedOrigins: string[];
+  rateLimitPerMinute?: number;
+  retentionDays?: number;
+};
+
+export type AdminSite = {
+  siteUuid: string;
+  companySlug: string;
+  name: string;
+  identityMode: "cookieless" | "extended";
+  allowedOrigins: string[];
+  rateLimitPerMinute: number;
+  retentionDays: number;
+  enabled: boolean;
+};
+
+export type AdminSiteCreateResponse = AdminSite & {
+  writeKey: string;
+};
+
+export type AdminSiteListResponse = {
+  sites: AdminSite[];
+};
+
+export type AdminSiteWriteKeyResponse = {
+  writeKey: string;
+};
+
 export class MemoryQueueStorage implements QueueStorage {
   private events: EventEnvelope[] = [];
 
@@ -433,10 +465,12 @@ type AdminRequester = <T>(method: string, path: string, body?: unknown) => Promi
 class AdminNamespace {
   readonly tenants: AdminTenantNamespace;
   readonly oauthClients: AdminOAuthClientNamespace;
+  readonly sites: AdminSiteNamespace;
 
   constructor(request: AdminRequester) {
     this.tenants = new AdminTenantNamespace(request);
     this.oauthClients = new AdminOAuthClientNamespace(request);
+    this.sites = new AdminSiteNamespace(request);
   }
 }
 
@@ -481,6 +515,30 @@ class AdminOAuthClientNamespace {
 
   rotateSecret(clientId: string): Promise<AdminOAuthClientSecretResponse> {
     return this.request("POST", `/oauth-clients/${encodeURIComponent(clientId)}/rotate-secret`);
+  }
+}
+
+class AdminSiteNamespace {
+  constructor(private readonly request: AdminRequester) {}
+
+  create(site: AdminSiteCreate): Promise<AdminSiteCreateResponse> {
+    return this.request("POST", "/sites", site);
+  }
+
+  list(): Promise<AdminSiteListResponse> {
+    return this.request("GET", "/sites");
+  }
+
+  get(siteUuid: string): Promise<AdminSite> {
+    return this.request("GET", `/sites/${encodeURIComponent(siteUuid)}`);
+  }
+
+  delete(siteUuid: string): Promise<void> {
+    return this.request("DELETE", `/sites/${encodeURIComponent(siteUuid)}`);
+  }
+
+  rotateWriteKey(siteUuid: string): Promise<AdminSiteWriteKeyResponse> {
+    return this.request("POST", `/sites/${encodeURIComponent(siteUuid)}/rotate-write-key`);
   }
 }
 

@@ -59,4 +59,34 @@ final class AdminClientTest extends TestCase
         $this->assertSame("secret", $created["clientSecret"]);
         $this->assertArrayNotHasKey("clientSecret", $list["clients"][0]);
     }
+
+    public function testAdminSitesManageBrowserSites(): void
+    {
+        $responses = [
+            [
+                "status" => 201,
+                "body" => '{"siteUuid":"site-123","companySlug":"acme","name":"Docs","identityMode":"cookieless","allowedOrigins":["https://example.com"],"rateLimitPerMinute":600,"retentionDays":365,"writeKey":"site_pk_test"}',
+            ],
+            ["status" => 200, "body" => '{"writeKey":"site_pk_next"}'],
+        ];
+        $calls = [];
+        $client = new CustdClient("http://localhost:8080", "admin-token", [
+            "admin_http_client" => function (string $method, string $url, ?array $body, string $token) use (&$responses, &$calls): array {
+                $calls[] = compact("method", "url", "body", "token");
+                return array_shift($responses);
+            },
+        ]);
+
+        $created = $client->adminSites()->create([
+            "companySlug" => "acme",
+            "name" => "Docs",
+            "identityMode" => "cookieless",
+            "allowedOrigins" => ["https://example.com"],
+        ]);
+        $rotated = $client->adminSites()->rotateWriteKey("site-123");
+
+        $this->assertSame("site_pk_test", $created["writeKey"]);
+        $this->assertSame("site_pk_next", $rotated["writeKey"]);
+        $this->assertSame("http://localhost:8080/api/v1/admin/sites", $calls[0]["url"]);
+    }
 }

@@ -216,6 +216,7 @@ class AdminClient:
         self._transport = transport
         self.tenants = TenantAdminClient(self)
         self.oauth_clients = OAuthClientAdminClient(self)
+        self.sites = SiteAdminClient(self)
 
     def request(
         self,
@@ -279,6 +280,26 @@ class OAuthClientAdminClient:
 
     def rotate_secret(self, client_id: str) -> TransportResult:
         return self._admin.request("POST", f"/oauth-clients/{quote_path(client_id)}/rotate-secret")
+
+
+class SiteAdminClient:
+    def __init__(self, admin: AdminClient) -> None:
+        self._admin = admin
+
+    def create(self, site: dict[str, Any]) -> TransportResult:
+        return self._admin.request("POST", "/sites", site)
+
+    def list(self) -> TransportResult:
+        return self._admin.request("GET", "/sites")
+
+    def get(self, site_uuid: str) -> TransportResult:
+        return self._admin.request("GET", f"/sites/{quote_path(site_uuid)}")
+
+    def delete(self, site_uuid: str) -> None:
+        self._admin.request("DELETE", f"/sites/{quote_path(site_uuid)}")
+
+    def rotate_write_key(self, site_uuid: str) -> TransportResult:
+        return self._admin.request("POST", f"/sites/{quote_path(site_uuid)}/rotate-write-key")
 
 
 def validate_event(event: EventEnvelope) -> None:

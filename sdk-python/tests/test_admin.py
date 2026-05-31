@@ -78,6 +78,37 @@ class AdminClientTest(unittest.TestCase):
         self.assertEqual("secret", created["clientSecret"])
         self.assertNotIn("clientSecret", clients["clients"][0])
 
+    def test_admin_sites_manage_browser_sites(self):
+        transport = CapturingAdminTransport([
+            {
+                "status": 201,
+                "body": {
+                    "siteUuid": "site-123",
+                    "companySlug": "acme",
+                    "name": "Docs",
+                    "identityMode": "cookieless",
+                    "allowedOrigins": ["https://example.com"],
+                    "rateLimitPerMinute": 600,
+                    "retentionDays": 365,
+                    "writeKey": "site_pk_test",
+                },
+            },
+            {"status": 200, "body": {"writeKey": "site_pk_next"}},
+        ])
+        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+
+        created = client.admin.sites.create({
+            "companySlug": "acme",
+            "name": "Docs",
+            "identityMode": "cookieless",
+            "allowedOrigins": ["https://example.com"],
+        })
+        rotated = client.admin.sites.rotate_write_key("site-123")
+
+        self.assertEqual("site_pk_test", created["writeKey"])
+        self.assertEqual("site_pk_next", rotated["writeKey"])
+        self.assertEqual("http://localhost:8080/api/v1/admin/sites", transport.calls[0]["url"])
+
 
 if __name__ == "__main__":
     unittest.main()

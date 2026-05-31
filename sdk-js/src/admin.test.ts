@@ -54,4 +54,38 @@ describe("CustdClient admin", () => {
     expect(created.clientSecret).toBe("secret");
     expect(list.clients[0]).not.toHaveProperty("clientSecret");
   });
+
+  it("manages browser sites through the admin API", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        siteUuid: "site-123",
+        companySlug: "acme",
+        name: "Docs",
+        identityMode: "cookieless",
+        allowedOrigins: ["https://example.com"],
+        rateLimitPerMinute: 600,
+        retentionDays: 365,
+        enabled: true,
+        writeKey: "site_pk_test",
+      }), { status: 201, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ writeKey: "site_pk_next" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token" });
+
+    const created = await client.admin.sites.create({
+      companySlug: "acme",
+      name: "Docs",
+      identityMode: "cookieless",
+      allowedOrigins: ["https://example.com"],
+    });
+    const rotated = await client.admin.sites.rotateWriteKey("site-123");
+
+    expect(created.writeKey).toBe("site_pk_test");
+    expect(rotated.writeKey).toBe("site_pk_next");
+    expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:8080/api/v1/admin/sites");
+    expect(fetchMock.mock.calls[1][0]).toBe("http://localhost:8080/api/v1/admin/sites/site-123/rotate-write-key");
+  });
 });
