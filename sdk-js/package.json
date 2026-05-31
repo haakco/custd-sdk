@@ -29,7 +29,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepare": "pnpm run build",
-    "test": "vitest run --exclude dist/**",
+    "test": "vitest run src",
     "smoke:dev": "pnpm run build && node scripts/smoke-dev.js"
   },
   "devDependencies": {

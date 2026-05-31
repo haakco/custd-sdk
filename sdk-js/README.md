@@ -103,7 +103,7 @@ Script-tag installs read `data-site-uuid` and `data-write-key`, load site
 identity/origin config from `/api/v1/sites/{siteUuid}/config`, and expose
 `window.custd`. The site config response must include the current origin in
 `allowedOrigins`; the browser tracker refuses to run without an allowed-origin
-match.
+match. Script attributes cannot expand the server-provided origin list.
 
 ```html
 <script
@@ -135,13 +135,16 @@ const tracker = createBrowserTracker({
 tracker.setConsent("granted");
 ```
 
-Extended mode stores an anonymous ID in `localStorage`, a session ID in
-`sessionStorage`, and honors browser Do Not Track. Page-exit flushes use
-`navigator.sendBeacon` when available; because beacons cannot set request
-headers, the public write key is included in the beacon JSON body. Normal
-flushes use `fetch` with bearer write-key auth. Offline batches are persisted in
-`localStorage` with a default limit of 1000 queued events; pass `maxQueueSize`
-to lower that bound.
+Extended mode starts with consent required for script-tag installs unless
+`data-consent="granted"` is present. It stores an anonymous ID in
+`localStorage`, a session ID in `sessionStorage`, and all modes honor browser Do
+Not Track. Page-exit flushes use `navigator.sendBeacon` when available; because
+beacons cannot set request headers, the public write key is included in the
+beacon JSON body. Normal flushes use `fetch` with bearer write-key auth. Queued
+events are kept in memory by default so page URLs and payloads are not persisted;
+pass `persistentQueue: true` to opt into `localStorage` queueing, and
+`maxQueueSize` to lower the default limit of 1000 queued events. Script-tag
+installs can opt into persistent queueing with `data-persistent-queue="true"`.
 
 ### Manual flush
 
