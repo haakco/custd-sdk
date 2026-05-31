@@ -79,10 +79,74 @@ const event = createDogfoodEvent({
 The SDK requires `companySlug` and rejects plaintext non-local Custd/token URLs.
 Localhost HTTP is allowed for development.
 
+## Browser Tracker
+
+Use the browser entrypoint for public website analytics. It sends to the
+collector endpoints, not the producer OAuth endpoint:
+
+```ts
+import { createBrowserTracker } from "@haakco/custd-sdk/browser";
+
+const tracker = createBrowserTracker({
+  baseUrl: "https://custd.example.com",
+  siteUuid: "site-uuid",
+  writeKey: "site_pk_public_write_key",
+  allowedOrigins: ["https://www.example.com"],
+  batchSize: 25,
+});
+
+await tracker.trackPageView();
+tracker.installSpaTracking();
+```
+
+Script-tag installs read `data-site-uuid` and `data-write-key`, load site
+identity/origin config from `/api/v1/sites/{siteUuid}/config`, and expose
+`window.custd`. The site config response must include the current origin in
+`allowedOrigins`; the browser tracker refuses to run without an allowed-origin
+match.
+
+```html
+<script
+  type="module"
+  src="https://custd.example.com/browser-script.js"
+  data-site-uuid="site-uuid"
+  data-write-key="site_pk_public_write_key"
+></script>
+```
+
+```ts
+await window.custd.track("purchase", { amount: 12.99 });
+await window.custd.trackPageView();
+```
+
+The default mode is cookieless: `anonymousId` and `sessionId` are sent as empty
+strings. For consented identity, opt in explicitly:
+
+```ts
+const tracker = createBrowserTracker({
+  baseUrl: "https://custd.example.com",
+  siteUuid: "site-uuid",
+  writeKey: "site_pk_public_write_key",
+  allowedOrigins: ["https://www.example.com"],
+  identityMode: "extended",
+  consent: "required",
+});
+
+tracker.setConsent("granted");
+```
+
+Extended mode stores an anonymous ID in `localStorage`, a session ID in
+`sessionStorage`, and honors browser Do Not Track. Page-exit flushes use
+`navigator.sendBeacon` when available; because beacons cannot set request
+headers, the public write key is included in the beacon JSON body. Normal
+flushes use `fetch` with bearer write-key auth. Offline batches are persisted in
+`localStorage` with a default limit of 1000 queued events; pass `maxQueueSize`
+to lower that bound.
+
 ### Manual flush
 
 ```ts
-await client.flush();
+await tracker.flush();
 ```
 
 ## Dev smoke test (Hydra)

@@ -5,7 +5,7 @@ Public SDKs for sending events to Custd.
 ## Packages
 
 - `sdk-go` — Go ingestion, admin, OAuth2 producer auth, batching, retry, queueing, and dogfood helpers.
-- `sdk-js` — TypeScript ingestion SDK.
+- `sdk-js` — TypeScript ingestion SDK and browser tracker.
 - `sdk-python` — Python ingestion SDK.
 - `sdk-php` — PHP ingestion SDK.
 - `contract-fixtures` — shared event fixtures used by every SDK test suite.

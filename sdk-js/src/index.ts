@@ -484,6 +484,12 @@ class AdminOAuthClientNamespace {
   }
 }
 
+export type PrepareEventMode = "producer" | "browser-cookieless";
+
+export type PrepareEventOptions = {
+  mode?: PrepareEventMode;
+};
+
 export function validateEvent(event: EventEnvelope): void {
   const missing: string[] = [];
 
@@ -502,6 +508,25 @@ export function validateEvent(event: EventEnvelope): void {
 
   if (missing.length > 0) {
     throw new Error(`custd: missing required fields: ${missing.join(", ")}`);
+  }
+}
+
+export function validateBrowserEvent(event: EventEnvelope): void {
+  const missing: string[] = [];
+
+  if (!event.eventUuid) missing.push("eventUuid");
+  if (!event.eventTypeSlug) missing.push("eventTypeSlug");
+  if (!event.schemaVersion) missing.push("schemaVersion");
+  if (!event.timestamp) missing.push("timestamp");
+  if (!event.context) missing.push("context");
+  if (!event.payload) missing.push("payload");
+  if (!event.payload?.siteUuid) missing.push("payload.siteUuid");
+
+  const deviceType = event.context?.device?.type;
+  if (!deviceType) missing.push("context.device.type");
+
+  if (missing.length > 0) {
+    throw new Error(`custd: missing required browser fields: ${missing.join(", ")}`);
   }
 }
 
@@ -536,7 +561,15 @@ export function createDogfoodEvent(input: DogfoodEventInput): EventEnvelope {
   });
 }
 
-function prepareEvent(event: EventEnvelope): EventEnvelope {
+export function prepareEvent(event: EventEnvelope, options: PrepareEventOptions = {}): EventEnvelope {
+  if (options.mode === "browser-cookieless") {
+    return {
+      ...event,
+      eventUuid: event.eventUuid || randomUUID(),
+      sessionId: event.sessionId ?? "",
+      anonymousId: event.anonymousId ?? "",
+    };
+  }
   return {
     ...event,
     eventUuid: event.eventUuid || randomUUID(),
@@ -545,7 +578,7 @@ function prepareEvent(event: EventEnvelope): EventEnvelope {
   };
 }
 
-class RetryableError extends Error {}
+export class RetryableError extends Error {}
 
 const dogfoodProtectedPayloadFields = new Set([
   "sourcesystem",
@@ -603,7 +636,7 @@ function isLocalHostname(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 }
 
-function normalizeRetryOptions(options?: RetryOptions): Required<RetryOptions> {
+export function normalizeRetryOptions(options?: RetryOptions): Required<RetryOptions> {
   return {
     maxAttempts: options?.maxAttempts ?? 3,
     baseDelayMs: options?.baseDelayMs ?? 200,
@@ -613,7 +646,7 @@ function normalizeRetryOptions(options?: RetryOptions): Required<RetryOptions> {
   };
 }
 
-async function withRetry<T>(options: Required<RetryOptions>, op: () => Promise<T>): Promise<T> {
+export async function withRetry<T>(options: Required<RetryOptions>, op: () => Promise<T>): Promise<T> {
   let attempt = 0;
   for (;;) {
     attempt++;
