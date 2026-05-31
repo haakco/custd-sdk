@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["**"]
+  pull_request:
+
+jobs:
+  go:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: sdk-go/go.mod
+      - name: Test Go SDK
+        run: cd sdk-go && go test ./...
+
+  js:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install JS dependencies
+        run: pnpm -C sdk-js install --frozen-lockfile
+      - name: Test JS SDK
+        run: pnpm -C sdk-js test
+      - name: Build JS SDK
+        run: pnpm -C sdk-js run build
+
+  python:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Test Python SDK
+        run: cd sdk-python && python3 -m unittest discover -s tests
+
+  php:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PHP dependencies
+        run: cd sdk-php && composer install
+      - name: Test PHP SDK
+        run: cd sdk-php && composer test

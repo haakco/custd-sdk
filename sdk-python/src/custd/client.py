@@ -1,0 +1,476 @@
+import json
+import random
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+import uuid
+from typing import Any, Callable
+
+INGEST_ENDPOINT = "/api/v1/events"
+INGEST_BATCH_ENDPOINT = "/api/v1/events/batch"
+DEFAULT_RETRY_STATUSES = (408, 429, 500, 502, 503, 504)
+
+EventEnvelope = dict[str, Any]
+TransportResult = dict[str, Any]
+Transport = Callable[[str, EventEnvelope, dict[str, str], float], TransportResult]
+AdminTransport = Callable[[str, str, dict[str, Any] | None, dict[str, str], float], TransportResult]
+TokenProvider = Callable[[], str]
+OAuthTokenTransport = Callable[[str, dict[str, Any], float], dict[str, Any]]
+
+
+class ValidationError(ValueError):
+    pass
+
+
+class RetryableError(RuntimeError):
+    pass
+
+
+class RequestError(RuntimeError):
+    pass
+
+
+class MemoryQueueStorage:
+    def __init__(self) -> None:
+        self._events: list[EventEnvelope] = []
+
+    def load(self) -> list[EventEnvelope]:
+        return [dict(event) for event in self._events]
+
+    def save(self, events: list[EventEnvelope]) -> None:
+        self._events = [dict(event) for event in events]
+
+    def clear(self) -> None:
+        self._events = []
+
+
+class CustdClient:
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        token: str | None = None,
+        oauth: dict[str, Any] | None = None,
+        retry: dict[str, Any] | None = None,
+        batch: dict[str, Any] | None = None,
+        queue: dict[str, Any] | None = None,
+        transport: Transport | None = None,
+        admin_transport: AdminTransport | None = None,
+        timeout: float = 15,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        assert_secure_or_local_http(self.base_url, "base_url")
+        self._oauth = oauth
+        self._oauth_token: tuple[str, float] | None = None
+        self._token_transport = (oauth or {}).get("transport") or fetch_oauth_token
+        if oauth is not None:
+            assert_secure_or_local_http(str(oauth.get("token_url", "")), "token_url")
+            self._token_provider = self._producer_token
+        elif token is not None:
+            self._token_provider = lambda: token
+        else:
+            raise ValueError("custd: token or oauth config is required")
+        self.retry = normalize_retry(retry)
+        self.batch = batch
+        self.queue_enabled = bool((queue or {}).get("enabled", batch is not None))
+        self.queue_storage = (queue or {}).get("storage") or MemoryQueueStorage()
+        self.queue: list[EventEnvelope] = self.queue_storage.load() if self.queue_enabled else []
+        self.max_queue_size = int((queue or {}).get("max_queue_size", 1000))
+        self.transport = transport or default_transport
+        self.admin = AdminClient(self, admin_transport or default_admin_transport)
+        self.timeout = timeout
+
+    def ingest_event(self, event: EventEnvelope) -> TransportResult:
+        prepared = prepare_event(event)
+        validate_event(prepared)
+        return self._send_with_retry(prepared)
+
+    def track(self, event: EventEnvelope) -> TransportResult | None:
+        prepared = prepare_event(event)
+        validate_event(prepared)
+        if not self.queue_enabled:
+            return self._send_with_retry(prepared)
+
+        self._enqueue(prepared)
+        if self.batch is not None:
+            max_batch_size = int(self.batch.get("max_batch_size", 0))
+            if max_batch_size > 0 and len(self.queue) >= max_batch_size:
+                self.flush()
+        else:
+            self.flush()
+        return None
+
+    def flush(self) -> None:
+        if not self.queue_enabled or not self.queue:
+            return
+
+        max_batch_size = len(self.queue)
+        if self.batch is not None:
+            max_batch_size = int(self.batch.get("max_batch_size", max_batch_size))
+
+        batch = self.queue[:max_batch_size]
+        self.queue = self.queue[max_batch_size:]
+
+        try:
+            self._send_batch_with_retry(batch)
+        except Exception:
+            self.queue = batch + self.queue
+            self.queue_storage.save(self.queue)
+            raise
+
+        self.queue_storage.save(self.queue)
+
+    def close(self) -> None:
+        self.flush()
+
+    def _enqueue(self, event: EventEnvelope) -> None:
+        if len(self.queue) >= self.max_queue_size:
+            self.queue.pop(0)
+        self.queue.append(event)
+        self.queue_storage.save(self.queue)
+
+    def _send_with_retry(self, event: EventEnvelope) -> TransportResult:
+        max_attempts = int(self.retry["max_attempts"])
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                return self._send(event)
+            except RetryableError:
+                if attempt >= max_attempts:
+                    raise
+                time.sleep(backoff_delay(self.retry, attempt) / 1000)
+
+    def _send_batch_with_retry(self, events: list[EventEnvelope]) -> TransportResult:
+        max_attempts = int(self.retry["max_attempts"])
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                return self._send_batch(events)
+            except RetryableError:
+                if attempt >= max_attempts:
+                    raise
+                time.sleep(backoff_delay(self.retry, attempt) / 1000)
+
+    def _send(self, event: EventEnvelope) -> TransportResult:
+        result = self.transport(self._endpoint(), event, self._headers(), self.timeout)
+        status = int(result["status"])
+        if status in self.retry["retry_statuses"]:
+            raise RetryableError(f"custd: retryable status {status}")
+        if status >= 400:
+            raise RequestError(f"custd: request failed with status {status}")
+        return result
+
+    def _send_batch(self, events: list[EventEnvelope]) -> TransportResult:
+        result = self.transport(self._batch_endpoint(), {"events": events}, self._headers(), self.timeout)
+        status = int(result["status"])
+        if status in self.retry["retry_statuses"]:
+            raise RetryableError(f"custd: retryable status {status}")
+        if status >= 400:
+            raise RequestError(f"custd: request failed with status {status}")
+        body = result.get("body")
+        if isinstance(body, str) and body:
+            decoded = json.loads(body)
+            if isinstance(decoded, dict) and decoded.get("success") is False:
+                raise RequestError(f"custd: batch request failed with status {status}")
+        return result
+
+    def _endpoint(self) -> str:
+        return self.base_url + INGEST_ENDPOINT
+
+    def _batch_endpoint(self) -> str:
+        return self.base_url + INGEST_BATCH_ENDPOINT
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self._token_provider()}",
+        }
+
+    def _producer_token(self) -> str:
+        now = time.time()
+        if self._oauth_token is not None and self._oauth_token[1] > now + 30:
+            return self._oauth_token[0]
+        oauth = self._oauth or {}
+        request = {
+            "grant_type": "client_credentials",
+            "client_id": oauth.get("client_id", ""),
+            "client_secret": oauth.get("client_secret", ""),
+            "audience": oauth.get("audience", ""),
+            "scope": " ".join(oauth.get("scopes", [])),
+        }
+        token = self._token_transport(str(oauth.get("token_url", "")), request, self.timeout)
+        access_token = token.get("access_token")
+        if not access_token:
+            raise RequestError("custd: token response missing access_token")
+        expires_at = now + int(token.get("expires_in", 300))
+        self._oauth_token = (str(access_token), expires_at)
+        return str(access_token)
+
+
+class AdminClient:
+    def __init__(self, client: CustdClient, transport: AdminTransport) -> None:
+        self._client = client
+        self._transport = transport
+        self.tenants = TenantAdminClient(self)
+        self.oauth_clients = OAuthClientAdminClient(self)
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | None = None,
+    ) -> TransportResult:
+        result = self._transport(
+            method,
+            self._client.base_url + "/api/v1/admin" + path,
+            payload,
+            self._client._headers(),
+            self._client.timeout,
+        )
+        status = int(result["status"])
+        if status >= 400:
+            raise RequestError(f"custd: admin request failed with status {status}")
+        body = result.get("body")
+        if status == 204 or body in (None, ""):
+            return {}
+        if isinstance(body, str):
+            decoded = json.loads(body)
+            return decoded if isinstance(decoded, dict) else {}
+        if isinstance(body, dict):
+            return body
+        return {}
+
+
+class TenantAdminClient:
+    def __init__(self, admin: AdminClient) -> None:
+        self._admin = admin
+
+    def create(self, tenant: dict[str, Any]) -> TransportResult:
+        return self._admin.request("POST", "/tenants", tenant)
+
+    def list(self) -> TransportResult:
+        return self._admin.request("GET", "/tenants")
+
+    def get(self, slug: str) -> TransportResult:
+        return self._admin.request("GET", f"/tenants/{quote_path(slug)}")
+
+    def delete(self, slug: str) -> None:
+        self._admin.request("DELETE", f"/tenants/{quote_path(slug)}")
+
+
+class OAuthClientAdminClient:
+    def __init__(self, admin: AdminClient) -> None:
+        self._admin = admin
+
+    def create(self, client: dict[str, Any]) -> TransportResult:
+        return self._admin.request("POST", "/oauth-clients", client)
+
+    def list(self) -> TransportResult:
+        return self._admin.request("GET", "/oauth-clients")
+
+    def get(self, client_id: str) -> TransportResult:
+        return self._admin.request("GET", f"/oauth-clients/{quote_path(client_id)}")
+
+    def delete(self, client_id: str) -> None:
+        self._admin.request("DELETE", f"/oauth-clients/{quote_path(client_id)}")
+
+    def rotate_secret(self, client_id: str) -> TransportResult:
+        return self._admin.request("POST", f"/oauth-clients/{quote_path(client_id)}/rotate-secret")
+
+
+def validate_event(event: EventEnvelope) -> None:
+    missing: list[str] = []
+    for field in (
+        "eventUuid",
+        "eventTypeSlug",
+        "schemaVersion",
+        "timestamp",
+        "sessionId",
+        "anonymousId",
+        "companySlug",
+        "context",
+        "payload",
+    ):
+        if event.get(field) in (None, ""):
+            missing.append(field)
+
+    context = event.get("context") if isinstance(event.get("context"), dict) else {}
+    device = context.get("device") if isinstance(context.get("device"), dict) else {}
+    if not device.get("type"):
+        missing.append("context.device.type")
+
+    if missing:
+        raise ValidationError(f"custd: missing required fields: {', '.join(missing)}")
+
+
+def prepare_event(event: EventEnvelope) -> EventEnvelope:
+    prepared = dict(event)
+    prepared["eventUuid"] = prepared.get("eventUuid") or str(uuid.uuid4())
+    prepared["sessionId"] = prepared.get("sessionId") or str(uuid.uuid4())
+    prepared["anonymousId"] = prepared.get("anonymousId") or str(uuid.uuid4())
+    return prepared
+
+
+def create_dogfood_event(input: dict[str, Any]) -> EventEnvelope:
+    missing = [
+        name
+        for name in (
+            "eventTypeSlug",
+            "schemaVersion",
+            "companySlug",
+            "sourceSystem",
+            "sourceCompany",
+            "environment",
+        )
+        if input.get(name) in (None, "")
+    ]
+    if missing:
+        raise ValidationError(f"custd: missing dogfood fields: {', '.join(missing)}")
+
+    payload = sanitize_dogfood_payload(dict(input.get("payload") or {}))
+    payload["sourceSystem"] = input["sourceSystem"]
+    payload["sourceCompany"] = input["sourceCompany"]
+    payload["environment"] = input["environment"]
+    payload["schemaVersion"] = input["schemaVersion"]
+    if input.get("correlationId"):
+        payload["correlationId"] = input["correlationId"]
+
+    return prepare_event({
+        "eventTypeSlug": input["eventTypeSlug"],
+        "schemaVersion": input["schemaVersion"],
+        "timestamp": iso_now(),
+        "companySlug": input["companySlug"],
+        "context": {"device": {"type": "server"}},
+        "payload": payload,
+    })
+
+
+DOGFOOD_PROTECTED_PAYLOAD_FIELDS = {
+    "sourcesystem",
+    "sourcecompany",
+    "environment",
+    "schemaversion",
+    "correlationid",
+}
+
+DOGFOOD_FORBIDDEN_PAYLOAD_FIELDS = {
+    "apikey",
+    "authorization",
+    "password",
+    "rawapiresponse",
+    "token",
+    "signedurl",
+    "rawprompt",
+    "oauthcode",
+    "devicesecret",
+    "providercredential",
+}
+
+
+def sanitize_dogfood_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    cleaned: dict[str, Any] = {}
+    for key, value in payload.items():
+        if not dogfood_payload_field_allowed(key):
+            continue
+        if isinstance(value, dict):
+            cleaned[key] = sanitize_dogfood_payload(value)
+        else:
+            cleaned[key] = value
+    return cleaned
+
+
+def dogfood_payload_field_allowed(key: str) -> bool:
+    normalized = key.lower().replace("_", "")
+    return normalized not in DOGFOOD_PROTECTED_PAYLOAD_FIELDS and normalized not in DOGFOOD_FORBIDDEN_PAYLOAD_FIELDS
+
+
+def iso_now() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def assert_secure_or_local_http(raw_url: str, field: str) -> None:
+    parsed = urllib.parse.urlparse(raw_url)
+    if parsed.scheme == "https":
+        return
+    if parsed.scheme == "http" and parsed.hostname in ("localhost", "127.0.0.1", "::1"):
+        return
+    raise ValueError(f"custd: {field} must use https unless it targets localhost")
+
+
+def fetch_oauth_token(token_url: str, form: dict[str, Any], timeout: float) -> dict[str, Any]:
+    body = urllib.parse.urlencode({key: value for key, value in form.items() if value}).encode("utf-8")
+    request = urllib.request.Request(
+        token_url,
+        data=body,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as err:
+        raise RequestError(f"custd: token request failed with status {err.code}") from err
+    except urllib.error.URLError as err:
+        raise RetryableError(f"custd: token request failed: {err}") from err
+
+
+def normalize_retry(retry: dict[str, Any] | None) -> dict[str, Any]:
+    retry = retry or {}
+    return {
+        "max_attempts": int(retry.get("max_attempts", 3)),
+        "base_delay_ms": int(retry.get("base_delay_ms", 200)),
+        "max_delay_ms": int(retry.get("max_delay_ms", 2000)),
+        "jitter": float(retry.get("jitter", 0.2)),
+        "retry_statuses": tuple(retry.get("retry_statuses", DEFAULT_RETRY_STATUSES)),
+    }
+
+
+def backoff_delay(retry: dict[str, Any], attempt: int) -> int:
+    base = retry["base_delay_ms"]
+    capped = min(base * (2 ** (attempt - 1)), retry["max_delay_ms"])
+    jitter = capped * retry["jitter"] * (random.random() * 2 - 1)
+    return max(0, int(capped + jitter))
+
+
+def default_transport(
+    url: str,
+    event: EventEnvelope,
+    headers: dict[str, str],
+    timeout: float,
+) -> TransportResult:
+    body = json.dumps(event).encode("utf-8")
+    request = urllib.request.Request(url, data=body, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return {"status": response.status, "body": response.read().decode("utf-8")}
+    except urllib.error.HTTPError as err:
+        return {"status": err.code, "body": err.read().decode("utf-8")}
+    except urllib.error.URLError as err:
+        raise RetryableError(f"custd: request failed: {err}") from err
+
+
+def default_admin_transport(
+    method: str,
+    url: str,
+    payload: dict[str, Any] | None,
+    headers: dict[str, str],
+    timeout: float,
+) -> TransportResult:
+    data = None
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return {"status": response.status, "body": response.read().decode("utf-8")}
+    except urllib.error.HTTPError as err:
+        return {"status": err.code, "body": err.read().decode("utf-8")}
+    except urllib.error.URLError as err:
+        raise RetryableError(f"custd: admin request failed: {err}") from err
+
+
+def quote_path(value: str) -> str:
+    return urllib.parse.quote(value, safe="")

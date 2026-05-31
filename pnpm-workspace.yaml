@@ -1,0 +1,7 @@
+packages:
+  - "sdk-js"
+
+onlyBuiltDependencies:
+  - esbuild
+
+minimumReleaseAge: 4320

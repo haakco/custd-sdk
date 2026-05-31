@@ -1,0 +1,14 @@
+{
+  "name": "@haakco/custd-sdk-repo",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": "10.33.2"
+  },
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "build:sdk-js": "pnpm --filter @haakco/custd-sdk build",
+    "test:sdk-js": "pnpm --filter @haakco/custd-sdk test"
+  }
+}
