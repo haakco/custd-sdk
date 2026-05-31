@@ -117,19 +117,18 @@ describe("createBrowserTracker", () => {
     ]);
   });
 
-  it("uses sendBeacon on pagehide when available", async () => {
-    const beacon = vi.fn().mockReturnValue(true);
-    Object.defineProperty(navigator, "sendBeacon", { value: beacon, configurable: true });
+  it("uses keepalive fetch without credentials on pagehide", async () => {
+    const fetchMock = mockFetch();
     const tracker = createBrowserTracker({ ...baseConfig, batchSize: 10 });
 
     await tracker.track("queued", {});
     window.dispatchEvent(new Event("pagehide"));
+    await Promise.resolve();
 
-    expect(beacon).toHaveBeenCalledOnce();
-    expect(String(beacon.mock.calls[0][0])).toBe("http://localhost:8087/api/v1/collect/events/batch");
-    const body = JSON.parse(await (beacon.mock.calls[0][1] as Blob).text());
-    expect(body.writeKey).toBe("site_pk_test");
-    expect(body.events[0].eventTypeSlug).toBe("queued");
+    expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:8087/api/v1/collect/events/batch");
+    expect(fetchMock.mock.calls[0][1].keepalive).toBe(true);
+    expect(fetchMock.mock.calls[0][1].credentials).toBe("omit");
+    expect(batchFromFetch(fetchMock).events[0].eventTypeSlug).toBe("queued");
   });
 
   it("flushes queued events when the browser comes back online", async () => {
@@ -165,6 +164,28 @@ describe("createBrowserTracker", () => {
     await tracker.track("offline-event", {});
 
     expect(localStorage.getItem("custd:site-123:event_queue")).toBeNull();
+  });
+
+  it("omits credentials for collector and config fetches", async () => {
+    const fetchMock = mockFetch([
+      new Response(JSON.stringify({ identityMode: "cookieless", allowedOrigins: ["https://example.com"] }), {
+        status: 200,
+      }),
+      new Response(JSON.stringify({ success: true }), { status: 202 }),
+    ]);
+    Object.defineProperty(document, "currentScript", {
+      value: {
+        src: "http://localhost:8087/browser.js",
+        dataset: { siteUuid: "site-123", writeKey: "site_pk_test", batchSize: "1" },
+      },
+      configurable: true,
+    });
+
+    await installBrowserTrackerFromScript();
+    await window.custd.track("credential-check", {});
+
+    expect(fetchMock.mock.calls[0][1].credentials).toBe("omit");
+    expect(fetchMock.mock.calls[1][1].credentials).toBe("omit");
   });
 
   it("allows cookieless browser envelopes without company or identity IDs", () => {
@@ -357,6 +378,85 @@ describe("createBrowserTracker", () => {
 
     const queued = JSON.parse(localStorage.getItem("custd:site-123:event_queue") ?? "[]");
     expect(queued.map((event: { eventTypeSlug: string }) => event.eventTypeSlug)).toEqual(["second", "third"]);
+  });
+
+  it("clears extended identifiers and queued events when consent is denied", async () => {
+    Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
+    const tracker = createBrowserTracker({
+      ...baseConfig,
+      identityMode: "extended",
+      batchSize: 10,
+      persistentQueue: true,
+    });
+
+    await tracker.track("with-consent", {});
+    expect(localStorage.getItem("custd:site-123:anonymous_id")).not.toBeNull();
+    expect(sessionStorage.getItem("custd:site-123:session_id")).not.toBeNull();
+    expect(localStorage.getItem("custd:site-123:event_queue")).not.toBeNull();
+
+    tracker.setConsent("denied");
+
+    expect(localStorage.getItem("custd:site-123:anonymous_id")).toBeNull();
+    expect(sessionStorage.getItem("custd:site-123:session_id")).toBeNull();
+    expect(localStorage.getItem("custd:site-123:event_queue")).toBeNull();
+  });
+
+  it("clears a persisted queue when initial consent is denied", async () => {
+    localStorage.setItem(
+      "custd:site-123:event_queue",
+      JSON.stringify([
+        {
+          eventTypeSlug: "old-event",
+          schemaVersion: "1.0.0",
+          timestamp: new Date().toISOString(),
+          anonymousId: "old-anon",
+          sessionId: "old-session",
+          context: { device: { type: "desktop" } },
+          payload: { siteUuid: "site-123" },
+        },
+      ]),
+    );
+    const fetchMock = mockFetch();
+
+    const tracker = createBrowserTracker({
+      ...baseConfig,
+      identityMode: "extended",
+      consent: "required",
+      persistentQueue: true,
+    });
+    await tracker.flush();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(localStorage.getItem("custd:site-123:event_queue")).toBeNull();
+  });
+
+  it("clears a persisted queue when do-not-track is enabled", async () => {
+    localStorage.setItem(
+      "custd:site-123:event_queue",
+      JSON.stringify([
+        {
+          eventTypeSlug: "old-event",
+          schemaVersion: "1.0.0",
+          anonymousId: "old-anon",
+          sessionId: "old-session",
+          timestamp: new Date().toISOString(),
+          context: { device: { type: "desktop" } },
+          payload: { siteUuid: "site-123" },
+        },
+      ]),
+    );
+    Object.defineProperty(navigator, "doNotTrack", { value: "1", configurable: true });
+    const fetchMock = mockFetch();
+
+    const tracker = createBrowserTracker({
+      ...baseConfig,
+      identityMode: "extended",
+      persistentQueue: true,
+    });
+    await tracker.flush();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(localStorage.getItem("custd:site-123:event_queue")).toBeNull();
   });
 
   it("keeps the queue bounded when a flush fails while new events are queued", async () => {

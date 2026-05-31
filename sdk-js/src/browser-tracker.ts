@@ -61,7 +61,7 @@ class DefaultBrowserTracker implements BrowserTracker {
   private originalPushState: History["pushState"] | null = null;
   private originalReplaceState: History["replaceState"] | null = null;
   private readonly onlineHandler = () => void this.flush();
-  private readonly pagehideHandler = () => this.flushWithBeacon();
+  private readonly pagehideHandler = () => this.flushWithKeepalive();
 
   constructor(config: BrowserTrackerConfig) {
     this.config = config;
@@ -72,6 +72,9 @@ class DefaultBrowserTracker implements BrowserTracker {
     this.queue = this.queueStorage.load();
     this.trimQueue();
     this.consent = config.consent === "required" ? "denied" : "granted";
+    if (this.trackingDisabled()) {
+      this.clearStoredState();
+    }
     assertSecureOrLocalHTTP(this.baseUrl, "baseUrl");
     assertAllowedOrigin(config);
     window.addEventListener("online", this.onlineHandler);
@@ -110,9 +113,16 @@ class DefaultBrowserTracker implements BrowserTracker {
 
   setConsent(state: BrowserConsentState): void {
     this.consent = state;
+    if (state === "denied") {
+      this.clearStoredState();
+    }
   }
 
   async flush(): Promise<void> {
+    if (this.trackingDisabled()) {
+      this.clearStoredState();
+      return;
+    }
     if (this.queue.length === 0 || !isOnline()) {
       return;
     }
@@ -172,6 +182,18 @@ class DefaultBrowserTracker implements BrowserTracker {
     }
   }
 
+  private clearStoredState(): void {
+    this.queue = [];
+    this.queueStorage.clear();
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(anonymousIDStorageKey(this.config.siteUuid));
+      localStorage.removeItem(queueStorageKey(this.config.siteUuid));
+    }
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem(sessionIDStorageKey(this.config.siteUuid));
+    }
+  }
+
   private buildEvent(eventTypeSlug: string, payload: Record<string, unknown>): EventEnvelope {
     const identity = this.identityFields();
     const event = {
@@ -196,8 +218,8 @@ class DefaultBrowserTracker implements BrowserTracker {
       return { anonymousId: "", sessionId: "" };
     }
     return {
-      anonymousId: storedUUID(`custd:${this.config.siteUuid}:anonymous_id`, localStorage),
-      sessionId: storedUUID(`custd:${this.config.siteUuid}:session_id`, sessionStorage),
+      anonymousId: storedUUID(anonymousIDStorageKey(this.config.siteUuid), localStorage),
+      sessionId: storedUUID(sessionIDStorageKey(this.config.siteUuid), sessionStorage),
     };
   }
 
@@ -207,39 +229,57 @@ class DefaultBrowserTracker implements BrowserTracker {
         method: "POST",
         headers: collectorHeaders(this.config.writeKey),
         body: JSON.stringify(event),
+        credentials: "omit",
       });
       assertAccepted(response);
     });
   }
 
-  private async sendBatch(events: EventEnvelope[]): Promise<void> {
+  private async sendBatch(events: EventEnvelope[], keepalive = false): Promise<void> {
     await withRetry(this.retry, async () => {
       const response = await fetch(`${this.baseUrl}/api/v1/collect/events/batch`, {
         method: "POST",
         headers: collectorHeaders(this.config.writeKey),
         body: JSON.stringify({ events }),
+        credentials: "omit",
+        keepalive,
       });
       assertAccepted(response);
     });
   }
 
-  private flushWithBeacon(): void {
-    if (this.queue.length === 0 || typeof navigator.sendBeacon !== "function") {
+  private flushWithKeepalive(): void {
+    if (this.trackingDisabled()) {
+      this.clearStoredState();
+      return;
+    }
+    if (this.queue.length === 0) {
       return;
     }
     const events = this.queue.splice(0, this.queue.length);
-    const body = new Blob([JSON.stringify({ writeKey: this.config.writeKey, events })], {
-      type: "application/json",
-    });
-    const sent = navigator.sendBeacon(`${this.baseUrl}/api/v1/collect/events/batch`, body);
-    if (!sent) {
-      this.queue.unshift(...events);
-      this.trimQueue();
-      this.queueStorage.save(this.queue);
-      return;
-    }
-    this.queueStorage.save(this.queue);
+    void this.sendBatch(events, true).then(
+      () => {
+        this.queueStorage.save(this.queue);
+      },
+      () => {
+        this.queue.unshift(...events);
+        this.trimQueue();
+        this.queueStorage.save(this.queue);
+      },
+    );
   }
+}
+
+function anonymousIDStorageKey(siteUuid: string): string {
+  return `custd:${siteUuid}:anonymous_id`;
+}
+
+function sessionIDStorageKey(siteUuid: string): string {
+  return `custd:${siteUuid}:session_id`;
+}
+
+function queueStorageKey(siteUuid: string): string {
+  return `custd:${siteUuid}:event_queue`;
 }
 
 export async function installBrowserTrackerFromScript(): Promise<BrowserTracker> {
@@ -279,7 +319,9 @@ export async function installBrowserTrackerFromScript(): Promise<BrowserTracker>
 }
 
 async function fetchSiteConfig(baseUrl: string, siteUuid: string): Promise<BrowserSiteConfig> {
-  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/v1/sites/${encodeURIComponent(siteUuid)}/config`);
+  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/v1/sites/${encodeURIComponent(siteUuid)}/config`, {
+    credentials: "omit",
+  });
   if (!response.ok) {
     throw new Error(`custd: site config request failed with status ${response.status}`);
   }
