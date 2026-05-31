@@ -1,0 +1,30 @@
+{
+  "name": "haakco/custd-sdk",
+  "description": "Custd ingestion PHP SDK",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "HaakCo\\Custd\\": "sdk-php/src/"
+    },
+    "files": [
+      "sdk-php/src/CustdClient.php"
+    ]
+  },
+  "require": {
+    "php": ">=8.4.1",
+    "ext-curl": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.1"
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "HaakCo\\Custd\\Tests\\": "sdk-php/tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit --configuration phpunit.xml",
+    "smoke:dev": "php sdk-php/scripts/smoke-dev.php"
+  }
+}

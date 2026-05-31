@@ -25,5 +25,5 @@ test-python:
   cd sdk-python && python3 -m unittest discover -s tests
 
 test-php:
-  cd sdk-php && composer install
-  cd sdk-php && composer test
+  composer install
+  composer test
