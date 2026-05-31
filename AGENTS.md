@@ -9,7 +9,7 @@ Improve the shared SDKs instead of creating one-off clients in product repositor
 ## Repository Map
 
 | Path | Contents |
-|------|----------|
+| --- | --- |
 | `sdk-go/` | Go SDK module `github.com/haakco/custd-sdk/sdk-go`. |
 | `sdk-js/` | TypeScript SDK package `@haakco/custd-sdk`. |
 | `sdk-python/` | Python package `custd-sdk`. |

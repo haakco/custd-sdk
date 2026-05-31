@@ -1,0 +1,44 @@
+[tools]
+go = "1.26.3"
+node = "24.15.0"
+pnpm = "10.33.2"
+python = "3.12.9"
+php = "8.5.5"
+just = "latest"
+actionlint = "latest"
+markdownlint-cli2 = "latest"
+ripgrep = "latest"
+
+[env]
+GOPATH = "{{ env.HOME }}/.go"
+GOCACHE = "{{ env.HOME }}/.cache/go-build"
+GOMODCACHE = "{{ env.HOME }}/go/pkg/mod"
+_.path = ["{{ env.GOPATH }}/bin"]
+
+[tasks.test]
+description = "Run all SDK tests"
+run = "just test"
+
+[tasks.test-go]
+description = "Run Go SDK tests"
+run = "just test-go"
+
+[tasks.test-js]
+description = "Run TypeScript SDK tests and build"
+run = "just test-js"
+
+[tasks.test-python]
+description = "Run Python SDK tests"
+run = "just test-python"
+
+[tasks.test-php]
+description = "Run PHP SDK tests"
+run = "just test-php"
+
+[tasks.lint-workflows]
+description = "Lint GitHub Actions workflows"
+run = "actionlint"
+
+[tasks.lint-markdown]
+description = "Lint Markdown docs"
+run = "markdownlint-cli2 '**/*.md' '#node_modules' '#sdk-js/node_modules' '#sdk-php/vendor'"

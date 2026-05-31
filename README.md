@@ -18,17 +18,23 @@ Local path replacements are allowed only for uncommitted experiments while activ
 
 ## Validation
 
+Install the pinned local toolchain:
+
 ```bash
-just test
+mise install
+```
+
+```bash
+mise exec -- just check
 ```
 
 Run a single SDK:
 
 ```bash
-just test-go
-just test-js
-just test-python
-just test-php
+mise exec -- just test-go
+mise exec -- just test-js
+mise exec -- just test-python
+mise exec -- just test-php
 ```
 
 ## Go Usage

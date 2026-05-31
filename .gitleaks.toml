@@ -1,0 +1,10 @@
+[allowlist]
+description = "SDK repository false positives"
+regexes = [
+    '''h1:[A-Za-z0-9+/=]{44}'''
+]
+paths = [
+    '''sdk-go/go\.sum''',
+    '''sdk-php/composer\.lock''',
+    '''pnpm-lock\.yaml'''
+]
