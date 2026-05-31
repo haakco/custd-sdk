@@ -138,13 +138,18 @@ tracker.setConsent("granted");
 Extended mode starts with consent required for script-tag installs unless
 `data-consent="granted"` is present. It stores an anonymous ID in
 `localStorage`, a session ID in `sessionStorage`, and all modes honor browser Do
-Not Track. Page-exit flushes use `navigator.sendBeacon` when available; because
-beacons cannot set request headers, the public write key is included in the
-beacon JSON body. Normal flushes use `fetch` with bearer write-key auth. Queued
-events are kept in memory by default so page URLs and payloads are not persisted;
-pass `persistentQueue: true` to opt into `localStorage` queueing, and
-`maxQueueSize` to lower the default limit of 1000 queued events. Script-tag
-installs can opt into persistent queueing with `data-persistent-queue="true"`.
+Not Track. Page-exit flushes use `fetch` with `keepalive: true` so the tracker
+can keep `credentials: "omit"` on collector requests; normal flushes also use
+`fetch` with bearer write-key auth and omitted credentials. Queued events are
+kept in memory by default so page URLs and payloads are not persisted; pass
+`persistentQueue: true` to opt into `localStorage` queueing, and `maxQueueSize`
+to lower the default limit of 1000 queued events. Script-tag installs can opt
+into persistent queueing with `data-persistent-queue="true"`. Calling
+`setConsent("denied")` clears extended-mode identifiers and queued events.
+
+The browser-side origin check is a guardrail, not the security boundary.
+Collectors must enforce `allowedOrigins`, write-key validity, and rate limits
+server-side.
 
 ### Manual flush
 
