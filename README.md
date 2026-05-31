@@ -55,3 +55,39 @@ Go module:
 ```bash
 go get github.com/haakco/custd-sdk/sdk-go@latest
 ```
+
+## Producer Setup Helper
+
+Use the SDK-owned setup CLI to create a tenant-bound OAuth2 producer client and
+print the env vars each consumer needs. The CLI calls Custd admin APIs through
+the Go SDK; it does not maintain a separate HTTP client.
+
+```bash
+go run github.com/haakco/custd-sdk/sdk-go/cmd/custd-sdk-setup@latest \
+  --base-url=https://custd.k8.haak.co \
+  --admin-url=https://custd.k8.haak.co \
+  --admin-token="$CUSTD_ADMIN_TOKEN" \
+  --token-url=https://custd-auth.k8.haak.co/oauth2/token \
+  --tenant=vorrent \
+  --company-name="Vorrent" \
+  --client-id=vorrent-media-cache \
+  --scope=events.write \
+  --environment=production \
+  --env-prefix=VORRENT_MEDIA_CACHE
+```
+
+Output includes env blocks for:
+
+- Generic SDK consumers.
+- Go / TypeScript / Python / PHP SDK usage.
+- Laravel package config.
+- WordPress plugin config.
+
+Required admin input:
+
+- `--admin-token` or `CUSTD_ADMIN_TOKEN`: bearer token with permission to create
+  tenants and OAuth clients.
+- `--base-url`: Custd API base URL used by producers.
+- `--token-url`: OAuth2 token endpoint producers use for `client_credentials`.
+- `--tenant`: tenant/company slug.
+- `--client-id`: producer OAuth client ID.
