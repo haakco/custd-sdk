@@ -58,14 +58,23 @@ describe("createBrowserTracker", () => {
     expect(localStorage.getItem("custd:site-123:anonymous_id")).toBe(sent.anonymousId);
   });
 
-  it("honors do-not-track in extended mode", async () => {
+  it("honors explicit consent requirement in cookieless mode", async () => {
+    const fetchMock = mockFetch();
+    const tracker = createBrowserTracker({ ...baseConfig, consent: "required" });
+
+    await tracker.trackPageView();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    tracker.setConsent("granted");
+    await tracker.trackPageView();
+    expect(eventFromFetch(fetchMock).eventTypeSlug).toBe("page-view");
+  });
+
+  it("honors do-not-track in cookieless mode", async () => {
     const fetchMock = mockFetch();
     Object.defineProperty(navigator, "doNotTrack", { value: "1", configurable: true });
 
-    const tracker = createBrowserTracker({
-      ...baseConfig,
-      identityMode: "extended",
-    });
+    const tracker = createBrowserTracker(baseConfig);
     await tracker.trackPageView();
 
     expect(fetchMock).not.toHaveBeenCalled();
@@ -138,15 +147,24 @@ describe("createBrowserTracker", () => {
     expect(batchFromFetch(fetchMock).events[0].eventTypeSlug).toBe("offline-event");
   });
 
-  it("persists offline queue entries in localStorage", async () => {
+  it("persists offline queue entries in localStorage only when opted in", async () => {
     const fetchMock = mockFetch();
     Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
-    const tracker = createBrowserTracker({ ...baseConfig, batchSize: 10 });
+    const tracker = createBrowserTracker({ ...baseConfig, batchSize: 10, persistentQueue: true });
 
     await tracker.track("offline-event", {});
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(localStorage.getItem("custd:site-123:event_queue")).toContain("offline-event");
+  });
+
+  it("keeps cookieless queued events out of localStorage by default", async () => {
+    Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
+    const tracker = createBrowserTracker({ ...baseConfig, batchSize: 10 });
+
+    await tracker.track("offline-event", {});
+
+    expect(localStorage.getItem("custd:site-123:event_queue")).toBeNull();
   });
 
   it("allows cookieless browser envelopes without company or identity IDs", () => {
@@ -218,6 +236,52 @@ describe("createBrowserTracker", () => {
     expect(eventFromFetchCall(fetchMock, 1).eventTypeSlug).toBe("queued-before-config");
   });
 
+  it("requires consent before script-tag extended identity tracking", async () => {
+    const fetchMock = mockFetch([
+      new Response(JSON.stringify({ identityMode: "extended", allowedOrigins: ["https://example.com"] }), {
+        status: 200,
+      }),
+      new Response(JSON.stringify({ success: true }), { status: 202 }),
+    ]);
+    Object.defineProperty(document, "currentScript", {
+      value: {
+        src: "http://localhost:8087/browser.js",
+        dataset: { siteUuid: "site-123", writeKey: "site_pk_test", batchSize: "1" },
+      },
+      configurable: true,
+    });
+
+    await installBrowserTrackerFromScript();
+    await window.custd.track("extended-before-consent", {});
+    expect(fetchMock).toHaveBeenCalledOnce();
+
+    window.custd.setConsent("granted");
+    await window.custd.track("extended-after-consent", {});
+    expect(eventFromFetchCall(fetchMock, 1).eventTypeSlug).toBe("extended-after-consent");
+  });
+
+  it("does not let script attributes expand server allowed origins", async () => {
+    const fetchMock = mockFetch([
+      new Response(JSON.stringify({ identityMode: "cookieless", allowedOrigins: ["https://other.example"] }), {
+        status: 200,
+      }),
+    ]);
+    Object.defineProperty(document, "currentScript", {
+      value: {
+        src: "http://localhost:8087/browser.js",
+        dataset: {
+          siteUuid: "site-123",
+          writeKey: "site_pk_test",
+          allowedTrackingDomain: "example.com",
+        },
+      },
+      configurable: true,
+    });
+
+    await expect(installBrowserTrackerFromScript()).rejects.toThrow(/origin is not allowed/);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it("rejects queued global calls when script startup fails", async () => {
     const fetchMock = mockFetch([new Response(JSON.stringify({ error: "missing site" }), { status: 404 })]);
     Object.defineProperty(document, "currentScript", {
@@ -280,7 +344,12 @@ describe("createBrowserTracker", () => {
 
   it("bounds the offline queue size", async () => {
     Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
-    const tracker = createBrowserTracker({ ...baseConfig, batchSize: 10, maxQueueSize: 2 });
+    const tracker = createBrowserTracker({
+      ...baseConfig,
+      batchSize: 10,
+      persistentQueue: true,
+      maxQueueSize: 2,
+    });
 
     await tracker.track("first", {});
     await tracker.track("second", {});
@@ -288,6 +357,31 @@ describe("createBrowserTracker", () => {
 
     const queued = JSON.parse(localStorage.getItem("custd:site-123:event_queue") ?? "[]");
     expect(queued.map((event: { eventTypeSlug: string }) => event.eventTypeSlug)).toEqual(["second", "third"]);
+  });
+
+  it("keeps the queue bounded when a flush fails while new events are queued", async () => {
+    Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const tracker = createBrowserTracker({
+      ...baseConfig,
+      batchSize: 10,
+      persistentQueue: true,
+      maxQueueSize: 2,
+      retry: { maxAttempts: 1 },
+    });
+    await tracker.track("first", {});
+    await tracker.track("second", {});
+
+    Object.defineProperty(navigator, "onLine", { value: true, configurable: true });
+    fetchMock.mockRejectedValueOnce(new Error("network down"));
+    const flush = tracker.flush();
+    await tracker.track("third", {});
+    await tracker.track("fourth", {});
+    await expect(flush).rejects.toThrow(/network down/);
+
+    const queued = JSON.parse(localStorage.getItem("custd:site-123:event_queue") ?? "[]");
+    expect(queued).toHaveLength(2);
   });
 
   it("can reinstall SPA tracking after close", async () => {
@@ -301,6 +395,46 @@ describe("createBrowserTracker", () => {
     await Promise.resolve();
 
     expect(eventFromFetch(fetchMock).context.page?.path).toBe("/after-reinstall");
+  });
+
+  it("removes online and pagehide listeners on close", async () => {
+    const fetchMock = mockFetch();
+    const beacon = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, "sendBeacon", { value: beacon, configurable: true });
+    Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
+    const tracker = createBrowserTracker({ ...baseConfig, batchSize: 10 });
+    await tracker.track("queued", {});
+
+    tracker.close();
+    Object.defineProperty(navigator, "onLine", { value: true, configurable: true });
+    window.dispatchEvent(new Event("online"));
+    window.dispatchEvent(new Event("pagehide"));
+    await Promise.resolve();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(beacon).not.toHaveBeenCalled();
+  });
+
+  it("replaces the queued script global with a rejecting API after bootstrap failure", async () => {
+    mockFetch([new Response(JSON.stringify({ error: "missing" }), { status: 500 })]);
+    Object.defineProperty(document, "currentScript", {
+      value: {
+        src: "http://localhost:8087/browser.js",
+        dataset: { siteUuid: "site-123", writeKey: "site_pk_test", batchSize: "1" },
+      },
+      configurable: true,
+    });
+
+    await expect(installBrowserTrackerFromScript()).rejects.toThrow(/site config request failed/);
+    const result = await Promise.race([
+      window.custd.track("after-failure", {}).then(
+        () => "resolved",
+        () => "rejected",
+      ),
+      new Promise((resolve) => setTimeout(() => resolve("pending"), 0)),
+    ]);
+
+    expect(result).toBe("rejected");
   });
 });
 

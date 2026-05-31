@@ -9,7 +9,7 @@ import {
   type EventEnvelope,
   type QueueStorage,
   type RetryOptions,
-} from "./index";
+} from "./index.js";
 
 export type BrowserIdentityMode = "cookieless" | "extended";
 export type BrowserConsentState = "granted" | "denied";
@@ -19,11 +19,11 @@ export type BrowserTrackerConfig = {
   siteUuid: string;
   writeKey: string;
   allowedOrigins?: string[];
-  allowedTrackingDomain?: string;
   identityMode?: BrowserIdentityMode;
   consent?: "granted" | "required";
   batchSize?: number;
   maxQueueSize?: number;
+  persistentQueue?: boolean;
   queueStorage?: QueueStorage;
   retry?: RetryOptions;
 };
@@ -66,7 +66,7 @@ class DefaultBrowserTracker implements BrowserTracker {
   constructor(config: BrowserTrackerConfig) {
     this.config = config;
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
-    this.queueStorage = config.queueStorage ?? browserQueueStorage(config.siteUuid);
+    this.queueStorage = config.queueStorage ?? browserQueueStorage(config.siteUuid, config.persistentQueue === true);
     this.retry = normalizeRetryOptions(config.retry);
     this.maxQueueSize = config.maxQueueSize ?? 1000;
     this.queue = this.queueStorage.load();
@@ -121,6 +121,7 @@ class DefaultBrowserTracker implements BrowserTracker {
       await this.sendBatch(events);
     } catch (error) {
       this.queue.unshift(...events);
+      this.trimQueue();
       this.queueStorage.save(this.queue);
       throw error;
     }
@@ -150,10 +151,13 @@ class DefaultBrowserTracker implements BrowserTracker {
   }
 
   private trackingDisabled(): boolean {
-    if (this.config.identityMode === "extended" && doNotTrackEnabled()) {
+    if (this.consent !== "granted") {
       return true;
     }
-    return this.config.identityMode === "extended" && this.consent !== "granted";
+    if (doNotTrackEnabled()) {
+      return true;
+    }
+    return false;
   }
 
   private enqueue(event: EventEnvelope): void {
@@ -254,10 +258,11 @@ export async function installBrowserTrackerFromScript(): Promise<BrowserTracker>
       baseUrl,
       siteUuid,
       writeKey,
-      identityMode: scriptIdentityMode(script) ?? siteConfig.identityMode,
+      identityMode: siteConfig.identityMode,
       allowedOrigins: siteConfig.allowedOrigins,
-      allowedTrackingDomain: script.dataset.allowedTrackingDomain,
-      batchSize: Number(script.dataset.batchSize || 25),
+      batchSize: Number(script.dataset.batchSize || defaultScriptBatchSize(siteConfig)),
+      consent: scriptConsent(script, siteConfig),
+      persistentQueue: script.dataset.persistentQueue === "true",
     });
     window.custd = {
       track: (eventTypeSlug: string, payload?: Record<string, unknown>) => tracker.track(eventTypeSlug, payload),
@@ -268,6 +273,7 @@ export async function installBrowserTrackerFromScript(): Promise<BrowserTracker>
     return tracker;
   } catch (error) {
     rejectQueuedGlobal(queuedGlobal, error);
+    installRejectingGlobal(error);
     throw error;
   }
 }
@@ -312,11 +318,10 @@ function assertAccepted(response: Response): void {
 
 function assertAllowedOrigin(config: BrowserTrackerConfig): void {
   const allowedOrigins = config.allowedOrigins ?? [];
-  const allowedTrackingDomain = config.allowedTrackingDomain ? `https://${config.allowedTrackingDomain}` : "";
-  if (allowedOrigins.length === 0 && allowedTrackingDomain === "") {
+  if (allowedOrigins.length === 0) {
     throw new Error("custd: site config must include allowed origins for this site");
   }
-  if (![...allowedOrigins, allowedTrackingDomain].includes(window.location.origin)) {
+  if (!allowedOrigins.includes(window.location.origin)) {
     throw new Error("custd: origin is not allowed for this site");
   }
 }
@@ -333,23 +338,23 @@ type QueuedGlobal = {
 
 function installQueuedGlobal(): QueuedGlobal {
   const queued: QueuedGlobal = { calls: [], promises: [] };
-    window.custd = {
-      track: (eventTypeSlug: string, payload?: Record<string, unknown>) =>
-        enqueueGlobalCall(queued, { type: "track", eventTypeSlug, payload }),
-      trackPageView: () => enqueueGlobalCall(queued, { type: "trackPageView" }),
-      setConsent: (state: BrowserConsentState) => {
-        enqueueGlobalStateCall(queued, { type: "setConsent", state });
-      },
-    };
-    return queued;
-  }
+  window.custd = {
+    track: (eventTypeSlug: string, payload?: Record<string, unknown>) =>
+      enqueueGlobalCall(queued, { type: "track", eventTypeSlug, payload }),
+    trackPageView: () => enqueueGlobalCall(queued, { type: "trackPageView" }),
+    setConsent: (state: BrowserConsentState) => {
+      enqueueGlobalStateCall(queued, { type: "setConsent", state });
+    },
+  };
+  return queued;
+}
 
 function enqueueGlobalCall(queued: QueuedGlobal, call: QueuedGlobalCall): Promise<void> {
   if (queued.calls.length >= maxQueuedGlobalCalls) {
     return Promise.reject(new Error("custd: queued global call limit exceeded"));
   }
-  queued.calls.push(call);
   return new Promise((resolve, reject) => {
+    queued.calls.push(call);
     queued.promises.push({ resolve, reject });
   });
 }
@@ -385,6 +390,16 @@ function rejectQueuedGlobal(queued: QueuedGlobal, error: unknown): void {
   }
 }
 
+function installRejectingGlobal(error: unknown): void {
+  window.custd = {
+    track: () => Promise.reject(error),
+    trackPageView: () => Promise.reject(error),
+    setConsent: () => {
+      throw error;
+    },
+  };
+}
+
 function storedUUID(key: string, storage: Storage): string {
   const existing = storage.getItem(key);
   if (existing) {
@@ -395,8 +410,8 @@ function storedUUID(key: string, storage: Storage): string {
   return value;
 }
 
-function browserQueueStorage(siteUuid: string): QueueStorage {
-  if (typeof localStorage === "undefined") {
+function browserQueueStorage(siteUuid: string, persistent: boolean): QueueStorage {
+  if (!persistent || typeof localStorage === "undefined") {
     return new MemoryQueueStorage();
   }
   return new LocalStorageQueueStorage(`custd:${siteUuid}:event_queue`);
@@ -410,11 +425,15 @@ function currentScript(): HTMLScriptElement {
   return script as HTMLScriptElement;
 }
 
-function scriptIdentityMode(script: HTMLScriptElement): BrowserIdentityMode | undefined {
-  if (script.dataset.identityMode === "cookieless" || script.dataset.identityMode === "extended") {
-    return script.dataset.identityMode;
+function scriptConsent(script: HTMLScriptElement, siteConfig: BrowserSiteConfig): BrowserTrackerConfig["consent"] {
+  if (script.dataset.consent === "granted") {
+    return "granted";
   }
-  return undefined;
+  return siteConfig.identityMode === "extended" ? "required" : undefined;
+}
+
+function defaultScriptBatchSize(siteConfig: BrowserSiteConfig): number {
+  return siteConfig.identityMode === "extended" ? 25 : 1;
 }
 
 function doNotTrackEnabled(): boolean {

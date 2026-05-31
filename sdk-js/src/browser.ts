@@ -1,1 +1,1 @@
-export * from "./browser-tracker";
+export * from "./browser-tracker.js";
