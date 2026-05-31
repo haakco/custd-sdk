@@ -41,6 +41,7 @@ $client->track([
     "timestamp" => gmdate(DATE_RFC3339),
     "sessionId" => "...",
     "anonymousId" => "...",
+    "companySlug" => "acme",
     "context" => [
         "page" => ["url" => "https://example.com"],
         "device" => ["type" => "desktop"],
@@ -54,16 +55,48 @@ $client->track([
 $client->flush();
 ```
 
+OAuth2 producer client:
+
+```php
+$client = new CustdClient("http://localhost:8087", null, [
+    "oauth" => [
+        "client_id" => "producer-client",
+        "client_secret" => getenv("CUSTD_CLIENT_SECRET"),
+        "token_url" => "http://localhost:4444/oauth2/token",
+        "audience" => "custd",
+        "scopes" => ["events.write"],
+    ],
+]);
+```
+
+Dogfood producers can use `CustdClient::createDogfoodEvent`:
+
+```php
+$event = CustdClient::createDogfoodEvent([
+    "eventTypeSlug" => "dogfood.producer.metric",
+    "schemaVersion" => "1.0.0",
+    "companySlug" => "haakco",
+    "sourceSystem" => "vorrent",
+    "sourceCompany" => "haakco",
+    "environment" => "production",
+    "correlationId" => "run-123",
+    "payload" => ["metric" => "media_cache.queue_depth", "value" => 7],
+]);
+```
+
+The SDK requires `companySlug` and rejects plaintext non-local Custd/token URLs.
+Localhost HTTP is allowed for development.
+
 ## Dev smoke test (Hydra)
 
 Requires dev stack running with Hydra using JWT access tokens and ingest-api configured with `AUTH_JWKS_URL`.
 
 ```bash
 export AUTH_JWKS_URL="http://localhost:4444/.well-known/jwks.json"
-cd packages/sdk-php
+cd sdk-php
 composer run smoke:dev
 ```
 
 The smoke test uses `scripts/dev-hydra-token.sh` and `scripts/dev-seed-core.sh` to create a dev OAuth client and seed core tables (company, device type, event type, schema).
 
-To run all SDK live smoke tests, use `just test-sdk-e2e`.
+To run all SDK checks, use `mise exec -- just check` from the repository root.
