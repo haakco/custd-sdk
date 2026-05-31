@@ -11,7 +11,7 @@ lint-workflows:
   actionlint
 
 lint-markdown:
-  markdownlint-cli2 '**/*.md' '#node_modules' '#vendor' '#sdk-js/node_modules' '#sdk-php/vendor'
+  pnpm exec markdownlint-cli2 '**/*.md' '#node_modules' '#vendor' '#sdk-js/node_modules' '#sdk-php/vendor'
 
 test-go:
   cd sdk-go && go test ./...
