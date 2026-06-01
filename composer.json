@@ -5,6 +5,7 @@
   "license": "MIT",
   "autoload": {
     "psr-4": {
+      "HaakCo\\LaravelCustd\\": "laravel-package/src/",
       "HaakCo\\Custd\\": "sdk-php/src/"
     },
     "files": [
@@ -16,11 +17,26 @@
     "ext-curl": "*"
   },
   "require-dev": {
+    "orchestra/testbench": "^9.0 || ^10.0 || ^11.0",
     "phpunit/phpunit": "^13.1"
+  },
+  "suggest": {
+    "laravel/framework": "Required when using the Laravel service provider, facade, config publishing, or queue job."
   },
   "autoload-dev": {
     "psr-4": {
+      "HaakCo\\LaravelCustd\\Tests\\": "laravel-package/tests/",
       "HaakCo\\Custd\\Tests\\": "sdk-php/tests/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "aliases": {
+        "Custd": "HaakCo\\LaravelCustd\\Facades\\Custd"
+      },
+      "providers": [
+        "HaakCo\\LaravelCustd\\CustdServiceProvider"
+      ]
     }
   },
   "scripts": {

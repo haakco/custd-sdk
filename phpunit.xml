@@ -3,6 +3,7 @@
     <testsuites>
         <testsuite name="Custd PHP SDK">
             <directory>sdk-php/tests</directory>
+            <directory>laravel-package/tests</directory>
         </testsuite>
     </testsuites>
 </phpunit>

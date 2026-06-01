@@ -8,6 +8,7 @@ Public SDKs for sending events to Custd.
 - `sdk-js` — TypeScript ingestion SDK and browser tracker.
 - `sdk-python` — Python ingestion SDK.
 - `sdk-php` — PHP ingestion SDK.
+- `laravel-package` — Laravel provider, facade, config, and queue job wrapping the PHP SDK.
 - `contract-fixtures` — shared event fixtures used by every SDK test suite.
 
 ## Rule
@@ -91,3 +92,70 @@ Required admin input:
 - `--token-url`: OAuth2 token endpoint producers use for `client_credentials`.
 - `--tenant`: tenant/company slug.
 - `--client-id`: producer OAuth client ID.
+
+## Laravel Usage
+
+Install the SDK package from GitHub until the package is available through the
+normal Composer registry:
+
+```json
+{
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/haakco/custd-sdk"
+    }
+  ],
+  "require": {
+    "haakco/custd-sdk": "^1.1"
+  }
+}
+```
+
+Publish the Laravel config:
+
+```bash
+php artisan vendor:publish --tag=custd-config
+```
+
+Create producer credentials with the SDK-owned setup helper:
+
+```bash
+go run github.com/haakco/custd-sdk/sdk-go/cmd/custd-sdk-setup@latest \
+  --base-url=https://custd.k8.haak.co \
+  --admin-url=https://custd.k8.haak.co \
+  --admin-token="$CUSTD_ADMIN_TOKEN" \
+  --token-url=https://custd-auth.k8.haak.co/oauth2/token \
+  --tenant=my-app \
+  --company-name="My App" \
+  --client-id=my-app-producer \
+  --scope=events.write \
+  --environment=production \
+  --env-prefix=MY_APP
+```
+
+Configure Laravel with the generated env block:
+
+```dotenv
+CUSTD_BASE_URL=https://custd.k8.haak.co
+CUSTD_CLIENT_ID=my-app-producer
+CUSTD_CLIENT_SECRET=...
+CUSTD_TOKEN_URL=https://custd-auth.k8.haak.co/oauth2/token
+CUSTD_AUDIENCE=custd
+CUSTD_SCOPES=events.write
+CUSTD_BATCH_MAX_SIZE=100
+CUSTD_QUEUE_ENABLED=false
+CUSTD_QUEUE_MAX_SIZE=1000
+```
+
+Use the facade for immediate sends or dispatch the queue-safe job when the event
+should run through Laravel queues. The job resolves `CustdClient` in `handle()`,
+so queued payloads contain event data only, not OAuth secrets or SDK clients.
+
+```php
+use HaakCo\LaravelCustd\Facades\Custd;
+use HaakCo\LaravelCustd\Jobs\SendCustdEvent;
+
+Custd::track($event);
+dispatch(new SendCustdEvent($event));
+```
