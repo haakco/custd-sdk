@@ -6,7 +6,7 @@ namespace HaakCo\Custd\Awthy;
 
 final class AwthyAuditEvent
 {
-    private const EVENT_TYPE_SLUG = "awthy.audit_event";
+    private const EVENT_TYPE_SLUG = "awthy-audit-event";
     private const SCHEMA_VERSION = "1.0.0";
     private const SECRET_KEYS = [
         "email",

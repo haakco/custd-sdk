@@ -16,7 +16,7 @@ final class AwthyAuditContractTest extends TestCase
     {
         $event = AwthyAuditEvent::fromArray("tenant-acme", "store-123", $this->basePayload())->toArray();
 
-        $this->assertSame("awthy.audit_event", $event["eventTypeSlug"]);
+        $this->assertSame("awthy-audit-event", $event["eventTypeSlug"]);
         $this->assertSame("1.0.0", $event["schemaVersion"]);
         $this->assertSame("tenant-acme", $event["companySlug"]);
         $this->assertSame("server", $event["context"]["device"]["type"]);
