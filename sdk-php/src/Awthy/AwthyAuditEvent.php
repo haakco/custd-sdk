@@ -9,16 +9,24 @@ final class AwthyAuditEvent
     private const EVENT_TYPE_SLUG = "awthy-audit-event";
     private const SCHEMA_VERSION = "1.0.0";
     private const SECRET_KEYS = [
+        "apikey",
+        "authorization",
+        "clientsecret",
         "email",
-        "raw_ip",
-        "user_agent",
+        "oauthcode",
+        "oauthtoken",
+        "passkeycredentialid",
+        "password",
+        "paymentcard",
+        "paymenttoken",
+        "providercredential",
+        "rawapiresponse",
+        "rawip",
+        "recoverycode",
+        "signedurl",
         "token",
-        "recovery_code",
-        "totp_secret",
-        "passkey_credential_id",
-        "oauth_token",
-        "payment_card",
-        "payment_token",
+        "totpsecret",
+        "useragent",
     ];
     private const REQUIRED_PAYLOAD_FIELDS = [
         "storeHostnameHash",
@@ -109,7 +117,7 @@ final class AwthyAuditEvent
     private static function assertNoSecretKeys(array $payload): void
     {
         foreach ($payload as $key => $value) {
-            $normalizedKey = strtolower((string) $key);
+            $normalizedKey = self::normalizedPayloadKey((string) $key);
             if (in_array($normalizedKey, self::SECRET_KEYS, true)) {
                 throw new \InvalidArgumentException("custd: Awthy audit payload contains forbidden key: {$key}");
             }
@@ -118,6 +126,11 @@ final class AwthyAuditEvent
                 self::assertNoSecretKeys($value);
             }
         }
+    }
+
+    private static function normalizedPayloadKey(string $key): string
+    {
+        return strtolower((string) preg_replace('/[^a-zA-Z0-9]+/', "", $key));
     }
 
     private static function assertNonEmpty(string $value, string $field): void

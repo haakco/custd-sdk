@@ -52,6 +52,29 @@ final class AwthyAuditContractTest extends TestCase
         }
     }
 
+    public function testAwthyAuditEventRejectsNormalizedSecretBearingPayloadKeys(): void
+    {
+        foreach ([
+            "oauthToken",
+            "totpSecret",
+            "client_secret",
+            "authorization",
+            "api_key",
+            "password",
+            "rawIp",
+        ] as $secretKey) {
+            $payload = $this->basePayload();
+            $payload["sanitizedContext"] = [$secretKey => "secret"];
+
+            try {
+                AwthyAuditEvent::fromArray("tenant-acme", "store-123", $payload);
+                $this->fail("expected secret-bearing key {$secretKey} to be rejected");
+            } catch (\InvalidArgumentException $err) {
+                $this->assertStringContainsString($secretKey, $err->getMessage());
+            }
+        }
+    }
+
     public function testAwthyAuditEventDoesNotCopyTenantOrStoreFromEventControlledData(): void
     {
         $payload = $this->basePayload();

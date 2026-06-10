@@ -9,6 +9,7 @@ Public SDKs for sending events to Custd.
 - `sdk-python` — Python ingestion SDK.
 - `sdk-php` — PHP ingestion SDK.
 - `laravel-package` — Laravel provider, facade, config, and queue job wrapping the PHP SDK.
+- `wordpress-plugin` — WordPress plugin package wrapping the PHP SDK for product/activity hooks.
 - `contract-fixtures` — shared event fixtures used by every SDK test suite.
 
 ## Rule
@@ -107,6 +108,52 @@ Each SDK exposes admin Site helpers for browser tracker setup:
 site metadata without the write key. `rotate write key` returns the replacement
 write key once; after rotation, update browser tracker config and stop using the
 old key.
+
+## WordPress Plugin Usage
+
+Install the root SDK package through Composer VCS; the plugin lives under
+`vendor/haakco/custd-sdk/wordpress-plugin/`:
+
+```json
+{
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/haakco/custd-sdk"
+    }
+  ],
+  "require": {
+    "haakco/custd-sdk": "^1.1"
+  }
+}
+```
+
+For Composer installs, symlink `vendor/haakco/custd-sdk/wordpress-plugin/` into
+`wp-content/plugins/custd/` before activating the plugin so it can still reach
+the root `vendor/autoload.php`. Raw GitHub source ZIPs are not standalone plugin
+artifacts; ZIP installs need a built release artifact with Composer dependencies
+included.
+
+Create producer credentials with the SDK-owned setup helper and use the
+generated `CUSTD_WP_*` block:
+
+```bash
+go run github.com/haakco/custd-sdk/sdk-go/cmd/custd-sdk-setup@latest \
+  --base-url=https://custd.k8.haak.co \
+  --admin-url=https://custd.k8.haak.co \
+  --admin-token="$CUSTD_ADMIN_TOKEN" \
+  --token-url=https://custd-auth.k8.haak.co/oauth2/token \
+  --tenant=my-wordpress-site \
+  --company-name="My WordPress Site" \
+  --client-id=my-wordpress-site \
+  --scope=events.write \
+  --environment=production
+```
+
+The plugin records redacted WordPress login, registration, post-status, and
+heartbeat events through the shared PHP SDK. Authy/WPAuth managed audit export
+uses the SDK Awthy DTOs and Authy's export subsystem instead of this generic
+plugin path.
 
 ## Laravel Usage
 

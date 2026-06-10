@@ -6,6 +6,7 @@
   "autoload": {
     "psr-4": {
       "HaakCo\\LaravelCustd\\": "laravel-package/src/",
+      "HaakCo\\Custd\\WordPress\\": "wordpress-plugin/src/",
       "HaakCo\\Custd\\": "sdk-php/src/"
     },
     "files": [
@@ -31,6 +32,7 @@
   "autoload-dev": {
     "psr-4": {
       "HaakCo\\LaravelCustd\\Tests\\": "laravel-package/tests/",
+      "HaakCo\\Custd\\WordPress\\Tests\\": "wordpress-plugin/tests/",
       "HaakCo\\Custd\\Tests\\": "sdk-php/tests/"
     }
   },

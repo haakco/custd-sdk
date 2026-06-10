@@ -4,6 +4,7 @@
         <testsuite name="Custd PHP SDK">
             <directory>sdk-php/tests</directory>
             <directory>laravel-package/tests</directory>
+            <directory>wordpress-plugin/tests</directory>
         </testsuite>
     </testsuites>
 </phpunit>

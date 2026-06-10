@@ -141,6 +141,39 @@ $client->redactAwthyAuditEvents(AwthyAuditRedactionRequest::fromArray("store-123
 The SDK requires `companySlug` and rejects plaintext non-local Custd/token URLs.
 Localhost HTTP is allowed for development.
 
+## WordPress Plugin
+
+WordPress sites can use the first-party plugin under `wordpress-plugin/`. It
+wraps this PHP SDK, registers redacted login/registration/post-status/heartbeat
+events, and consumes the `CUSTD_WP_*` env block printed by the SDK setup helper.
+
+Install the root SDK package through Composer VCS. The WordPress plugin is
+included under `vendor/haakco/custd-sdk/wordpress-plugin/`:
+
+```json
+{
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/haakco/custd-sdk"
+    }
+  ],
+  "require": {
+    "haakco/custd-sdk": "^1.1"
+  }
+}
+```
+
+For Composer installs, symlink `vendor/haakco/custd-sdk/wordpress-plugin/` into
+`wp-content/plugins/custd/` before activating the plugin so it can still reach
+the root `vendor/autoload.php`. Raw GitHub source ZIPs are not standalone plugin
+artifacts; ZIP installs need a built release artifact with Composer dependencies
+included.
+
+Authy/WPAuth managed audit reporting uses the dedicated Awthy DTOs above and
+Authy's export subsystem. The generic WordPress plugin does not implement
+Authy paid gates, audit export destinations, or privacy-erasure propagation.
+
 ## Browser Site Admin Helpers
 
 Server-side admin code can use `$client->adminSites()` to create, list, get,
