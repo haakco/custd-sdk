@@ -27,8 +27,12 @@ final class SiteClient
      */
     public function list(): array
     {
-        return Http::request($this->baseUrl, $this->token, $this->transport, "GET", "/sites")
+        $response = Http::request($this->baseUrl, $this->token, $this->transport, "GET", "/sites")
             ?? ["sites" => []];
+        if (isset($response["sites"]) && is_array($response["sites"])) {
+            $response["sites"] = array_map(self::publicSite(...), $response["sites"]);
+        }
+        return $response;
     }
 
     /**
@@ -36,8 +40,10 @@ final class SiteClient
      */
     public function get(string $siteUuid): array
     {
-        return Http::request($this->baseUrl, $this->token, $this->transport, "GET", "/sites/" . rawurlencode($siteUuid))
-            ?? [];
+        return self::publicSite(
+            Http::request($this->baseUrl, $this->token, $this->transport, "GET", "/sites/" . rawurlencode($siteUuid))
+                ?? []
+        );
     }
 
     public function delete(string $siteUuid): void
@@ -57,5 +63,15 @@ final class SiteClient
             "POST",
             "/sites/" . rawurlencode($siteUuid) . "/rotate-write-key"
         ) ?? [];
+    }
+
+    /**
+     * @param array<string, mixed> $site
+     * @return array<string, mixed>
+     */
+    private static function publicSite(array $site): array
+    {
+        unset($site["writeKey"]);
+        return $site;
     }
 }

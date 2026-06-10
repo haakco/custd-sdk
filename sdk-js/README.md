@@ -151,6 +151,14 @@ The browser-side origin check is a guardrail, not the security boundary.
 Collectors must enforce `allowedOrigins`, write-key validity, and rate limits
 server-side.
 
+## Browser Site Admin Helpers
+
+Server-side admin code can use `client.admin.sites` to create, list, get,
+delete, and rotate browser tracker Sites. `create` returns the public write key
+once. `list` and `get` return Site metadata without the write key.
+`rotateWriteKey` returns the replacement write key once; update tracker config
+and stop using the old key after rotation.
+
 ### Manual flush
 
 ```ts

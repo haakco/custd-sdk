@@ -159,6 +159,11 @@ export type AdminSiteWriteKeyResponse = {
   writeKey: string;
 };
 
+function publicAdminSite(site: AdminSite & { writeKey?: unknown }): AdminSite {
+  const { writeKey: _writeKey, ...safeSite } = site;
+  return safeSite;
+}
+
 export class MemoryQueueStorage implements QueueStorage {
   private events: EventEnvelope[] = [];
 
@@ -525,12 +530,17 @@ class AdminSiteNamespace {
     return this.request("POST", "/sites", site);
   }
 
-  list(): Promise<AdminSiteListResponse> {
-    return this.request("GET", "/sites");
+  async list(): Promise<AdminSiteListResponse> {
+    const response = await this.request<AdminSiteListResponse & { sites: Array<AdminSite & { writeKey?: unknown }> }>(
+      "GET",
+      "/sites",
+    );
+    return { sites: response.sites.map(publicAdminSite) };
   }
 
-  get(siteUuid: string): Promise<AdminSite> {
-    return this.request("GET", `/sites/${encodeURIComponent(siteUuid)}`);
+  async get(siteUuid: string): Promise<AdminSite> {
+    const site = await this.request<AdminSite & { writeKey?: unknown }>("GET", `/sites/${encodeURIComponent(siteUuid)}`);
+    return publicAdminSite(site);
   }
 
   delete(siteUuid: string): Promise<void> {

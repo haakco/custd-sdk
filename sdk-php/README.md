@@ -141,6 +141,14 @@ $client->redactAwthyAuditEvents(AwthyAuditRedactionRequest::fromArray("store-123
 The SDK requires `companySlug` and rejects plaintext non-local Custd/token URLs.
 Localhost HTTP is allowed for development.
 
+## Browser Site Admin Helpers
+
+Server-side admin code can use `$client->adminSites()` to create, list, get,
+delete, and rotate browser tracker Sites. `create()` returns the public write
+key once. `list()` and `get()` return Site metadata without the write key.
+`rotateWriteKey()` returns the replacement write key once; update tracker config
+and stop using the old key after rotation.
+
 ## Dev smoke test (Hydra)
 
 Requires dev stack running with Hydra using JWT access tokens and ingest-api configured with `AUTH_JWKS_URL`.

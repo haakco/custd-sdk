@@ -93,6 +93,21 @@ Required admin input:
 - `--tenant`: tenant/company slug.
 - `--client-id`: producer OAuth client ID.
 
+## Browser Site Admin Helpers
+
+Each SDK exposes admin Site helpers for browser tracker setup:
+
+- create: `POST /api/v1/admin/sites`
+- list: `GET /api/v1/admin/sites`
+- get: `GET /api/v1/admin/sites/{siteUuid}`
+- delete: `DELETE /api/v1/admin/sites/{siteUuid}`
+- rotate write key: `POST /api/v1/admin/sites/{siteUuid}/rotate-write-key`
+
+`create` returns the public browser write key once. `list` and `get` return
+site metadata without the write key. `rotate write key` returns the replacement
+write key once; after rotation, update browser tracker config and stop using the
+old key.
+
 ## Laravel Usage
 
 Install the SDK package from GitHub until the package is available through the

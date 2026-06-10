@@ -290,16 +290,27 @@ class SiteAdminClient:
         return self._admin.request("POST", "/sites", site)
 
     def list(self) -> TransportResult:
-        return self._admin.request("GET", "/sites")
+        response = self._admin.request("GET", "/sites")
+        sites = response.get("sites")
+        if isinstance(sites, list):
+            response = dict(response)
+            response["sites"] = [public_admin_site(site) for site in sites]
+        return response
 
     def get(self, site_uuid: str) -> TransportResult:
-        return self._admin.request("GET", f"/sites/{quote_path(site_uuid)}")
+        return public_admin_site(self._admin.request("GET", f"/sites/{quote_path(site_uuid)}"))
 
     def delete(self, site_uuid: str) -> None:
         self._admin.request("DELETE", f"/sites/{quote_path(site_uuid)}")
 
     def rotate_write_key(self, site_uuid: str) -> TransportResult:
         return self._admin.request("POST", f"/sites/{quote_path(site_uuid)}/rotate-write-key")
+
+
+def public_admin_site(site: TransportResult) -> TransportResult:
+    safe_site = dict(site)
+    safe_site.pop("writeKey", None)
+    return safe_site
 
 
 def validate_event(event: EventEnvelope) -> None:

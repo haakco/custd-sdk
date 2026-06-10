@@ -63,6 +63,14 @@ event = create_dogfood_event({
 The SDK requires `companySlug` and rejects plaintext non-local Custd/token URLs.
 Localhost HTTP is allowed for development.
 
+## Browser Site Admin Helpers
+
+Server-side admin code can use `client.admin.sites` to create, list, get,
+delete, and rotate browser tracker Sites. `create` returns the public write key
+once. `list` and `get` return Site metadata without the write key.
+`rotate_write_key` returns the replacement write key once; update tracker config
+and stop using the old key after rotation.
+
 ## Dev smoke test
 
 Requires the dev stack running with Hydra using JWT access tokens and ingest-api

@@ -109,6 +109,37 @@ class AdminClientTest(unittest.TestCase):
         self.assertEqual("site_pk_next", rotated["writeKey"])
         self.assertEqual("http://localhost:8080/api/v1/admin/sites", transport.calls[0]["url"])
 
+    def test_admin_sites_list_get_delete_do_not_expose_write_keys(self):
+        site = {
+            "siteUuid": "site-123",
+            "companySlug": "acme",
+            "name": "Docs",
+            "identityMode": "cookieless",
+            "allowedOrigins": ["https://example.com"],
+            "rateLimitPerMinute": 600,
+            "retentionDays": 365,
+            "enabled": True,
+            "writeKey": "site_pk_should_not_leak",
+        }
+        transport = CapturingAdminTransport([
+            {"status": 200, "body": {"sites": [site]}},
+            {"status": 200, "body": site},
+            {"status": 204, "body": None},
+        ])
+        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+
+        listed = client.admin.sites.list()
+        got = client.admin.sites.get("site-123")
+        client.admin.sites.delete("site-123")
+
+        self.assertNotIn("writeKey", listed["sites"][0])
+        self.assertNotIn("writeKey", got)
+        self.assertEqual([
+            ("GET", "http://localhost:8080/api/v1/admin/sites"),
+            ("GET", "http://localhost:8080/api/v1/admin/sites/site-123"),
+            ("DELETE", "http://localhost:8080/api/v1/admin/sites/site-123"),
+        ], [(call["method"], call["url"]) for call in transport.calls])
+
 
 if __name__ == "__main__":
     unittest.main()

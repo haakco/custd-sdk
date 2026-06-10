@@ -89,4 +89,46 @@ final class AdminClientTest extends TestCase
         $this->assertSame("site_pk_next", $rotated["writeKey"]);
         $this->assertSame("http://localhost:8080/api/v1/admin/sites", $calls[0]["url"]);
     }
+
+    public function testAdminSitesListGetDeleteDoNotExposeWriteKeys(): void
+    {
+        $site = [
+            "siteUuid" => "site-123",
+            "companySlug" => "acme",
+            "name" => "Docs",
+            "identityMode" => "cookieless",
+            "allowedOrigins" => ["https://example.com"],
+            "rateLimitPerMinute" => 600,
+            "retentionDays" => 365,
+            "enabled" => true,
+            "writeKey" => "site_pk_should_not_leak",
+        ];
+        $responses = [
+            ["status" => 200, "body" => json_encode(["sites" => [$site]], JSON_THROW_ON_ERROR)],
+            ["status" => 200, "body" => json_encode($site, JSON_THROW_ON_ERROR)],
+            ["status" => 204, "body" => ""],
+        ];
+        $calls = [];
+        $client = new CustdClient("http://localhost:8080", "admin-token", [
+            "admin_http_client" => function (string $method, string $url, ?array $body, string $token) use (&$responses, &$calls): array {
+                $calls[] = compact("method", "url", "body", "token");
+                return array_shift($responses);
+            },
+        ]);
+
+        $listed = $client->adminSites()->list();
+        $got = $client->adminSites()->get("site-123");
+        $client->adminSites()->delete("site-123");
+
+        $this->assertArrayNotHasKey("writeKey", $listed["sites"][0]);
+        $this->assertArrayNotHasKey("writeKey", $got);
+        $this->assertSame([
+            ["GET", "http://localhost:8080/api/v1/admin/sites"],
+            ["GET", "http://localhost:8080/api/v1/admin/sites/site-123"],
+            ["DELETE", "http://localhost:8080/api/v1/admin/sites/site-123"],
+        ], array_map(
+            static fn (array $call): array => [$call["method"], $call["url"]],
+            $calls,
+        ));
+    }
 }
