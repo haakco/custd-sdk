@@ -17,6 +17,23 @@ alias or deprecation window.
 composer require haakco/custd-sdk
 ```
 
+Until the package is available through the normal Composer registry, install
+from the GitHub VCS repository:
+
+```json
+{
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/haakco/custd-sdk"
+    }
+  ],
+  "require": {
+    "haakco/custd-sdk": "^1.1"
+  }
+}
+```
+
 ## Usage
 
 ```php
@@ -82,6 +99,43 @@ $event = CustdClient::createDogfoodEvent([
     "correlationId" => "run-123",
     "payload" => ["metric" => "media_cache.queue_depth", "value" => 7],
 ]);
+```
+
+Awthy managed-audit producers should use the dedicated DTOs so event shape,
+server context, and redaction payloads stay consistent across consumers:
+
+```php
+use HaakCo\Custd\Awthy\AwthyAuditEvent;
+use HaakCo\Custd\Awthy\AwthyAuditRedactionRequest;
+
+$client->track(AwthyAuditEvent::fromArray("acme", "store-123", [
+    "storeHostnameHash" => "sha256:example",
+    "localAuditEventId" => "evt-local-1",
+    "localAuditEventUuid" => "01957abc-0000-0000-0000-000000000001",
+    "eventType" => "totp_enabled",
+    "actor" => ["type" => "admin", "wordpressUserId" => 42, "anonymized" => false],
+    "action" => "totp_enabled",
+    "target" => ["type" => "wordpress_user", "display" => "User #42", "anonymized" => false],
+    "outcome" => "success",
+    "source" => "wpauth",
+    "reasonCategory" => "account_security",
+    "stream" => "interactive",
+    "severity" => "info",
+    "occurredAt" => "2026-06-10T00:00:00Z",
+])->toArray());
+
+$client->flush();
+
+$client->redactAwthyAuditEvents(AwthyAuditRedactionRequest::fromArray("store-123", [
+    "redactionId" => "01957abc-0000-0000-0000-000000000099",
+    "reason" => "privacy_erasure",
+    "events" => [
+        [
+            "localAuditEventId" => "evt-local-1",
+            "fields" => ["actor", "target", "sanitizedContext"],
+        ],
+    ],
+]));
 ```
 
 The SDK requires `companySlug` and rejects plaintext non-local Custd/token URLs.

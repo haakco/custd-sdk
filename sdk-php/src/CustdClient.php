@@ -304,6 +304,28 @@ final class CustdClient
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    public function redactAwthyAuditEvents(Awthy\AwthyAuditRedactionRequest $request): array
+    {
+        $result = $this->sendPayloadWithRetry(
+            "/api/v1/managed-audit/redactions",
+            $request->toArray()
+        );
+
+        if ($result["body"] === "") {
+            return [];
+        }
+
+        $decoded = json_decode($result["body"], true);
+        if (!is_array($decoded)) {
+            throw new \RuntimeException("custd: redaction response body must be JSON object");
+        }
+
+        return $decoded;
+    }
+
+    /**
      * @param array<string, mixed> $event
      */
     private function enqueue(array $event): void
@@ -460,6 +482,29 @@ final class CustdClient
     }
 
     /**
+     * @param array<string, mixed> $payload
+     * @return array{status:int, body:string}
+     */
+    private function sendPayloadWithRetry(string $path, array $payload): array
+    {
+        $attempt = 0;
+        $maxAttempts = (int) $this->retryOptions["max_attempts"];
+
+        while (true) {
+            $attempt++;
+            try {
+                return $this->sendPayloadRequest($path, $payload);
+            } catch (RetryableException $err) {
+                if ($attempt >= $maxAttempts) {
+                    throw $err;
+                }
+                $delayMs = $this->backoffDelayMs($attempt);
+                usleep($delayMs * 1000);
+            }
+        }
+    }
+
+    /**
      * @param array<string, mixed> $event
      * @return array{status:int, body:string}
      */
@@ -549,6 +594,48 @@ final class CustdClient
         ];
         $this->translateStatus($result["status"]);
         $this->translateBatchBody($result);
+        return $result;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array{status:int, body:string}
+     */
+    private function sendPayloadRequest(string $path, array $payload): array
+    {
+        $url = $this->baseUrl . $path;
+
+        if (is_callable($this->httpClient)) {
+            $client = $this->httpClient;
+            $result = $this->normalizeHttpClientResult($client($url, $payload, $this->authToken()));
+            $this->translateStatus($result["status"]);
+            return $result;
+        }
+
+        $body = json_encode($payload, JSON_THROW_ON_ERROR);
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_CUSTOMREQUEST => "POST",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                "Content-Type: application/json",
+                "Authorization: Bearer " . $this->authToken(),
+            ],
+            CURLOPT_POSTFIELDS => $body,
+            CURLOPT_TIMEOUT => 15,
+        ]);
+
+        $response = curl_exec($ch);
+        if ($response === false) {
+            $err = curl_error($ch);
+            throw new RetryableException("custd: request failed: {$err}");
+        }
+
+        $result = [
+            "status" => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE),
+            "body" => is_string($response) ? $response : "",
+        ];
+        $this->translateStatus($result["status"]);
         return $result;
     }
 
