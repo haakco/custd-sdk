@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace HaakCo\LaravelCustd;
 
 use HaakCo\Custd\CustdClient;
+use HaakCo\Custd\FileQueueStore;
+use HaakCo\Custd\QueueStore;
 use Illuminate\Support\ServiceProvider;
 
 final class CustdServiceProvider extends ServiceProvider
@@ -89,7 +91,7 @@ final class CustdServiceProvider extends ServiceProvider
 
     /**
      * @param mixed $config
-     * @return array{enabled:bool, max_size:int}|null
+     * @return array{enabled:bool, max_size:int, store?:QueueStore}|null
      */
     private function queueOptions(mixed $config): ?array
     {
@@ -97,9 +99,33 @@ final class CustdServiceProvider extends ServiceProvider
             return null;
         }
 
-        return [
+        $options = [
             "enabled" => (bool) ($config["enabled"] ?? false),
             "max_size" => (int) ($config["max_size"] ?? 1000),
         ];
+        $store = $this->queueStore($config);
+        if ($store !== null) {
+            $options["store"] = $store;
+        }
+        return $options;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function queueStore(array $config): ?QueueStore
+    {
+        $storeClass = $config["store"] ?? null;
+        if (!is_string($storeClass) || $storeClass === "") {
+            return null;
+        }
+        if ($storeClass === FileQueueStore::class) {
+            return new FileQueueStore((string) ($config["path"] ?? storage_path("framework/cache/custd-queue.json")));
+        }
+        $store = $this->app->make($storeClass);
+        if (!$store instanceof QueueStore) {
+            throw new \InvalidArgumentException("custd.queue.store must implement " . QueueStore::class);
+        }
+        return $store;
     }
 }

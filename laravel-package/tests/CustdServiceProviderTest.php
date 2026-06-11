@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace HaakCo\LaravelCustd\Tests;
 
 use HaakCo\Custd\CustdClient;
+use HaakCo\Custd\FileQueueStore;
+use HaakCo\Custd\QueueStore;
 use HaakCo\LaravelCustd\CustdServiceProvider;
 use HaakCo\LaravelCustd\Facades\Custd;
 use HaakCo\LaravelCustd\Jobs\SendCustdEvent;
+use Illuminate\Bus\Queueable;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
 use Orchestra\Testbench\TestCase;
 
 final class CustdServiceProviderTest extends TestCase
@@ -23,6 +28,7 @@ final class CustdServiceProviderTest extends TestCase
         $this->app["config"]->set("custd.batch.max_batch_size", 25);
         $this->app["config"]->set("custd.queue.enabled", true);
         $this->app["config"]->set("custd.queue.max_size", 500);
+        $this->app["config"]->set("custd.queue.store", TestingQueueStore::class);
 
         $client = $this->app->make(CustdClient::class);
 
@@ -39,6 +45,7 @@ final class CustdServiceProviderTest extends TestCase
         $this->assertClientPropertySame($client, "batchOptions", ["max_batch_size" => 25]);
         $this->assertClientPropertySame($client, "queueEnabled", true);
         $this->assertClientPropertySame($client, "maxQueueSize", 500);
+        $this->assertInstanceOf(TestingQueueStore::class, $this->clientQueueStore($client));
     }
 
     public function testFacadeResolvesSdkClient(): void
@@ -82,6 +89,39 @@ final class CustdServiceProviderTest extends TestCase
         $this->assertSame([$event], $sent);
     }
 
+    public function testSendCustdEventJobUsesLaravelQueueTraitsAndConfigDefaults(): void
+    {
+        $this->app["config"]->set("custd.job.tries", 5);
+        $this->app["config"]->set("custd.job.backoff", 30);
+
+        $job = new SendCustdEvent($this->validEvent());
+
+        $this->assertContains(Dispatchable::class, class_uses_recursive(SendCustdEvent::class));
+        $this->assertContains(InteractsWithQueue::class, class_uses_recursive(SendCustdEvent::class));
+        $this->assertContains(Queueable::class, class_uses_recursive(SendCustdEvent::class));
+        $this->assertSame(5, $job->tries);
+        $this->assertSame(30, $job->backoff);
+    }
+
+    public function testLaravelQueueStoreConfigCanResolveFileQueueStore(): void
+    {
+        $queuePath = sys_get_temp_dir() . "/custd-laravel-queue-" . bin2hex(random_bytes(4)) . ".json";
+        $this->app["config"]->set("custd.token", "token");
+        $this->app["config"]->set("custd.queue.enabled", true);
+        $this->app["config"]->set("custd.queue.store", FileQueueStore::class);
+        $this->app["config"]->set("custd.queue.path", $queuePath);
+
+        $client = $this->app->make(CustdClient::class);
+
+        try {
+            $this->assertInstanceOf(FileQueueStore::class, $this->clientQueueStore($client));
+        } finally {
+            if (file_exists($queuePath)) {
+                unlink($queuePath);
+            }
+        }
+    }
+
     /**
      * @return array<class-string, int>
      */
@@ -113,5 +153,28 @@ final class CustdServiceProviderTest extends TestCase
         $reflected = new \ReflectionProperty($client, $property);
 
         $this->assertSame($expected, $reflected->getValue($client));
+    }
+
+    private function clientQueueStore(CustdClient $client): QueueStore
+    {
+        $reflected = new \ReflectionProperty($client, "queueStore");
+
+        return $reflected->getValue($client);
+    }
+}
+
+final class TestingQueueStore implements QueueStore
+{
+    public function load(): array
+    {
+        return [];
+    }
+
+    public function save(array $events): void
+    {
+    }
+
+    public function clear(): void
+    {
     }
 }

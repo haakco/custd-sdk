@@ -73,8 +73,14 @@ const event = createDogfoodEvent({
   environment: "production",
   correlationId: "run-123",
   payload: { metric: "media_cache.queue_depth", value: 7 },
+  strictPayloadKeys: true,
 });
 ```
+
+`strictPayloadKeys: true` throws if the dogfood sanitizer would drop payload
+keys such as `token`, `password`, `signedUrl`, `environment`, or
+`sourceSystem`. Leave it off only when backward compatibility with existing
+payloads is more important than surfacing dropped data.
 
 The SDK requires `companySlug` and rejects plaintext non-local Custd/token URLs.
 Localhost HTTP is allowed for development.
@@ -95,15 +101,22 @@ const tracker = createBrowserTracker({
   batchSize: 25,
 });
 
-await tracker.trackPageView();
 tracker.installSpaTracking();
 ```
 
-Script-tag installs read `data-site-uuid` and `data-write-key`, load site
-identity/origin config from `/api/v1/sites/{siteUuid}/config`, and expose
-`window.custd`. The site config response must include the current origin in
-`allowedOrigins`; the browser tracker refuses to run without an allowed-origin
-match. Script attributes cannot expand the server-provided origin list.
+`installSpaTracking()` sends an initial page view by default, tracks
+`pushState`, `replaceState`, and `popstate`, and is idempotent. Pass
+`trackInitialPageView: false` when the application already sends the first page
+view during hydration.
+
+Script-tag installs read `data-site-uuid` and `data-write-key`, then load site
+identity/origin config from `/api/v1/sites/{siteUuid}/config`. That platform
+endpoint must exist before script-tag installs are usable in production. Until
+then, use `createBrowserTracker()` with explicit `allowedOrigins`. When the
+endpoint is available, the site config response must include the current origin
+in `allowedOrigins`; the browser tracker refuses to run without an
+allowed-origin match. Script attributes cannot expand the server-provided origin
+list.
 
 ```html
 <script
@@ -158,6 +171,77 @@ delete, and rotate browser tracker Sites. `create` returns the public write key
 once. `list` and `get` return Site metadata without the write key.
 `rotateWriteKey` returns the replacement write key once; update tracker config
 and stop using the old key after rotation.
+
+## Schema Admin Helpers
+
+Server-side setup code can use `client.admin.schemas`:
+
+```ts
+await client.admin.schemas.register({
+  eventTypeSlug: "courib.delivery.created",
+  version: "1.0.0",
+  jsonSchema: { type: "object" },
+});
+
+await client.admin.schemas.createVersion("courib.delivery.created", {
+  version: "1.1.0",
+  jsonSchema: { type: "object" },
+});
+```
+
+## React Native
+
+The core client avoids browser globals for producer use. For React Native, keep
+producer credentials out of mobile binaries when possible and relay through a
+trusted backend. If direct mobile ingestion is appropriate, use a synchronous
+MMKV-backed `QueueStorage`, disable browser online flushing with
+`flushOnOnline: false`, and pass `flushTriggers` that subscribe to NetInfo or
+AppState and return unsubscribe callbacks.
+
+```ts
+import { AppState } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
+import { MMKV } from "react-native-mmkv";
+import { CustdClient, type EventEnvelope, type QueueStorage } from "@haakco/custd-sdk";
+
+class MMKVQueueStorage implements QueueStorage {
+  constructor(private readonly storage: MMKV, private readonly key = "custd_queue") {}
+
+  load(): EventEnvelope[] {
+    const raw = this.storage.getString(this.key);
+    return raw ? JSON.parse(raw) as EventEnvelope[] : [];
+  }
+
+  save(events: EventEnvelope[]): void {
+    this.storage.set(this.key, JSON.stringify(events));
+  }
+
+  clear(): void {
+    this.storage.delete(this.key);
+  }
+}
+
+const client = new CustdClient({
+  baseUrl: "https://custd.example.com",
+  getToken: async () => fetchBackendIssuedToken(),
+  queue: {
+    enabled: true,
+    storage: new MMKVQueueStorage(new MMKV()),
+    flushOnOnline: false,
+    flushTriggers: [
+      (flush) => NetInfo.addEventListener((state) => {
+        if (state.isConnected) void flush();
+      }),
+      (flush) => {
+        const subscription = AppState.addEventListener("change", (state) => {
+          if (state === "active") void flush();
+        });
+        return () => subscription.remove();
+      },
+    ],
+  },
+});
+```
 
 ### Manual flush
 

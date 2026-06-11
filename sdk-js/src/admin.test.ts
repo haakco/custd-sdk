@@ -126,4 +126,43 @@ describe("CustdClient admin", () => {
       ["http://localhost:8080/api/v1/admin/sites/site-123", "DELETE"],
     ]);
   });
+
+  it("registers and versions schemas through the admin API", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        schemas: [{ eventTypeSlug: "courib.delivery.created", version: "1.0.0" }],
+      }), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        eventTypeSlug: "courib.delivery.created",
+        version: "1.0.0",
+        jsonSchema: { type: "object" },
+      }), { status: 201, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        eventTypeSlug: "courib.delivery.created",
+        version: "1.1.0",
+        jsonSchema: { type: "object" },
+      }), { status: 201, headers: { "Content-Type": "application/json" } }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token" });
+
+    const list = await client.admin.schemas.list();
+    const registered = await client.admin.schemas.register({
+      eventTypeSlug: "courib.delivery.created",
+      version: "1.0.0",
+      jsonSchema: { type: "object" },
+    });
+    const next = await client.admin.schemas.createVersion("courib.delivery.created", {
+      version: "1.1.0",
+      jsonSchema: { type: "object" },
+    });
+
+    expect(list.schemas[0].eventTypeSlug).toBe("courib.delivery.created");
+    expect(registered.version).toBe("1.0.0");
+    expect(next.version).toBe("1.1.0");
+    expect(fetchMock.mock.calls.map((call) => [call[0], call[1]?.method])).toEqual([
+      ["http://localhost:8080/api/v1/admin/schemas", "GET"],
+      ["http://localhost:8080/api/v1/admin/schemas", "POST"],
+      ["http://localhost:8080/api/v1/admin/schemas/courib.delivery.created/versions", "POST"],
+    ]);
+  });
 });

@@ -131,4 +131,52 @@ final class AdminClientTest extends TestCase
             $calls,
         ));
     }
+
+    public function testAdminSchemasRegisterAndVersionSchemas(): void
+    {
+        $responses = [
+            [
+                "status" => 200,
+                "body" => '{"schemas":[{"eventTypeSlug":"courib.delivery.created","version":"1.0.0"}]}',
+            ],
+            [
+                "status" => 201,
+                "body" => '{"eventTypeSlug":"courib.delivery.created","version":"1.0.0","jsonSchema":{"type":"object"}}',
+            ],
+            [
+                "status" => 201,
+                "body" => '{"eventTypeSlug":"courib.delivery.created","version":"1.1.0","jsonSchema":{"type":"object"}}',
+            ],
+        ];
+        $calls = [];
+        $client = new CustdClient("http://localhost:8080", "admin-token", [
+            "admin_http_client" => function (string $method, string $url, ?array $body, string $token) use (&$responses, &$calls): array {
+                $calls[] = compact("method", "url", "body", "token");
+                return array_shift($responses);
+            },
+        ]);
+
+        $list = $client->adminSchemas()->list();
+        $registered = $client->adminSchemas()->register([
+            "eventTypeSlug" => "courib.delivery.created",
+            "version" => "1.0.0",
+            "jsonSchema" => ["type" => "object"],
+        ]);
+        $next = $client->adminSchemas()->createVersion("courib.delivery.created", [
+            "version" => "1.1.0",
+            "jsonSchema" => ["type" => "object"],
+        ]);
+
+        $this->assertSame("courib.delivery.created", $list["schemas"][0]["eventTypeSlug"]);
+        $this->assertSame("1.0.0", $registered["version"]);
+        $this->assertSame("1.1.0", $next["version"]);
+        $this->assertSame([
+            ["GET", "http://localhost:8080/api/v1/admin/schemas"],
+            ["POST", "http://localhost:8080/api/v1/admin/schemas"],
+            ["POST", "http://localhost:8080/api/v1/admin/schemas/courib.delivery.created/versions"],
+        ], array_map(
+            static fn (array $call): array => [$call["method"], $call["url"]],
+            $calls,
+        ));
+    }
 }

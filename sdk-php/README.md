@@ -17,22 +17,8 @@ alias or deprecation window.
 composer require haakco/custd-sdk
 ```
 
-Until the package is available through the normal Composer registry, install
-from the GitHub VCS repository:
-
-```json
-{
-  "repositories": [
-    {
-      "type": "vcs",
-      "url": "https://github.com/haakco/custd-sdk"
-    }
-  ],
-  "require": {
-    "haakco/custd-sdk": "^1.1"
-  }
-}
-```
+Tag pushes notify Packagist when `PACKAGIST_USERNAME` and `PACKAGIST_TOKEN`
+are configured in GitHub Actions.
 
 ## Usage
 
@@ -98,8 +84,12 @@ $event = CustdClient::createDogfoodEvent([
     "environment" => "production",
     "correlationId" => "run-123",
     "payload" => ["metric" => "media_cache.queue_depth", "value" => 7],
+    "strictPayloadKeys" => true,
 ]);
 ```
+
+`strictPayloadKeys` throws if the dogfood sanitizer would drop payload keys such
+as `token`, `password`, `signedUrl`, `environment`, or `sourceSystem`.
 
 Awthy managed-audit producers should use the dedicated DTOs so event shape,
 server context, and redaction payloads stay consistent across consumers:
@@ -181,6 +171,23 @@ delete, and rotate browser tracker Sites. `create()` returns the public write
 key once. `list()` and `get()` return Site metadata without the write key.
 `rotateWriteKey()` returns the replacement write key once; update tracker config
 and stop using the old key after rotation.
+
+## Schema Admin Helpers
+
+Use `$client->adminSchemas()` from setup code:
+
+```php
+$client->adminSchemas()->register([
+    "eventTypeSlug" => "courib.delivery.created",
+    "version" => "1.0.0",
+    "jsonSchema" => ["type" => "object"],
+]);
+
+$client->adminSchemas()->createVersion("courib.delivery.created", [
+    "version" => "1.1.0",
+    "jsonSchema" => ["type" => "object"],
+]);
+```
 
 ## Dev smoke test (Hydra)
 

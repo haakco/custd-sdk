@@ -246,6 +246,11 @@ final class CustdClient
         return new Admin\SiteClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    public function adminSchemas(): Admin\SchemaClient
+    {
+        return new Admin\SchemaClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
     /**
      * @param array<string, mixed> $event
      */
@@ -392,7 +397,13 @@ final class CustdClient
             throw new \InvalidArgumentException("custd: missing dogfood fields: " . implode(", ", $missing));
         }
 
-        $payload = self::sanitizeDogfoodPayload($input["payload"] ?? []);
+        $droppedKeys = [];
+        $payload = self::sanitizeDogfoodPayload($input["payload"] ?? [], $droppedKeys);
+        if ((bool) ($input["strictPayloadKeys"] ?? false) && count($droppedKeys) > 0) {
+            throw new \InvalidArgumentException(
+                "custd: dropped dogfood payload keys: " . implode(", ", $droppedKeys)
+            );
+        }
         $payload["sourceSystem"] = $input["sourceSystem"];
         $payload["sourceCompany"] = $input["sourceCompany"];
         $payload["environment"] = $input["environment"];
@@ -785,7 +796,7 @@ final class CustdClient
      * @param mixed $payload
      * @return array<string, mixed>
      */
-    private static function sanitizeDogfoodPayload(mixed $payload): array
+    private static function sanitizeDogfoodPayload(mixed $payload, array &$droppedKeys = [], string $prefix = ""): array
     {
         if (!is_array($payload)) {
             return [];
@@ -793,9 +804,12 @@ final class CustdClient
         $cleaned = [];
         foreach ($payload as $key => $value) {
             if (!is_string($key) || !self::dogfoodPayloadFieldAllowed($key)) {
+                $droppedKeys[] = $prefix . (string) $key;
                 continue;
             }
-            $cleaned[$key] = is_array($value) ? self::sanitizeDogfoodPayload($value) : $value;
+            $cleaned[$key] = is_array($value)
+                ? self::sanitizeDogfoodPayload($value, $droppedKeys, $prefix . $key . ".")
+                : $value;
         }
         return $cleaned;
     }

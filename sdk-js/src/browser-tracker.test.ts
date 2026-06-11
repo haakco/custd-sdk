@@ -24,7 +24,7 @@ describe("createBrowserTracker", () => {
     const fetchMock = mockFetch();
     document.title = "Start";
 
-    const tracker = createBrowserTracker(baseConfig);
+    const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });
     await tracker.trackPageView();
 
     const sent = eventFromFetch(fetchMock);
@@ -91,7 +91,7 @@ describe("createBrowserTracker", () => {
 
   it("tracks SPA navigation through history hooks", async () => {
     const fetchMock = mockFetch();
-    const tracker = createBrowserTracker(baseConfig);
+    const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });
 
     tracker.installSpaTracking();
     window.history.pushState({}, "", "/next");
@@ -99,6 +99,32 @@ describe("createBrowserTracker", () => {
 
     const sent = eventFromFetch(fetchMock);
     expect(sent.context.page?.path).toBe("/next");
+  });
+
+  it("tracks initial and popstate SPA page views by default", async () => {
+    const fetchMock = mockFetch();
+    const tracker = createBrowserTracker(baseConfig);
+
+    tracker.installSpaTracking();
+    await Promise.resolve();
+    window.history.pushState({}, "", "/next");
+    window.dispatchEvent(new Event("popstate"));
+    await Promise.resolve();
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(eventFromFetchCall(fetchMock, 0).context.page?.path).toBe("/start");
+    expect(eventFromFetchCall(fetchMock, 1).context.page?.path).toBe("/next");
+    expect(eventFromFetchCall(fetchMock, 2).context.page?.path).toBe("/next");
+  });
+
+  it("can opt out of the initial SPA page view", async () => {
+    const fetchMock = mockFetch();
+    const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });
+
+    tracker.installSpaTracking();
+    await Promise.resolve();
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("flushes queued events when the batch size is reached", async () => {
@@ -486,7 +512,7 @@ describe("createBrowserTracker", () => {
 
   it("can reinstall SPA tracking after close", async () => {
     const fetchMock = mockFetch();
-    const tracker = createBrowserTracker(baseConfig);
+    const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });
 
     tracker.installSpaTracking();
     tracker.close();

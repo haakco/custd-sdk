@@ -18,5 +18,11 @@ return [
     "queue" => [
         "enabled" => (bool) env("CUSTD_QUEUE_ENABLED", false),
         "max_size" => (int) env("CUSTD_QUEUE_MAX_SIZE", 1000),
+        "store" => env("CUSTD_QUEUE_STORE", null),
+        "path" => env("CUSTD_QUEUE_PATH", storage_path("framework/cache/custd-queue.json")),
+    ],
+    "job" => [
+        "tries" => (int) env("CUSTD_JOB_TRIES", 3),
+        "backoff" => (int) env("CUSTD_JOB_BACKOFF", 10),
     ],
 ];

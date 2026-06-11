@@ -69,7 +69,7 @@ go run github.com/haakco/custd-sdk/sdk-go/cmd/custd-sdk-setup@latest \
   --base-url=https://custd.k8.haak.co \
   --admin-url=https://custd.k8.haak.co \
   --admin-token="$CUSTD_ADMIN_TOKEN" \
-  --token-url=https://custd-auth.k8.haak.co/oauth2/token \
+  --token-url=https://auth.k8.haak.co/oauth2/token \
   --tenant=vorrent \
   --company-name="Vorrent" \
   --client-id=vorrent-media-cache \
@@ -109,6 +109,23 @@ site metadata without the write key. `rotate write key` returns the replacement
 write key once; after rotation, update browser tracker config and stop using the
 old key.
 
+## Schema Admin Helpers
+
+Go, TypeScript, and PHP expose schema admin helpers so producer repositories do
+not need raw `curl` scripts for `POST /api/v1/admin/schemas`:
+
+- list: `GET /api/v1/admin/schemas`
+- get: `GET /api/v1/admin/schemas/{eventTypeSlug}`
+- register: `POST /api/v1/admin/schemas`
+- create version: `POST /api/v1/admin/schemas/{eventTypeSlug}/versions`
+
+The setup CLI can also register a directory of schema JSON files after producer
+credential creation:
+
+```bash
+custd-sdk-setup --register-schemas ./infra/custd/schemas ...
+```
+
 ## WordPress Plugin Usage
 
 Install the root SDK package through Composer VCS; the plugin lives under
@@ -142,7 +159,7 @@ go run github.com/haakco/custd-sdk/sdk-go/cmd/custd-sdk-setup@latest \
   --base-url=https://custd.k8.haak.co \
   --admin-url=https://custd.k8.haak.co \
   --admin-token="$CUSTD_ADMIN_TOKEN" \
-  --token-url=https://custd-auth.k8.haak.co/oauth2/token \
+  --token-url=https://auth.k8.haak.co/oauth2/token \
   --tenant=my-wordpress-site \
   --company-name="My WordPress Site" \
   --client-id=my-wordpress-site \
@@ -157,21 +174,10 @@ plugin path.
 
 ## Laravel Usage
 
-Install the SDK package from GitHub until the package is available through the
-normal Composer registry:
+Install the SDK package with Composer:
 
-```json
-{
-  "repositories": [
-    {
-      "type": "vcs",
-      "url": "https://github.com/haakco/custd-sdk"
-    }
-  ],
-  "require": {
-    "haakco/custd-sdk": "^1.1"
-  }
-}
+```bash
+composer require haakco/custd-sdk
 ```
 
 Publish the Laravel config:
@@ -187,7 +193,7 @@ go run github.com/haakco/custd-sdk/sdk-go/cmd/custd-sdk-setup@latest \
   --base-url=https://custd.k8.haak.co \
   --admin-url=https://custd.k8.haak.co \
   --admin-token="$CUSTD_ADMIN_TOKEN" \
-  --token-url=https://custd-auth.k8.haak.co/oauth2/token \
+  --token-url=https://auth.k8.haak.co/oauth2/token \
   --tenant=my-app \
   --company-name="My App" \
   --client-id=my-app-producer \
@@ -202,7 +208,7 @@ Configure Laravel with the generated env block:
 CUSTD_BASE_URL=https://custd.k8.haak.co
 CUSTD_CLIENT_ID=my-app-producer
 CUSTD_CLIENT_SECRET=...
-CUSTD_TOKEN_URL=https://custd-auth.k8.haak.co/oauth2/token
+CUSTD_TOKEN_URL=https://auth.k8.haak.co/oauth2/token
 CUSTD_AUDIENCE=custd
 CUSTD_SCOPES=events.write
 CUSTD_BATCH_MAX_SIZE=100
@@ -219,5 +225,11 @@ use HaakCo\LaravelCustd\Facades\Custd;
 use HaakCo\LaravelCustd\Jobs\SendCustdEvent;
 
 Custd::track($event);
-dispatch(new SendCustdEvent($event));
+SendCustdEvent::dispatch($event)->onQueue("analytics");
 ```
+
+For Laravel async delivery, prefer Laravel queues through `SendCustdEvent`.
+`CUSTD_QUEUE_ENABLED=true` uses the PHP SDK queue inside the Laravel worker
+process; configure `CUSTD_QUEUE_STORE` and `CUSTD_QUEUE_PATH` if you need a
+durable store. Do not rely on the default in-memory store for FPM or Octane
+request-end durability.

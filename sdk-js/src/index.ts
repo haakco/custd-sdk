@@ -37,6 +37,7 @@ export type DogfoodEventInput = {
   sourceCompany: string;
   environment: string;
   correlationId?: string;
+  strictPayloadKeys?: boolean;
   payload?: Record<string, unknown>;
 };
 
@@ -80,6 +81,7 @@ export type QueueOptions = {
   storage?: QueueStorage;
   maxQueueSize?: number;
   flushOnOnline?: boolean;
+  flushTriggers?: Array<(flush: () => Promise<void>) => () => void>;
 };
 
 export type QueueStorage = {
@@ -159,6 +161,27 @@ export type AdminSiteWriteKeyResponse = {
   writeKey: string;
 };
 
+export type AdminSchemaRegister = {
+  eventTypeSlug: string;
+  version: string;
+  jsonSchema: Record<string, unknown>;
+};
+
+export type AdminSchemaVersionCreate = {
+  version: string;
+  jsonSchema: Record<string, unknown>;
+};
+
+export type AdminSchema = {
+  eventTypeSlug: string;
+  version: string;
+  jsonSchema?: Record<string, unknown>;
+};
+
+export type AdminSchemaListResponse = {
+  schemas: AdminSchema[];
+};
+
 function publicAdminSite(site: AdminSite & { writeKey?: unknown }): AdminSite {
   const { writeKey: _writeKey, ...safeSite } = site;
   return safeSite;
@@ -235,6 +258,7 @@ export class CustdClient {
   private flushOnOnline: boolean;
   private onlineHandler: (() => void) | null = null;
   private batchTimer: ReturnType<typeof setInterval> | null = null;
+  private removeFlushTriggers: Array<() => void> = [];
   private oauthToken: { value: string; expiresAtMs: number } | null = null;
 
   constructor(config: ClientConfig) {
@@ -271,6 +295,7 @@ export class CustdClient {
       this.onlineHandler = () => void this.flush();
       window.addEventListener("online", this.onlineHandler);
     }
+    this.removeFlushTriggers = (config.queue?.flushTriggers ?? []).map((install) => install(() => this.flush()));
   }
 
   private async fetchOAuthToken(config: ProducerOAuthConfig): Promise<string> {
@@ -379,6 +404,10 @@ export class CustdClient {
       window.removeEventListener("online", this.onlineHandler);
       this.onlineHandler = null;
     }
+    for (const remove of this.removeFlushTriggers) {
+      remove();
+    }
+    this.removeFlushTriggers = [];
   }
 
   private async sendWithRetry(event: EventEnvelope): Promise<Response> {
@@ -471,11 +500,13 @@ class AdminNamespace {
   readonly tenants: AdminTenantNamespace;
   readonly oauthClients: AdminOAuthClientNamespace;
   readonly sites: AdminSiteNamespace;
+  readonly schemas: AdminSchemaNamespace;
 
   constructor(request: AdminRequester) {
     this.tenants = new AdminTenantNamespace(request);
     this.oauthClients = new AdminOAuthClientNamespace(request);
     this.sites = new AdminSiteNamespace(request);
+    this.schemas = new AdminSchemaNamespace(request);
   }
 }
 
@@ -552,6 +583,26 @@ class AdminSiteNamespace {
   }
 }
 
+class AdminSchemaNamespace {
+  constructor(private readonly request: AdminRequester) {}
+
+  list(): Promise<AdminSchemaListResponse> {
+    return this.request("GET", "/schemas");
+  }
+
+  get(eventTypeSlug: string): Promise<AdminSchema> {
+    return this.request("GET", `/schemas/${encodeURIComponent(eventTypeSlug)}`);
+  }
+
+  register(schema: AdminSchemaRegister): Promise<AdminSchema> {
+    return this.request("POST", "/schemas", schema);
+  }
+
+  createVersion(eventTypeSlug: string, schema: AdminSchemaVersionCreate): Promise<AdminSchema> {
+    return this.request("POST", `/schemas/${encodeURIComponent(eventTypeSlug)}/versions`, schema);
+  }
+}
+
 export type PrepareEventMode = "producer" | "browser-cookieless";
 
 export type PrepareEventOptions = {
@@ -610,7 +661,11 @@ export function createDogfoodEvent(input: DogfoodEventInput): EventEnvelope {
     throw new Error(`custd: missing dogfood fields: ${missing.join(", ")}`);
   }
 
-  const payload = sanitizeDogfoodPayload(input.payload ?? {});
+  const sanitized = sanitizeDogfoodPayload(input.payload ?? {});
+  if (input.strictPayloadKeys && sanitized.droppedKeys.length > 0) {
+    throw new Error(`custd: dropped dogfood payload keys: ${sanitized.droppedKeys.join(", ")}`);
+  }
+  const payload = sanitized.payload;
   payload.sourceSystem = input.sourceSystem;
   payload.sourceCompany = input.sourceCompany;
   payload.environment = input.environment;
@@ -669,19 +724,26 @@ const dogfoodForbiddenPayloadFields = new Set([
   "providercredential",
 ]);
 
-function sanitizeDogfoodPayload(payload: Record<string, unknown>): Record<string, unknown> {
+function sanitizeDogfoodPayload(
+  payload: Record<string, unknown>,
+  prefix = "",
+): { payload: Record<string, unknown>; droppedKeys: string[] } {
   const cleaned: Record<string, unknown> = {};
+  const droppedKeys: string[] = [];
   for (const [key, value] of Object.entries(payload)) {
     if (!dogfoodPayloadFieldAllowed(key)) {
+      droppedKeys.push(`${prefix}${key}`);
       continue;
     }
     if (value != null && typeof value === "object" && !Array.isArray(value)) {
-      cleaned[key] = sanitizeDogfoodPayload(value as Record<string, unknown>);
+      const nested = sanitizeDogfoodPayload(value as Record<string, unknown>, `${prefix}${key}.`);
+      cleaned[key] = nested.payload;
+      droppedKeys.push(...nested.droppedKeys);
     } else {
       cleaned[key] = value;
     }
   }
-  return cleaned;
+  return { payload: cleaned, droppedKeys };
 }
 
 function dogfoodPayloadFieldAllowed(key: string): boolean {

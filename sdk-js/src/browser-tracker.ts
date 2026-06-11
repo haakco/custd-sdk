@@ -26,6 +26,7 @@ export type BrowserTrackerConfig = {
   persistentQueue?: boolean;
   queueStorage?: QueueStorage;
   retry?: RetryOptions;
+  trackInitialPageView?: boolean;
 };
 
 export type BrowserTracker = {
@@ -62,6 +63,7 @@ class DefaultBrowserTracker implements BrowserTracker {
   private originalReplaceState: History["replaceState"] | null = null;
   private readonly onlineHandler = () => void this.flush();
   private readonly pagehideHandler = () => this.flushWithKeepalive();
+  private readonly popstateHandler = () => void this.trackPageView();
 
   constructor(config: BrowserTrackerConfig) {
     this.config = config;
@@ -109,6 +111,10 @@ class DefaultBrowserTracker implements BrowserTracker {
     this.originalReplaceState = window.history.replaceState;
     window.history.pushState = this.wrapHistoryMethod(this.originalPushState);
     window.history.replaceState = this.wrapHistoryMethod(this.originalReplaceState);
+    window.addEventListener("popstate", this.popstateHandler);
+    if (this.config.trackInitialPageView !== false) {
+      void this.trackPageView();
+    }
   }
 
   setConsent(state: BrowserConsentState): void {
@@ -141,6 +147,7 @@ class DefaultBrowserTracker implements BrowserTracker {
   close(): void {
     window.removeEventListener("online", this.onlineHandler);
     window.removeEventListener("pagehide", this.pagehideHandler);
+    window.removeEventListener("popstate", this.popstateHandler);
     if (this.originalPushState) {
       window.history.pushState = this.originalPushState;
     }

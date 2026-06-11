@@ -101,6 +101,27 @@ final class CustdClientTest extends TestCase
         $this->assertArrayNotHasKey("token", $event["payload"]);
     }
 
+    public function testCreateDogfoodEventThrowsOnDroppedPayloadKeysInStrictMode(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("nested.environment, token");
+
+        CustdClient::createDogfoodEvent([
+            "eventTypeSlug" => "dogfood.producer.metric",
+            "schemaVersion" => "1.0.0",
+            "companySlug" => "haakco",
+            "sourceSystem" => "vorrent",
+            "sourceCompany" => "haakco",
+            "environment" => "production",
+            "strictPayloadKeys" => true,
+            "payload" => [
+                "metric" => "queue_depth",
+                "nested" => ["environment" => "wrong"],
+                "token" => "secret",
+            ],
+        ]);
+    }
+
     public function testRetriesOnRetryableFailures(): void
     {
         $calls = 0;

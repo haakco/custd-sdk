@@ -84,6 +84,25 @@ describe("createDogfoodEvent", () => {
     });
     expect(event.payload.token).toBeUndefined();
   });
+
+  it("throws on dropped dogfood payload keys when strict mode is enabled", () => {
+    expect(() =>
+      createDogfoodEvent({
+        eventTypeSlug: "dogfood.producer.metric",
+        schemaVersion: "1.0.0",
+        companySlug: "haakco",
+        sourceSystem: "vorrent",
+        sourceCompany: "haakco",
+        environment: "production",
+        strictPayloadKeys: true,
+        payload: {
+          metric: "queue_depth",
+          nested: { environment: "wrong" },
+          token: "secret",
+        },
+      }),
+    ).toThrow(/dropped dogfood payload keys: nested.environment, token/);
+  });
 });
 
 describe("CustdClient", () => {
