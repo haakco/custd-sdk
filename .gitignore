@@ -1,6 +1,12 @@
 .DS_Store
 node_modules/
 vendor/
+
+# Framework subtree packages resolve haakco/custd-sdk via a local path repo, so
+# their lock files pin transient dev state. They are libraries — CI installs the
+# latest matching deps, so the locks are regenerated, not committed.
+/laravel-package/composer.lock
+/wordpress-plugin/composer.lock
 dist/
 coverage/
 .phpunit.result.cache

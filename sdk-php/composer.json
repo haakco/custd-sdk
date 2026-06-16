@@ -3,10 +3,14 @@
   "description": "custd ingestion SDK (minimal Phase 1)",
   "type": "library",
   "license": "MIT",
+  "version": "1.2.1",
   "autoload": {
     "psr-4": {
       "HaakCo\\Custd\\": "src/"
-    }
+    },
+    "files": [
+      "bootstrap/aliases.php"
+    ]
   },
   "require": {
     "php": ">=8.3",

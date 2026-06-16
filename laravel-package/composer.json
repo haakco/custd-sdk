@@ -1,0 +1,52 @@
+{
+  "name": "haakco/custd-laravel",
+  "description": "Laravel integration for Custd (service provider, facade, config, queue job) wrapping the shared PHP SDK.",
+  "type": "library",
+  "license": "MIT",
+  "repositories": [
+    {
+      "type": "path",
+      "url": "../sdk-php",
+      "options": {
+        "symlink": true
+      }
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "HaakCo\\LaravelCustd\\": "src/"
+    }
+  },
+  "require": {
+    "php": ">=8.3",
+    "haakco/custd-sdk": "^1.1",
+    "laravel/framework": "^11.0 || ^12.0 || ^13.0"
+  },
+  "require-dev": {
+    "orchestra/testbench": "^9.0 || ^10.0 || ^11.0",
+    "phpunit/phpunit": "^12.0"
+  },
+  "config": {
+    "platform": {
+      "php": "8.3.0"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "HaakCo\\LaravelCustd\\Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "aliases": {
+        "Custd": "HaakCo\\LaravelCustd\\Facades\\Custd"
+      },
+      "providers": [
+        "HaakCo\\LaravelCustd\\CustdServiceProvider"
+      ]
+    }
+  },
+  "scripts": {
+    "test": "phpunit --configuration phpunit.xml"
+  }
+}

@@ -96,6 +96,32 @@ jobs:
       - name: Format-check PHP SDK (Pint)
         run: cd sdk-php && composer format-check
 
+  php-laravel:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2
+        with:
+          php-version: "8.4"
+          tools: composer
+      - name: Install Laravel package dependencies
+        run: cd laravel-package && composer install
+      - name: Test Laravel package
+        run: cd laravel-package && composer test
+
+  php-wordpress:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2
+        with:
+          php-version: "8.4"
+          tools: composer
+      - name: Install WordPress package dependencies
+        run: cd wordpress-plugin && composer install
+      - name: Test WordPress package
+        run: cd wordpress-plugin && composer test
+
   workflows:
     runs-on: self-hosted
     steps:
@@ -146,7 +172,7 @@ jobs:
 
   publish-packagist:
     runs-on: self-hosted
-    needs: [php, php-analysis]
+    needs: [php, php-analysis, php-laravel, php-wordpress]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Notify Packagist

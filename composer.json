@@ -1,21 +1,21 @@
 {
   "name": "haakco/custd-sdk",
-  "description": "Custd ingestion PHP SDK",
+  "description": "Custd ingestion PHP SDK (pure PHP)",
   "type": "library",
   "license": "MIT",
   "autoload": {
     "psr-4": {
-      "HaakCo\\LaravelCustd\\": "laravel-package/src/",
-      "HaakCo\\Custd\\WordPress\\": "wordpress-plugin/src/",
       "HaakCo\\Custd\\": "sdk-php/src/"
-    }
+    },
+    "files": [
+      "sdk-php/bootstrap/aliases.php"
+    ]
   },
   "require": {
     "php": ">=8.3",
     "ext-curl": "*"
   },
   "require-dev": {
-    "orchestra/testbench": "^9.0 || ^10.0 || ^11.0",
     "phpunit/phpunit": "^12.0"
   },
   "config": {
@@ -23,24 +23,9 @@
       "php": "8.3.0"
     }
   },
-  "suggest": {
-    "laravel/framework": "Required when using the Laravel service provider, facade, config publishing, or queue job."
-  },
   "autoload-dev": {
     "psr-4": {
-      "HaakCo\\LaravelCustd\\Tests\\": "laravel-package/tests/",
-      "HaakCo\\Custd\\WordPress\\Tests\\": "wordpress-plugin/tests/",
       "HaakCo\\Custd\\Tests\\": "sdk-php/tests/"
-    }
-  },
-  "extra": {
-    "laravel": {
-      "aliases": {
-        "Custd": "HaakCo\\LaravelCustd\\Facades\\Custd"
-      },
-      "providers": [
-        "HaakCo\\LaravelCustd\\CustdServiceProvider"
-      ]
     }
   },
   "scripts": {
