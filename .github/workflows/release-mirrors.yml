@@ -30,6 +30,11 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+      - name: Install Infisical CLI
+        run: |
+          curl -fsSL https://mise.run | sh
+          "$HOME/.local/bin/mise" install infisical@0.43.84
+          printf '%s\n' "$HOME/.local/share/mise/shims" >> "$GITHUB_PATH"
       - name: Guard tag == VERSION
         run: |
           version="$(tr -d '[:space:]' < VERSION)"
