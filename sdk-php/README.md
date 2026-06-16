@@ -147,6 +147,23 @@ $client->redactAwthyAuditEvents(AwthyAuditRedactionRequest::fromArray("store-123
 The SDK requires `companySlug` and rejects plaintext non-local Custd/token URLs.
 Localhost HTTP is allowed for development.
 
+### Deprecations
+
+- **`Authy` → `Awthy` rename.** v1.2.1 renamed `HaakCo\Custd\Authy\*` to
+  `HaakCo\Custd\Awthy\*` and `redactAuthyAuditEvents()` to
+  `redactAwthyAuditEvents()`. The old class names and method are kept as thin
+  backward-compatible aliases (registered lazily) for one deprecation cycle and
+  will be removed in the next major release. Migrate to the `Awthy` names.
+- **Synchronous retry backoff.** The retry loop sleeps in-thread by default. In
+  request-time contexts that must not stall (e.g. a WordPress page hook), pass a
+  non-blocking sleeper to opt out of in-thread backoff:
+
+  ```php
+  new CustdClient($baseUrl, $token, [
+      "retry" => ["sleeper" => static fn (int $delayMs) => null],
+  ]);
+  ```
+
 ## WordPress Plugin
 
 WordPress sites can use the first-party plugin under `wordpress-plugin/`. It

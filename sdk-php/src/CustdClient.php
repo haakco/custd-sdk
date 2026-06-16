@@ -44,6 +44,13 @@ final class CustdClient
      *           `\RuntimeException` instead of being retried. This is
      *           regression-tested by `testCustomRetryStatusesReplacesDefaults`
      *           and `testDefaultRetryStatusesIncludes500_502_504`.
+     *         - `sleeper` (callable(int $delayMs): void, default null) — backoff
+     *           sleep strategy. By default the retry loop blocks the current
+     *           thread via `usleep`. Synchronous callers (e.g. a WordPress
+     *           request hook) can stall page render while retrying, so they
+     *           may pass a non-blocking sleeper — e.g. a no-op
+     *           `static fn (int $ms) => null` to retry immediately without
+     *           blocking. Regression-tested by `RetryBackoffTest`.
      *     - `batch`: array{max_batch_size:int}|null
      *     - `queue`: array{enabled?:bool, store?:QueueStore, max_size?:int}
      *     - `http_client`: callable|null Custom HTTP transport. When provided,
@@ -76,6 +83,7 @@ final class CustdClient
             "max_delay_ms" => 2000,
             "jitter" => 0.2,
             "retry_statuses" => [408, 429, 500, 502, 503, 504],
+            "sleeper" => null,
         ], $options["retry"] ?? []);
         $this->batchOptions = $options["batch"] ?? null;
         $this->queueEnabled = $options["queue"]["enabled"] ?? ($this->batchOptions !== null);
@@ -184,6 +192,17 @@ final class CustdClient
         }
 
         return $decoded;
+    }
+
+    /**
+     * @deprecated Renamed to {@see redactAwthyAuditEvents()} in v1.2.1. Kept as a
+     *             thin delegate for one deprecation cycle; remove in the next
+     *             major release.
+     * @return array<string, mixed>
+     */
+    public function redactAuthyAuditEvents(Awthy\AwthyAuditRedactionRequest $request): array
+    {
+        return $this->redactAwthyAuditEvents($request);
     }
 
     /**
@@ -359,8 +378,7 @@ final class CustdClient
                 if ($attempt >= $maxAttempts) {
                     throw $err;
                 }
-                $delayMs = $this->backoffDelayMs($attempt);
-                usleep($delayMs * 1000);
+                $this->maybeBackoff($attempt);
             }
         }
     }
@@ -382,8 +400,7 @@ final class CustdClient
                 if ($attempt >= $maxAttempts) {
                     throw $err;
                 }
-                $delayMs = $this->backoffDelayMs($attempt);
-                usleep($delayMs * 1000);
+                $this->maybeBackoff($attempt);
             }
         }
     }
@@ -405,8 +422,7 @@ final class CustdClient
                 if ($attempt >= $maxAttempts) {
                     throw $err;
                 }
-                $delayMs = $this->backoffDelayMs($attempt);
-                usleep($delayMs * 1000);
+                $this->maybeBackoff($attempt);
             }
         }
     }
@@ -598,6 +614,25 @@ final class CustdClient
             );
         }
         return ["status" => $result["status"], "body" => $result["body"]];
+    }
+
+    /**
+     * Wait before the next retry attempt. Blocks the current thread via
+     * `usleep` unless a custom `sleeper` callable is configured (see the
+     * constructor `retry.sleeper` option), letting synchronous callers opt out
+     * of in-thread backoff.
+     */
+    private function maybeBackoff(int $attempt): void
+    {
+        $delayMs = $this->backoffDelayMs($attempt);
+        $sleeper = $this->retryOptions["sleeper"] ?? null;
+
+        if (is_callable($sleeper)) {
+            $sleeper($delayMs);
+            return;
+        }
+
+        usleep($delayMs * 1000);
     }
 
     private function backoffDelayMs(int $attempt): int
