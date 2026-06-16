@@ -67,7 +67,9 @@ Add a one-line `README` to each mirror stating it is **generated — do not push
 
 The split job pushes to other repos, so the default `GITHUB_TOKEN` (scoped to this repo) is insufficient. **Matching custd + cb (unanimous org convention), CI authenticates to the self-hosted Infisical via Universal Auth, and the actual push token lives in Infisical — not as a GitHub secret.**
 
-The only GitHub repo secrets to add to `haakco/custd-sdk` are the machine-identity credentials (reuse the same identity custd uses — `custd-sdk` is in the **same** Infisical project, workspace `952c94fb…`):
+**Create a dedicated machine identity — do NOT reuse another repo's.** Per the HaakCo `haakco-infisical-secrets` convention, each repo gets its own CI identity (scoped permissions + audit trail). The SDK's push/publish tokens are *app build secrets*, so use the `<app>-app-ci` type (Member role), e.g. **`custd-sdk-app-ci`** with Universal Auth, granted Member/read on the project that holds the SDK secrets — the project `.infisical.json` points at (`952c94fb…`, shared with custd). Confirm that project's org + name in the Infisical UI first (it is absent from the skill's tables — the doc is stale).
+
+Then set the identity's credentials as the only two GitHub repo secrets on `haakco/custd-sdk`:
 
 ```bash
 gh secret set INFISICAL_CLIENT_ID     --repo haakco/custd-sdk
