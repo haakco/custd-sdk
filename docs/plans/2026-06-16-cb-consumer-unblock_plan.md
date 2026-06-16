@@ -6,9 +6,11 @@
 
 **Scope:** Umbrella plan for the custd-sdk team. It documents exactly what CouriB needs and the verification each fix must pass.
 
+> **Status (2026-06-16): both blockers cleared at v1.3.1.** R1 — `@haakco/custd-sdk@1.3.1` published to Verdaccio. R2 — `haakco/custd-laravel` + `haakco/custd-wordpress` installable via Composer VCS from their public mirrors (`custd-sdk-laravel`/`-wordpress`), tagged `v1.3.1`. CouriB Phase 0 (API) and Phase 1 (web) are unblocked.
+>
 > **This plan is split into two executable sub-plans** (the registry half needs no repo work; the VCS half needs new repo plumbing, so they ship independently):
 >
-> - **[Plan A — Version Source of Truth + Registry Publish](2026-06-16-sdk-version-source-of-truth-and-publish_plan.md)** — covers **R1** (+ the version-sync source of truth and CI gate). Code landed on this branch; only the live Verdaccio publish remains.
+> - **[Plan A — Version Source of Truth + Registry Publish](../../archive/docs/plans/2026-06-16-2026-06-16-sdk-version-source-of-truth-and-publish_plan.md)** (archived — shipped) — covered **R1** + the version-sync source of truth and CI gate.
 > - **[Plan B — Subtree-Split All SDKs to Mirror Repos](2026-06-16-sdk-subtree-split-mirrors_plan.md)** — covers **R2**. Chosen mechanism: **monorepo + `git subtree split` to read-only mirrors** (language-agnostic, zero new infra, dev workflow unchanged). Consumed via Composer VCS from the GitHub mirrors (no Packagist). Outward steps (mirror repos, push secret) are coordinator-gated.
 
 **Tech Stack:** pnpm 10 / Node 24, HaakCo Verdaccio (`https://verdaccio.k8.haak.co/`), Composer VCS/path repos, GitHub Actions (self-hosted runners).

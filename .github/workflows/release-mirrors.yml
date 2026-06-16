@@ -64,7 +64,7 @@ jobs:
             --token="$token" --projectId=952c94fb-3c39-4384-8087-2e459812bc3d \
             --env=prod --path=/custd-sdk --domain="$domain" --plain --silent)"
 
-          split_sha="$(git subtree split --prefix="$PREFIX")"
+          split_sha="$(git subtree split --prefix="$PREFIX" | tr -d '[:space:]')"
           auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$push_token" | base64 | tr -d '\n')"
           git -c "http.https://github.com/.extraheader=$auth_header" \
             push "https://github.com/${MIRROR}.git" "${split_sha}:refs/heads/main" --force

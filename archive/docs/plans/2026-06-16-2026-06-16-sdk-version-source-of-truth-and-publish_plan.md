@@ -1,5 +1,10 @@
 # Plan A — SDK Version Source of Truth + Registry Publish
 
+> **✅ COMPLETE (archived 2026-06-16).** `@haakco/custd-sdk@1.3.1` published to
+> Verdaccio; `VERSION` single source of truth + `VersionSyncTest` + `release-guard`
+> CI gate are live. Root cause of the prior 404 (no `VERDACCIO_TOKEN`) fixed via
+> Infisical Universal Auth. CouriB Phase 1 unblocked.
+
 **Goal:** Give every SDK one shared version driven by a single source of truth, enforce it in CI, and publish `@haakco/custd-sdk` to Verdaccio so CouriB's web-gui can install it. No repo split required — this is the registry/in-repo half of the [CouriB consumer unblock](2026-06-16-cb-consumer-unblock_plan.md).
 
 **Background:** The v1.3.0 package split `export-ignore`d `/sdk-js`, so the old `github:…&path:sdk-js` tarball install no longer ships the JS SDK. A registry is now the only supported JS install path. Separately, three manifests had drifted to `1.2.1` while the repo was tagged `v1.3.0`. Both are fixed here.
