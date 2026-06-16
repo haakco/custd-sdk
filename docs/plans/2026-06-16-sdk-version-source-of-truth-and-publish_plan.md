@@ -47,8 +47,8 @@
 ### Remaining (needs live registry / CI run — not doable from a dev laptop)
 
 - [x] **Root cause of the 404 found (2026-06-16):** `gh secret list --repo haakco/custd-sdk` is **empty** — the repo has **no secrets at all**, so `secrets.VERDACCIO_TOKEN` is unset and `publish-js` could never authenticate (and `publish-packagist`'s `PACKAGIST_*` are likewise unset). Not a pipeline bug.
-- [ ] **Provide `VERDACCIO_TOKEN`.** Matching custd/cb (Universal Auth), add `INFISICAL_CLIENT_ID`/`INFISICAL_CLIENT_SECRET` repo secrets and store `VERDACCIO_TOKEN` in Infisical (`/custd-sdk`, env `prod`); have `publish-js` pull it at runtime — or, minimally, set `VERDACCIO_TOKEN` directly as a repo secret. See [Plan B Task 2](2026-06-16-sdk-subtree-split-mirrors_plan.md#task-2--add-the-mirror-push-secret--outward-coordinator-gated) for the identical Universal-Auth wiring.
-- [ ] **Publish `@haakco/custd-sdk@1.3.0`** to Verdaccio (restricted) — happens automatically on the next `v1.3.x` tag once the token exists, or via a manual run.
+- [x] **`VERDACCIO_TOKEN` wired (2026-06-16).** `INFISICAL_CLIENT_ID`/`INFISICAL_CLIENT_SECRET` set on the repo; `VERDACCIO_TOKEN` stored in Infisical (`/custd-sdk`, env `prod`, confirmed present). Auth is via committed **`sdk-js/.npmrc`** (`//verdaccio.k8.haak.co/:_auth=${VERDACCIO_TOKEN}`); `publish-js` pulls the token at runtime with `infisical run` (Universal Auth, `runs-on: [self-hosted, haakco]`) — never a GitHub secret. Added `.github/actionlint.yaml` to register the `haakco`/`htz-containerd` runner labels (matches custd).
+- [ ] **Publish `@haakco/custd-sdk@1.3.0`** to Verdaccio (restricted) — fires on the next `v1.3.x` tag. `publish-js` only runs on tags, so this path is validated for real at first release (the `js` job already exercises the new `.npmrc` install path on every run).
 - [ ] **Verify the published tarball contains `dist/`** and the three entrypoints (`.`, `./browser`, `./browser-script`) resolve.
 
 **Verification (post-publish, from a scratch dir):**

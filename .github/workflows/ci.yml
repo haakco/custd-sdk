@@ -164,7 +164,7 @@ jobs:
           echo "Release tag v$tag matches VERSION."
 
   publish-js:
-    runs-on: self-hosted
+    runs-on: [self-hosted, haakco]
     needs: [js, release-guard]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
@@ -176,15 +176,25 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          registry-url: https://verdaccio.k8.haak.co/
       - name: Install JS dependencies
         run: pnpm -C sdk-js install --frozen-lockfile
       - name: Build JS SDK
         run: pnpm -C sdk-js run build
+      # Auth comes from sdk-js/.npmrc (_auth=${VERDACCIO_TOKEN}); the token is
+      # pulled from Infisical at runtime (Universal Auth, matching custd/cb) and
+      # injected into the publish process env — never a GitHub secret.
       - name: Publish JS SDK to Verdaccio
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.VERDACCIO_TOKEN }}
-        run: pnpm -C sdk-js publish --no-git-checks --access restricted --ignore-scripts
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+        run: |
+          INFISICAL_TOKEN="$(infisical login --method=universal-auth \
+            --client-id="$INFISICAL_CLIENT_ID" --client-secret="$INFISICAL_CLIENT_SECRET" \
+            --domain=https://secrets.k8.haak.co/api --plain --silent)"
+          export INFISICAL_TOKEN
+          infisical run --projectId=952c94fb-3c39-4384-8087-2e459812bc3d \
+            --env=prod --path=/custd-sdk --domain=https://secrets.k8.haak.co/api -- \
+            pnpm -C sdk-js publish --no-git-checks --access restricted --ignore-scripts
 
   publish-packagist:
     runs-on: self-hosted
