@@ -86,6 +86,11 @@ matching redaction helper (`RedactedProvisionedProducer` /
 `redactedProvisionedProducer` / `redacted_provisioned_producer` /
 `redactedProvisionedProducer`).
 
+A broker obtains the bundle from Custd's producer-provisioning API
+(`POST /api/v1/producer-provisioning`). For provisioning, scope templates, the
+lifecycle (list/inspect/rotate/revoke), and the `409` conflict recovery flow,
+see the Custd guide: `docs/how-to/provision-a-producer.md`.
+
 ## Producer Setup Helper
 
 Use the SDK-owned setup CLI to create a tenant-bound OAuth2 producer client and
