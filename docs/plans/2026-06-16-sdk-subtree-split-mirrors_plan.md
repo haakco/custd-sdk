@@ -84,9 +84,9 @@ infisical secrets set MIRROR_PUSH_TOKEN=<github-PAT> --env=prod --path=/custd-sd
 
 **Least privilege for the PAT value (do not use a classic/broad token):** a **fine-grained PAT** scoped to **only** the three mirror repos, `Contents: read and write`, nothing else, short expiry. The blast radius of a compromised runner must be the three mirrors only.
 
-## Task 3 — `release-mirrors.yml` workflow (commit after the secrets in Task 2 exist)
+## Task 3 — `release-mirrors.yml` workflow (✅ DONE 2026-06-16 — committed)
 
-A tag-triggered, self-hosted job that pulls `MIRROR_PUSH_TOKEN` from Infisical (Universal Auth, mirroring custd/cb), splits each subtree, and pushes it + the tag. The push token is passed via `http.extraheader` (base64 in a git config value git never prints) — **not** in the remote URL — so it never lands in `argv`/process list or logs:
+Committed as **`.github/workflows/release-mirrors.yml`** (that file is authoritative; the block below is the design reference). A tag-triggered, self-hosted job that pulls `MIRROR_PUSH_TOKEN` from Infisical (Universal Auth, mirroring custd/cb), splits each subtree, and pushes it + the tag. The push token is passed via `http.extraheader` (base64 in a git config value git never prints) — **not** in the remote URL — so it never lands in `argv`/process list or logs. Fires for real on the next `v*` tag.
 
 ```yaml
 name: Release Mirrors

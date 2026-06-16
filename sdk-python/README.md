@@ -7,6 +7,17 @@ Ingestion client with retry, batching, and in-memory queueing.
 Version `1.0.0` targets the canonical ingest endpoint
 `POST /api/v1/events`. The legacy `POST /v1/events` path is not supported.
 
+## Install
+
+Install the `custd-sdk` package from the public GitHub repo (subdir; not on
+PyPI):
+
+```bash
+pip install "custd-sdk @ git+https://github.com/haakco/custd-sdk.git@v1.3.0#subdirectory=sdk-python"
+```
+
+Pin `@v1.3.0` (or a later tag) to the release you want.
+
 ## Usage
 
 ```python

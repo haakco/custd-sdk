@@ -1,0 +1,62 @@
+name: Release Mirrors
+
+# On a v* tag, split each framework/SDK subtree to its read-only mirror repo and
+# copy the same tag onto it. Consumers point Composer VCS / Go modules at the
+# mirrors (no Packagist). The push token is pulled from Infisical at runtime
+# (Universal Auth, matching custd/cb) and passed via http.extraheader so it never
+# lands in argv/process list or logs.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  split:
+    runs-on: [self-hosted, haakco]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - prefix: laravel-package
+            mirror: haakco/custd-sdk-laravel
+          - prefix: wordpress-plugin
+            mirror: haakco/custd-sdk-wordpress
+          - prefix: sdk-go
+            mirror: haakco/custd-sdk-go
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Guard tag == VERSION
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$tag" != "$version" ]; then
+            echo "Release tag v$tag does not match VERSION ($version)." >&2
+            exit 1
+          fi
+      - name: Split subtree and push to mirror
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          PREFIX: ${{ matrix.prefix }}
+          MIRROR: ${{ matrix.mirror }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          domain="https://secrets.k8.haak.co/api"
+          token="$(infisical login --method=universal-auth \
+            --client-id="$INFISICAL_CLIENT_ID" --client-secret="$INFISICAL_CLIENT_SECRET" \
+            --domain="$domain" --plain --silent)"
+          push_token="$(infisical secrets get MIRROR_PUSH_TOKEN \
+            --token="$token" --projectId=952c94fb-3c39-4384-8087-2e459812bc3d \
+            --env=prod --path=/custd-sdk --domain="$domain" --plain --silent)"
+
+          split_sha="$(git subtree split --prefix="$PREFIX")"
+          auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$push_token" | base64 | tr -d '\n')"
+          git -c "http.https://github.com/.extraheader=$auth_header" \
+            push "https://github.com/${MIRROR}.git" "${split_sha}:refs/heads/main" --force
+          git -c "http.https://github.com/.extraheader=$auth_header" \
+            push "https://github.com/${MIRROR}.git" "${split_sha}:refs/tags/${TAG}"

@@ -5,34 +5,32 @@ client and does not maintain a private HTTP emitter.
 
 ## Install
 
-Install the root SDK package through Composer VCS. Composer discovers the root
-package from this repository, and the WordPress plugin is included under
-`vendor/haakco/custd-sdk/wordpress-plugin/`:
+`haakco/custd-wordpress` ships from its own public mirror repo
+(`haakco/custd-sdk-wordpress`), split from this monorepo on each release. Install via Composer VCS (no Packagist, no auth — the
+repos are public). Add the mirror **and** the SDK repo so the transitive
+`haakco/custd-sdk` dependency resolves:
 
 ```json
 {
   "repositories": [
-    {
-      "type": "vcs",
-      "url": "https://github.com/haakco/custd-sdk"
-    }
+    { "type": "vcs", "url": "https://github.com/haakco/custd-sdk-wordpress" },
+    { "type": "vcs", "url": "https://github.com/haakco/custd-sdk" }
   ],
   "require": {
-    "haakco/custd-sdk": "^1.1"
+    "haakco/custd-wordpress": "^1.3"
   }
 }
 ```
 
-For WordPress activation from a Composer install, symlink
-`vendor/haakco/custd-sdk/wordpress-plugin/` into `wp-content/plugins/custd/`
-so the plugin can still reach the root `vendor/autoload.php`.
-The nested `wordpress-plugin/composer.json` is package metadata for built or
-subtree plugin artifacts. Composer VCS installs from this monorepo should
-require the root `haakco/custd-sdk` package shown above.
-Raw GitHub source ZIPs are not standalone plugin artifacts because they do not
-include Composer dependencies; ZIP installs should use a built release artifact
-that includes `vendor/`. Do not copy only the source directory from the
-Composer vendor tree.
+```bash
+composer require haakco/custd-wordpress:^1.3
+```
+
+For WordPress activation, symlink the installed package
+(`vendor/haakco/custd-wordpress/`) into `wp-content/plugins/custd/` so the
+plugin can reach the project's `vendor/autoload.php`. Raw GitHub source ZIPs are
+not standalone plugin artifacts (no `vendor/`); use a Composer install or a
+built release artifact that includes `vendor/`.
 
 ## Setup
 
