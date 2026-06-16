@@ -15,6 +15,7 @@
 ## Current State (Verified)
 
 **Files examined (in `custd-sdk`):**
+
 - `composer.json` (root) — name `haakco/custd-sdk`; autoloads **three** PSR-4 roots (`HaakCo\LaravelCustd\` → `laravel-package/src/`, `HaakCo\Custd\WordPress\` → `wordpress-plugin/src/`, `HaakCo\Custd\` → `sdk-php/src/`); `require` is only `php >=8.3` + `ext-curl`; `require-dev` has `orchestra/testbench` + `phpunit`; `autoload-dev` registers all three test namespaces; `extra.laravel.providers` auto-registers `CustdServiceProvider`; `suggest` mentions `laravel/framework`.
 - `sdk-php/composer.json` (nested) — already a clean pure-PHP definition: name `haakco/custd-sdk`, autoload `HaakCo\Custd\` → `src/`, require `php`+`ext-curl`, require-dev phpunit/phpstan/pint. **Name collides with root.**
 - `.gitattributes` — only `* text=auto eol=lf`; **no `export-ignore`**, so dist ships everything (tests + `sdk-php/scripts/smoke-dev.php` confirmed present in installed dist).
@@ -29,6 +30,7 @@
 - `docs/plans/main_plan.md` — plan index; has a Deferred Work entry for laravel/wordpress static analysis.
 
 **Key findings:**
+
 - One repo root = one VCS package. Fixing the root `composer.json` fixes every consumer at once.
 - `laravel-package`/`wordpress-plugin` are recent additions (commit `51e8b6b`); no local sibling consumes them today → making root pure-PHP is safe for the urgent Awthy (pure-PHP) path.
 - The nested `sdk-php/composer.json` and root currently both claim `haakco/custd-sdk`. After this work the **root** is the published pure-PHP package; the nested one is kept only as the in-repo dev/test manifest for the `sdk-php/` subtree (or removed if redundant — decided in Task 2).
@@ -38,6 +40,7 @@
 **Shared branch coordination:** Single branch `fix/sdk-package-split-and-hardening`. No `git stash`/`git reset`. Each task owns its file set below; CI + root gate tests are owned solely by Task 2.
 
 **Deferred Work:**
+
 - **Split into separate GitHub repos** (`haakco/custd-laravel`, `haakco/custd-wordpress`) — out of scope for this branch per "monorepo now, split later." Tracked in `docs/plans/future/2026-06-16-sdk-repo-split_plan.md` (created in Task 6) and linked from `main_plan.md`. Risk until done: Laravel/WordPress packages are not cleanly VCS-installable from the monorepo root (interim consumption is via path/subdir repo or post-split repos).
 
 ---
@@ -73,6 +76,7 @@
 ## Task 2: Root pure-PHP package + export-ignore + gate tests
 
 **Files:**
+
 - Modify: `composer.json` (root)
 - Create/modify: `.gitattributes`
 - Modify: `phpunit.xml` (root — scope to sdk-php suite) — verify path first
@@ -82,6 +86,7 @@
 **Team ownership:** Task 2 owns root `composer.json`, `.gitattributes`, root `phpunit.xml`, both gate tests, and `ci.yml`. **Runs first.**
 
 **Step 1 — Write failing gate tests (RED).** Extend `ComposerMetadataTest`:
+
 - root `composer.json` autoload has exactly one PSR-4 root `HaakCo\Custd\` → `sdk-php/src/`.
 - root `composer.json` has **no** `extra.laravel`.
 - root `composer.json` `require` keys are exactly `php`, `ext-curl`.
@@ -99,6 +104,7 @@ Run: `cd sdk-php && composer test` → Expected: FAIL.
 ## Task 3: Laravel package standalone manifest + CI
 
 **Files:**
+
 - Create: `laravel-package/composer.json`, `laravel-package/phpunit.xml`
 - Keep: `laravel-package/src/*`, `laravel-package/tests/CustdServiceProviderTest.php`
 - Modify: `.github/workflows/ci.yml` (add `cd laravel-package && composer install && composer test` step) — **coordinate with Task 2 owner**
@@ -114,6 +120,7 @@ Run: `cd sdk-php && composer test` → Expected: FAIL.
 ## Task 4: WordPress package standalone manifest + CI
 
 **Files:**
+
 - Create: `wordpress-plugin/composer.json`, `wordpress-plugin/phpunit.xml`
 - Keep: `wordpress-plugin/src/*`, `wordpress-plugin/tests/*`
 - Modify: `.github/workflows/ci.yml` (add wordpress install+test step) — coordinate with Task 2 owner
@@ -129,6 +136,7 @@ Run: `cd sdk-php && composer test` → Expected: FAIL.
 ## Task 5: Authy→Awthy BC aliases + sdk-php hygiene
 
 **Files:**
+
 - Create: `sdk-php/src/Authy/AuthyAuditEvent.php`, `sdk-php/src/Authy/AuthyAuditRedactionRequest.php` (deprecated BC shims via `class_alias`/thin subclass) — verify PSR-4 gate tolerance (one type per file).
 - Modify: `sdk-php/src/CustdClient.php` (add `redactAuthyAuditEvents()` delegating to `redactAwthyAuditEvents()`; `curl_close` after each `curl_exec`; opt-out for in-thread backoff)
 - Modify: `sdk-php/src/Admin/Http.php` (`curl_close`)
@@ -140,6 +148,7 @@ Run: `cd sdk-php && composer test` → Expected: FAIL.
 **Step 1 — RED:** test that old FQCN `HaakCo\Custd\Authy\AuthyAuditEvent` resolves and `CustdClient::redactAuthyAuditEvents()` delegates. FAIL.
 **Step 2 — GREEN:** add BC aliases + delegating method.
 **Step 3 — Hygiene:**
+
 - **Inline backoff opt-out:** added a `retry.sleeper` callable seam (default = blocking `usleep`). Synchronous callers (WordPress hooks) pass a no-op `static fn (int $ms) => null` to retry without stalling render. The three duplicated `usleep` blocks collapse into one `maybeBackoff()`. Regression-tested by `RetryBackoffTest`.
 - **curl_close — NOT applied (obsolete).** Verified on PHP 8.5: `curl_close()` is **deprecated since 8.5** and "has no effect since PHP 8.0" (PHPUnit surfaced the `E_DEPRECATED`; PHPStan did not). Curl handles are GC'd objects, so explicit close is unnecessary *and* now deprecated. The review item is resolved by documenting this rather than adding a deprecated call. No code change at the 5 curl sites.
 
@@ -164,16 +173,18 @@ Run: `cd sdk-php && composer test` → Expected: FAIL.
 ## Review outcome (3-stage gauntlet, 2026-06-16)
 
 Spec / Code-Quality / Security reviewers ran in parallel, each finding adversarially verified.
+
 - **1 confirmed HIGH** (security): `laravel-package` declared granular `illuminate/*` but
   `SendCustdEvent` uses `Illuminate\Foundation\Bus\Dispatchable` (ships only in
   `laravel/framework`), so a `--no-dev` install fataled. **Fixed** by requiring `laravel/framework`
-  + a `PackagingTest` regression guard; verified `--no-dev` now resolves with the trait present.
+  - a `PackagingTest` regression guard; verified `--no-dev` now resolves with the trait present.
 - 1 other raw finding rejected on adversarial verification.
 
 Final gates: sdk-php 66 tests + PHPStan + Pint; root 66; Laravel 10; WordPress 13; no PHP
 deprecations; `git archive` shows no non-SDK leaks.
 
 ## Completion criteria
+
 - [ ] Root `composer.json` autoloads only pure PHP; no `extra.laravel`.
 - [ ] `.gitattributes` `export-ignore` strips tests/scripts/framework subtrees from dist (verified via `git archive`).
 - [ ] `laravel-package` + `wordpress-plugin` each have standalone `composer.json` declaring their own require; `illuminate/*` no longer dangling.
