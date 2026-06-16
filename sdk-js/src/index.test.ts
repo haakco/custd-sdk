@@ -1,6 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
-import { createDogfoodEvent, CustdClient, EventEnvelope, MemoryQueueStorage, validateEvent } from "./index";
+import {
+  createDogfoodEvent,
+  CustdClient,
+  EventEnvelope,
+  MemoryQueueStorage,
+  ProvisionedProducerCredentials,
+  redactedProvisionedProducer,
+  validateEvent,
+} from "./index";
 
 const baseEvent: EventEnvelope = {
   eventUuid: "evt-1",
@@ -247,3 +255,31 @@ function loadFixture(name: string): EventEnvelope {
   const url = new URL(`../../contract-fixtures/${name}`, import.meta.url);
   return JSON.parse(readFileSync(url, "utf8")) as EventEnvelope;
 }
+
+function loadProvisionedProducerFixture(name: string): ProvisionedProducerCredentials {
+  const url = new URL(`../../contract-fixtures/${name}`, import.meta.url);
+  return JSON.parse(readFileSync(url, "utf8")) as ProvisionedProducerCredentials;
+}
+
+describe("fromProvisionedProducer", () => {
+  it("creates a client from the provisioned bundle with no manual mapping", () => {
+    const credentials = loadProvisionedProducerFixture("valid-provisioned-producer.json");
+    const client = CustdClient.fromProvisionedProducer(credentials);
+    expect(client).toBeInstanceOf(CustdClient);
+  });
+
+  it("rejects a bundle missing the client secret", () => {
+    const credentials = loadProvisionedProducerFixture(
+      "invalid-provisioned-producer-missing-secret.json",
+    );
+    expect(() => CustdClient.fromProvisionedProducer(credentials)).toThrow(/client secret/);
+  });
+
+  it("redacts the secret for dashboards", () => {
+    const credentials = loadProvisionedProducerFixture("valid-provisioned-producer.json");
+    const redacted = redactedProvisionedProducer(credentials);
+    expect(redacted.clientId).toBe(credentials.clientId);
+    expect(JSON.stringify(redacted)).not.toContain(credentials.clientSecret);
+    expect(JSON.stringify(redacted)).not.toContain("clientSecret");
+  });
+});

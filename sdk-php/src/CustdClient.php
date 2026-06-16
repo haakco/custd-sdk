@@ -348,6 +348,44 @@ final class CustdClient
     }
 
     /**
+     * Build an event-producing client directly from a provisioned producer
+     * bundle, hiding the OAuth wiring.
+     *
+     * @param array<string, mixed> $credentials
+     */
+    public static function fromProvisionedProducer(array $credentials): self
+    {
+        if (($credentials["clientSecret"] ?? "") === "") {
+            throw new \InvalidArgumentException(
+                "custd: provisioned producer bundle is missing the client secret"
+            );
+        }
+
+        return new self((string) ($credentials["baseUrl"] ?? ""), null, [
+            "oauth" => [
+                "client_id" => $credentials["clientId"] ?? "",
+                "client_secret" => $credentials["clientSecret"],
+                "token_url" => $credentials["tokenUrl"] ?? "",
+                "audience" => $credentials["audience"] ?? "",
+                "scopes" => $credentials["scopes"] ?? [],
+            ],
+        ]);
+    }
+
+    /**
+     * Return the display-safe view of a provisioned producer bundle, omitting
+     * the client secret so it is safe to render on dashboards.
+     *
+     * @param array<string, mixed> $credentials
+     * @return array<string, mixed>
+     */
+    public static function redactedProvisionedProducer(array $credentials): array
+    {
+        unset($credentials["clientSecret"]);
+        return $credentials;
+    }
+
+    /**
      * @param array<string, mixed> $event
      */
     public static function validateEvent(array $event): void

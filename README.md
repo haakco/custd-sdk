@@ -58,6 +58,34 @@ Go module:
 go get github.com/haakco/custd-sdk/sdk-go@latest
 ```
 
+## Provisioned Producer Quickstart
+
+When Custd provisions a producer, it returns a flat credential bundle. Pass it
+straight to the SDK — no Hydra or OAuth wiring required.
+
+```ts
+const client = CustdClient.fromProvisionedProducer(credentials);
+await client.track({
+  eventTypeSlug: "order.completed",
+  schemaVersion: "1.0.0",
+  companySlug: credentials.companySlug,
+  context: { device: { type: "server" } },
+  payload: { orderTotal: 42 }
+});
+```
+
+Equivalent entry points per SDK:
+
+- Go: `custd.NewClientFromProvisionedProducer(creds)`
+- TypeScript: `CustdClient.fromProvisionedProducer(credentials)`
+- Python: `CustdClient.from_provisioned_producer(credentials)`
+- PHP: `CustdClient::fromProvisionedProducer($credentials)`
+
+To display the bundle on a dashboard without leaking the secret, use the
+matching redaction helper (`RedactedProvisionedProducer` /
+`redactedProvisionedProducer` / `redacted_provisioned_producer` /
+`redactedProvisionedProducer`).
+
 ## Producer Setup Helper
 
 Use the SDK-owned setup CLI to create a tenant-bound OAuth2 producer client and

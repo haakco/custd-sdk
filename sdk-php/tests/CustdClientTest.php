@@ -513,6 +513,37 @@ final class CustdClientTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    public function testFromProvisionedProducerCreatesClientWithoutManualMapping(): void
+    {
+        $credentials = $this->loadFixture("valid-provisioned-producer.json");
+
+        $client = CustdClient::fromProvisionedProducer($credentials);
+
+        $this->assertInstanceOf(CustdClient::class, $client);
+    }
+
+    public function testFromProvisionedProducerRejectsMissingClientSecret(): void
+    {
+        $credentials = $this->loadFixture("invalid-provisioned-producer-missing-secret.json");
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches("/client secret/");
+
+        CustdClient::fromProvisionedProducer($credentials);
+    }
+
+    public function testRedactedProvisionedProducerOmitsSecret(): void
+    {
+        $credentials = $this->loadFixture("valid-provisioned-producer.json");
+
+        $redacted = CustdClient::redactedProvisionedProducer($credentials);
+
+        $this->assertSame($credentials["clientId"], $redacted["clientId"]);
+        $this->assertArrayNotHasKey("clientSecret", $redacted);
+        $encoded = json_encode($redacted, JSON_THROW_ON_ERROR);
+        $this->assertStringNotContainsString((string) $credentials["clientSecret"], $encoded);
+    }
+
     /**
      * @return array<string, mixed>
      */

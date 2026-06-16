@@ -11,6 +11,7 @@ from custd import (
     RetryableError,
     ValidationError,
     create_dogfood_event,
+    redacted_provisioned_producer,
     validate_event,
 )
 
@@ -207,6 +208,25 @@ class CustdClientTest(unittest.TestCase):
                 "transport": lambda url, form, timeout: {"access_token": "token", "expires_in": 300},
             },
         )
+
+
+class FromProvisionedProducerTest(unittest.TestCase):
+    def test_creates_client_from_bundle_without_manual_mapping(self):
+        credentials = load_fixture("valid-provisioned-producer.json")
+        client = CustdClient.from_provisioned_producer(credentials)
+        self.assertIsInstance(client, CustdClient)
+
+    def test_rejects_bundle_missing_client_secret(self):
+        credentials = load_fixture("invalid-provisioned-producer-missing-secret.json")
+        with self.assertRaisesRegex(ValueError, "client secret"):
+            CustdClient.from_provisioned_producer(credentials)
+
+    def test_redacts_secret_for_dashboards(self):
+        credentials = load_fixture("valid-provisioned-producer.json")
+        redacted = redacted_provisioned_producer(credentials)
+        self.assertEqual(redacted["clientId"], credentials["clientId"])
+        self.assertNotIn("clientSecret", redacted)
+        self.assertNotIn(credentials["clientSecret"], json.dumps(redacted))
 
 
 if __name__ == "__main__":

@@ -72,6 +72,22 @@ $client = new CustdClient("http://localhost:8087", null, [
 ]);
 ```
 
+Provisioned producer bundle (no manual OAuth mapping):
+
+```php
+$client = CustdClient::fromProvisionedProducer($credentials);
+$client->track([
+    "eventTypeSlug" => "order.completed",
+    "schemaVersion" => "1.0.0",
+    "companySlug" => $credentials["companySlug"],
+    "context" => ["device" => ["type" => "server"]],
+    "payload" => ["orderTotal" => 42],
+]);
+```
+
+Use `CustdClient::redactedProvisionedProducer($credentials)` to show the bundle
+on a dashboard without exposing the client secret.
+
 Dogfood producers can use `CustdClient::createDogfoodEvent`:
 
 ```php

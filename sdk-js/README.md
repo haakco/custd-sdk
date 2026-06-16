@@ -57,6 +57,23 @@ await client.track({
 });
 ```
 
+When Custd provisions a producer it returns a flat credential bundle. Pass it
+straight to `fromProvisionedProducer` — no OAuth wiring required:
+
+```ts
+const client = CustdClient.fromProvisionedProducer(credentials);
+await client.track({
+  eventTypeSlug: "order.completed",
+  schemaVersion: "1.0.0",
+  companySlug: credentials.companySlug,
+  context: { device: { type: "server" } },
+  payload: { orderTotal: 42 }
+});
+```
+
+Use `redactedProvisionedProducer(credentials)` to show the bundle on a dashboard
+without exposing the client secret.
+
 The client also accepts `getToken: () => "<token>"` for existing static-token
 or callback integrations. Producer clients should prefer the OAuth2
 `client_credentials` config above so token refresh stays inside the SDK.

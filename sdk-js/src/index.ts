@@ -53,6 +53,25 @@ export type ProducerOAuthConfig = {
   scopes?: string[];
 };
 
+// ProvisionedProducerCredentials is the flat camelCase bundle Custd returns
+// from the producer provisioning API. Pass it straight to
+// CustdClient.fromProvisionedProducer without manual field mapping.
+export type ProvisionedProducerCredentials = {
+  companySlug: string;
+  baseUrl: string;
+  tokenUrl: string;
+  audience?: string;
+  clientId: string;
+  clientSecret: string;
+  scopes?: string[];
+  environment?: string;
+  metadata?: Record<string, string>;
+};
+
+// RedactedProvisionedProducerCredentials is the display-safe view of a
+// provisioned producer bundle, omitting the client secret.
+export type RedactedProvisionedProducerCredentials = Omit<ProvisionedProducerCredentials, "clientSecret">;
+
 export type ClientConfig = {
   baseUrl: string;
   getToken?: () => string | Promise<string>;
@@ -296,6 +315,24 @@ export class CustdClient {
       window.addEventListener("online", this.onlineHandler);
     }
     this.removeFlushTriggers = (config.queue?.flushTriggers ?? []).map((install) => install(() => this.flush()));
+  }
+
+  // fromProvisionedProducer builds an event-producing client directly from a
+  // provisioned producer bundle, hiding the OAuth wiring.
+  static fromProvisionedProducer(credentials: ProvisionedProducerCredentials): CustdClient {
+    if (!credentials.clientSecret) {
+      throw new Error("custd: provisioned producer bundle is missing the client secret");
+    }
+    return new CustdClient({
+      baseUrl: credentials.baseUrl,
+      oauth: {
+        clientId: credentials.clientId,
+        clientSecret: credentials.clientSecret,
+        tokenUrl: credentials.tokenUrl,
+        audience: credentials.audience,
+        scopes: credentials.scopes,
+      },
+    });
   }
 
   private async fetchOAuthToken(config: ProducerOAuthConfig): Promise<string> {
@@ -608,6 +645,15 @@ export type PrepareEventMode = "producer" | "browser-cookieless";
 export type PrepareEventOptions = {
   mode?: PrepareEventMode;
 };
+
+// redactedProvisionedProducer returns the display-safe view of a provisioned
+// producer bundle, omitting the client secret so it is safe for dashboards.
+export function redactedProvisionedProducer(
+  credentials: ProvisionedProducerCredentials,
+): RedactedProvisionedProducerCredentials {
+  const { clientSecret: _clientSecret, ...rest } = credentials;
+  return rest;
+}
 
 export function validateEvent(event: EventEnvelope): void {
   const missing: string[] = [];

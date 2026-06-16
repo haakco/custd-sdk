@@ -41,6 +41,25 @@ client.track({
 client.flush()
 ```
 
+When Custd provisions a producer it returns a flat credential bundle. Pass it
+straight to `from_provisioned_producer` — no OAuth wiring required:
+
+```python
+from custd import CustdClient
+
+client = CustdClient.from_provisioned_producer(credentials)
+client.track({
+    "eventTypeSlug": "order.completed",
+    "schemaVersion": "1.0.0",
+    "companySlug": credentials["companySlug"],
+    "context": {"device": {"type": "server"}},
+    "payload": {"orderTotal": 42},
+})
+```
+
+Use `redacted_provisioned_producer(credentials)` to show the bundle on a
+dashboard without exposing the client secret.
+
 The client also accepts `token="<token>"` for existing static-token
 integrations. Producer clients should prefer the OAuth2 `client_credentials`
 config above so token refresh stays inside the SDK.

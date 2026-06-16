@@ -81,6 +81,22 @@ class CustdClient:
         self.admin = AdminClient(self, admin_transport or default_admin_transport)
         self.timeout = timeout
 
+    @classmethod
+    def from_provisioned_producer(cls, credentials: dict[str, Any]) -> "CustdClient":
+        """Build an event-producing client directly from a provisioned producer bundle."""
+        if not credentials.get("client_secret") and not credentials.get("clientSecret"):
+            raise ValueError("custd: provisioned producer bundle is missing the client secret")
+        return cls(
+            base_url=str(credentials.get("baseUrl", "")),
+            oauth={
+                "client_id": credentials.get("clientId", ""),
+                "client_secret": credentials.get("clientSecret", ""),
+                "token_url": credentials.get("tokenUrl", ""),
+                "audience": credentials.get("audience", ""),
+                "scopes": credentials.get("scopes", []),
+            },
+        )
+
     def ingest_event(self, event: EventEnvelope) -> TransportResult:
         prepared = prepare_event(event)
         validate_event(prepared)
@@ -311,6 +327,14 @@ def public_admin_site(site: TransportResult) -> TransportResult:
     safe_site = dict(site)
     safe_site.pop("writeKey", None)
     return safe_site
+
+
+def redacted_provisioned_producer(credentials: dict[str, Any]) -> dict[str, Any]:
+    """Return the display-safe view of a provisioned producer bundle.
+
+    Omits the client secret so the result is safe to render on dashboards.
+    """
+    return {key: value for key, value in credentials.items() if key != "clientSecret"}
 
 
 def validate_event(event: EventEnvelope) -> None:
