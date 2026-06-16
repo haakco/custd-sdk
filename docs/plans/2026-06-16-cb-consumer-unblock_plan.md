@@ -9,7 +9,7 @@
 > **This plan is split into two executable sub-plans** (the registry half needs no repo work; the VCS half needs new repo plumbing, so they ship independently):
 >
 > - **[Plan A — Version Source of Truth + Registry Publish](2026-06-16-sdk-version-source-of-truth-and-publish_plan.md)** — covers **R1** (+ the version-sync source of truth and CI gate). Code landed on this branch; only the live Verdaccio publish remains.
-> - **[Plan B — Subtree-Split All SDKs to Mirror Repos](2026-06-16-sdk-subtree-split-mirrors_plan.md)** — covers **R2**. Chosen mechanism: **monorepo + `git subtree split` to read-only mirrors** (language-agnostic, zero new infra, dev workflow unchanged). Outward steps (mirror repos, push secret, Packagist) are coordinator-gated.
+> - **[Plan B — Subtree-Split All SDKs to Mirror Repos](2026-06-16-sdk-subtree-split-mirrors_plan.md)** — covers **R2**. Chosen mechanism: **monorepo + `git subtree split` to read-only mirrors** (language-agnostic, zero new infra, dev workflow unchanged). Consumed via Composer VCS from the GitHub mirrors (no Packagist). Outward steps (mirror repos, push secret) are coordinator-gated.
 
 **Tech Stack:** pnpm 10 / Node 24, HaakCo Verdaccio (`https://verdaccio.k8.haak.co/`), Composer VCS/path repos, GitHub Actions (self-hosted runners).
 
@@ -61,7 +61,7 @@ node -e "import('@haakco/custd-sdk/browser').then(m => console.log(Object.keys(m
 
 **Why:** CouriB's API consumes `haakco/custd-laravel ^1.3` (the Laravel package — service provider, `Custd` facade, queued `SendCustdEvent`, `config/custd.php`). A Composer VCS repo on the monorepo root exposes only the pure-PHP `haakco/custd-sdk`, so the Laravel package is not VCS-installable today.
 
-**The split is now REQUIRED (no longer deferred).** Per <tim@haak.co> (2026-06-16): do the split now so `haakco/custd-laravel` (and `haakco/custd-wordpress`) are first-class VCS/Packagist-installable packages — supersedes the "monorepo for now" decision in [`future/2026-06-16-sdk-repo-split_plan.md`](future/2026-06-16-sdk-repo-split_plan.md). A short-lived Composer `path` workaround is acceptable **only** as a bridge while the split lands, not as the destination.
+**The split is now REQUIRED (no longer deferred).** Per <tim@haak.co> (2026-06-16): do the split now so `haakco/custd-laravel` (and `haakco/custd-wordpress`) are first-class Composer-VCS-installable packages (from the GitHub mirrors; no Packagist) — supersedes the "monorepo for now" decision in [`future/2026-06-16-sdk-repo-split_plan.md`](future/2026-06-16-sdk-repo-split_plan.md). A short-lived Composer `path` workaround is acceptable **only** as a bridge while the split lands, not as the destination.
 
 **Hard constraint — keep all SDKs in sync:** the split must NOT let the packages drift. Every SDK (`sdk-php`/`haakco/custd-sdk`, `laravel-package`/`haakco/custd-laravel`, `wordpress-plugin`/`haakco/custd-wordpress`, plus `sdk-js`, `sdk-go`, `sdk-python`) must release on a **single shared version** from one source of truth — one tag drives all package versions, and a CI gate fails the release if any package's declared version diverges from the tag. Choose a split mechanism that enforces this:
 
@@ -70,7 +70,7 @@ node -e "import('@haakco/custd-sdk/browser').then(m => console.log(Object.keys(m
 
 **Requirements:**
 
-- [ ] **Execute the split** so `haakco/custd-laravel` (and `haakco/custd-wordpress`) resolve via VCS/Packagist without a machine-local `path` repo.
+- [ ] **Execute the split** so `haakco/custd-laravel` (and `haakco/custd-wordpress`) resolve via Composer VCS (GitHub mirrors) without a machine-local `path` repo.
 - [ ] **Enforce version sync:** one source-of-truth version per release; CI gate rejects any release where a package's declared version ≠ the release tag (extend the existing `ComposerMetadataTest`/packaging-gate pattern to cover all SDK package manifests, including `sdk-js/package.json` from R1).
 - [ ] **Bridge (optional, time-boxed):** if CouriB must start before the split lands, document the exact interim Composer `path` `repositories` block + `require` line for `cb/api/composer.json`, and note it is temporary — confirm the laravel-package's own `path` shim to `haakco/custd-sdk` resolves correctly when nested under a downstream consumer.
 - [ ] Confirm installs cleanly in **CI and shared agent workspaces**, not just one dev laptop (per CouriB's Composer-auth policy: private HaakCo packages must stay installable locally, in shared agent workspaces, and in CI).
@@ -82,7 +82,7 @@ composer require haakco/custd-laravel:^1.3   # resolves haakco/custd-sdk transit
 php -r "require 'vendor/autoload.php'; class_exists(HaakCo\\LaravelCustd\\CustdServiceProvider::class) || exit(1);"
 ```
 
-**Done when:** the split has landed, a downstream project installs `haakco/custd-laravel` (with `haakco/custd-sdk` pulled transitively) via VCS/Packagist without a machine-local `path`, the service provider autoloads, and the version-sync CI gate is green for a release.
+**Done when:** the split has landed, a downstream project installs `haakco/custd-laravel` (with `haakco/custd-sdk` pulled transitively) via Composer VCS (GitHub mirrors) without a machine-local `path`, the service provider autoloads, and the version-sync CI gate is green for a release.
 
 ---
 

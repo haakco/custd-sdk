@@ -4,13 +4,13 @@
 
 **Background:** A private repo consumed via Composer VCS exposes exactly **one** package — the root `composer.json`. Today that is `haakco/custd-sdk` (pure PHP). `haakco/custd-laravel` and `haakco/custd-wordpress` live in subtrees, so they are invisible to a VCS repo pointed at the monorepo root, and consumers fall back to a `path` shim that only works on one machine. The fix is to give each package a repo root of its own.
 
-**Architecture (chosen):** **Monorepo + `git subtree split` to read-only mirror repos.** We keep developing, testing, and tagging in this one repo. A release CI job (on `v*` tag push) splits each package subtree to its own mirror repo and copies the **same** tag onto it. Packagist / Go module proxy / git consumers watch the mirrors. Versions cannot drift because every mirror tag derives from one monorepo tag, and [Plan A](2026-06-16-sdk-version-source-of-truth-and-publish_plan.md)'s `release-guard` + `VersionSyncTest` already enforce tag == `VERSION` == every manifest.
+**Architecture (chosen):** **Monorepo + `git subtree split` to read-only mirror repos.** We keep developing, testing, and tagging in this one repo. A release CI job (on `v*` tag push) splits each package subtree to its own mirror repo and copies the **same** tag onto it. Consumers point Composer **VCS** repos (and Go modules) directly at the GitHub mirrors — **no Packagist**. Versions cannot drift because every mirror tag derives from one monorepo tag, and [Plan A](2026-06-16-sdk-version-source-of-truth-and-publish_plan.md)'s `release-guard` + `VersionSyncTest` already enforce tag == `VERSION` == every manifest.
 
 **Why subtree-split over the alternatives:** it is the only language-agnostic option that needs **zero new infrastructure** — `git subtree split` is built into git and runs as a plain job on the existing self-hosted ARC runners. `symplify/monorepo-builder` is PHP-only (would not split `sdk-go`/`sdk-js`/`sdk-python`); Copybara is language-agnostic but JVM-based and hand-wires lockstep. Read-only mirrors mean the dev workflow does not change at all.
 
-**Tech Stack:** `git subtree`, GitHub Actions (self-hosted runners), `gh` CLI, Composer/Packagist, Go module proxy, Verdaccio/PyPI (JS/Python keep their registries — see note below).
+**Tech Stack:** `git subtree`, GitHub Actions (self-hosted runners), `gh` CLI, Composer **VCS** (private GitHub mirrors, no Packagist), Go module proxy, Verdaccio/PyPI (JS/Python keep their registries — see note below).
 
-**Parallel Work Model:** Repo-plumbing change. Single implementer owns `.github/workflows/release-mirrors.yml` and the manifest cleanups (drop `path` shims). Other agents must not edit those files concurrently. The outward steps (repo creation, deploy secret, Packagist registration) are coordinator-gated — do not run them without explicit approval. No `git stash` / `git reset`.
+**Parallel Work Model:** Repo-plumbing change. Single implementer owns `.github/workflows/release-mirrors.yml` and the manifest cleanups (drop `path` shims). Other agents must not edit those files concurrently. The outward steps (repo creation, push secret) are coordinator-gated — do not run them without explicit approval. No `git stash` / `git reset`.
 
 ---
 
@@ -22,8 +22,8 @@
 | `sdk-python` (`custd-sdk`) | PyPI/registry | **No** — registry, not VCS. (Add a publish job if/when a downstream needs it.) |
 | `sdk-go` | Go modules resolve subdir modules via `sdk-go/vX.Y.Z` tags **today** | **Yes (decided)** — mirror to `haakco/custd-sdk-go` for a clean `github.com/haakco/custd-sdk-go` import path. |
 | `haakco/custd-sdk` (root, pure PHP) | Composer VCS = root package | **No** — it is already the root. |
-| `haakco/custd-laravel` | Composer VCS/Packagist | **YES — the blocker.** |
-| `haakco/custd-wordpress` | Composer VCS/Packagist | **YES.** |
+| `haakco/custd-laravel` | Composer VCS (GitHub mirror, no Packagist) | **YES — the blocker.** |
+| `haakco/custd-wordpress` | Composer VCS (GitHub mirror, no Packagist) | **YES.** |
 
 **Bottom line:** the only packages *forced* into a mirror are the two PHP framework packages (the CouriB must-haves). `sdk-go` is also mirrored (decided) for a clean import path; JS/Python stay on their registries (Verdaccio/PyPI). The "split all the SDKs" mechanism below is uniform — one job loops the matrix.
 
@@ -36,8 +36,8 @@
 - `laravel-package/composer.json` — name `haakco/custd-laravel`; carries `repositories: [{type: path, url: ../sdk-php, symlink: true}]` shim; requires `haakco/custd-sdk: ^1.1`. The `path` block is what must go once the mirror exists.
 - `wordpress-plugin/composer.json` — name `haakco/custd-wordpress`; same `path` shim; requires `haakco/custd-sdk: ^1.1`.
 - `.gitattributes` — `/laravel-package`, `/wordpress-plugin`, `/sdk-go`, `/sdk-js`, `/sdk-python` all `export-ignore` (correct: keeps the root PHP dist clean; unrelated to the split, which uses `git subtree`, not `git archive`).
-- `.github/workflows/ci.yml` — `publish-packagist` currently notifies Packagist for **one** URL (`github.com/haakco/custd-sdk`). Must add the two mirror URLs after the split.
-- `sdk-php/composer.json` — version-pinned `1.3.0`; this pin exists for the `path` shim and is removed once the shims are gone (the framework packages then resolve `haakco/custd-sdk` from Packagist).
+- `.github/workflows/ci.yml` — has a `publish-packagist` job that notifies packagist.org. **Unused — we consume via Composer VCS, not Packagist; remove it** (see [Open cleanup](#open-cleanup)).
+- `sdk-php/composer.json` — version-pinned `1.3.0`; this pin exists for the `path` shim and is removed once the shims are gone (the framework packages then resolve `haakco/custd-sdk` via Composer VCS from the GitHub mirror).
 
 **Deferred Work:** None deferred from this plan. This plan itself *supersedes* the earlier deferral — see [`future/2026-06-16-sdk-repo-split_plan.md`](future/2026-06-16-sdk-repo-split_plan.md) (to be archived on completion).
 
@@ -144,9 +144,9 @@ jobs:
 
 > `runs-on: [self-hosted, haakco]` matches custd. Refs use the env-var form (`$GITHUB_REF_NAME`), so no `${{ }}` injection. The push token is fetched at runtime from Infisical and never stored as a GitHub secret. The matrix is the single source of which subtrees mirror.
 
-## Task 4 — Drop the `path` shims (ship only after mirrors are live + Packagist-registered)
+## Task 4 — Drop the `path` shims (ship only after the mirrors are live + VCS-resolvable)
 
-Once `haakco/custd-sdk` is resolvable on Packagist and the two framework mirrors exist:
+Once `haakco/custd-sdk` is resolvable via Composer VCS (its GitHub repo) and the two framework mirrors exist:
 
 - Remove the `repositories: [{type: path, ...}]` block from `laravel-package/composer.json` and `wordpress-plugin/composer.json`.
 - Bump their `require.haakco/custd-sdk` from `^1.1` to `^1.3` to match the released line.
@@ -154,9 +154,20 @@ Once `haakco/custd-sdk` is resolvable on Packagist and the two framework mirrors
 
 **TDD:** the existing `laravel-package/tests/PackagingTest.php` + `wordpress-plugin/tests/PackagingTest.php` assert packaging shape — extend them to assert the `path` repository block is **absent** before deleting it (red → green).
 
-## Task 5 — Wire Packagist for the two framework mirrors
+## Task 5 — Consume via Composer VCS from the GitHub mirrors (no Packagist)
 
-Extend `publish-packagist` in `ci.yml` to POST the two new mirror URLs (`github.com/haakco/custd-sdk-laravel`, `github.com/haakco/custd-sdk-wordpress`) alongside the existing root URL, and register each mirror on Packagist once.
+**We are not using Packagist.** Downstreams install the framework packages directly from the private GitHub mirror repos via a Composer **VCS** repository, authenticating with their existing GitHub Composer credentials (`composer config --global github-oauth.github.com <token>`). Each downstream `composer.json` adds:
+
+```json
+"repositories": [
+  { "type": "vcs", "url": "https://github.com/haakco/custd-sdk-laravel" },
+  { "type": "vcs", "url": "https://github.com/haakco/custd-sdk-wordpress" }
+]
+```
+
+Then `composer require haakco/custd-laravel:^1.3` resolves from the mirror's tags (the package *name* comes from the mirror's `composer.json`; the repo URL is just where Composer reads it). `haakco/custd-sdk` resolves transitively the same way (add its VCS repo too, or its mirror, since the root package is the monorepo itself).
+
+**Remove the now-unused `publish-packagist` job** from `.github/workflows/ci.yml` (it notifies packagist.org, which we don't use) — see [Open cleanup](#open-cleanup).
 
 ---
 
@@ -167,7 +178,13 @@ composer require haakco/custd-laravel:^1.3   # resolves haakco/custd-sdk transit
 php -r "require 'vendor/autoload.php'; class_exists(HaakCo\\LaravelCustd\\CustdServiceProvider::class) || exit(1);"
 ```
 
-**Done when:** a downstream installs `haakco/custd-laravel` (with `haakco/custd-sdk` pulled transitively) via VCS/Packagist with **no** machine-local `path`, the service provider autoloads, the mirrors carry the same `vX.Y.Z` tag as the monorepo, and `release-guard` is green. Confirm it installs in **CI and shared agent workspaces**, not just one laptop.
+**Done when:** a downstream installs `haakco/custd-laravel` (with `haakco/custd-sdk` pulled transitively) via Composer VCS from the GitHub mirror with **no** machine-local `path`, the service provider autoloads, the mirrors carry the same `vX.Y.Z` tag as the monorepo, and `release-guard` is green. Confirm it installs in **CI and shared agent workspaces**, not just one laptop.
+
+---
+
+## Open cleanup
+
+- **Remove the `publish-packagist` job** from `.github/workflows/ci.yml` and drop the `PACKAGIST_USERNAME`/`PACKAGIST_TOKEN` references — we consume via Composer VCS, not Packagist. (Deferred per tim@haak.co — "not doing this now"; the job currently no-ops when its secrets are absent, so it is harmless until removed.)
 
 ---
 
