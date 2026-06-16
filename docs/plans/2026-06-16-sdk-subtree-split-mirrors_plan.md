@@ -65,17 +65,26 @@ Add a one-line `README` to each mirror stating it is **generated — do not push
 
 ## Task 2 — Add the mirror push secret (⚠️ outward, coordinator-gated)
 
-The split job pushes to other repos, so the default `GITHUB_TOKEN` (scoped to this repo) is insufficient. Add `MIRROR_PUSH_TOKEN` as a repo secret on `haakco/custd-sdk`.
+The split job pushes to other repos, so the default `GITHUB_TOKEN` (scoped to this repo) is insufficient. **Matching custd + cb (unanimous org convention), CI authenticates to the self-hosted Infisical via Universal Auth, and the actual push token lives in Infisical — not as a GitHub secret.**
 
-**Least privilege (do not use a classic PAT or a broad token):** use a **fine-grained PAT** scoped to **only** the three mirror repos, with **`Contents: read and write`** and nothing else, and a **short expiry** (rotate on expiry). A classic org-wide token would let a compromised runner write to every HaakCo repo — the blast radius must be the three mirrors only.
+The only GitHub repo secrets to add to `haakco/custd-sdk` are the machine-identity credentials (reuse the same identity custd uses — `custd-sdk` is in the **same** Infisical project, workspace `952c94fb…`):
 
 ```bash
-gh secret set MIRROR_PUSH_TOKEN --repo haakco/custd-sdk   # paste the fine-grained token
+gh secret set INFISICAL_CLIENT_ID     --repo haakco/custd-sdk
+gh secret set INFISICAL_CLIENT_SECRET --repo haakco/custd-sdk
 ```
 
-## Task 3 — `release-mirrors.yml` workflow (commit after the secret in Task 2 exists)
+Store the push token **in Infisical** at the SDK path (`/custd-sdk`, env `prod`) as `MIRROR_PUSH_TOKEN`:
 
-A tag-triggered, self-hosted job that splits each subtree and pushes it + the tag to its mirror. The token is passed via `http.extraheader` (base64 in a git config value git never prints) — **not** embedded in the remote URL, so it never lands in `argv`/process list or logs:
+```bash
+infisical secrets set MIRROR_PUSH_TOKEN=<github-PAT> --env=prod --path=/custd-sdk --domain=https://secrets.k8.haak.co/api
+```
+
+**Least privilege for the PAT value (do not use a classic/broad token):** a **fine-grained PAT** scoped to **only** the three mirror repos, `Contents: read and write`, nothing else, short expiry. The blast radius of a compromised runner must be the three mirrors only.
+
+## Task 3 — `release-mirrors.yml` workflow (commit after the secrets in Task 2 exist)
+
+A tag-triggered, self-hosted job that pulls `MIRROR_PUSH_TOKEN` from Infisical (Universal Auth, mirroring custd/cb), splits each subtree, and pushes it + the tag. The push token is passed via `http.extraheader` (base64 in a git config value git never prints) — **not** in the remote URL — so it never lands in `argv`/process list or logs:
 
 ```yaml
 name: Release Mirrors
@@ -89,7 +98,7 @@ permissions:
 
 jobs:
   split:
-    runs-on: self-hosted
+    runs-on: [self-hosted, haakco]
     strategy:
       fail-fast: false
       matrix:
@@ -111,11 +120,18 @@ jobs:
           [ "$tag" = "$version" ] || { echo "tag v$tag != VERSION $version" >&2; exit 1; }
       - name: Split subtree and push to mirror
         env:
-          MIRROR_PUSH_TOKEN: ${{ secrets.MIRROR_PUSH_TOKEN }}
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           PREFIX: ${{ matrix.prefix }}
           MIRROR: ${{ matrix.mirror }}
           TAG: ${{ github.ref_name }}
         run: |
+          # Universal Auth → pull MIRROR_PUSH_TOKEN from Infisical (never a GH secret).
+          token="$(infisical login --method=universal-auth \
+            --client-id="$INFISICAL_CLIENT_ID" --client-secret="$INFISICAL_CLIENT_SECRET" \
+            --domain=https://secrets.k8.haak.co/api --silent --plain)"
+          MIRROR_PUSH_TOKEN="$(INFISICAL_TOKEN="$token" infisical secrets get MIRROR_PUSH_TOKEN \
+            --env=prod --path=/custd-sdk --domain=https://secrets.k8.haak.co/api --plain --silent)"
           split_sha="$(git subtree split --prefix="$PREFIX")"
           auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$MIRROR_PUSH_TOKEN" | base64 | tr -d '\n')"
           git -c http."https://github.com/".extraheader="$auth_header" \
@@ -124,7 +140,7 @@ jobs:
             push "https://github.com/${MIRROR}.git" "${split_sha}:refs/tags/${TAG}"
 ```
 
-> `runs-on: self-hosted` per HaakCo policy. Refs use the env-var form (`$GITHUB_REF_NAME`), so no `${{ }}` injection. The matrix is the single source of which subtrees mirror.
+> `runs-on: [self-hosted, haakco]` matches custd. Refs use the env-var form (`$GITHUB_REF_NAME`), so no `${{ }}` injection. The push token is fetched at runtime from Infisical and never stored as a GitHub secret. The matrix is the single source of which subtrees mirror.
 
 ## Task 4 — Drop the `path` shims (ship only after mirrors are live + Packagist-registered)
 

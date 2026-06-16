@@ -46,8 +46,9 @@
 
 ### Remaining (needs live registry / CI run — not doable from a dev laptop)
 
-- [ ] **Diagnose why `publish-js` never published** (the 404). Check a prior `v*` run: was the job skipped, did `js` fail, or is `secrets.VERDACCIO_TOKEN` missing/unset? Fix the root cause.
-- [ ] **Publish `@haakco/custd-sdk@1.3.0`** to Verdaccio (restricted) — happens automatically on the next `v1.3.x` tag once the cause above is fixed, or via a manual run.
+- [x] **Root cause of the 404 found (2026-06-16):** `gh secret list --repo haakco/custd-sdk` is **empty** — the repo has **no secrets at all**, so `secrets.VERDACCIO_TOKEN` is unset and `publish-js` could never authenticate (and `publish-packagist`'s `PACKAGIST_*` are likewise unset). Not a pipeline bug.
+- [ ] **Provide `VERDACCIO_TOKEN`.** Matching custd/cb (Universal Auth), add `INFISICAL_CLIENT_ID`/`INFISICAL_CLIENT_SECRET` repo secrets and store `VERDACCIO_TOKEN` in Infisical (`/custd-sdk`, env `prod`); have `publish-js` pull it at runtime — or, minimally, set `VERDACCIO_TOKEN` directly as a repo secret. See [Plan B Task 2](2026-06-16-sdk-subtree-split-mirrors_plan.md#task-2--add-the-mirror-push-secret--outward-coordinator-gated) for the identical Universal-Auth wiring.
+- [ ] **Publish `@haakco/custd-sdk@1.3.0`** to Verdaccio (restricted) — happens automatically on the next `v1.3.x` tag once the token exists, or via a manual run.
 - [ ] **Verify the published tarball contains `dist/`** and the three entrypoints (`.`, `./browser`, `./browser-script`) resolve.
 
 **Verification (post-publish, from a scratch dir):**
