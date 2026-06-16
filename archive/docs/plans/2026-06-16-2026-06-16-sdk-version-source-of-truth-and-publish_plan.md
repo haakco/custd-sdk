@@ -5,7 +5,7 @@
 > CI gate are live. Root cause of the prior 404 (no `VERDACCIO_TOKEN`) fixed via
 > Infisical Universal Auth. CouriB Phase 1 unblocked.
 
-**Goal:** Give every SDK one shared version driven by a single source of truth, enforce it in CI, and publish `@haakco/custd-sdk` to Verdaccio so CouriB's web-gui can install it. No repo split required — this is the registry/in-repo half of the [CouriB consumer unblock](2026-06-16-cb-consumer-unblock_plan.md).
+**Goal:** Give every SDK one shared version driven by a single source of truth, enforce it in CI, and publish `@haakco/custd-sdk` to Verdaccio so CouriB's web-gui can install it. No repo split required — this is the registry/in-repo half of the [CouriB consumer unblock](2026-06-17-2026-06-16-cb-consumer-unblock_plan.md).
 
 **Background:** The v1.3.0 package split `export-ignore`d `/sdk-js`, so the old `github:…&path:sdk-js` tarball install no longer ships the JS SDK. A registry is now the only supported JS install path. Separately, three manifests had drifted to `1.2.1` while the repo was tagged `v1.3.0`. Both are fixed here.
 
@@ -70,8 +70,8 @@ node -e "import('@haakco/custd-sdk/browser').then(m => console.log(Object.keys(m
 
 ## Links
 
-- Umbrella: [Unblock CouriB Consumer](2026-06-16-cb-consumer-unblock_plan.md) (R1).
-- Companion: [Plan B — Subtree-Split Mirrors](2026-06-16-sdk-subtree-split-mirrors_plan.md) (the VCS-forced PHP split).
+- Umbrella: [Unblock CouriB Consumer](2026-06-17-2026-06-16-cb-consumer-unblock_plan.md) (R1).
+- Companion: [Plan B — Subtree-Split Mirrors](2026-06-17-2026-06-16-sdk-subtree-split-mirrors_plan.md) (the VCS-forced PHP split).
 - Version-sync rule: `AGENTS.md` → "Version Sync".
 
 **Last verified:** 2026-06-16 (repo reads + live Verdaccio probe + local test runs).

@@ -1,5 +1,11 @@
 # Unblock CouriB Consumer (Verdaccio Publish + Laravel Package Install)
 
+> **✅ ARCHIVED 2026-06-17 — complete.** Both install blockers are cleared: R1 —
+> `@haakco/custd-sdk` published to Verdaccio (now at `1.3.2`); R2 — `haakco/custd-laravel`
+> and `haakco/custd-wordpress` installable via Composer VCS from their public mirrors (now
+> at `v1.3.2`, with the `path` shims dropped in favour of a VCS repo). CouriB Phase 0 (API)
+> and Phase 1 (web) are unblocked. Both sub-plans (A and B) are archived.
+
 **Goal:** Make `@haakco/custd-sdk` (JS) and `haakco/custd-laravel` (Composer) installable by downstream consumers so the CouriB analytics integration can start. Two hard install blockers currently gate CouriB Phase 0 (API) and Phase 1 (web).
 
 **Background:** CouriB's custd analytics integration plan (`cb/docs/plans/2026-06-11_custd_analytics_integration_plan.md`, Findings #8 and #14) is blocked at the install step. The v1.3.0 package split made the root Composer package pure-PHP and `export-ignore`d the framework subtrees — correct for hygiene, but it broke both ways CouriB used to pull the SDK. Requested by <tim@haak.co> (2026-06-16): "add the requirements, team will fix."
@@ -10,8 +16,8 @@
 >
 > **This plan is split into two executable sub-plans** (the registry half needs no repo work; the VCS half needs new repo plumbing, so they ship independently):
 >
-> - **[Plan A — Version Source of Truth + Registry Publish](../../archive/docs/plans/2026-06-16-2026-06-16-sdk-version-source-of-truth-and-publish_plan.md)** (archived — shipped) — covered **R1** + the version-sync source of truth and CI gate.
-> - **[Plan B — Subtree-Split All SDKs to Mirror Repos](2026-06-16-sdk-subtree-split-mirrors_plan.md)** — covers **R2**. Chosen mechanism: **monorepo + `git subtree split` to read-only mirrors** (language-agnostic, zero new infra, dev workflow unchanged). Consumed via Composer VCS from the GitHub mirrors (no Packagist). Outward steps (mirror repos, push secret) are coordinator-gated.
+> - **[Plan A — Version Source of Truth + Registry Publish](2026-06-16-2026-06-16-sdk-version-source-of-truth-and-publish_plan.md)** (archived — shipped) — covered **R1** + the version-sync source of truth and CI gate.
+> - **[Plan B — Subtree-Split All SDKs to Mirror Repos](2026-06-17-2026-06-16-sdk-subtree-split-mirrors_plan.md)** — covers **R2**. Chosen mechanism: **monorepo + `git subtree split` to read-only mirrors** (language-agnostic, zero new infra, dev workflow unchanged). Consumed via Composer VCS from the GitHub mirrors (no Packagist). Outward steps (mirror repos, push secret) are coordinator-gated.
 
 **Tech Stack:** pnpm 10 / Node 24, HaakCo Verdaccio (`https://verdaccio.k8.haak.co/`), Composer VCS/path repos, GitHub Actions (self-hosted runners).
 
@@ -31,7 +37,7 @@
 
 ## R1 — Publish `@haakco/custd-sdk` to Verdaccio (unblocks CouriB Phase 1 / web)
 
-> **Now tracked in [Plan A](2026-06-16-sdk-version-source-of-truth-and-publish_plan.md).** The stale-version blocker below is fixed (single `VERSION` source of truth, `release-guard` gate); only the live publish remains.
+> **Now tracked in [Plan A](2026-06-16-2026-06-16-sdk-version-source-of-truth-and-publish_plan.md).** The stale-version blocker below is fixed (single `VERSION` source of truth, `release-guard` gate); only the live publish remains.
 
 **Why:** With `/sdk-js export-ignore`d, the GitHub tarball install no longer contains the JS SDK. A real registry is now the only supported install path for downstream JS consumers. CouriB web-gui needs `pnpm add @haakco/custd-sdk` to resolve from `https://verdaccio.k8.haak.co/`.
 
@@ -59,11 +65,11 @@ node -e "import('@haakco/custd-sdk/browser').then(m => console.log(Object.keys(m
 
 ## R2 — Make `haakco/custd-laravel` installable downstream without a local path repo (unblocks CouriB Phase 0 / API)
 
-> **Now tracked in [Plan B](2026-06-16-sdk-subtree-split-mirrors_plan.md).** Mechanism decided: **`git subtree split` to read-only mirrors** (the "Preferred" option below). Version lockstep is enforced by Plan A's `release-guard` + `VersionSyncTest`.
+> **Now tracked in [Plan B](2026-06-17-2026-06-16-sdk-subtree-split-mirrors_plan.md).** Mechanism decided: **`git subtree split` to read-only mirrors** (the "Preferred" option below). Version lockstep is enforced by Plan A's `release-guard` + `VersionSyncTest`.
 
 **Why:** CouriB's API consumes `haakco/custd-laravel ^1.3` (the Laravel package — service provider, `Custd` facade, queued `SendCustdEvent`, `config/custd.php`). A Composer VCS repo on the monorepo root exposes only the pure-PHP `haakco/custd-sdk`, so the Laravel package is not VCS-installable today.
 
-**The split is now REQUIRED (no longer deferred).** Per <tim@haak.co> (2026-06-16): do the split now so `haakco/custd-laravel` (and `haakco/custd-wordpress`) are first-class Composer-VCS-installable packages (from the GitHub mirrors; no Packagist) — supersedes the "monorepo for now" decision in [`future/2026-06-16-sdk-repo-split_plan.md`](future/2026-06-16-sdk-repo-split_plan.md). A short-lived Composer `path` workaround is acceptable **only** as a bridge while the split lands, not as the destination.
+**The split is now REQUIRED (no longer deferred).** Per <tim@haak.co> (2026-06-16): do the split now so `haakco/custd-laravel` (and `haakco/custd-wordpress`) are first-class Composer-VCS-installable packages (from the GitHub mirrors; no Packagist) — supersedes the "monorepo for now" decision in [`future/2026-06-16-sdk-repo-split_plan.md`](2026-06-16-2026-06-16-sdk-repo-split_plan.md). A short-lived Composer `path` workaround is acceptable **only** as a bridge while the split lands, not as the destination.
 
 **Hard constraint — keep all SDKs in sync:** the split must NOT let the packages drift. Every SDK (`sdk-php`/`haakco/custd-sdk`, `laravel-package`/`haakco/custd-laravel`, `wordpress-plugin`/`haakco/custd-wordpress`, plus `sdk-js`, `sdk-go`, `sdk-python`) must release on a **single shared version** from one source of truth — one tag drives all package versions, and a CI gate fails the release if any package's declared version diverges from the tag. Choose a split mechanism that enforces this:
 
@@ -90,13 +96,13 @@ php -r "require 'vendor/autoload.php'; class_exists(HaakCo\\LaravelCustd\\CustdS
 
 ## Out of Scope
 
-- The previously-deferred [`future/2026-06-16-sdk-repo-split_plan.md`](future/2026-06-16-sdk-repo-split_plan.md) is now **superseded by R2** (split required, not deferred) — archive that future plan once R2 lands.
+- The previously-deferred [`future/2026-06-16-sdk-repo-split_plan.md`](2026-06-16-2026-06-16-sdk-repo-split_plan.md) is now **superseded by R2** (split required, not deferred) — archive that future plan once R2 lands.
 - Browser-tracker SPA gaps (popstate / initial page view), dogfood sanitizer silent-drop, schema admin helpers — separate upstream findings in the CouriB plan's Findings table (#6, #7, #12); not install blockers.
 
 ## Links
 
 - CouriB integration plan: `cb/docs/plans/2026-06-11_custd_analytics_integration_plan.md` (Findings #8, #14).
-- Deferred repo-split: [`future/2026-06-16-sdk-repo-split_plan.md`](future/2026-06-16-sdk-repo-split_plan.md).
-- Source of the package split: [`2026-06-16-sdk-package-split-and-hardening_plan.md`](2026-06-16-sdk-package-split-and-hardening_plan.md).
+- Deferred repo-split: [`future/2026-06-16-sdk-repo-split_plan.md`](2026-06-16-2026-06-16-sdk-repo-split_plan.md).
+- Source of the package split: [`2026-06-16-sdk-package-split-and-hardening_plan.md`](2026-06-17-2026-06-16-sdk-package-split-and-hardening_plan.md).
 
 **Last verified:** 2026-06-16 (repo reads + live Verdaccio probe).

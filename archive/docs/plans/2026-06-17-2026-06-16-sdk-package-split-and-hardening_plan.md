@@ -1,5 +1,13 @@
 # SDK Package Split & Packaging Hardening Implementation Plan
 
+> **✅ ARCHIVED 2026-06-17 — complete (shipped in `v1.3.0`).** All completion criteria
+> below are satisfied in code: root `composer.json` is pure-PHP only (no `extra.laravel`);
+> `.gitattributes` `export-ignore` strips non-SDK paths from the dist; `laravel-package`
+> and `wordpress-plugin` are standalone with their own `require` (no dangling `illuminate/*`);
+> Authy→Awthy BC aliases ship via `sdk-php/bootstrap/aliases.php`; all suites + static analysis
+> are green on self-hosted runners. See the **Review outcome** section for the 3-stage gauntlet
+> result. (The checkboxes were never ticked during execution; the work itself is done.)
+
 **Goal:** Stop shipping three frameworks' code in one Composer package; make `haakco/custd-sdk` a clean pure-PHP package and turn the Laravel and WordPress subtrees into self-contained, split-ready packages — plus fix the semver/BC and hygiene fallout.
 
 **Background:** A code review of the SDK as consumed inside Awthy found the single `haakco/custd-sdk` package autoloads three PSR-4 roots and ships all of them in the dist. Source of the findings: review pasted into the custd session 2026-06-16.

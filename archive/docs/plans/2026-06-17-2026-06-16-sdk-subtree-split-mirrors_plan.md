@@ -1,20 +1,23 @@
 # Plan B — Subtree-Split All SDKs to Mirror Repos
 
-> **Release status (2026-06-16):** The 3 public mirrors (`custd-sdk-laravel`,
-> `custd-sdk-wordpress`, `custd-sdk-go`) are populated with `main` + the `v1.3.1`
-> tag (pushed manually for this release), and `release-mirrors.yml` is committed.
-> **Blocker for CI auto-mirroring:** the `MIRROR_PUSH_TOKEN` secret in Infisical
-> (`/custd-sdk` `prod`) currently holds the literal placeholder `MIRROR_PUSH_TOKEN`,
-> not a GitHub PAT — set a fine-grained PAT (`Contents: write` on the 3 mirrors)
-> so the `release-mirrors` job can push on the next tag. The split + extraheader
-> push mechanism is otherwise verified working. **Still open:** Task 4 (drop the
-> `path` shims).
+> **✅ ARCHIVED 2026-06-17 — complete.** The 3 public mirrors (`custd-sdk-laravel`,
+> `custd-sdk-wordpress`, `custd-sdk-go`) are populated with `main` + the `v1.3.2`
+> tag, and `release-mirrors.yml` is committed. Task 4 (drop the `path` shims → VCS)
+> shipped in `v1.3.2`, along with the Go module rename to `github.com/haakco/custd-sdk-go`
+> (the split now vendors `contract-fixtures/` so the standalone module is
+> self-contained). `go get github.com/haakco/custd-sdk-go@v1.3.2` verified working.
+> **Only deferred item (user-owned, tracked in `main_plan.md`):** the
+> `MIRROR_PUSH_TOKEN` secret in Infisical (`/custd-sdk` `prod`) still holds the
+> literal placeholder, so CI auto-mirroring 401s — set a fine-grained PAT
+> (`Contents: write` on the 3 mirrors). Until then, mirrors are pushed manually
+> (as for v1.3.1 and v1.3.2). The split + extraheader push mechanism is otherwise
+> verified working.
 
-**Goal:** Make every SDK package installable through its own ecosystem's standard path — without a machine-local Composer `path` repo — while keeping a single monorepo as the source of truth. This is the VCS-forced half of the [CouriB consumer unblock](2026-06-16-cb-consumer-unblock_plan.md) (R2). It unblocks CouriB Phase 0 (API), which needs `composer require haakco/custd-laravel`.
+**Goal:** Make every SDK package installable through its own ecosystem's standard path — without a machine-local Composer `path` repo — while keeping a single monorepo as the source of truth. This is the VCS-forced half of the [CouriB consumer unblock](2026-06-17-2026-06-16-cb-consumer-unblock_plan.md) (R2). It unblocks CouriB Phase 0 (API), which needs `composer require haakco/custd-laravel`.
 
 **Background:** A private repo consumed via Composer VCS exposes exactly **one** package — the root `composer.json`. Today that is `haakco/custd-sdk` (pure PHP). `haakco/custd-laravel` and `haakco/custd-wordpress` live in subtrees, so they are invisible to a VCS repo pointed at the monorepo root, and consumers fall back to a `path` shim that only works on one machine. The fix is to give each package a repo root of its own.
 
-**Architecture (chosen):** **Monorepo + `git subtree split` to read-only mirror repos.** We keep developing, testing, and tagging in this one repo. A release CI job (on `v*` tag push) splits each package subtree to its own mirror repo and copies the **same** tag onto it. Consumers point Composer **VCS** repos (and Go modules) directly at the GitHub mirrors — **no Packagist**. Versions cannot drift because every mirror tag derives from one monorepo tag, and [Plan A](2026-06-16-sdk-version-source-of-truth-and-publish_plan.md)'s `release-guard` + `VersionSyncTest` already enforce tag == `VERSION` == every manifest.
+**Architecture (chosen):** **Monorepo + `git subtree split` to read-only mirror repos.** We keep developing, testing, and tagging in this one repo. A release CI job (on `v*` tag push) splits each package subtree to its own mirror repo and copies the **same** tag onto it. Consumers point Composer **VCS** repos (and Go modules) directly at the GitHub mirrors — **no Packagist**. Versions cannot drift because every mirror tag derives from one monorepo tag, and [Plan A](2026-06-16-2026-06-16-sdk-version-source-of-truth-and-publish_plan.md)'s `release-guard` + `VersionSyncTest` already enforce tag == `VERSION` == every manifest.
 
 **Why subtree-split over the alternatives:** it is the only language-agnostic option that needs **zero new infrastructure** — `git subtree split` is built into git and runs as a plain job on the existing self-hosted ARC runners. `symplify/monorepo-builder` is PHP-only (would not split `sdk-go`/`sdk-js`/`sdk-python`); Copybara is language-agnostic but JVM-based and hand-wires lockstep. Read-only mirrors mean the dev workflow does not change at all.
 
@@ -28,7 +31,7 @@
 
 | Package | Standard install path | Mirror needed? |
 | --- | --- | --- |
-| `sdk-js` (`@haakco/custd-sdk`) | Verdaccio registry | **No** — handled by [Plan A](2026-06-16-sdk-version-source-of-truth-and-publish_plan.md). |
+| `sdk-js` (`@haakco/custd-sdk`) | Verdaccio registry | **No** — handled by [Plan A](2026-06-16-2026-06-16-sdk-version-source-of-truth-and-publish_plan.md). |
 | `sdk-python` (`custd-sdk`) | PyPI/registry | **No** — registry, not VCS. (Add a publish job if/when a downstream needs it.) |
 | `sdk-go` | Go modules resolve subdir modules via `sdk-go/vX.Y.Z` tags **today** | **Yes (decided)** — mirror to `haakco/custd-sdk-go` for a clean `github.com/haakco/custd-sdk-go` import path. |
 | `haakco/custd-sdk` (root, pure PHP) | Composer VCS = root package | **No** — it is already the root. |
@@ -49,7 +52,7 @@
 - `.github/workflows/ci.yml` — has a `publish-packagist` job that notifies packagist.org. **Unused — we consume via Composer VCS, not Packagist; remove it** (see [Open cleanup](#open-cleanup)).
 - `sdk-php/composer.json` — version-pinned `1.3.0`; this pin exists for the `path` shim and is removed once the shims are gone (the framework packages then resolve `haakco/custd-sdk` via Composer VCS from the GitHub mirror).
 
-**Deferred Work:** None deferred from this plan. This plan itself *supersedes* the earlier deferral — see [`future/2026-06-16-sdk-repo-split_plan.md`](future/2026-06-16-sdk-repo-split_plan.md) (to be archived on completion).
+**Deferred Work:** None deferred from this plan. This plan itself *supersedes* the earlier deferral — see [`future/2026-06-16-sdk-repo-split_plan.md`](2026-06-16-2026-06-16-sdk-repo-split_plan.md) (to be archived on completion).
 
 ---
 
@@ -200,9 +203,9 @@ php -r "require 'vendor/autoload.php'; class_exists(HaakCo\\LaravelCustd\\CustdS
 
 ## Links
 
-- Umbrella: [Unblock CouriB Consumer](2026-06-16-cb-consumer-unblock_plan.md) (R2).
-- Companion: [Plan A — Version Source of Truth + Publish](../../archive/docs/plans/2026-06-16-2026-06-16-sdk-version-source-of-truth-and-publish_plan.md) (archived — shipped at v1.3.1).
-- Superseded: [SDK Repo Split](../../archive/docs/plans/2026-06-16-2026-06-16-sdk-repo-split_plan.md) (archived).
+- Umbrella: [Unblock CouriB Consumer](2026-06-17-2026-06-16-cb-consumer-unblock_plan.md) (R2).
+- Companion: [Plan A — Version Source of Truth + Publish](2026-06-16-2026-06-16-sdk-version-source-of-truth-and-publish_plan.md) (archived — shipped at v1.3.1).
+- Superseded: [SDK Repo Split](2026-06-16-2026-06-16-sdk-repo-split_plan.md) (archived).
 - Version-sync rule: `AGENTS.md` → "Version Sync".
 
 **Last verified:** 2026-06-16. Task 1 done (3 private mirrors created). Remaining: Task 2 (add `MIRROR_PUSH_TOKEN` — needs a human token paste), then commit `release-mirrors.yml` (Task 3), then Tasks 4–5.
