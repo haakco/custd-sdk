@@ -30,6 +30,11 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+          # Don't persist the checkout token as an http.extraheader — our push
+          # sets its own extraheader, and two would send a duplicate
+          # Authorization header (git push → HTTP 400). The repo is public, so
+          # the initial fetch needs no persisted credential.
+          persist-credentials: false
       - name: Install Infisical CLI
         run: |
           curl -fsSL https://mise.run | sh

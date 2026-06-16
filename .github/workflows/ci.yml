@@ -193,13 +193,18 @@ jobs:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
         run: |
+          # pnpm 10's publish delegates to npm with incompatible args (EUSAGE on
+          # npm 11); publish with npm directly. sdk-js/.npmrc supplies the
+          # registry + _auth=${VERDACCIO_TOKEN}, expanded from the env var below.
+          domain="https://secrets.k8.haak.co/api"
           INFISICAL_TOKEN="$(infisical login --method=universal-auth \
             --client-id="$INFISICAL_CLIENT_ID" --client-secret="$INFISICAL_CLIENT_SECRET" \
-            --domain=https://secrets.k8.haak.co/api --plain --silent)"
-          export INFISICAL_TOKEN
-          infisical run --projectId=952c94fb-3c39-4384-8087-2e459812bc3d \
-            --env=prod --path=/custd-sdk --domain=https://secrets.k8.haak.co/api -- \
-            pnpm -C sdk-js publish --no-git-checks --access restricted --ignore-scripts
+            --domain="$domain" --plain --silent)"
+          VERDACCIO_TOKEN="$(infisical secrets get VERDACCIO_TOKEN \
+            --token="$INFISICAL_TOKEN" --projectId=952c94fb-3c39-4384-8087-2e459812bc3d \
+            --env=prod --path=/custd-sdk --domain="$domain" --plain --silent)"
+          export VERDACCIO_TOKEN
+          cd sdk-js && npm publish --access restricted --ignore-scripts
 
   publish-packagist:
     runs-on: self-hosted
