@@ -184,7 +184,7 @@ php -r "require 'vendor/autoload.php'; class_exists(HaakCo\\LaravelCustd\\CustdS
 
 ## Open cleanup
 
-- **Remove the `publish-packagist` job** from `.github/workflows/ci.yml` and drop the `PACKAGIST_USERNAME`/`PACKAGIST_TOKEN` references — we consume via Composer VCS, not Packagist. (Deferred per tim@haak.co — "not doing this now"; the job currently no-ops when its secrets are absent, so it is harmless until removed.)
+- **Remove the `publish-packagist` job** from `.github/workflows/ci.yml` and drop the `PACKAGIST_USERNAME`/`PACKAGIST_TOKEN` references — we consume via Composer VCS, not Packagist. (Deferred per <tim@haak.co> — "not doing this now"; the job currently no-ops when its secrets are absent, so it is harmless until removed.)
 
 ---
 
