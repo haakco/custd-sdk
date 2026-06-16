@@ -47,6 +47,9 @@ final class ComposerMetadataTest extends TestCase
         $this->assertStringContainsString('php-version: "${{ matrix.php-version }}"', $workflow);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function loadComposerJson(string $path): array
     {
         $json = file_get_contents($path);

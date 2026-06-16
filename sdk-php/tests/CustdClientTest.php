@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 
 final class CustdClientTest extends TestCase
 {
+    /** @var array<string, mixed> */
     private array $baseEvent = [
         "eventUuid" => "evt-1",
         "eventTypeSlug" => "page-view",

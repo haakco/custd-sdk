@@ -137,10 +137,7 @@ describe("createBrowserTracker", () => {
 
     const batch = batchFromFetch(fetchMock);
     expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:8087/api/v1/collect/events/batch");
-    expect(batch.events.map((event: { eventTypeSlug: string }) => event.eventTypeSlug)).toEqual([
-      "first",
-      "second",
-    ]);
+    expect(batch.events.map((event: { eventTypeSlug: string }) => event.eventTypeSlug)).toEqual(["first", "second"]);
   });
 
   it("uses keepalive fetch without credentials on pagehide", async () => {
@@ -604,7 +601,10 @@ function installBrowserGlobals(): void {
       listeners.set(type, [...(listeners.get(type) ?? []), listener]);
     },
     removeEventListener: (type: string, listener: (event: Event) => void) => {
-      listeners.set(type, (listeners.get(type) ?? []).filter((item) => item !== listener));
+      listeners.set(
+        type,
+        (listeners.get(type) ?? []).filter((item) => item !== listener),
+      );
     },
     dispatchEvent: (event: Event) => {
       for (const listener of listeners.get(event.type) ?? []) {

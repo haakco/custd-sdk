@@ -13,8 +13,24 @@ authors = [
   { name = "HaakCo" }
 ]
 
+[project.optional-dependencies]
+dev = ["ruff", "mypy"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
 custd = ["py.typed"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src"]

@@ -1,11 +1,11 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  createDogfoodEvent,
   CustdClient,
-  EventEnvelope,
+  createDogfoodEvent,
+  type EventEnvelope,
   MemoryQueueStorage,
-  ProvisionedProducerCredentials,
+  type ProvisionedProducerCredentials,
   redactedProvisionedProducer,
   validateEvent,
 } from "./index";
@@ -135,7 +135,8 @@ describe("CustdClient", () => {
   });
 
   it("retries on retryable status", async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce(new Response("", { status: 503 }))
       .mockResolvedValueOnce(new Response("", { status: 202 }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -193,8 +194,11 @@ describe("CustdClient", () => {
   });
 
   it("uses OAuth2 producer credentials for bearer auth", async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "oauth-token", expires_in: 300 }), { status: 200 }))
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: "oauth-token", expires_in: 300 }), { status: 200 }),
+      )
       .mockResolvedValueOnce(new Response("", { status: 202 }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
@@ -218,35 +222,38 @@ describe("CustdClient", () => {
   });
 
   it("rejects plaintext non-local URLs", () => {
-    expect(() =>
-      new CustdClient({
-        baseUrl: "http://custd.example.com",
-        getToken: () => "token",
-      }),
+    expect(
+      () =>
+        new CustdClient({
+          baseUrl: "http://custd.example.com",
+          getToken: () => "token",
+        }),
     ).toThrow(/baseUrl must use https/);
 
-    expect(() =>
-      new CustdClient({
-        baseUrl: "https://custd.example.com",
-        oauth: {
-          clientId: "producer",
-          clientSecret: "secret",
-          tokenUrl: "http://auth.example.com/oauth2/token",
-        },
-      }),
+    expect(
+      () =>
+        new CustdClient({
+          baseUrl: "https://custd.example.com",
+          oauth: {
+            clientId: "producer",
+            clientSecret: "secret",
+            tokenUrl: "http://auth.example.com/oauth2/token",
+          },
+        }),
     ).toThrow(/tokenUrl must use https/);
   });
 
   it("allows plaintext localhost URLs", () => {
-    expect(() =>
-      new CustdClient({
-        baseUrl: "http://localhost:8080",
-        oauth: {
-          clientId: "producer",
-          clientSecret: "secret",
-          tokenUrl: "http://127.0.0.1:4444/oauth2/token",
-        },
-      }),
+    expect(
+      () =>
+        new CustdClient({
+          baseUrl: "http://localhost:8080",
+          oauth: {
+            clientId: "producer",
+            clientSecret: "secret",
+            tokenUrl: "http://127.0.0.1:4444/oauth2/token",
+          },
+        }),
     ).not.toThrow();
   });
 });
@@ -269,9 +276,7 @@ describe("fromProvisionedProducer", () => {
   });
 
   it("rejects a bundle missing the client secret", () => {
-    const credentials = loadProvisionedProducerFixture(
-      "invalid-provisioned-producer-missing-secret.json",
-    );
+    const credentials = loadProvisionedProducerFixture("invalid-provisioned-producer-missing-secret.json");
     expect(() => CustdClient.fromProvisionedProducer(credentials)).toThrow(/client secret/);
   });
 

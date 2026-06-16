@@ -108,6 +108,7 @@ final class CustdClient
 
     /**
      * @param array<string, mixed> $event
+     * @return array<string, mixed>
      */
     public function ingestEvent(array $event): array
     {
@@ -343,6 +344,7 @@ final class CustdClient
 
     /**
      * @param array<string, mixed> $event
+     * @return array<string, mixed>
      */
     private function sendWithRetry(array $event): array
     {
@@ -365,6 +367,7 @@ final class CustdClient
 
     /**
      * @param array<int, array<string, mixed>> $events
+     * @return array<string, mixed>
      */
     private function sendBatchWithRetry(array $events): array
     {
@@ -687,6 +690,7 @@ final class CustdClient
 
     /**
      * @param mixed $payload
+     * @param list<string> $droppedKeys
      * @return array<string, mixed>
      */
     private static function sanitizeDogfoodPayload(mixed $payload, array &$droppedKeys = [], string $prefix = ""): array

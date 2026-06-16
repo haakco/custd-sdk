@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
 
 /**
  * Guards the published artifact. The package ships `files: ["dist"]`, so the

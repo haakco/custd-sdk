@@ -360,7 +360,7 @@ export class CustdClient {
     if (!response.ok) {
       throw new Error(`custd: token request failed with status ${response.status}`);
     }
-    const token = await response.json() as { access_token?: string; expires_in?: number };
+    const token = (await response.json()) as { access_token?: string; expires_in?: number };
     if (!token.access_token) {
       throw new Error("custd: token response missing access_token");
     }
@@ -377,6 +377,7 @@ export class CustdClient {
     return this.sendWithRetry(prepared);
   }
 
+  // biome-ignore lint/suspicious/noConfusingVoidType: public return type — track() resolves to nothing when queued, or a Response when sent immediately.
   async track(event: EventEnvelope): Promise<void | Response> {
     const prepared = prepareEvent(event);
     validateEvent(prepared);
@@ -527,7 +528,7 @@ export class CustdClient {
     if (response.status === 204) {
       return undefined as T;
     }
-    return await response.json() as T;
+    return (await response.json()) as T;
   }
 }
 
@@ -607,7 +608,10 @@ class AdminSiteNamespace {
   }
 
   async get(siteUuid: string): Promise<AdminSite> {
-    const site = await this.request<AdminSite & { writeKey?: unknown }>("GET", `/sites/${encodeURIComponent(siteUuid)}`);
+    const site = await this.request<AdminSite & { writeKey?: unknown }>(
+      "GET",
+      `/sites/${encodeURIComponent(siteUuid)}`,
+    );
     return publicAdminSite(site);
   }
 
@@ -840,7 +844,7 @@ export async function withRetry<T>(options: Required<RetryOptions>, op: () => Pr
 }
 
 function backoffDelay(options: Required<RetryOptions>, attempt: number): number {
-  const exp = options.baseDelayMs * Math.pow(2, attempt-1);
+  const exp = options.baseDelayMs * 2 ** (attempt - 1);
   const capped = Math.min(exp, options.maxDelayMs);
   const jitter = capped * options.jitter * (Math.random() * 2 - 1);
   return Math.max(0, capped + jitter);
@@ -865,6 +869,6 @@ function randomUUID(): string {
     return crypto.randomUUID();
   }
   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
-    (Number(c) ^ (Math.random() * 16) >> (Number(c) / 4)).toString(16),
+    (Number(c) ^ ((Math.random() * 16) >> (Number(c) / 4))).toString(16),
   );
 }

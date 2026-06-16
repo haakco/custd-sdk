@@ -1,14 +1,14 @@
 import {
+  type EventEnvelope,
   LocalStorageQueueStorage,
   MemoryQueueStorage,
-  RetryableError,
   normalizeRetryOptions,
   prepareEvent,
+  type QueueStorage,
+  RetryableError,
+  type RetryOptions,
   validateBrowserEvent,
   withRetry,
-  type EventEnvelope,
-  type QueueStorage,
-  type RetryOptions,
 } from "./index.js";
 
 export type BrowserIdentityMode = "cookieless" | "extended";
@@ -332,7 +332,7 @@ async function fetchSiteConfig(baseUrl: string, siteUuid: string): Promise<Brows
   if (!response.ok) {
     throw new Error(`custd: site config request failed with status ${response.status}`);
   }
-  return await response.json() as BrowserSiteConfig;
+  return (await response.json()) as BrowserSiteConfig;
 }
 
 function browserContext(): EventEnvelope["context"] {

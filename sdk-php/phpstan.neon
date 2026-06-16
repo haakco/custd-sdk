@@ -1,0 +1,8 @@
+parameters:
+    # Level 6 matches the HaakCo reference repo (cb/api): full type coverage
+    # (missing-typehint detection) without the mixed-heavy noise of levels 7+.
+    level: 6
+    paths:
+        - src
+        - tests
+    treatPhpDocTypesAsCertain: false

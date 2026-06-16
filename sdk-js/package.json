@@ -32,11 +32,14 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome check src",
+    "lint:fix": "biome check --write src",
     "prepare": "pnpm run build",
     "test": "vitest run src",
     "smoke:dev": "pnpm run build && node scripts/smoke-dev.js"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.5"
   }

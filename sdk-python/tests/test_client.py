@@ -15,7 +15,6 @@ from custd import (
     validate_event,
 )
 
-
 FIXTURE_ROOT = pathlib.Path(__file__).resolve().parents[2] / "contract-fixtures"
 
 

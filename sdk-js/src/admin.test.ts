@@ -7,10 +7,12 @@ beforeEach(() => {
 
 describe("CustdClient admin", () => {
   it("creates tenants through the admin API", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(
-      JSON.stringify({ slug: "acme", companyName: "Acme Inc", enabled: true }),
-      { status: 201, headers: { "Content-Type": "application/json" } },
-    ));
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ slug: "acme", companyName: "Acme Inc", enabled: true }), {
+        status: 201,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     const client = new CustdClient({
       baseUrl: "http://localhost:8080/",
@@ -20,24 +22,38 @@ describe("CustdClient admin", () => {
     const tenant = await client.admin.tenants.create({ slug: "acme", companyName: "Acme Inc" });
 
     expect(tenant).toEqual({ slug: "acme", companyName: "Acme Inc", enabled: true });
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:8080/api/v1/admin/tenants", expect.objectContaining({
-      method: "POST",
-      headers: expect.objectContaining({ Authorization: "Bearer admin-token" }),
-      body: JSON.stringify({ slug: "acme", companyName: "Acme Inc" }),
-    }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/v1/admin/tenants",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ Authorization: "Bearer admin-token" }),
+        body: JSON.stringify({ slug: "acme", companyName: "Acme Inc" }),
+      }),
+    );
   });
 
   it("does not expose clientSecret on listed OAuth clients", async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        clientId: "custd-acme",
-        companySlug: "acme",
-        scopes: ["events.write"],
-        clientSecret: "secret",
-      }), { status: 201, headers: { "Content-Type": "application/json" } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        clients: [{ clientId: "custd-acme", companySlug: "acme", scopes: ["events.write"] }],
-      }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            clientId: "custd-acme",
+            companySlug: "acme",
+            scopes: ["events.write"],
+            clientSecret: "secret",
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            clients: [{ clientId: "custd-acme", companySlug: "acme", scopes: ["events.write"] }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     const client = new CustdClient({
       baseUrl: "http://localhost:8080",
@@ -56,22 +72,30 @@ describe("CustdClient admin", () => {
   });
 
   it("manages browser sites through the admin API", async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        siteUuid: "site-123",
-        companySlug: "acme",
-        name: "Docs",
-        identityMode: "cookieless",
-        allowedOrigins: ["https://example.com"],
-        rateLimitPerMinute: 600,
-        retentionDays: 365,
-        enabled: true,
-        writeKey: "site_pk_test",
-      }), { status: 201, headers: { "Content-Type": "application/json" } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ writeKey: "site_pk_next" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            siteUuid: "site-123",
+            companySlug: "acme",
+            name: "Docs",
+            identityMode: "cookieless",
+            allowedOrigins: ["https://example.com"],
+            rateLimitPerMinute: 600,
+            retentionDays: 365,
+            enabled: true,
+            writeKey: "site_pk_test",
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ writeKey: "site_pk_next" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token" });
 
@@ -101,15 +125,20 @@ describe("CustdClient admin", () => {
       enabled: true,
       writeKey: "site_pk_should_not_leak",
     };
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ sites: [site] }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(site), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }))
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ sites: [site] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(site), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token" });
@@ -128,20 +157,36 @@ describe("CustdClient admin", () => {
   });
 
   it("registers and versions schemas through the admin API", async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        schemas: [{ eventTypeSlug: "courib.delivery.created", version: "1.0.0" }],
-      }), { status: 200, headers: { "Content-Type": "application/json" } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        eventTypeSlug: "courib.delivery.created",
-        version: "1.0.0",
-        jsonSchema: { type: "object" },
-      }), { status: 201, headers: { "Content-Type": "application/json" } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        eventTypeSlug: "courib.delivery.created",
-        version: "1.1.0",
-        jsonSchema: { type: "object" },
-      }), { status: 201, headers: { "Content-Type": "application/json" } }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            schemas: [{ eventTypeSlug: "courib.delivery.created", version: "1.0.0" }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            eventTypeSlug: "courib.delivery.created",
+            version: "1.0.0",
+            jsonSchema: { type: "object" },
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            eventTypeSlug: "courib.delivery.created",
+            version: "1.1.0",
+            jsonSchema: { type: "object" },
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } },
+        ),
+      );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token" });
 

@@ -9,6 +9,13 @@ actionlint = "latest"
 markdownlint-cli2 = "latest"
 ripgrep = "latest"
 
+# Static analysis — pinned because their output gates CI (a version bump can
+# change findings). Biome is intentionally absent: it is pinned via sdk-js's
+# package.json + pnpm-lock.yaml, the JS-native version source.
+golangci-lint = "2.11.4"
+ruff = "0.9.2"
+"pipx:mypy" = "2.1.0"
+
 [env]
 GOPATH = "{{ env.HOME }}/.go"
 GOCACHE = "{{ env.HOME }}/.cache/go-build"

@@ -5,7 +5,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 INGEST_ENDPOINT = "/api/v1/events"
 INGEST_BATCH_ENDPOINT = "/api/v1/events/batch"
@@ -353,8 +354,10 @@ def validate_event(event: EventEnvelope) -> None:
         if event.get(field) in (None, ""):
             missing.append(field)
 
-    context = event.get("context") if isinstance(event.get("context"), dict) else {}
-    device = context.get("device") if isinstance(context.get("device"), dict) else {}
+    raw_context = event.get("context")
+    context = raw_context if isinstance(raw_context, dict) else {}
+    raw_device = context.get("device")
+    device = raw_device if isinstance(raw_device, dict) else {}
     if not device.get("type"):
         missing.append("context.device.type")
 
@@ -466,7 +469,8 @@ def fetch_oauth_token(token_url: str, form: dict[str, Any], timeout: float) -> d
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
+            decoded = json.loads(response.read().decode("utf-8"))
+            return decoded if isinstance(decoded, dict) else {}
     except urllib.error.HTTPError as err:
         raise RequestError(f"custd: token request failed with status {err.code}") from err
     except urllib.error.URLError as err:

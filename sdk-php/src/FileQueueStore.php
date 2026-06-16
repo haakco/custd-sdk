@@ -99,8 +99,8 @@ final class FileQueueStore implements QueueStore
     }
 
     /**
-     * @param array<string, int> $a
-     * @param array<string, int> $b
+     * @param array<int|string, int> $a stat()/lstat() result, which mixes numeric and named keys
+     * @param array<int|string, int> $b
      */
     private function sameFile(array $a, array $b): bool
     {

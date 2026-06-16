@@ -15,17 +15,24 @@ lint-markdown:
 
 test-go:
   cd sdk-go && go vet ./...
+  cd sdk-go && golangci-lint run ./...
   cd sdk-go && go test ./...
 
 test-js:
   pnpm -C sdk-js install --frozen-lockfile
+  pnpm -C sdk-js run lint
   pnpm -C sdk-js run typecheck
   pnpm -C sdk-js test
   pnpm -C sdk-js run build
 
 test-python:
+  cd sdk-python && ruff check
+  cd sdk-python && mypy
   cd sdk-python && python3 -m unittest discover -s tests
 
 test-php:
   composer install
+  cd sdk-php && composer install
+  cd sdk-php && composer analyse
+  cd sdk-php && composer format-check
   composer test
