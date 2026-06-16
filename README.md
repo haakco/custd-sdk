@@ -108,7 +108,7 @@ go run github.com/haakco/custd-sdk/sdk-go/cmd/custd-sdk-setup@latest \
   --client-id=vorrent-media-cache \
   --scope=events.write \
   --environment=production \
-  --env-prefix=VORRENT_MEDIA_CACHE
+  --env-prefix=VORRENT_MEDIA_CACHE_CUSTD
 ```
 
 Output includes env blocks for:
