@@ -13,5 +13,12 @@
   },
   "devDependencies": {
     "markdownlint-cli2": "0.22.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "vite": "8.0.16",
+      "markdown-it": "14.2.0",
+      "js-yaml": "4.2.0"
+    }
   }
 }
