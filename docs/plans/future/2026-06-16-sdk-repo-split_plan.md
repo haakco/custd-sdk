@@ -1,6 +1,8 @@
 # Deferred: Split Framework Packages into Separate Repos
 
-**Status:** Deferred (approved: "for now monorepo, well split out later" — tim@haak.co, 2026-06-16).
+> **⚠️ SUPERSEDED (2026-06-16) by [Plan B — Subtree-Split Mirrors](../2026-06-16-sdk-subtree-split-mirrors_plan.md).** The decision changed from "defer" to "do it now via monorepo + `git subtree split` to read-only mirrors" (Option B below, chosen). This file is kept for history and should be archived to `archive/docs/plans/` once Plan B lands. Do not execute from this file.
+
+**Status:** Superseded by Plan B (was: deferred — "for now monorepo, well split out later" — <tim@haak.co>, 2026-06-16).
 **Source plan:** [SDK Package Split & Packaging Hardening](../2026-06-16-sdk-package-split-and-hardening_plan.md).
 
 ## Why deferred
@@ -20,6 +22,7 @@ To publish/consume `haakco/custd-laravel` and `haakco/custd-wordpress` as first-
 packages, each needs its own repo (or a subtree-split mirror).
 
 Two options when the time comes:
+
 - **A. Three real repos** — `git filter-repo` `laravel-package/` and `wordpress-plugin/`
   into new repos; drop the `repositories: path` block (resolve `haakco/custd-sdk`
   from VCS/Packagist instead); add CI + Packagist hooks per repo.

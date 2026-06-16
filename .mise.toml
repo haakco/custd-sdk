@@ -8,6 +8,8 @@ just = "latest"
 actionlint = "latest"
 markdownlint-cli2 = "latest"
 ripgrep = "latest"
+# Pinned to match custd/cb (supply-chain safety; the loader below shells out to it).
+infisical = "0.43.84"
 
 # Static analysis — pinned because their output gates CI (a version bump can
 # change findings). Biome is intentionally absent: it is pinned via sdk-js's
@@ -17,10 +19,24 @@ ruff = "0.9.2"
 "pipx:mypy" = "2.1.0"
 
 [env]
+INFISICAL_DISABLE_UPDATE_CHECK = true
 GOPATH = "{{ env.HOME }}/.go"
 GOCACHE = "{{ env.HOME }}/.cache/go-build"
 GOMODCACHE = "{{ env.HOME }}/go/pkg/mod"
 _.path = ["{{ env.GOPATH }}/bin"]
+# Load static .env first, then the cached Infisical secrets (refreshed on demand
+# via `mise run refresh-secrets`). We deliberately do NOT use `_.source`: mise
+# re-runs source scripts on every hook, and the infisical export inside spawns
+# sub-shells that re-trigger activation → recursion. Loading the cached file
+# directly is recursion-proof; mise silently skips it until it exists. Mirrors
+# custd's pattern (same shared Infisical project).
+_.file = [".env", ".env.infisical.local"]
+
+# Refresh the Infisical cache on demand (e.g. after rotating secrets):
+#   mise run refresh-secrets
+[tasks.refresh-secrets]
+description = "Refresh Infisical secrets cache (.env.infisical.local)"
+run = "bash .mise/infisical-env.sh"
 
 [tasks.test]
 description = "Run all SDK tests"

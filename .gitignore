@@ -2,6 +2,11 @@
 node_modules/
 vendor/
 
+# Local env + Infisical secret cache (loaded by .mise.toml; never commit secrets).
+.env
+.env.infisical.local
+.env.infisical.local.lock
+
 # Framework subtree packages resolve haakco/custd-sdk via a local path repo, so
 # their lock files pin transient dev state. They are libraries — CI installs the
 # latest matching deps, so the locks are regenerated, not committed.

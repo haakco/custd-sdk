@@ -161,28 +161,26 @@ custd-sdk-setup --register-schemas ./infra/custd/schemas ...
 
 ## WordPress Plugin Usage
 
-Install the root SDK package through Composer VCS; the plugin lives under
-`vendor/haakco/custd-sdk/wordpress-plugin/`:
+Install `haakco/custd-wordpress` from its public mirror via Composer VCS (no
+Packagist; the GitHub repos are public, so no auth token is needed):
 
 ```json
 {
   "repositories": [
-    {
-      "type": "vcs",
-      "url": "https://github.com/haakco/custd-sdk"
-    }
+    { "type": "vcs", "url": "https://github.com/haakco/custd-sdk-wordpress" },
+    { "type": "vcs", "url": "https://github.com/haakco/custd-sdk" }
   ],
   "require": {
-    "haakco/custd-sdk": "^1.1"
+    "haakco/custd-wordpress": "^1.3"
   }
 }
 ```
 
-For Composer installs, symlink `vendor/haakco/custd-sdk/wordpress-plugin/` into
+For Composer installs, symlink `vendor/haakco/custd-wordpress/` into
 `wp-content/plugins/custd/` before activating the plugin so it can still reach
-the root `vendor/autoload.php`. Raw GitHub source ZIPs are not standalone plugin
-artifacts; ZIP installs need a built release artifact with Composer dependencies
-included.
+the project `vendor/autoload.php`. Raw GitHub source ZIPs are not standalone
+plugin artifacts; ZIP installs need a built release artifact with Composer
+dependencies included. See `wordpress-plugin/README.md` for details.
 
 Create producer credentials with the SDK-owned setup helper and use the
 generated `CUSTD_WP_*` block:
@@ -207,11 +205,27 @@ plugin path.
 
 ## Laravel Usage
 
-Install the SDK package with Composer:
+Install `haakco/custd-laravel` from its public mirror via Composer VCS (no
+Packagist; public repos, no auth token needed). Add the mirror and the SDK repo
+so the transitive `haakco/custd-sdk` resolves:
+
+```json
+{
+  "repositories": [
+    { "type": "vcs", "url": "https://github.com/haakco/custd-sdk-laravel" },
+    { "type": "vcs", "url": "https://github.com/haakco/custd-sdk" }
+  ],
+  "require": {
+    "haakco/custd-laravel": "^1.3"
+  }
+}
+```
 
 ```bash
-composer require haakco/custd-sdk
+composer require haakco/custd-laravel:^1.3
 ```
+
+See `laravel-package/README.md` for the full config + usage reference.
 
 Publish the Laravel config:
 

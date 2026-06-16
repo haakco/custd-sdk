@@ -143,13 +143,29 @@ jobs:
       - name: Lint GitHub Actions workflows
         run: PATH="$(go env GOPATH)/bin:$PATH" actionlint
       - name: Lint Markdown
-        run: pnpm exec markdownlint-cli2 '**/*.md' '#node_modules' '#vendor' '#sdk-js/node_modules' '#sdk-php/vendor'
+        run: pnpm exec markdownlint-cli2 '**/*.md' '#node_modules' '#vendor' '#sdk-js/node_modules' '#sdk-php/vendor' '#laravel-package/vendor' '#wordpress-plugin/vendor'
       - name: Check diff whitespace
         run: git diff-tree --check --no-commit-id --root -r HEAD
 
-  publish-js:
+  release-guard:
     runs-on: self-hosted
-    needs: [js]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Tag must equal the VERSION source of truth
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$tag" != "$version" ]; then
+            echo "Release tag v$tag does not match VERSION ($version)." >&2
+            echo "One tag drives one version — bump VERSION and every package manifest together." >&2
+            exit 1
+          fi
+          echo "Release tag v$tag matches VERSION."
+
+  publish-js:
+    runs-on: [self-hosted, haakco]
+    needs: [js, release-guard]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -160,19 +176,29 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          registry-url: https://verdaccio.k8.haak.co/
       - name: Install JS dependencies
         run: pnpm -C sdk-js install --frozen-lockfile
       - name: Build JS SDK
         run: pnpm -C sdk-js run build
+      # Auth comes from sdk-js/.npmrc (_auth=${VERDACCIO_TOKEN}); the token is
+      # pulled from Infisical at runtime (Universal Auth, matching custd/cb) and
+      # injected into the publish process env — never a GitHub secret.
       - name: Publish JS SDK to Verdaccio
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.VERDACCIO_TOKEN }}
-        run: pnpm -C sdk-js publish --no-git-checks --access restricted --ignore-scripts
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+        run: |
+          INFISICAL_TOKEN="$(infisical login --method=universal-auth \
+            --client-id="$INFISICAL_CLIENT_ID" --client-secret="$INFISICAL_CLIENT_SECRET" \
+            --domain=https://secrets.k8.haak.co/api --plain --silent)"
+          export INFISICAL_TOKEN
+          infisical run --projectId=952c94fb-3c39-4384-8087-2e459812bc3d \
+            --env=prod --path=/custd-sdk --domain=https://secrets.k8.haak.co/api -- \
+            pnpm -C sdk-js publish --no-git-checks --access restricted --ignore-scripts
 
   publish-packagist:
     runs-on: self-hosted
-    needs: [php, php-analysis, php-laravel, php-wordpress]
+    needs: [php, php-analysis, php-laravel, php-wordpress, release-guard]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Notify Packagist

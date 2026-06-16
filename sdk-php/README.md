@@ -13,12 +13,25 @@ alias or deprecation window.
 
 ## Install
 
-```bash
-composer require haakco/custd-sdk
+`haakco/custd-sdk` is the root package of the public monorepo. We do **not** use
+Packagist — install via a Composer VCS repository pointing at the GitHub repo:
+
+```json
+{
+  "repositories": [
+    { "type": "vcs", "url": "https://github.com/haakco/custd-sdk" }
+  ],
+  "require": {
+    "haakco/custd-sdk": "^1.3"
+  }
+}
 ```
 
-Tag pushes notify Packagist when `PACKAGIST_USERNAME` and `PACKAGIST_TOKEN`
-are configured in GitHub Actions.
+```bash
+composer require haakco/custd-sdk:^1.3
+```
+
+The repo is public, so no Composer auth token is required.
 
 ## Usage
 

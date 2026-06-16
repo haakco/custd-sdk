@@ -11,9 +11,20 @@ alias or deprecation window.
 
 ## Install
 
-```bash
-npm install @haakco/custd-sdk
+`@haakco/custd-sdk` is published to the HaakCo Verdaccio registry (not the public
+npm registry). Point the project at Verdaccio, then install:
+
+```ini
+# .npmrc
+registry=https://verdaccio.k8.haak.co/
 ```
+
+```bash
+pnpm add @haakco/custd-sdk
+# or: npm install @haakco/custd-sdk --registry=https://verdaccio.k8.haak.co/
+```
+
+Reads are anonymous; no token is required to install.
 
 ## Usage
 
