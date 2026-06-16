@@ -37,7 +37,7 @@ built release artifact that includes `vendor/`.
 Create a tenant-bound producer client with the SDK-owned setup helper:
 
 ```bash
-go run github.com/haakco/custd-sdk/sdk-go/cmd/custd-sdk-setup@latest \
+go run github.com/haakco/custd-sdk-go/cmd/custd-sdk-setup@latest \
   --base-url=https://custd.k8.haak.co \
   --admin-url=https://custd.k8.haak.co \
   --admin-token="$CUSTD_ADMIN_TOKEN" \

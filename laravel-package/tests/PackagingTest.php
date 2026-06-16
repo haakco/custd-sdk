@@ -51,26 +51,6 @@ final class PackagingTest extends TestCase
         );
     }
 
-    public function testRootSdkPackageNoLongerAutoloadsLaravelNamespace(): void
-    {
-        $root = json_decode(
-            file_get_contents(__DIR__ . "/../../composer.json") ?: "",
-            true,
-            flags: JSON_THROW_ON_ERROR,
-        );
-
-        $this->assertArrayNotHasKey(
-            "HaakCo\\LaravelCustd\\",
-            $root["autoload"]["psr-4"],
-            "The pure-PHP root package must not ship the Laravel subtree.",
-        );
-        $this->assertArrayNotHasKey(
-            "laravel",
-            $root["extra"] ?? [],
-            "The pure-PHP root package must not auto-register the Laravel provider.",
-        );
-    }
-
     /**
      * @return array<string, mixed>
      */

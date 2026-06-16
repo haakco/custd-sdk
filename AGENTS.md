@@ -10,7 +10,7 @@ Improve the shared SDKs instead of creating one-off clients in product repositor
 
 | Path | Contents |
 | --- | --- |
-| `sdk-go/` | Go SDK module `github.com/haakco/custd-sdk/sdk-go`. |
+| `sdk-go/` | Go SDK module `github.com/haakco/custd-sdk-go` (published to the `custd-sdk-go` mirror on release). |
 | `sdk-js/` | TypeScript SDK package `@haakco/custd-sdk`. |
 | `sdk-python/` | Python package `custd-sdk`. |
 | `sdk-php/` | Composer package `haakco/custd-sdk`. |

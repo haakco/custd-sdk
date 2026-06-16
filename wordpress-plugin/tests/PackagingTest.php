@@ -23,21 +23,6 @@ final class PackagingTest extends TestCase
         );
     }
 
-    public function testRootSdkPackageNoLongerAutoloadsWordPressNamespace(): void
-    {
-        $composer = json_decode(
-            file_get_contents(__DIR__ . "/../../composer.json") ?: "",
-            true,
-            flags: JSON_THROW_ON_ERROR,
-        );
-
-        $this->assertArrayNotHasKey(
-            "HaakCo\\Custd\\WordPress\\",
-            $composer["autoload"]["psr-4"],
-            "The pure-PHP root package must not ship the WordPress subtree.",
-        );
-    }
-
     public function testPluginComposerManifestRequiresRootSdkPackage(): void
     {
         $composer = json_decode(

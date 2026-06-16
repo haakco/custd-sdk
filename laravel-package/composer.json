@@ -5,11 +5,8 @@
   "license": "MIT",
   "repositories": [
     {
-      "type": "path",
-      "url": "../sdk-php",
-      "options": {
-        "symlink": true
-      }
+      "type": "vcs",
+      "url": "https://github.com/haakco/custd-sdk"
     }
   ],
   "autoload": {

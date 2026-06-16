@@ -65,6 +65,26 @@ jobs:
             --env=prod --path=/custd-sdk --domain="$domain" --plain --silent)"
 
           split_sha="$(git subtree split --prefix="$PREFIX" | tr -d '[:space:]')"
+
+          # The Go module's tests read shared contract fixtures that live at the
+          # monorepo root, outside the sdk-go prefix. Vendor them into the split
+          # (pure plumbing — no working-tree mutation) so the standalone
+          # custd-sdk-go module is self-contained.
+          if [ "$PREFIX" = "sdk-go" ]; then
+            tmp_index="$(mktemp)"
+            GIT_INDEX_FILE="$tmp_index" git read-tree "$split_sha"
+            for f in $(git ls-files contract-fixtures); do
+              blob="$(git hash-object -w "$f")"
+              GIT_INDEX_FILE="$tmp_index" git update-index --add --cacheinfo "100644,$blob,$f"
+            done
+            new_tree="$(GIT_INDEX_FILE="$tmp_index" git write-tree)"
+            split_sha="$(GIT_AUTHOR_NAME=custd-sdk-ci GIT_AUTHOR_EMAIL=ci@haak.co \
+              GIT_COMMITTER_NAME=custd-sdk-ci GIT_COMMITTER_EMAIL=ci@haak.co \
+              git commit-tree "$new_tree" -p "$split_sha" \
+              -m 'chore: vendor contract-fixtures for standalone module')"
+            rm -f "$tmp_index"
+          fi
+
           auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$push_token" | base64 | tr -d '\n')"
           git -c "http.https://github.com/.extraheader=$auth_header" \
             push "https://github.com/${MIRROR}.git" "${split_sha}:refs/heads/main" --force

@@ -55,7 +55,7 @@ client := custd.NewClient(&custd.ClientConfig{
 Go module:
 
 ```bash
-go get github.com/haakco/custd-sdk/sdk-go@latest
+go get github.com/haakco/custd-sdk-go@latest
 ```
 
 ## Provisioned Producer Quickstart
@@ -98,7 +98,7 @@ print the env vars each consumer needs. The CLI calls Custd admin APIs through
 the Go SDK; it does not maintain a separate HTTP client.
 
 ```bash
-go run github.com/haakco/custd-sdk/sdk-go/cmd/custd-sdk-setup@latest \
+go run github.com/haakco/custd-sdk-go/cmd/custd-sdk-setup@latest \
   --base-url=https://custd.k8.haak.co \
   --admin-url=https://custd.k8.haak.co \
   --admin-token="$CUSTD_ADMIN_TOKEN" \
@@ -186,7 +186,7 @@ Create producer credentials with the SDK-owned setup helper and use the
 generated `CUSTD_WP_*` block:
 
 ```bash
-go run github.com/haakco/custd-sdk/sdk-go/cmd/custd-sdk-setup@latest \
+go run github.com/haakco/custd-sdk-go/cmd/custd-sdk-setup@latest \
   --base-url=https://custd.k8.haak.co \
   --admin-url=https://custd.k8.haak.co \
   --admin-token="$CUSTD_ADMIN_TOKEN" \
@@ -236,7 +236,7 @@ php artisan vendor:publish --tag=custd-config
 Create producer credentials with the SDK-owned setup helper:
 
 ```bash
-go run github.com/haakco/custd-sdk/sdk-go/cmd/custd-sdk-setup@latest \
+go run github.com/haakco/custd-sdk-go/cmd/custd-sdk-setup@latest \
   --base-url=https://custd.k8.haak.co \
   --admin-url=https://custd.k8.haak.co \
   --admin-token="$CUSTD_ADMIN_TOKEN" \
