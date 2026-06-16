@@ -6,10 +6,7 @@
   "autoload": {
     "psr-4": {
       "HaakCo\\Custd\\": "src/"
-    },
-    "files": [
-      "src/CustdClient.php"
-    ]
+    }
   },
   "require": {
     "php": ">=8.3",

@@ -14,10 +14,12 @@ lint-markdown:
   pnpm exec markdownlint-cli2 '**/*.md' '#node_modules' '#vendor' '#sdk-js/node_modules' '#sdk-php/vendor'
 
 test-go:
+  cd sdk-go && go vet ./...
   cd sdk-go && go test ./...
 
 test-js:
   pnpm -C sdk-js install --frozen-lockfile
+  pnpm -C sdk-js run typecheck
   pnpm -C sdk-js test
   pnpm -C sdk-js run build
 

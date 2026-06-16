@@ -1,6 +1,6 @@
 {
   "name": "@haakco/custd-sdk",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "engines": {
     "node": ">=24 <25",
@@ -30,7 +30,8 @@
     "registry": "https://verdaccio.k8.haak.co/"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepare": "pnpm run build",
     "test": "vitest run src",
     "smoke:dev": "pnpm run build && node scripts/smoke-dev.js"

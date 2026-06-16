@@ -8,10 +8,7 @@
       "HaakCo\\LaravelCustd\\": "laravel-package/src/",
       "HaakCo\\Custd\\WordPress\\": "wordpress-plugin/src/",
       "HaakCo\\Custd\\": "sdk-php/src/"
-    },
-    "files": [
-      "sdk-php/src/CustdClient.php"
-    ]
+    }
   },
   "require": {
     "php": ">=8.3",

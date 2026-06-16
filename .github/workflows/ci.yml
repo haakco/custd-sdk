@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: sdk-go/go.mod
+      - name: Vet Go SDK
+        run: cd sdk-go && go vet ./...
       - name: Test Go SDK
         run: cd sdk-go && go test ./...
 
@@ -33,6 +35,8 @@ jobs:
           cache: pnpm
       - name: Install JS dependencies
         run: pnpm -C sdk-js install --frozen-lockfile
+      - name: Typecheck JS SDK
+        run: pnpm -C sdk-js run typecheck
       - name: Test JS SDK
         run: pnpm -C sdk-js test
       - name: Build JS SDK
