@@ -78,8 +78,14 @@ jobs:
               GIT_INDEX_FILE="$tmp_index" git update-index --add --cacheinfo "100644,$blob,$f"
             done
             new_tree="$(GIT_INDEX_FILE="$tmp_index" git write-tree)"
+            # Pin the commit's dates to the split commit's date so the injection is
+            # byte-for-byte reproducible: same source tag -> same commit SHA. Without
+            # this, commit-tree stamps "now" and every run yields a new SHA, so the
+            # (immutable) Go module tag push is rejected on re-runs.
+            src_date="$(git show -s --format=%cI "$split_sha")"
             split_sha="$(GIT_AUTHOR_NAME=custd-sdk-ci GIT_AUTHOR_EMAIL=ci@haak.co \
               GIT_COMMITTER_NAME=custd-sdk-ci GIT_COMMITTER_EMAIL=ci@haak.co \
+              GIT_AUTHOR_DATE="$src_date" GIT_COMMITTER_DATE="$src_date" \
               git commit-tree "$new_tree" -p "$split_sha" \
               -m 'chore: vendor contract-fixtures for standalone module')"
             rm -f "$tmp_index"
