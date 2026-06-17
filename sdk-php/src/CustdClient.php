@@ -573,8 +573,48 @@ final class CustdClient
 
         $decoded = json_decode($result["body"], true);
         if (is_array($decoded) && ($decoded["success"] ?? true) === false) {
-            throw new \RuntimeException("custd: batch request failed with status " . $result["status"]);
+            throw new \RuntimeException(
+                $this->batchRejectionMessage($result["status"], $decoded["results"] ?? null)
+            );
         }
+    }
+
+    /**
+     * Build a message that names the rejected events (uuid, status, reason) so a
+     * partial batch failure is diagnosable without re-probing the API. The list
+     * is capped to keep the message bounded.
+     *
+     * @param mixed $results
+     */
+    private function batchRejectionMessage(int $status, mixed $results): string
+    {
+        $all = is_array($results) ? $results : [];
+        $failed = array_values(array_filter(
+            $all,
+            static fn ($r): bool => is_array($r) && ($r["success"] ?? true) === false
+        ));
+        if ($failed === []) {
+            return "custd: batch request failed with status {$status} (no per-event results)";
+        }
+
+        $maxList = 10;
+        $parts = [];
+        foreach (array_slice($failed, 0, $maxList) as $r) {
+            $uuid = $r["eventUuid"] ?? "unknown";
+            $eventStatus = $r["status"] ?? $status;
+            $detail = ($r["error"] ?? "") !== "" ? $r["error"] : "no error detail";
+            $parts[] = "{$uuid} [status {$eventStatus}] {$detail}";
+        }
+        if (count($failed) > $maxList) {
+            $parts[] = "+" . (count($failed) - $maxList) . " more";
+        }
+
+        return sprintf(
+            "custd: batch rejected %d of %d event(s): %s",
+            count($failed),
+            count($all),
+            implode("; ", $parts)
+        );
     }
 
     /**

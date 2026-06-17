@@ -41,8 +41,16 @@ export type DogfoodEventInput = {
   payload?: Record<string, unknown>;
 };
 
+type EventResult = {
+  eventUuid?: string;
+  success?: boolean;
+  status?: number;
+  error?: string;
+};
+
 type EventBatchResponse = {
   success?: boolean;
+  results?: EventResult[];
 };
 
 export type ProducerOAuthConfig = {
@@ -506,8 +514,26 @@ export class CustdClient {
     }
     const body = JSON.parse(text) as EventBatchResponse;
     if (body.success === false) {
-      throw new Error(`custd: batch request failed with status ${response.status}`);
+      throw new Error(this.batchRejectionMessage(response.status, body.results));
     }
+  }
+
+  // Names the rejected events (uuid, status, reason) so a partial batch failure
+  // is diagnosable without re-probing the API. The list is capped to keep the
+  // message bounded.
+  private batchRejectionMessage(status: number, results?: EventResult[]): string {
+    const failed = (results ?? []).filter((r) => r.success === false);
+    if (failed.length === 0) {
+      return `custd: batch request failed with status ${status} (no per-event results)`;
+    }
+    const maxList = 10;
+    const parts = failed
+      .slice(0, maxList)
+      .map((r) => `${r.eventUuid ?? "unknown"} [status ${r.status ?? status}] ${r.error || "no error detail"}`);
+    if (failed.length > maxList) {
+      parts.push(`+${failed.length - maxList} more`);
+    }
+    return `custd: batch rejected ${failed.length} of ${results?.length ?? failed.length} event(s): ${parts.join("; ")}`;
   }
 
   private async adminRequest<T>(method: string, path: string, body?: unknown): Promise<T> {

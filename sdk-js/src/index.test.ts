@@ -173,6 +173,40 @@ describe("CustdClient", () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).events).toHaveLength(2);
   });
 
+  it("names the rejected events when a batch partially fails", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: false,
+          results: [
+            { eventUuid: "evt-ok", success: true, status: 202 },
+            { eventUuid: "evt-bad", success: false, status: 400, error: "validation failed" },
+          ],
+        }),
+        { status: 202 },
+      ),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "token",
+      batch: { maxBatchSize: 10 },
+      queue: { enabled: true },
+      retry: { maxAttempts: 1 },
+    });
+
+    await client.track({ ...baseEvent, eventUuid: "evt-ok" });
+    await client.track({ ...baseEvent, eventUuid: "evt-bad" });
+
+    const error = await client.flush().then(
+      () => null,
+      (e: unknown) => e as Error,
+    );
+    expect(error?.message).toMatch(/batch rejected 1 of 2 event\(s\):.*evt-bad \[status 400\] validation failed/);
+    expect(error?.message).not.toContain("evt-ok");
+  });
+
   it("requeues and reports failed flushes", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 503 }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;

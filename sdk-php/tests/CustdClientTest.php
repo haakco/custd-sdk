@@ -412,6 +412,39 @@ final class CustdClientTest extends TestCase
         }
     }
 
+    public function testBatchRejectionNamesFailedEvents(): void
+    {
+        $client = new CustdClient("http://localhost:8080", "token", [
+            "batch" => ["max_batch_size" => 10],
+            "queue" => ["enabled" => true],
+            "retry" => ["max_attempts" => 1],
+            "http_client" => function (): array {
+                return [
+                    "status" => 202,
+                    "body" => '{"success":false,"results":[' .
+                        '{"eventUuid":"evt-ok","success":true,"status":202},' .
+                        '{"eventUuid":"evt-bad","success":false,"status":400,"error":"validation failed"}' .
+                        ']}',
+                ];
+            },
+        ]);
+
+        $eventBad = $this->baseEvent;
+        $eventBad["eventUuid"] = "evt-bad";
+        $client->track($eventBad);
+
+        try {
+            $client->flush();
+            $this->fail("expected RuntimeException on partial batch failure");
+        } catch (\RuntimeException $e) {
+            self::assertStringContainsString("evt-bad", $e->getMessage());
+            self::assertStringContainsString("400", $e->getMessage());
+            self::assertStringContainsString("validation failed", $e->getMessage());
+            self::assertStringContainsString("1 of 2", $e->getMessage());
+            self::assertStringNotContainsString("evt-ok", $e->getMessage());
+        }
+    }
+
     public function testBatchFlushesOnMaxBatchSize(): void
     {
         $calls = 0;
