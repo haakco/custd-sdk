@@ -207,6 +207,73 @@ describe("CustdClient", () => {
     expect(error?.message).not.toContain("evt-ok");
   });
 
+  it("gzip-compresses the batch body when it meets the threshold", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 202 }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "token",
+      batch: { maxBatchSize: 1 },
+      queue: { enabled: true },
+      retry: { maxAttempts: 1 },
+      compression: { thresholdBytes: 1 },
+    });
+
+    await client.track({ ...baseEvent, eventUuid: "evt-1" });
+    await client.flush();
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit & { headers: Record<string, string> };
+    expect(init.headers["Content-Encoding"]).toBe("gzip");
+    expect(init.headers["Content-Type"]).toBe("application/json");
+
+    const decoded = await gunzip(init.body as Uint8Array);
+    expect(JSON.parse(decoded).events).toHaveLength(1);
+    expect(JSON.parse(decoded).events[0].eventUuid).toBe("evt-1");
+  });
+
+  it("sends the raw batch body when below the threshold", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 202 }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "token",
+      batch: { maxBatchSize: 1 },
+      queue: { enabled: true },
+      retry: { maxAttempts: 1 },
+      compression: { thresholdBytes: 1_000_000 },
+    });
+
+    await client.track({ ...baseEvent, eventUuid: "evt-1" });
+    await client.flush();
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit & { headers: Record<string, string> };
+    expect(init.headers["Content-Encoding"]).toBeUndefined();
+    expect(JSON.parse(init.body as string).events).toHaveLength(1);
+  });
+
+  it("never compresses when compression is disabled", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 202 }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "token",
+      batch: { maxBatchSize: 1 },
+      queue: { enabled: true },
+      retry: { maxAttempts: 1 },
+      compression: { enabled: false, thresholdBytes: 1 },
+    });
+
+    await client.track({ ...baseEvent, eventUuid: "evt-1" });
+    await client.flush();
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit & { headers: Record<string, string> };
+    expect(init.headers["Content-Encoding"]).toBeUndefined();
+    expect(JSON.parse(init.body as string).events).toHaveLength(1);
+  });
+
   it("requeues and reports failed flushes", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 503 }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -295,6 +362,11 @@ describe("CustdClient", () => {
 function loadFixture(name: string): EventEnvelope {
   const url = new URL(`../../contract-fixtures/${name}`, import.meta.url);
   return JSON.parse(readFileSync(url, "utf8")) as EventEnvelope;
+}
+
+async function gunzip(bytes: Uint8Array): Promise<string> {
+  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return new Response(stream).text();
 }
 
 function loadProvisionedProducerFixture(name: string): ProvisionedProducerCredentials {

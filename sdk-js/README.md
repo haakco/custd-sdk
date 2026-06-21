@@ -47,6 +47,11 @@ const client = new CustdClient({
     storage: new LocalStorageQueueStorage("custd_queue"),
     maxQueueSize: 1000,
   },
+  // Batch request bodies are gzip-compressed by default once they reach
+  // `thresholdBytes`. Disable with `{ enabled: false }`. Compression is skipped
+  // automatically in runtimes without `CompressionStream`. (zstd is a planned
+  // follow-up.)
+  compression: { enabled: true, thresholdBytes: 1024 },
 });
 
 await client.track({

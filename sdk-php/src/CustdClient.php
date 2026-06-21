@@ -16,6 +16,8 @@ final class CustdClient
     private array $retryOptions;
     /** @var array<string, mixed>|null */
     private ?array $batchOptions;
+    private bool $compressionEnabled;
+    private int $compressionThresholdBytes;
     private bool $queueEnabled;
     private QueueStore $queueStore;
     /** @var array<int, array<string, mixed>> */
@@ -52,6 +54,14 @@ final class CustdClient
      *           `static fn (int $ms) => null` to retry immediately without
      *           blocking. Regression-tested by `RetryBackoffTest`.
      *     - `batch`: array{max_batch_size:int}|null
+     *     - `compression`: array{enabled?:bool, threshold_bytes?:int} — gzip
+     *       request-body compression on the batch send path (`/api/v1/events/batch`).
+     *       The custd ingest server decodes `Content-Encoding: gzip`. Enabled by
+     *       default; when the serialized JSON body is at least `threshold_bytes`
+     *       (default 1024) the body is gzipped (zlib level 6, no PECL needed) and
+     *       `Content-Encoding: gzip` is set. Smaller bodies are sent raw. Set
+     *       `enabled` to false to always send raw bytes. zstd is a documented
+     *       follow-up and is intentionally not implemented here.
      *     - `queue`: array{enabled?:bool, store?:QueueStore, max_size?:int}
      *     - `http_client`: callable|null Custom HTTP transport. When provided,
      *       it receives `(string $url, array $payload, string $token)` and MUST
@@ -86,6 +96,8 @@ final class CustdClient
             "sleeper" => null,
         ], $options["retry"] ?? []);
         $this->batchOptions = $options["batch"] ?? null;
+        $this->compressionEnabled = (bool) ($options["compression"]["enabled"] ?? true);
+        $this->compressionThresholdBytes = (int) ($options["compression"]["threshold_bytes"] ?? 1024);
         $this->queueEnabled = $options["queue"]["enabled"] ?? ($this->batchOptions !== null);
         $this->queueStore = $options["queue"]["store"] ?? new MemoryQueueStore();
         $this->queue = $this->queueEnabled ? $this->queueStore->load() : [];
@@ -493,15 +505,17 @@ final class CustdClient
         }
 
         $body = json_encode($payload, JSON_THROW_ON_ERROR);
+        [$sendBody, $encodingHeaders] = $this->compressBatchBody($body);
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => "POST",
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
+            CURLOPT_HTTPHEADER => array_merge([
                 "Content-Type: application/json",
                 "Authorization: Bearer " . $this->authToken(),
-            ],
-            CURLOPT_POSTFIELDS => $body,
+            ], $encodingHeaders),
+            CURLOPT_POSTFIELDS => $sendBody,
             CURLOPT_TIMEOUT => 15,
         ]);
 
@@ -518,6 +532,24 @@ final class CustdClient
         $this->translateStatus($result["status"]);
         $this->translateBatchBody($result);
         return $result;
+    }
+
+    /**
+     * Decide whether the serialized batch JSON body should be gzip-compressed.
+     * Returns the bytes to send and any extra request headers. When compression
+     * is enabled and the body is at least the configured threshold, the body is
+     * gzipped (zlib level 6) and `Content-Encoding: gzip` is advertised;
+     * otherwise the raw body is returned with no extra headers.
+     *
+     * @return array{0:string, 1:array<int, string>}
+     */
+    private function compressBatchBody(string $body): array
+    {
+        if (!$this->compressionEnabled || strlen($body) < $this->compressionThresholdBytes) {
+            return [$body, []];
+        }
+
+        return [gzencode($body, 6), ["Content-Encoding: gzip"]];
     }
 
     /**

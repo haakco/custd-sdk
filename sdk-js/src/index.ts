@@ -88,6 +88,12 @@ export type ClientConfig = {
   retry?: RetryOptions;
   batch?: BatchOptions;
   queue?: QueueOptions;
+  compression?: CompressionOptions;
+};
+
+export type CompressionOptions = {
+  enabled?: boolean;
+  thresholdBytes?: number;
 };
 
 export type RetryOptions = {
@@ -284,6 +290,8 @@ export class CustdClient {
   private maxQueueSize: number;
   private flushOnOnline: boolean;
   private onlineHandler: (() => void) | null = null;
+  private compressionEnabled: boolean;
+  private compressionThresholdBytes: number;
   private batchTimer: ReturnType<typeof setInterval> | null = null;
   private removeFlushTriggers: Array<() => void> = [];
   private oauthToken: { value: string; expiresAtMs: number } | null = null;
@@ -306,6 +314,8 @@ export class CustdClient {
     this.queueStorage = config.queue?.storage ?? new MemoryQueueStorage();
     this.maxQueueSize = config.queue?.maxQueueSize ?? 1000;
     this.flushOnOnline = config.queue?.flushOnOnline ?? true;
+    this.compressionEnabled = config.compression?.enabled ?? true;
+    this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
     this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body));
 
     if (this.queueEnabled) {
@@ -482,21 +492,43 @@ export class CustdClient {
   }
 
   private async sendBatchWithRetry(events: EventEnvelope[]): Promise<Response> {
+    const json = JSON.stringify({ events });
+    const { body, contentEncoding } = await this.encodeBatchBody(json);
     return withRetry(this.retry, async () => {
       const token = await this.getToken();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        ...this.defaultHeaders,
+      };
+      if (contentEncoding) {
+        headers["Content-Encoding"] = contentEncoding;
+      }
       const response = await fetch(`${this.baseUrl}/api/v1/events/batch`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          ...this.defaultHeaders,
-        },
-        body: JSON.stringify({ events }),
+        headers,
+        body,
       });
 
       await this.assertBatchResponse(response);
       return response;
     });
+  }
+
+  // encodeBatchBody gzip-compresses the serialized batch body when compression
+  // is enabled and the body meets the threshold. It falls back to the raw JSON
+  // string (no Content-Encoding) when compression is disabled, below threshold,
+  // or CompressionStream is unavailable in the runtime.
+  private async encodeBatchBody(json: string): Promise<{ body: BodyInit; contentEncoding?: string }> {
+    if (!this.compressionEnabled || json.length < this.compressionThresholdBytes) {
+      return { body: json };
+    }
+    if (typeof CompressionStream === "undefined") {
+      return { body: json };
+    }
+    const stream = new Blob([json]).stream().pipeThrough(new CompressionStream("gzip"));
+    const compressed = new Uint8Array(await new Response(stream).arrayBuffer());
+    return { body: compressed, contentEncoding: "gzip" };
   }
 
   private async assertBatchResponse(response: Response): Promise<void> {

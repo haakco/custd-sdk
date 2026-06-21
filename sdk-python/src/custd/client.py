@@ -1,3 +1,4 @@
+import gzip
 import json
 import random
 import time
@@ -11,6 +12,7 @@ from typing import Any
 INGEST_ENDPOINT = "/api/v1/events"
 INGEST_BATCH_ENDPOINT = "/api/v1/events/batch"
 DEFAULT_RETRY_STATUSES = (408, 429, 500, 502, 503, 504)
+DEFAULT_COMPRESSION_THRESHOLD_BYTES = 1024
 
 EventEnvelope = dict[str, Any]
 TransportResult = dict[str, Any]
@@ -56,6 +58,7 @@ class CustdClient:
         retry: dict[str, Any] | None = None,
         batch: dict[str, Any] | None = None,
         queue: dict[str, Any] | None = None,
+        compression: dict[str, Any] | None = None,
         transport: Transport | None = None,
         admin_transport: AdminTransport | None = None,
         timeout: float = 15,
@@ -78,7 +81,8 @@ class CustdClient:
         self.queue_storage = (queue or {}).get("storage") or MemoryQueueStorage()
         self.queue: list[EventEnvelope] = self.queue_storage.load() if self.queue_enabled else []
         self.max_queue_size = int((queue or {}).get("max_queue_size", 1000))
-        self.transport = transport or default_transport
+        self.compression = normalize_compression(compression)
+        self.transport = transport or make_default_transport(self.compression)
         self.admin = AdminClient(self, admin_transport or default_admin_transport)
         self.timeout = timeout
 
@@ -495,21 +499,40 @@ def backoff_delay(retry: dict[str, Any], attempt: int) -> int:
     return max(0, int(capped + jitter))
 
 
-def default_transport(
-    url: str,
-    event: EventEnvelope,
-    headers: dict[str, str],
-    timeout: float,
-) -> TransportResult:
-    body = json.dumps(event).encode("utf-8")
-    request = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            return {"status": response.status, "body": response.read().decode("utf-8")}
-    except urllib.error.HTTPError as err:
-        return {"status": err.code, "body": err.read().decode("utf-8")}
-    except urllib.error.URLError as err:
-        raise RetryableError(f"custd: request failed: {err}") from err
+def normalize_compression(compression: dict[str, Any] | None) -> dict[str, Any]:
+    compression = compression or {}
+    return {
+        "enabled": bool(compression.get("enabled", True)),
+        "threshold_bytes": int(
+            compression.get("threshold_bytes", DEFAULT_COMPRESSION_THRESHOLD_BYTES)
+        ),
+    }
+
+
+def make_default_transport(compression: dict[str, Any]) -> Transport:
+    def transport(
+        url: str,
+        event: EventEnvelope,
+        headers: dict[str, str],
+        timeout: float,
+    ) -> TransportResult:
+        body = json.dumps(event).encode("utf-8")
+        if compression["enabled"] and len(body) >= compression["threshold_bytes"]:
+            body = gzip.compress(body)
+            headers = {**headers, "Content-Encoding": "gzip"}
+        request = urllib.request.Request(url, data=body, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return {"status": response.status, "body": response.read().decode("utf-8")}
+        except urllib.error.HTTPError as err:
+            return {"status": err.code, "body": err.read().decode("utf-8")}
+        except urllib.error.URLError as err:
+            raise RetryableError(f"custd: request failed: {err}") from err
+
+    return transport
+
+
+default_transport = make_default_transport(normalize_compression(None))
 
 
 def default_admin_transport(
