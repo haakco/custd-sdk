@@ -47,6 +47,8 @@ jobs:
         run: pnpm -C sdk-js test
       - name: Build JS SDK
         run: pnpm -C sdk-js run build
+      - name: Check committed JS dist is current
+        run: git diff --exit-code -- sdk-js/dist
 
   python:
     runs-on: self-hosted
@@ -185,17 +187,16 @@ jobs:
         run: pnpm -C sdk-js install --frozen-lockfile
       - name: Build JS SDK
         run: pnpm -C sdk-js run build
-      # Auth comes from sdk-js/.npmrc (_auth=${VERDACCIO_TOKEN}); the token is
-      # pulled from Infisical at runtime (Universal Auth, matching custd/cb) and
-      # injected into the publish process env — never a GitHub secret.
+      # Auth is written to a temporary npm user config so GitHub installs from
+      # `path:/sdk-js` never inherit Verdaccio registry settings. The token is
+      # pulled from Infisical at runtime (Universal Auth, matching custd/cb).
       - name: Publish JS SDK to Verdaccio
         env:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
         run: |
           # pnpm 10's publish delegates to npm with incompatible args (EUSAGE on
-          # npm 11); publish with npm directly. sdk-js/.npmrc supplies the
-          # registry + _auth=${VERDACCIO_TOKEN}, expanded from the env var below.
+          # npm 11); publish with npm directly using a temporary user config.
           domain="https://secrets.k8.haak.co/api"
           INFISICAL_TOKEN="$(infisical login --method=universal-auth \
             --client-id="$INFISICAL_CLIENT_ID" --client-secret="$INFISICAL_CLIENT_SECRET" \
@@ -203,8 +204,12 @@ jobs:
           VERDACCIO_TOKEN="$(infisical secrets get VERDACCIO_TOKEN \
             --token="$INFISICAL_TOKEN" --projectId=952c94fb-3c39-4384-8087-2e459812bc3d \
             --env=prod --path=/custd-sdk --domain="$domain" --plain --silent)"
-          export VERDACCIO_TOKEN
-          cd sdk-js && npm publish --access restricted --ignore-scripts
+          npm_config="$(mktemp)"
+          trap 'rm -f "$npm_config"' EXIT
+          chmod 600 "$npm_config"
+          printf '//verdaccio.k8.haak.co/:_auth=%s\n' "$VERDACCIO_TOKEN" > "$npm_config"
+          export NPM_CONFIG_USERCONFIG="$npm_config"
+          cd sdk-js && npm publish --registry=https://verdaccio.k8.haak.co/ --access restricted --ignore-scripts
 
   publish-packagist:
     runs-on: self-hosted

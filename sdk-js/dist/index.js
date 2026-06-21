@@ -1,0 +1,628 @@
+function publicAdminSite(site) {
+    const { writeKey: _writeKey, ...safeSite } = site;
+    return safeSite;
+}
+export class MemoryQueueStorage {
+    constructor() {
+        this.events = [];
+    }
+    load() {
+        return [...this.events];
+    }
+    save(events) {
+        this.events = [...events];
+    }
+    clear() {
+        this.events = [];
+    }
+}
+export class LocalStorageQueueStorage {
+    constructor(key = "custd_event_queue") {
+        this.key = key;
+    }
+    load() {
+        if (typeof localStorage === "undefined") {
+            return [];
+        }
+        const raw = localStorage.getItem(this.key);
+        if (!raw) {
+            return [];
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                return parsed;
+            }
+        }
+        catch {
+            return [];
+        }
+        return [];
+    }
+    save(events) {
+        if (typeof localStorage === "undefined") {
+            return;
+        }
+        localStorage.setItem(this.key, JSON.stringify(events));
+    }
+    clear() {
+        if (typeof localStorage === "undefined") {
+            return;
+        }
+        localStorage.removeItem(this.key);
+    }
+}
+export class CustdClient {
+    constructor(config) {
+        this.queue = [];
+        this.onlineHandler = null;
+        this.batchTimer = null;
+        this.removeFlushTriggers = [];
+        this.oauthToken = null;
+        this.baseUrl = config.baseUrl.replace(/\/$/, "");
+        assertSecureOrLocalHTTP(this.baseUrl, "baseUrl");
+        if (config.oauth) {
+            assertSecureOrLocalHTTP(config.oauth.tokenUrl, "tokenUrl");
+            this.getToken = () => this.fetchOAuthToken(config.oauth);
+        }
+        else if (config.getToken) {
+            this.getToken = config.getToken;
+        }
+        else {
+            throw new Error("custd: getToken or oauth config is required");
+        }
+        this.defaultHeaders = config.defaultHeaders ?? {};
+        this.retry = normalizeRetryOptions(config.retry);
+        this.batch = config.batch;
+        this.queueEnabled = config.queue?.enabled ?? config.batch != null;
+        this.queueStorage = config.queue?.storage ?? new MemoryQueueStorage();
+        this.maxQueueSize = config.queue?.maxQueueSize ?? 1000;
+        this.flushOnOnline = config.queue?.flushOnOnline ?? true;
+        this.compressionEnabled = config.compression?.enabled ?? true;
+        this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
+        this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body));
+        if (this.queueEnabled) {
+            this.queue = this.queueStorage.load();
+        }
+        if (this.batch?.flushIntervalMs && this.batch.flushIntervalMs > 0) {
+            this.batchTimer = setInterval(() => {
+                void this.flush();
+            }, this.batch.flushIntervalMs);
+        }
+        if (this.flushOnOnline && typeof window !== "undefined" && typeof window.addEventListener === "function") {
+            this.onlineHandler = () => void this.flush();
+            window.addEventListener("online", this.onlineHandler);
+        }
+        this.removeFlushTriggers = (config.queue?.flushTriggers ?? []).map((install) => install(() => this.flush()));
+    }
+    // fromProvisionedProducer builds an event-producing client directly from a
+    // provisioned producer bundle, hiding the OAuth wiring.
+    static fromProvisionedProducer(credentials) {
+        if (!credentials.clientSecret) {
+            throw new Error("custd: provisioned producer bundle is missing the client secret");
+        }
+        return new CustdClient({
+            baseUrl: credentials.baseUrl,
+            oauth: {
+                clientId: credentials.clientId,
+                clientSecret: credentials.clientSecret,
+                tokenUrl: credentials.tokenUrl,
+                audience: credentials.audience,
+                scopes: credentials.scopes,
+            },
+        });
+    }
+    async fetchOAuthToken(config) {
+        const now = Date.now();
+        if (this.oauthToken && this.oauthToken.expiresAtMs > now + 30000) {
+            return this.oauthToken.value;
+        }
+        const body = new URLSearchParams();
+        body.set("grant_type", "client_credentials");
+        body.set("client_id", config.clientId);
+        body.set("client_secret", config.clientSecret);
+        if (config.audience) {
+            body.set("audience", config.audience);
+        }
+        if (config.scopes && config.scopes.length > 0) {
+            body.set("scope", config.scopes.join(" "));
+        }
+        const response = await fetch(config.tokenUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body,
+        });
+        if (!response.ok) {
+            throw new Error(`custd: token request failed with status ${response.status}`);
+        }
+        const token = (await response.json());
+        if (!token.access_token) {
+            throw new Error("custd: token response missing access_token");
+        }
+        this.oauthToken = {
+            value: token.access_token,
+            expiresAtMs: now + Math.max(0, token.expires_in ?? 300) * 1000,
+        };
+        return token.access_token;
+    }
+    async ingestEvent(event) {
+        const prepared = prepareEvent(event);
+        validateEvent(prepared);
+        return this.sendWithRetry(prepared);
+    }
+    // biome-ignore lint/suspicious/noConfusingVoidType: public return type — track() resolves to nothing when queued, or a Response when sent immediately.
+    async track(event) {
+        const prepared = prepareEvent(event);
+        validateEvent(prepared);
+        if (!this.queueEnabled) {
+            return this.sendWithRetry(prepared);
+        }
+        this.enqueue(prepared);
+        if (this.batch) {
+            const maxBatchSize = this.batch.maxBatchSize ?? 0;
+            if (maxBatchSize > 0 && this.queue.length >= maxBatchSize) {
+                await this.flush();
+            }
+        }
+        else if (isOnline()) {
+            await this.flush();
+        }
+        return undefined;
+    }
+    enqueue(event) {
+        if (!this.queueEnabled) {
+            return;
+        }
+        if (this.queue.length >= this.maxQueueSize) {
+            this.queue.shift();
+        }
+        this.queue.push(event);
+        this.queueStorage.save(this.queue);
+    }
+    async flush() {
+        if (!this.queueEnabled || this.queue.length === 0) {
+            return;
+        }
+        if (!isOnline()) {
+            return;
+        }
+        const maxBatchSize = this.batch?.maxBatchSize ?? this.queue.length;
+        const toSend = this.queue.splice(0, maxBatchSize);
+        try {
+            await this.sendBatchWithRetry(toSend);
+        }
+        catch (err) {
+            this.queue = [...toSend, ...this.queue];
+            this.queueStorage.save(this.queue);
+            throw err;
+        }
+        this.queueStorage.save(this.queue);
+    }
+    close() {
+        if (this.batchTimer) {
+            clearInterval(this.batchTimer);
+            this.batchTimer = null;
+        }
+        if (this.onlineHandler && typeof window !== "undefined" && typeof window.removeEventListener === "function") {
+            window.removeEventListener("online", this.onlineHandler);
+            this.onlineHandler = null;
+        }
+        for (const remove of this.removeFlushTriggers) {
+            remove();
+        }
+        this.removeFlushTriggers = [];
+    }
+    async sendWithRetry(event) {
+        return withRetry(this.retry, async () => {
+            const token = await this.getToken();
+            const response = await fetch(`${this.baseUrl}/api/v1/events`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                    ...this.defaultHeaders,
+                },
+                body: JSON.stringify(event),
+            });
+            if (!response.ok) {
+                const retryable = this.retry.retryOnStatuses.includes(response.status);
+                if (retryable) {
+                    throw new RetryableError(`custd: retryable status ${response.status}`);
+                }
+                throw new Error(`custd: request failed with status ${response.status}`);
+            }
+            return response;
+        });
+    }
+    async sendBatchWithRetry(events) {
+        const json = JSON.stringify({ events });
+        const { body, contentEncoding } = await this.encodeBatchBody(json);
+        return withRetry(this.retry, async () => {
+            const token = await this.getToken();
+            const headers = {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+                ...this.defaultHeaders,
+            };
+            if (contentEncoding) {
+                headers["Content-Encoding"] = contentEncoding;
+            }
+            const response = await fetch(`${this.baseUrl}/api/v1/events/batch`, {
+                method: "POST",
+                headers,
+                body,
+            });
+            await this.assertBatchResponse(response);
+            return response;
+        });
+    }
+    // encodeBatchBody gzip-compresses the serialized batch body when compression
+    // is enabled and the body meets the threshold. It falls back to the raw JSON
+    // string (no Content-Encoding) when compression is disabled, below threshold,
+    // or CompressionStream is unavailable in the runtime.
+    async encodeBatchBody(json) {
+        if (!this.compressionEnabled || json.length < this.compressionThresholdBytes) {
+            return { body: json };
+        }
+        if (typeof CompressionStream === "undefined") {
+            return { body: json };
+        }
+        const stream = new Blob([json]).stream().pipeThrough(new CompressionStream("gzip"));
+        const compressed = new Uint8Array(await new Response(stream).arrayBuffer());
+        return { body: compressed, contentEncoding: "gzip" };
+    }
+    async assertBatchResponse(response) {
+        if (!response.ok) {
+            const retryable = this.retry.retryOnStatuses.includes(response.status);
+            if (retryable) {
+                throw new RetryableError(`custd: retryable status ${response.status}`);
+            }
+            throw new Error(`custd: request failed with status ${response.status}`);
+        }
+        const text = await response.text();
+        if (text === "") {
+            return;
+        }
+        const body = JSON.parse(text);
+        if (body.success === false) {
+            throw new Error(this.batchRejectionMessage(response.status, body.results));
+        }
+    }
+    // Names the rejected events (uuid, status, reason) so a partial batch failure
+    // is diagnosable without re-probing the API. The list is capped to keep the
+    // message bounded.
+    batchRejectionMessage(status, results) {
+        const failed = (results ?? []).filter((r) => r.success === false);
+        if (failed.length === 0) {
+            return `custd: batch request failed with status ${status} (no per-event results)`;
+        }
+        const maxList = 10;
+        const parts = failed
+            .slice(0, maxList)
+            .map((r) => `${r.eventUuid ?? "unknown"} [status ${r.status ?? status}] ${r.error || "no error detail"}`);
+        if (failed.length > maxList) {
+            parts.push(`+${failed.length - maxList} more`);
+        }
+        return `custd: batch rejected ${failed.length} of ${results?.length ?? failed.length} event(s): ${parts.join("; ")}`;
+    }
+    async adminRequest(method, path, body) {
+        const token = await this.getToken();
+        const response = await fetch(`${this.baseUrl}/api/v1/admin${path}`, {
+            method,
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+                ...this.defaultHeaders,
+            },
+            body: body === undefined ? undefined : JSON.stringify(body),
+        });
+        if (!response.ok) {
+            throw new Error(`custd: admin request failed with status ${response.status}`);
+        }
+        if (response.status === 204) {
+            return undefined;
+        }
+        return (await response.json());
+    }
+}
+class AdminNamespace {
+    constructor(request) {
+        this.tenants = new AdminTenantNamespace(request);
+        this.oauthClients = new AdminOAuthClientNamespace(request);
+        this.sites = new AdminSiteNamespace(request);
+        this.schemas = new AdminSchemaNamespace(request);
+    }
+}
+class AdminTenantNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    create(tenant) {
+        return this.request("POST", "/tenants", tenant);
+    }
+    list() {
+        return this.request("GET", "/tenants");
+    }
+    get(slug) {
+        return this.request("GET", `/tenants/${encodeURIComponent(slug)}`);
+    }
+    delete(slug) {
+        return this.request("DELETE", `/tenants/${encodeURIComponent(slug)}`);
+    }
+}
+class AdminOAuthClientNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    create(client) {
+        return this.request("POST", "/oauth-clients", client);
+    }
+    list() {
+        return this.request("GET", "/oauth-clients");
+    }
+    get(clientId) {
+        return this.request("GET", `/oauth-clients/${encodeURIComponent(clientId)}`);
+    }
+    delete(clientId) {
+        return this.request("DELETE", `/oauth-clients/${encodeURIComponent(clientId)}`);
+    }
+    rotateSecret(clientId) {
+        return this.request("POST", `/oauth-clients/${encodeURIComponent(clientId)}/rotate-secret`);
+    }
+}
+class AdminSiteNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    create(site) {
+        return this.request("POST", "/sites", site);
+    }
+    async list() {
+        const response = await this.request("GET", "/sites");
+        return { sites: response.sites.map(publicAdminSite) };
+    }
+    async get(siteUuid) {
+        const site = await this.request("GET", `/sites/${encodeURIComponent(siteUuid)}`);
+        return publicAdminSite(site);
+    }
+    delete(siteUuid) {
+        return this.request("DELETE", `/sites/${encodeURIComponent(siteUuid)}`);
+    }
+    rotateWriteKey(siteUuid) {
+        return this.request("POST", `/sites/${encodeURIComponent(siteUuid)}/rotate-write-key`);
+    }
+}
+class AdminSchemaNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    list() {
+        return this.request("GET", "/schemas");
+    }
+    get(eventTypeSlug) {
+        return this.request("GET", `/schemas/${encodeURIComponent(eventTypeSlug)}`);
+    }
+    register(schema) {
+        return this.request("POST", "/schemas", schema);
+    }
+    createVersion(eventTypeSlug, schema) {
+        return this.request("POST", `/schemas/${encodeURIComponent(eventTypeSlug)}/versions`, schema);
+    }
+}
+// redactedProvisionedProducer returns the display-safe view of a provisioned
+// producer bundle, omitting the client secret so it is safe for dashboards.
+export function redactedProvisionedProducer(credentials) {
+    const { clientSecret: _clientSecret, ...rest } = credentials;
+    return rest;
+}
+export function validateEvent(event) {
+    const missing = [];
+    if (!event.eventUuid)
+        missing.push("eventUuid");
+    if (!event.eventTypeSlug)
+        missing.push("eventTypeSlug");
+    if (!event.schemaVersion)
+        missing.push("schemaVersion");
+    if (!event.timestamp)
+        missing.push("timestamp");
+    if (!event.sessionId)
+        missing.push("sessionId");
+    if (!event.anonymousId)
+        missing.push("anonymousId");
+    if (!event.companySlug)
+        missing.push("companySlug");
+    if (!event.context)
+        missing.push("context");
+    if (!event.payload)
+        missing.push("payload");
+    const deviceType = event.context?.device?.type;
+    if (!deviceType)
+        missing.push("context.device.type");
+    if (missing.length > 0) {
+        throw new Error(`custd: missing required fields: ${missing.join(", ")}`);
+    }
+}
+export function validateBrowserEvent(event) {
+    const missing = [];
+    if (!event.eventUuid)
+        missing.push("eventUuid");
+    if (!event.eventTypeSlug)
+        missing.push("eventTypeSlug");
+    if (!event.schemaVersion)
+        missing.push("schemaVersion");
+    if (!event.timestamp)
+        missing.push("timestamp");
+    if (!event.context)
+        missing.push("context");
+    if (!event.payload)
+        missing.push("payload");
+    if (!event.payload?.siteUuid)
+        missing.push("payload.siteUuid");
+    const deviceType = event.context?.device?.type;
+    if (!deviceType)
+        missing.push("context.device.type");
+    if (missing.length > 0) {
+        throw new Error(`custd: missing required browser fields: ${missing.join(", ")}`);
+    }
+}
+export function createDogfoodEvent(input) {
+    const missing = [];
+    if (!input.eventTypeSlug)
+        missing.push("eventTypeSlug");
+    if (!input.schemaVersion)
+        missing.push("schemaVersion");
+    if (!input.companySlug)
+        missing.push("companySlug");
+    if (!input.sourceSystem)
+        missing.push("sourceSystem");
+    if (!input.sourceCompany)
+        missing.push("sourceCompany");
+    if (!input.environment)
+        missing.push("environment");
+    if (missing.length > 0) {
+        throw new Error(`custd: missing dogfood fields: ${missing.join(", ")}`);
+    }
+    const sanitized = sanitizeDogfoodPayload(input.payload ?? {});
+    if (input.strictPayloadKeys && sanitized.droppedKeys.length > 0) {
+        throw new Error(`custd: dropped dogfood payload keys: ${sanitized.droppedKeys.join(", ")}`);
+    }
+    const payload = sanitized.payload;
+    payload.sourceSystem = input.sourceSystem;
+    payload.sourceCompany = input.sourceCompany;
+    payload.environment = input.environment;
+    payload.schemaVersion = input.schemaVersion;
+    if (input.correlationId) {
+        payload.correlationId = input.correlationId;
+    }
+    return prepareEvent({
+        eventTypeSlug: input.eventTypeSlug,
+        schemaVersion: input.schemaVersion,
+        timestamp: new Date().toISOString(),
+        companySlug: input.companySlug,
+        context: { device: { type: "server" } },
+        payload,
+    });
+}
+export function prepareEvent(event, options = {}) {
+    if (options.mode === "browser-cookieless") {
+        return {
+            ...event,
+            eventUuid: event.eventUuid || randomUUID(),
+            sessionId: event.sessionId ?? "",
+            anonymousId: event.anonymousId ?? "",
+        };
+    }
+    return {
+        ...event,
+        eventUuid: event.eventUuid || randomUUID(),
+        sessionId: event.sessionId || randomUUID(),
+        anonymousId: event.anonymousId || randomUUID(),
+    };
+}
+export class RetryableError extends Error {
+}
+const dogfoodProtectedPayloadFields = new Set([
+    "sourcesystem",
+    "sourcecompany",
+    "environment",
+    "schemaversion",
+    "correlationid",
+]);
+const dogfoodForbiddenPayloadFields = new Set([
+    "apikey",
+    "authorization",
+    "password",
+    "rawapiresponse",
+    "token",
+    "signedurl",
+    "rawprompt",
+    "oauthcode",
+    "devicesecret",
+    "providercredential",
+]);
+function sanitizeDogfoodPayload(payload, prefix = "") {
+    const cleaned = {};
+    const droppedKeys = [];
+    for (const [key, value] of Object.entries(payload)) {
+        if (!dogfoodPayloadFieldAllowed(key)) {
+            droppedKeys.push(`${prefix}${key}`);
+            continue;
+        }
+        if (value != null && typeof value === "object" && !Array.isArray(value)) {
+            const nested = sanitizeDogfoodPayload(value, `${prefix}${key}.`);
+            cleaned[key] = nested.payload;
+            droppedKeys.push(...nested.droppedKeys);
+        }
+        else {
+            cleaned[key] = value;
+        }
+    }
+    return { payload: cleaned, droppedKeys };
+}
+function dogfoodPayloadFieldAllowed(key) {
+    const normalized = key.toLowerCase().replace(/_/g, "");
+    return !dogfoodProtectedPayloadFields.has(normalized) && !dogfoodForbiddenPayloadFields.has(normalized);
+}
+function assertSecureOrLocalHTTP(rawUrl, field) {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol === "https:") {
+        return;
+    }
+    if (parsed.protocol === "http:" && isLocalHostname(parsed.hostname)) {
+        return;
+    }
+    throw new Error(`custd: ${field} must use https unless it targets localhost`);
+}
+function isLocalHostname(hostname) {
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+export function normalizeRetryOptions(options) {
+    return {
+        maxAttempts: options?.maxAttempts ?? 3,
+        baseDelayMs: options?.baseDelayMs ?? 200,
+        maxDelayMs: options?.maxDelayMs ?? 2000,
+        jitter: options?.jitter ?? 0.2,
+        retryOnStatuses: options?.retryOnStatuses ?? [408, 429, 500, 502, 503, 504],
+    };
+}
+export async function withRetry(options, op) {
+    let attempt = 0;
+    for (;;) {
+        attempt++;
+        try {
+            return await op();
+        }
+        catch (err) {
+            const retryable = err instanceof RetryableError || err instanceof TypeError;
+            if (!retryable || attempt >= options.maxAttempts) {
+                throw err;
+            }
+            const delay = backoffDelay(options, attempt);
+            await sleep(delay);
+        }
+    }
+}
+function backoffDelay(options, attempt) {
+    const exp = options.baseDelayMs * 2 ** (attempt - 1);
+    const capped = Math.min(exp, options.maxDelayMs);
+    const jitter = capped * options.jitter * (Math.random() * 2 - 1);
+    return Math.max(0, capped + jitter);
+}
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function isOnline() {
+    if (typeof navigator === "undefined") {
+        return true;
+    }
+    if (typeof navigator.onLine !== "boolean") {
+        return true;
+    }
+    return navigator.onLine;
+}
+function randomUUID() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return crypto.randomUUID();
+    }
+    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => (Number(c) ^ ((Math.random() * 16) >> (Number(c) / 4))).toString(16));
+}

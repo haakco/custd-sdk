@@ -1,9 +1,10 @@
 * text=auto eol=lf
 
 # Dist hygiene: the published `haakco/custd-sdk` package is pure PHP.
-# Everything below is stripped from `git archive` / composer dists so a generic
-# consumer (e.g. Awthy via Strauss) never pulls framework code, sibling SDKs,
-# tests, scripts, or repo tooling. Keep this list in sync with PackageBoundaryTest.
+# Most non-PHP package roots are stripped from `git archive` / composer dists so
+# a generic consumer (e.g. Awthy via Strauss) never pulls framework code,
+# unrelated sibling SDKs, tests, scripts, or repo tooling. Keep this list in
+# sync with PackageBoundaryTest.
 # NOTE: export-ignore directory patterns are anchored with a leading slash and
 # carry NO trailing slash — that is the form `git archive` honours.
 
@@ -11,9 +12,9 @@
 /laravel-package       export-ignore
 /wordpress-plugin      export-ignore
 
-# Sibling-language SDKs (not part of the PHP package)
+# Sibling-language SDKs (not part of the PHP package). `sdk-js` is intentionally
+# kept in GitHub source archives so pnpm can install `path:/sdk-js` from this repo.
 /sdk-go                export-ignore
-/sdk-js                export-ignore
 /sdk-python            export-ignore
 
 # PHP SDK tests + dev scripts

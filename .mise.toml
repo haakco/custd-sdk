@@ -64,4 +64,4 @@ run = "actionlint"
 
 [tasks.lint-markdown]
 description = "Lint Markdown docs"
-run = "markdownlint-cli2 '**/*.md' '#node_modules' '#sdk-js/node_modules' '#sdk-php/vendor'"
+run = "markdownlint-cli2 '**/*.md' '#node_modules' '#sdk-js/node_modules' '#sdk-php/vendor' '#laravel-package/vendor' '#wordpress-plugin/vendor'"

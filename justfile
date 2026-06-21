@@ -11,7 +11,7 @@ lint-workflows:
   actionlint
 
 lint-markdown:
-  pnpm exec markdownlint-cli2 '**/*.md' '#node_modules' '#vendor' '#sdk-js/node_modules' '#sdk-php/vendor'
+  pnpm exec markdownlint-cli2 '**/*.md' '#node_modules' '#vendor' '#sdk-js/node_modules' '#sdk-php/vendor' '#laravel-package/vendor' '#wordpress-plugin/vendor'
 
 test-go:
   cd sdk-go && go vet ./...
@@ -24,6 +24,7 @@ test-js:
   pnpm -C sdk-js run typecheck
   pnpm -C sdk-js test
   pnpm -C sdk-js run build
+  git diff --exit-code -- sdk-js/dist
 
 test-python:
   cd sdk-python && ruff check

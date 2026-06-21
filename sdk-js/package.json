@@ -34,7 +34,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check src",
     "lint:fix": "biome check --write src",
-    "prepare": "pnpm run build",
     "test": "vitest run src",
     "smoke:dev": "pnpm run build && node scripts/smoke-dev.js"
   },

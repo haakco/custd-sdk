@@ -11,8 +11,15 @@ alias or deprecation window.
 
 ## Install
 
-`@haakco/custd-sdk` is published to the HaakCo Verdaccio registry (not the public
-npm registry). Point the project at Verdaccio, then install:
+Use the GitHub package path when installing into HaakCo apps:
+
+```bash
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v1.4.0&path:/sdk-js'
+```
+
+Pin the tag to the SDK version you want. The package is also published to the
+HaakCo Verdaccio registry during the transition. To install from Verdaccio,
+point the project at that registry, then install:
 
 ```ini
 # .npmrc

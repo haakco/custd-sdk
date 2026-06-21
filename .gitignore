@@ -13,6 +13,8 @@ vendor/
 /laravel-package/composer.lock
 /wordpress-plugin/composer.lock
 dist/
+!/sdk-js/dist/
+!/sdk-js/dist/**
 coverage/
 .phpunit.result.cache
 .pytest_cache/
