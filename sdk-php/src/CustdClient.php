@@ -207,17 +207,6 @@ final class CustdClient
     }
 
     /**
-     * @deprecated Renamed to {@see redactAwthyAuditEvents()} in v1.2.1. Kept as a
-     *             thin delegate for one deprecation cycle; remove in the next
-     *             major release.
-     * @return array<string, mixed>
-     */
-    public function redactAuthyAuditEvents(Awthy\AwthyAuditRedactionRequest $request): array
-    {
-        return $this->redactAwthyAuditEvents($request);
-    }
-
-    /**
      * @param array<string, mixed> $event
      */
     private function enqueue(array $event): void
@@ -453,7 +442,7 @@ final class CustdClient
             $client = $this->httpClient;
             $result = $client($this->baseUrl . "/api/v1/events", $event, $this->authToken());
             $result = $this->normalizeHttpClientResult($result);
-            $this->translateStatus($result["status"]);
+            $this->translateStatus($result["status"], $result["body"]);
             return $result;
         }
 
@@ -479,11 +468,12 @@ final class CustdClient
         }
 
         $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $this->translateStatus($status);
+        $responseBody = is_string($response) ? $response : "";
+        $this->translateStatus($status, $responseBody);
 
         return [
             "status" => $status,
-            "body" => is_string($response) ? $response : "",
+            "body" => $responseBody,
         ];
     }
 
@@ -499,7 +489,7 @@ final class CustdClient
         if (is_callable($this->httpClient)) {
             $client = $this->httpClient;
             $result = $this->normalizeHttpClientResult($client($url, $payload, $this->authToken()));
-            $this->translateStatus($result["status"]);
+            $this->translateStatus($result["status"], $result["body"]);
             $this->translateBatchBody($result);
             return $result;
         }
@@ -529,7 +519,7 @@ final class CustdClient
             "status" => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE),
             "body" => is_string($response) ? $response : "",
         ];
-        $this->translateStatus($result["status"]);
+        $this->translateStatus($result["status"], $result["body"]);
         $this->translateBatchBody($result);
         return $result;
     }
@@ -563,7 +553,7 @@ final class CustdClient
         if (is_callable($this->httpClient)) {
             $client = $this->httpClient;
             $result = $this->normalizeHttpClientResult($client($url, $payload, $this->authToken()));
-            $this->translateStatus($result["status"]);
+            $this->translateStatus($result["status"], $result["body"]);
             return $result;
         }
 
@@ -590,11 +580,16 @@ final class CustdClient
             "status" => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE),
             "body" => is_string($response) ? $response : "",
         ];
-        $this->translateStatus($result["status"]);
+        $this->translateStatus($result["status"], $result["body"]);
         return $result;
     }
 
     /**
+     * Validate a batch response body. A `202` HTTP status is not enough: the
+     * batch may report a top-level `success:false`, or carry per-event results
+     * where individual events failed. Every result is validated, not just the
+     * HTTP code, so a partial rejection surfaces as an error.
+     *
      * @param array{status:int, body:string} $result
      */
     private function translateBatchBody(array $result): void
@@ -604,17 +599,37 @@ final class CustdClient
         }
 
         $decoded = json_decode($result["body"], true);
-        if (is_array($decoded) && ($decoded["success"] ?? true) === false) {
+        if (!is_array($decoded)) {
+            return;
+        }
+
+        $results = is_array($decoded["results"] ?? null) ? $decoded["results"] : [];
+        $anyEventFailed = $this->batchHasFailedResult($results);
+        if (($decoded["success"] ?? true) === false || $anyEventFailed) {
             throw new \RuntimeException(
-                $this->batchRejectionMessage($result["status"], $decoded["results"] ?? null)
+                $this->batchRejectionMessage($result["status"], $results)
             );
         }
     }
 
     /**
+     * @param array<int, mixed> $results
+     */
+    private function batchHasFailedResult(array $results): bool
+    {
+        foreach ($results as $r) {
+            if (is_array($r) && ($r["success"] ?? true) === false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Build a message that names the rejected events (uuid, status, reason) so a
-     * partial batch failure is diagnosable without re-probing the API. The list
-     * is capped to keep the message bounded.
+     * partial batch failure is diagnosable without re-probing the API. Each
+     * failed result's `error` is an RFC 9457 problem object; its detail/title is
+     * rendered into the message. The list is capped to keep the message bounded.
      *
      * @param mixed $results
      */
@@ -634,7 +649,7 @@ final class CustdClient
         foreach (array_slice($failed, 0, $maxList) as $r) {
             $uuid = $r["eventUuid"] ?? "unknown";
             $eventStatus = $r["status"] ?? $status;
-            $detail = ($r["error"] ?? "") !== "" ? $r["error"] : "no error detail";
+            $detail = self::resultErrorDetail($r["error"] ?? null);
             $parts[] = "{$uuid} [status {$eventStatus}] {$detail}";
         }
         if (count($failed) > $maxList) {
@@ -650,20 +665,44 @@ final class CustdClient
     }
 
     /**
+     * Render a failed per-event result's `error` (an RFC 9457 problem object)
+     * into a short reason string.
+     *
+     * @param mixed $error
+     */
+    private static function resultErrorDetail(mixed $error): string
+    {
+        if (is_array($error)) {
+            $problem = Problem::fromArray($error);
+            if ($problem !== null) {
+                return $problem->message();
+            }
+        }
+        return "no error detail";
+    }
+
+    /**
      * Apply HTTP status translation shared by the curl path and the
-     * user-supplied http_client callable path.
+     * user-supplied http_client callable path. On a non-retryable error the
+     * RFC 9457 problem+json body is decoded so the surfaced message carries the
+     * problem detail/status/code/fields; a non-problem body falls back to a
+     * status-only message.
      *
      * @throws RetryableException When the status is in retry_statuses.
      * @throws \RuntimeException When the status is >= 400 and not retryable.
      */
-    private function translateStatus(int $status): void
+    private function translateStatus(int $status, string $body = ""): void
     {
         if (in_array($status, $this->retryOptions["retry_statuses"], true)) {
             throw new RetryableException("custd: retryable status {$status}");
         }
 
         if ($status >= 400) {
-            throw new \RuntimeException("custd: request failed with status {$status}");
+            $problem = Problem::parse($body);
+            $message = $problem !== null
+                ? $problem->message()
+                : "request failed with status {$status}";
+            throw new \RuntimeException("custd: {$message}");
         }
     }
 

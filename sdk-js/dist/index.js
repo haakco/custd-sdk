@@ -229,7 +229,7 @@ export class CustdClient {
                 if (retryable) {
                     throw new RetryableError(`custd: retryable status ${response.status}`);
                 }
-                throw new Error(`custd: request failed with status ${response.status}`);
+                throw await problemError(response, `custd: request failed with status ${response.status}`);
             }
             return response;
         });
@@ -277,29 +277,29 @@ export class CustdClient {
             if (retryable) {
                 throw new RetryableError(`custd: retryable status ${response.status}`);
             }
-            throw new Error(`custd: request failed with status ${response.status}`);
+            throw await problemError(response, `custd: request failed with status ${response.status}`);
         }
         const text = await response.text();
         if (text === "") {
             return;
         }
         const body = JSON.parse(text);
-        if (body.success === false) {
-            throw new Error(this.batchRejectionMessage(response.status, body.results));
+        // Validate every per-event result, not just HTTP status: a 202 envelope can
+        // still carry rejected events with their own non-2xx status and problem.
+        const failed = (body.results ?? []).filter((r) => r.success === false);
+        if (failed.length > 0) {
+            throw new CustdProblemError(this.batchRejectionMessage(response.status, body.results, failed), undefined, failed);
         }
     }
     // Names the rejected events (uuid, status, reason) so a partial batch failure
     // is diagnosable without re-probing the API. The list is capped to keep the
     // message bounded.
-    batchRejectionMessage(status, results) {
-        const failed = (results ?? []).filter((r) => r.success === false);
-        if (failed.length === 0) {
-            return `custd: batch request failed with status ${status} (no per-event results)`;
-        }
+    batchRejectionMessage(status, results, failed) {
         const maxList = 10;
-        const parts = failed
-            .slice(0, maxList)
-            .map((r) => `${r.eventUuid ?? "unknown"} [status ${r.status ?? status}] ${r.error || "no error detail"}`);
+        const parts = failed.slice(0, maxList).map((r) => {
+            const reason = r.error?.detail || r.error?.title || "no error detail";
+            return `${r.eventUuid ?? "unknown"} [status ${r.status ?? status}] ${reason}`;
+        });
         if (failed.length > maxList) {
             parts.push(`+${failed.length - maxList} more`);
         }
@@ -520,6 +520,35 @@ export function prepareEvent(event, options = {}) {
     };
 }
 export class RetryableError extends Error {
+}
+// CustdProblemError carries the decoded RFC 9457 problem document (when the
+// server sent one) and, for batch sends, the failed per-event results so a
+// caller can inspect every rejection without re-probing the API.
+export class CustdProblemError extends Error {
+    constructor(message, problem, failures = []) {
+        super(message);
+        this.name = "CustdProblemError";
+        this.problem = problem;
+        this.failures = failures;
+    }
+}
+// problemError decodes an RFC 9457 problem document from an error response and
+// wraps it in a CustdProblemError. When the body is missing or unparseable it
+// falls back to the supplied status-only message so callers still get an error.
+async function problemError(response, fallbackMessage) {
+    const text = await response.text().catch(() => "");
+    if (text === "") {
+        return new CustdProblemError(fallbackMessage);
+    }
+    let problem;
+    try {
+        problem = JSON.parse(text);
+    }
+    catch {
+        return new CustdProblemError(fallbackMessage);
+    }
+    const message = problem.detail || problem.title || fallbackMessage;
+    return new CustdProblemError(`custd: ${message}`, problem);
 }
 const dogfoodProtectedPayloadFields = new Set([
     "sourcesystem",

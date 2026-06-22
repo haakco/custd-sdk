@@ -8,6 +8,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 from custd import (
     CustdClient,
     MemoryQueueStorage,
+    RequestError,
     RetryableError,
     ValidationError,
     create_dogfood_event,
@@ -24,8 +25,9 @@ def load_fixture(name):
 
 
 class CapturingTransport:
-    def __init__(self, statuses):
+    def __init__(self, statuses, bodies=None):
         self.statuses = list(statuses)
+        self.bodies = list(bodies) if bodies is not None else None
         self.calls = []
 
     def __call__(self, url, event, headers, timeout):
@@ -35,7 +37,8 @@ class CapturingTransport:
             "headers": headers,
             "timeout": timeout,
         })
-        return {"status": self.statuses.pop(0), "body": ""}
+        body = self.bodies.pop(0) if self.bodies is not None else ""
+        return {"status": self.statuses.pop(0), "body": body}
 
 
 class CustdClientTest(unittest.TestCase):
@@ -207,6 +210,146 @@ class CustdClientTest(unittest.TestCase):
                 "transport": lambda url, form, timeout: {"access_token": "token", "expires_in": 300},
             },
         )
+
+
+class RfcProblemErrorTest(unittest.TestCase):
+    def setUp(self):
+        self.base_event = load_fixture("valid-event.json")
+
+    def _client(self, statuses, bodies):
+        return CustdClient(
+            base_url="http://localhost:8080",
+            token="token",
+            retry={"max_attempts": 1},
+            transport=CapturingTransport(statuses, bodies),
+        )
+
+    def test_single_send_surfaces_rfc9457_problem_detail(self):
+        problem = json.dumps({
+            "type": "validation-failed",
+            "title": "Validation Failed",
+            "status": 400,
+            "detail": "schemaVersion is required",
+        })
+        client = self._client([400], [problem])
+
+        with self.assertRaises(RequestError) as ctx:
+            client.ingest_event(self.base_event)
+
+        message = str(ctx.exception)
+        self.assertIn("Validation Failed", message)
+        self.assertIn("schemaVersion is required", message)
+        self.assertIn("400", message)
+
+    def test_single_send_handles_problem_without_optional_fields(self):
+        problem = json.dumps({"type": "about:blank", "title": "Bad Request", "status": 400})
+        client = self._client([400], [problem])
+
+        with self.assertRaisesRegex(RequestError, "Bad Request"):
+            client.ingest_event(self.base_event)
+
+    def test_single_send_falls_back_when_body_is_not_a_problem(self):
+        client = self._client([500], ["upstream exploded"])
+
+        with self.assertRaisesRegex(RetryableError, "500"):
+            client.ingest_event(self.base_event)
+
+    def test_batch_surfaces_failed_per_event_result(self):
+        body = json.dumps({
+            "success": True,
+            "results": [
+                {"eventUuid": "evt-ok", "success": True, "status": 202},
+                {
+                    "eventUuid": "evt-bad",
+                    "success": False,
+                    "status": 422,
+                    "error": {
+                        "type": "schema-mismatch",
+                        "title": "Schema Mismatch",
+                        "status": 422,
+                        "detail": "payload.value must be a number",
+                    },
+                },
+            ],
+        })
+        client = CustdClient(
+            base_url="http://localhost:8080",
+            token="token",
+            batch={"max_batch_size": 10},
+            queue={"enabled": True},
+            retry={"max_attempts": 1},
+            transport=CapturingTransport([202], [body]),
+        )
+        client.track({**self.base_event, "eventUuid": "evt-ok"})
+        client.track({**self.base_event, "eventUuid": "evt-bad"})
+
+        with self.assertRaises(RequestError) as ctx:
+            client.flush()
+
+        message = str(ctx.exception)
+        self.assertIn("evt-bad", message)
+        self.assertIn("422", message)
+        self.assertIn("Schema Mismatch", message)
+        self.assertNotIn("evt-ok", message)
+
+    def test_batch_accepts_snake_case_event_uuid(self):
+        body = json.dumps({
+            "results": [
+                {"event_uuid": "evt-bad", "success": False, "status": 400, "error": "boom"},
+            ],
+        })
+        client = CustdClient(
+            base_url="http://localhost:8080",
+            token="token",
+            batch={"max_batch_size": 10},
+            queue={"enabled": True},
+            retry={"max_attempts": 1},
+            transport=CapturingTransport([202], [body]),
+        )
+        client.track(self.base_event)
+
+        with self.assertRaisesRegex(RequestError, "evt-bad"):
+            client.flush()
+
+    def test_batch_all_success_does_not_raise(self):
+        body = json.dumps({
+            "success": True,
+            "results": [{"eventUuid": "evt-ok", "success": True, "status": 202}],
+        })
+        client = CustdClient(
+            base_url="http://localhost:8080",
+            token="token",
+            batch={"max_batch_size": 10},
+            queue={"enabled": True},
+            retry={"max_attempts": 1},
+            transport=CapturingTransport([202], [body]),
+        )
+        client.track(self.base_event)
+        client.flush()  # must not raise
+
+    def test_batch_http_error_surfaces_rfc9457_problem(self):
+        problem = json.dumps({
+            "type": "unauthorized",
+            "title": "Unauthorized",
+            "status": 401,
+            "detail": "token expired",
+        })
+        client = CustdClient(
+            base_url="http://localhost:8080",
+            token="token",
+            batch={"max_batch_size": 10},
+            queue={"enabled": True},
+            retry={"max_attempts": 1},
+            transport=CapturingTransport([401], [problem]),
+        )
+        client.track(self.base_event)
+
+        with self.assertRaises(RequestError) as ctx:
+            client.flush()
+
+        message = str(ctx.exception)
+        self.assertIn("Unauthorized", message)
+        self.assertIn("token expired", message)
 
 
 class FromProvisionedProducerTest(unittest.TestCase):

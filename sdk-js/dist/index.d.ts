@@ -13,7 +13,6 @@ export type EventContext = {
     locale?: string;
     timezone?: string;
     ip?: string;
-    [key: string]: unknown;
 };
 export type EventEnvelope = {
     eventUuid?: string;
@@ -37,6 +36,22 @@ export type DogfoodEventInput = {
     correlationId?: string;
     strictPayloadKeys?: boolean;
     payload?: Record<string, unknown>;
+};
+export type ProblemDetails = {
+    type: string;
+    title: string;
+    status: number;
+    detail?: string;
+    code?: string;
+    instance?: string;
+    traceId?: string;
+    fields?: Record<string, string>;
+};
+type EventResult = {
+    eventUuid?: string;
+    success?: boolean;
+    status?: number;
+    error?: ProblemDetails;
 };
 export type ProducerOAuthConfig = {
     clientId: string;
@@ -267,6 +282,11 @@ export declare function validateBrowserEvent(event: EventEnvelope): void;
 export declare function createDogfoodEvent(input: DogfoodEventInput): EventEnvelope;
 export declare function prepareEvent(event: EventEnvelope, options?: PrepareEventOptions): EventEnvelope;
 export declare class RetryableError extends Error {
+}
+export declare class CustdProblemError extends Error {
+    readonly problem?: ProblemDetails;
+    readonly failures: EventResult[];
+    constructor(message: string, problem?: ProblemDetails, failures?: EventResult[]);
 }
 export declare function normalizeRetryOptions(options?: RetryOptions): Required<RetryOptions>;
 export declare function withRetry<T>(options: Required<RetryOptions>, op: () => Promise<T>): Promise<T>;

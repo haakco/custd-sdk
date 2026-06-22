@@ -421,9 +421,11 @@ final class CustdClientTest extends TestCase
             "http_client" => function (): array {
                 return [
                     "status" => 202,
-                    "body" => '{"success":false,"results":[' .
+                    "body" => '{"success":true,"results":[' .
                         '{"eventUuid":"evt-ok","success":true,"status":202},' .
-                        '{"eventUuid":"evt-bad","success":false,"status":400,"error":"validation failed"}' .
+                        '{"eventUuid":"evt-bad","success":false,"status":400,' .
+                        '"error":{"type":"validation-failed","title":"Validation Failed",' .
+                        '"status":400,"detail":"validation failed"}}' .
                         ']}',
                 ];
             },
@@ -440,6 +442,80 @@ final class CustdClientTest extends TestCase
             self::assertStringContainsString("evt-bad", $e->getMessage());
             self::assertStringContainsString("400", $e->getMessage());
             self::assertStringContainsString("validation failed", $e->getMessage());
+            self::assertStringContainsString("1 of 2", $e->getMessage());
+            self::assertStringNotContainsString("evt-ok", $e->getMessage());
+        }
+    }
+
+    public function testErrorResponseSurfacesProblemDetail(): void
+    {
+        $client = new CustdClient("http://localhost:8080", "token", [
+            "retry" => ["max_attempts" => 1],
+            "http_client" => function (): array {
+                return [
+                    "status" => 400,
+                    "body" => '{"type":"validation-failed","title":"Validation Failed",'
+                        . '"status":400,"detail":"eventTypeSlug is required",'
+                        . '"code":"missing_field","fields":{"eventTypeSlug":"required"}}',
+                ];
+            },
+        ]);
+
+        try {
+            $client->ingestEvent($this->baseEvent);
+            $this->fail("expected RuntimeException on RFC 9457 problem response");
+        } catch (\RuntimeException $err) {
+            self::assertStringContainsString("eventTypeSlug is required", $err->getMessage());
+            self::assertStringContainsString("status 400", $err->getMessage());
+            self::assertStringContainsString("missing_field", $err->getMessage());
+            self::assertStringContainsString("eventTypeSlug=required", $err->getMessage());
+        }
+    }
+
+    public function testErrorResponseWithoutProblemBodyFallsBackToStatus(): void
+    {
+        $client = new CustdClient("http://localhost:8080", "token", [
+            "retry" => ["max_attempts" => 1],
+            "http_client" => function (): array {
+                return ["status" => 418, "body" => "not a problem"];
+            },
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage("418");
+        $client->ingestEvent($this->baseEvent);
+    }
+
+    public function testBatchPerEventProblemErrorIsSurfaced(): void
+    {
+        $client = new CustdClient("http://localhost:8080", "token", [
+            "batch" => ["max_batch_size" => 10],
+            "queue" => ["enabled" => true],
+            "retry" => ["max_attempts" => 1],
+            "http_client" => function (): array {
+                return [
+                    "status" => 202,
+                    "body" => '{"success":true,"results":[' .
+                        '{"eventUuid":"evt-ok","success":true,"status":202},' .
+                        '{"eventUuid":"evt-bad","success":false,"status":422,' .
+                        '"error":{"type":"schema-violation","title":"Schema Violation",' .
+                        '"status":422,"detail":"payload.foo must be a string"}}' .
+                        ']}',
+                ];
+            },
+        ]);
+
+        $eventBad = $this->baseEvent;
+        $eventBad["eventUuid"] = "evt-bad";
+        $client->track($eventBad);
+
+        try {
+            $client->flush();
+            $this->fail("expected RuntimeException on per-event problem failure");
+        } catch (\RuntimeException $e) {
+            self::assertStringContainsString("evt-bad", $e->getMessage());
+            self::assertStringContainsString("422", $e->getMessage());
+            self::assertStringContainsString("payload.foo must be a string", $e->getMessage());
             self::assertStringContainsString("1 of 2", $e->getMessage());
             self::assertStringNotContainsString("evt-ok", $e->getMessage());
         }

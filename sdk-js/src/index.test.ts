@@ -2,13 +2,22 @@ import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CustdClient,
+  CustdProblemError,
   createDogfoodEvent,
   type EventEnvelope,
   MemoryQueueStorage,
+  type ProblemDetails,
   type ProvisionedProducerCredentials,
   redactedProvisionedProducer,
   validateEvent,
 } from "./index";
+
+function problemResponse(problem: ProblemDetails): Response {
+  return new Response(JSON.stringify(problem), {
+    status: problem.status,
+    headers: { "Content-Type": "application/problem+json" },
+  });
+}
 
 const baseEvent: EventEnvelope = {
   eventUuid: "evt-1",
@@ -180,10 +189,20 @@ describe("CustdClient", () => {
           success: false,
           results: [
             { eventUuid: "evt-ok", success: true, status: 202 },
-            { eventUuid: "evt-bad", success: false, status: 400, error: "validation failed" },
+            {
+              eventUuid: "evt-bad",
+              success: false,
+              status: 400,
+              error: {
+                type: "validation-failed",
+                title: "Validation Failed",
+                status: 400,
+                detail: "payload.value is required",
+              },
+            },
           ],
         }),
-        { status: 202 },
+        { status: 202, headers: { "Content-Type": "application/json" } },
       ),
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -201,10 +220,110 @@ describe("CustdClient", () => {
 
     const error = await client.flush().then(
       () => null,
-      (e: unknown) => e as Error,
+      (e: unknown) => e as CustdProblemError,
     );
-    expect(error?.message).toMatch(/batch rejected 1 of 2 event\(s\):.*evt-bad \[status 400\] validation failed/);
+    expect(error).toBeInstanceOf(CustdProblemError);
+    expect(error?.message).toMatch(
+      /batch rejected 1 of 2 event\(s\):.*evt-bad \[status 400\] payload\.value is required/,
+    );
     expect(error?.message).not.toContain("evt-ok");
+    expect(error?.failures).toHaveLength(1);
+    expect(error?.failures[0].eventUuid).toBe("evt-bad");
+    expect(error?.failures[0].error?.title).toBe("Validation Failed");
+  });
+
+  it("surfaces a per-event failure even when the batch envelope omits success:false", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          results: [
+            { eventUuid: "evt-ok", success: true, status: 202 },
+            { eventUuid: "evt-bad", success: false, status: 422 },
+          ],
+        }),
+        { status: 202, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "token",
+      batch: { maxBatchSize: 10 },
+      queue: { enabled: true },
+      retry: { maxAttempts: 1 },
+    });
+
+    await client.track({ ...baseEvent, eventUuid: "evt-ok" });
+    await client.track({ ...baseEvent, eventUuid: "evt-bad" });
+
+    const error = await client.flush().then(
+      () => null,
+      (e: unknown) => e as CustdProblemError,
+    );
+    expect(error).toBeInstanceOf(CustdProblemError);
+    expect(error?.message).toMatch(/batch rejected 1 of 2 event\(s\):.*evt-bad \[status 422\]/);
+  });
+
+  it("decodes an RFC 9457 problem body when the whole batch is rejected", async () => {
+    const problem: ProblemDetails = {
+      type: "rate-limited",
+      title: "Too Many Requests",
+      status: 400,
+      detail: "tenant ingest quota exceeded",
+      code: "quota_exceeded",
+      instance: "/api/v1/events/batch",
+      traceId: "trace-abc",
+      fields: { batch: "too large" },
+    };
+    const fetchMock = vi.fn().mockResolvedValue(problemResponse(problem));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "token",
+      batch: { maxBatchSize: 10 },
+      queue: { enabled: true },
+      retry: { maxAttempts: 1 },
+    });
+
+    await client.track({ ...baseEvent, eventUuid: "evt-1" });
+
+    const error = await client.flush().then(
+      () => null,
+      (e: unknown) => e as CustdProblemError,
+    );
+    expect(error).toBeInstanceOf(CustdProblemError);
+    expect(error?.problem?.title).toBe("Too Many Requests");
+    expect(error?.problem?.code).toBe("quota_exceeded");
+    expect(error?.problem?.traceId).toBe("trace-abc");
+    expect(error?.problem?.fields?.batch).toBe("too large");
+    expect(error?.message).toMatch(/tenant ingest quota exceeded/);
+  });
+
+  it("decodes an RFC 9457 problem body when a single event is rejected", async () => {
+    const problem: ProblemDetails = {
+      type: "schema-mismatch",
+      title: "Unprocessable Entity",
+      status: 422,
+      detail: "unknown event type",
+    };
+    const fetchMock = vi.fn().mockResolvedValue(problemResponse(problem));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "token",
+      retry: { maxAttempts: 1 },
+    });
+
+    const error = await client.ingestEvent(baseEvent).then(
+      () => null,
+      (e: unknown) => e as CustdProblemError,
+    );
+    expect(error).toBeInstanceOf(CustdProblemError);
+    expect(error?.problem?.status).toBe(422);
+    expect(error?.message).toMatch(/unknown event type/);
   });
 
   it("gzip-compresses the batch body when it meets the threshold", async () => {

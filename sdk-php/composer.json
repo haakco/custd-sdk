@@ -7,10 +7,7 @@
   "autoload": {
     "psr-4": {
       "HaakCo\\Custd\\": "src/"
-    },
-    "files": [
-      "bootstrap/aliases.php"
-    ]
+    }
   },
   "require": {
     "php": ">=8.3",

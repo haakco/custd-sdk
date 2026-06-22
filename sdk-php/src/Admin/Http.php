@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Problem;
+
 final class Http
 {
     /**
@@ -25,7 +27,11 @@ final class Http
             : self::curlRequest($method, $url, $body, $token);
         $status = self::status($result);
         if ($status >= 400) {
-            throw new \RuntimeException("custd: admin request failed with status {$status}");
+            $problem = Problem::parse($result["body"]);
+            $message = $problem !== null
+                ? $problem->message()
+                : "admin request failed with status {$status}";
+            throw new \RuntimeException("custd: {$message}");
         }
         if ($status === 204 || $result["body"] === "") {
             return null;

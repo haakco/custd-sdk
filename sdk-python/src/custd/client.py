@@ -181,7 +181,7 @@ class CustdClient:
         if status in self.retry["retry_statuses"]:
             raise RetryableError(f"custd: retryable status {status}")
         if status >= 400:
-            raise RequestError(f"custd: request failed with status {status}")
+            raise RequestError(problem_error_message(status, result.get("body")))
         return result
 
     def _send_batch(self, events: list[EventEnvelope]) -> TransportResult:
@@ -190,12 +190,16 @@ class CustdClient:
         if status in self.retry["retry_statuses"]:
             raise RetryableError(f"custd: retryable status {status}")
         if status >= 400:
-            raise RequestError(f"custd: request failed with status {status}")
+            raise RequestError(problem_error_message(status, result.get("body")))
+
         body = result.get("body")
-        if isinstance(body, str) and body:
-            decoded = json.loads(body)
-            if isinstance(decoded, dict) and decoded.get("success") is False:
-                raise RequestError(f"custd: batch request failed with status {status}")
+        if not (isinstance(body, str) and body):
+            return result
+        decoded = json.loads(body)
+        if isinstance(decoded, dict):
+            failure = batch_rejection_message(status, decoded.get("results"))
+            if failure is not None:
+                raise RequestError(failure)
         return result
 
     def _endpoint(self) -> str:
@@ -340,6 +344,74 @@ def redacted_provisioned_producer(credentials: dict[str, Any]) -> dict[str, Any]
     Omits the client secret so the result is safe to render on dashboards.
     """
     return {key: value for key, value in credentials.items() if key != "clientSecret"}
+
+
+BATCH_REJECTION_LIST_LIMIT = 10
+
+
+def problem_error_message(status: int, body: Any) -> str:
+    """Render an HTTP error from an RFC 9457 problem+json body.
+
+    Falls back to a status-only message when the body is absent or is not a
+    problem document (e.g. a plain-text upstream error).
+    """
+    problem = parse_problem(body)
+    if problem is None:
+        return f"custd: request failed with status {status}"
+    title = str(problem.get("title") or "request failed")
+    detail = problem.get("detail")
+    suffix = f": {detail}" if detail else ""
+    return f"custd: {title} (status {status}){suffix}"
+
+
+def parse_problem(body: Any) -> dict[str, Any] | None:
+    if not (isinstance(body, str) and body):
+        return None
+    try:
+        decoded = json.loads(body)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(decoded, dict) and ("title" in decoded or "type" in decoded):
+        return decoded
+    return None
+
+
+def batch_rejection_message(status: int, results: Any) -> str | None:
+    """Return an error message when a batch carries failed per-event results.
+
+    Each result is {eventUuid|event_uuid, success, status, error?} where error
+    is an RFC 9457 problem object (or a plain string). Returns None when every
+    result succeeded.
+    """
+    if not isinstance(results, list):
+        return None
+    failed = [r for r in results if isinstance(r, dict) and r.get("success") is False]
+    if not failed:
+        return None
+
+    parts = [describe_failed_result(result, status) for result in failed[:BATCH_REJECTION_LIST_LIMIT]]
+    if len(failed) > BATCH_REJECTION_LIST_LIMIT:
+        parts.append(f"+{len(failed) - BATCH_REJECTION_LIST_LIMIT} more")
+    return f"custd: batch rejected {len(failed)} of {len(results)} event(s): {'; '.join(parts)}"
+
+
+def describe_failed_result(result: dict[str, Any], status: int) -> str:
+    event_uuid = result.get("eventUuid") or result.get("event_uuid") or "unknown"
+    result_status = result.get("status") or status
+    reason = describe_result_error(result.get("error"))
+    return f"{event_uuid} [status {result_status}] {reason}"
+
+
+def describe_result_error(error: Any) -> str:
+    if isinstance(error, dict):
+        title = error.get("title")
+        detail = error.get("detail")
+        parts = [str(value) for value in (title, detail) if value]
+        if parts:
+            return ": ".join(parts)
+    if isinstance(error, str) and error:
+        return error
+    return "no error detail"
 
 
 def validate_event(event: EventEnvelope) -> None:

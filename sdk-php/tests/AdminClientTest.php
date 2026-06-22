@@ -179,4 +179,26 @@ final class AdminClientTest extends TestCase
             $calls,
         ));
     }
+
+    public function testAdminErrorResponseSurfacesProblemDetail(): void
+    {
+        $client = new CustdClient("http://localhost:8080", "admin-token", [
+            "admin_http_client" => function (): array {
+                return [
+                    "status" => 409,
+                    "body" => '{"type":"conflict","title":"Conflict","status":409,'
+                        . '"detail":"tenant slug already exists","code":"duplicate_slug"}',
+                ];
+            },
+        ]);
+
+        try {
+            $client->adminTenants()->create(["slug" => "acme", "companyName" => "Acme Inc"]);
+            $this->fail("expected RuntimeException on RFC 9457 admin error");
+        } catch (\RuntimeException $err) {
+            self::assertStringContainsString("tenant slug already exists", $err->getMessage());
+            self::assertStringContainsString("status 409", $err->getMessage());
+            self::assertStringContainsString("duplicate_slug", $err->getMessage());
+        }
+    }
 }
