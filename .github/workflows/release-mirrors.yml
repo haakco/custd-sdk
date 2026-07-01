@@ -36,6 +36,8 @@ jobs:
           # the initial fetch needs no persisted credential.
           persist-credentials: false
       - name: Install Infisical CLI
+        env:
+          MISE_GITHUB_TOKEN: ${{ github.token }}
         run: |
           curl -fsSL https://mise.run | sh
           "$HOME/.local/bin/mise" install infisical@0.43.84
