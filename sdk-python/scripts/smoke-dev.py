@@ -11,6 +11,7 @@ from custd import CustdClient
 
 def main() -> None:
     base_url = os.environ.get("CUSTD_DEV_BASE_URL", "http://localhost:8087")
+    company_slug = os.environ.get("CUSTD_DEV_COMPANY_SLUG", "test-company")
     token = dev_token()
     client = CustdClient(base_url=base_url, token=token, retry={"max_attempts": 1})
     response = client.ingest_event({
@@ -21,6 +22,7 @@ def main() -> None:
             "page": {"url": "https://example.com"},
             "device": {"type": "desktop"},
         },
+        "companySlug": company_slug,
         "payload": {"source": "sdk-python-smoke"},
     })
     if int(response["status"]) >= 400:

@@ -75,6 +75,40 @@ The client also accepts `token="<token>"` for existing static-token
 integrations. Producer clients should prefer the OAuth2 `client_credentials`
 config above so token refresh stays inside the SDK.
 
+## Schema Admin Helpers
+
+Use `client.admin.schemas` for setup-time schema registration:
+
+```python
+from custd import CustdClient
+
+client = CustdClient(
+    base_url="http://localhost:8087",
+    oauth={
+        "client_id": "producer-client",
+        "client_secret": "<secret>",
+        "token_url": "http://localhost:4444/oauth2/token",
+        "audience": "custd",
+        "scopes": ["events.write", "schemas.write"],
+    },
+)
+
+client.admin.schemas.list()
+client.admin.schemas.get("page-view")
+client.admin.schemas.register({
+    "eventTypeSlug": "checkout.started",
+    "version": "1.0.0",
+    "jsonSchema": {"type": "object"},
+})
+client.admin.schemas.create_version("checkout.started", {
+    "version": "1.1.0",
+    "jsonSchema": {"type": "object"},
+})
+```
+
+Supported feature parity and intentionally missing helpers are documented in the SDK
+root README.
+
 Dogfood producers can use `create_dogfood_event`:
 
 ```python

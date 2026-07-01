@@ -34,4 +34,13 @@ final class PackagingTest extends TestCase
         $this->assertArrayHasKey("haakco/custd-sdk", $composer["require"]);
         $this->assertSame("^1.1", $composer["require"]["haakco/custd-sdk"]);
     }
+
+    public function testPluginHeaderVersionMatchesRootVersion(): void
+    {
+        $plugin = file_get_contents(__DIR__ . "/../custd.php");
+        $rootVersion = trim((string) file_get_contents(__DIR__ . "/../../VERSION"));
+
+        self::assertIsString($plugin);
+        self::assertStringContainsString("Version: " . $rootVersion, $plugin);
+    }
 }

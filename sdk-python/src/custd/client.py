@@ -242,6 +242,7 @@ class AdminClient:
         self.tenants = TenantAdminClient(self)
         self.oauth_clients = OAuthClientAdminClient(self)
         self.sites = SiteAdminClient(self)
+        self.schemas = SchemaAdminClient(self)
 
     def request(
         self,
@@ -330,6 +331,23 @@ class SiteAdminClient:
 
     def rotate_write_key(self, site_uuid: str) -> TransportResult:
         return self._admin.request("POST", f"/sites/{quote_path(site_uuid)}/rotate-write-key")
+
+
+class SchemaAdminClient:
+    def __init__(self, admin: AdminClient) -> None:
+        self._admin = admin
+
+    def list(self) -> TransportResult:
+        return self._admin.request("GET", "/schemas")
+
+    def get(self, event_type_slug: str) -> TransportResult:
+        return self._admin.request("GET", f"/schemas/{quote_path(event_type_slug)}")
+
+    def register(self, schema: dict[str, Any]) -> TransportResult:
+        return self._admin.request("POST", "/schemas", schema)
+
+    def create_version(self, event_type_slug: str, schema: dict[str, Any]) -> TransportResult:
+        return self._admin.request("POST", f"/schemas/{quote_path(event_type_slug)}/versions", schema)
 
 
 def public_admin_site(site: TransportResult) -> TransportResult:

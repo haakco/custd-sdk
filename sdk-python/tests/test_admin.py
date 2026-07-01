@@ -140,6 +140,38 @@ class AdminClientTest(unittest.TestCase):
             ("DELETE", "http://localhost:8080/api/v1/admin/sites/site-123"),
         ], [(call["method"], call["url"]) for call in transport.calls])
 
+    def test_admin_schemas_manage_event_type_schemas(self):
+        transport = CapturingAdminTransport([
+            {"status": 200, "body": {"schemas": [{"eventTypeSlug": "page-view", "version": "1.0.0"}]}},
+            {"status": 200, "body": {"eventTypeSlug": "page-view", "version": "1.0.0"}},
+            {"status": 201, "body": {"eventTypeSlug": "checkout.started", "version": "1.0.0"}},
+            {"status": 201, "body": {"eventTypeSlug": "checkout.started", "version": "1.1.0"}},
+        ])
+        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+
+        listed = client.admin.schemas.list()
+        got = client.admin.schemas.get("page-view")
+        registered = client.admin.schemas.register({
+            "eventTypeSlug": "checkout.started",
+            "version": "1.0.0",
+            "jsonSchema": {"type": "object"},
+        })
+        versioned = client.admin.schemas.create_version(
+            "checkout.started",
+            {"version": "1.1.0", "jsonSchema": {"type": "object"}},
+        )
+
+        self.assertEqual("page-view", listed["schemas"][0]["eventTypeSlug"])
+        self.assertEqual("page-view", got["eventTypeSlug"])
+        self.assertEqual("checkout.started", registered["eventTypeSlug"])
+        self.assertEqual("1.1.0", versioned["version"])
+        self.assertEqual([
+            ("GET", "http://localhost:8080/api/v1/admin/schemas"),
+            ("GET", "http://localhost:8080/api/v1/admin/schemas/page-view"),
+            ("POST", "http://localhost:8080/api/v1/admin/schemas"),
+            ("POST", "http://localhost:8080/api/v1/admin/schemas/checkout.started/versions"),
+        ], [(call["method"], call["url"]) for call in transport.calls])
+
 
 if __name__ == "__main__":
     unittest.main()

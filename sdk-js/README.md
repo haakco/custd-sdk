@@ -216,6 +216,9 @@ and stop using the old key after rotation.
 
 Server-side setup code can use `client.admin.schemas`:
 
+Supported feature parity and intentionally missing helpers are documented in the SDK
+root README.
+
 ```ts
 await client.admin.schemas.register({
   eventTypeSlug: "courib.delivery.created",

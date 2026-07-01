@@ -12,6 +12,7 @@ function getToken() {
 
 async function run() {
   const baseUrl = process.env.CUSTD_DEV_BASE_URL ?? "http://localhost:8087";
+  const companySlug = process.env.CUSTD_DEV_COMPANY_SLUG ?? "test-company";
   const token = getToken();
 
   const client = new CustdClient({
@@ -30,6 +31,7 @@ async function run() {
       page: { url: "https://example.com" },
       device: { type: "desktop" },
     },
+    companySlug,
     payload: { source: "sdk-js-smoke" },
   });
 

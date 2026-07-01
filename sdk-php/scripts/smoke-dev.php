@@ -7,6 +7,7 @@ use HaakCo\Custd\CustdClient;
 require __DIR__ . "/../vendor/autoload.php";
 
 $baseUrl = getenv("CUSTD_DEV_BASE_URL") ?: "http://localhost:8087";
+$companySlug = getenv("CUSTD_DEV_COMPANY_SLUG") ?: "test-company";
 
 $token = trim((string) shell_exec("bash ../../scripts/dev-hydra-token.sh"));
 if ($token === "") {
@@ -37,6 +38,7 @@ $response = $client->ingestEvent([
     "timestamp" => gmdate(DATE_RFC3339),
     "sessionId" => $uuid(),
     "anonymousId" => $uuid(),
+    "companySlug" => $companySlug,
     "context" => [
         "page" => ["url" => "https://example.com"],
         "device" => ["type" => "desktop"],

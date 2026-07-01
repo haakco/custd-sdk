@@ -144,7 +144,7 @@ old key.
 
 ## Schema Admin Helpers
 
-Go, TypeScript, and PHP expose schema admin helpers so producer repositories do
+Go, TypeScript, Python, and PHP expose schema admin helpers so producer repositories do
 not need raw `curl` scripts for `POST /api/v1/admin/schemas`:
 
 - list: `GET /api/v1/admin/schemas`
@@ -158,6 +158,21 @@ credential creation:
 ```bash
 custd-sdk-setup --register-schemas ./infra/custd/schemas ...
 ```
+
+## Feature Parity
+
+| Feature | Go | TypeScript | Python | PHP | Laravel | WordPress |
+| --- | --- | --- | --- | --- | --- | --- |
+| Event ingest | yes | yes | yes | yes | PHP wrapper | PHP wrapper |
+| Batch queue/flush | yes | yes | yes | yes | PHP wrapper | server hook events |
+| OAuth producer auth | yes | yes | yes | yes | config wrapper | settings wrapper |
+| Provisioned producer bundle | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
+| Retry + gzip batch compression | yes | yes | yes | yes | via PHP SDK | via PHP SDK defaults |
+| RFC 9457 problem parsing | yes | yes | message rendering | yes | via PHP SDK | via PHP SDK |
+| Admin tenants/OAuth/sites/schemas | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
+| Dogfood event helper | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
+| Browser tracker | no, not a browser runtime | yes | no, not a browser runtime | no, not a browser runtime | no, use JS tracker | install/use JS tracker |
+| Awthy audit/redaction DTOs | no, not generic | no, not generic | no, not generic | yes | via PHP SDK | out of scope |
 
 ## WordPress Plugin Usage
 

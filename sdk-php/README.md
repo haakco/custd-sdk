@@ -217,6 +217,9 @@ and stop using the old key after rotation.
 
 Use `$client->adminSchemas()` from setup code:
 
+Supported feature parity and intentionally missing helpers are documented in the SDK
+root README.
+
 ```php
 $client->adminSchemas()->register([
     "eventTypeSlug" => "courib.delivery.created",
