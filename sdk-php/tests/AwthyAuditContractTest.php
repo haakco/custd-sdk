@@ -32,7 +32,16 @@ final class AwthyAuditContractTest extends TestCase
         $event = AwthyAuditEvent::fromArray("tenant-acme", "store-123", $this->basePayload())->toArray();
         $fixture = $this->readFixture("valid-awthy-audit-event.json");
 
-        $this->assertSame($fixture, $event);
+        $this->assertEquals($fixture, $event);
+    }
+
+    public function testAwthyAuditEventEncodesEmptySanitizedContextAsObject(): void
+    {
+        $event = AwthyAuditEvent::fromArray("tenant-acme", "store-123", $this->basePayload())->toArray();
+        $json = json_encode($event, JSON_THROW_ON_ERROR);
+        $decoded = json_decode($json, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertInstanceOf(\stdClass::class, $decoded->payload->sanitizedContext);
     }
 
     public function testAwthyAuditEventBuildsWooCommerceFlowFixture(): void
@@ -40,7 +49,7 @@ final class AwthyAuditContractTest extends TestCase
         $event = AwthyAuditEvent::managedReportingPayload("tenant-acme", "store-123", $this->woocommercePayload())->toArray();
         $fixture = $this->readFixture("valid-awthy-woocommerce-flow-event.json");
 
-        $this->assertSame($fixture, $event);
+        $this->assertEquals($fixture, $event);
     }
 
     public function testAwthyAuditEventRejectsNestedWooCommerceSecrets(): void
@@ -385,11 +394,32 @@ final class AwthyAuditContractTest extends TestCase
             throw new \RuntimeException("missing fixture {$name}");
         }
 
-        $decoded = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+        $decoded = self::fixtureValue(json_decode($json, flags: JSON_THROW_ON_ERROR));
         if (!is_array($decoded)) {
             throw new \RuntimeException("fixture {$name} did not decode to an array");
         }
 
         return $decoded;
+    }
+
+    private static function fixtureValue(mixed $value): mixed
+    {
+        if ($value instanceof \stdClass) {
+            $properties = get_object_vars($value);
+            if ($properties === []) {
+                return $value;
+            }
+            $out = [];
+            foreach ($properties as $key => $propertyValue) {
+                $out[$key] = self::fixtureValue($propertyValue);
+            }
+            return $out;
+        }
+        if (is_array($value)) {
+            foreach ($value as $key => $item) {
+                $value[$key] = self::fixtureValue($item);
+            }
+        }
+        return $value;
     }
 }

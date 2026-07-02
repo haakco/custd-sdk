@@ -134,7 +134,7 @@ final class AwthyAuditEvent
             "schemaVersion" => self::SCHEMA_VERSION,
             "storeId" => $storeId,
         ] + $payload;
-        $payload["sanitizedContext"] = $payload["sanitizedContext"] ?? [];
+        $payload["sanitizedContext"] = self::emptyObjectDefault($payload["sanitizedContext"] ?? null);
         $payload["targets"] = $payload["targets"] ?? [];
         $payload["correlations"] = $payload["correlations"] ?? [];
 
@@ -150,6 +150,14 @@ final class AwthyAuditEvent
             ],
             "payload" => $payload,
         ]);
+    }
+
+    private static function emptyObjectDefault(mixed $value): mixed
+    {
+        if ($value === null || $value === []) {
+            return new \stdClass();
+        }
+        return $value;
     }
 
     /**
