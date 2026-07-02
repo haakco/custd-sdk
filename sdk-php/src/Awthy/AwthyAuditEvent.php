@@ -101,7 +101,7 @@ final class AwthyAuditEvent
         self::assertNoSecretKeys($payload);
         self::assertOptionalObject($payload, "flow");
         self::assertOptionalObject($payload, "woocommerce");
-        self::assertReportingSectionsShape($payload);
+        self::assertReportingPayloadShapeWhenPresent($payload);
         self::assertHashFields($payload);
 
         return self::fromValidatedPayload($companySlug, $storeId, $payload);
@@ -192,14 +192,12 @@ final class AwthyAuditEvent
     /**
      * @param array<string, mixed> $payload
      */
-    private static function assertReportingSectionsShape(array $payload): void
+    private static function assertReportingPayloadShapeWhenPresent(array $payload): void
     {
         if (!array_key_exists("flow", $payload) && !array_key_exists("woocommerce", $payload)) {
             return;
         }
-        self::assertAllowedObjectKeys($payload, "flow", self::REPORTING_FLOW_FIELDS);
-        self::assertAllowedFlowFamily($payload);
-        self::assertAllowedObjectKeys($payload, "woocommerce", self::REPORTING_WOOCOMMERCE_FIELDS);
+        self::assertReportingPayloadShape($payload);
     }
 
     /**

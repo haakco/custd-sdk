@@ -101,13 +101,23 @@ final class AwthyAuditContractTest extends TestCase
 
     public function testAwthyAuditEventRejectsUnexpectedReportingFieldsThroughCanonicalFactory(): void
     {
-        $payload = $this->woocommercePayload();
-        $payload["woocommerce"]["orderId"] = "123";
+        foreach ([
+            ["billingAddress", "secret"],
+            ["woocommerce", ["orderId" => "123"]],
+            ["actor", ["displayName" => "Customer"]],
+            ["target", ["displayName" => "Order 1001"]],
+            ["sanitizedContext", ["customerName" => "Jane"]],
+        ] as [$field, $value]) {
+            $payload = $this->woocommercePayload();
+            $payload[$field] = $value;
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage("woocommerce.orderId");
-
-        AwthyAuditEvent::fromArray("tenant-acme", "store-123", $payload);
+            try {
+                AwthyAuditEvent::fromArray("tenant-acme", "store-123", $payload);
+                $this->fail("expected unexpected reporting field {$field} to be rejected");
+            } catch (\InvalidArgumentException $err) {
+                $this->assertStringContainsString((string) $field, $err->getMessage());
+            }
+        }
     }
 
     public function testAwthyManagedReportingPayloadRejectsUnexpectedReportingFields(): void
