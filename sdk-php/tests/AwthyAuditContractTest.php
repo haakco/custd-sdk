@@ -17,13 +17,159 @@ final class AwthyAuditContractTest extends TestCase
         $event = AwthyAuditEvent::fromArray("tenant-acme", "store-123", $this->basePayload())->toArray();
 
         $this->assertSame("awthy-audit-event", $event["eventTypeSlug"]);
-        $this->assertSame("1.0.0", $event["schemaVersion"]);
+        $this->assertSame("1.1.0", $event["schemaVersion"]);
         $this->assertSame("tenant-acme", $event["companySlug"]);
         $this->assertSame("server", $event["context"]["device"]["type"]);
         $this->assertSame("awthy", $event["payload"]["sourceSystem"]);
+        $this->assertSame("1.1.0", $event["payload"]["schemaVersion"]);
         $this->assertSame("store-123", $event["payload"]["storeId"]);
         $this->assertSame("evt-local-1", $event["payload"]["localAuditEventId"]);
         $this->assertSame("01957abc-0000-0000-0000-000000000001", $event["payload"]["localAuditEventUuid"]);
+    }
+
+    public function testAwthyAuditEventMatchesSharedFixture(): void
+    {
+        $event = AwthyAuditEvent::fromArray("tenant-acme", "store-123", $this->basePayload())->toArray();
+        $fixture = $this->readFixture("valid-awthy-audit-event.json");
+
+        $this->assertSame($fixture, $event);
+    }
+
+    public function testAwthyAuditEventBuildsWooCommerceFlowFixture(): void
+    {
+        $event = AwthyAuditEvent::managedReportingPayload("tenant-acme", "store-123", $this->woocommercePayload())->toArray();
+        $fixture = $this->readFixture("valid-awthy-woocommerce-flow-event.json");
+
+        $this->assertSame($fixture, $event);
+    }
+
+    public function testAwthyAuditEventRejectsNestedWooCommerceSecrets(): void
+    {
+        foreach ([
+            ["woocommerce", "paymentToken"],
+            ["woocommerce", "paymentGateway"],
+            ["woocommerce", "orderNumber"],
+            ["actor", "customerEmail"],
+            ["target", "billingEmail"],
+        ] as [$section, $secretKey]) {
+            $payload = $this->woocommercePayload();
+            $payload[$section][$secretKey] = "secret";
+
+            try {
+                AwthyAuditEvent::managedReportingPayload("tenant-acme", "store-123", $payload);
+                $this->fail("expected secret-bearing key {$secretKey} to be rejected");
+            } catch (\InvalidArgumentException $err) {
+                $this->assertStringContainsString($secretKey, $err->getMessage());
+            }
+        }
+    }
+
+    public function testAwthyAuditEventRejectsListArrayReportingSections(): void
+    {
+        foreach (["flow", "woocommerce"] as $section) {
+            $payload = $this->woocommercePayload();
+            $payload[$section] = ["not-an-object"];
+
+            try {
+                AwthyAuditEvent::managedReportingPayload("tenant-acme", "store-123", $payload);
+                $this->fail("expected list-array {$section} section to be rejected");
+            } catch (\InvalidArgumentException $err) {
+                $this->assertStringContainsString($section, $err->getMessage());
+            }
+        }
+    }
+
+    public function testAwthyAuditEventRejectsListArrayReportingSectionsThroughCanonicalFactory(): void
+    {
+        $payload = $this->woocommercePayload();
+        $payload["flow"] = ["not-an-object"];
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("flow");
+
+        AwthyAuditEvent::fromArray("tenant-acme", "store-123", $payload);
+    }
+
+    public function testAwthyAuditEventRejectsUnexpectedReportingFieldsThroughCanonicalFactory(): void
+    {
+        $payload = $this->woocommercePayload();
+        $payload["woocommerce"]["orderId"] = "123";
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("woocommerce.orderId");
+
+        AwthyAuditEvent::fromArray("tenant-acme", "store-123", $payload);
+    }
+
+    public function testAwthyManagedReportingPayloadRejectsUnexpectedReportingFields(): void
+    {
+        foreach ([
+            ["billingAddress", "secret"],
+            ["woocommerce", ["orderId" => "123"]],
+            ["actor", ["displayName" => "Customer"]],
+            ["target", ["displayName" => "Order 1001"]],
+            ["sanitizedContext", ["customerName" => "Jane"]],
+        ] as [$field, $value]) {
+            $payload = $this->woocommercePayload();
+            $payload[$field] = $value;
+
+            try {
+                AwthyAuditEvent::managedReportingPayload("tenant-acme", "store-123", $payload);
+                $this->fail("expected unexpected reporting field {$field} to be rejected");
+            } catch (\InvalidArgumentException $err) {
+                $this->assertStringContainsString((string) $field, $err->getMessage());
+            }
+        }
+    }
+
+    public function testAwthyManagedReportingPayloadRejectsInvalidHashes(): void
+    {
+        $payload = $this->woocommercePayload();
+        $payload["target"]["referenceHash"] = "abc123";
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("target.referenceHash");
+
+        AwthyAuditEvent::managedReportingPayload("tenant-acme", "store-123", $payload);
+    }
+
+    public function testAwthyManagedReportingPayloadRequiresTargetReferenceHash(): void
+    {
+        $payload = $this->woocommercePayload();
+        unset($payload["target"]["referenceHash"]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("target.referenceHash");
+
+        AwthyAuditEvent::managedReportingPayload("tenant-acme", "store-123", $payload);
+    }
+
+    public function testAwthyManagedReportingPayloadRejectsUnknownFlowFamilies(): void
+    {
+        $payload = $this->woocommercePayload();
+        $payload["flow"]["family"] = "woocommerce_checkout";
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("flow.family");
+
+        AwthyAuditEvent::managedReportingPayload("tenant-acme", "store-123", $payload);
+    }
+
+    public function testAwthyManagedReportingPayloadRejectsRawLocalAuditIdentifiers(): void
+    {
+        foreach (["localAuditEventId", "localAuditEventUuid"] as $field) {
+            $payload = $this->woocommercePayload();
+            $payload[$field] = $field === "localAuditEventId"
+                ? "evt-local-1"
+                : "01957abc-0000-0000-0000-000000000001";
+
+            try {
+                AwthyAuditEvent::managedReportingPayload("tenant-acme", "store-123", $payload);
+                $this->fail("expected raw {$field} to be rejected");
+            } catch (\InvalidArgumentException $err) {
+                $this->assertStringContainsString($field, $err->getMessage());
+            }
+        }
     }
 
     public function testAwthyAuditEventRejectsSecretBearingPayloadKeys(): void
@@ -183,13 +329,13 @@ final class AwthyAuditContractTest extends TestCase
     private function basePayload(): array
     {
         return [
-            "storeHostnameHash" => "sha256:example",
+            "storeHostnameHash" => "sha256:1111111111111111111111111111111111111111111111111111111111111111",
             "localAuditEventId" => "evt-local-1",
             "localAuditEventUuid" => "01957abc-0000-0000-0000-000000000001",
             "eventType" => "totp_enabled",
-            "actor" => ["type" => "admin", "wordpressUserId" => 42, "anonymized" => false],
+            "actor" => ["type" => "admin", "wordpressUserIdHash" => "sha256:2222222222222222222222222222222222222222222222222222222222222222", "anonymized" => true],
             "action" => "totp_enabled",
-            "target" => ["type" => "wordpress_user", "display" => "User #42", "anonymized" => false],
+            "target" => ["type" => "wordpress_user", "referenceHash" => "sha256:2222222222222222222222222222222222222222222222222222222222222222", "anonymized" => true],
             "outcome" => "success",
             "source" => "wpauth",
             "reasonCategory" => "account_security",
@@ -201,5 +347,60 @@ final class AwthyAuditContractTest extends TestCase
             "targets" => [],
             "correlations" => [],
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function woocommercePayload(): array
+    {
+        $payload = $this->basePayload();
+        $payload["localAuditEventId"] = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        $payload["localAuditEventUuid"] = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        $payload["eventType"] = "woocommerce_checkout_payment_failed";
+        $payload["actor"] = ["type" => "customer", "wordpressUserIdHash" => "sha256:2222222222222222222222222222222222222222222222222222222222222222", "anonymized" => true];
+        $payload["action"] = "woocommerce_checkout_payment_failed";
+        $payload["target"] = ["type" => "woocommerce_order", "referenceHash" => "sha256:3333333333333333333333333333333333333333333333333333333333333333", "anonymized" => true];
+        $payload["outcome"] = "failure";
+        $payload["source"] = "woocommerce_checkout";
+        $payload["reasonCategory"] = "checkout";
+        $payload["stream"] = "woocommerce_checkout";
+        $payload["severity"] = "warning";
+        $payload["occurredAt"] = "2026-07-01T12:00:00Z";
+        $payload["flow"] = [
+            "family" => "secure_checkout",
+            "step" => "checkout_payment_failed",
+            "correlationHash" => "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            "sequence" => 30,
+        ];
+        $payload["woocommerce"] = [
+            "checkoutFlow" => "classic",
+            "orderStatus" => "failed",
+            "paymentGatewayHash" => "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+            "cartHash" => "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        ];
+        $payload["correlations"] = [
+            ["type" => "woocommerce_order", "referenceHash" => "sha256:3333333333333333333333333333333333333333333333333333333333333333"],
+        ];
+
+        return $payload;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function readFixture(string $name): array
+    {
+        $json = file_get_contents(__DIR__ . "/../../contract-fixtures/" . $name);
+        if ($json === false) {
+            throw new \RuntimeException("missing fixture {$name}");
+        }
+
+        $decoded = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($decoded)) {
+            throw new \RuntimeException("fixture {$name} did not decode to an array");
+        }
+
+        return $decoded;
     }
 }

@@ -128,13 +128,13 @@ use HaakCo\Custd\Awthy\AwthyAuditEvent;
 use HaakCo\Custd\Awthy\AwthyAuditRedactionRequest;
 
 $client->track(AwthyAuditEvent::fromArray("acme", "store-123", [
-    "storeHostnameHash" => "sha256:example",
+    "storeHostnameHash" => "sha256:1111111111111111111111111111111111111111111111111111111111111111",
     "localAuditEventId" => "evt-local-1",
     "localAuditEventUuid" => "01957abc-0000-0000-0000-000000000001",
     "eventType" => "totp_enabled",
-    "actor" => ["type" => "admin", "wordpressUserId" => 42, "anonymized" => false],
+    "actor" => ["type" => "admin", "wordpressUserIdHash" => "sha256:2222222222222222222222222222222222222222222222222222222222222222", "anonymized" => true],
     "action" => "totp_enabled",
-    "target" => ["type" => "wordpress_user", "display" => "User #42", "anonymized" => false],
+    "target" => ["type" => "wordpress_user", "referenceHash" => "sha256:2222222222222222222222222222222222222222222222222222222222222222", "anonymized" => true],
     "outcome" => "success",
     "source" => "wpauth",
     "reasonCategory" => "account_security",
@@ -144,7 +144,36 @@ $client->track(AwthyAuditEvent::fromArray("acme", "store-123", [
 ])->toArray());
 
 $client->flush();
+```
 
+Use `AwthyAuditEvent::managedReportingPayload()` for WooCommerce/business-flow
+events. It enforces the 1.1 reporting allow-list for `flow`, `woocommerce`,
+`actor`, `target`, `targets`, and `correlations` before the event leaves the
+SDK.
+
+```php
+$client->track(AwthyAuditEvent::managedReportingPayload("acme", "store-123", [
+    "storeHostnameHash" => "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "localAuditEventId" => "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "localAuditEventUuid" => "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "eventType" => "woocommerce_checkout_step",
+    "actor" => ["type" => "customer", "wordpressUserIdHash" => "sha256:2222222222222222222222222222222222222222222222222222222222222222", "anonymized" => true],
+    "action" => "checkout_payment_method_selected",
+    "target" => ["type" => "woocommerce_checkout", "referenceHash" => "sha256:3333333333333333333333333333333333333333333333333333333333333333", "anonymized" => true],
+    "outcome" => "success",
+    "source" => "awthy_woocommerce",
+    "reasonCategory" => "account_security",
+    "stream" => "interactive",
+    "severity" => "info",
+    "occurredAt" => "2026-06-10T00:00:00Z",
+    "flow" => ["family" => "secure_checkout", "step" => "payment_method_selected", "correlationHash" => "sha256:4444444444444444444444444444444444444444444444444444444444444444", "sequence" => 3],
+    "woocommerce" => ["checkoutFlow" => "classic", "paymentGatewayHash" => "sha256:5555555555555555555555555555555555555555555555555555555555555555"],
+])->toArray());
+```
+
+Use the redaction DTO for privacy-erasure propagation:
+
+```php
 $client->redactAwthyAuditEvents(AwthyAuditRedactionRequest::fromArray("store-123", [
     "redactionId" => "01957abc-0000-0000-0000-000000000099",
     "reason" => "privacy_erasure",
