@@ -120,8 +120,6 @@ final class AwthyAuditEvent
         self::assertOptionalObject($payload, "woocommerce");
         self::assertReportingPayloadShape($payload);
         self::assertHashFields($payload);
-        self::assertHashField($payload, "localAuditEventId");
-        self::assertHashField($payload, "localAuditEventUuid");
 
         return self::fromValidatedPayload($companySlug, $storeId, $payload);
     }

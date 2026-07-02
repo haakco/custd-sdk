@@ -155,21 +155,12 @@ final class AwthyAuditContractTest extends TestCase
         AwthyAuditEvent::managedReportingPayload("tenant-acme", "store-123", $payload);
     }
 
-    public function testAwthyManagedReportingPayloadRejectsRawLocalAuditIdentifiers(): void
+    public function testAwthyManagedReportingPayloadPreservesLocalAuditIdentifiers(): void
     {
-        foreach (["localAuditEventId", "localAuditEventUuid"] as $field) {
-            $payload = $this->woocommercePayload();
-            $payload[$field] = $field === "localAuditEventId"
-                ? "evt-local-1"
-                : "01957abc-0000-0000-0000-000000000001";
+        $event = AwthyAuditEvent::managedReportingPayload("tenant-acme", "store-123", $this->woocommercePayload())->toArray();
 
-            try {
-                AwthyAuditEvent::managedReportingPayload("tenant-acme", "store-123", $payload);
-                $this->fail("expected raw {$field} to be rejected");
-            } catch (\InvalidArgumentException $err) {
-                $this->assertStringContainsString($field, $err->getMessage());
-            }
-        }
+        $this->assertSame("evt-local-1", $event["payload"]["localAuditEventId"]);
+        $this->assertSame("01957abc-0000-0000-0000-000000000001", $event["payload"]["localAuditEventUuid"]);
     }
 
     public function testAwthyAuditEventRejectsSecretBearingPayloadKeys(): void
@@ -355,8 +346,6 @@ final class AwthyAuditContractTest extends TestCase
     private function woocommercePayload(): array
     {
         $payload = $this->basePayload();
-        $payload["localAuditEventId"] = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-        $payload["localAuditEventUuid"] = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
         $payload["eventType"] = "woocommerce_checkout_payment_failed";
         $payload["actor"] = ["type" => "customer", "wordpressUserIdHash" => "sha256:2222222222222222222222222222222222222222222222222222222222222222", "anonymized" => true];
         $payload["action"] = "woocommerce_checkout_payment_failed";
