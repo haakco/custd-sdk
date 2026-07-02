@@ -1,7 +1,6 @@
 self-hosted-runner:
   labels:
     - self-hosted
-    - haakco
     - htz-containerd
 
 config-variables: null

@@ -166,7 +166,7 @@ jobs:
           echo "Release tag v$tag matches VERSION."
 
   publish-js:
-    runs-on: [self-hosted, haakco]
+    runs-on: self-hosted
     needs: [js, release-guard]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
