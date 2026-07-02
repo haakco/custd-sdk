@@ -1,6 +1,6 @@
 {
   "name": "@haakco/custd-sdk",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "type": "module",
   "engines": {
     "node": ">=24 <25",

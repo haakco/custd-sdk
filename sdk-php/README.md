@@ -154,8 +154,8 @@ SDK.
 ```php
 $client->track(AwthyAuditEvent::managedReportingPayload("acme", "store-123", [
     "storeHostnameHash" => "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-    "localAuditEventId" => "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "localAuditEventUuid" => "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "localAuditEventId" => "evt-local-1",
+    "localAuditEventUuid" => "01957abc-0000-0000-0000-000000000001",
     "eventType" => "woocommerce_checkout_step",
     "actor" => ["type" => "customer", "wordpressUserIdHash" => "sha256:2222222222222222222222222222222222222222222222222222222222222222", "anonymized" => true],
     "action" => "checkout_payment_method_selected",
