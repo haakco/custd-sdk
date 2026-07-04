@@ -211,3 +211,109 @@ describe("CustdClient admin", () => {
     ]);
   });
 });
+
+describe("CustdClient schemas", () => {
+  it("validates, dry-runs, infers, and sends test events through schema onboarding APIs", async () => {
+    const validationBody = {
+      valid: true,
+      schemaValid: true,
+      issues: [],
+      warnings: [],
+      exampleResults: [],
+      normalizedSchema: '{"type":"object"}',
+      dialect: "draft",
+      checksum: "abc",
+      wouldCreateEventType: true,
+      wouldCreateVersion: true,
+      conflicts: [],
+      validatorEngine: "engine",
+      validatorVersion: "version",
+      schemaChecksum: "abc",
+      schemaDialect: "draft",
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(validationBody), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(validationBody), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            valid: true,
+            issues: [],
+            inferenceWarnings: [],
+            candidateSchema: '{"type":"object"}',
+            validatorEngine: "engine",
+            validatorVersion: "version",
+            schemaChecksum: "abc",
+            schemaDialect: "draft",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ success: true, eventUuid: "evt-1" }), {
+          status: 202,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "schema-token" });
+
+    await client.schemas.validate({ jsonSchema: '{"type":"object"}', examples: [{ ok: true }] });
+    await client.schemas.dryRun({
+      slug: "page-view",
+      name: "Page View",
+      version: "1.0.0",
+      jsonSchema: '{"type":"object"}',
+    });
+    await client.schemas.infer({ samples: [{ ok: true }] });
+    await client.schemas.sendTestEvent({
+      eventTypeSlug: "page-view",
+      eventUuid: "evt-1",
+      schemaVersion: "1.0.0",
+      timestamp: "2026-01-23T12:00:00.000Z",
+      companySlug: "acme",
+      context: { device: { type: "desktop" } },
+      payload: { ok: true },
+    });
+
+    expect(fetchMock.mock.calls.map((call) => [call[0], call[1]?.method])).toEqual([
+      ["http://localhost:8080/api/v1/schemas/validate", "POST"],
+      ["http://localhost:8080/api/v1/schemas/dry-run", "POST"],
+      ["http://localhost:8080/api/v1/schemas/infer", "POST"],
+      ["http://localhost:8080/api/v1/events", "POST"],
+    ]);
+  });
+
+  it("rejects send-test-event responses without matching accepted event UUIDs", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ success: true, eventUuid: "different-event" }), {
+        status: 202,
+        headers: { "Content-Type": "application/json" },
+      }),
+    ) as unknown as typeof fetch;
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "schema-token" });
+
+    await expect(
+      client.schemas.sendTestEvent({
+        eventUuid: "evt-1",
+        eventTypeSlug: "page-view",
+        schemaVersion: "1.0.0",
+        timestamp: "2026-01-23T12:00:00.000Z",
+        companySlug: "acme",
+        context: { device: { type: "desktop" } },
+        payload: { ok: true },
+      }),
+    ).rejects.toThrow("custd: test event was not accepted by ingest");
+  });
+});

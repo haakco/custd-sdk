@@ -229,6 +229,71 @@ export type AdminSchemaListResponse = {
   schemas: AdminSchema[];
 };
 
+export type SchemaValidationIssue = {
+  path: string;
+  keyword: string;
+  message: string;
+  schemaLocation: string;
+  instanceLocation: string;
+  severity: string;
+};
+
+export type SchemaExampleResult = {
+  index: number;
+  valid: boolean;
+  class: string;
+  oldValid: boolean;
+  newValid: boolean;
+  issueCodes: string[];
+  issues: SchemaValidationIssue[];
+};
+
+export type SchemaValidationRequest = {
+  slug?: string;
+  name?: string;
+  version?: string;
+  jsonSchema: string;
+  examples?: Array<Record<string, unknown>>;
+};
+
+export type SchemaValidationResponse = {
+  valid: boolean;
+  schemaValid: boolean;
+  issues: SchemaValidationIssue[];
+  warnings: SchemaValidationIssue[];
+  exampleResults: SchemaExampleResult[];
+  normalizedSchema: string;
+  dialect: string;
+  checksum: string;
+  wouldCreateEventType: boolean;
+  wouldCreateVersion: boolean;
+  conflicts: Array<{ field: string; message: string }>;
+  validatorEngine: string;
+  validatorVersion: string;
+  schemaChecksum: string;
+  schemaDialect: string;
+};
+
+export type SchemaInferenceRequest = {
+  samples: Array<Record<string, unknown>>;
+};
+
+export type SchemaInferenceResponse = {
+  valid: boolean;
+  issues: SchemaValidationIssue[];
+  inferenceWarnings: SchemaValidationIssue[];
+  candidateSchema: string;
+  validatorEngine: string;
+  validatorVersion: string;
+  schemaChecksum: string;
+  schemaDialect: string;
+};
+
+export type SendTestEventResponse = {
+  success: boolean;
+  eventUuid: string;
+};
+
 function publicAdminSite(site: AdminSite & { writeKey?: unknown }): AdminSite {
   const { writeKey: _writeKey, ...safeSite } = site;
   return safeSite;
@@ -293,6 +358,7 @@ export class LocalStorageQueueStorage implements QueueStorage {
 
 export class CustdClient {
   public readonly admin: AdminNamespace;
+  public readonly schemas: SchemaNamespace;
   private baseUrl: string;
   private getToken: () => string | Promise<string>;
   private defaultHeaders: Record<string, string>;
@@ -331,6 +397,7 @@ export class CustdClient {
     this.compressionEnabled = config.compression?.enabled ?? true;
     this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
     this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body));
+    this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
 
     if (this.queueEnabled) {
       this.queue = this.queueStorage.load();
@@ -583,8 +650,12 @@ export class CustdClient {
   }
 
   private async adminRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
+    return this.apiRequest(method, `/admin${path}`, body);
+  }
+
+  private async apiRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
     const token = await this.getToken();
-    const response = await fetch(`${this.baseUrl}/api/v1/admin${path}`, {
+    const response = await fetch(`${this.baseUrl}/api/v1${path}`, {
       method,
       headers: {
         "Content-Type": "application/json",
@@ -595,7 +666,7 @@ export class CustdClient {
     });
 
     if (!response.ok) {
-      throw new Error(`custd: admin request failed with status ${response.status}`);
+      throw new Error(`custd: request failed with status ${response.status}`);
     }
     if (response.status === 204) {
       return undefined as T;
@@ -605,6 +676,33 @@ export class CustdClient {
 }
 
 type AdminRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
+type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
+
+class SchemaNamespace {
+  constructor(private readonly request: SchemaRequester) {}
+
+  validate(input: SchemaValidationRequest): Promise<SchemaValidationResponse> {
+    return this.request("POST", "/schemas/validate", input);
+  }
+
+  dryRun(input: SchemaValidationRequest): Promise<SchemaValidationResponse> {
+    return this.request("POST", "/schemas/dry-run", input);
+  }
+
+  infer(input: SchemaInferenceRequest): Promise<SchemaInferenceResponse> {
+    return this.request("POST", "/schemas/infer", input);
+  }
+
+  async sendTestEvent(event: EventEnvelope): Promise<SendTestEventResponse> {
+    const prepared = prepareEvent(event);
+    validateEvent(prepared);
+    const response = await this.request<SendTestEventResponse>("POST", "/events", prepared);
+    if (!response.success || response.eventUuid !== prepared.eventUuid) {
+      throw new Error("custd: test event was not accepted by ingest");
+    }
+    return response;
+  }
+}
 
 class AdminNamespace {
   readonly tenants: AdminTenantNamespace;

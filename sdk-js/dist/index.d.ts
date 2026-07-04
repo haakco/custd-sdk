@@ -184,6 +184,67 @@ export type AdminSchema = {
 export type AdminSchemaListResponse = {
     schemas: AdminSchema[];
 };
+export type SchemaValidationIssue = {
+    path: string;
+    keyword: string;
+    message: string;
+    schemaLocation: string;
+    instanceLocation: string;
+    severity: string;
+};
+export type SchemaExampleResult = {
+    index: number;
+    valid: boolean;
+    class: string;
+    oldValid: boolean;
+    newValid: boolean;
+    issueCodes: string[];
+    issues: SchemaValidationIssue[];
+};
+export type SchemaValidationRequest = {
+    slug?: string;
+    name?: string;
+    version?: string;
+    jsonSchema: string;
+    examples?: Array<Record<string, unknown>>;
+};
+export type SchemaValidationResponse = {
+    valid: boolean;
+    schemaValid: boolean;
+    issues: SchemaValidationIssue[];
+    warnings: SchemaValidationIssue[];
+    exampleResults: SchemaExampleResult[];
+    normalizedSchema: string;
+    dialect: string;
+    checksum: string;
+    wouldCreateEventType: boolean;
+    wouldCreateVersion: boolean;
+    conflicts: Array<{
+        field: string;
+        message: string;
+    }>;
+    validatorEngine: string;
+    validatorVersion: string;
+    schemaChecksum: string;
+    schemaDialect: string;
+};
+export type SchemaInferenceRequest = {
+    samples: Array<Record<string, unknown>>;
+};
+export type SchemaInferenceResponse = {
+    valid: boolean;
+    issues: SchemaValidationIssue[];
+    inferenceWarnings: SchemaValidationIssue[];
+    candidateSchema: string;
+    validatorEngine: string;
+    validatorVersion: string;
+    schemaChecksum: string;
+    schemaDialect: string;
+};
+export type SendTestEventResponse = {
+    success: boolean;
+    eventUuid: string;
+};
 export declare class MemoryQueueStorage implements QueueStorage {
     private events;
     load(): EventEnvelope[];
@@ -199,6 +260,7 @@ export declare class LocalStorageQueueStorage implements QueueStorage {
 }
 export declare class CustdClient {
     readonly admin: AdminNamespace;
+    readonly schemas: SchemaNamespace;
     private baseUrl;
     private getToken;
     private defaultHeaders;
@@ -229,8 +291,18 @@ export declare class CustdClient {
     private assertBatchResponse;
     private batchRejectionMessage;
     private adminRequest;
+    private apiRequest;
 }
 type AdminRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
+type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
+declare class SchemaNamespace {
+    private readonly request;
+    constructor(request: SchemaRequester);
+    validate(input: SchemaValidationRequest): Promise<SchemaValidationResponse>;
+    dryRun(input: SchemaValidationRequest): Promise<SchemaValidationResponse>;
+    infer(input: SchemaInferenceRequest): Promise<SchemaInferenceResponse>;
+    sendTestEvent(event: EventEnvelope): Promise<SendTestEventResponse>;
+}
 declare class AdminNamespace {
     readonly tenants: AdminTenantNamespace;
     readonly oauthClients: AdminOAuthClientNamespace;

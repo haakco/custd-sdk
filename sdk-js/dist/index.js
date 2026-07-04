@@ -81,6 +81,7 @@ export class CustdClient {
         this.compressionEnabled = config.compression?.enabled ?? true;
         this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
         this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body));
+        this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
         if (this.queueEnabled) {
             this.queue = this.queueStorage.load();
         }
@@ -306,8 +307,11 @@ export class CustdClient {
         return `custd: batch rejected ${failed.length} of ${results?.length ?? failed.length} event(s): ${parts.join("; ")}`;
     }
     async adminRequest(method, path, body) {
+        return this.apiRequest(method, `/admin${path}`, body);
+    }
+    async apiRequest(method, path, body) {
         const token = await this.getToken();
-        const response = await fetch(`${this.baseUrl}/api/v1/admin${path}`, {
+        const response = await fetch(`${this.baseUrl}/api/v1${path}`, {
             method,
             headers: {
                 "Content-Type": "application/json",
@@ -317,12 +321,35 @@ export class CustdClient {
             body: body === undefined ? undefined : JSON.stringify(body),
         });
         if (!response.ok) {
-            throw new Error(`custd: admin request failed with status ${response.status}`);
+            throw new Error(`custd: request failed with status ${response.status}`);
         }
         if (response.status === 204) {
             return undefined;
         }
         return (await response.json());
+    }
+}
+class SchemaNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    validate(input) {
+        return this.request("POST", "/schemas/validate", input);
+    }
+    dryRun(input) {
+        return this.request("POST", "/schemas/dry-run", input);
+    }
+    infer(input) {
+        return this.request("POST", "/schemas/infer", input);
+    }
+    async sendTestEvent(event) {
+        const prepared = prepareEvent(event);
+        validateEvent(prepared);
+        const response = await this.request("POST", "/events", prepared);
+        if (!response.success || response.eventUuid !== prepared.eventUuid) {
+            throw new Error("custd: test event was not accepted by ingest");
+        }
+        return response;
     }
 }
 class AdminNamespace {
