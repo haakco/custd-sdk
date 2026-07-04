@@ -72,6 +72,43 @@ export type ProvisionedProducerCredentials = {
     metadata?: Record<string, string>;
 };
 export type RedactedProvisionedProducerCredentials = Omit<ProvisionedProducerCredentials, "clientSecret">;
+export type DataSpaceCreate = {
+    slug: string;
+    companyName: string;
+};
+export type DataSpace = {
+    slug: string;
+    companyName: string;
+    parentCompanySlug: string;
+    enabled: boolean;
+};
+export type DataSpaceEntitlementState = {
+    enabled: boolean;
+    activeDataSpaces: number;
+    maxActiveDataSpaces: number;
+    maxActiveProducersPerDataSpace: number;
+};
+export type DataSpaceListResponse = {
+    dataSpaces: DataSpace[];
+    entitlement: DataSpaceEntitlementState;
+};
+export type ProducerProvisionCreate = {
+    companySlug: string;
+    producerSlug: string;
+    displayName?: string;
+    environment?: string;
+    scopes?: string[];
+    scopeTemplate?: "events" | "schemas" | "managed-audit" | "managed-audit-reporting-read";
+    metadata?: Record<string, string>;
+};
+export type ProducerProvisionPublicClient = {
+    clientId: string;
+    companySlug: string;
+    producerSlug: string;
+    scopes: string[];
+    environment?: string;
+    metadata?: Record<string, string>;
+};
 export type ClientConfig = {
     baseUrl: string;
     getToken?: () => string | Promise<string>;
@@ -260,6 +297,7 @@ export declare class LocalStorageQueueStorage implements QueueStorage {
 }
 export declare class CustdClient {
     readonly admin: AdminNamespace;
+    readonly provisioning: ProvisioningNamespace;
     readonly schemas: SchemaNamespace;
     private baseUrl;
     private getToken;
@@ -295,6 +333,7 @@ export declare class CustdClient {
 }
 type AdminRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
+type APIRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 declare class SchemaNamespace {
     private readonly request;
     constructor(request: SchemaRequester);
@@ -309,6 +348,26 @@ declare class AdminNamespace {
     readonly sites: AdminSiteNamespace;
     readonly schemas: AdminSchemaNamespace;
     constructor(request: AdminRequester);
+}
+declare class ProvisioningNamespace {
+    readonly dataSpaces: ProvisioningDataSpaceNamespace;
+    readonly producers: ProvisioningProducerNamespace;
+    constructor(request: APIRequester);
+}
+declare class ProvisioningDataSpaceNamespace {
+    private readonly request;
+    constructor(request: APIRequester);
+    create(dataSpace: DataSpaceCreate): Promise<DataSpace>;
+    list(): Promise<DataSpaceListResponse>;
+    revoke(slug: string): Promise<void>;
+}
+declare class ProvisioningProducerNamespace {
+    private readonly request;
+    constructor(request: APIRequester);
+    provision(request: ProducerProvisionCreate): Promise<ProvisionedProducerCredentials>;
+    list(companySlug?: string): Promise<ProducerProvisionPublicClient[]>;
+    rotateSecret(clientId: string): Promise<ProvisionedProducerCredentials>;
+    revoke(clientId: string): Promise<void>;
 }
 declare class AdminTenantNamespace {
     private readonly request;

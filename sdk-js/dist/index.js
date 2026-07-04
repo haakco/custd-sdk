@@ -81,6 +81,7 @@ export class CustdClient {
         this.compressionEnabled = config.compression?.enabled ?? true;
         this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
         this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body));
+        this.provisioning = new ProvisioningNamespace((method, path, body) => this.apiRequest(method, path, body));
         this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
         if (this.queueEnabled) {
             this.queue = this.queueStorage.load();
@@ -358,6 +359,44 @@ class AdminNamespace {
         this.oauthClients = new AdminOAuthClientNamespace(request);
         this.sites = new AdminSiteNamespace(request);
         this.schemas = new AdminSchemaNamespace(request);
+    }
+}
+class ProvisioningNamespace {
+    constructor(request) {
+        this.dataSpaces = new ProvisioningDataSpaceNamespace(request);
+        this.producers = new ProvisioningProducerNamespace(request);
+    }
+}
+class ProvisioningDataSpaceNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    create(dataSpace) {
+        return this.request("POST", "/data-spaces", dataSpace);
+    }
+    list() {
+        return this.request("GET", "/data-spaces");
+    }
+    revoke(slug) {
+        return this.request("DELETE", `/data-spaces/${encodeURIComponent(slug)}`);
+    }
+}
+class ProvisioningProducerNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    provision(request) {
+        return this.request("POST", "/producer-provisioning", request);
+    }
+    list(companySlug) {
+        const query = companySlug ? `?companySlug=${encodeURIComponent(companySlug)}` : "";
+        return this.request("GET", `/producer-provisioning${query}`);
+    }
+    rotateSecret(clientId) {
+        return this.request("POST", `/producer-provisioning/${encodeURIComponent(clientId)}/rotate-secret`);
+    }
+    revoke(clientId) {
+        return this.request("DELETE", `/producer-provisioning/${encodeURIComponent(clientId)}`);
     }
 }
 class AdminTenantNamespace {
