@@ -12,11 +12,11 @@
     "test:sdk-js": "pnpm --filter @haakco/custd-sdk test"
   },
   "devDependencies": {
-    "markdownlint-cli2": "0.22.1"
+    "markdownlint-cli2": "0.23.0"
   },
   "pnpm": {
     "overrides": {
-      "vite": "8.0.16",
+      "vite": "8.1.2",
       "markdown-it": "14.2.0",
       "js-yaml": "4.2.0"
     }
