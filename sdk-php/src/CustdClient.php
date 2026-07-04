@@ -126,6 +126,11 @@ final class CustdClient
         return new Admin\SchemaClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    public function provisioning(): Provisioning\Client
+    {
+        return new Provisioning\Client($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
     /**
      * @param array<string, mixed> $event
      * @return array<string, mixed>

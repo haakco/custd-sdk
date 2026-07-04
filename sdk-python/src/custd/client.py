@@ -84,6 +84,7 @@ class CustdClient:
         self.compression = normalize_compression(compression)
         self.transport = transport or make_default_transport(self.compression)
         self.admin = AdminClient(self, admin_transport or default_admin_transport)
+        self.provisioning = ProvisioningClient(self, admin_transport or default_admin_transport)
         self.timeout = timeout
 
     @classmethod
@@ -269,6 +270,76 @@ class AdminClient:
         if isinstance(body, dict):
             return body
         return {}
+
+
+class ProvisioningClient:
+    def __init__(self, client: CustdClient, transport: AdminTransport) -> None:
+        self._client = client
+        self._transport = transport
+        self.data_spaces = DataSpaceProvisioningClient(self)
+        self.producers = ProducerProvisioningClient(self)
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | None = None,
+    ) -> TransportResult:
+        result = self._transport(
+            method,
+            self._client.base_url + "/api/v1" + path,
+            payload,
+            self._client._headers(),
+            self._client.timeout,
+        )
+        status = int(result["status"])
+        if status >= 400:
+            raise RequestError(f"custd: provisioning request failed with status {status}")
+        body = result.get("body")
+        if status == 204 or body in (None, ""):
+            return {}
+        if isinstance(body, str):
+            decoded = json.loads(body)
+            return decoded if isinstance(decoded, dict) else {"items": decoded}
+        if isinstance(body, dict):
+            return body
+        if isinstance(body, list):
+            return {"items": body}
+        return {}
+
+
+class DataSpaceProvisioningClient:
+    def __init__(self, provisioning: ProvisioningClient) -> None:
+        self._provisioning = provisioning
+
+    def create(self, data_space: dict[str, Any]) -> TransportResult:
+        return self._provisioning.request("POST", "/data-spaces", data_space)
+
+    def list(self) -> TransportResult:
+        return self._provisioning.request("GET", "/data-spaces")
+
+    def revoke(self, slug: str) -> None:
+        self._provisioning.request("DELETE", f"/data-spaces/{quote_path(slug)}")
+
+
+class ProducerProvisioningClient:
+    def __init__(self, provisioning: ProvisioningClient) -> None:
+        self._provisioning = provisioning
+
+    def provision(self, request: dict[str, Any]) -> TransportResult:
+        return self._provisioning.request("POST", "/producer-provisioning", request)
+
+    def list(self, company_slug: str | None = None) -> list[dict[str, Any]]:
+        query = f"?companySlug={quote_path(company_slug)}" if company_slug else ""
+        response = self._provisioning.request("GET", f"/producer-provisioning{query}")
+        items = response.get("items")
+        return items if isinstance(items, list) else []
+
+    def rotate_secret(self, client_id: str) -> TransportResult:
+        return self._provisioning.request("POST", f"/producer-provisioning/{quote_path(client_id)}/rotate-secret")
+
+    def revoke(self, client_id: str) -> None:
+        self._provisioning.request("DELETE", f"/producer-provisioning/{quote_path(client_id)}")
 
 
 class TenantAdminClient:

@@ -94,6 +94,49 @@ export type ProvisionedProducerCredentials = {
 // provisioned producer bundle, omitting the client secret.
 export type RedactedProvisionedProducerCredentials = Omit<ProvisionedProducerCredentials, "clientSecret">;
 
+export type DataSpaceCreate = {
+  slug: string;
+  companyName: string;
+};
+
+export type DataSpace = {
+  slug: string;
+  companyName: string;
+  parentCompanySlug: string;
+  enabled: boolean;
+};
+
+export type DataSpaceEntitlementState = {
+  enabled: boolean;
+  activeDataSpaces: number;
+  maxActiveDataSpaces: number;
+  maxActiveProducersPerDataSpace: number;
+};
+
+export type DataSpaceListResponse = {
+  dataSpaces: DataSpace[];
+  entitlement: DataSpaceEntitlementState;
+};
+
+export type ProducerProvisionCreate = {
+  companySlug: string;
+  producerSlug: string;
+  displayName?: string;
+  environment?: string;
+  scopes?: string[];
+  scopeTemplate?: "events" | "schemas" | "managed-audit" | "managed-audit-reporting-read";
+  metadata?: Record<string, string>;
+};
+
+export type ProducerProvisionPublicClient = {
+  clientId: string;
+  companySlug: string;
+  producerSlug: string;
+  scopes: string[];
+  environment?: string;
+  metadata?: Record<string, string>;
+};
+
 export type ClientConfig = {
   baseUrl: string;
   getToken?: () => string | Promise<string>;
@@ -358,6 +401,7 @@ export class LocalStorageQueueStorage implements QueueStorage {
 
 export class CustdClient {
   public readonly admin: AdminNamespace;
+  public readonly provisioning: ProvisioningNamespace;
   public readonly schemas: SchemaNamespace;
   private baseUrl: string;
   private getToken: () => string | Promise<string>;
@@ -397,6 +441,7 @@ export class CustdClient {
     this.compressionEnabled = config.compression?.enabled ?? true;
     this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
     this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body));
+    this.provisioning = new ProvisioningNamespace((method, path, body) => this.apiRequest(method, path, body));
     this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
 
     if (this.queueEnabled) {
@@ -677,6 +722,7 @@ export class CustdClient {
 
 type AdminRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
+type APIRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 
 class SchemaNamespace {
   constructor(private readonly request: SchemaRequester) {}
@@ -715,6 +761,53 @@ class AdminNamespace {
     this.oauthClients = new AdminOAuthClientNamespace(request);
     this.sites = new AdminSiteNamespace(request);
     this.schemas = new AdminSchemaNamespace(request);
+  }
+}
+
+class ProvisioningNamespace {
+  readonly dataSpaces: ProvisioningDataSpaceNamespace;
+  readonly producers: ProvisioningProducerNamespace;
+
+  constructor(request: APIRequester) {
+    this.dataSpaces = new ProvisioningDataSpaceNamespace(request);
+    this.producers = new ProvisioningProducerNamespace(request);
+  }
+}
+
+class ProvisioningDataSpaceNamespace {
+  constructor(private readonly request: APIRequester) {}
+
+  create(dataSpace: DataSpaceCreate): Promise<DataSpace> {
+    return this.request("POST", "/data-spaces", dataSpace);
+  }
+
+  list(): Promise<DataSpaceListResponse> {
+    return this.request("GET", "/data-spaces");
+  }
+
+  revoke(slug: string): Promise<void> {
+    return this.request("DELETE", `/data-spaces/${encodeURIComponent(slug)}`);
+  }
+}
+
+class ProvisioningProducerNamespace {
+  constructor(private readonly request: APIRequester) {}
+
+  provision(request: ProducerProvisionCreate): Promise<ProvisionedProducerCredentials> {
+    return this.request("POST", "/producer-provisioning", request);
+  }
+
+  list(companySlug?: string): Promise<ProducerProvisionPublicClient[]> {
+    const query = companySlug ? `?companySlug=${encodeURIComponent(companySlug)}` : "";
+    return this.request("GET", `/producer-provisioning${query}`);
+  }
+
+  rotateSecret(clientId: string): Promise<ProvisionedProducerCredentials> {
+    return this.request("POST", `/producer-provisioning/${encodeURIComponent(clientId)}/rotate-secret`);
+  }
+
+  revoke(clientId: string): Promise<void> {
+    return this.request("DELETE", `/producer-provisioning/${encodeURIComponent(clientId)}`);
   }
 }
 

@@ -19,9 +19,10 @@ final class Http
         ?callable $transport,
         string $method,
         string $path,
-        ?array $body = null
+        ?array $body = null,
+        string $prefix = "/api/v1/admin"
     ): ?array {
-        $url = rtrim($baseUrl, "/") . "/api/v1/admin" . $path;
+        $url = rtrim($baseUrl, "/") . $prefix . $path;
         $result = $transport
             ? $transport($method, $url, $body, $token)
             : self::curlRequest($method, $url, $body, $token);
