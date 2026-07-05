@@ -126,6 +126,11 @@ final class CustdClient
         return new Admin\SchemaClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    public function adminMeasurementProjects(): Admin\MeasurementProjectClient
+    {
+        return new Admin\MeasurementProjectClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
     public function provisioning(): Provisioning\Client
     {
         return new Provisioning\Client($this->baseUrl, $this->authToken(), $this->adminHttpClient);

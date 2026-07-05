@@ -180,6 +180,132 @@ final class AdminClientTest extends TestCase
         ));
     }
 
+    public function testAdminMeasurementProjectsCreateUsesAdminApi(): void
+    {
+        $calls = [];
+        $client = new CustdClient("http://localhost:8080", "admin-token", [
+            "admin_http_client" => function (string $method, string $url, ?array $body, string $token) use (&$calls): array {
+                $calls[] = compact("method", "url", "body", "token");
+                return [
+                    "status" => 201,
+                    "body" => '{"projectUuid":"project-123","projectSlug":"checkout-runway","name":"Checkout Runway","kind":"deadline_forecast","status":"active"}',
+                ];
+            },
+        ]);
+
+        $project = $client->adminMeasurementProjects()->create([
+            "projectSlug" => "checkout-runway",
+            "name" => "Checkout Runway",
+            "kind" => "deadline_forecast",
+            "series" => [[
+                "seriesSlug" => "checkout-completions",
+                "name" => "Checkout completions",
+                "unit" => "count",
+                "completionDirection" => "increase",
+                "source" => "manual",
+            ]],
+            "target" => [
+                "targetSlug" => "release",
+                "name" => "Release",
+                "targetValue" => 100,
+                "targetDate" => "2026-08-31T00:00:00Z",
+                "state" => "active",
+            ],
+        ]);
+
+        $this->assertSame("project-123", $project["projectUuid"]);
+        $this->assertSame("POST", $calls[0]["method"]);
+        $this->assertSame("http://localhost:8080/api/v1/admin/measurement/projects", $calls[0]["url"]);
+    }
+
+    public function testAdminMeasurementObservationBulkValidatesRowResults(): void
+    {
+        $calls = [];
+        $client = new CustdClient("http://localhost:8080", "admin-token", [
+            "admin_http_client" => function (string $method, string $url, ?array $body, string $token) use (&$calls): array {
+                $calls[] = compact("method", "url", "body", "token");
+                return [
+                    "status" => 202,
+                    "body" => '{"importId":"import-123","accepted":1,"rejected":1,"results":[{"rowIndex":1,"success":true,"status":202,"observationUuid":"observation-123"},{"rowIndex":2,"success":false,"status":422,"type":"https://custd.dev/problems/measurement-invalid-observation","title":"Invalid measurement observation","detail":"observedAt must be an RFC3339 timestamp"}]}',
+                ];
+            },
+        ]);
+
+        $response = $client->adminMeasurementProjects()->submitObservations("checkout-runway", [
+            "rows" => [
+                $this->measurementObservation("2026-07-01T00:00:00Z"),
+                $this->measurementObservation("not-a-timestamp"),
+            ],
+        ]);
+
+        $this->assertSame(1, $response["accepted"]);
+        $this->assertFalse($response["results"][1]["success"]);
+        $this->assertSame(
+            "http://localhost:8080/api/v1/admin/measurement/projects/checkout-runway/observations:bulk",
+            $calls[0]["url"],
+        );
+    }
+
+    public function testAdminMeasurementCSVImportValidatesRowResults(): void
+    {
+        $calls = [];
+        $client = new CustdClient("http://localhost:8080", "admin-token", [
+            "admin_http_client" => function (string $method, string $url, ?array $body, string $token) use (&$calls): array {
+                $calls[] = compact("method", "url", "body", "token");
+                return [
+                    "status" => 202,
+                    "body" => '{"importId":"import-456","accepted":1,"rejected":1,"results":[{"rowIndex":1,"success":true,"status":202,"observationUuid":"observation-456"},{"rowIndex":2,"success":false,"status":422,"type":"https://custd.dev/problems/measurement-invalid-observation","title":"Invalid measurement observation","detail":"value must be finite"}]}',
+                ];
+            },
+        ]);
+
+        $response = $client->adminMeasurementProjects()->importCSVString(
+            "checkout-runway",
+            "seriesSlug,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n",
+            2,
+        );
+
+        $this->assertSame(1, $response["rejected"]);
+        $this->assertSame(["csv" => "seriesSlug,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n"], $calls[0]["body"]);
+        $this->assertSame(
+            "http://localhost:8080/api/v1/admin/measurement/projects/checkout-runway/observations:csv",
+            $calls[0]["url"],
+        );
+    }
+
+    public function testAdminMeasurementRejectsMismatchedResultCount(): void
+    {
+        $client = new CustdClient("http://localhost:8080", "admin-token", [
+            "admin_http_client" => fn (): array => ["status" => 202, "body" => '{"results":[]}'],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage("measurement result count 0 does not match submitted row count 1");
+
+        $client->adminMeasurementProjects()->submitObservation(
+            "checkout-runway",
+            $this->measurementObservation("2026-07-01T00:00:00Z"),
+        );
+    }
+
+    public function testAdminMeasurementRejectsSuccessfulRowWithoutObservationUuid(): void
+    {
+        $client = new CustdClient("http://localhost:8080", "admin-token", [
+            "admin_http_client" => fn (): array => [
+                "status" => 202,
+                "body" => '{"results":[{"rowIndex":1,"success":true,"status":202}]}',
+            ],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage("measurement result 0 missing observationUuid");
+
+        $client->adminMeasurementProjects()->submitObservation(
+            "checkout-runway",
+            $this->measurementObservation("2026-07-01T00:00:00Z"),
+        );
+    }
+
     public function testAdminErrorResponseSurfacesProblemDetail(): void
     {
         $client = new CustdClient("http://localhost:8080", "admin-token", [
@@ -200,5 +326,17 @@ final class AdminClientTest extends TestCase
             self::assertStringContainsString("status 409", $err->getMessage());
             self::assertStringContainsString("duplicate_slug", $err->getMessage());
         }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function measurementObservation(string $observedAt): array
+    {
+        return [
+            "seriesSlug" => "checkout-completions",
+            "observedAt" => $observedAt,
+            "value" => 42,
+        ];
     }
 }

@@ -244,6 +244,7 @@ class AdminClient:
         self.oauth_clients = OAuthClientAdminClient(self)
         self.sites = SiteAdminClient(self)
         self.schemas = SchemaAdminClient(self)
+        self.measurement = MeasurementAdminClient(self)
 
     def request(
         self,
@@ -419,6 +420,57 @@ class SchemaAdminClient:
 
     def create_version(self, event_type_slug: str, schema: dict[str, Any]) -> TransportResult:
         return self._admin.request("POST", f"/schemas/{quote_path(event_type_slug)}/versions", schema)
+
+
+class MeasurementAdminClient:
+    def __init__(self, admin: AdminClient) -> None:
+        self.projects = MeasurementProjectAdminClient(admin)
+
+
+class MeasurementProjectAdminClient:
+    def __init__(self, admin: AdminClient) -> None:
+        self._admin = admin
+
+    def create(self, project: dict[str, Any]) -> TransportResult:
+        return self._admin.request("POST", "/measurement/projects", project)
+
+    def list(self) -> TransportResult:
+        return self._admin.request("GET", "/measurement/projects")
+
+    def get(self, project_slug: str) -> TransportResult:
+        return self._admin.request("GET", f"/measurement/projects/{quote_path(project_slug)}")
+
+    def submit_observation(self, project_slug: str, observation: dict[str, Any]) -> TransportResult:
+        return self.submit_observations(project_slug, {"rows": [observation]})
+
+    def submit_observations(self, project_slug: str, request: dict[str, Any]) -> TransportResult:
+        response = self._admin.request(
+            "POST",
+            f"/measurement/projects/{quote_path(project_slug)}/observations:bulk",
+            request,
+        )
+        validate_measurement_results(response.get("results"), len(request.get("rows", [])))
+        return response
+
+    def import_csv_string(self, project_slug: str, csv: str, expected_rows: int) -> TransportResult:
+        response = self._admin.request(
+            "POST",
+            f"/measurement/projects/{quote_path(project_slug)}/observations:csv",
+            {"csv": csv},
+        )
+        validate_measurement_results(response.get("results"), expected_rows)
+        return response
+
+
+def validate_measurement_results(results: Any, submitted_rows: int) -> None:
+    if not isinstance(results, list) or len(results) != submitted_rows:
+        count = len(results) if isinstance(results, list) else 0
+        raise RequestError(
+            f"custd: measurement result count {count} does not match submitted row count {submitted_rows}"
+        )
+    for index, result in enumerate(results):
+        if isinstance(result, dict) and result.get("success") is True and not result.get("observationUuid"):
+            raise RequestError(f"custd: measurement result {index} missing observationUuid")
 
 
 def public_admin_site(site: TransportResult) -> TransportResult:

@@ -282,15 +282,56 @@ describe("CustdClient admin", () => {
     const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token" });
 
     const response = await client.admin.measurement.projects.submitObservations("checkout-runway", {
-      rows: [
-        measurementObservationInput("2026-07-01T00:00:00Z"),
-        measurementObservationInput("not-a-timestamp"),
-      ],
+      rows: [measurementObservationInput("2026-07-01T00:00:00Z"), measurementObservationInput("not-a-timestamp")],
     });
 
     expect(response.results).toHaveLength(2);
     expect(response.results[0].observationUuid).toBe("018f4a10-2f0d-7d99-8a7b-68b1fddfd901");
     expect(response.results[1].success).toBe(false);
+  });
+
+  it("imports measurement CSV strings and validates row results", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          importId: "018f4a10-2f0d-7d99-8a7b-68b1fddfd950",
+          accepted: 1,
+          rejected: 1,
+          results: [
+            { rowIndex: 1, success: true, status: 202, observationUuid: "018f4a10-2f0d-7d99-8a7b-68b1fddfd951" },
+            {
+              rowIndex: 2,
+              success: false,
+              status: 422,
+              type: "https://custd.dev/problems/measurement-invalid-observation",
+              title: "Invalid measurement observation",
+              detail: "value must be finite",
+            },
+          ],
+        }),
+        { status: 202, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token" });
+
+    const response = await client.admin.measurement.projects.importCSVString(
+      "checkout-runway",
+      "seriesSlug,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n",
+      2,
+    );
+
+    expect(response.accepted).toBe(1);
+    expect(response.rejected).toBe(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/v1/admin/measurement/projects/checkout-runway/observations:csv",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          csv: "seriesSlug,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n",
+        }),
+      }),
+    );
   });
 
   it("rejects measurement bulk responses with mismatched result counts", async () => {

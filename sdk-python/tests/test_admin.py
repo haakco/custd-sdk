@@ -172,6 +172,167 @@ class AdminClientTest(unittest.TestCase):
             ("POST", "http://localhost:8080/api/v1/admin/schemas/checkout.started/versions"),
         ], [(call["method"], call["url"]) for call in transport.calls])
 
+    def test_admin_measurement_projects_create_uses_admin_api(self):
+        transport = CapturingAdminTransport([
+            {
+                "status": 201,
+                "body": {
+                    "projectUuid": "project-123",
+                    "projectSlug": "checkout-runway",
+                    "name": "Checkout Runway",
+                    "kind": "deadline_forecast",
+                    "status": "active",
+                },
+            },
+        ])
+        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+
+        project = client.admin.measurement.projects.create({
+            "projectSlug": "checkout-runway",
+            "name": "Checkout Runway",
+            "kind": "deadline_forecast",
+            "series": [{
+                "seriesSlug": "checkout-completions",
+                "name": "Checkout completions",
+                "unit": "count",
+                "completionDirection": "increase",
+                "source": "manual",
+            }],
+            "target": {
+                "targetSlug": "release",
+                "name": "Release",
+                "targetValue": 100,
+                "targetDate": "2026-08-31T00:00:00Z",
+                "state": "active",
+            },
+        })
+
+        self.assertEqual("project-123", project["projectUuid"])
+        self.assertEqual("POST", transport.calls[0]["method"])
+        self.assertEqual("http://localhost:8080/api/v1/admin/measurement/projects", transport.calls[0]["url"])
+
+    def test_admin_measurement_observation_bulk_validates_row_results(self):
+        transport = CapturingAdminTransport([
+            {
+                "status": 202,
+                "body": {
+                    "importId": "import-123",
+                    "accepted": 1,
+                    "rejected": 1,
+                    "results": [
+                        {
+                            "rowIndex": 1,
+                            "success": True,
+                            "status": 202,
+                            "observationUuid": "observation-123",
+                        },
+                        {
+                            "rowIndex": 2,
+                            "success": False,
+                            "status": 422,
+                            "type": "https://custd.dev/problems/measurement-invalid-observation",
+                            "title": "Invalid measurement observation",
+                            "detail": "observedAt must be an RFC3339 timestamp",
+                        },
+                    ],
+                },
+            },
+        ])
+        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+
+        response = client.admin.measurement.projects.submit_observations("checkout-runway", {
+            "rows": [
+                measurement_observation("2026-07-01T00:00:00Z"),
+                measurement_observation("not-a-timestamp"),
+            ],
+        })
+
+        self.assertEqual(1, response["accepted"])
+        self.assertFalse(response["results"][1]["success"])
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/measurement/projects/checkout-runway/observations:bulk",
+            transport.calls[0]["url"],
+        )
+
+    def test_admin_measurement_csv_import_validates_row_results(self):
+        transport = CapturingAdminTransport([
+            {
+                "status": 202,
+                "body": {
+                    "importId": "import-456",
+                    "accepted": 1,
+                    "rejected": 1,
+                    "results": [
+                        {
+                            "rowIndex": 1,
+                            "success": True,
+                            "status": 202,
+                            "observationUuid": "observation-456",
+                        },
+                        {
+                            "rowIndex": 2,
+                            "success": False,
+                            "status": 422,
+                            "type": "https://custd.dev/problems/measurement-invalid-observation",
+                            "title": "Invalid measurement observation",
+                            "detail": "value must be finite",
+                        },
+                    ],
+                },
+            },
+        ])
+        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+
+        response = client.admin.measurement.projects.import_csv_string(
+            "checkout-runway",
+            "seriesSlug,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n",
+            2,
+        )
+
+        self.assertEqual(1, response["rejected"])
+        self.assertEqual(
+            {"csv": "seriesSlug,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n"},
+            transport.calls[0]["payload"],
+        )
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/measurement/projects/checkout-runway/observations:csv",
+            transport.calls[0]["url"],
+        )
+
+    def test_admin_measurement_rejects_mismatched_result_count(self):
+        transport = CapturingAdminTransport([
+            {"status": 202, "body": {"results": []}},
+        ])
+        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "measurement result count 0 does not match submitted row count 1",
+        ):
+            client.admin.measurement.projects.submit_observation(
+                "checkout-runway",
+                measurement_observation("2026-07-01T00:00:00Z"),
+            )
+
+    def test_admin_measurement_rejects_successful_row_without_observation_uuid(self):
+        transport = CapturingAdminTransport([
+            {"status": 202, "body": {"results": [{"rowIndex": 1, "success": True, "status": 202}]}},
+        ])
+        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+
+        with self.assertRaisesRegex(RuntimeError, "measurement result 0 missing observationUuid"):
+            client.admin.measurement.projects.submit_observation(
+                "checkout-runway",
+                measurement_observation("2026-07-01T00:00:00Z"),
+            )
+
+def measurement_observation(observed_at):
+    return {
+        "seriesSlug": "checkout-completions",
+        "observedAt": observed_at,
+        "value": 42,
+    }
+
 
 if __name__ == "__main__":
     unittest.main()
