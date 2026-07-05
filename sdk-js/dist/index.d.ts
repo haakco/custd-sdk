@@ -221,6 +221,70 @@ export type AdminSchema = {
 export type AdminSchemaListResponse = {
     schemas: AdminSchema[];
 };
+export type MeasurementProjectCreate = {
+    projectSlug: string;
+    name: string;
+    kind: string;
+    description?: string;
+    series: MeasurementSeriesCreate[];
+    target: MeasurementTargetCreate;
+};
+export type MeasurementProject = {
+    projectUuid: string;
+    projectSlug: string;
+    name: string;
+    kind: string;
+    status: string;
+    description?: string;
+};
+export type MeasurementProjectListResponse = {
+    projects: MeasurementProject[];
+};
+export type MeasurementSeriesCreate = {
+    seriesSlug: string;
+    name: string;
+    unit: string;
+    completionDirection: string;
+    source: string;
+};
+export type MeasurementTargetCreate = {
+    targetSlug: string;
+    name: string;
+    targetValue: number;
+    targetDate?: string;
+    state: string;
+};
+export type MeasurementObservationInput = {
+    seriesSlug: string;
+    observedAt: string;
+    value: number;
+    idempotencyKey?: string;
+    metadata?: Record<string, string>;
+};
+export type MeasurementObservationBulkRequest = {
+    rows: MeasurementObservationInput[];
+};
+export type MeasurementObservationResult = {
+    rowIndex: number;
+    success: boolean;
+    status?: number;
+    observationUuid?: string;
+    type?: string;
+    title?: string;
+    detail?: string;
+};
+export type MeasurementObservationBulkResponse = {
+    importId: string;
+    accepted: number;
+    rejected: number;
+    results: MeasurementObservationResult[];
+};
+export type MeasurementCSVImportResponse = {
+    importId: string;
+    accepted: number;
+    rejected: number;
+    results: MeasurementObservationResult[];
+};
 export type SchemaValidationIssue = {
     path: string;
     keyword: string;
@@ -347,6 +411,7 @@ declare class AdminNamespace {
     readonly oauthClients: AdminOAuthClientNamespace;
     readonly sites: AdminSiteNamespace;
     readonly schemas: AdminSchemaNamespace;
+    readonly measurement: AdminMeasurementNamespace;
     constructor(request: AdminRequester);
 }
 declare class ProvisioningNamespace {
@@ -402,6 +467,20 @@ declare class AdminSchemaNamespace {
     get(eventTypeSlug: string): Promise<AdminSchema>;
     register(schema: AdminSchemaRegister): Promise<AdminSchema>;
     createVersion(eventTypeSlug: string, schema: AdminSchemaVersionCreate): Promise<AdminSchema>;
+}
+declare class AdminMeasurementNamespace {
+    readonly projects: AdminMeasurementProjectNamespace;
+    constructor(request: AdminRequester);
+}
+declare class AdminMeasurementProjectNamespace {
+    private readonly request;
+    constructor(request: AdminRequester);
+    create(project: MeasurementProjectCreate): Promise<MeasurementProject>;
+    list(): Promise<MeasurementProjectListResponse>;
+    get(projectSlug: string): Promise<MeasurementProject>;
+    submitObservation(projectSlug: string, observation: MeasurementObservationInput): Promise<MeasurementObservationBulkResponse>;
+    submitObservations(projectSlug: string, request: MeasurementObservationBulkRequest): Promise<MeasurementObservationBulkResponse>;
+    importCSVString(projectSlug: string, csv: string, expectedRows: number): Promise<MeasurementCSVImportResponse>;
 }
 export type PrepareEventMode = "producer" | "browser-cookieless";
 export type PrepareEventOptions = {

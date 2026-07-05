@@ -272,6 +272,80 @@ export type AdminSchemaListResponse = {
   schemas: AdminSchema[];
 };
 
+export type MeasurementProjectCreate = {
+  projectSlug: string;
+  name: string;
+  kind: string;
+  description?: string;
+  series: MeasurementSeriesCreate[];
+  target: MeasurementTargetCreate;
+};
+
+export type MeasurementProject = {
+  projectUuid: string;
+  projectSlug: string;
+  name: string;
+  kind: string;
+  status: string;
+  description?: string;
+};
+
+export type MeasurementProjectListResponse = {
+  projects: MeasurementProject[];
+};
+
+export type MeasurementSeriesCreate = {
+  seriesSlug: string;
+  name: string;
+  unit: string;
+  completionDirection: string;
+  source: string;
+};
+
+export type MeasurementTargetCreate = {
+  targetSlug: string;
+  name: string;
+  targetValue: number;
+  targetDate?: string;
+  state: string;
+};
+
+export type MeasurementObservationInput = {
+  seriesSlug: string;
+  observedAt: string;
+  value: number;
+  idempotencyKey?: string;
+  metadata?: Record<string, string>;
+};
+
+export type MeasurementObservationBulkRequest = {
+  rows: MeasurementObservationInput[];
+};
+
+export type MeasurementObservationResult = {
+  rowIndex: number;
+  success: boolean;
+  status?: number;
+  observationUuid?: string;
+  type?: string;
+  title?: string;
+  detail?: string;
+};
+
+export type MeasurementObservationBulkResponse = {
+  importId: string;
+  accepted: number;
+  rejected: number;
+  results: MeasurementObservationResult[];
+};
+
+export type MeasurementCSVImportResponse = {
+  importId: string;
+  accepted: number;
+  rejected: number;
+  results: MeasurementObservationResult[];
+};
+
 export type SchemaValidationIssue = {
   path: string;
   keyword: string;
@@ -755,12 +829,14 @@ class AdminNamespace {
   readonly oauthClients: AdminOAuthClientNamespace;
   readonly sites: AdminSiteNamespace;
   readonly schemas: AdminSchemaNamespace;
+  readonly measurement: AdminMeasurementNamespace;
 
   constructor(request: AdminRequester) {
     this.tenants = new AdminTenantNamespace(request);
     this.oauthClients = new AdminOAuthClientNamespace(request);
     this.sites = new AdminSiteNamespace(request);
     this.schemas = new AdminSchemaNamespace(request);
+    this.measurement = new AdminMeasurementNamespace(request);
   }
 }
 
@@ -905,6 +981,73 @@ class AdminSchemaNamespace {
   createVersion(eventTypeSlug: string, schema: AdminSchemaVersionCreate): Promise<AdminSchema> {
     return this.request("POST", `/schemas/${encodeURIComponent(eventTypeSlug)}/versions`, schema);
   }
+}
+
+class AdminMeasurementNamespace {
+  readonly projects: AdminMeasurementProjectNamespace;
+
+  constructor(request: AdminRequester) {
+    this.projects = new AdminMeasurementProjectNamespace(request);
+  }
+}
+
+class AdminMeasurementProjectNamespace {
+  constructor(private readonly request: AdminRequester) {}
+
+  create(project: MeasurementProjectCreate): Promise<MeasurementProject> {
+    return this.request("POST", "/measurement/projects", project);
+  }
+
+  list(): Promise<MeasurementProjectListResponse> {
+    return this.request("GET", "/measurement/projects");
+  }
+
+  get(projectSlug: string): Promise<MeasurementProject> {
+    return this.request("GET", `/measurement/projects/${encodeURIComponent(projectSlug)}`);
+  }
+
+  submitObservation(
+    projectSlug: string,
+    observation: MeasurementObservationInput,
+  ): Promise<MeasurementObservationBulkResponse> {
+    return this.submitObservations(projectSlug, { rows: [observation] });
+  }
+
+  async submitObservations(
+    projectSlug: string,
+    request: MeasurementObservationBulkRequest,
+  ): Promise<MeasurementObservationBulkResponse> {
+    const response = await this.request<MeasurementObservationBulkResponse>(
+      "POST",
+      `/measurement/projects/${encodeURIComponent(projectSlug)}/observations:bulk`,
+      request,
+    );
+    validateMeasurementResults(response.results, request.rows.length);
+    return response;
+  }
+
+  async importCSVString(projectSlug: string, csv: string, expectedRows: number): Promise<MeasurementCSVImportResponse> {
+    const response = await this.request<MeasurementCSVImportResponse>(
+      "POST",
+      `/measurement/projects/${encodeURIComponent(projectSlug)}/observations:csv`,
+      { csv },
+    );
+    validateMeasurementResults(response.results, expectedRows);
+    return response;
+  }
+}
+
+function validateMeasurementResults(results: MeasurementObservationResult[], submittedRows: number): void {
+  if (results.length !== submittedRows) {
+    throw new Error(
+      `custd: measurement result count ${results.length} does not match submitted row count ${submittedRows}`,
+    );
+  }
+  results.forEach((result, index) => {
+    if (result.success && !result.observationUuid) {
+      throw new Error(`custd: measurement result ${index} missing observationUuid`);
+    }
+  });
 }
 
 export type PrepareEventMode = "producer" | "browser-cookieless";

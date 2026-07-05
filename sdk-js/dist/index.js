@@ -359,6 +359,7 @@ class AdminNamespace {
         this.oauthClients = new AdminOAuthClientNamespace(request);
         this.sites = new AdminSiteNamespace(request);
         this.schemas = new AdminSchemaNamespace(request);
+        this.measurement = new AdminMeasurementNamespace(request);
     }
 }
 class ProvisioningNamespace {
@@ -474,6 +475,48 @@ class AdminSchemaNamespace {
     createVersion(eventTypeSlug, schema) {
         return this.request("POST", `/schemas/${encodeURIComponent(eventTypeSlug)}/versions`, schema);
     }
+}
+class AdminMeasurementNamespace {
+    constructor(request) {
+        this.projects = new AdminMeasurementProjectNamespace(request);
+    }
+}
+class AdminMeasurementProjectNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    create(project) {
+        return this.request("POST", "/measurement/projects", project);
+    }
+    list() {
+        return this.request("GET", "/measurement/projects");
+    }
+    get(projectSlug) {
+        return this.request("GET", `/measurement/projects/${encodeURIComponent(projectSlug)}`);
+    }
+    submitObservation(projectSlug, observation) {
+        return this.submitObservations(projectSlug, { rows: [observation] });
+    }
+    async submitObservations(projectSlug, request) {
+        const response = await this.request("POST", `/measurement/projects/${encodeURIComponent(projectSlug)}/observations:bulk`, request);
+        validateMeasurementResults(response.results, request.rows.length);
+        return response;
+    }
+    async importCSVString(projectSlug, csv, expectedRows) {
+        const response = await this.request("POST", `/measurement/projects/${encodeURIComponent(projectSlug)}/observations:csv`, { csv });
+        validateMeasurementResults(response.results, expectedRows);
+        return response;
+    }
+}
+function validateMeasurementResults(results, submittedRows) {
+    if (results.length !== submittedRows) {
+        throw new Error(`custd: measurement result count ${results.length} does not match submitted row count ${submittedRows}`);
+    }
+    results.forEach((result, index) => {
+        if (result.success && !result.observationUuid) {
+            throw new Error(`custd: measurement result ${index} missing observationUuid`);
+        }
+    });
 }
 // redactedProvisionedProducer returns the display-safe view of a provisioned
 // producer bundle, omitting the client secret so it is safe for dashboards.

@@ -210,7 +210,131 @@ describe("CustdClient admin", () => {
       ["http://localhost:8080/api/v1/admin/schemas/courib.delivery.created/versions", "POST"],
     ]);
   });
+
+  it("creates measurement projects through the admin API", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          projectUuid: "project-123",
+          projectSlug: "checkout-runway",
+          name: "Checkout Runway",
+          kind: "deadline_forecast",
+          status: "active",
+        }),
+        { status: 201, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token" });
+
+    const project = await client.admin.measurement.projects.create({
+      projectSlug: "checkout-runway",
+      name: "Checkout Runway",
+      kind: "deadline_forecast",
+      series: [
+        {
+          seriesSlug: "checkout-completions",
+          name: "Checkout completions",
+          unit: "count",
+          completionDirection: "increase",
+          source: "manual",
+        },
+      ],
+      target: {
+        targetSlug: "release",
+        name: "Release",
+        targetValue: 100,
+        targetDate: "2026-08-31T00:00:00Z",
+        state: "active",
+      },
+    });
+
+    expect(project.projectUuid).toBe("project-123");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/v1/admin/measurement/projects",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("submits measurement observations and preserves row-level failures", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          importId: "018f4a10-2f0d-7d99-8a7b-68b1fddfd900",
+          accepted: 1,
+          rejected: 1,
+          results: [
+            { rowIndex: 1, success: true, status: 202, observationUuid: "018f4a10-2f0d-7d99-8a7b-68b1fddfd901" },
+            {
+              rowIndex: 2,
+              success: false,
+              status: 422,
+              type: "https://custd.dev/problems/measurement-invalid-observation",
+              title: "Invalid measurement observation",
+              detail: "observedAt must be an RFC3339 timestamp",
+            },
+          ],
+        }),
+        { status: 202, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token" });
+
+    const response = await client.admin.measurement.projects.submitObservations("checkout-runway", {
+      rows: [
+        measurementObservationInput("2026-07-01T00:00:00Z"),
+        measurementObservationInput("not-a-timestamp"),
+      ],
+    });
+
+    expect(response.results).toHaveLength(2);
+    expect(response.results[0].observationUuid).toBe("018f4a10-2f0d-7d99-8a7b-68b1fddfd901");
+    expect(response.results[1].success).toBe(false);
+  });
+
+  it("rejects measurement bulk responses with mismatched result counts", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ results: [] }), {
+        status: 202,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token" });
+
+    await expect(
+      client.admin.measurement.projects.submitObservations("checkout-runway", {
+        rows: [measurementObservationInput("2026-07-01T00:00:00Z")],
+      }),
+    ).rejects.toThrow("measurement result count 0 does not match submitted row count 1");
+  });
+
+  it("rejects successful measurement rows missing observationUuid", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ results: [{ rowIndex: 1, success: true, status: 202 }] }), {
+        status: 202,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token" });
+
+    await expect(
+      client.admin.measurement.projects.submitObservations("checkout-runway", {
+        rows: [measurementObservationInput("2026-07-01T00:00:00Z")],
+      }),
+    ).rejects.toThrow("measurement result 0 missing observationUuid");
+  });
 });
+
+function measurementObservationInput(observedAt: string) {
+  return {
+    seriesSlug: "checkout-completions",
+    observedAt,
+    value: 42,
+  };
+}
 
 describe("CustdClient schemas", () => {
   it("validates, dry-runs, infers, and sends test events through schema onboarding APIs", async () => {
