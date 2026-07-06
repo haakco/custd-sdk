@@ -29,9 +29,9 @@ console.log(widget.trust?.status);
 ```go
 dashboard, err := client.Reporting.Dashboard(ctx, "awthy_managed_audit_reporting")
 widget, err := client.Reporting.Query(ctx, custd.ReportingQueryRequest{
-	Template: "awthy_secure_checkout_flow",
-	Metrics: []string{"flow_completion_rate"},
-	RangeDays: 7,
+    Template: "awthy_secure_checkout_flow",
+    Metrics: []string{"flow_completion_rate"},
+    RangeDays: 7,
 })
 ```
 
