@@ -346,6 +346,78 @@ export type SendTestEventResponse = {
     success: boolean;
     eventUuid: string;
 };
+export type ReportingDashboard = {
+    key: string;
+    title: string;
+    hidden?: boolean;
+    widgets: ReportingWidget[];
+};
+export type ReportingWidget = {
+    key: string;
+    title: string;
+    kind: string;
+    template: string;
+    metrics: string[];
+    dimensions?: string[];
+};
+export type ReportingQueryRequest = {
+    template: string;
+    metrics: string[];
+    dimensions?: string[];
+    filters?: ReportingFilter[];
+    from?: string;
+    to?: string;
+    rangeDays?: number;
+    maxRows?: number;
+    countOnly?: boolean;
+};
+export type ReportingFilter = {
+    dimension: string;
+    operator: string;
+    value?: string;
+};
+export type ReportingWidgetData = {
+    buckets: ReportingWidgetBucket[];
+    count: number;
+    complete: boolean;
+    truncated: boolean;
+    queryDurationMs: number;
+    parquetUriCount?: number;
+    snapshotAgeMs?: number;
+    eventLagP95Ms?: number;
+    deltaCount?: number;
+    deltaPercent?: number;
+    deltaLabel?: string;
+    secondaryLabel?: string;
+    trust?: ReportingTrust;
+};
+export type ReportingWidgetBucket = {
+    date: string;
+    count: number;
+    source: string;
+    complete: boolean;
+    queryDurationMs?: number;
+    parquetUriCount?: number;
+    message?: string;
+    secondaryCount?: number;
+};
+export type ReportingTrust = {
+    status: string;
+    dataFreshness: string;
+    lastAwthyExport?: string;
+    schemaVersion?: string;
+    contractVersion?: string;
+    rollupState: string;
+    queryWarnings?: string[];
+    coverage: string;
+    permissionClass?: string;
+    dataSufficiency: string;
+    captureState: string;
+    consentState: string;
+    exportState: string;
+    partialReason?: string;
+    unavailableReason?: string;
+};
 export declare class MemoryQueueStorage implements QueueStorage {
     private events;
     load(): EventEnvelope[];
@@ -362,6 +434,7 @@ export declare class LocalStorageQueueStorage implements QueueStorage {
 export declare class CustdClient {
     readonly admin: AdminNamespace;
     readonly provisioning: ProvisioningNamespace;
+    readonly reporting: ReportingNamespace;
     readonly schemas: SchemaNamespace;
     private baseUrl;
     private getToken;
@@ -398,6 +471,12 @@ export declare class CustdClient {
 type AdminRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type APIRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
+declare class ReportingNamespace {
+    private readonly request;
+    constructor(request: APIRequester);
+    dashboard(key: string): Promise<ReportingDashboard>;
+    query(request: ReportingQueryRequest): Promise<ReportingWidgetData>;
+}
 declare class SchemaNamespace {
     private readonly request;
     constructor(request: SchemaRequester);

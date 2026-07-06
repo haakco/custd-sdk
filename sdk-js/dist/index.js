@@ -82,6 +82,7 @@ export class CustdClient {
         this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
         this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body));
         this.provisioning = new ProvisioningNamespace((method, path, body) => this.apiRequest(method, path, body));
+        this.reporting = new ReportingNamespace((method, path, body) => this.apiRequest(method, path, body));
         this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
         if (this.queueEnabled) {
             this.queue = this.queueStorage.load();
@@ -328,6 +329,21 @@ export class CustdClient {
             return undefined;
         }
         return (await response.json());
+    }
+}
+class ReportingNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    dashboard(key) {
+        return this.request("GET", `/reporting/dashboards/${encodeURIComponent(key)}`);
+    }
+    async query(request) {
+        const data = await this.request("POST", "/reporting/query", request);
+        if (data.trust && containsForbiddenReportingTrustKey(data.trust)) {
+            throw new Error("custd: unsafe reporting trust diagnostics");
+        }
+        return data;
     }
 }
 class SchemaNamespace {
@@ -678,6 +694,27 @@ const dogfoodForbiddenPayloadFields = new Set([
     "devicesecret",
     "providercredential",
 ]);
+const forbiddenReportingTrustKeys = new Set([
+    "rawpayload",
+    "sql",
+    "token",
+    "secret",
+    "stack",
+    "email",
+    "ipaddress",
+    "hostname",
+    "orderid",
+    "carttoken",
+]);
+function containsForbiddenReportingTrustKey(value) {
+    if (Array.isArray(value)) {
+        return value.some(containsForbiddenReportingTrustKey);
+    }
+    if (!value || typeof value !== "object") {
+        return false;
+    }
+    return Object.entries(value).some(([key, child]) => forbiddenReportingTrustKeys.has(key.toLowerCase()) || containsForbiddenReportingTrustKey(child));
+}
 function sanitizeDogfoodPayload(payload, prefix = "") {
     const cleaned = {};
     const droppedKeys = [];
