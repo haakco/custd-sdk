@@ -411,6 +411,85 @@ export type SendTestEventResponse = {
   eventUuid: string;
 };
 
+export type ReportingDashboard = {
+  key: string;
+  title: string;
+  hidden?: boolean;
+  widgets: ReportingWidget[];
+};
+
+export type ReportingWidget = {
+  key: string;
+  title: string;
+  kind: string;
+  template: string;
+  metrics: string[];
+  dimensions?: string[];
+};
+
+export type ReportingQueryRequest = {
+  template: string;
+  metrics: string[];
+  dimensions?: string[];
+  filters?: ReportingFilter[];
+  from?: string;
+  to?: string;
+  rangeDays?: number;
+  maxRows?: number;
+  countOnly?: boolean;
+};
+
+export type ReportingFilter = {
+  dimension: string;
+  operator: string;
+  value?: string;
+};
+
+export type ReportingWidgetData = {
+  buckets: ReportingWidgetBucket[];
+  count: number;
+  complete: boolean;
+  truncated: boolean;
+  queryDurationMs: number;
+  parquetUriCount?: number;
+  snapshotAgeMs?: number;
+  eventLagP95Ms?: number;
+  deltaCount?: number;
+  deltaPercent?: number;
+  deltaLabel?: string;
+  secondaryLabel?: string;
+  trust?: ReportingTrust;
+};
+
+export type ReportingWidgetBucket = {
+  date: string;
+  count: number;
+  source: string;
+  complete: boolean;
+  queryDurationMs?: number;
+  parquetUriCount?: number;
+  message?: string;
+  secondaryCount?: number;
+};
+
+export type ReportingTrust = {
+  status: string;
+  dataFreshness: string;
+  lastAwthyExport?: string;
+  schemaVersion?: string;
+  contractVersion?: string;
+  rollupState: string;
+  queryWarnings?: string[];
+  coverage: string;
+  permissionClass?: string;
+  dataSufficiency: string;
+  captureState: string;
+  consentState: string;
+  exportState: string;
+  partialReason?: string;
+  unavailableReason?: string;
+};
+
 function publicAdminSite(site: AdminSite & { writeKey?: unknown }): AdminSite {
   const { writeKey: _writeKey, ...safeSite } = site;
   return safeSite;
@@ -476,6 +555,7 @@ export class LocalStorageQueueStorage implements QueueStorage {
 export class CustdClient {
   public readonly admin: AdminNamespace;
   public readonly provisioning: ProvisioningNamespace;
+  public readonly reporting: ReportingNamespace;
   public readonly schemas: SchemaNamespace;
   private baseUrl: string;
   private getToken: () => string | Promise<string>;
@@ -516,6 +596,7 @@ export class CustdClient {
     this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
     this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body));
     this.provisioning = new ProvisioningNamespace((method, path, body) => this.apiRequest(method, path, body));
+    this.reporting = new ReportingNamespace((method, path, body) => this.apiRequest(method, path, body));
     this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
 
     if (this.queueEnabled) {
@@ -797,6 +878,22 @@ export class CustdClient {
 type AdminRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type APIRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
+
+class ReportingNamespace {
+  constructor(private readonly request: APIRequester) {}
+
+  dashboard(key: string): Promise<ReportingDashboard> {
+    return this.request("GET", `/reporting/dashboards/${encodeURIComponent(key)}`);
+  }
+
+  async query(request: ReportingQueryRequest): Promise<ReportingWidgetData> {
+    const data = await this.request<ReportingWidgetData>("POST", "/reporting/query", request);
+    if (data.trust && containsForbiddenReportingTrustKey(data.trust)) {
+      throw new Error("custd: unsafe reporting trust diagnostics");
+    }
+    return data;
+  }
+}
 
 class SchemaNamespace {
   constructor(private readonly request: SchemaRequester) {}
@@ -1212,6 +1309,31 @@ const dogfoodForbiddenPayloadFields = new Set([
   "devicesecret",
   "providercredential",
 ]);
+
+const forbiddenReportingTrustKeys = new Set([
+  "rawpayload",
+  "sql",
+  "token",
+  "secret",
+  "stack",
+  "email",
+  "ipaddress",
+  "hostname",
+  "orderid",
+  "carttoken",
+]);
+
+function containsForbiddenReportingTrustKey(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(containsForbiddenReportingTrustKey);
+  }
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  return Object.entries(value).some(
+    ([key, child]) => forbiddenReportingTrustKeys.has(key.toLowerCase()) || containsForbiddenReportingTrustKey(child),
+  );
+}
 
 function sanitizeDogfoodPayload(
   payload: Record<string, unknown>,
