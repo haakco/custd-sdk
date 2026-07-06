@@ -85,6 +85,7 @@ class CustdClient:
         self.transport = transport or make_default_transport(self.compression)
         self.admin = AdminClient(self, admin_transport or default_admin_transport)
         self.provisioning = ProvisioningClient(self, admin_transport or default_admin_transport)
+        self.reporting = ReportingClient(self, admin_transport or default_admin_transport)
         self.timeout = timeout
 
     @classmethod
@@ -307,6 +308,49 @@ class ProvisioningClient:
         if isinstance(body, list):
             return {"items": body}
         return {}
+
+
+class ReportingClient:
+    def __init__(self, client: CustdClient, transport: AdminTransport) -> None:
+        self._client = client
+        self._transport = transport
+
+    def dashboard(self, key: str) -> TransportResult:
+        return self._request("GET", f"/reporting/dashboards/{quote_path(key)}")
+
+    def query(self, request: dict[str, Any]) -> TransportResult:
+        widget = self._request("POST", "/reporting/query", request)
+        if contains_unsafe_reporting_trust_key(widget.get("trust")):
+            raise ValueError("custd: unsafe reporting trust diagnostics")
+        return widget
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | None = None,
+    ) -> TransportResult:
+        result = self._transport(
+            method,
+            self._client.base_url + "/api/v1" + path,
+            payload,
+            self._client._headers(),
+            self._client.timeout,
+        )
+        status = int(result["status"])
+        if status >= 400:
+            raise RequestError(f"custd: reporting request failed with status {status}")
+        body = result.get("body")
+        if status == 204 or body in (None, ""):
+            return {}
+        if isinstance(body, str):
+            decoded = json.loads(body)
+            if not isinstance(decoded, dict):
+                raise ValueError("custd: reporting response must be an object")
+            return decoded
+        if isinstance(body, dict):
+            return body
+        raise ValueError("custd: reporting response must be an object")
 
 
 class DataSpaceProvisioningClient:
@@ -645,6 +689,19 @@ DOGFOOD_FORBIDDEN_PAYLOAD_FIELDS = {
     "providercredential",
 }
 
+REPORTING_FORBIDDEN_TRUST_KEYS = {
+    "rawpayload",
+    "sql",
+    "token",
+    "secret",
+    "stack",
+    "email",
+    "ipaddress",
+    "hostname",
+    "orderid",
+    "carttoken",
+}
+
 
 def sanitize_dogfood_payload(payload: dict[str, Any]) -> dict[str, Any]:
     cleaned: dict[str, Any] = {}
@@ -661,6 +718,17 @@ def sanitize_dogfood_payload(payload: dict[str, Any]) -> dict[str, Any]:
 def dogfood_payload_field_allowed(key: str) -> bool:
     normalized = key.lower().replace("_", "")
     return normalized not in DOGFOOD_PROTECTED_PAYLOAD_FIELDS and normalized not in DOGFOOD_FORBIDDEN_PAYLOAD_FIELDS
+
+
+def contains_unsafe_reporting_trust_key(value: Any) -> bool:
+    if isinstance(value, list):
+        return any(contains_unsafe_reporting_trust_key(item) for item in value)
+    if not isinstance(value, dict):
+        return False
+    return any(
+        str(key).lower() in REPORTING_FORBIDDEN_TRUST_KEYS or contains_unsafe_reporting_trust_key(child)
+        for key, child in value.items()
+    )
 
 
 def iso_now() -> str:
