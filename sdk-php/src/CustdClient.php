@@ -136,6 +136,11 @@ final class CustdClient
         return new Provisioning\Client($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    public function reporting(): Reporting\Client
+    {
+        return new Reporting\Client($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
     /**
      * @param array<string, mixed> $event
      * @return array<string, mixed>
