@@ -148,6 +148,13 @@ export type ClientConfig = {
   compression?: CompressionOptions;
 };
 
+export type BrokerEnv = Record<string, string | undefined>;
+
+export type BrokerEnvClientOptions = Omit<ClientConfig, "baseUrl" | "getToken" | "oauth"> & {
+  baseUrl?: string;
+  scopes?: string[];
+};
+
 export type CompressionOptions = {
   enabled?: boolean;
   thresholdBytes?: number;
@@ -630,6 +637,21 @@ export class CustdClient {
         tokenUrl: credentials.tokenUrl,
         audience: credentials.audience,
         scopes: credentials.scopes,
+      },
+    });
+  }
+
+  static fromBrokerEnv(env: BrokerEnv, options: BrokerEnvClientOptions = {}): CustdClient {
+    const baseUrl = options.baseUrl ?? brokerBaseUrl(env);
+    return new CustdClient({
+      ...options,
+      baseUrl,
+      oauth: {
+        clientId: requireBrokerEnv(env, "CUSTD_PROVISIONING_CLIENT_ID", "PROVISIONING_CLIENT_ID"),
+        clientSecret: requireBrokerEnv(env, "CUSTD_PROVISIONING_CLIENT_SECRET", "PROVISIONING_CLIENT_SECRET"),
+        tokenUrl: requireBrokerEnv(env, "CUSTD_PROVISIONING_TOKEN_URL", "PROVISIONING_TOKEN_URL"),
+        audience: brokerEnvValue(env, "CUSTD_PROVISIONING_AUDIENCE", "PROVISIONING_AUDIENCE"),
+        scopes: options.scopes ?? ["admin", "producers.provision"],
       },
     });
   }
@@ -1360,6 +1382,61 @@ function sanitizeDogfoodPayload(
 function dogfoodPayloadFieldAllowed(key: string): boolean {
   const normalized = key.toLowerCase().replace(/_/g, "");
   return !dogfoodProtectedPayloadFields.has(normalized) && !dogfoodForbiddenPayloadFields.has(normalized);
+}
+
+function brokerBaseUrl(env: BrokerEnv): string {
+  const explicit = brokerEnvValue(env, "CUSTD_BASE_URL", "CUSTD_API_BASE_URL");
+  if (explicit) {
+    return normalizeCustdBaseUrl(explicit);
+  }
+  const endpoint = brokerEnvValue(
+    env,
+    "CUSTD_PROVISIONING_ENDPOINT",
+    "PROVISIONING_ENDPOINT",
+    "CUSTD_TENANT_ADMIN_ENDPOINT",
+    "TENANT_ADMIN_ENDPOINT",
+  );
+  if (!endpoint) {
+    throw new Error("custd: broker env missing CUSTD_BASE_URL or CUSTD_PROVISIONING_ENDPOINT");
+  }
+  return normalizeCustdBaseUrl(endpoint);
+}
+
+function normalizeCustdBaseUrl(rawUrl: string): string {
+  const url = new URL(rawUrl);
+  const suffixes = [
+    "/api/v1/managed-audit/provision",
+    "/api/v1/producer-provisioning",
+    "/api/v1/admin/tenants",
+    "/api/v1",
+  ];
+  for (const suffix of suffixes) {
+    if (url.pathname.endsWith(suffix)) {
+      url.pathname = url.pathname.slice(0, -suffix.length) || "/";
+      break;
+    }
+  }
+  url.search = "";
+  url.hash = "";
+  return url.toString().replace(/\/$/, "");
+}
+
+function requireBrokerEnv(env: BrokerEnv, ...keys: string[]): string {
+  const value = brokerEnvValue(env, ...keys);
+  if (!value) {
+    throw new Error(`custd: broker env missing ${keys[0]}`);
+  }
+  return value;
+}
+
+function brokerEnvValue(env: BrokerEnv, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = env[key];
+    if (typeof value === "string" && value.trim() !== "") {
+      return value;
+    }
+  }
+  return undefined;
 }
 
 function assertSecureOrLocalHTTP(rawUrl: string, field: string): void {

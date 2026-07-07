@@ -119,6 +119,11 @@ export type ClientConfig = {
     queue?: QueueOptions;
     compression?: CompressionOptions;
 };
+export type BrokerEnv = Record<string, string | undefined>;
+export type BrokerEnvClientOptions = Omit<ClientConfig, "baseUrl" | "getToken" | "oauth"> & {
+    baseUrl?: string;
+    scopes?: string[];
+};
 export type CompressionOptions = {
     enabled?: boolean;
     thresholdBytes?: number;
@@ -454,6 +459,7 @@ export declare class CustdClient {
     private oauthToken;
     constructor(config: ClientConfig);
     static fromProvisionedProducer(credentials: ProvisionedProducerCredentials): CustdClient;
+    static fromBrokerEnv(env: BrokerEnv, options?: BrokerEnvClientOptions): CustdClient;
     private fetchOAuthToken;
     ingestEvent(event: EventEnvelope): Promise<Response>;
     track(event: EventEnvelope): Promise<void | Response>;

@@ -115,6 +115,20 @@ export class CustdClient {
             },
         });
     }
+    static fromBrokerEnv(env, options = {}) {
+        const baseUrl = options.baseUrl ?? brokerBaseUrl(env);
+        return new CustdClient({
+            ...options,
+            baseUrl,
+            oauth: {
+                clientId: requireBrokerEnv(env, "CUSTD_PROVISIONING_CLIENT_ID", "PROVISIONING_CLIENT_ID"),
+                clientSecret: requireBrokerEnv(env, "CUSTD_PROVISIONING_CLIENT_SECRET", "PROVISIONING_CLIENT_SECRET"),
+                tokenUrl: requireBrokerEnv(env, "CUSTD_PROVISIONING_TOKEN_URL", "PROVISIONING_TOKEN_URL"),
+                audience: brokerEnvValue(env, "CUSTD_PROVISIONING_AUDIENCE", "PROVISIONING_AUDIENCE"),
+                scopes: options.scopes ?? ["admin", "producers.provision"],
+            },
+        });
+    }
     async fetchOAuthToken(config) {
         const now = Date.now();
         if (this.oauthToken && this.oauthToken.expiresAtMs > now + 30000) {
@@ -737,6 +751,51 @@ function sanitizeDogfoodPayload(payload, prefix = "") {
 function dogfoodPayloadFieldAllowed(key) {
     const normalized = key.toLowerCase().replace(/_/g, "");
     return !dogfoodProtectedPayloadFields.has(normalized) && !dogfoodForbiddenPayloadFields.has(normalized);
+}
+function brokerBaseUrl(env) {
+    const explicit = brokerEnvValue(env, "CUSTD_BASE_URL", "CUSTD_API_BASE_URL");
+    if (explicit) {
+        return normalizeCustdBaseUrl(explicit);
+    }
+    const endpoint = brokerEnvValue(env, "CUSTD_PROVISIONING_ENDPOINT", "PROVISIONING_ENDPOINT", "CUSTD_TENANT_ADMIN_ENDPOINT", "TENANT_ADMIN_ENDPOINT");
+    if (!endpoint) {
+        throw new Error("custd: broker env missing CUSTD_BASE_URL or CUSTD_PROVISIONING_ENDPOINT");
+    }
+    return normalizeCustdBaseUrl(endpoint);
+}
+function normalizeCustdBaseUrl(rawUrl) {
+    const url = new URL(rawUrl);
+    const suffixes = [
+        "/api/v1/managed-audit/provision",
+        "/api/v1/producer-provisioning",
+        "/api/v1/admin/tenants",
+        "/api/v1",
+    ];
+    for (const suffix of suffixes) {
+        if (url.pathname.endsWith(suffix)) {
+            url.pathname = url.pathname.slice(0, -suffix.length) || "/";
+            break;
+        }
+    }
+    url.search = "";
+    url.hash = "";
+    return url.toString().replace(/\/$/, "");
+}
+function requireBrokerEnv(env, ...keys) {
+    const value = brokerEnvValue(env, ...keys);
+    if (!value) {
+        throw new Error(`custd: broker env missing ${keys[0]}`);
+    }
+    return value;
+}
+function brokerEnvValue(env, ...keys) {
+    for (const key of keys) {
+        const value = env[key];
+        if (typeof value === "string" && value.trim() !== "") {
+            return value;
+        }
+    }
+    return undefined;
 }
 function assertSecureOrLocalHTTP(rawUrl, field) {
     const parsed = new URL(rawUrl);

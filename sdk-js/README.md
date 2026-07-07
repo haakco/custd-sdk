@@ -101,6 +101,31 @@ The client also accepts `getToken: () => "<token>"` for existing static-token
 or callback integrations. Producer clients should prefer the OAuth2
 `client_credentials` config above so token refresh stays inside the SDK.
 
+Trusted broker services can build an admin/provisioning client directly from
+Custd provisioning environment variables:
+
+```ts
+const broker = CustdClient.fromBrokerEnv(env);
+
+await broker.admin.tenants.create({
+  slug: "agency-store-001",
+  companyName: "Agency Store 001",
+});
+
+const credentials = await broker.provisioning.producers.provision({
+  companySlug: "agency-store-001",
+  producerSlug: "woocommerce",
+  scopeTemplate: "managed-audit-reporting-read",
+});
+```
+
+`fromBrokerEnv` reads `CUSTD_PROVISIONING_CLIENT_ID`,
+`CUSTD_PROVISIONING_CLIENT_SECRET`, `CUSTD_PROVISIONING_TOKEN_URL`,
+`CUSTD_PROVISIONING_AUDIENCE`, and either `CUSTD_BASE_URL` or an existing
+Custd endpoint such as `CUSTD_PROVISIONING_ENDPOINT`. It defaults the OAuth
+request scopes to `admin producers.provision`; pass `{ scopes: [...] }` when a
+broker should request a narrower token.
+
 Dogfood producers can use `createDogfoodEvent`:
 
 ```ts
