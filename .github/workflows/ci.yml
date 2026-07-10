@@ -182,7 +182,6 @@ jobs:
         run: |
           curl -fsSL https://mise.run | sh
           "$HOME/.local/bin/mise" install infisical@0.43.84
-          printf '%s\n' "$HOME/.local/share/mise/shims" >> "$GITHUB_PATH"
       - name: Install JS dependencies
         run: pnpm -C sdk-js install --frozen-lockfile
       - name: Build JS SDK
