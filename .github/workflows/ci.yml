@@ -198,10 +198,11 @@ jobs:
           # pnpm 10's publish delegates to npm with incompatible args (EUSAGE on
           # npm 11); publish with npm directly using a temporary user config.
           domain="https://secrets.k8.haak.co/api"
-          INFISICAL_TOKEN="$(infisical login --method=universal-auth \
+          infisical_bin="$("$HOME/.local/bin/mise" which infisical)"
+          INFISICAL_TOKEN="$("$infisical_bin" login --method=universal-auth \
             --client-id="$INFISICAL_CLIENT_ID" --client-secret="$INFISICAL_CLIENT_SECRET" \
             --domain="$domain" --plain --silent)"
-          VERDACCIO_TOKEN="$(infisical secrets get VERDACCIO_TOKEN \
+          VERDACCIO_TOKEN="$("$infisical_bin" secrets get VERDACCIO_TOKEN \
             --token="$INFISICAL_TOKEN" --projectId=952c94fb-3c39-4384-8087-2e459812bc3d \
             --env=prod --path=/custd-sdk --domain="$domain" --plain --silent)"
           npm_config="$(mktemp)"

@@ -3,7 +3,7 @@
   "description": "custd ingestion SDK (minimal Phase 1)",
   "type": "library",
   "license": "MIT",
-  "version": "1.5.27",
+  "version": "1.5.28",
   "autoload": {
     "psr-4": {
       "HaakCo\\Custd\\": "src/"
