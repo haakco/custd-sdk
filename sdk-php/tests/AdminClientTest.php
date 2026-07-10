@@ -188,24 +188,24 @@ final class AdminClientTest extends TestCase
                 $calls[] = compact("method", "url", "body", "token");
                 return [
                     "status" => 201,
-                    "body" => '{"projectUuid":"project-123","projectSlug":"checkout-runway","name":"Checkout Runway","kind":"deadline_forecast","status":"active"}',
+                    "body" => '{"projectUuid":"project-123","projectCode":"checkout-runway","name":"Checkout Runway","kind":"deadline_forecast","status":"active"}',
                 ];
             },
         ]);
 
         $project = $client->adminMeasurementProjects()->create([
-            "projectSlug" => "checkout-runway",
+            "projectCode" => "checkout-runway",
             "name" => "Checkout Runway",
             "kind" => "deadline_forecast",
             "series" => [[
-                "seriesSlug" => "checkout-completions",
+                "seriesCode" => "checkout-completions",
                 "name" => "Checkout completions",
-                "unit" => "count",
+                "unitSlug" => "count",
                 "completionDirection" => "increase",
                 "source" => "manual",
             ]],
             "target" => [
-                "targetSlug" => "release",
+                "targetCode" => "release",
                 "name" => "Release",
                 "targetValue" => 100,
                 "targetDate" => "2026-08-31T00:00:00Z",
@@ -261,12 +261,12 @@ final class AdminClientTest extends TestCase
 
         $response = $client->adminMeasurementProjects()->importCSVString(
             "checkout-runway",
-            "seriesSlug,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n",
+            "seriesUuid,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n",
             2,
         );
 
         $this->assertSame(1, $response["rejected"]);
-        $this->assertSame(["csv" => "seriesSlug,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n"], $calls[0]["body"]);
+        $this->assertSame(["csv" => "seriesUuid,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n"], $calls[0]["body"]);
         $this->assertSame(
             "http://localhost:8080/api/v1/admin/measurement/projects/checkout-runway/observations:csv",
             $calls[0]["url"],
@@ -334,7 +334,7 @@ final class AdminClientTest extends TestCase
     private function measurementObservation(string $observedAt): array
     {
         return [
-            "seriesSlug" => "checkout-completions",
+            "seriesUuid" => "checkout-completions",
             "observedAt" => $observedAt,
             "value" => 42,
         ];

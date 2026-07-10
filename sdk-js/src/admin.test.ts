@@ -216,7 +216,7 @@ describe("CustdClient admin", () => {
       new Response(
         JSON.stringify({
           projectUuid: "project-123",
-          projectSlug: "checkout-runway",
+          projectCode: "checkout-runway",
           name: "Checkout Runway",
           kind: "deadline_forecast",
           status: "active",
@@ -228,20 +228,20 @@ describe("CustdClient admin", () => {
     const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token" });
 
     const project = await client.admin.measurement.projects.create({
-      projectSlug: "checkout-runway",
+      projectCode: "checkout-runway",
       name: "Checkout Runway",
       kind: "deadline_forecast",
       series: [
         {
-          seriesSlug: "checkout-completions",
+          seriesCode: "checkout-completions",
           name: "Checkout completions",
-          unit: "count",
+          unitSlug: "count",
           completionDirection: "increase",
           source: "manual",
         },
       ],
       target: {
-        targetSlug: "release",
+        targetCode: "release",
         name: "Release",
         targetValue: 100,
         targetDate: "2026-08-31T00:00:00Z",
@@ -317,7 +317,7 @@ describe("CustdClient admin", () => {
 
     const response = await client.admin.measurement.projects.importCSVString(
       "checkout-runway",
-      "seriesSlug,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n",
+      "seriesUuid,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n",
       2,
     );
 
@@ -328,7 +328,7 @@ describe("CustdClient admin", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          csv: "seriesSlug,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n",
+          csv: "seriesUuid,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n",
         }),
       }),
     );
@@ -371,7 +371,7 @@ describe("CustdClient admin", () => {
 
 function measurementObservationInput(observedAt: string) {
   return {
-    seriesSlug: "checkout-completions",
+    seriesUuid: "checkout-completions",
     observedAt,
     value: 42,
   };

@@ -481,25 +481,25 @@ class MeasurementProjectAdminClient:
     def list(self) -> TransportResult:
         return self._admin.request("GET", "/measurement/projects")
 
-    def get(self, project_slug: str) -> TransportResult:
-        return self._admin.request("GET", f"/measurement/projects/{quote_path(project_slug)}")
+    def get(self, project_uuid: str) -> TransportResult:
+        return self._admin.request("GET", f"/measurement/projects/{quote_path(project_uuid)}")
 
-    def submit_observation(self, project_slug: str, observation: dict[str, Any]) -> TransportResult:
-        return self.submit_observations(project_slug, {"rows": [observation]})
+    def submit_observation(self, project_uuid: str, observation: dict[str, Any]) -> TransportResult:
+        return self.submit_observations(project_uuid, {"rows": [observation]})
 
-    def submit_observations(self, project_slug: str, request: dict[str, Any]) -> TransportResult:
+    def submit_observations(self, project_uuid: str, request: dict[str, Any]) -> TransportResult:
         response = self._admin.request(
             "POST",
-            f"/measurement/projects/{quote_path(project_slug)}/observations:bulk",
+            f"/measurement/projects/{quote_path(project_uuid)}/observations:bulk",
             request,
         )
         validate_measurement_results(response.get("results"), len(request.get("rows", [])))
         return response
 
-    def import_csv_string(self, project_slug: str, csv: str, expected_rows: int) -> TransportResult:
+    def import_csv_string(self, project_uuid: str, csv: str, expected_rows: int) -> TransportResult:
         response = self._admin.request(
             "POST",
-            f"/measurement/projects/{quote_path(project_slug)}/observations:csv",
+            f"/measurement/projects/{quote_path(project_uuid)}/observations:csv",
             {"csv": csv},
         )
         validate_measurement_results(response.get("results"), expected_rows)

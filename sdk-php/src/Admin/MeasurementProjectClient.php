@@ -46,14 +46,14 @@ final class MeasurementProjectClient
     /**
      * @return array<string, mixed>
      */
-    public function get(string $projectSlug): array
+    public function get(string $projectUuid): array
     {
         return Http::request(
             $this->baseUrl,
             $this->token,
             $this->transport,
             "GET",
-            "/measurement/projects/" . rawurlencode($projectSlug),
+            "/measurement/projects/" . rawurlencode($projectUuid),
         ) ?? [];
     }
 
@@ -61,23 +61,23 @@ final class MeasurementProjectClient
      * @param array<string, mixed> $observation
      * @return array<string, mixed>
      */
-    public function submitObservation(string $projectSlug, array $observation): array
+    public function submitObservation(string $projectUuid, array $observation): array
     {
-        return $this->submitObservations($projectSlug, ["rows" => [$observation]]);
+        return $this->submitObservations($projectUuid, ["rows" => [$observation]]);
     }
 
     /**
      * @param array{rows: array<int, array<string, mixed>>} $request
      * @return array<string, mixed>
      */
-    public function submitObservations(string $projectSlug, array $request): array
+    public function submitObservations(string $projectUuid, array $request): array
     {
         $response = Http::request(
             $this->baseUrl,
             $this->token,
             $this->transport,
             "POST",
-            "/measurement/projects/" . rawurlencode($projectSlug) . "/observations:bulk",
+            "/measurement/projects/" . rawurlencode($projectUuid) . "/observations:bulk",
             $request,
         ) ?? [];
         self::validateResults($response["results"] ?? null, count($request["rows"] ?? []));
@@ -87,14 +87,14 @@ final class MeasurementProjectClient
     /**
      * @return array<string, mixed>
      */
-    public function importCSVString(string $projectSlug, string $csv, int $expectedRows): array
+    public function importCSVString(string $projectUuid, string $csv, int $expectedRows): array
     {
         $response = Http::request(
             $this->baseUrl,
             $this->token,
             $this->transport,
             "POST",
-            "/measurement/projects/" . rawurlencode($projectSlug) . "/observations:csv",
+            "/measurement/projects/" . rawurlencode($projectUuid) . "/observations:csv",
             ["csv" => $csv],
         ) ?? [];
         self::validateResults($response["results"] ?? null, $expectedRows);

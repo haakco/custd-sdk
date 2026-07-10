@@ -280,7 +280,7 @@ export type AdminSchemaListResponse = {
 };
 
 export type MeasurementProjectCreate = {
-  projectSlug: string;
+  projectCode: string;
   name: string;
   kind: string;
   description?: string;
@@ -290,7 +290,7 @@ export type MeasurementProjectCreate = {
 
 export type MeasurementProject = {
   projectUuid: string;
-  projectSlug: string;
+  projectCode: string;
   name: string;
   kind: string;
   status: string;
@@ -302,15 +302,15 @@ export type MeasurementProjectListResponse = {
 };
 
 export type MeasurementSeriesCreate = {
-  seriesSlug: string;
+  seriesCode: string;
   name: string;
-  unit: string;
+  unitSlug: string;
   completionDirection: string;
   source: string;
 };
 
 export type MeasurementTargetCreate = {
-  targetSlug: string;
+  targetCode: string;
   name: string;
   targetValue: number;
   targetDate?: string;
@@ -318,7 +318,7 @@ export type MeasurementTargetCreate = {
 };
 
 export type MeasurementObservationInput = {
-  seriesSlug: string;
+  seriesUuid: string;
   observedAt: string;
   value: number;
   idempotencyKey?: string;
@@ -1121,34 +1121,34 @@ class AdminMeasurementProjectNamespace {
     return this.request("GET", "/measurement/projects");
   }
 
-  get(projectSlug: string): Promise<MeasurementProject> {
-    return this.request("GET", `/measurement/projects/${encodeURIComponent(projectSlug)}`);
+  get(projectUuid: string): Promise<MeasurementProject> {
+    return this.request("GET", `/measurement/projects/${encodeURIComponent(projectUuid)}`);
   }
 
   submitObservation(
-    projectSlug: string,
+    projectUuid: string,
     observation: MeasurementObservationInput,
   ): Promise<MeasurementObservationBulkResponse> {
-    return this.submitObservations(projectSlug, { rows: [observation] });
+    return this.submitObservations(projectUuid, { rows: [observation] });
   }
 
   async submitObservations(
-    projectSlug: string,
+    projectUuid: string,
     request: MeasurementObservationBulkRequest,
   ): Promise<MeasurementObservationBulkResponse> {
     const response = await this.request<MeasurementObservationBulkResponse>(
       "POST",
-      `/measurement/projects/${encodeURIComponent(projectSlug)}/observations:bulk`,
+      `/measurement/projects/${encodeURIComponent(projectUuid)}/observations:bulk`,
       request,
     );
     validateMeasurementResults(response.results, request.rows.length);
     return response;
   }
 
-  async importCSVString(projectSlug: string, csv: string, expectedRows: number): Promise<MeasurementCSVImportResponse> {
+  async importCSVString(projectUuid: string, csv: string, expectedRows: number): Promise<MeasurementCSVImportResponse> {
     const response = await this.request<MeasurementCSVImportResponse>(
       "POST",
-      `/measurement/projects/${encodeURIComponent(projectSlug)}/observations:csv`,
+      `/measurement/projects/${encodeURIComponent(projectUuid)}/observations:csv`,
       { csv },
     );
     validateMeasurementResults(response.results, expectedRows);

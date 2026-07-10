@@ -521,19 +521,19 @@ class AdminMeasurementProjectNamespace {
     list() {
         return this.request("GET", "/measurement/projects");
     }
-    get(projectSlug) {
-        return this.request("GET", `/measurement/projects/${encodeURIComponent(projectSlug)}`);
+    get(projectUuid) {
+        return this.request("GET", `/measurement/projects/${encodeURIComponent(projectUuid)}`);
     }
-    submitObservation(projectSlug, observation) {
-        return this.submitObservations(projectSlug, { rows: [observation] });
+    submitObservation(projectUuid, observation) {
+        return this.submitObservations(projectUuid, { rows: [observation] });
     }
-    async submitObservations(projectSlug, request) {
-        const response = await this.request("POST", `/measurement/projects/${encodeURIComponent(projectSlug)}/observations:bulk`, request);
+    async submitObservations(projectUuid, request) {
+        const response = await this.request("POST", `/measurement/projects/${encodeURIComponent(projectUuid)}/observations:bulk`, request);
         validateMeasurementResults(response.results, request.rows.length);
         return response;
     }
-    async importCSVString(projectSlug, csv, expectedRows) {
-        const response = await this.request("POST", `/measurement/projects/${encodeURIComponent(projectSlug)}/observations:csv`, { csv });
+    async importCSVString(projectUuid, csv, expectedRows) {
+        const response = await this.request("POST", `/measurement/projects/${encodeURIComponent(projectUuid)}/observations:csv`, { csv });
         validateMeasurementResults(response.results, expectedRows);
         return response;
     }

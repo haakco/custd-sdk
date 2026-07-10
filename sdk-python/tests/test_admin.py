@@ -178,7 +178,7 @@ class AdminClientTest(unittest.TestCase):
                 "status": 201,
                 "body": {
                     "projectUuid": "project-123",
-                    "projectSlug": "checkout-runway",
+                    "projectCode": "checkout-runway",
                     "name": "Checkout Runway",
                     "kind": "deadline_forecast",
                     "status": "active",
@@ -188,18 +188,18 @@ class AdminClientTest(unittest.TestCase):
         client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
 
         project = client.admin.measurement.projects.create({
-            "projectSlug": "checkout-runway",
+            "projectCode": "checkout-runway",
             "name": "Checkout Runway",
             "kind": "deadline_forecast",
             "series": [{
-                "seriesSlug": "checkout-completions",
+                "seriesCode": "checkout-completions",
                 "name": "Checkout completions",
-                "unit": "count",
+                "unitSlug": "count",
                 "completionDirection": "increase",
                 "source": "manual",
             }],
             "target": {
-                "targetSlug": "release",
+                "targetCode": "release",
                 "name": "Release",
                 "targetValue": 100,
                 "targetDate": "2026-08-31T00:00:00Z",
@@ -285,13 +285,13 @@ class AdminClientTest(unittest.TestCase):
 
         response = client.admin.measurement.projects.import_csv_string(
             "checkout-runway",
-            "seriesSlug,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n",
+            "seriesUuid,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n",
             2,
         )
 
         self.assertEqual(1, response["rejected"])
         self.assertEqual(
-            {"csv": "seriesSlug,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n"},
+            {"csv": "seriesUuid,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n"},
             transport.calls[0]["payload"],
         )
         self.assertEqual(
@@ -328,7 +328,7 @@ class AdminClientTest(unittest.TestCase):
 
 def measurement_observation(observed_at):
     return {
-        "seriesSlug": "checkout-completions",
+        "seriesUuid": "checkout-completions",
         "observedAt": observed_at,
         "value": 42,
     }

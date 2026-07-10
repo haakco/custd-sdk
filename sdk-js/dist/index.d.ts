@@ -227,7 +227,7 @@ export type AdminSchemaListResponse = {
     schemas: AdminSchema[];
 };
 export type MeasurementProjectCreate = {
-    projectSlug: string;
+    projectCode: string;
     name: string;
     kind: string;
     description?: string;
@@ -236,7 +236,7 @@ export type MeasurementProjectCreate = {
 };
 export type MeasurementProject = {
     projectUuid: string;
-    projectSlug: string;
+    projectCode: string;
     name: string;
     kind: string;
     status: string;
@@ -246,21 +246,21 @@ export type MeasurementProjectListResponse = {
     projects: MeasurementProject[];
 };
 export type MeasurementSeriesCreate = {
-    seriesSlug: string;
+    seriesCode: string;
     name: string;
-    unit: string;
+    unitSlug: string;
     completionDirection: string;
     source: string;
 };
 export type MeasurementTargetCreate = {
-    targetSlug: string;
+    targetCode: string;
     name: string;
     targetValue: number;
     targetDate?: string;
     state: string;
 };
 export type MeasurementObservationInput = {
-    seriesSlug: string;
+    seriesUuid: string;
     observedAt: string;
     value: number;
     idempotencyKey?: string;
@@ -562,10 +562,10 @@ declare class AdminMeasurementProjectNamespace {
     constructor(request: AdminRequester);
     create(project: MeasurementProjectCreate): Promise<MeasurementProject>;
     list(): Promise<MeasurementProjectListResponse>;
-    get(projectSlug: string): Promise<MeasurementProject>;
-    submitObservation(projectSlug: string, observation: MeasurementObservationInput): Promise<MeasurementObservationBulkResponse>;
-    submitObservations(projectSlug: string, request: MeasurementObservationBulkRequest): Promise<MeasurementObservationBulkResponse>;
-    importCSVString(projectSlug: string, csv: string, expectedRows: number): Promise<MeasurementCSVImportResponse>;
+    get(projectUuid: string): Promise<MeasurementProject>;
+    submitObservation(projectUuid: string, observation: MeasurementObservationInput): Promise<MeasurementObservationBulkResponse>;
+    submitObservations(projectUuid: string, request: MeasurementObservationBulkRequest): Promise<MeasurementObservationBulkResponse>;
+    importCSVString(projectUuid: string, csv: string, expectedRows: number): Promise<MeasurementCSVImportResponse>;
 }
 export type PrepareEventMode = "producer" | "browser-cookieless";
 export type PrepareEventOptions = {
