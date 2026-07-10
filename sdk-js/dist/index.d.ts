@@ -241,6 +241,24 @@ export type MeasurementProject = {
     kind: string;
     status: string;
     description?: string;
+    series?: MeasurementSeries[];
+    target?: MeasurementTarget;
+};
+export type MeasurementSeries = {
+    seriesUuid: string;
+    seriesCode: string;
+    name: string;
+    unitSlug: string;
+    completionDirection: string;
+    source: string;
+};
+export type MeasurementTarget = {
+    targetUuid: string;
+    targetCode: string;
+    name: string;
+    targetValue: number;
+    targetDate?: string;
+    state: string;
 };
 export type MeasurementProjectListResponse = {
     projects: MeasurementProject[];
