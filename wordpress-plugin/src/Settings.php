@@ -6,7 +6,7 @@ namespace HaakCo\Custd\WordPress;
 
 final class Settings
 {
-    private const DEFAULT_BASE_URL = "https://custd.k8.haak.co";
+    private const DEFAULT_BASE_URL = "https://custd.com";
     private const DEFAULT_AUDIENCE = "custd";
     private const DEFAULT_SCOPES = ["events.write"];
 

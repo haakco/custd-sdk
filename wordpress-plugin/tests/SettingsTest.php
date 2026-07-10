@@ -12,20 +12,20 @@ final class SettingsTest extends TestCase
     public function testSettingsSanitizeExternalInputAndKeepSecretsOutOfArray(): void
     {
         $settings = Settings::fromArray([
-            "base_url" => " https://custd.k8.haak.co/ ",
+            "base_url" => " https://custd.com/ ",
             "company_slug" => " Acme Store! ",
             "environment" => " Production Site ",
             "enabled" => "1",
             "token" => " static-token ",
             "oauth_client_id" => " wp-client ",
             "oauth_client_secret" => " oauth-secret ",
-            "oauth_token_url" => " https://custd-auth.k8.haak.co/oauth2/token ",
+            "oauth_token_url" => " https://auth.custd.com/oauth2/token ",
             "oauth_audience" => " custd ",
             "oauth_scopes" => " events.write, managed-audit.write ",
         ]);
 
         $this->assertTrue($settings->enabled());
-        $this->assertSame("https://custd.k8.haak.co", $settings->baseUrl());
+        $this->assertSame("https://custd.com", $settings->baseUrl());
         $this->assertSame("acme-store", $settings->companySlug());
         $this->assertSame("production-site", $settings->environment());
         $this->assertSame(["events.write", "managed-audit.write"], $settings->oauthScopes());

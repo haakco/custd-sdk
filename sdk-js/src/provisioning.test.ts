@@ -30,8 +30,8 @@ describe("CustdClient provisioning", () => {
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const client = CustdClient.fromBrokerEnv({
-      CUSTD_PROVISIONING_ENDPOINT: "https://custd.k8.haak.co/api/v1/managed-audit/provision",
-      CUSTD_PROVISIONING_TOKEN_URL: "https://auth.k8.haak.co/oauth2/token",
+      CUSTD_PROVISIONING_ENDPOINT: "https://custd.com/api/v1/managed-audit/provision",
+      CUSTD_PROVISIONING_TOKEN_URL: "https://auth.custd.com/oauth2/token",
       CUSTD_PROVISIONING_AUDIENCE: "custd",
       CUSTD_PROVISIONING_CLIENT_ID: "awthy-hub-broker-prod",
       CUSTD_PROVISIONING_CLIENT_SECRET: "broker-secret",
@@ -44,14 +44,14 @@ describe("CustdClient provisioning", () => {
     });
 
     const tokenBody = new URLSearchParams(String(fetchMock.mock.calls[0][1]?.body ?? ""));
-    expect(fetchMock.mock.calls[0][0]).toBe("https://auth.k8.haak.co/oauth2/token");
+    expect(fetchMock.mock.calls[0][0]).toBe("https://auth.custd.com/oauth2/token");
     expect(fetchMock.mock.calls[0][1]?.headers).toEqual({ "Content-Type": "application/x-www-form-urlencoded" });
     expect(tokenBody.get("grant_type")).toBe("client_credentials");
     expect(tokenBody.get("client_id")).toBe("awthy-hub-broker-prod");
     expect(tokenBody.get("client_secret")).toBe("broker-secret");
     expect(tokenBody.get("audience")).toBe("custd");
     expect(tokenBody.get("scope")).toBe("admin producers.provision");
-    expect(fetchMock.mock.calls[1][0]).toBe("https://custd.k8.haak.co/api/v1/producer-provisioning");
+    expect(fetchMock.mock.calls[1][0]).toBe("https://custd.com/api/v1/producer-provisioning");
     expect(fetchMock.mock.calls[1][1]?.headers.Authorization).toBe("Bearer broker-token");
     expect(created.scopes).toEqual(["reporting:read"]);
   });

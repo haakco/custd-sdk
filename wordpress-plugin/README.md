@@ -38,10 +38,10 @@ Create a tenant-bound producer client with the SDK-owned setup helper:
 
 ```bash
 go run github.com/haakco/custd-sdk-go/cmd/custd-sdk-setup@latest \
-  --base-url=https://custd.k8.haak.co \
-  --admin-url=https://custd.k8.haak.co \
+  --base-url=https://custd.com \
+  --admin-url=https://custd.com \
   --admin-token="$CUSTD_ADMIN_TOKEN" \
-  --token-url=https://custd-auth.k8.haak.co/oauth2/token \
+  --token-url=https://auth.custd.com/oauth2/token \
   --tenant=my-wordpress-site \
   --company-name="My WordPress Site" \
   --client-id=my-wordpress-site \

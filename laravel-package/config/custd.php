@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 return [
-    "base_url" => env("CUSTD_BASE_URL", "https://custd.k8.haak.co"),
+    "base_url" => env("CUSTD_BASE_URL", "https://custd.com"),
     "token" => env("CUSTD_TOKEN", ""),
     "oauth" => [
         "client_id" => env("CUSTD_CLIENT_ID", ""),

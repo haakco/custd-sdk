@@ -99,10 +99,10 @@ the Go SDK; it does not maintain a separate HTTP client.
 
 ```bash
 go run github.com/haakco/custd-sdk-go/cmd/custd-sdk-setup@latest \
-  --base-url=https://custd.k8.haak.co \
-  --admin-url=https://custd.k8.haak.co \
+  --base-url=https://custd.com \
+  --admin-url=https://custd.com \
   --admin-token="$CUSTD_ADMIN_TOKEN" \
-  --token-url=https://auth.k8.haak.co/oauth2/token \
+  --token-url=https://auth.custd.com/oauth2/token \
   --tenant=vorrent \
   --company-name="Vorrent" \
   --client-id=vorrent-media-cache \
@@ -202,10 +202,10 @@ generated `CUSTD_WP_*` block:
 
 ```bash
 go run github.com/haakco/custd-sdk-go/cmd/custd-sdk-setup@latest \
-  --base-url=https://custd.k8.haak.co \
-  --admin-url=https://custd.k8.haak.co \
+  --base-url=https://custd.com \
+  --admin-url=https://custd.com \
   --admin-token="$CUSTD_ADMIN_TOKEN" \
-  --token-url=https://auth.k8.haak.co/oauth2/token \
+  --token-url=https://auth.custd.com/oauth2/token \
   --tenant=my-wordpress-site \
   --company-name="My WordPress Site" \
   --client-id=my-wordpress-site \
@@ -252,10 +252,10 @@ Create producer credentials with the SDK-owned setup helper:
 
 ```bash
 go run github.com/haakco/custd-sdk-go/cmd/custd-sdk-setup@latest \
-  --base-url=https://custd.k8.haak.co \
-  --admin-url=https://custd.k8.haak.co \
+  --base-url=https://custd.com \
+  --admin-url=https://custd.com \
   --admin-token="$CUSTD_ADMIN_TOKEN" \
-  --token-url=https://auth.k8.haak.co/oauth2/token \
+  --token-url=https://auth.custd.com/oauth2/token \
   --tenant=my-app \
   --company-name="My App" \
   --client-id=my-app-producer \
@@ -267,10 +267,10 @@ go run github.com/haakco/custd-sdk-go/cmd/custd-sdk-setup@latest \
 Configure Laravel with the generated env block:
 
 ```dotenv
-CUSTD_BASE_URL=https://custd.k8.haak.co
+CUSTD_BASE_URL=https://custd.com
 CUSTD_CLIENT_ID=my-app-producer
 CUSTD_CLIENT_SECRET=...
-CUSTD_TOKEN_URL=https://auth.k8.haak.co/oauth2/token
+CUSTD_TOKEN_URL=https://auth.custd.com/oauth2/token
 CUSTD_AUDIENCE=custd
 CUSTD_SCOPES=events.write
 CUSTD_BATCH_MAX_SIZE=100

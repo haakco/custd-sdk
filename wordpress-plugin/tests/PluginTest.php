@@ -45,11 +45,11 @@ final class PluginTest extends TestCase
         $this->assertSame("custd", $registered["group"]);
         $this->assertSame("custd_settings", $registered["name"]);
         $sanitized = $registered["args"]["sanitize_callback"]([
-            "base_url" => " https://custd.k8.haak.co/ ",
+            "base_url" => " https://custd.com/ ",
             "company_slug" => " Acme Store! ",
             "token" => " token ",
         ]);
-        $this->assertSame("https://custd.k8.haak.co", $sanitized["base_url"]);
+        $this->assertSame("https://custd.com", $sanitized["base_url"]);
         $this->assertSame("acme-store", $sanitized["company_slug"]);
         $this->assertSame("token", $sanitized["token"]);
     }

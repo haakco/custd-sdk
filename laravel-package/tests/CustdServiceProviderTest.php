@@ -62,7 +62,7 @@ final class CustdServiceProviderTest extends TestCase
 
         $this->assertSame("", $config["token"]);
         $this->assertSame("", $config["oauth"]["client_secret"]);
-        $this->assertSame("https://custd.k8.haak.co", $config["base_url"]);
+        $this->assertSame("https://custd.com", $config["base_url"]);
     }
 
     public function testSendCustdEventJobResolvesClientAtHandleTime(): void
