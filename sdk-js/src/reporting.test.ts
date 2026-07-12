@@ -17,8 +17,7 @@ function mockFetch(body: unknown) {
 describe("reporting helpers", () => {
   it("reads a reporting dashboard", async () => {
     const fetchImpl = mockFetch(dashboardFixture);
-    globalThis.fetch = fetchImpl as unknown as typeof fetch;
-    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token" });
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
 
     const dashboard = await client.reporting.dashboard("awthy_managed_audit_reporting");
 
@@ -38,8 +37,7 @@ describe("reporting helpers", () => {
 
   it("runs a reporting query and returns trust diagnostics", async () => {
     const fetchImpl = mockFetch(trustFixture);
-    globalThis.fetch = fetchImpl as unknown as typeof fetch;
-    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token" });
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
 
     const request: ReportingQueryRequest = requestFixture;
     const widget = await client.reporting.query(request);
@@ -78,8 +76,11 @@ describe("reporting helpers", () => {
   });
 
   it("rejects unsafe reporting trust diagnostics", async () => {
-    globalThis.fetch = mockFetch(unsafeTrustFixture) as unknown as typeof fetch;
-    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token" });
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "token",
+      fetch: mockFetch(unsafeTrustFixture),
+    });
 
     let thrown: unknown;
     try {
@@ -137,6 +138,69 @@ describe("reporting helpers", () => {
         signal: controller.signal,
       },
     ]);
+  });
+
+  it("calls an injected fetch implementation without changing its receiver", async () => {
+    let receiver: unknown = "not called";
+    const fetchImpl = vi.fn(function (this: unknown): Promise<Response> {
+      receiver = this;
+      return Promise.resolve(Response.json(dashboardFixture));
+    });
+    const client = new CustdClient({
+      baseUrl: "https://api.custd.test",
+      getToken: () => "token",
+      fetch: fetchImpl,
+    });
+
+    await client.reporting.dashboard("security_operations");
+
+    expect(receiver).toBeUndefined();
+  });
+
+  it("keeps configured fetch implementations isolated between clients", async () => {
+    const firstFetch = mockFetch({ ...dashboardFixture, key: "security_operations" });
+    const secondFetch = mockFetch({ ...dashboardFixture, key: "commerce_operations" });
+    const firstClient = new CustdClient({
+      baseUrl: "https://first.custd.test",
+      getToken: () => "first-token",
+      fetch: firstFetch,
+    });
+    const secondClient = new CustdClient({
+      baseUrl: "https://second.custd.test",
+      getToken: () => "second-token",
+      fetch: secondFetch,
+    });
+
+    const [first, second] = await Promise.all([
+      firstClient.reporting.dashboard("security_operations"),
+      secondClient.reporting.dashboard("commerce_operations"),
+    ]);
+
+    expect(first.key).toBe("security_operations");
+    expect(second.key).toBe("commerce_operations");
+    expect(firstFetch).toHaveBeenCalledOnce();
+    expect(secondFetch).toHaveBeenCalledOnce();
+    expect(firstFetch.mock.calls[0][0]).toBe(
+      "https://first.custd.test/api/v1/reporting/dashboards/security_operations",
+    );
+    expect(secondFetch.mock.calls[0][0]).toBe(
+      "https://second.custd.test/api/v1/reporting/dashboards/commerce_operations",
+    );
+  });
+
+  it("uses the global fetch fallback when no implementation is configured", async () => {
+    const fallback = mockFetch({ ...dashboardFixture, key: "security_operations" });
+    vi.stubGlobal("fetch", fallback);
+    try {
+      const client = new CustdClient({ baseUrl: "https://api.custd.test", getToken: () => "token" });
+
+      const dashboard = await client.reporting.dashboard("security_operations");
+
+      expect(dashboard.key).toBe("security_operations");
+      expect(fallback).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("cancels in-flight OAuth token acquisition without leaving a detached request", async () => {

@@ -612,7 +612,8 @@ export class CustdClient {
 
   constructor(config: ClientConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
-    this.fetchImpl = config.fetch ?? globalThis.fetch;
+    const fetchImpl = config.fetch ?? globalThis.fetch;
+    this.fetchImpl = (input, init) => fetchImpl(input, init);
     assertSecureOrLocalHTTP(this.baseUrl, "baseUrl");
     if (config.oauth) {
       assertSecureOrLocalHTTP(config.oauth.tokenUrl, "tokenUrl");
