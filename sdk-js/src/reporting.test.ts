@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import dashboardFixture from "../../contract-fixtures/reporting-dashboard-awthy.json";
-import trustFixture from "../../contract-fixtures/reporting-query-awthy-trust.json";
+import dashboardFixture from "../../contract-fixtures/reporting-dashboard-security.json";
 import requestFixture from "../../contract-fixtures/reporting-query-max-rows.json";
+import trustFixture from "../../contract-fixtures/reporting-query-security-trust.json";
 import unsafeTrustFixture from "../../contract-fixtures/reporting-query-unsafe-trust.json";
 import { CustdClient, type ReportingQueryRequest } from "./index";
 
@@ -19,20 +19,18 @@ describe("reporting helpers", () => {
     const fetchImpl = mockFetch(dashboardFixture);
     const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
 
-    const dashboard = await client.reporting.dashboard("awthy_managed_audit_reporting");
+    const dashboard = await client.reporting.dashboard("security_operations");
 
-    expect(dashboard.key).toBe("awthy_managed_audit_reporting");
+    expect(dashboard.key).toBe("security_operations");
     expect(dashboard.defaultRange).toBe("14d");
     expect(dashboard.refreshSeconds).toBe(300);
     expect(dashboard.requiredScopes).toEqual(["reporting:read"]);
     expect(dashboard.widgets[0]).toMatchObject({
-      template: "awthy_secure_checkout_flow",
-      metrics: ["flow_completion_rate"],
-      dimensions: ["flow_step"],
+      template: "security_events",
+      metrics: ["event_count"],
+      dimensions: ["severity"],
     });
-    expect(fetchImpl.mock.calls[0][0]).toBe(
-      "http://localhost:8080/api/v1/reporting/dashboards/awthy_managed_audit_reporting",
-    );
+    expect(fetchImpl.mock.calls[0][0]).toBe("http://localhost:8080/api/v1/reporting/dashboards/security_operations");
   });
 
   it("runs a reporting query and returns trust diagnostics", async () => {
@@ -53,7 +51,7 @@ describe("reporting helpers", () => {
       deltaCount: 1,
       deltaPercent: 100,
       deltaLabel: "vs previous period",
-      secondaryLabel: "completed checkouts",
+      secondaryLabel: "reviewed events",
     });
     expect(widget.buckets[0]).toMatchObject({
       source: "auto",
@@ -64,7 +62,7 @@ describe("reporting helpers", () => {
     expect(widget.trust).toMatchObject({
       status: "healthy",
       rollupState: "healthy",
-      schemaVersion: "awthy-audit-event/1.0.0",
+      schemaVersion: "security-event/1.0.0",
       coverage: "complete",
       permissionClass: "reporting.read",
       queryWarnings: [],

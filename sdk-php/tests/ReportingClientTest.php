@@ -9,28 +9,28 @@ use PHPUnit\Framework\TestCase;
 
 final class ReportingClientTest extends TestCase
 {
-    public function testDashboardReadsAwthyDashboard(): void
+    public function testDashboardReadsGenericPackDashboard(): void
     {
         $calls = [];
-        $client = $this->clientWithFixture("reporting-dashboard-awthy.json", $calls);
+        $client = $this->clientWithFixture("reporting-dashboard-security.json", $calls);
 
-        $dashboard = $client->reporting()->dashboard("awthy_managed_audit_reporting");
+        $dashboard = $client->reporting()->dashboard("security_operations");
 
-        self::assertSame("awthy_managed_audit_reporting", $dashboard["key"]);
+        self::assertSame("security_operations", $dashboard["key"]);
         self::assertSame("14d", $dashboard["defaultRange"]);
         self::assertSame(300, $dashboard["refreshSeconds"]);
         self::assertSame(["reporting:read"], $dashboard["requiredScopes"]);
-        self::assertSame("awthy_secure_checkout_flow", $dashboard["widgets"][0]["template"]);
-        self::assertSame(["flow_completion_rate"], $dashboard["widgets"][0]["metrics"]);
-        self::assertSame(["flow_step"], $dashboard["widgets"][0]["dimensions"]);
+        self::assertSame("security_events", $dashboard["widgets"][0]["template"]);
+        self::assertSame(["event_count"], $dashboard["widgets"][0]["metrics"]);
+        self::assertSame(["severity"], $dashboard["widgets"][0]["dimensions"]);
         self::assertSame("GET", $calls[0]["method"]);
-        self::assertSame("http://localhost:8080/api/v1/reporting/dashboards/awthy_managed_audit_reporting", $calls[0]["url"]);
+        self::assertSame("http://localhost:8080/api/v1/reporting/dashboards/security_operations", $calls[0]["url"]);
     }
 
     public function testQueryReturnsTrustDiagnostics(): void
     {
         $calls = [];
-        $client = $this->clientWithFixture("reporting-query-awthy-trust.json", $calls);
+        $client = $this->clientWithFixture("reporting-query-security-trust.json", $calls);
 
         $request = $this->fixture("reporting-query-max-rows.json");
         $widget = $client->reporting()->query($request);
@@ -45,14 +45,14 @@ final class ReportingClientTest extends TestCase
         self::assertSame(1, $widget["deltaCount"]);
         self::assertSame(100, $widget["deltaPercent"]);
         self::assertSame("vs previous period", $widget["deltaLabel"]);
-        self::assertSame("completed checkouts", $widget["secondaryLabel"]);
+        self::assertSame("reviewed events", $widget["secondaryLabel"]);
         self::assertSame("auto", $widget["buckets"][0]["source"]);
         self::assertTrue($widget["buckets"][0]["complete"]);
         self::assertSame(42, $widget["buckets"][0]["queryDurationMs"]);
         self::assertSame(1, $widget["buckets"][0]["parquetUriCount"]);
         self::assertSame("healthy", $widget["trust"]["status"]);
         self::assertSame("healthy", $widget["trust"]["rollupState"]);
-        self::assertSame("awthy-audit-event/1.0.0", $widget["trust"]["schemaVersion"]);
+        self::assertSame("security-event/1.0.0", $widget["trust"]["schemaVersion"]);
         self::assertSame("complete", $widget["trust"]["coverage"]);
         self::assertSame("reporting.read", $widget["trust"]["permissionClass"]);
         self::assertSame([], $widget["trust"]["queryWarnings"]);
