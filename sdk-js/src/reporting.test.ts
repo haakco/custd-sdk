@@ -107,4 +107,35 @@ describe("reporting helpers", () => {
       expect(message).not.toContain(unsafeValue);
     }
   });
+
+  it("uses the configured fetch implementation and forwards abort signals through token and reporting requests", async () => {
+    const controller = new AbortController();
+    const calls: Array<{ url: string; signal: AbortSignal | null | undefined }> = [];
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), signal: init?.signal });
+      if (String(url) === "https://auth.custd.test/token") {
+        return Response.json({ access_token: "token", expires_in: 300 });
+      }
+      return Response.json(dashboardFixture);
+    });
+    const client = new CustdClient({
+      baseUrl: "https://api.custd.test",
+      oauth: {
+        clientId: "client",
+        clientSecret: "secret",
+        tokenUrl: "https://auth.custd.test/token",
+      },
+      fetch: fetchImpl,
+    });
+
+    await client.reporting.dashboard("awthy_managed_audit_reporting", { signal: controller.signal });
+
+    expect(calls).toEqual([
+      { url: "https://auth.custd.test/token", signal: controller.signal },
+      {
+        url: "https://api.custd.test/api/v1/reporting/dashboards/awthy_managed_audit_reporting",
+        signal: controller.signal,
+      },
+    ]);
+  });
 });

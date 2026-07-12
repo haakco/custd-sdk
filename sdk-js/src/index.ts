@@ -139,13 +139,18 @@ export type ProducerProvisionPublicClient = {
 
 export type ClientConfig = {
   baseUrl: string;
-  getToken?: () => string | Promise<string>;
+  getToken?: (options?: RequestOptions) => string | Promise<string>;
   oauth?: ProducerOAuthConfig;
+  fetch?: typeof fetch;
   defaultHeaders?: Record<string, string>;
   retry?: RetryOptions;
   batch?: BatchOptions;
   queue?: QueueOptions;
   compression?: CompressionOptions;
+};
+
+export type RequestOptions = {
+  signal?: AbortSignal;
 };
 
 export type BrokerEnv = Record<string, string | undefined>;
@@ -588,7 +593,8 @@ export class CustdClient {
   public readonly reporting: ReportingNamespace;
   public readonly schemas: SchemaNamespace;
   private baseUrl: string;
-  private getToken: () => string | Promise<string>;
+  private getToken: (options?: RequestOptions) => string | Promise<string>;
+  private fetchImpl: typeof fetch;
   private defaultHeaders: Record<string, string>;
   private retry: Required<RetryOptions>;
   private batch: BatchOptions | undefined;
@@ -606,10 +612,11 @@ export class CustdClient {
 
   constructor(config: ClientConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
+    this.fetchImpl = config.fetch ?? globalThis.fetch;
     assertSecureOrLocalHTTP(this.baseUrl, "baseUrl");
     if (config.oauth) {
       assertSecureOrLocalHTTP(config.oauth.tokenUrl, "tokenUrl");
-      this.getToken = () => this.fetchOAuthToken(config.oauth as ProducerOAuthConfig);
+      this.getToken = (options) => this.fetchOAuthToken(config.oauth as ProducerOAuthConfig, options);
     } else if (config.getToken) {
       this.getToken = config.getToken;
     } else {
@@ -625,8 +632,12 @@ export class CustdClient {
     this.compressionEnabled = config.compression?.enabled ?? true;
     this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
     this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body));
-    this.provisioning = new ProvisioningNamespace((method, path, body) => this.apiRequest(method, path, body));
-    this.reporting = new ReportingNamespace((method, path, body) => this.apiRequest(method, path, body));
+    this.provisioning = new ProvisioningNamespace((method, path, body, options) =>
+      this.apiRequest(method, path, body, options),
+    );
+    this.reporting = new ReportingNamespace((method, path, body, options) =>
+      this.apiRequest(method, path, body, options),
+    );
     this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
 
     if (this.queueEnabled) {
@@ -679,7 +690,7 @@ export class CustdClient {
     });
   }
 
-  private async fetchOAuthToken(config: ProducerOAuthConfig): Promise<string> {
+  private async fetchOAuthToken(config: ProducerOAuthConfig, options?: RequestOptions): Promise<string> {
     const now = Date.now();
     if (this.oauthToken && this.oauthToken.expiresAtMs > now + 30_000) {
       return this.oauthToken.value;
@@ -696,10 +707,11 @@ export class CustdClient {
       body.set("scope", config.scopes.join(" "));
     }
 
-    const response = await fetch(config.tokenUrl, {
+    const response = await this.fetchImpl(config.tokenUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
+      signal: options?.signal,
     });
     if (!response.ok) {
       throw new Error(`custd: token request failed with status ${response.status}`);
@@ -795,7 +807,7 @@ export class CustdClient {
   private async sendWithRetry(event: EventEnvelope): Promise<Response> {
     return withRetry(this.retry, async () => {
       const token = await this.getToken();
-      const response = await fetch(`${this.baseUrl}/api/v1/events`, {
+      const response = await this.fetchImpl(`${this.baseUrl}/api/v1/events`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -830,7 +842,7 @@ export class CustdClient {
       if (contentEncoding) {
         headers["Content-Encoding"] = contentEncoding;
       }
-      const response = await fetch(`${this.baseUrl}/api/v1/events/batch`, {
+      const response = await this.fetchImpl(`${this.baseUrl}/api/v1/events/batch`, {
         method: "POST",
         headers,
         body,
@@ -898,9 +910,9 @@ export class CustdClient {
     return this.apiRequest(method, `/admin${path}`, body);
   }
 
-  private async apiRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const token = await this.getToken();
-    const response = await fetch(`${this.baseUrl}/api/v1${path}`, {
+  private async apiRequest<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+    const token = await this.getToken(options);
+    const response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
       method,
       headers: {
         "Content-Type": "application/json",
@@ -908,6 +920,7 @@ export class CustdClient {
         ...this.defaultHeaders,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: options?.signal,
     });
 
     if (!response.ok) {
@@ -922,17 +935,17 @@ export class CustdClient {
 
 type AdminRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
-type APIRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
+type APIRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 
 class ReportingNamespace {
   constructor(private readonly request: APIRequester) {}
 
-  dashboard(key: string): Promise<ReportingDashboard> {
-    return this.request("GET", `/reporting/dashboards/${encodeURIComponent(key)}`);
+  dashboard(key: string, options?: RequestOptions): Promise<ReportingDashboard> {
+    return this.request("GET", `/reporting/dashboards/${encodeURIComponent(key)}`, undefined, options);
   }
 
-  async query(request: ReportingQueryRequest): Promise<ReportingWidgetData> {
-    const data = await this.request<ReportingWidgetData>("POST", "/reporting/query", request);
+  async query(request: ReportingQueryRequest, options?: RequestOptions): Promise<ReportingWidgetData> {
+    const data = await this.request<ReportingWidgetData>("POST", "/reporting/query", request, options);
     if (data.trust && containsForbiddenReportingTrustKey(data.trust)) {
       throw new Error("custd: unsafe reporting trust diagnostics");
     }

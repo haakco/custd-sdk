@@ -111,13 +111,17 @@ export type ProducerProvisionPublicClient = {
 };
 export type ClientConfig = {
     baseUrl: string;
-    getToken?: () => string | Promise<string>;
+    getToken?: (options?: RequestOptions) => string | Promise<string>;
     oauth?: ProducerOAuthConfig;
+    fetch?: typeof fetch;
     defaultHeaders?: Record<string, string>;
     retry?: RetryOptions;
     batch?: BatchOptions;
     queue?: QueueOptions;
     compression?: CompressionOptions;
+};
+export type RequestOptions = {
+    signal?: AbortSignal;
 };
 export type BrokerEnv = Record<string, string | undefined>;
 export type BrokerEnvClientOptions = Omit<ClientConfig, "baseUrl" | "getToken" | "oauth"> & {
@@ -464,6 +468,7 @@ export declare class CustdClient {
     readonly schemas: SchemaNamespace;
     private baseUrl;
     private getToken;
+    private fetchImpl;
     private defaultHeaders;
     private retry;
     private batch;
@@ -497,12 +502,12 @@ export declare class CustdClient {
 }
 type AdminRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
-type APIRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
+type APIRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 declare class ReportingNamespace {
     private readonly request;
     constructor(request: APIRequester);
-    dashboard(key: string): Promise<ReportingDashboard>;
-    query(request: ReportingQueryRequest): Promise<ReportingWidgetData>;
+    dashboard(key: string, options?: RequestOptions): Promise<ReportingDashboard>;
+    query(request: ReportingQueryRequest, options?: RequestOptions): Promise<ReportingWidgetData>;
 }
 declare class SchemaNamespace {
     private readonly request;

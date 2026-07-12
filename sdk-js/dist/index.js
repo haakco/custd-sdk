@@ -60,10 +60,11 @@ export class CustdClient {
         this.removeFlushTriggers = [];
         this.oauthToken = null;
         this.baseUrl = config.baseUrl.replace(/\/$/, "");
+        this.fetchImpl = config.fetch ?? globalThis.fetch;
         assertSecureOrLocalHTTP(this.baseUrl, "baseUrl");
         if (config.oauth) {
             assertSecureOrLocalHTTP(config.oauth.tokenUrl, "tokenUrl");
-            this.getToken = () => this.fetchOAuthToken(config.oauth);
+            this.getToken = (options) => this.fetchOAuthToken(config.oauth, options);
         }
         else if (config.getToken) {
             this.getToken = config.getToken;
@@ -81,8 +82,8 @@ export class CustdClient {
         this.compressionEnabled = config.compression?.enabled ?? true;
         this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
         this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body));
-        this.provisioning = new ProvisioningNamespace((method, path, body) => this.apiRequest(method, path, body));
-        this.reporting = new ReportingNamespace((method, path, body) => this.apiRequest(method, path, body));
+        this.provisioning = new ProvisioningNamespace((method, path, body, options) => this.apiRequest(method, path, body, options));
+        this.reporting = new ReportingNamespace((method, path, body, options) => this.apiRequest(method, path, body, options));
         this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
         if (this.queueEnabled) {
             this.queue = this.queueStorage.load();
@@ -129,7 +130,7 @@ export class CustdClient {
             },
         });
     }
-    async fetchOAuthToken(config) {
+    async fetchOAuthToken(config, options) {
         const now = Date.now();
         if (this.oauthToken && this.oauthToken.expiresAtMs > now + 30000) {
             return this.oauthToken.value;
@@ -144,10 +145,11 @@ export class CustdClient {
         if (config.scopes && config.scopes.length > 0) {
             body.set("scope", config.scopes.join(" "));
         }
-        const response = await fetch(config.tokenUrl, {
+        const response = await this.fetchImpl(config.tokenUrl, {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body,
+            signal: options?.signal,
         });
         if (!response.ok) {
             throw new Error(`custd: token request failed with status ${response.status}`);
@@ -232,7 +234,7 @@ export class CustdClient {
     async sendWithRetry(event) {
         return withRetry(this.retry, async () => {
             const token = await this.getToken();
-            const response = await fetch(`${this.baseUrl}/api/v1/events`, {
+            const response = await this.fetchImpl(`${this.baseUrl}/api/v1/events`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -264,7 +266,7 @@ export class CustdClient {
             if (contentEncoding) {
                 headers["Content-Encoding"] = contentEncoding;
             }
-            const response = await fetch(`${this.baseUrl}/api/v1/events/batch`, {
+            const response = await this.fetchImpl(`${this.baseUrl}/api/v1/events/batch`, {
                 method: "POST",
                 headers,
                 body,
@@ -325,9 +327,9 @@ export class CustdClient {
     async adminRequest(method, path, body) {
         return this.apiRequest(method, `/admin${path}`, body);
     }
-    async apiRequest(method, path, body) {
-        const token = await this.getToken();
-        const response = await fetch(`${this.baseUrl}/api/v1${path}`, {
+    async apiRequest(method, path, body, options) {
+        const token = await this.getToken(options);
+        const response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
             method,
             headers: {
                 "Content-Type": "application/json",
@@ -335,6 +337,7 @@ export class CustdClient {
                 ...this.defaultHeaders,
             },
             body: body === undefined ? undefined : JSON.stringify(body),
+            signal: options?.signal,
         });
         if (!response.ok) {
             throw new Error(`custd: request failed with status ${response.status}`);
@@ -349,11 +352,11 @@ class ReportingNamespace {
     constructor(request) {
         this.request = request;
     }
-    dashboard(key) {
-        return this.request("GET", `/reporting/dashboards/${encodeURIComponent(key)}`);
+    dashboard(key, options) {
+        return this.request("GET", `/reporting/dashboards/${encodeURIComponent(key)}`, undefined, options);
     }
-    async query(request) {
-        const data = await this.request("POST", "/reporting/query", request);
+    async query(request, options) {
+        const data = await this.request("POST", "/reporting/query", request, options);
         if (data.trust && containsForbiddenReportingTrustKey(data.trust)) {
             throw new Error("custd: unsafe reporting trust diagnostics");
         }
