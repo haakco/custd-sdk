@@ -88,7 +88,7 @@ class ReportingClientTest(unittest.TestCase):
         transport = FakeTransport(fixture("reporting-query-unsafe-trust.json"))
         client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
 
-        with self.assertRaisesRegex(ValueError, "unsafe reporting trust diagnostics"):
+        with self.assertRaises(ValueError) as raised:
             client.reporting.query(
                 {
                     "template": "awthy_secure_checkout_flow",
@@ -96,3 +96,16 @@ class ReportingClientTest(unittest.TestCase):
                     "rangeDays": 1,
                 }
             )
+
+        message = str(raised.exception)
+        self.assertEqual("custd: unsafe reporting trust diagnostics", message)
+        for unsafe_value in (
+            "customer@example.test",
+            "unknown",
+            "failed",
+            "none",
+            "not_enough_data",
+            "enabled",
+            "present",
+        ):
+            self.assertNotIn(unsafe_value, message)

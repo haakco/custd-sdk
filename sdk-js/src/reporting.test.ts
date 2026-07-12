@@ -81,12 +81,30 @@ describe("reporting helpers", () => {
     globalThis.fetch = mockFetch(unsafeTrustFixture) as unknown as typeof fetch;
     const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token" });
 
-    await expect(
-      client.reporting.query({
+    let thrown: unknown;
+    try {
+      await client.reporting.query({
         template: "awthy_secure_checkout_flow",
         metrics: ["flow_completion_rate"],
         rangeDays: 1,
-      }),
-    ).rejects.toThrow("unsafe reporting trust diagnostics");
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    const message = (thrown as Error).message;
+    expect(message).toBe("custd: unsafe reporting trust diagnostics");
+    for (const unsafeValue of [
+      "customer@example.test",
+      "unknown",
+      "failed",
+      "none",
+      "not_enough_data",
+      "enabled",
+      "present",
+    ]) {
+      expect(message).not.toContain(unsafeValue);
+    }
   });
 });

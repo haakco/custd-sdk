@@ -68,13 +68,28 @@ final class ReportingClientTest extends TestCase
         $calls = [];
         $client = $this->clientWithFixture("reporting-query-unsafe-trust.json", $calls);
 
-        $this->expectExceptionMessage("unsafe reporting trust diagnostics");
-
-        $client->reporting()->query([
-            "template" => "awthy_secure_checkout_flow",
-            "metrics" => ["flow_completion_rate"],
-            "rangeDays" => 1,
-        ]);
+        try {
+            $client->reporting()->query([
+                "template" => "awthy_secure_checkout_flow",
+                "metrics" => ["flow_completion_rate"],
+                "rangeDays" => 1,
+            ]);
+            self::fail("Query returned no error for unsafe trust diagnostics");
+        } catch (\RuntimeException $error) {
+            $message = $error->getMessage();
+            self::assertSame("custd: unsafe reporting trust diagnostics", $message);
+            foreach ([
+                "customer@example.test",
+                "unknown",
+                "failed",
+                "none",
+                "not_enough_data",
+                "enabled",
+                "present",
+            ] as $unsafeValue) {
+                self::assertStringNotContainsString($unsafeValue, $message);
+            }
+        }
     }
 
     /**

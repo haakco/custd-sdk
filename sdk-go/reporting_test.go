@@ -85,7 +85,24 @@ func TestReportingQueryRejectsUnsafeTrustDiagnostics(t *testing.T) {
 		Metrics:   []string{"flow_completion_rate"},
 		RangeDays: 1,
 	})
-	if err == nil || !strings.Contains(err.Error(), "unsafe reporting trust diagnostics") {
-		t.Fatalf("error = %v, want unsafe reporting trust diagnostics", err)
+	if err == nil {
+		t.Fatal("Query returned no error for unsafe trust diagnostics")
+	}
+	message := err.Error()
+	if message != "custd: decode reporting response: custd: unsafe reporting trust diagnostics" {
+		t.Fatalf("error = %q, want exact generic message", message)
+	}
+	for _, unsafeValue := range []string{
+		"customer@example.test",
+		"unknown",
+		"failed",
+		"none",
+		"not_enough_data",
+		"enabled",
+		"present",
+	} {
+		if strings.Contains(message, unsafeValue) {
+			t.Fatalf("error contains unsafe diagnostic value %q: %q", unsafeValue, message)
+		}
 	}
 }
