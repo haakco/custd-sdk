@@ -32,7 +32,7 @@ final class ReportingClientTest extends TestCase
         $calls = [];
         $client = $this->clientWithFixture("reporting-query-security-trust.json", $calls);
 
-        $request = $this->fixture("reporting-query-max-rows.json");
+        $request = $this->fixture("reporting-query-security.json");
         $widget = $client->reporting()->query($request);
 
         self::assertSame(2, $widget["count"]);
@@ -58,6 +58,17 @@ final class ReportingClientTest extends TestCase
         self::assertSame([], $widget["trust"]["queryWarnings"]);
         self::assertSame("POST", $calls[0]["method"]);
         self::assertSame("http://localhost:8080/api/v1/reporting/query", $calls[0]["url"]);
+        self::assertSame($request, $calls[0]["body"]);
+    }
+
+    public function testQuerySerializesMaxRowsWithoutRowLimit(): void
+    {
+        $calls = [];
+        $client = $this->clientWithFixture("reporting-query-security-trust.json", $calls);
+        $request = $this->fixture("reporting-query-max-rows.json");
+
+        $client->reporting()->query($request);
+
         self::assertSame($request, $calls[0]["body"]);
         self::assertSame(50, $calls[0]["body"]["maxRows"]);
         self::assertArrayNotHasKey("rowLimit", $calls[0]["body"]);

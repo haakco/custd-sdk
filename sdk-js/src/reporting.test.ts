@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import dashboardFixture from "../../contract-fixtures/reporting-dashboard-security.json";
-import requestFixture from "../../contract-fixtures/reporting-query-max-rows.json";
+import maxRowsRequestFixture from "../../contract-fixtures/reporting-query-max-rows.json";
+import requestFixture from "../../contract-fixtures/reporting-query-security.json";
 import trustFixture from "../../contract-fixtures/reporting-query-security-trust.json";
 import unsafeTrustFixture from "../../contract-fixtures/reporting-query-unsafe-trust.json";
 import { CustdClient, type ReportingQueryRequest } from "./index";
@@ -69,6 +70,16 @@ describe("reporting helpers", () => {
     });
     const requestBody = JSON.parse(fetchImpl.mock.calls[0][1]?.body as string) as Record<string, unknown>;
     expect(requestBody).toEqual(requestFixture);
+  });
+
+  it("serializes maxRows without the removed rowLimit field", async () => {
+    const fetchImpl = mockFetch(trustFixture);
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+
+    await client.reporting.query(maxRowsRequestFixture);
+
+    const requestBody = JSON.parse(fetchImpl.mock.calls[0][1]?.body as string) as Record<string, unknown>;
+    expect(requestBody).toEqual(maxRowsRequestFixture);
     expect(requestBody.maxRows).toBe(50);
     expect(requestBody).not.toHaveProperty("rowLimit");
   });

@@ -36,7 +36,7 @@ func TestReportingQueryReturnsTrustDiagnostics(t *testing.T) {
 	doer := newCaptureDoer(http.StatusOK, string(readContractFixture(t, "reporting-query-security-trust.json")))
 	client := newAdminTestClient(t, doer, "http://localhost:8080")
 
-	requestFixtureBytes := readContractFixture(t, "reporting-query-max-rows.json")
+	requestFixtureBytes := readContractFixture(t, "reporting-query-security.json")
 	var request ReportingQueryRequest
 	if err := json.Unmarshal(requestFixtureBytes, &request); err != nil {
 		t.Fatalf("decode request fixture: %v", err)
@@ -68,11 +68,28 @@ func TestReportingQueryReturnsTrustDiagnostics(t *testing.T) {
 	if !reflect.DeepEqual(requestBody, requestFixture) {
 		t.Fatalf("request body = %#v, want %#v", requestBody, requestFixture)
 	}
-	if requestBody["maxRows"] != float64(50) {
-		t.Fatalf("maxRows = %#v, want 50", requestBody["maxRows"])
+}
+
+func TestReportingQuerySerializesMaxRowsWithoutRowLimit(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, string(readContractFixture(t, "reporting-query-security-trust.json")))
+	client := newAdminTestClient(t, doer, "http://localhost:8080")
+	fixtureBytes := readContractFixture(t, "reporting-query-max-rows.json")
+	var request ReportingQueryRequest
+	if err := json.Unmarshal(fixtureBytes, &request); err != nil {
+		t.Fatalf("decode request fixture: %v", err)
 	}
-	if _, ok := requestBody["rowLimit"]; ok {
-		t.Fatalf("request body contains rowLimit: %#v", requestBody)
+	if _, err := client.Reporting.Query(context.Background(), request); err != nil {
+		t.Fatalf("Query returned error: %v", err)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(doer.requests[0].Body, &body); err != nil {
+		t.Fatalf("decode request body: %v", err)
+	}
+	if body["maxRows"] != float64(50) {
+		t.Fatalf("maxRows = %#v, want 50", body["maxRows"])
+	}
+	if _, ok := body["rowLimit"]; ok {
+		t.Fatalf("request body contains rowLimit: %#v", body)
 	}
 }
 

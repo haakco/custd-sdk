@@ -102,6 +102,22 @@ final class VersionSyncTest extends TestCase
         );
     }
 
+    public function testReleaseWorkflowsNeverForcePushMain(): void
+    {
+        $workflowPaths = array_merge(
+            glob($this->repoPath(".github/workflows/*.yml")) ?: [],
+            glob($this->repoPath(".github/workflows/*.yaml")) ?: []
+        );
+        foreach ($workflowPaths as $workflowPath) {
+            $workflow = (string) file_get_contents($workflowPath);
+            $this->assertDoesNotMatchRegularExpression(
+                '/push[^\n]*(?:refs\/heads\/main|main)[^\n]*--force|push[^\n]*--force[^\n]*(?:refs\/heads\/main|main)/',
+                $workflow,
+                basename($workflowPath) . " must preserve main branch history."
+            );
+        }
+    }
+
     private function sourceOfTruth(): string
     {
         return trim((string) file_get_contents($this->repoPath("VERSION")));

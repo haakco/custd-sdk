@@ -53,7 +53,7 @@ class ReportingClientTest(unittest.TestCase):
         transport = FakeTransport(fixture("reporting-query-security-trust.json"))
         client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
 
-        request = fixture("reporting-query-max-rows.json")
+        request = fixture("reporting-query-security.json")
         widget = client.reporting.query(request)
 
         self.assertEqual(2, widget["count"])
@@ -79,6 +79,16 @@ class ReportingClientTest(unittest.TestCase):
         self.assertEqual([], widget["trust"]["queryWarnings"])
         self.assertEqual("POST", transport.calls[0][0])
         self.assertEqual("http://localhost:8080/api/v1/reporting/query", transport.calls[0][1])
+        request_body = transport.calls[0][2]
+        self.assertEqual(request, request_body)
+
+    def test_reporting_query_serializes_max_rows_without_row_limit(self) -> None:
+        transport = FakeTransport(fixture("reporting-query-security-trust.json"))
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+        request = fixture("reporting-query-max-rows.json")
+
+        client.reporting.query(request)
+
         request_body = transport.calls[0][2]
         self.assertEqual(request, request_body)
         self.assertEqual(50, request_body["maxRows"] if request_body else None)
