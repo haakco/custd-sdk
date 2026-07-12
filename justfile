@@ -1,6 +1,6 @@
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
-test: test-go test-js test-python test-php
+test: test-go test-js test-python test-php test-release-mirrors
 
 check: test lint-workflows lint-markdown diff-check
 
@@ -37,3 +37,6 @@ test-php:
   cd sdk-php && composer analyse
   cd sdk-php && composer format-check
   composer test
+
+test-release-mirrors:
+  bash scripts/test-publish-release-mirror.sh
