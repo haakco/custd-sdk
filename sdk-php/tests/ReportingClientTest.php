@@ -17,6 +17,12 @@ final class ReportingClientTest extends TestCase
         $dashboard = $client->reporting()->dashboard("awthy_managed_audit_reporting");
 
         self::assertSame("awthy_managed_audit_reporting", $dashboard["key"]);
+        self::assertSame("14d", $dashboard["defaultRange"]);
+        self::assertSame(300, $dashboard["refreshSeconds"]);
+        self::assertSame(["reporting:read"], $dashboard["requiredScopes"]);
+        self::assertSame("awthy_secure_checkout_flow", $dashboard["widgets"][0]["template"]);
+        self::assertSame(["flow_completion_rate"], $dashboard["widgets"][0]["metrics"]);
+        self::assertSame(["flow_step"], $dashboard["widgets"][0]["dimensions"]);
         self::assertSame("GET", $calls[0]["method"]);
         self::assertSame("http://localhost:8080/api/v1/reporting/dashboards/awthy_managed_audit_reporting", $calls[0]["url"]);
     }
@@ -26,17 +32,35 @@ final class ReportingClientTest extends TestCase
         $calls = [];
         $client = $this->clientWithFixture("reporting-query-awthy-trust.json", $calls);
 
-        $widget = $client->reporting()->query([
-            "template" => "awthy_secure_checkout_flow",
-            "metrics" => ["flow_completion_rate"],
-            "from" => "2026-07-06",
-            "to" => "2026-07-06",
-            "maxRows" => 50,
-        ]);
+        $request = $this->fixture("reporting-query-max-rows.json");
+        $widget = $client->reporting()->query($request);
 
+        self::assertSame(2, $widget["count"]);
+        self::assertTrue($widget["complete"]);
+        self::assertFalse($widget["truncated"]);
+        self::assertSame(42, $widget["queryDurationMs"]);
+        self::assertSame(1, $widget["parquetUriCount"]);
+        self::assertSame(120000, $widget["snapshotAgeMs"]);
+        self::assertSame(8000, $widget["eventLagP95Ms"]);
+        self::assertSame(1, $widget["deltaCount"]);
+        self::assertSame(100, $widget["deltaPercent"]);
+        self::assertSame("vs previous period", $widget["deltaLabel"]);
+        self::assertSame("completed checkouts", $widget["secondaryLabel"]);
+        self::assertSame("auto", $widget["buckets"][0]["source"]);
+        self::assertTrue($widget["buckets"][0]["complete"]);
+        self::assertSame(42, $widget["buckets"][0]["queryDurationMs"]);
+        self::assertSame(1, $widget["buckets"][0]["parquetUriCount"]);
         self::assertSame("healthy", $widget["trust"]["status"]);
+        self::assertSame("healthy", $widget["trust"]["rollupState"]);
+        self::assertSame("awthy-audit-event/1.0.0", $widget["trust"]["schemaVersion"]);
+        self::assertSame("complete", $widget["trust"]["coverage"]);
+        self::assertSame("reporting.read", $widget["trust"]["permissionClass"]);
+        self::assertSame([], $widget["trust"]["queryWarnings"]);
         self::assertSame("POST", $calls[0]["method"]);
         self::assertSame("http://localhost:8080/api/v1/reporting/query", $calls[0]["url"]);
+        self::assertSame($request, $calls[0]["body"]);
+        self::assertSame(50, $calls[0]["body"]["maxRows"]);
+        self::assertArrayNotHasKey("rowLimit", $calls[0]["body"]);
     }
 
     public function testQueryRejectsUnsafeTrustDiagnostics(): void
@@ -67,5 +91,15 @@ final class ReportingClientTest extends TestCase
                 ];
             },
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function fixture(string $fixture): array
+    {
+        $contents = (string) file_get_contents(__DIR__ . "/../../contract-fixtures/" . $fixture);
+
+        return json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
     }
 }

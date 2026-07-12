@@ -373,6 +373,9 @@ export type ReportingDashboard = {
     key: string;
     title: string;
     hidden?: boolean;
+    defaultRange: string;
+    refreshSeconds: number;
+    requiredScopes: string[];
     widgets: ReportingWidget[];
 };
 export type ReportingWidget = {

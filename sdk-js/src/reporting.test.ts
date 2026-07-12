@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import dashboardFixture from "../../contract-fixtures/reporting-dashboard-awthy.json";
 import trustFixture from "../../contract-fixtures/reporting-query-awthy-trust.json";
+import requestFixture from "../../contract-fixtures/reporting-query-max-rows.json";
 import unsafeTrustFixture from "../../contract-fixtures/reporting-query-unsafe-trust.json";
-import { CustdClient } from "./index";
+import { CustdClient, type ReportingQueryRequest } from "./index";
 
 function mockFetch(body: unknown) {
   return vi.fn().mockResolvedValue(
@@ -22,25 +23,58 @@ describe("reporting helpers", () => {
     const dashboard = await client.reporting.dashboard("awthy_managed_audit_reporting");
 
     expect(dashboard.key).toBe("awthy_managed_audit_reporting");
+    expect(dashboard.defaultRange).toBe("14d");
+    expect(dashboard.refreshSeconds).toBe(300);
+    expect(dashboard.requiredScopes).toEqual(["reporting:read"]);
+    expect(dashboard.widgets[0]).toMatchObject({
+      template: "awthy_secure_checkout_flow",
+      metrics: ["flow_completion_rate"],
+      dimensions: ["flow_step"],
+    });
     expect(fetchImpl.mock.calls[0][0]).toBe(
       "http://localhost:8080/api/v1/reporting/dashboards/awthy_managed_audit_reporting",
     );
   });
 
   it("runs a reporting query and returns trust diagnostics", async () => {
-    globalThis.fetch = mockFetch(trustFixture) as unknown as typeof fetch;
+    const fetchImpl = mockFetch(trustFixture);
+    globalThis.fetch = fetchImpl as unknown as typeof fetch;
     const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token" });
 
-    const widget = await client.reporting.query({
-      template: "awthy_secure_checkout_flow",
-      metrics: ["flow_completion_rate"],
-      from: "2026-07-06",
-      to: "2026-07-06",
-      maxRows: 50,
-    });
+    const request: ReportingQueryRequest = requestFixture;
+    const widget = await client.reporting.query(request);
 
-    expect(widget.trust?.status).toBe("healthy");
-    expect(widget.trust?.rollupState).toBe("healthy");
+    expect(widget).toMatchObject({
+      count: 2,
+      complete: true,
+      truncated: false,
+      queryDurationMs: 42,
+      parquetUriCount: 1,
+      snapshotAgeMs: 120000,
+      eventLagP95Ms: 8000,
+      deltaCount: 1,
+      deltaPercent: 100,
+      deltaLabel: "vs previous period",
+      secondaryLabel: "completed checkouts",
+    });
+    expect(widget.buckets[0]).toMatchObject({
+      source: "auto",
+      complete: true,
+      queryDurationMs: 42,
+      parquetUriCount: 1,
+    });
+    expect(widget.trust).toMatchObject({
+      status: "healthy",
+      rollupState: "healthy",
+      schemaVersion: "awthy-audit-event/1.0.0",
+      coverage: "complete",
+      permissionClass: "reporting.read",
+      queryWarnings: [],
+    });
+    const requestBody = JSON.parse(fetchImpl.mock.calls[0][1]?.body as string) as Record<string, unknown>;
+    expect(requestBody).toEqual(requestFixture);
+    expect(requestBody.maxRows).toBe(50);
+    expect(requestBody).not.toHaveProperty("rowLimit");
   });
 
   it("rejects unsafe reporting trust diagnostics", async () => {
