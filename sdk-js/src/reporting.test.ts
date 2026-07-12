@@ -128,14 +128,106 @@ describe("reporting helpers", () => {
       fetch: fetchImpl,
     });
 
-    await client.reporting.dashboard("awthy_managed_audit_reporting", { signal: controller.signal });
+    await client.reporting.dashboard("security_operations", { signal: controller.signal });
 
     expect(calls).toEqual([
       { url: "https://auth.custd.test/token", signal: controller.signal },
       {
-        url: "https://api.custd.test/api/v1/reporting/dashboards/awthy_managed_audit_reporting",
+        url: "https://api.custd.test/api/v1/reporting/dashboards/security_operations",
         signal: controller.signal,
       },
     ]);
   });
+
+  it("cancels in-flight OAuth token acquisition without leaving a detached request", async () => {
+    const pending = abortAwareFetch();
+    const controller = new AbortController();
+    const client = new CustdClient({
+      baseUrl: "https://api.custd.test",
+      oauth: {
+        clientId: "client",
+        clientSecret: "secret",
+        tokenUrl: "https://auth.custd.test/token",
+      },
+      fetch: pending.fetch,
+    });
+
+    const dashboard = client.reporting.dashboard("security_operations", { signal: controller.signal });
+    await vi.waitFor(() => expect(pending.fetch).toHaveBeenCalledTimes(1));
+    controller.abort();
+
+    await expect(dashboard).rejects.toMatchObject({ name: "AbortError" });
+    expect(pending.urls).toEqual(["https://auth.custd.test/token"]);
+    expect(pending.activeRequests()).toBe(0);
+    expect(pending.abortedRequests()).toBe(1);
+    expect(pending.resolvedRequests()).toBe(0);
+  });
+
+  it("cancels in-flight dashboard and query API fetches when a token is already available", async () => {
+    const pending = abortAwareFetch();
+    const client = new CustdClient({
+      baseUrl: "https://api.custd.test",
+      getToken: () => "token",
+      fetch: pending.fetch,
+    });
+
+    const dashboardController = new AbortController();
+    const dashboard = client.reporting.dashboard("security_operations", { signal: dashboardController.signal });
+    await vi.waitFor(() => expect(pending.fetch).toHaveBeenCalledTimes(1));
+    dashboardController.abort();
+    await expect(dashboard).rejects.toMatchObject({ name: "AbortError" });
+
+    const queryController = new AbortController();
+    const query = client.reporting.query(
+      { template: "security_events", metrics: ["event_count"], maxRows: 25 },
+      { signal: queryController.signal },
+    );
+    await vi.waitFor(() => expect(pending.fetch).toHaveBeenCalledTimes(2));
+    queryController.abort();
+    await expect(query).rejects.toMatchObject({ name: "AbortError" });
+
+    expect(pending.urls).toEqual([
+      "https://api.custd.test/api/v1/reporting/dashboards/security_operations",
+      "https://api.custd.test/api/v1/reporting/query",
+    ]);
+    expect(pending.activeRequests()).toBe(0);
+    expect(pending.abortedRequests()).toBe(2);
+    expect(pending.resolvedRequests()).toBe(0);
+  });
 });
+
+function abortAwareFetch() {
+  let active = 0;
+  let aborted = 0;
+  let resolved = 0;
+  const urls: string[] = [];
+  const fetchImpl = vi.fn((url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    urls.push(String(url));
+    active += 1;
+
+    return new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      const abort = () => {
+        active -= 1;
+        aborted += 1;
+        reject(signal?.reason ?? new DOMException("The operation was aborted", "AbortError"));
+      };
+      if (signal?.aborted) {
+        abort();
+        return;
+      }
+      signal?.addEventListener("abort", abort, { once: true });
+    }).then((response) => {
+      resolved += 1;
+      return response;
+    });
+  });
+
+  return {
+    fetch: fetchImpl,
+    urls,
+    activeRequests: () => active,
+    abortedRequests: () => aborted,
+    resolvedRequests: () => resolved,
+  };
+}
