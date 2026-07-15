@@ -13,7 +13,12 @@ export type EventContext = {
     locale?: string;
     timezone?: string;
     ip?: string;
+    appVersion?: string;
+    networkState?: "offline" | "online" | "unknown";
 };
+export { createMobileAsyncQueueStorage, createMobileFlushTriggers, type MobileAppState, type MobileFlushTriggerOptions, type MobileKeyValueStorage, type MobileNetwork, type MobileNetworkState, type MobileSubscription, } from "./mobile-adapter.js";
+export { createMobileEvent, type MobileEventContext, type MobileEventInput, type MobileNetworkState as MobileEventNetworkState, type MobilePlatform, type MobileSubject, } from "./mobile-context.js";
+export { AsyncEventQueue, type AsyncQueueStorage } from "./mobile-queue.js";
 export type EventEnvelope = {
     eventUuid?: string;
     eventTypeSlug: string;
@@ -611,4 +616,3 @@ export declare class CustdProblemError extends Error {
 }
 export declare function normalizeRetryOptions(options?: RetryOptions): Required<RetryOptions>;
 export declare function withRetry<T>(options: Required<RetryOptions>, op: () => Promise<T>): Promise<T>;
-export {};

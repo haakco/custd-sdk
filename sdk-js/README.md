@@ -259,62 +259,63 @@ await client.admin.schemas.createVersion("courib.delivery.created", {
 
 ## React Native
 
-The core client avoids browser globals for producer use. For React Native, keep
-producer credentials out of mobile binaries when possible and relay through a
-trusted backend. If direct mobile ingestion is appropriate, use a synchronous
-MMKV-backed `QueueStorage`, disable browser online flushing with
-`flushOnOnline: false`, and pass `flushTriggers` that subscribe to NetInfo or
-AppState and return unsubscribe callbacks.
+Mobile applications must not contain Custd producer credentials, provisioned
+producer bundles, or tenant-wide `reporting:read` tokens. Send events to an
+application-authenticated relay instead. The relay owns its Custd client and
+producer credentials; the app sends only allowlisted, pseudonymous event data.
+Likewise, have the relay render or authorize reporting results rather than
+shipping a tenant-wide reporting token to the app.
+
+The SDK provides dependency-free async queue and lifecycle primitives for Expo
+or React Native. Pass your installed AsyncStorage-, AppState-, and
+NetInfo-shaped implementations in; the SDK does not import or require those
+packages. The queue keeps event IDs and ordering across storage restarts,
+evicts oldest events at its configured bound, and retains unacknowledged events
+after a partial batch response.
+
+Use `createMobileEvent()` for app-originated events. It accepts only iOS or
+Android platform context, a semantic app version, BCP 47 locale, IANA timezone,
+network state, and exactly one explicit anonymous or authenticated subject.
+The helper rejects unknown context fields and credential-shaped payload fields
+such as producer secrets, client secrets, or reporting tokens. Mobile apps send
+these allowlisted event envelopes to an application-authenticated relay; they
+must not contain Custd producer credentials or reporting-read credentials.
 
 ```ts
 import { AppState } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
-import { MMKV } from "react-native-mmkv";
-import { CustdClient, type EventEnvelope, type QueueStorage } from "@haakco/custd-sdk";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  AsyncEventQueue,
+  createMobileAsyncQueueStorage,
+  createMobileFlushTriggers,
+} from "@haakco/custd-sdk";
 
-class MMKVQueueStorage implements QueueStorage {
-  constructor(private readonly storage: MMKV, private readonly key = "custd_queue") {}
+const queue = new AsyncEventQueue(
+  createMobileAsyncQueueStorage(AsyncStorage, "custd.mobile.events"),
+  1_000,
+);
+await queue.load();
 
-  load(): EventEnvelope[] {
-    const raw = this.storage.getString(this.key);
-    return raw ? JSON.parse(raw) as EventEnvelope[] : [];
-  }
-
-  save(events: EventEnvelope[]): void {
-    this.storage.set(this.key, JSON.stringify(events));
-  }
-
-  clear(): void {
-    this.storage.delete(this.key);
-  }
-}
-
-const client = new CustdClient({
-  baseUrl: "https://custd.example.com",
-  getToken: async () => fetchBackendIssuedToken(),
-  queue: {
-    enabled: true,
-    storage: new MMKVQueueStorage(new MMKV()),
-    flushOnOnline: false,
-    flushTriggers: [
-      (flush) => NetInfo.addEventListener((state) => {
-        if (state.isConnected) void flush();
-      }),
-      (flush) => {
-        const subscription = AppState.addEventListener("change", (state) => {
-          if (state === "active") void flush();
-        });
-        return () => subscription.remove();
-      },
-    ],
-  },
+const removeLifecycleTriggers = createMobileFlushTriggers({
+  appState: AppState,
+  network: NetInfo,
+})(async () => {
+  // Send a bounded `await queue.peek(limit)` batch to the authenticated
+  // application relay. Acknowledge only event UUIDs accepted by that relay.
+  const events = await queue.peek(50);
+  const acceptedIDs = await sendEventsToApplicationRelay(events);
+  await queue.acknowledge(acceptedIDs);
 });
 ```
 
-### Manual flush
+Call `removeLifecycleTriggers()` during application shutdown. A manual flush
+uses the same bounded relay path; do not call a Custd producer endpoint from
+the app or persist credentials alongside queued events.
 
 ```ts
-await tracker.flush();
+const events = await queue.peek(50);
+await queue.acknowledge(await sendEventsToApplicationRelay(events));
 ```
 
 ## Dev smoke test (Hydra)
