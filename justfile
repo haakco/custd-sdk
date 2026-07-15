@@ -25,6 +25,7 @@ test-js:
   pnpm -C sdk-js test
   pnpm -C sdk-js run build
   git diff --exit-code -- sdk-js/dist
+  bash scripts/check-js-source-archive.sh
 
 test-python:
   cd sdk-python && ruff check
