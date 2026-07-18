@@ -4,7 +4,8 @@ Central tracker for active implementation plans. Link every active plan here wit
 
 ## Active
 
-_None — all active plans are complete and archived (see below). Open items are tracked under **Deferred Work**._
+- [Exact-Subject Insight SDK Parity](./2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md) — active; adds the
+  generic typed subject-insight helper across TypeScript, Go, Python, and PHP, then prepares shared release `1.6.5`.
 
 ## Archived (2026-06-17)
 
