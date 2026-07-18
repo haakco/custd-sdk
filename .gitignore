@@ -1,6 +1,7 @@
 .DS_Store
 node_modules/
 vendor/
+/.opencode/
 
 # Local env + Infisical secret cache (loaded by .mise.toml; never commit secrets).
 .env
