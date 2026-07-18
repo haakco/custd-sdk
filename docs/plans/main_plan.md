@@ -5,9 +5,11 @@ Central tracker for active implementation plans. Link every active plan here wit
 ## Active
 
 - [Exact-Subject Insight SDK Parity](./2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md) — active; adds the
-  generic typed subject-insight helper across TypeScript, Go, Python, and PHP;
-  implementation and local validation pass, and shared release `1.6.5` awaits
-  push/tag/publication authority.
+  generic typed subject-insight helper across TypeScript, Go, Python, and PHP.
+  Version `1.6.5`, its implementation, push, and main CI are complete; the
+  first M3 pre-release audit completed with three unobserved rows; cleanup and a
+  successful rerun are required before the authorized tag, publication
+  verification, consumer probes, and archive closeout.
 
 ## Archived (2026-06-17)
 
