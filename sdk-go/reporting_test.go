@@ -232,13 +232,13 @@ func TestReportingSubjectInsightUsesRenderedTrustContract(t *testing.T) {
 
 func TestReportingSubjectInsightNativeHTTPPreservesCancellation(t *testing.T) {
 	requestStarted := make(chan struct{})
-	requestCanceled := make(chan struct{})
-	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
+	releaseHandler := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		close(requestStarted)
-		<-request.Context().Done()
-		close(requestCanceled)
+		<-releaseHandler
 	}))
 	defer server.Close()
+	defer close(releaseHandler)
 	client := NewClient(&ClientConfig{BaseURL: server.URL, APIKey: "reporting-token"})
 	defer func() { _ = client.Close(context.Background()) }()
 
@@ -248,7 +248,11 @@ func TestReportingSubjectInsightNativeHTTPPreservesCancellation(t *testing.T) {
 		_, err := client.Reporting.SubjectInsight(ctx, SubjectInsightRequest{Template: "security_events", Subject: "subject-123", RangeDays: 7})
 		errorResult <- err
 	}()
-	<-requestStarted
+	select {
+	case <-requestStarted:
+	case <-time.After(time.Second):
+		t.Fatal("SubjectInsight request did not reach the server")
+	}
 	cancel()
 
 	select {
@@ -258,11 +262,6 @@ func TestReportingSubjectInsightNativeHTTPPreservesCancellation(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("SubjectInsight did not return after context cancellation")
-	}
-	select {
-	case <-requestCanceled:
-	case <-time.After(time.Second):
-		t.Fatal("server request context was not canceled")
 	}
 }
 

@@ -5,7 +5,9 @@ Central tracker for active implementation plans. Link every active plan here wit
 ## Active
 
 - [Exact-Subject Insight SDK Parity](./2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md) — active; adds the
-  generic typed subject-insight helper across TypeScript, Go, Python, and PHP, then prepares shared release `1.6.5`.
+  generic typed subject-insight helper across TypeScript, Go, Python, and PHP;
+  implementation and local validation pass, and shared release `1.6.5` awaits
+  push/tag/publication authority.
 
 ## Archived (2026-06-17)
 
@@ -23,6 +25,8 @@ Completed plans moved to `archive/docs/plans/`:
 
 ## Deferred Work
 
-- **Real `MIRROR_PUSH_TOKEN`** — the Infisical secret at `/custd-sdk` `prod` currently holds a placeholder, so the `release-mirrors` CI job can't push. Set a fine-grained GitHub PAT (`Contents: write` on the 3 mirrors). Until then, mirrors are populated manually (done for v1.3.1 and v1.3.2). See [Plan B](../../archive/docs/plans/2026-06-17-2026-06-16-sdk-subtree-split-mirrors_plan.md).
+- ✅ **Resolved by `v1.6.4`** — automated mirror publication succeeded; the
+  historical placeholder `MIRROR_PUSH_TOKEN` warning is no longer current. See
+  [Plan B](../../archive/docs/plans/2026-06-17-2026-06-16-sdk-subtree-split-mirrors_plan.md).
 - ✅ **Done in `v1.3.2`** — dropped the `path` shims (now a VCS repo at `https://github.com/haakco/custd-sdk`); renamed the Go module to `github.com/haakco/custd-sdk-go` (the release split vendors `contract-fixtures/` so the standalone module is self-contained); added `sdk-go/VERSION` to the version-sync gate. Removed the now-duplicate root-boundary tests from the split packages (owned by `sdk-php/tests/PackageBoundaryTest.php`). Mirrors pick this up on the next successful `release-mirrors` run (needs the token below).
 - **PHP analysis for `laravel-package/` + `wordpress-plugin/`** — needs larastan + WordPress stubs. See the archived [SDK Static-Analysis Rollout → Deferred Work](../../archive/docs/plans/2026-06-16-2026-06-16-sdk-static-analysis-rollout_plan.md#deferred-work).

@@ -1,6 +1,6 @@
 # Exact-Subject Insight SDK Parity Plan
 
-**Status:** Active; implementation complete, local validation pending.
+**Status:** Active; implementation and local validation complete, release pending.
 
 **Goal:** Add one contract-compatible exact-subject reporting helper to every
 public Custd SDK and release the shared version without client-specific code.
@@ -76,6 +76,9 @@ completion and do not commit, push, tag, publish, or edit this plan.
 
 - Exact focused Red/Green commands are package-local; root `just test` is the
   final shared parity gate.
+- Local acceptance passed on 2026-07-18: `just test`, `just lint-workflows
+  lint-markdown diff-check`, TypeScript distribution idempotence, and independent
+  specification and security/quality reviews.
 - Review request serialization, optional dates/range, typed response decoding,
   cancellation, auth/error propagation, secrets, and fixture parity.
 - Mutation proof: wrong endpoint, omitted subject, or malformed rendered data
@@ -83,10 +86,10 @@ completion and do not commit, push, tag, publish, or edit this plan.
 
 ## Terminal Checklist
 
-- [ ] Shared exact-subject fixtures cover required, optional, and invalid cases.
-- [ ] TypeScript, Go, Python, and PHP helpers pass focused Red/Green tests.
-- [ ] JS generated distribution matches source and declarations.
-- [ ] Root tests, diff check, quality, security, and parity reviews pass.
+- [x] Shared exact-subject fixtures cover required, optional, and invalid cases.
+- [x] TypeScript, Go, Python, and PHP helpers pass focused Red/Green tests.
+- [x] JS generated distribution matches source and declarations.
+- [x] Root tests, diff check, quality, security, and parity reviews pass.
 - [ ] `1.6.5` is committed, pushed, tagged, published, and verified when authorized.
 - [ ] Plan is archived and index plus stale mirror-token status are updated.
 
