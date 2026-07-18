@@ -1,10 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
+import invalidSubjectInsightRequestFixture from "../../contract-fixtures/invalid-reporting-subject-insight-missing-subject.json";
+import invalidSubjectInsightResponseFixture from "../../contract-fixtures/invalid-reporting-subject-insight-response.json";
 import dashboardFixture from "../../contract-fixtures/reporting-dashboard-security.json";
 import maxRowsRequestFixture from "../../contract-fixtures/reporting-query-max-rows.json";
 import requestFixture from "../../contract-fixtures/reporting-query-security.json";
 import trustFixture from "../../contract-fixtures/reporting-query-security-trust.json";
 import unsafeTrustFixture from "../../contract-fixtures/reporting-query-unsafe-trust.json";
-import { CustdClient, type ReportingQueryRequest } from "./index";
+import subjectInsightDateRangeRequestFixture from "../../contract-fixtures/reporting-subject-insight-date-range-request.json";
+import subjectInsightRequestFixture from "../../contract-fixtures/reporting-subject-insight-request.json";
+import subjectInsightResponseFixture from "../../contract-fixtures/reporting-subject-insight-response.json";
+import { CustdClient, type ReportingQueryRequest, type SubjectInsightRequest } from "./index";
 
 function mockFetch(body: unknown) {
   return vi.fn().mockResolvedValue(
@@ -16,6 +21,100 @@ function mockFetch(body: unknown) {
 }
 
 describe("reporting helpers", () => {
+  it("runs a subject insight with the closed request and returns rendered widget data", async () => {
+    const fetchImpl = mockFetch(subjectInsightResponseFixture);
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+    const controller = new AbortController();
+
+    const response = await client.reporting.subjectInsight(subjectInsightRequestFixture, { signal: controller.signal });
+
+    expect(response.data.value).toMatchObject({ value: 2, unit: "count", complete: true });
+    expect(fetchImpl.mock.calls[0][0]).toBe("http://localhost:8080/api/v1/reporting/insights/subject");
+    expect(fetchImpl.mock.calls[0][1]?.signal).toBe(controller.signal);
+    expect(JSON.parse(fetchImpl.mock.calls[0][1]?.body as string)).toEqual(subjectInsightRequestFixture);
+  });
+
+  it("serializes the subject insight date window without adding request fields", async () => {
+    const fetchImpl = mockFetch(subjectInsightResponseFixture);
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+
+    await client.reporting.subjectInsight(subjectInsightDateRangeRequestFixture);
+
+    expect(JSON.parse(fetchImpl.mock.calls[0][1]?.body as string)).toEqual(subjectInsightDateRangeRequestFixture);
+  });
+
+  it("rejects a subject insight request without a subject before transport", async () => {
+    const fetchImpl = mockFetch(subjectInsightResponseFixture);
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+
+    await expect(
+      client.reporting.subjectInsight(invalidSubjectInsightRequestFixture as SubjectInsightRequest),
+    ).rejects.toThrow("custd: invalid subject insight request");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("rejects unknown subject insight request fields before transport", async () => {
+    const fetchImpl = mockFetch(subjectInsightResponseFixture);
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+    const request = { ...subjectInsightRequestFixture, tenantId: "other-tenant" } as SubjectInsightRequest;
+
+    await expect(client.reporting.subjectInsight(request)).rejects.toThrow("custd: invalid subject insight request");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("rejects normalized invalid subject insight calendar dates before transport", async () => {
+    const fetchImpl = mockFetch(subjectInsightResponseFixture);
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+    const request: SubjectInsightRequest = {
+      template: "learning_subject",
+      subject: "subject-9f82",
+      from: "2026-02-30T00:00:00Z",
+      to: "2026-03-02T00:00:00Z",
+    };
+
+    await expect(client.reporting.subjectInsight(request)).rejects.toThrow("custd: invalid subject insight request");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed subject insight rendered data", async () => {
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "token",
+      fetch: mockFetch(invalidSubjectInsightResponseFixture),
+    });
+
+    await expect(client.reporting.subjectInsight(subjectInsightRequestFixture)).rejects.toThrow(
+      "custd: invalid subject insight response",
+    );
+  });
+
+  it("rejects malformed optional subject insight rendered metadata", async () => {
+    const malformed = structuredClone(subjectInsightResponseFixture) as Record<string, unknown>;
+    (malformed.data as Record<string, unknown>).metadata = { resolvedTemplate: "learning_subject" };
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "token",
+      fetch: mockFetch(malformed),
+    });
+
+    await expect(client.reporting.subjectInsight(subjectInsightRequestFixture)).rejects.toThrow(
+      "custd: invalid subject insight response",
+    );
+  });
+
+  it("preserves subject insight authentication and HTTP error propagation", async () => {
+    const controller = new AbortController();
+    const getToken = vi.fn(() => "token");
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(null, { status: 403 }));
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken, fetch: fetchImpl });
+
+    await expect(
+      client.reporting.subjectInsight(subjectInsightRequestFixture, { signal: controller.signal }),
+    ).rejects.toThrow("custd: request failed with status 403");
+    expect(getToken).toHaveBeenCalledWith({ signal: controller.signal });
+    expect(fetchImpl.mock.calls[0][1]?.headers).toMatchObject({ Authorization: "Bearer token" });
+  });
+
   it("reads a reporting dashboard", async () => {
     const fetchImpl = mockFetch(dashboardFixture);
     const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });

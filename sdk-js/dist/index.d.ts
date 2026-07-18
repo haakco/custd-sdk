@@ -411,6 +411,81 @@ export type ReportingFilter = {
     operator: string;
     value?: string;
 };
+export type SubjectInsightRequest = {
+    template: string;
+    subject: string;
+    from?: string;
+    to?: string;
+    rangeDays?: number;
+};
+export type SubjectInsightResponse = {
+    data: RenderedWidgetData;
+};
+export type RenderedWidgetData = {
+    buckets: RenderedWidgetBucket[];
+    value: RenderedMetricValue;
+    metadata?: ReportingQueryMetadata;
+    sources?: ReportingSourceSummary[];
+    warnings?: string[];
+    queryDurationMs: number;
+    parquetUriCount?: number;
+    snapshotAgeMs: number;
+    eventLagP95Ms: number;
+    delta?: RenderedMetricValue;
+    deltaPercent?: number;
+    deltaLabel?: string;
+    secondaryLabel?: string;
+    trust?: RenderedReportingTrust;
+};
+export type RenderedReportingTrust = {
+    status: string;
+    dataFreshness: string;
+    lastExport?: string;
+    schemaVersion?: string;
+    contractVersion?: string;
+    rollupState: string;
+    queryWarnings?: string[];
+    coverage: string;
+    permissionClass?: string;
+    captureState: string;
+    consentState: string;
+    exportState: string;
+    partialReason?: string;
+    unavailableReason?: string;
+};
+export type RenderedWidgetBucket = {
+    date: string;
+    value: RenderedMetricValue;
+    source: string;
+    queryDurationMs: number;
+    parquetUriCount?: number;
+    message?: string;
+    secondary?: RenderedMetricValue;
+};
+export type RenderedMetricValue = {
+    value: number;
+    unit: string;
+    sampleCount: number;
+    dataSufficiency: string;
+    complete: boolean;
+    truncated?: boolean;
+};
+export type ReportingQueryMetadata = {
+    resolvedTemplate: string;
+    rangeStart?: string;
+    rangeEnd?: string;
+    effectiveMaxRows: number;
+    returnedRows: number;
+    returnedBuckets: number;
+    coveredWindows: number;
+};
+export type ReportingSourceSummary = {
+    kind: string;
+    count: number;
+    coverageStart?: string;
+    coverageEnd?: string;
+    completeness: string;
+};
 export type ReportingWidgetData = {
     buckets: ReportingWidgetBucket[];
     count: number;
@@ -513,6 +588,7 @@ declare class ReportingNamespace {
     constructor(request: APIRequester);
     dashboard(key: string, options?: RequestOptions): Promise<ReportingDashboard>;
     query(request: ReportingQueryRequest, options?: RequestOptions): Promise<ReportingWidgetData>;
+    subjectInsight(request: SubjectInsightRequest, options?: RequestOptions): Promise<SubjectInsightResponse>;
 }
 declare class SchemaNamespace {
     private readonly request;

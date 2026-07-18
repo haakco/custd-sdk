@@ -3,14 +3,15 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from custd import CustdClient
+from custd import CustdClient, RequestError
 
 FIXTURES = Path(__file__).resolve().parents[2] / "contract-fixtures"
 
 
 class FakeTransport:
-    def __init__(self, body: dict[str, Any]):
+    def __init__(self, body: dict[str, Any], status: int = 200):
         self.body = body
+        self.status = status
         self.calls: list[tuple[str, str, dict[str, Any] | None, dict[str, str], float]] = []
 
     def __call__(
@@ -22,7 +23,7 @@ class FakeTransport:
         timeout: float,
     ) -> dict[str, Any]:
         self.calls.append((method, url, body, headers, timeout))
-        return {"status": 200, "body": json.dumps(self.body)}
+        return {"status": self.status, "body": json.dumps(self.body)}
 
 
 def fixture(name: str) -> dict[str, Any]:
@@ -30,6 +31,96 @@ def fixture(name: str) -> dict[str, Any]:
 
 
 class ReportingClientTest(unittest.TestCase):
+    def test_subject_insight_sends_closed_request_and_returns_rendered_data(self) -> None:
+        response = fixture("reporting-subject-insight-response.json")
+        for fixture_name in (
+            "reporting-subject-insight-request.json",
+            "reporting-subject-insight-date-range-request.json",
+        ):
+            with self.subTest(fixture=fixture_name):
+                transport = FakeTransport(response)
+                client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+                request = fixture(fixture_name)
+
+                result = client.reporting.subject_insight(request)
+
+                self.assertEqual(response["data"], result["data"])
+                self.assertEqual("POST", transport.calls[0][0])
+                self.assertEqual("http://localhost:8080/api/v1/reporting/insights/subject", transport.calls[0][1])
+                self.assertEqual(request, transport.calls[0][2])
+
+    def test_subject_insight_rejects_missing_subject_and_unknown_fields(self) -> None:
+        transport = FakeTransport({})
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+
+        for request in (
+            fixture("invalid-reporting-subject-insight-missing-subject.json"),
+            {"template": "subject_activity", "subject": "subject_7f3b", "filters": []},
+            {"template": "subject_activity", "subject": "subject_7f3b", "from": "2026-07-01T00:00:00Z"},
+            {
+                "template": "subject_activity",
+                "subject": "subject_7f3b",
+                "from": "2026-07-01T00:00:00Z",
+                "to": "2026-07-18T00:00:00Z",
+                "rangeDays": 18,
+            },
+            {"template": "Invalid", "subject": "subject_7f3b", "rangeDays": 7},
+            {
+                "template": "subject_activity",
+                "subject": "subject_7f3b",
+                "from": "2026-07-18T00:00:00Z",
+                "to": "2026-07-01T00:00:00Z",
+            },
+            {"template": "subject_activity", "subject": "subject_7f3b", "rangeDays": True},
+            {
+                "template": "subject_activity",
+                "subject": "subject_7f3b",
+                "from": "2026-02-30T00:00:00Z",
+                "to": "2026-03-01T00:00:00Z",
+            },
+            {
+                "template": "subject_activity",
+                "subject": "subject_7f3b",
+                "from": "2026-02-01T00:00Z",
+                "to": "2026-03-01T00:00:00Z",
+            },
+        ):
+            with self.subTest(request=request), self.assertRaises(ValueError):
+                client.reporting.subject_insight(request)
+
+        self.assertEqual([], transport.calls)
+
+    def test_subject_insight_rejects_malformed_rendered_widget(self) -> None:
+        invalid_type = fixture("reporting-subject-insight-response.json")
+        invalid_type["data"]["queryDurationMs"] = True
+        invalid_optional = fixture("reporting-subject-insight-response.json")
+        invalid_optional["data"]["metadata"] = {"resolvedTemplate": "learning_subject"}
+        for response in (fixture("invalid-reporting-subject-insight-response.json"), invalid_type, invalid_optional):
+            with self.subTest(response=response):
+                transport = FakeTransport(response)
+                client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+
+                with self.assertRaisesRegex(ValueError, "rendered widget"):
+                    client.reporting.subject_insight(
+                        {"template": "subject_activity", "subject": "subject_7f3b", "rangeDays": 7}
+                    )
+
+    def test_subject_insight_rejects_unsafe_trust_diagnostics(self) -> None:
+        response = fixture("reporting-subject-insight-response.json")
+        response["data"]["trust"] = {"token": "secret"}
+        transport = FakeTransport(response)
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+
+        with self.assertRaisesRegex(ValueError, "unsafe reporting trust diagnostics"):
+            client.reporting.subject_insight(fixture("reporting-subject-insight-request.json"))
+
+    def test_subject_insight_propagates_reporting_auth_error(self) -> None:
+        transport = FakeTransport({}, status=403)
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+
+        with self.assertRaisesRegex(RequestError, "status 403"):
+            client.reporting.subject_insight(fixture("reporting-subject-insight-request.json"))
+
     def test_reporting_dashboard_reads_generic_pack_dashboard(self) -> None:
         transport = FakeTransport(fixture("reporting-dashboard-security.json"))
         client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)

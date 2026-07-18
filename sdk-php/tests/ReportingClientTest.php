@@ -9,6 +9,117 @@ use PHPUnit\Framework\TestCase;
 
 final class ReportingClientTest extends TestCase
 {
+    public function testSubjectInsightSendsClosedRequestAndReturnsRenderedData(): void
+    {
+        $calls = [];
+        $response = $this->fixture("reporting-subject-insight-response.json");
+        foreach (["reporting-subject-insight-request.json", "reporting-subject-insight-date-range-request.json"] as $fixture) {
+            $calls = [];
+            $client = $this->clientWithFixture("reporting-subject-insight-response.json", $calls);
+            $request = $this->fixture($fixture);
+
+            $result = $client->reporting()->subjectInsight($request);
+
+            self::assertSame($response["data"], $result["data"]);
+            self::assertSame("POST", $calls[0]["method"]);
+            self::assertSame("http://localhost:8080/api/v1/reporting/insights/subject", $calls[0]["url"]);
+            self::assertSame($request, $calls[0]["body"]);
+        }
+    }
+
+    public function testSubjectInsightRejectsMissingSubjectAndUnknownFields(): void
+    {
+        foreach ([
+            $this->fixture("invalid-reporting-subject-insight-missing-subject.json"),
+            ["template" => "subject_activity", "subject" => "subject_7f3b", "filters" => []],
+            ["template" => "subject_activity", "subject" => "subject_7f3b", "from" => "2026-07-01T00:00:00Z"],
+            [
+                "template" => "subject_activity",
+                "subject" => "subject_7f3b",
+                "from" => "2026-07-01T00:00:00Z",
+                "to" => "2026-07-18T00:00:00Z",
+                "rangeDays" => 18,
+            ],
+            ["template" => "Invalid", "subject" => "subject_7f3b", "rangeDays" => 7],
+            [
+                "template" => "subject_activity",
+                "subject" => "subject_7f3b",
+                "from" => "2026-07-18T00:00:00Z",
+                "to" => "2026-07-01T00:00:00Z",
+            ],
+            ["template" => "subject_activity", "subject" => "subject_7f3b", "rangeDays" => true],
+            [
+                "template" => "subject_activity",
+                "subject" => "subject_7f3b",
+                "from" => "2026-02-30T00:00:00Z",
+                "to" => "2026-03-01T00:00:00Z",
+            ],
+            [
+                "template" => "subject_activity",
+                "subject" => "subject_7f3b",
+                "from" => "2026-02-01T00:00Z",
+                "to" => "2026-03-01T00:00:00Z",
+            ],
+        ] as $request) {
+            $calls = [];
+            $client = $this->clientWithResponse([], $calls);
+            try {
+                $client->reporting()->subjectInsight($request);
+                self::fail("Subject insight accepted an invalid request");
+            } catch (\InvalidArgumentException) {
+                self::assertSame([], $calls);
+            }
+        }
+    }
+
+    public function testSubjectInsightRejectsMalformedRenderedWidget(): void
+    {
+        $calls = [];
+        $client = $this->clientWithFixture("invalid-reporting-subject-insight-response.json", $calls);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage("rendered widget");
+        $client->reporting()->subjectInsight([
+            "template" => "subject_activity",
+            "subject" => "subject_7f3b",
+            "rangeDays" => 7,
+        ]);
+    }
+
+    public function testSubjectInsightRejectsUnsafeTrustDiagnostics(): void
+    {
+        $calls = [];
+        $response = $this->fixture("reporting-subject-insight-response.json");
+        $response["data"]["trust"] = ["token" => "secret"];
+        $client = $this->clientWithResponse($response, $calls);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage("unsafe reporting trust diagnostics");
+        $client->reporting()->subjectInsight($this->fixture("reporting-subject-insight-request.json"));
+    }
+
+    public function testSubjectInsightRejectsMalformedOptionalRenderedData(): void
+    {
+        $calls = [];
+        $response = $this->fixture("reporting-subject-insight-response.json");
+        $response["data"]["metadata"] = ["resolvedTemplate" => "learning_subject"];
+        $client = $this->clientWithResponse($response, $calls);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage("malformed rendered widget data");
+        $client->reporting()->subjectInsight($this->fixture("reporting-subject-insight-request.json"));
+    }
+
+    public function testSubjectInsightPropagatesReportingAuthError(): void
+    {
+        $calls = [];
+        $client = $this->clientWithResponse([], $calls, 403);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage("status 403");
+        $client->reporting()->subjectInsight($this->fixture("reporting-subject-insight-request.json"));
+    }
+
     public function testDashboardReadsGenericPackDashboard(): void
     {
         $calls = [];
@@ -115,6 +226,21 @@ final class ReportingClientTest extends TestCase
                     "status" => 200,
                     "body" => (string) file_get_contents(__DIR__ . "/../../contract-fixtures/" . $fixture),
                 ];
+            },
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $response
+     * @param list<array<string, mixed>> $calls
+     */
+    private function clientWithResponse(array $response, array &$calls, int $status = 200): CustdClient
+    {
+        return new CustdClient("http://localhost:8080", "token", [
+            "admin_http_client" => function (string $method, string $url, ?array $body, string $token) use (&$calls, $response, $status): array {
+                $calls[] = compact("method", "url", "body", "token");
+
+                return ["status" => $status, "body" => json_encode($response, flags: JSON_THROW_ON_ERROR)];
             },
         ]);
     }

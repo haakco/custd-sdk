@@ -502,6 +502,89 @@ export type ReportingFilter = {
   value?: string;
 };
 
+export type SubjectInsightRequest = {
+  template: string;
+  subject: string;
+  from?: string;
+  to?: string;
+  rangeDays?: number;
+};
+
+export type SubjectInsightResponse = {
+  data: RenderedWidgetData;
+};
+
+export type RenderedWidgetData = {
+  buckets: RenderedWidgetBucket[];
+  value: RenderedMetricValue;
+  metadata?: ReportingQueryMetadata;
+  sources?: ReportingSourceSummary[];
+  warnings?: string[];
+  queryDurationMs: number;
+  parquetUriCount?: number;
+  snapshotAgeMs: number;
+  eventLagP95Ms: number;
+  delta?: RenderedMetricValue;
+  deltaPercent?: number;
+  deltaLabel?: string;
+  secondaryLabel?: string;
+  trust?: RenderedReportingTrust;
+};
+
+export type RenderedReportingTrust = {
+  status: string;
+  dataFreshness: string;
+  lastExport?: string;
+  schemaVersion?: string;
+  contractVersion?: string;
+  rollupState: string;
+  queryWarnings?: string[];
+  coverage: string;
+  permissionClass?: string;
+  captureState: string;
+  consentState: string;
+  exportState: string;
+  partialReason?: string;
+  unavailableReason?: string;
+};
+
+export type RenderedWidgetBucket = {
+  date: string;
+  value: RenderedMetricValue;
+  source: string;
+  queryDurationMs: number;
+  parquetUriCount?: number;
+  message?: string;
+  secondary?: RenderedMetricValue;
+};
+
+export type RenderedMetricValue = {
+  value: number;
+  unit: string;
+  sampleCount: number;
+  dataSufficiency: string;
+  complete: boolean;
+  truncated?: boolean;
+};
+
+export type ReportingQueryMetadata = {
+  resolvedTemplate: string;
+  rangeStart?: string;
+  rangeEnd?: string;
+  effectiveMaxRows: number;
+  returnedRows: number;
+  returnedBuckets: number;
+  coveredWindows: number;
+};
+
+export type ReportingSourceSummary = {
+  kind: string;
+  count: number;
+  coverageStart?: string;
+  coverageEnd?: string;
+  completeness: string;
+};
+
 export type ReportingWidgetData = {
   buckets: ReportingWidgetBucket[];
   count: number;
@@ -974,6 +1057,199 @@ class ReportingNamespace {
     }
     return data;
   }
+
+  async subjectInsight(request: SubjectInsightRequest, options?: RequestOptions): Promise<SubjectInsightResponse> {
+    if (!isValidSubjectInsightRequest(request)) {
+      throw new Error("custd: invalid subject insight request");
+    }
+    const response = await this.request<unknown>("POST", "/reporting/insights/subject", request, options);
+    if (!isSubjectInsightResponse(response)) {
+      throw new Error("custd: invalid subject insight response");
+    }
+    if (response.data.trust && containsForbiddenReportingTrustKey(response.data.trust)) {
+      throw new Error("custd: unsafe reporting trust diagnostics");
+    }
+    return response;
+  }
+}
+
+function isValidSubjectInsightRequest(request: SubjectInsightRequest): boolean {
+  const allowedKeys = new Set(["template", "subject", "from", "to", "rangeDays"]);
+  if (
+    !request ||
+    !isRecord(request) ||
+    Object.keys(request).some((key) => !allowedKeys.has(key)) ||
+    typeof request.template !== "string" ||
+    !/^[a-z][a-z0-9_]{0,127}$/.test(request.template) ||
+    typeof request.subject !== "string" ||
+    request.subject.trim() === "" ||
+    request.subject.length > 512
+  ) {
+    return false;
+  }
+  const hasRangeDays = request.rangeDays !== undefined;
+  const hasFrom = request.from !== undefined;
+  const hasTo = request.to !== undefined;
+  if (hasRangeDays === (hasFrom || hasTo)) return false;
+  if (request.rangeDays !== undefined) {
+    return Number.isInteger(request.rangeDays) && request.rangeDays >= 1 && request.rangeDays <= 366;
+  }
+  if (typeof request.from !== "string" || typeof request.to !== "string") return false;
+  if (!isValidRfc3339(request.from) || !isValidRfc3339(request.to)) return false;
+  const from = Date.parse(request.from);
+  const to = Date.parse(request.to);
+  return Number.isFinite(from) && Number.isFinite(to) && to > from && to - from <= 366 * 24 * 60 * 60 * 1000;
+}
+
+function isValidRfc3339(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$/.exec(value);
+  if (!match) return false;
+  const [, yearText, monthText, dayText, hourText, minuteText, secondText, offsetHourText, offsetMinuteText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const second = Number(secondText);
+  const offsetHour = offsetHourText === undefined ? 0 : Number(offsetHourText);
+  const offsetMinute = offsetMinuteText === undefined ? 0 : Number(offsetMinuteText);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] ?? 0;
+  return (
+    month >= 1 &&
+    month <= 12 &&
+    day >= 1 &&
+    day <= daysInMonth &&
+    hour <= 23 &&
+    minute <= 59 &&
+    second <= 59 &&
+    offsetHour <= 24 &&
+    offsetMinute <= 59 &&
+    (offsetHour !== 24 || offsetMinute === 0)
+  );
+}
+
+function isSubjectInsightResponse(value: unknown): value is SubjectInsightResponse {
+  if (!isRecord(value) || !isRenderedWidgetData(value.data)) return false;
+  return true;
+}
+
+function isRenderedWidgetData(value: unknown): value is RenderedWidgetData {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.buckets) &&
+    value.buckets.every(isRenderedWidgetBucket) &&
+    isRenderedMetricValue(value.value) &&
+    isInteger(value.queryDurationMs) &&
+    isOptionalInteger(value.parquetUriCount) &&
+    isInteger(value.snapshotAgeMs) &&
+    isInteger(value.eventLagP95Ms) &&
+    (value.metadata === undefined || isReportingQueryMetadata(value.metadata)) &&
+    (value.sources === undefined || (Array.isArray(value.sources) && value.sources.every(isReportingSourceSummary))) &&
+    isOptionalStringArray(value.warnings) &&
+    (value.delta === undefined || isRenderedMetricValue(value.delta)) &&
+    isOptionalFiniteNumber(value.deltaPercent) &&
+    isOptionalString(value.deltaLabel) &&
+    isOptionalString(value.secondaryLabel) &&
+    (value.trust === undefined || isRenderedReportingTrust(value.trust))
+  );
+}
+
+function isRenderedWidgetBucket(value: unknown): value is RenderedWidgetBucket {
+  return (
+    isRecord(value) &&
+    typeof value.date === "string" &&
+    isRenderedMetricValue(value.value) &&
+    typeof value.source === "string" &&
+    isInteger(value.queryDurationMs) &&
+    isOptionalInteger(value.parquetUriCount) &&
+    isOptionalString(value.message) &&
+    (value.secondary === undefined || isRenderedMetricValue(value.secondary))
+  );
+}
+
+function isRenderedMetricValue(value: unknown): value is RenderedMetricValue {
+  return (
+    isRecord(value) &&
+    isFiniteNumber(value.value) &&
+    typeof value.unit === "string" &&
+    isInteger(value.sampleCount) &&
+    typeof value.dataSufficiency === "string" &&
+    typeof value.complete === "boolean" &&
+    (value.truncated === undefined || typeof value.truncated === "boolean")
+  );
+}
+
+function isReportingQueryMetadata(value: unknown): value is ReportingQueryMetadata {
+  return (
+    isRecord(value) &&
+    typeof value.resolvedTemplate === "string" &&
+    isOptionalString(value.rangeStart) &&
+    isOptionalString(value.rangeEnd) &&
+    isInteger(value.effectiveMaxRows) &&
+    isInteger(value.returnedRows) &&
+    isInteger(value.returnedBuckets) &&
+    isInteger(value.coveredWindows)
+  );
+}
+
+function isReportingSourceSummary(value: unknown): value is ReportingSourceSummary {
+  return (
+    isRecord(value) &&
+    typeof value.kind === "string" &&
+    isInteger(value.count) &&
+    isOptionalString(value.coverageStart) &&
+    isOptionalString(value.coverageEnd) &&
+    typeof value.completeness === "string"
+  );
+}
+
+function isRenderedReportingTrust(value: unknown): value is RenderedReportingTrust {
+  return (
+    isRecord(value) &&
+    typeof value.status === "string" &&
+    typeof value.dataFreshness === "string" &&
+    isOptionalString(value.lastExport) &&
+    isOptionalString(value.schemaVersion) &&
+    isOptionalString(value.contractVersion) &&
+    typeof value.rollupState === "string" &&
+    isOptionalStringArray(value.queryWarnings) &&
+    typeof value.coverage === "string" &&
+    isOptionalString(value.permissionClass) &&
+    typeof value.captureState === "string" &&
+    typeof value.consentState === "string" &&
+    typeof value.exportState === "string" &&
+    isOptionalString(value.partialReason) &&
+    isOptionalString(value.unavailableReason)
+  );
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value);
+}
+
+function isOptionalFiniteNumber(value: unknown): value is number | undefined {
+  return value === undefined || isFiniteNumber(value);
+}
+
+function isOptionalInteger(value: unknown): value is number | undefined {
+  return value === undefined || isInteger(value);
+}
+
+function isOptionalString(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === "string";
+}
+
+function isOptionalStringArray(value: unknown): value is string[] | undefined {
+  return value === undefined || (Array.isArray(value) && value.every((item) => typeof item === "string"));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 class SchemaNamespace {

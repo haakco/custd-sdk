@@ -1,6 +1,6 @@
 # Exact-Subject Insight SDK Parity Plan
 
-**Status:** Active; implementation not started.
+**Status:** Active; implementation complete, local validation pending.
 
 **Goal:** Add one contract-compatible exact-subject reporting helper to every
 public Custd SDK and release the shared version without client-specific code.
@@ -28,6 +28,8 @@ one verified release tag.
 - Cross-language parity and shared fixtures are required by repository policy.
 - The old plan-index claim that mirror publishing is blocked is stale; `v1.6.4`
   mirrors succeeded. Release still requires push/tag authority and credentials.
+- The authoritative request and rendered response DTOs are owned by the sibling
+  Custd server under `libs/go/reporting/`; SDK contracts mirror those definitions.
 
 ## Milestones
 

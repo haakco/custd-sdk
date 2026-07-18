@@ -1,13 +1,15 @@
 import gzip
 import json
 import random
+import re
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Mapping
+from datetime import datetime
+from typing import Any, NotRequired, TypedDict
 
 INGEST_ENDPOINT = "/api/v1/events"
 INGEST_BATCH_ENDPOINT = "/api/v1/events/batch"
@@ -20,6 +22,93 @@ Transport = Callable[[str, EventEnvelope, dict[str, str], float], TransportResul
 AdminTransport = Callable[[str, str, dict[str, Any] | None, dict[str, str], float], TransportResult]
 TokenProvider = Callable[[], str]
 OAuthTokenTransport = Callable[[str, dict[str, Any], float], dict[str, Any]]
+
+
+SubjectInsightRequest = TypedDict(
+    "SubjectInsightRequest",
+    {
+        "template": str,
+        "subject": str,
+        "from": NotRequired[str],
+        "to": NotRequired[str],
+        "rangeDays": NotRequired[int],
+    },
+)
+
+
+class RenderedMetricValue(TypedDict):
+    value: float
+    unit: str
+    sampleCount: int
+    dataSufficiency: str
+    complete: bool
+    truncated: NotRequired[bool]
+
+
+class RenderedWidgetBucket(TypedDict):
+    date: str
+    value: RenderedMetricValue
+    source: str
+    queryDurationMs: int
+    parquetUriCount: NotRequired[int]
+    message: NotRequired[str]
+    secondary: NotRequired[RenderedMetricValue]
+
+
+class ReportingQueryMetadata(TypedDict):
+    resolvedTemplate: str
+    effectiveMaxRows: int
+    returnedRows: int
+    returnedBuckets: int
+    coveredWindows: int
+    rangeStart: NotRequired[str]
+    rangeEnd: NotRequired[str]
+
+
+class ReportingSourceSummary(TypedDict):
+    kind: str
+    count: int
+    completeness: str
+    coverageStart: NotRequired[str]
+    coverageEnd: NotRequired[str]
+
+
+class RenderedReportingTrust(TypedDict):
+    status: str
+    dataFreshness: str
+    rollupState: str
+    coverage: str
+    captureState: str
+    consentState: str
+    exportState: str
+    lastExport: NotRequired[str]
+    schemaVersion: NotRequired[str]
+    contractVersion: NotRequired[str]
+    queryWarnings: NotRequired[list[str]]
+    permissionClass: NotRequired[str]
+    partialReason: NotRequired[str]
+    unavailableReason: NotRequired[str]
+
+
+class RenderedWidgetData(TypedDict):
+    buckets: list[RenderedWidgetBucket]
+    value: RenderedMetricValue
+    queryDurationMs: int
+    snapshotAgeMs: int
+    eventLagP95Ms: int
+    metadata: NotRequired[ReportingQueryMetadata]
+    sources: NotRequired[list[ReportingSourceSummary]]
+    warnings: NotRequired[list[str]]
+    trust: NotRequired[RenderedReportingTrust]
+    parquetUriCount: NotRequired[int]
+    delta: NotRequired[RenderedMetricValue]
+    deltaPercent: NotRequired[float]
+    deltaLabel: NotRequired[str]
+    secondaryLabel: NotRequired[str]
+
+
+class SubjectInsightResponse(TypedDict):
+    data: RenderedWidgetData
 
 
 class ValidationError(ValueError):
@@ -323,6 +412,12 @@ class ReportingClient:
         if contains_unsafe_reporting_trust_key(widget.get("trust")):
             raise ValueError("custd: unsafe reporting trust diagnostics")
         return widget
+
+    def subject_insight(self, request: SubjectInsightRequest) -> SubjectInsightResponse:
+        validate_subject_insight_request(request)
+        response = self._request("POST", "/reporting/insights/subject", dict(request))
+        validate_subject_insight_response(response)
+        return SubjectInsightResponse(data=response["data"])
 
     def _request(
         self,
@@ -718,6 +813,166 @@ def sanitize_dogfood_payload(payload: dict[str, Any]) -> dict[str, Any]:
 def dogfood_payload_field_allowed(key: str) -> bool:
     normalized = key.lower().replace("_", "")
     return normalized not in DOGFOOD_PROTECTED_PAYLOAD_FIELDS and normalized not in DOGFOOD_FORBIDDEN_PAYLOAD_FIELDS
+
+
+def validate_subject_insight_request(request: Mapping[str, Any]) -> None:
+    allowed = {"template", "subject", "from", "to", "rangeDays"}
+    if set(request) - allowed:
+        raise ValueError("custd: subject insight request contains unsupported fields")
+    template = request.get("template")
+    if not isinstance(template, str) or re.fullmatch(r"[a-z][a-z0-9_]{0,127}", template) is None:
+        raise ValueError("custd: subject insight template is required")
+    if not isinstance(request.get("subject"), str) or not request["subject"].strip() or len(request["subject"]) > 512:
+        raise ValueError("custd: subject insight subject is required")
+    has_range_days = "rangeDays" in request
+    has_from = "from" in request
+    has_to = "to" in request
+    if has_range_days == (has_from or has_to) or has_from != has_to:
+        raise ValueError("custd: subject insight requires rangeDays or both from and to")
+    if has_range_days and (
+        not isinstance(request["rangeDays"], int)
+        or isinstance(request["rangeDays"], bool)
+        or not 1 <= request["rangeDays"] <= 366
+    ):
+        raise ValueError("custd: subject insight rangeDays must be between 1 and 366")
+    if has_from:
+        try:
+            start = _parse_rfc3339(request["from"])
+            end = _parse_rfc3339(request["to"])
+        except (TypeError, ValueError) as error:
+            raise ValueError("custd: subject insight from and to must be RFC3339 timestamps") from error
+        if end <= start or (end - start).total_seconds() > 366 * 86400:
+            raise ValueError("custd: subject insight date range must be positive and at most 366 days")
+
+
+def validate_subject_insight_response(response: dict[str, Any]) -> None:
+    data = response.get("data")
+    required = {"buckets", "value", "queryDurationMs", "snapshotAgeMs", "eventLagP95Ms"}
+    if not isinstance(data, dict) or not required.issubset(data):
+        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+    if not isinstance(data["buckets"], list) or not _is_rendered_metric_value(data["value"]):
+        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+    if not all(_is_rendered_widget_bucket(bucket) for bucket in data["buckets"]):
+        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+    if not all(
+        isinstance(data[key], int) and not isinstance(data[key], bool)
+        for key in ("queryDurationMs", "snapshotAgeMs", "eventLagP95Ms")
+    ):
+        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+    if contains_unsafe_reporting_trust_key(data.get("trust")):
+        raise ValueError("custd: unsafe reporting trust diagnostics")
+    if not _has_valid_optional_rendered_fields(data):
+        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+
+
+def _is_rendered_metric_value(value: Any) -> bool:
+    required = {"value", "unit", "sampleCount", "dataSufficiency", "complete"}
+    return (
+        isinstance(value, dict)
+        and required.issubset(value)
+        and isinstance(value["value"], int | float)
+        and not isinstance(value["value"], bool)
+        and isinstance(value["unit"], str)
+        and isinstance(value["sampleCount"], int)
+        and not isinstance(value["sampleCount"], bool)
+        and isinstance(value["dataSufficiency"], str)
+        and isinstance(value["complete"], bool)
+    )
+
+
+def _is_rendered_widget_bucket(value: Any) -> bool:
+    required = {"date", "value", "source", "queryDurationMs"}
+    return (
+        isinstance(value, dict)
+        and required.issubset(value)
+        and isinstance(value["date"], str)
+        and isinstance(value["source"], str)
+        and isinstance(value["queryDurationMs"], int)
+        and not isinstance(value["queryDurationMs"], bool)
+        and _is_rendered_metric_value(value["value"])
+        and ("parquetUriCount" not in value or _is_int(value["parquetUriCount"]))
+        and ("message" not in value or isinstance(value["message"], str))
+        and ("secondary" not in value or _is_rendered_metric_value(value["secondary"]))
+    )
+
+
+def _parse_rfc3339(value: Any) -> datetime:
+    pattern = r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})"
+    if not isinstance(value, str) or re.fullmatch(pattern, value) is None:
+        raise ValueError("not RFC3339")
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        raise ValueError("timezone required")
+    return parsed
+
+
+def _is_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _has_valid_optional_rendered_fields(data: dict[str, Any]) -> bool:
+    metric_fields = ("delta",)
+    string_fields = ("deltaLabel", "secondaryLabel")
+    int_fields = ("parquetUriCount",)
+    if any(field in data and not _is_rendered_metric_value(data[field]) for field in metric_fields):
+        return False
+    if any(field in data and not isinstance(data[field], str) for field in string_fields):
+        return False
+    if any(field in data and not _is_int(data[field]) for field in int_fields):
+        return False
+    if "deltaPercent" in data and (
+        not isinstance(data["deltaPercent"], int | float) or isinstance(data["deltaPercent"], bool)
+    ):
+        return False
+    if "warnings" in data and (
+        not isinstance(data["warnings"], list) or not all(isinstance(item, str) for item in data["warnings"])
+    ):
+        return False
+    if "sources" in data and (
+        not isinstance(data["sources"], list) or not all(_is_reporting_source(item) for item in data["sources"])
+    ):
+        return False
+    if "metadata" in data and not _is_reporting_metadata(data["metadata"]):
+        return False
+    return "trust" not in data or _is_reporting_trust(data["trust"])
+
+
+def _is_reporting_metadata(value: Any) -> bool:
+    required_strings = ("resolvedTemplate",)
+    required_ints = ("effectiveMaxRows", "returnedRows", "returnedBuckets", "coveredWindows")
+    return (
+        isinstance(value, dict)
+        and all(isinstance(value.get(field), str) for field in required_strings)
+        and all(_is_int(value.get(field)) for field in required_ints)
+        and all(field not in value or isinstance(value[field], str) for field in ("rangeStart", "rangeEnd"))
+    )
+
+
+def _is_reporting_source(value: Any) -> bool:
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("kind"), str)
+        and _is_int(value.get("count"))
+        and isinstance(value.get("completeness"), str)
+        and all(field not in value or isinstance(value[field], str) for field in ("coverageStart", "coverageEnd"))
+    )
+
+
+def _is_reporting_trust(value: Any) -> bool:
+    required = ("status", "dataFreshness", "rollupState", "coverage", "captureState", "consentState", "exportState")
+    optional_strings = (
+        "lastExport", "schemaVersion", "contractVersion", "permissionClass", "partialReason", "unavailableReason"
+    )
+    return (
+        isinstance(value, dict)
+        and all(isinstance(value.get(field), str) for field in required)
+        and all(field not in value or isinstance(value[field], str) for field in optional_strings)
+        and (
+            "queryWarnings" not in value
+            or isinstance(value["queryWarnings"], list)
+            and all(isinstance(item, str) for item in value["queryWarnings"])
+        )
+    )
 
 
 def contains_unsafe_reporting_trust_key(value: Any) -> bool:
