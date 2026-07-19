@@ -31,6 +31,20 @@ def fixture(name: str) -> dict[str, Any]:
 
 
 class ReportingClientTest(unittest.TestCase):
+    def test_output_selects_canonical_ready_output(self) -> None:
+        output_uuid = "33333333-3333-4333-8333-333333333333"
+        response = {"outputUuid": output_uuid, "processingState": "ready"}
+        transport = FakeTransport(response)
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+        self.assertEqual(response, client.reporting.output(output_uuid))
+        self.assertEqual(f"http://localhost:8080/api/v1/reporting/outputs/{output_uuid}", transport.calls[0][1])
+
+    def test_outputs_preserves_nullable_list_envelope(self) -> None:
+        for outputs in (None, [{"outputUuid": "33333333-3333-4333-8333-333333333333", "warnings": None}]):
+            transport = FakeTransport({"outputs": outputs})
+            client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+            self.assertEqual({"outputs": outputs}, client.reporting.outputs())
+
     def test_subject_insight_sends_closed_request_and_returns_rendered_data(self) -> None:
         response = fixture("reporting-subject-insight-response.json")
         for fixture_name in (

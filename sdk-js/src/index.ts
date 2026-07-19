@@ -175,6 +175,25 @@ export type RequestOptions = {
   signal?: AbortSignal;
 };
 
+export type PreparedDataState = "accepted" | "processing" | "ready" | "failed";
+export type PreparedDataAvailability = "complete" | "partial" | "stale" | "unavailable";
+export type PreparedDataNextAction = "none" | "poll" | "retry" | "rotate" | "escalate";
+export type PreparedDataStatus = {
+  tenantSlug: string;
+  processingState: PreparedDataState;
+  availability: PreparedDataAvailability;
+  observedAt: string;
+  watermark?: string;
+  provenance: { owner: string; generation?: string; sourceUrn?: string; watermark?: string };
+  retryability: "none" | "bounded";
+  warnings?: Array<{ code: string; message: string }> | null;
+  nextAction: { action: PreparedDataNextAction; pollAfterSeconds?: number; maxRetries?: number };
+};
+export type PreparedDataReceiptStatus = PreparedDataStatus & { receiptUuid: string };
+export type PreparedDataOutputStatus = PreparedDataStatus & { outputUuid: string };
+export type PreparedDataOutputList = { outputs: PreparedDataOutputStatus[] | null };
+export type PreparedDataQueryEnvelope = { output: PreparedDataOutputStatus; data: RenderedWidgetData };
+
 export type BrokerEnv = Record<string, string | undefined>;
 
 export type BrokerEnvClientOptions = Omit<ClientConfig, "baseUrl" | "getToken" | "oauth"> & {
@@ -1050,6 +1069,29 @@ class ReportingNamespace {
     return this.request("GET", `/reporting/dashboards/${encodeURIComponent(key)}`, undefined, options);
   }
 
+  receipt(receiptUuid: string, options?: RequestOptions): Promise<PreparedDataReceiptStatus> {
+    assertUuid(receiptUuid, "receiptUuid");
+    return this.request("GET", `/processing/${encodeURIComponent(receiptUuid)}`, undefined, options);
+  }
+
+  outputs(options?: RequestOptions): Promise<PreparedDataOutputList> {
+    return this.request("GET", "/reporting/outputs", undefined, options);
+  }
+
+  output(outputUuid: string, options?: RequestOptions): Promise<PreparedDataOutputStatus> {
+    assertUuid(outputUuid, "outputUuid");
+    return this.request("GET", `/reporting/outputs/${encodeURIComponent(outputUuid)}`, undefined, options);
+  }
+
+  queryOutput(
+    outputUuid: string,
+    request: ReportingQueryRequest,
+    options?: RequestOptions,
+  ): Promise<PreparedDataQueryEnvelope> {
+    assertUuid(outputUuid, "outputUuid");
+    return this.request("POST", `/reporting/outputs/${encodeURIComponent(outputUuid)}/query`, request, options);
+  }
+
   async query(request: ReportingQueryRequest, options?: RequestOptions): Promise<ReportingWidgetData> {
     const data = await this.request<ReportingWidgetData>("POST", "/reporting/query", request, options);
     if (data.trust && containsForbiddenReportingTrustKey(data.trust)) {
@@ -1070,6 +1112,12 @@ class ReportingNamespace {
       throw new Error("custd: unsafe reporting trust diagnostics");
     }
     return response;
+  }
+}
+
+function assertUuid(value: string, field: string): void {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+    throw new Error(`custd: ${field} must be a UUID`);
   }
 }
 

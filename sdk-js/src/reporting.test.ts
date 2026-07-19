@@ -21,6 +21,13 @@ function mockFetch(body: unknown) {
 }
 
 describe("reporting helpers", () => {
+  it("selects a canonical prepared-data output by UUID", async () => {
+    const status = { outputUuid: "33333333-3333-4333-8333-333333333333", processingState: "ready", warnings: null };
+    const fetchImpl = mockFetch(status);
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+    expect(await client.reporting.output(status.outputUuid)).toEqual(status);
+    expect(fetchImpl.mock.calls[0][0]).toBe(`http://localhost:8080/api/v1/reporting/outputs/${status.outputUuid}`);
+  });
   it("runs a subject insight with the closed request and returns rendered widget data", async () => {
     const fetchImpl = mockFetch(subjectInsightResponseFixture);
     const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });

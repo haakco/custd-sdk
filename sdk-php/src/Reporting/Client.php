@@ -52,6 +52,48 @@ final class Client
         return $response;
     }
 
+    /** @return array<string, mixed> */
+    public function receipt(string $receiptUuid): array
+    {
+        self::validateUuid($receiptUuid, "receiptUuid");
+        return $this->request("GET", "/api/v1/processing/" . rawurlencode($receiptUuid));
+    }
+
+    /** @return array{outputs: list<array<string, mixed>>|null} */
+    public function outputs(): array
+    {
+        $response = $this->request("GET", "/api/v1/reporting/outputs");
+        $outputs = $response["outputs"] ?? null;
+        if ($outputs !== null && !is_array($outputs)) {
+            throw new \RuntimeException("custd: prepared-data outputs response is malformed");
+        }
+        return ["outputs" => $outputs === null ? null : array_values($outputs)];
+    }
+
+    /** @return array<string, mixed> */
+    public function output(string $outputUuid): array
+    {
+        self::validateUuid($outputUuid, "outputUuid");
+        return $this->request("GET", "/api/v1/reporting/outputs/" . rawurlencode($outputUuid));
+    }
+
+    /**
+     * @param array<string, mixed> $query
+     * @return array<string, mixed>
+     */
+    public function queryOutput(string $outputUuid, array $query): array
+    {
+        self::validateUuid($outputUuid, "outputUuid");
+        return $this->request("POST", "/api/v1/reporting/outputs/" . rawurlencode($outputUuid) . "/query", $query);
+    }
+
+    private static function validateUuid(string $value, string $field): void
+    {
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $value) !== 1) {
+            throw new \InvalidArgumentException("custd: {$field} must be a UUID");
+        }
+    }
+
     /**
      * @param array<string, mixed>|null $body
      * @return array<string, mixed>

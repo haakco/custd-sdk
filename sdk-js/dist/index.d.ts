@@ -128,6 +128,45 @@ export type ClientConfig = {
 export type RequestOptions = {
     signal?: AbortSignal;
 };
+export type PreparedDataState = "accepted" | "processing" | "ready" | "failed";
+export type PreparedDataAvailability = "complete" | "partial" | "stale" | "unavailable";
+export type PreparedDataNextAction = "none" | "poll" | "retry" | "rotate" | "escalate";
+export type PreparedDataStatus = {
+    tenantSlug: string;
+    processingState: PreparedDataState;
+    availability: PreparedDataAvailability;
+    observedAt: string;
+    watermark?: string;
+    provenance: {
+        owner: string;
+        generation?: string;
+        sourceUrn?: string;
+        watermark?: string;
+    };
+    retryability: "none" | "bounded";
+    warnings?: Array<{
+        code: string;
+        message: string;
+    }> | null;
+    nextAction: {
+        action: PreparedDataNextAction;
+        pollAfterSeconds?: number;
+        maxRetries?: number;
+    };
+};
+export type PreparedDataReceiptStatus = PreparedDataStatus & {
+    receiptUuid: string;
+};
+export type PreparedDataOutputStatus = PreparedDataStatus & {
+    outputUuid: string;
+};
+export type PreparedDataOutputList = {
+    outputs: PreparedDataOutputStatus[] | null;
+};
+export type PreparedDataQueryEnvelope = {
+    output: PreparedDataOutputStatus;
+    data: RenderedWidgetData;
+};
 export type BrokerEnv = Record<string, string | undefined>;
 export type BrokerEnvClientOptions = Omit<ClientConfig, "baseUrl" | "getToken" | "oauth"> & {
     baseUrl?: string;
@@ -587,6 +626,10 @@ declare class ReportingNamespace {
     private readonly request;
     constructor(request: APIRequester);
     dashboard(key: string, options?: RequestOptions): Promise<ReportingDashboard>;
+    receipt(receiptUuid: string, options?: RequestOptions): Promise<PreparedDataReceiptStatus>;
+    outputs(options?: RequestOptions): Promise<PreparedDataOutputList>;
+    output(outputUuid: string, options?: RequestOptions): Promise<PreparedDataOutputStatus>;
+    queryOutput(outputUuid: string, request: ReportingQueryRequest, options?: RequestOptions): Promise<PreparedDataQueryEnvelope>;
     query(request: ReportingQueryRequest, options?: RequestOptions): Promise<ReportingWidgetData>;
     subjectInsight(request: SubjectInsightRequest, options?: RequestOptions): Promise<SubjectInsightResponse>;
 }

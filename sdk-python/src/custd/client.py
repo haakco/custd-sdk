@@ -111,8 +111,32 @@ class SubjectInsightResponse(TypedDict):
     data: RenderedWidgetData
 
 
+class PreparedDataStatus(TypedDict):
+    tenantSlug: str
+    processingState: str
+    availability: str
+    observedAt: str
+    provenance: dict[str, Any]
+    retryability: str
+    nextAction: dict[str, Any]
+    watermark: NotRequired[str]
+    warnings: NotRequired[list[dict[str, str]] | None]
+
+
+class PreparedDataOutputList(TypedDict):
+    outputs: list[PreparedDataStatus] | None
+
+
 class ValidationError(ValueError):
     pass
+
+
+def validate_uuid(value: str, field: str) -> None:
+    try:
+        if str(uuid.UUID(value)) != value.lower():
+            raise ValueError
+    except (ValueError, AttributeError):
+        raise ValidationError(f"custd: {field} must be a UUID") from None
 
 
 class RetryableError(RuntimeError):
@@ -418,6 +442,22 @@ class ReportingClient:
         response = self._request("POST", "/reporting/insights/subject", dict(request))
         validate_subject_insight_response(response)
         return SubjectInsightResponse(data=response["data"])
+
+    def receipt(self, receipt_uuid: str) -> PreparedDataStatus:
+        validate_uuid(receipt_uuid, "receipt_uuid")
+        return self._request("GET", f"/processing/{quote_path(receipt_uuid)}")  # type: ignore[return-value]
+
+    def outputs(self) -> PreparedDataOutputList:
+        response = self._request("GET", "/reporting/outputs")
+        return PreparedDataOutputList(outputs=response.get("outputs"))
+
+    def output(self, output_uuid: str) -> PreparedDataStatus:
+        validate_uuid(output_uuid, "output_uuid")
+        return self._request("GET", f"/reporting/outputs/{quote_path(output_uuid)}")  # type: ignore[return-value]
+
+    def query_output(self, output_uuid: str, request: dict[str, Any]) -> TransportResult:
+        validate_uuid(output_uuid, "output_uuid")
+        return self._request("POST", f"/reporting/outputs/{quote_path(output_uuid)}/query", request)
 
     def _request(
         self,

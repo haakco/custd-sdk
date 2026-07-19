@@ -9,6 +9,24 @@ use PHPUnit\Framework\TestCase;
 
 final class ReportingClientTest extends TestCase
 {
+    public function testOutputSelectsCanonicalReadyOutput(): void
+    {
+        $uuid = "33333333-3333-4333-8333-333333333333";
+        $calls = [];
+        $client = $this->clientWithResponse(["outputUuid" => $uuid, "processingState" => "ready"], $calls);
+        self::assertSame($uuid, $client->reporting()->output($uuid)["outputUuid"]);
+        self::assertSame("http://localhost:8080/api/v1/reporting/outputs/{$uuid}", $calls[0]["url"]);
+    }
+
+    public function testOutputsPreservesNullableListEnvelope(): void
+    {
+        foreach ([null, [["outputUuid" => "33333333-3333-4333-8333-333333333333", "warnings" => null]]] as $outputs) {
+            $calls = [];
+            $client = $this->clientWithResponse(["outputs" => $outputs], $calls);
+            self::assertSame(["outputs" => $outputs], $client->reporting()->outputs());
+        }
+    }
+
     public function testSubjectInsightSendsClosedRequestAndReturnsRenderedData(): void
     {
         $calls = [];

@@ -359,6 +359,21 @@ class ReportingNamespace {
     dashboard(key, options) {
         return this.request("GET", `/reporting/dashboards/${encodeURIComponent(key)}`, undefined, options);
     }
+    receipt(receiptUuid, options) {
+        assertUuid(receiptUuid, "receiptUuid");
+        return this.request("GET", `/processing/${encodeURIComponent(receiptUuid)}`, undefined, options);
+    }
+    outputs(options) {
+        return this.request("GET", "/reporting/outputs", undefined, options);
+    }
+    output(outputUuid, options) {
+        assertUuid(outputUuid, "outputUuid");
+        return this.request("GET", `/reporting/outputs/${encodeURIComponent(outputUuid)}`, undefined, options);
+    }
+    queryOutput(outputUuid, request, options) {
+        assertUuid(outputUuid, "outputUuid");
+        return this.request("POST", `/reporting/outputs/${encodeURIComponent(outputUuid)}/query`, request, options);
+    }
     async query(request, options) {
         const data = await this.request("POST", "/reporting/query", request, options);
         if (data.trust && containsForbiddenReportingTrustKey(data.trust)) {
@@ -378,6 +393,11 @@ class ReportingNamespace {
             throw new Error("custd: unsafe reporting trust diagnostics");
         }
         return response;
+    }
+}
+function assertUuid(value, field) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+        throw new Error(`custd: ${field} must be a UUID`);
     }
 }
 function isValidSubjectInsightRequest(request) {
