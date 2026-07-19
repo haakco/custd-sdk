@@ -17,7 +17,7 @@ truthful index.
 
 ## Current State (Verified 2026-07-19)
 
-- Before this CI-status update, local `HEAD` and `origin/main` equal `b7ba529`.
+- Before this cleanup, local `HEAD` and `origin/main` equal `30a3c7e`.
 - Exact-subject implementation/remediation history includes `954f2a0`,
   `b340e26`, `58c031b`, `83a18fc`, and `7b0f46d`.
 - Concurrent commit `3257e01` published the prior planning packet and Node tool
@@ -29,12 +29,12 @@ truthful index.
 - Codex independently ran `just test`,
   `just lint-workflows lint-markdown diff-check`, and `git diff --check` on
   `7b0f46d`; all passed.
-- This CI-status update changes this plan, `PROGRESS.md`, and
-  `docs/plans/main_plan.md`.
+- This cleanup archives the resolved bug ledger and inactive M3 mailbox, removes
+  disposable M3 receipts, and updates this plan plus `PROGRESS.md`.
 - `mise.toml` is now the tracked tool source in local commit `5637e93`; the
   earlier `.mise.toml` working-tree blocker no longer exists.
-- Codex reconciliation commits `4ac2632` and `b7ba529` were pushed normally.
-  Main CI run `29667898356` completed successfully for exact SHA `b7ba529`:
+- Codex reconciliation commits through `30a3c7e` were pushed normally.
+  Main CI run `29668016923` completed successfully for exact SHA `30a3c7e`:
   Go, JS, Python, PHP 8.3/8.4/8.5, PHP analysis, Laravel, WordPress, and workflow
   jobs succeeded; tag-only release/publish jobs correctly skipped.
 
@@ -84,9 +84,8 @@ truthful index.
     workflows use self-hosted runners, and no secret or force/retag path exists.
 - Reconcile canonical state:
   - `PROGRESS.md` names the actual SHA/ahead state and next gate.
-  - `BUGS.md` contains no unresolved release problem.
-  - The M3 mailbox is explicitly inactive.
-  - Old ignored receipts are disposable and not acceptance dependencies.
+  - The resolved bug ledger and inactive M3 mailbox are archived.
+  - Old ignored receipts are removed and are not acceptance dependencies.
 - Final local gates, once after reconciliation:
   1. `just test`
   2. `just lint-workflows lint-markdown diff-check`
@@ -105,8 +104,8 @@ truthful index.
 - Proof: `origin/main` reaches the reviewed release SHA and main CI succeeds.
   The pushed history must include the already-present `5637e93` commit unless
   the user directs otherwise; no history rewrite is allowed.
-- Completed 2026-07-19: pushed through `b7ba529`; CI run `29667898356`
-  completed/success for `b7ba529921ed3e1772880479d493261c5e8e8ffe`.
+- Completed 2026-07-19: pushed through `30a3c7e`; CI run `29668016923`
+  completed/success for `30a3c7e33165c0ed1c3d21ea4120652a914b0553`.
 
 ### 4. Immutable `v1.6.5` tag — separate authorization gate
 

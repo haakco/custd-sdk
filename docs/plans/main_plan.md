@@ -6,7 +6,7 @@ Central tracker for active implementation plans. Link every active plan here wit
 
 - [Exact-Subject Insight SDK Parity](./2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md) — active; implementation,
   BUG-009 remediation, Codex review/reconciliation, push, and main CI are green
-  through `b7ba529` (run `29667898356`). Separately authorized immutable tagging,
+  through `30a3c7e` (run `29668016923`). Separately authorized immutable tagging,
   publication/consumer proof, and archive remain.
 
 ## Archived (2026-06-17)
