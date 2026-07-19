@@ -1,14 +1,12 @@
 # Custd SDK v1.6.5 Progress
 
 **Owning plan:**
-[`docs/plans/2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md`](docs/plans/2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md)
-**Status:** Pre-tag work complete; waiting for explicit `v1.6.5` authorization.
-M3 will not be used.
+[`archive/docs/plans/2026-07-19_0135_2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md`](archive/docs/plans/2026-07-19_0135_2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md)
+**Status:** Complete and archived; released as `v1.6.5`.
 
 ## Current State (verified 2026-07-19)
 
-- `HEAD=origin/main=30a3c7e` before this cleanup.
-- Local and remote `v1.6.5` are absent.
+- The release tag `v1.6.5` peels to `ea0e350`.
 - BUG-009 is fixed and committed.
 - Current in-scope cleanup deltas: owning plan, this file, resolved bug-ledger
   archive, inactive-mailbox archive, and removal of disposable M3 receipts.
@@ -24,22 +22,20 @@ M3 will not be used.
 - `main` pushed normally through `30a3c7e`.
 - Main CI run `29668016923` completed/success for exact SHA `30a3c7e`; all
   required main jobs succeeded and tag-only jobs correctly skipped.
+- Tag CI `29668667152` and Release Mirrors `29668667174` passed.
+- Verdaccio resolves `@haakco/custd-sdk@1.6.5`.
 
 ## Current
 
-- Waiting for separate user authorization to create and push immutable
-  `v1.6.5`.
+- Release and archive closeout complete.
 
 ## Next
 
-1. After explicit authorization, re-run the clean-tree/tag/version/SHA preflight.
-2. Create and push immutable `v1.6.5` exactly once.
-3. Verify release workflows, publication, mirrors, and clean consumers.
-4. Archive the completed plan.
+None for this release.
 
 ## Blockers
 
-- Explicit tag authorization is required before the next external mutation.
+None.
 
 ## Last Useful Commands
 

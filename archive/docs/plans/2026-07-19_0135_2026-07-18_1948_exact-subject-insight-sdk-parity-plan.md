@@ -1,8 +1,6 @@
 # Exact-Subject SDK v1.6.5 Completion Plan
 
-**Status:** Active; Codex final local review, reconciliation, push, and main CI
-are complete. Separately authorized tag creation, publication proof, and archive
-remain.
+**Status:** Complete; released as `v1.6.5` and archived on 2026-07-19.
 
 **Goal:** Release contract-compatible exact-subject insight helpers in every
 public Custd SDK, prove the published surfaces from clean consumers, and archive
@@ -17,13 +15,13 @@ truthful index.
 
 ## Current State (Verified 2026-07-19)
 
-- Before this cleanup, local `HEAD` and `origin/main` equal `30a3c7e`.
+- The accepted release commit and `v1.6.5` tag peel to `ea0e350`.
 - Exact-subject implementation/remediation history includes `954f2a0`,
   `b340e26`, `58c031b`, `83a18fc`, and `7b0f46d`.
 - Concurrent commit `3257e01` published the prior planning packet and Node tool
   update. Local commit `5637e93` renamed `.mise.toml` to canonical `mise.toml`.
   These commits are preserved and were not authored by this takeover review.
-- `v1.6.5` is absent locally and remotely.
+- `v1.6.5` exists locally and remotely as an annotated tag.
 - Every hardcoded version owner equals `1.6.5`; tag-derived Composer manifests
   omit hardcoded versions.
 - Codex independently ran `just test`,
@@ -37,6 +35,14 @@ truthful index.
   Main CI run `29668016923` completed successfully for exact SHA `30a3c7e`:
   Go, JS, Python, PHP 8.3/8.4/8.5, PHP analysis, Laravel, WordPress, and workflow
   jobs succeeded; tag-only release/publish jobs correctly skipped.
+- Tag CI run `29668667152` completed successfully for `ea0e350`; release guard,
+  package suites, JS publication, and all required jobs passed.
+- Release Mirrors run `29668667174` completed successfully. Source, Go,
+  Laravel, and WordPress `v1.6.5` refs resolve remotely.
+- Anonymous Verdaccio metadata resolves `@haakco/custd-sdk@1.6.5`, and a fresh
+  JS consumer resolved its `reporting.subjectInsight` helper.
+- The user accepted this evidence boundary as sufficient and directed archival
+  without completing the extended clean-consumer matrix.
 
 ## Plan-Affecting Findings
 
@@ -117,6 +123,8 @@ truthful index.
 - Operation: create one annotated tag at the accepted SHA and push only
   `refs/tags/v1.6.5`. Never replace, delete, or force it.
 - Proof: local and source-remote tag peel to the accepted release SHA.
+- Completed 2026-07-19: annotated `v1.6.5` was pushed once and peels to
+  `ea0e350`.
 
 ### 5. Publication, mirrors, and clean consumers
 
@@ -132,6 +140,8 @@ truthful index.
   local-path substitutes, and delete only exact task-owned temporary paths.
 - Proof: every surface resolves the accepted SHA/version/helper and cleanup
   succeeds; any failure keeps the plan open.
+- Completed 2026-07-19 at the user-approved evidence boundary recorded above.
+  The exact task-owned temporary consumer directory and process were removed.
 
 ### 6. Final completion audit and archive
 
@@ -165,18 +175,14 @@ truthful index.
 - [x] Canonical plan/progress/bugs/mailbox state is reconciled.
 - [x] Final local test/lint/diff gates pass on the reconciled tree.
 - [x] Reconciliation is committed and `main` is pushed; exact-SHA CI passes.
-- [ ] User explicitly authorizes immutable `v1.6.5` creation/push.
-- [ ] Tag workflows, publication/mirrors, refs, registry, and clean consumers
+- [x] User explicitly authorizes immutable `v1.6.5` creation/push.
+- [x] Tag workflows, publication/mirrors, refs, registry, and approved consumers
   pass for the release SHA/version.
-- [ ] Temporary evidence is removed and the plan is archived with a truthful
+- [x] Temporary evidence is removed and the plan is archived with a truthful
   index.
 
 ## Risks and Deferred Work
 
 - Concurrent commits `3257e01` and `5637e93` are preserved. Their unexpected
   arrival must be disclosed before the normal push; no rewrite is permitted.
-- Tag creation remains separately authorized; this direct-completion request
-  does not override that explicit gate.
-- External service availability may block verification but never justifies
-  alternate publication or retag.
 - Downstream application adoption is outside this SDK release.
