@@ -4,10 +4,10 @@ Central tracker for active implementation plans. Link every active plan here wit
 
 ## Active
 
-- [Exact-Subject Insight SDK Parity](./2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md) — active; Codex direct
-  takeover. Implementation and BUG-009 remediation are committed and locally
-  green at `7b0f46d`; final review/reconciliation, push and main CI, separately
-  authorized immutable tagging, publication/consumer proof, and archive remain.
+- [Exact-Subject Insight SDK Parity](./2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md) — active; implementation,
+  BUG-009 remediation, Codex review/reconciliation, push, and main CI are green
+  through `b7ba529` (run `29667898356`). Separately authorized immutable tagging,
+  publication/consumer proof, and archive remain.
 
 ## Archived (2026-06-17)
 

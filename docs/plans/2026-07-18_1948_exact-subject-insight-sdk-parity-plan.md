@@ -1,9 +1,8 @@
 # Exact-Subject SDK v1.6.5 Completion Plan
 
-**Status:** Active; Codex direct takeover authorized on 2026-07-19. Local
-implementation and BUG-009 remediation are committed at `7b0f46d`; final local
-review, reconciliation, push/CI, separately authorized tag, publication proof,
-and archive remain.
+**Status:** Active; Codex final local review, reconciliation, push, and main CI
+are complete. Separately authorized tag creation, publication proof, and archive
+remain.
 
 **Goal:** Release contract-compatible exact-subject insight helpers in every
 public Custd SDK, prove the published surfaces from clean consumers, and archive
@@ -18,8 +17,7 @@ truthful index.
 
 ## Current State (Verified 2026-07-19)
 
-- Concurrent work advanced `origin/main` to `3257e01` and local `HEAD` to
-  `5637e93`; local `main` is one commit ahead before this reconciliation commit.
+- Before this CI-status update, local `HEAD` and `origin/main` equal `b7ba529`.
 - Exact-subject implementation/remediation history includes `954f2a0`,
   `b340e26`, `58c031b`, `83a18fc`, and `7b0f46d`.
 - Concurrent commit `3257e01` published the prior planning packet and Node tool
@@ -31,10 +29,14 @@ truthful index.
 - Codex independently ran `just test`,
   `just lint-workflows lint-markdown diff-check`, and `git diff --check` on
   `7b0f46d`; all passed.
-- This reconciliation changes this plan, `PROGRESS.md`, `BUGS.md`, the inactive
-  M3 mailbox, and `docs/plans/main_plan.md`.
+- This CI-status update changes this plan, `PROGRESS.md`, and
+  `docs/plans/main_plan.md`.
 - `mise.toml` is now the tracked tool source in local commit `5637e93`; the
   earlier `.mise.toml` working-tree blocker no longer exists.
+- Codex reconciliation commits `4ac2632` and `b7ba529` were pushed normally.
+  Main CI run `29667898356` completed successfully for exact SHA `b7ba529`:
+  Go, JS, Python, PHP 8.3/8.4/8.5, PHP analysis, Laravel, WordPress, and workflow
+  jobs succeeded; tag-only release/publish jobs correctly skipped.
 
 ## Plan-Affecting Findings
 
@@ -103,6 +105,8 @@ truthful index.
 - Proof: `origin/main` reaches the reviewed release SHA and main CI succeeds.
   The pushed history must include the already-present `5637e93` commit unless
   the user directs otherwise; no history rewrite is allowed.
+- Completed 2026-07-19: pushed through `b7ba529`; CI run `29667898356`
+  completed/success for `b7ba529921ed3e1772880479d493261c5e8e8ffe`.
 
 ### 4. Immutable `v1.6.5` tag — separate authorization gate
 
@@ -158,10 +162,10 @@ truthful index.
 
 - [x] Implementation, fixtures, generated TypeScript, and versions exist.
 - [x] BUG-009 Red/Green correction is committed at `7b0f46d`.
-- [ ] Codex final spec, quality/test, and security/operations review passes.
-- [ ] Canonical plan/progress/bugs/mailbox state is reconciled.
-- [ ] Final local test/lint/diff gates pass on the reconciled tree.
-- [ ] Reconciliation is committed and `main` is pushed; exact-SHA CI passes.
+- [x] Codex final spec, quality/test, and security/operations review passes.
+- [x] Canonical plan/progress/bugs/mailbox state is reconciled.
+- [x] Final local test/lint/diff gates pass on the reconciled tree.
+- [x] Reconciliation is committed and `main` is pushed; exact-SHA CI passes.
 - [ ] User explicitly authorizes immutable `v1.6.5` creation/push.
 - [ ] Tag workflows, publication/mirrors, refs, registry, and clean consumers
   pass for the release SHA/version.
