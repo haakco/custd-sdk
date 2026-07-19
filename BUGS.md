@@ -1,20 +1,16 @@
-# Custd SDK — Active Run Problems
+# Custd SDK — Active Release Problems
 
-**Run ID:** `exact-subject-v165-prepush-r1`
 **Owner:** Codex
+**Status:** No unresolved in-scope release defect.
 
-Record only problems discovered during the active M3 run that are not already
-owned by the exact-subject completion plan. M3 may report observations in the
-mailbox but must not edit this file or decide severity, blocking status, or
-resolution.
+## Resolved
 
-## Open
+- BUG-009: Go malformed optional rendered-widget subcontracts, resolved by
+  `7b0f46d`; durable Red/Green evidence is in the owning plan.
+- Earlier audit-state, lint-scope, `.opencode`, and verifier-wording problems are
+  resolved or superseded by current canonical state.
 
-None.
+## Outside Scope
 
-## Reconciled Before This Run
-
-- BUG-009 is resolved by `7b0f46d`; durable evidence is in the owning plan.
-- Earlier audit-state and `.opencode` findings are resolved or superseded.
-- The old repository-local `.skills/` finding is stale: canonical catalog skill
-  discovery is the current owner and no local vendor directory is required.
+- Concurrent commits `3257e01` and `5637e93` are preserved as existing shared
+  work. They are not release defects and must not be rewritten.
