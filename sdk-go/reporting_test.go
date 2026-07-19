@@ -283,3 +283,45 @@ func TestReportingSubjectInsightNativeHTTPPreservesAuthAndErrors(t *testing.T) {
 		t.Fatalf("Authorization = %q, want bearer token", authorization)
 	}
 }
+
+func TestReportingSubjectInsightRejectsMalformedOptionalMetadata(t *testing.T) {
+	responseBody := `{"data":{"buckets":[],"value":{"value":2,"unit":"count","sampleCount":2,"dataSufficiency":"sufficient","complete":true},"queryDurationMs":12,"snapshotAgeMs":1500,"eventLagP95Ms":320,"metadata":{}}}`
+	doer := newCaptureDoer(http.StatusOK, responseBody)
+	client := newAdminTestClient(t, doer, "http://localhost:8080")
+
+	_, err := client.Reporting.SubjectInsight(context.Background(), SubjectInsightRequest{Template: "security_events", Subject: "subject-123", RangeDays: 7})
+	if err == nil {
+		t.Fatal("SubjectInsight accepted malformed empty metadata; want rejection")
+	}
+	if !strings.Contains(err.Error(), "metadata") {
+		t.Fatalf("error = %v, want mention of metadata", err)
+	}
+}
+
+func TestReportingSubjectInsightRejectsMalformedOptionalSources(t *testing.T) {
+	responseBody := `{"data":{"buckets":[],"value":{"value":2,"unit":"count","sampleCount":2,"dataSufficiency":"sufficient","complete":true},"queryDurationMs":12,"snapshotAgeMs":1500,"eventLagP95Ms":320,"sources":[{}]}}`
+	doer := newCaptureDoer(http.StatusOK, responseBody)
+	client := newAdminTestClient(t, doer, "http://localhost:8080")
+
+	_, err := client.Reporting.SubjectInsight(context.Background(), SubjectInsightRequest{Template: "security_events", Subject: "subject-123", RangeDays: 7})
+	if err == nil {
+		t.Fatal("SubjectInsight accepted malformed empty source entry; want rejection")
+	}
+	if !strings.Contains(err.Error(), "source") {
+		t.Fatalf("error = %v, want mention of source", err)
+	}
+}
+
+func TestReportingSubjectInsightRejectsMalformedOptionalTrust(t *testing.T) {
+	responseBody := `{"data":{"buckets":[],"value":{"value":2,"unit":"count","sampleCount":2,"dataSufficiency":"sufficient","complete":true},"queryDurationMs":12,"snapshotAgeMs":1500,"eventLagP95Ms":320,"trust":{}}}`
+	doer := newCaptureDoer(http.StatusOK, responseBody)
+	client := newAdminTestClient(t, doer, "http://localhost:8080")
+
+	_, err := client.Reporting.SubjectInsight(context.Background(), SubjectInsightRequest{Template: "security_events", Subject: "subject-123", RangeDays: 7})
+	if err == nil {
+		t.Fatal("SubjectInsight accepted structurally incomplete trust; want rejection")
+	}
+	if !strings.Contains(err.Error(), "trust") {
+		t.Fatalf("error = %v, want mention of trust", err)
+	}
+}

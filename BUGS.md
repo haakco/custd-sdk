@@ -1,9 +1,9 @@
 # Custd SDK — Bugs and Follow-ups
 
-**Owner:** MiniMax-M3 dev loop batch
-**Source:** Items discovered while working the
-[`docs/plans/sub_agent/m3.md`](docs/plans/sub_agent/m3.md) Batch 1 audit and
-the parent exact-subject release plan.
+**Owner:** Codex release review
+**Source:** Findings from the exact-subject release plan, M3 evidence runs, and
+Codex independent review. Historical batch descriptions are retained as context;
+current status is set only from verified repository state.
 
 ## Format
 
@@ -49,7 +49,8 @@ verbatim; their `Status` reflects the active-campaign classification only.
 
 ### BUG-002 — Batch-introduced untracked paths exceed m3.md's "allowed pre-existing deltas" list
 
-- **Status:** open · **Severity:** informational (does not block release)
+- **Status:** RESOLVED (superseded audit contract)
+- **Severity:** informational (does not block release)
 - **Where:** repository root and `docs/tmp/m3-runs/`
 - **What:** m3.md Batch 1 specifies that the **only** allowed pre-existing
   deltas at audit start are the owning plan, plan index, and the m3 mailbox.
@@ -62,18 +63,17 @@ verbatim; their `Status` reflects the active-campaign classification only.
   state files and a `docs/tmp/` scratch dir introduces additional deltas by
   design. None of the new paths are tracked yet, and `docs/tmp/` is
   gitignored.
-- **Suggested fix:** None for the release itself. Either (a) accept the extra
-  untracked paths as a known dev-loop artifact and document them in this file,
-  or (b) move `PROGRESS.md`/`BUGS.md` into `docs/tmp/m3-runs/` so they share
-  the same gitignored lifecycle as the receipts. Option (a) is simpler and
-  matches the user's instruction.
+- **Resolution:** `PROGRESS.md`, `BUGS.md`, and the mailbox are now tracked
+  campaign state. `docs/tmp/m3-runs/` is explicitly classified as ignored,
+  disposable evidence. The active plan no longer treats the earlier batch's
+  starting-delta list as a release acceptance row.
 - **Linked plan item:** m3.md Batch 1 row "Starting branch is `main` aligned
   with `origin/main`. The only allowed pre-existing deltas are the owning
   plan, plan index, and this mailbox."
 
 ### BUG-003 — `.opencode/` opencode-loop workspace shows as untracked
 
-- **Status:** open · **Severity:** informational
+- **Status:** RESOLVED (`83a18fc`) · **Severity:** informational
 - **Where:** `.opencode/`
 - **What:** The opencode-loop harness created a workspace at `.opencode/` with
   its own `.gitignore`, `node_modules/`, `package.json`, `package-lock.json`,
@@ -85,9 +85,9 @@ verbatim; their `Status` reflects the active-campaign classification only.
   for the listed contents, but the empty (or single-child) parent directory
   still surfaces as `??` until git decides whether the directory is empty of
   untracked content.
-- **Suggested fix:** Add `/.opencode/` to the root `.gitignore` so the
-  opencode-loop workspace stops appearing in `git status`. Small,
-  self-contained change. Not required for the v1.6.5 release.
+- **Resolution:** Commit `83a18fc` added the root `/.opencode/` entry. Codex
+  verified `git check-ignore -v .opencode/package.json` resolves to that rule;
+  the local harness remains present and absent from `git status`.
 - **Linked plan item:** AGENTS.md non-negotiable rule "State only verified
   facts" and the parent's `git status --short --branch` starting-state check.
 
@@ -239,3 +239,84 @@ verbatim; their `Status` reflects the active-campaign classification only.
   are recorded in the owning plan.
 - **Linked plan item:** m3.md acceptance row "ending tracked status" — the
   receipt itself is not tracked, so this does not affect the row.
+
+### BUG-009 — Go accepts malformed optional rendered-widget subcontracts
+
+- **Status:** RESOLVED (`sdk-go/reporting.go:396-562`,
+  `sdk-go/reporting_test.go:287-327`) · **Severity:** medium
+- **Where:** `sdk-go/reporting.go` optional `Metadata`, `Sources`, and `Trust`
+  fields and their JSON unmarshalling; missing regression coverage in
+  `sdk-go/reporting_test.go`.
+- **What:** Go rejected missing required top-level rendered-widget fields but
+  accepted `"metadata": {}`, `"sources": [{}]`, and `"trust": {}` by decoding
+  absent required nested fields to zero values. TypeScript, Python, and PHP
+  rejected the same malformed optional structures.
+- **Why:** The changelog claimed malformed-response rejection across all four
+  SDKs. Releasing the previous Go behavior would have made that contract false
+  and left consumers with language-dependent validation.
+- **Required fix:** Add focused failing Go cases for malformed optional
+  metadata, source, and trust structures, then enforce their declared required
+  fields at the owning unmarshal boundary while preserving unsafe trust-key
+  rejection and error context.
+- **Proof:** `cd sdk-go && go test ./... -run
+  TestReportingSubjectInsightRejectsMalformedOptional -v` passes all three new
+  cases (metadata, sources, trust) on the corrected tree; `cd sdk-go && go
+  test ./...` passes in full on the corrected tree (2.144 s, no failures).
+- **Resolution:** Added three table-style Red cases
+  (`TestReportingSubjectInsightRejectsMalformedOptionalMetadata`,
+  `TestReportingSubjectInsightRejectsMalformedOptionalSources`,
+  `TestReportingSubjectInsightRejectsMalformedOptionalTrust`) that hit
+  `SubjectInsight` with a valid required-field body and a malformed optional
+  nested object (`metadata: {}`, `sources: [{}]`, `trust: {}` respectively).
+  Each case asserts the unmarshal error mentions the offending field name.
+  After the Red cases failed, added `RenderedReportingTrust.UnmarshalJSON`
+  enforcement of the seven required string fields (preserving
+  `rejectUnsafeReportingTrust` as the first gate, so forbidden diagnostic
+  keys are still rejected before any field check), plus new
+  `ReportingQueryMetadata.UnmarshalJSON` and `ReportingSourceSummary.UnmarshalJSON`
+  methods that mirror the
+  `map[string]json.RawMessage`-presence pattern already used at
+  `reporting.go:326-394` for the required top-level rendered-widget fields.
+  Required/optional split now matches the cross-SDK contract:
+
+  - `ReportingQueryMetadata` — required `resolvedTemplate`, `effectiveMaxRows`,
+    `returnedRows`, `returnedBuckets`, `coveredWindows`; optional `rangeStart`,
+    `rangeEnd`.
+  - `ReportingSourceSummary` — required `kind`, `count`, `completeness`;
+    optional `coverageStart`, `coverageEnd`.
+  - `RenderedReportingTrust` — required `status`, `dataFreshness`,
+    `rollupState`, `coverage`, `captureState`, `consentState`, `exportState`;
+    optional `lastExport`, `schemaVersion`, `contractVersion`,
+    `permissionClass`, `partialReason`, `unavailableReason`, `queryWarnings`.
+
+  `returnedRows: 0` and `returnedBuckets: 0` are now accepted as legitimate
+  "zero rows / zero sources" answers, matching TS / Python / PHP parity. No
+  new imports; no changes to existing alias-decoder, unsafe-trust, or
+  rendered-widget validation. Code-quality review (parallel sub-agent) and
+  security review (parallel sub-agent) both returned no blockers; the
+  micro-nit about `fields["resolvedTemplate"]` re-lookup was folded into the
+  same `raw`-reuse style used by the sibling source-summary validator.
+  Last verified 2026-07-18.
+- **Linked plan item:** Milestone 2 and the terminal Go parity checkbox in the
+  exact-subject v1.6.5 completion plan.
+
+### FINDING-001 — `.skills/haakco-*/` directories absent from this repository
+
+- **Status:** informational (not a release blocker)
+- **Where:** search for `.skills/haakco-code-excellence/` and
+  `.skills/haakco-database-table-patterns/` at the repository root.
+- **What:** Both `.skills/haakco-code-excellence/` and
+  `.skills/haakco-database-table-patterns/` are referenced indirectly
+  (matched by other agents in the same HaakCo workspace), but neither
+  directory exists at `/home/timhaak/Dev/HaakCo/AiProjects/custd-sdk/.skills/`.
+  Latest versions are instead present in the shared HaakCo skills catalog at
+  `/home/timhaak/Dev/HaakCo/skills/skills/versions/haakco-code-excellence/` and
+  `/home/timhaak/Dev/HaakCo/skills/skills/versions/haakco-database-table-patterns/`.
+- **Why it matters:** Future opencode-loop runs on this repository that expect
+  locally vendored HaakCo skills guidance will silently fall back to whatever
+  generic guidance is available. There is no functional impact on the v1.6.5
+  release.
+- **Suggested fix (out of scope here):** Either vendor the two skills under
+  `.skills/` at the repository root, or document in `AGENTS.md` that skills are
+  sourced from the HaakCo shared catalog on this machine. Owner decision.
+- **Linked plan item:** none (informational only).

@@ -1,110 +1,81 @@
-# Custd SDK — Dev Loop Progress
+# Custd SDK v1.6.5 Progress
 
-**Started:** 2026-07-18
-**Owner:** MiniMax-M3 dev loop campaign
 **Owning plan:**
 [`docs/plans/2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md`](docs/plans/2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md)
-**Campaign mailbox / role ledger:**
-[`docs/plans/sub_agent/m3.md`](docs/plans/sub_agent/m3.md)
-**Audit commit (Milestone 1):** `58c031b`
+**Mailbox:** [`docs/plans/sub_agent/m3.md`](docs/plans/sub_agent/m3.md)
+**Status:** Active; Milestone 2 (Go parity fix) is green on the working tree;
+state reconciliation and final review remain before push and `v1.6.5`.
 
-## Workspace Starting State (verified, Milestone 1)
+## Current State (verified 2026-07-18)
 
-- Branch: `main`, 1 commit ahead of `origin/main`.
-- `HEAD` = `58c031b`; `origin/main` = `b340e26` (matches owning plan).
-- `.gitignore` carries an uncommitted `/.opencode/` entry (preserved; the
-  directory is not a deletion target).
-- `v1.6.5` tag absent locally and remotely. Tag creation is Milestone 4,
-  coordinator-only, and requires explicit user authority.
+- Branch: `main`, two commits ahead of `origin/main`.
+- `HEAD`: `83a18fc`; `origin/main`: `b340e26`.
+- Local and remote `v1.6.5`: absent.
+- Working tree changes pending commit: `BUGS.md` (BUG-009 RESOLVED +
+  FINDING-001 informational), `PROGRESS.md` (this update), and the owning plan
+  (Milestone 2 completion note). `sdk-go/reporting.go` and
+  `sdk-go/reporting_test.go` carry the Red/Green change.
+- `/.opencode/` is committed in `.gitignore`; the local harness remains ignored.
+- M3 Phase A/B receipts exist under ignored `docs/tmp/m3-runs/`. They are
+  temporary supporting evidence, not acceptance records.
+- M3 execution is paused until provider tokens reset.
 
-## Milestone Status
+## Completed
 
-Tracked against the owning plan. Each milestone has its own acceptance path and
-verification recorded there.
+- Exact-subject helpers, shared fixtures, generated TypeScript distribution,
+  package versions, documentation, and tests landed in `954f2a0`.
+- Go cancellation proof was stabilized in `b340e26`; main CI run `29661610991`
+  passed for that SHA.
+- Audit documentation landed in `58c031b`.
+- Root `/.opencode/` ignore and narrow Markdown-lint exclusions landed in
+  `83a18fc`.
+- BUG-009 (Go malformed optional subcontracts) RESOLVED 2026-07-18:
+  - Red: `sdk-go/reporting_test.go:287-327` — three cases (`metadata:{}`,
+    `sources:[{}]`, `trust:{}`) initially failed, proving the bug.
+  - Green: `sdk-go/reporting.go:396-562` — custom `UnmarshalJSON` on
+    `ReportingQueryMetadata`, `ReportingSourceSummary`, and the required-field
+    half of `RenderedReportingTrust`. Forbidden-key rejection preserved.
+  - Proof: `cd sdk-go && go test ./... -run
+    TestReportingSubjectInsightRejectsMalformedOptional -v` 3 PASS; `cd sdk-go
+    && go test ./...` `ok 2.144s`. Parallel code-quality and security reviews
+    returned no blockers. See `BUGS.md` BUG-009 and the owning plan Milestone 2.
+- Codex independently ran successfully on the prior tree:
+  - `just test`
+  - `just lint-workflows lint-markdown diff-check`
+  - `git diff --check`
+- Independent review confirmed the helper endpoint, request closure, shared
+  required response contract, auth/error behavior, unsafe trust rejection,
+  TypeScript signal handling, Go cancellation, generated distribution, and
+  version synchronization.
 
-- [x] **Milestone 1 — Repair local audit ownership and state.** `PROGRESS.md`
-      names audit commit `58c031b` (not `6386f25`, which does not exist in
-      history). `.gitignore` retains the single `/.opencode/` root entry.
-      `lint-markdown` recipe narrowly excludes `.opencode/**` and `docs/tmp/**`
-      while retaining normal documentation lint. Tooling role receipt:
-      [`docs/tmp/m3-runs/2026-07-18_exact-subject-v165-completion-tooling.md`](docs/tmp/m3-runs/2026-07-18_exact-subject-v165-completion-tooling.md).
-      State role receipt (this run):
-      [`docs/tmp/m3-runs/2026-07-18_exact-subject-v165-completion-state.md`](docs/tmp/m3-runs/2026-07-18_exact-subject-v165-completion-state.md).
-- [ ] **Milestone 2 — Run one complete pre-release M3 audit.** Serialized
-      Validation, Release-contract inventory, and Fresh evidence verifier
-      roles. Required receipts:
-      `docs/tmp/m3-runs/2026-07-18_exact-subject-v165-completion-validation.md`,
-      `…-contract.md`, `…-verifier.md`. **Not started.**
-- [ ] **Milestone 3 — Codex final local review, correction, commit, and
-      push.** Codex-only. M3 hands off with `READY_FOR_CODEX_LOCAL_REVIEW`
-      only when every Milestone 2 row is `OBSERVED`. **Not started.**
-- [ ] **Milestone 4 — Create the immutable release tag `v1.6.5`.**
-      Coordinator-only; requires explicit user authority. **Not started.**
-- [ ] **Milestone 5 — Verify release workflows and public consumer
-      surfaces.** Read-only GitHub workflow, Ref, Verdaccio, and Consumer
-      roles. Depends on Milestone 4. **Not started.**
-- [ ] **Milestone 6 — Final completion audit and archive.** Coordinator
-      reviews, archival, and plan-index reconciliation. **Not started.**
+## Current Work
 
-## Historical Evidence (pre-Milestone-1 dev-loop batch)
+- Required state reconciliation: `BUGS.md` updated for BUG-009 RESOLVED plus
+  FINDING-001 (informational, `.skills/` absence). `PROGRESS.md` and the
+  owning plan reflect Milestone 2 completion.
+- Required next step: Codex independent final reviews on the corrected tree,
+  full local gate run, commit, push, main CI verification.
 
-Milestone 1 supersedes the earlier dev-loop batch. The earlier batch was a
-separate read-only audit pass against `b340e26`. The facts below remain
-relevant to the historical record only and are not the active campaign state.
+## Next Actions
 
-- Branch was `main` aligned with `origin/main` at `b340e26` at the start of
-  the earlier batch.
-- Four role receipts and one verifier landed under
-  `docs/tmp/m3-runs/2026-07-18_exact-subject-release-b1-{state,validation,contract,verifier}.md`.
-- Verifier totals: 7 `OBSERVED`, 3 `NOT OBSERVED`, 0 `NOT RUN`. The three
-  `NOT OBSERVED` rows were the `parity` literal-word check (verifier contract
-  defect — see BUG-001 resolution), extra untracked paths, and the failed
-  combined lint/diff gate.
-- `just test` passed in the earlier batch; the combined
-  `just lint-workflows lint-markdown diff-check` failed (470 environmental
-  errors in `.opencode/node_modules/**` plus 13 in batch-introduced files).
-  `diff-check` never executed because `just` aborted on the `lint-markdown`
-  failure.
-- Three sibling reviewers produced code-quality (0/5/4/2/0), security
-  (0/0/0/0/0), and standards (0/0/2/1/0) reports under
-  `docs/tmp/m3-runs/review-{code-quality,security,standards}-b1.md`.
-- The earlier batch's `PROGRESS.md` and `BUGS.md` listed commit `6386f25` as
-  the audit commit. **No such commit exists** in the repository history; the
-  real Milestone 1 audit commit is `58c031b`. That wrong-commit reference is
-  corrected in Milestone 1.
+1. Codex runs the final isolated quality, security, and adversarial reviews on
+   the corrected tree.
+2. Codex runs the full local gates once: `just test`, `just lint-workflows
+   lint-markdown diff-check`, `git diff --check`.
+3. Codex commits the reviewed completion delta and pushes `main`; verify
+   main CI for the pushed SHA.
+4. Stop for explicit user authorization before creating or pushing `v1.6.5`.
+5. Verify tag workflows, mirrors, registry, clean consumers, then archive.
 
-## Sequential Constraints
+## Blockers
 
-- Roles run serialized within each phase; no parallelism.
-- M3 may make bounded local documentation/tooling fixes and run prescribed
-  checks. It may not commit, push, create or delete tags, publish, read
-  secrets, rerun remote workflows, decide readiness, mark the owning plan, or
-  archive it.
-- Codex owns final review, findings, checklist decisions, commits, normal
-  pushes, the separately authorized tag mutation, final acceptance, and
-  archival.
+- Release mutation dependency: explicit user authorization is required for the
+  immutable tag after the corrected release commit is pushed and green.
 
-## Scope Boundaries (per m3.md)
+## Mailbox State
 
-- No tag create/push (Milestone 4 is coordinator-only with explicit user
-  authority).
-- No installs, registry queries, credential reads, MCP server starts, helper
-  scripts, log redirects, or unrelated skill use.
-- Run literal commands unchanged (no `;`, `&&`, `||`, pipes, redirects,
-  `echo`, or exit probes).
-
-## Completion Gates
-
-The campaign is complete only when all of the following hold:
-
-- All five Phase A/B role receipts produced and stored under
-  `docs/tmp/m3-runs/`.
-- Mailbox append written to `docs/plans/sub_agent/m3.md`.
-- `PROGRESS.md` and `BUGS.md` reflect final factual state.
-- `just test`, `just lint-workflows lint-markdown diff-check`, and
-  `git diff --check` all pass on the final reviewed tree.
-- No tracked file changed outside the reviewed local campaign scope.
-- Codex accepts Milestone 2 rows, commits the local completion delta, and
-  pushes `main`.
-- The immutable `v1.6.5` tag is created and pushed; release verification
-  surfaces are observed; archival completes with the plan index reconciled.
+- The current mailbox contains the completed Phase A/B response and is retained
+  for this Codex review only.
+- Before the next fresh M3 session, Codex must preserve verified facts in the
+  owning plan, then clear/replace the mailbox with exactly one bounded Go
+  follow-up task if any remains.

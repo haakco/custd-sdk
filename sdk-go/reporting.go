@@ -403,6 +403,110 @@ func (t *RenderedReportingTrust) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*t = RenderedReportingTrust(decoded)
+	if err := validateRenderedReportingTrustFields(data); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateRenderedReportingTrustFields(data []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	for _, field := range []string{
+		"status", "dataFreshness", "rollupState", "coverage",
+		"captureState", "consentState", "exportState",
+	} {
+		raw, ok := fields[field]
+		if !ok || string(raw) == "null" {
+			return fmt.Errorf("custd: rendered reporting trust missing %s", field)
+		}
+		var value string
+		if err := json.Unmarshal(raw, &value); err != nil || value == "" {
+			return fmt.Errorf("custd: rendered reporting trust missing %s", field)
+		}
+	}
+	return nil
+}
+
+func (m *ReportingQueryMetadata) UnmarshalJSON(data []byte) error {
+	type metadataAlias ReportingQueryMetadata
+	var decoded metadataAlias
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*m = ReportingQueryMetadata(decoded)
+	if err := validateReportingQueryMetadataFields(data); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateReportingQueryMetadataFields(data []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	raw, ok := fields["resolvedTemplate"]
+	if !ok || string(raw) == "null" {
+		return fmt.Errorf("custd: reporting query metadata missing resolvedTemplate")
+	}
+	var resolvedTemplate string
+	if err := json.Unmarshal(raw, &resolvedTemplate); err != nil || resolvedTemplate == "" {
+		return fmt.Errorf("custd: reporting query metadata missing resolvedTemplate")
+	}
+	for _, field := range []string{
+		"effectiveMaxRows", "returnedRows", "returnedBuckets", "coveredWindows",
+	} {
+		raw, ok := fields[field]
+		if !ok || string(raw) == "null" {
+			return fmt.Errorf("custd: reporting query metadata missing %s", field)
+		}
+		var value int
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return fmt.Errorf("custd: reporting query metadata missing %s", field)
+		}
+	}
+	return nil
+}
+
+func (s *ReportingSourceSummary) UnmarshalJSON(data []byte) error {
+	type sourceAlias ReportingSourceSummary
+	var decoded sourceAlias
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*s = ReportingSourceSummary(decoded)
+	if err := validateReportingSourceSummaryFields(data); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateReportingSourceSummaryFields(data []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	for _, field := range []string{"kind", "completeness"} {
+		raw, ok := fields[field]
+		if !ok || string(raw) == "null" {
+			return fmt.Errorf("custd: reporting source summary missing %s", field)
+		}
+		var value string
+		if err := json.Unmarshal(raw, &value); err != nil || value == "" {
+			return fmt.Errorf("custd: reporting source summary missing %s", field)
+		}
+	}
+	raw, ok := fields["count"]
+	if !ok || string(raw) == "null" {
+		return fmt.Errorf("custd: reporting source summary missing count")
+	}
+	var count int
+	if err := json.Unmarshal(raw, &count); err != nil {
+		return fmt.Errorf("custd: reporting source summary missing count")
+	}
 	return nil
 }
 

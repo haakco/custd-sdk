@@ -4,12 +4,13 @@ Central tracker for active implementation plans. Link every active plan here wit
 
 ## Active
 
-- [Exact-Subject Insight SDK Parity](./2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md) — active; adds the
-  generic typed subject-insight helper across TypeScript, Go, Python, and PHP.
-  Version `1.6.5`, its implementation, push, and main CI are complete; the
-  first M3 pre-release audit completed with three unobserved rows; cleanup and a
-  successful rerun are required before the authorized tag, publication
-  verification, consumer probes, and archive closeout.
+- [Exact-Subject Insight SDK Parity](./2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md) — active; implementation
+  and current local gates are green, BUG-009 Go malformed optional-response
+  parity fix is RESOLVED (Red/Green evidence in `sdk-go/reporting_test.go:287-327`
+  and `sdk-go/reporting.go:396-562`; full `sdk-go` suite passes). Codex must
+  complete final review, commit/push and main CI, separately authorized
+  immutable tagging, publication and clean-consumer verification, and archive
+  closeout.
 
 ## Archived (2026-06-17)
 
