@@ -5,12 +5,10 @@ Central tracker for active implementation plans. Link every active plan here wit
 ## Active
 
 - [Exact-Subject Insight SDK Parity](./2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md) — active; implementation
-  and current local gates are green, BUG-009 Go malformed optional-response
-  parity fix is RESOLVED (Red/Green evidence in `sdk-go/reporting_test.go:287-327`
-  and `sdk-go/reporting.go:396-562`; full `sdk-go` suite passes). Codex must
-  complete final review, commit/push and main CI, separately authorized
+  and BUG-009 remediation are committed and locally green at `7b0f46d`. Fresh
+  M3 pre-push evidence, Codex acceptance/push and main CI, separately authorized
   immutable tagging, publication and clean-consumer verification, and archive
-  closeout.
+  closeout remain.
 
 ## Archived (2026-06-17)
 
