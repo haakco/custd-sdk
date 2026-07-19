@@ -31,7 +31,7 @@ progress. M3 will not be used.
 
 1. Commit only the five reconciliation files.
 2. Push `main` normally and verify CI for the exact SHA.
-3. Stop for separate `v1.6.5` authorization and `.mise.toml` resolution.
+3. Stop for separate `v1.6.5` authorization.
 4. Verify release/public consumers and archive.
 
 ## Blockers

@@ -89,8 +89,8 @@ truthful index.
   1. `just test`
   2. `just lint-workflows lint-markdown diff-check`
   3. `git diff --check`
-- Proof: all reviews and gates pass; only the five reconciliation files plus the
-  excluded user-owned `.mise.toml` delta remain.
+- Proof: all reviews and gates pass; only the five reconciliation files remain
+  after preserving the already-committed `mise.toml` rename.
 
 ### 3. Commit, push, and main CI
 
