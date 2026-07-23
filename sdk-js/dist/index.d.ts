@@ -274,6 +274,310 @@ export type AdminSchema = {
 export type AdminSchemaListResponse = {
     schemas: AdminSchema[];
 };
+export type AdminOAuthClientUpdateScopesRequest = {
+    companySlug?: string;
+    profile?: string;
+    scopes: string[];
+};
+export type AdminSchemaIssue = {
+    code?: string;
+    path?: string;
+    message: string;
+};
+export type AdminSchemaValidateRequest = {
+    tenantSlug: string;
+    eventTypeSlug: string;
+    dialect: "jsonschema" | "avro";
+    schemaJson: string;
+};
+export type AdminSchemaValidateResult = {
+    valid: boolean;
+    issues: AdminSchemaIssue[];
+    suggestedAction: "register" | "fix_before_register" | "none" | string;
+};
+export type AdminSchemaEnableRequest = {
+    tenantSlug: string;
+    eventTypeSlug: string;
+    version: string;
+    enabledAt?: string;
+};
+export type AdminSchemaDryRunRequest = {
+    tenantSlug: string;
+    eventTypeSlug: string;
+    dialect: "jsonschema" | "avro";
+    schemaJson: string;
+    samples: unknown[];
+};
+export type AdminSchemaDryRunResult = {
+    passed: number;
+    failed: number;
+    issues: AdminSchemaIssue[];
+};
+export type AdminSchemaAuditEntry = {
+    eventId: string;
+    eventTypeSlug: string;
+    version: string;
+    action: "registered" | "enabled" | "rolled_back" | string;
+    registeredAt: string;
+    registeredBy: string;
+};
+export type AdminSchemaAuditListResponse = {
+    entries: AdminSchemaAuditEntry[];
+};
+export type AdminPrivacyRulesResponse = {
+    tenantSlug: string;
+    purposes: string[];
+    hardDeleteAfterDays: number;
+};
+export type AdminPrivacyRuleUpdate = {
+    purposes: string[];
+    hardDeleteAfterDays?: number;
+};
+export type AdminPrivacyIdentifierMapping = {
+    identifierId: string;
+    internalIdHash: string;
+    internalIdHashPrefix: string;
+    saltVersion: number;
+    createdAt?: string;
+};
+export type AdminPrivacyIdentifierMapRequest = {
+    externalId: string;
+};
+export type AdminRetentionPolicy = {
+    tenantSlug: string;
+    maxAgeDays: number;
+    hardDeleteAfterDays: number;
+    applyToEventTypes: string[];
+    applyToDataSpaces: string[];
+};
+export type AdminRetentionPolicyUpsertRequest = {
+    maxAgeDays: number;
+    hardDeleteAfterDays: number;
+    applyToEventTypes?: string[];
+    applyToDataSpaces?: string[];
+};
+export type AdminRetentionPolicyListResponse = {
+    policies: AdminRetentionPolicy[];
+};
+export type AdminStorageAlertRule = {
+    ruleId: string;
+    tenantSlug: string;
+    metric: string;
+    thresholdPercent: number;
+    channel: string;
+    enabled: boolean;
+    createdAt?: string;
+    updatedAt?: string;
+};
+export type AdminStorageAlertRuleCreateRequest = {
+    metric: string;
+    thresholdPercent: number;
+    channel: string;
+    enabled: boolean;
+};
+export type AdminStorageAlertRuleListResponse = {
+    rules: AdminStorageAlertRule[];
+};
+export type AdminAuditEvent = {
+    eventId: string;
+    action: string;
+    actorId: string;
+    actorKind: string;
+    resourceType: string;
+    resourceId: string;
+    ipAddress: string;
+    metadata?: string;
+    createdAt: string;
+};
+export type AdminAuditListCursor = {
+    cursor: string;
+};
+export type AdminAuditListResponse = {
+    events: AdminAuditEvent[];
+    nextCursor?: AdminAuditListCursor;
+};
+export type AdminAuditListOptions = {
+    resourceType?: string;
+    resourceId?: string;
+    limit?: number;
+    cursor?: string;
+};
+export type AdminReportingPackAuditEvent = {
+    action: string;
+    actorId: string;
+    resourceType: string;
+    resourceId: string;
+    packKey: string;
+    createdAt: string;
+};
+export type AdminReportingPackAuditListResponse = {
+    events: AdminReportingPackAuditEvent[];
+};
+export type AdminOffboardingSchedule = {
+    tenantSlug: string;
+    effectiveAt: string;
+    gracePeriodDays: number;
+    reason: string;
+    status: string;
+    updatedAt?: string;
+};
+export type AdminOffboardingScheduleRequest = {
+    effectiveAt: string;
+    gracePeriodDays: number;
+    reason: string;
+    status: string;
+};
+export type AdminOffboardingScheduleListResponse = {
+    schedules: AdminOffboardingSchedule[];
+};
+export type AdminOffboardingCancelRequest = {
+    reason: string;
+};
+export type AdminOffboardingRequest = {
+    requestUuid: string;
+    tenantSlug: string;
+    status: string;
+    requestedBy: string;
+    requestedAt?: string;
+};
+export type PackMetric = {
+    key: string;
+    displayName: string;
+    template: string;
+    metrics: string[];
+    dimensions?: string[];
+};
+export type PackDimension = {
+    key: string;
+    displayName: string;
+};
+export type PackDashboardWidget = {
+    key: string;
+    title: string;
+    kind: string;
+    template: string;
+    metrics: string[];
+    dimensions?: string[];
+};
+export type PackDashboard = {
+    key: string;
+    title: string;
+    hidden: boolean;
+    defaultRange: string;
+    refreshSeconds: number;
+    requiredScopes: string[];
+    widgets: PackDashboardWidget[];
+};
+export type PackDefinition = {
+    key: string;
+    displayName: string;
+    owner?: string;
+    enabled: boolean;
+    eventTypes: string[];
+    metrics?: PackMetric[];
+    dimensions?: PackDimension[];
+    dashboards?: PackDashboard[];
+};
+export type ReportingPackDraft = {
+    id: number;
+    revision: number;
+    definition: PackDefinition;
+    createdAt?: string;
+    updatedAt?: string;
+};
+export type ReportingPackDraftCreateRequest = {
+    definition: PackDefinition;
+};
+export type ReportingPackDraftUpdateRequest = {
+    definition: PackDefinition;
+    expectedRevision: number;
+};
+export type ReportingPackDraftListResponse = {
+    drafts: ReportingPackDraft[];
+};
+export type ReportingPackValidateResponse = {
+    valid: boolean;
+};
+export type ReportingPackPreviewQueryHint = {
+    template: string;
+    metrics: string[];
+    dimensions?: string[];
+    rangeDays?: number;
+};
+export type ReportingPackPreviewRequest = {
+    definition: PackDefinition;
+    tenantSlug: string;
+    query: ReportingPackPreviewQueryHint;
+};
+export type ReportingPackPreviewBucket = {
+    date: string;
+    value: RenderedMetricValue;
+    source: string;
+    queryDurationMs: number;
+    parquetUriCount?: number;
+    message?: string;
+    secondary?: RenderedMetricValue;
+};
+export type ReportingPackPreviewResponse = {
+    buckets?: ReportingPackPreviewBucket[];
+    value: RenderedMetricValue;
+};
+export type ReportingPackGeneration = {
+    id: number;
+    generationNumber: number;
+    sourceDraftId: number;
+    definition: PackDefinition;
+    state: string;
+    createdAt?: string;
+};
+export type ReportingPackGenerationStatusDetail = {
+    id: number;
+    generationNumber: number;
+    packKey: string;
+    state: string;
+};
+export type ReportingPackGenerationAcknowledgement = {
+    accepted: boolean;
+    consumer: string;
+    errorDetail?: string;
+    observedAt?: string;
+    observedGenerationId: number;
+};
+export type ReportingPackGenerationStatusResponse = {
+    generation: ReportingPackGenerationStatusDetail;
+    acknowledgements: ReportingPackGenerationAcknowledgement[];
+};
+export type ReportingPackMaterializationProvenance = {
+    status: string;
+    definitionFingerprint: string;
+    sourceCoverageCount: number;
+};
+export type ReportingPackRollupProvenance = {
+    generationId: number;
+    definitionFingerprint: string;
+    tenantSlug?: string;
+    materializations: ReportingPackMaterializationProvenance[];
+};
+export type ProducerReservation = {
+    producerSlug: string;
+    parentCompanySlug: string;
+    childCompanySlug?: string;
+    claimedByClientId?: string;
+    status: string;
+    reservedAt?: string;
+    expiresAt?: string;
+    maxTtlSeconds?: number;
+};
+export type ProducerReservationListResponse = {
+    reservations: ProducerReservation[];
+};
+export type ProducerReservationCreateRequest = {
+    producerSlug: string;
+    ttlSeconds?: number;
+};
+export type ProducerReservationClaimRequest = {
+    claimedByClientId: string;
+};
 export type MeasurementProjectCreate = {
     projectCode: string;
     name: string;
@@ -647,12 +951,27 @@ declare class AdminNamespace {
     readonly sites: AdminSiteNamespace;
     readonly schemas: AdminSchemaNamespace;
     readonly measurement: AdminMeasurementNamespace;
+    readonly privacy: AdminPrivacyNamespace;
+    readonly retention: AdminRetentionNamespace;
+    readonly storageAlerts: AdminStorageAlertsNamespace;
+    readonly audit: AdminAuditNamespace;
+    readonly offboarding: AdminOffboardingNamespace;
+    readonly reportingPacks: AdminReportingPacksNamespace;
     constructor(request: AdminRequester);
 }
 declare class ProvisioningNamespace {
     readonly dataSpaces: ProvisioningDataSpaceNamespace;
     readonly producers: ProvisioningProducerNamespace;
+    readonly reservations: ProvisioningReservationsNamespace;
     constructor(request: APIRequester);
+}
+declare class ProvisioningReservationsNamespace {
+    private readonly request;
+    constructor(request: APIRequester);
+    reserve(dataSpaceSlug: string, body: ProducerReservationCreateRequest): Promise<ProducerReservation>;
+    list(dataSpaceSlug: string): Promise<ProducerReservationListResponse>;
+    claim(dataSpaceSlug: string, producerSlug: string, body: ProducerReservationClaimRequest): Promise<ProducerReservation>;
+    release(dataSpaceSlug: string, producerSlug: string): Promise<void>;
 }
 declare class ProvisioningDataSpaceNamespace {
     private readonly request;
@@ -685,6 +1004,7 @@ declare class AdminOAuthClientNamespace {
     get(clientId: string): Promise<AdminOAuthClient>;
     delete(clientId: string): Promise<void>;
     rotateSecret(clientId: string): Promise<AdminOAuthClientSecretResponse>;
+    updateScopes(clientId: string, body: AdminOAuthClientUpdateScopesRequest): Promise<AdminOAuthClient>;
 }
 declare class AdminSiteNamespace {
     private readonly request;
@@ -702,6 +1022,67 @@ declare class AdminSchemaNamespace {
     get(eventTypeSlug: string): Promise<AdminSchema>;
     register(schema: AdminSchemaRegister): Promise<AdminSchema>;
     createVersion(eventTypeSlug: string, schema: AdminSchemaVersionCreate): Promise<AdminSchema>;
+    validate(body: AdminSchemaValidateRequest): Promise<AdminSchemaValidateResult>;
+    enableVersion(tenantSlug: string, eventTypeSlug: string, body: AdminSchemaEnableRequest): Promise<void>;
+    dryRun(tenantSlug: string, eventTypeSlug: string, body: AdminSchemaDryRunRequest): Promise<AdminSchemaDryRunResult>;
+    audit(): Promise<AdminSchemaAuditListResponse>;
+}
+declare class AdminPrivacyNamespace {
+    private readonly request;
+    constructor(request: AdminRequester);
+    getRules(): Promise<AdminPrivacyRulesResponse>;
+    setRules(body: AdminPrivacyRuleUpdate): Promise<AdminPrivacyRulesResponse>;
+    mapIdentifier(companySlug: string, body: AdminPrivacyIdentifierMapRequest): Promise<AdminPrivacyIdentifierMapping>;
+    listIdentifierMappings(companySlug: string): Promise<AdminPrivacyIdentifierMapping[]>;
+}
+declare class AdminRetentionNamespace {
+    private readonly request;
+    constructor(request: AdminRequester);
+    list(): Promise<AdminRetentionPolicyListResponse>;
+    upsert(tenantSlug: string, body: AdminRetentionPolicyUpsertRequest): Promise<AdminRetentionPolicy>;
+    get(tenantSlug: string): Promise<AdminRetentionPolicy>;
+    delete(tenantSlug: string): Promise<void>;
+}
+declare class AdminStorageAlertsNamespace {
+    private readonly request;
+    constructor(request: AdminRequester);
+    listRules(tenantSlug: string): Promise<AdminStorageAlertRuleListResponse>;
+    createRule(tenantSlug: string, body: AdminStorageAlertRuleCreateRequest): Promise<AdminStorageAlertRule>;
+    deleteRule(tenantSlug: string, ruleId: string): Promise<void>;
+}
+declare class AdminAuditNamespace {
+    private readonly request;
+    constructor(request: AdminRequester);
+    private auditQuery;
+    listEvents(options?: AdminAuditListOptions): Promise<AdminAuditListResponse>;
+    getEvent(eventId: string): Promise<AdminAuditEvent>;
+    listReportingPackEvents(): Promise<AdminReportingPackAuditListResponse>;
+}
+declare class AdminOffboardingNamespace {
+    private readonly request;
+    constructor(request: AdminRequester);
+    schedule(tenantSlug: string, body: AdminOffboardingScheduleRequest): Promise<AdminOffboardingSchedule>;
+    listSchedules(): Promise<AdminOffboardingScheduleListResponse>;
+    cancelSchedule(tenantSlug: string, body: AdminOffboardingCancelRequest): Promise<void>;
+    getRequest(requestUuid: string): Promise<AdminOffboardingRequest>;
+    cancelRequest(requestUuid: string): Promise<void>;
+    confirmRequest(requestUuid: string): Promise<void>;
+}
+declare class AdminReportingPacksNamespace {
+    private readonly request;
+    constructor(request: AdminRequester);
+    listDrafts(): Promise<ReportingPackDraftListResponse>;
+    getDraft(draftId: string): Promise<ReportingPackDraft>;
+    createDraft(body: ReportingPackDraftCreateRequest): Promise<ReportingPackDraft>;
+    updateDraft(draftId: string, body: ReportingPackDraftUpdateRequest): Promise<ReportingPackDraft>;
+    validate(body: ReportingPackDraftCreateRequest): Promise<ReportingPackValidateResponse>;
+    preview(body: ReportingPackPreviewRequest): Promise<ReportingPackPreviewResponse>;
+    publish(draftId: string): Promise<ReportingPackGeneration>;
+    restart(draftId: string): Promise<ReportingPackGeneration>;
+    getGeneration(generationId: string): Promise<ReportingPackGeneration>;
+    getGenerationStatus(generationId: string): Promise<ReportingPackGenerationStatusResponse>;
+    rollbackGeneration(generationId: string): Promise<void>;
+    getRollupProvenance(generationId: string): Promise<ReportingPackRollupProvenance>;
 }
 declare class AdminMeasurementNamespace {
     readonly projects: AdminMeasurementProjectNamespace;

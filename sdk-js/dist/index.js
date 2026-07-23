@@ -582,12 +582,36 @@ class AdminNamespace {
         this.sites = new AdminSiteNamespace(request);
         this.schemas = new AdminSchemaNamespace(request);
         this.measurement = new AdminMeasurementNamespace(request);
+        this.privacy = new AdminPrivacyNamespace(request);
+        this.retention = new AdminRetentionNamespace(request);
+        this.storageAlerts = new AdminStorageAlertsNamespace(request);
+        this.audit = new AdminAuditNamespace(request);
+        this.offboarding = new AdminOffboardingNamespace(request);
+        this.reportingPacks = new AdminReportingPacksNamespace(request);
     }
 }
 class ProvisioningNamespace {
     constructor(request) {
         this.dataSpaces = new ProvisioningDataSpaceNamespace(request);
         this.producers = new ProvisioningProducerNamespace(request);
+        this.reservations = new ProvisioningReservationsNamespace(request);
+    }
+}
+class ProvisioningReservationsNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    reserve(dataSpaceSlug, body) {
+        return this.request("POST", `/data-spaces/${encodeURIComponent(dataSpaceSlug)}/producer-reservations`, body);
+    }
+    list(dataSpaceSlug) {
+        return this.request("GET", `/data-spaces/${encodeURIComponent(dataSpaceSlug)}/producer-reservations`);
+    }
+    claim(dataSpaceSlug, producerSlug, body) {
+        return this.request("POST", `/data-spaces/${encodeURIComponent(dataSpaceSlug)}/producer-reservations/${encodeURIComponent(producerSlug)}/claim`, body);
+    }
+    release(dataSpaceSlug, producerSlug) {
+        return this.request("DELETE", `/data-spaces/${encodeURIComponent(dataSpaceSlug)}/producer-reservations/${encodeURIComponent(producerSlug)}`);
     }
 }
 class ProvisioningDataSpaceNamespace {
@@ -658,6 +682,9 @@ class AdminOAuthClientNamespace {
     rotateSecret(clientId) {
         return this.request("POST", `/oauth-clients/${encodeURIComponent(clientId)}/rotate-secret`);
     }
+    updateScopes(clientId, body) {
+        return this.request("PATCH", `/oauth-clients/${encodeURIComponent(clientId)}/scopes`, body);
+    }
 }
 class AdminSiteNamespace {
     constructor(request) {
@@ -696,6 +723,160 @@ class AdminSchemaNamespace {
     }
     createVersion(eventTypeSlug, schema) {
         return this.request("POST", `/schemas/${encodeURIComponent(eventTypeSlug)}/versions`, schema);
+    }
+    validate(body) {
+        return this.request("POST", "/schema/validate", body);
+    }
+    enableVersion(tenantSlug, eventTypeSlug, body) {
+        return this.request("POST", `/schema/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(eventTypeSlug)}/enable`, body);
+    }
+    dryRun(tenantSlug, eventTypeSlug, body) {
+        return this.request("POST", `/schema/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(eventTypeSlug)}/dry-run`, body);
+    }
+    audit() {
+        return this.request("GET", "/schema/audit");
+    }
+}
+class AdminPrivacyNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    getRules() {
+        return this.request("GET", "/privacy/rules");
+    }
+    setRules(body) {
+        return this.request("PUT", "/privacy/rules", body);
+    }
+    mapIdentifier(companySlug, body) {
+        return this.request("POST", `/privacy/identifiers/${encodeURIComponent(companySlug)}/map`, body);
+    }
+    listIdentifierMappings(companySlug) {
+        return this.request("GET", `/privacy/identifiers/${encodeURIComponent(companySlug)}`);
+    }
+}
+class AdminRetentionNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    list() {
+        return this.request("GET", "/retention/policies");
+    }
+    upsert(tenantSlug, body) {
+        return this.request("PUT", `/retention/policies/${encodeURIComponent(tenantSlug)}`, body);
+    }
+    get(tenantSlug) {
+        return this.request("GET", `/retention/policies/${encodeURIComponent(tenantSlug)}`);
+    }
+    delete(tenantSlug) {
+        return this.request("DELETE", `/retention/policies/${encodeURIComponent(tenantSlug)}`);
+    }
+}
+class AdminStorageAlertsNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    listRules(tenantSlug) {
+        return this.request("GET", `/storage/alerts/${encodeURIComponent(tenantSlug)}`);
+    }
+    createRule(tenantSlug, body) {
+        return this.request("POST", `/storage/alerts/${encodeURIComponent(tenantSlug)}`, body);
+    }
+    deleteRule(tenantSlug, ruleId) {
+        return this.request("DELETE", `/storage/alerts/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(ruleId)}`);
+    }
+}
+class AdminAuditNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    auditQuery(options) {
+        if (!options) {
+            return "";
+        }
+        const params = new URLSearchParams();
+        if (options.resourceType)
+            params.set("resourceType", options.resourceType);
+        if (options.resourceId)
+            params.set("resourceId", options.resourceId);
+        if (typeof options.limit === "number")
+            params.set("limit", String(options.limit));
+        if (options.cursor)
+            params.set("cursor", options.cursor);
+        const query = params.toString();
+        return query.length === 0 ? "" : `?${query}`;
+    }
+    listEvents(options) {
+        return this.request("GET", `/audit/events${this.auditQuery(options)}`);
+    }
+    getEvent(eventId) {
+        return this.request("GET", `/audit/events/${encodeURIComponent(eventId)}`);
+    }
+    listReportingPackEvents() {
+        return this.request("GET", "/reporting-packs/audit-events");
+    }
+}
+class AdminOffboardingNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    schedule(tenantSlug, body) {
+        return this.request("PUT", `/offboarding/schedules/${encodeURIComponent(tenantSlug)}`, body);
+    }
+    listSchedules() {
+        return this.request("GET", "/offboarding/schedules");
+    }
+    cancelSchedule(tenantSlug, body) {
+        return this.request("POST", `/offboarding/schedules/${encodeURIComponent(tenantSlug)}/cancel`, body);
+    }
+    getRequest(requestUuid) {
+        return this.request("GET", `/offboarding/${encodeURIComponent(requestUuid)}`);
+    }
+    cancelRequest(requestUuid) {
+        return this.request("POST", `/offboarding/${encodeURIComponent(requestUuid)}/cancel`);
+    }
+    confirmRequest(requestUuid) {
+        return this.request("POST", `/offboarding/${encodeURIComponent(requestUuid)}/confirm`);
+    }
+}
+class AdminReportingPacksNamespace {
+    constructor(request) {
+        this.request = request;
+    }
+    listDrafts() {
+        return this.request("GET", "/reporting-packs/drafts");
+    }
+    getDraft(draftId) {
+        return this.request("GET", `/reporting-packs/drafts/${encodeURIComponent(draftId)}`);
+    }
+    createDraft(body) {
+        return this.request("POST", "/reporting-packs/drafts", body);
+    }
+    updateDraft(draftId, body) {
+        return this.request("PUT", `/reporting-packs/drafts/${encodeURIComponent(draftId)}`, body);
+    }
+    validate(body) {
+        return this.request("POST", "/reporting-packs/validate", body);
+    }
+    preview(body) {
+        return this.request("POST", "/reporting-packs/preview", body);
+    }
+    publish(draftId) {
+        return this.request("POST", `/reporting-packs/drafts/${encodeURIComponent(draftId)}/publish`);
+    }
+    restart(draftId) {
+        return this.request("POST", `/reporting-packs/drafts/${encodeURIComponent(draftId)}/restart`);
+    }
+    getGeneration(generationId) {
+        return this.request("GET", `/reporting-packs/generations/${encodeURIComponent(generationId)}`);
+    }
+    getGenerationStatus(generationId) {
+        return this.request("GET", `/reporting-packs/generations/${encodeURIComponent(generationId)}/status`);
+    }
+    rollbackGeneration(generationId) {
+        return this.request("POST", `/reporting-packs/generations/${encodeURIComponent(generationId)}/rollback`);
+    }
+    getRollupProvenance(generationId) {
+        return this.request("GET", `/reporting-packs/generations/${encodeURIComponent(generationId)}/rollup-provenance`);
     }
 }
 class AdminMeasurementNamespace {
