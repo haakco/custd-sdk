@@ -4,7 +4,17 @@ Central tracker for active implementation plans. Link every active plan here wit
 
 ## Active
 
-None.
+- [Client Data Lifecycle SDK Parity](./2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md) — blocked on the corresponding merged Custd server contracts; then fixes offboarding drift and adds tenant-storage, subject export, physical-erasure, and retention parity across all four SDKs.
+
+## AI Execution Order
+
+1. Do not start this repository until Custd Phase D2 and lifecycle Milestones
+   0-4 are merged.
+2. Execute
+   [Client Data Lifecycle SDK Parity](./2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md)
+   from Milestone 1 through release verification.
+3. Return to the Custd lifecycle plan for consumer pinning and shared
+   acceptance; do not start Tiao directly from this repository.
 
 ## Archived (2026-07-19)
 
