@@ -28,7 +28,7 @@ export type BrowserSiteConfig = {
     allowedOrigins?: string[];
 };
 export declare function createBrowserTracker(config: BrowserTrackerConfig): BrowserTracker;
-export declare function installBrowserTrackerFromScript(): Promise<BrowserTracker>;
+export declare function installBrowserTrackerFromScript(scriptElement?: HTMLScriptElement): Promise<BrowserTracker>;
 declare global {
     interface Window {
         custd: {

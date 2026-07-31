@@ -211,6 +211,26 @@ describe("createBrowserTracker", () => {
     expect(fetchMock.mock.calls[1][1].credentials).toBe("omit");
   });
 
+  it("installs from an explicit module script when currentScript is unavailable", async () => {
+    const fetchMock = mockFetch([
+      new Response(JSON.stringify({ identityMode: "cookieless", allowedOrigins: ["https://example.com"] }), {
+        status: 200,
+      }),
+      new Response(JSON.stringify({ success: true }), { status: 202 }),
+    ]);
+    Object.defineProperty(document, "currentScript", { value: null, configurable: true });
+    const script = {
+      src: "http://localhost:8087/custd-sdk/browser-script.js",
+      dataset: { siteUuid: "site-123", writeKey: "site_pk_test", batchSize: "1" },
+    } as unknown as HTMLScriptElement;
+
+    await installBrowserTrackerFromScript(script);
+    await window.custd.trackPageView();
+
+    expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:8087/api/v1/sites/site-123/config");
+    expect(fetchMock.mock.calls[1][0]).toBe("http://localhost:8087/api/v1/collect/events");
+  });
+
   it("allows cookieless browser envelopes without company or identity IDs", () => {
     expect(() =>
       validateBrowserEvent({
