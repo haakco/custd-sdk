@@ -1,3 +1,64 @@
+import { OffboardingClient } from "./admin-offboarding.js";
+import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
+import { RetentionClient } from "./admin-retention.js";
+import { SubjectExportClient } from "./admin-subject-exports.js";
+import { TenantStorageClient } from "./admin-tenant-storage.js";
+
+export {
+  type OffboardingAcknowledgeResponse,
+  type OffboardingCancelRequest,
+  OffboardingClient,
+  type OffboardingDownloadResponse,
+  type OffboardingExecuteRequest,
+  type OffboardingExecuteResponse,
+  type OffboardingExportResponse,
+  type OffboardingPerStore,
+  type OffboardingPreviewResponse,
+  type OffboardingReceiptPerStore,
+  type OffboardingReceiptResponse,
+  type OffboardingRequest,
+  type OffboardingRequestCreate,
+  type OffboardingRetryResponse,
+  type OffboardingSchedule,
+  type OffboardingScheduleListResponse,
+  type OffboardingScheduleRequest,
+  type OffboardingWaiver,
+} from "./admin-offboarding.js";
+export {
+  type PrivacyErasure,
+  PrivacyErasureClient,
+  type PrivacyErasureCreateRequest,
+  type PrivacyErasureListResponse,
+  type PrivacyErasureSelector,
+  type PrivacyErasureState,
+  type PrivacyErasureStoreProgress,
+} from "./admin-privacy-erasures.js";
+export {
+  RetentionClient,
+  type RetentionPolicy,
+  type RetentionPolicyListResponse,
+  type RetentionPolicyUpsertRequest,
+  type RetentionRun,
+  type RetentionRunDeletion,
+  type RetentionRunPreview,
+  type RetentionRunsListResponse,
+} from "./admin-retention.js";
+export {
+  type SubjectExport,
+  SubjectExportClient,
+  type SubjectExportCreateRequest,
+  type SubjectExportDownloadResponse,
+  type SubjectExportListResponse,
+  type SubjectExportState,
+  type SubjectExportSubject,
+} from "./admin-subject-exports.js";
+export {
+  TenantStorageClient,
+  type TenantStorageCreateRequest,
+  type TenantStorageListResponse,
+  type TenantStorageLocation,
+} from "./admin-tenant-storage.js";
+
 export type EventContext = {
   page?: {
     url?: string;
@@ -409,25 +470,6 @@ export type AdminPrivacyIdentifierMapRequest = {
   externalId: string;
 };
 
-export type AdminRetentionPolicy = {
-  tenantSlug: string;
-  maxAgeDays: number;
-  hardDeleteAfterDays: number;
-  applyToEventTypes: string[];
-  applyToDataSpaces: string[];
-};
-
-export type AdminRetentionPolicyUpsertRequest = {
-  maxAgeDays: number;
-  hardDeleteAfterDays: number;
-  applyToEventTypes?: string[];
-  applyToDataSpaces?: string[];
-};
-
-export type AdminRetentionPolicyListResponse = {
-  policies: AdminRetentionPolicy[];
-};
-
 export type AdminStorageAlertRule = {
   ruleId: string;
   tenantSlug: string;
@@ -489,42 +531,6 @@ export type AdminReportingPackAuditEvent = {
 
 export type AdminReportingPackAuditListResponse = {
   events: AdminReportingPackAuditEvent[];
-};
-
-export type AdminOffboardingSchedule = {
-  tenantSlug: string;
-  effectiveAt: string;
-  gracePeriodDays: number;
-  reason: string;
-  status: string;
-  updatedAt?: string;
-};
-
-export type AdminOffboardingScheduleRequest = {
-  effectiveAt: string;
-  gracePeriodDays: number;
-  reason: string;
-  status: string;
-};
-
-export type AdminOffboardingScheduleListResponse = {
-  schedules: AdminOffboardingSchedule[];
-};
-
-export type AdminOffboardingCancelRequest = {
-  reason: string;
-};
-
-export type AdminOffboardingRequest = {
-  requestUuid: string;
-  tenantSlug: string;
-  status: string;
-  requestedBy: string;
-  requestedAt?: string;
-};
-
-export type AdminOffboardingRequestCreate = {
-  confirmation: string;
 };
 
 export type PackMetric = {
@@ -1120,7 +1126,10 @@ export class CustdClient {
     this.flushOnOnline = config.queue?.flushOnOnline ?? true;
     this.compressionEnabled = config.compression?.enabled ?? true;
     this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
-    this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body));
+    this.admin = new AdminNamespace(
+      (method, path, body) => this.adminRequest(method, path, body),
+      (method, path, body, options) => this.apiRequest(method, path, body, options),
+    );
     this.provisioning = new ProvisioningNamespace((method, path, body, options) =>
       this.apiRequest(method, path, body, options),
     );
@@ -1413,7 +1422,37 @@ export class CustdClient {
     });
 
     if (!response.ok) {
-      throw new Error(`custd: request failed with status ${response.status}`);
+      const text = await response.text().catch(() => "");
+      let errorCode = "";
+      let detail = "";
+      let safeNextAction = "";
+      if (text.length > 0) {
+        try {
+          const parsed = JSON.parse(text) as {
+            error?: string;
+            message?: string;
+            detail?: string;
+            title?: string;
+            safeNextAction?: string;
+          };
+          errorCode = parsed.error || "";
+          detail = parsed.detail || parsed.message || parsed.title || "";
+          safeNextAction = parsed.safeNextAction || "";
+        } catch {
+          detail = text.slice(0, 200);
+        }
+      }
+      let message =
+        detail.length > 0
+          ? `custd: ${detail} (status ${response.status})`
+          : `custd: request failed with status ${response.status}`;
+      if (errorCode.length > 0) {
+        message = `${message} [error=${errorCode}]`;
+      }
+      if (safeNextAction.length > 0) {
+        message = `${message} [safeNextAction=${safeNextAction}]`;
+      }
+      throw new Error(message);
     }
     if (response.status === 204) {
       return undefined as T;
@@ -1422,7 +1461,8 @@ export class CustdClient {
   }
 }
 
-type AdminRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
+type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
+type NonAdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type APIRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 
@@ -1697,24 +1737,30 @@ class AdminNamespace {
   readonly schemas: AdminSchemaNamespace;
   readonly measurement: AdminMeasurementNamespace;
   readonly privacy: AdminPrivacyNamespace;
-  readonly retention: AdminRetentionNamespace;
+  readonly retention: RetentionClient;
   readonly storageAlerts: AdminStorageAlertsNamespace;
   readonly audit: AdminAuditNamespace;
-  readonly offboarding: AdminOffboardingNamespace;
+  readonly offboarding: OffboardingClient;
   readonly reportingPacks: AdminReportingPacksNamespace;
+  readonly tenantStorage: TenantStorageClient;
+  readonly subjectExports: SubjectExportClient;
+  readonly privacyErasures: PrivacyErasureClient;
 
-  constructor(request: AdminRequester) {
+  constructor(request: AdminRequester, nonAdminRequest: NonAdminRequester) {
     this.tenants = new AdminTenantNamespace(request);
     this.oauthClients = new AdminOAuthClientNamespace(request);
     this.sites = new AdminSiteNamespace(request);
     this.schemas = new AdminSchemaNamespace(request);
     this.measurement = new AdminMeasurementNamespace(request);
     this.privacy = new AdminPrivacyNamespace(request);
-    this.retention = new AdminRetentionNamespace(request);
+    this.retention = new RetentionClient(request);
     this.storageAlerts = new AdminStorageAlertsNamespace(request);
     this.audit = new AdminAuditNamespace(request);
-    this.offboarding = new AdminOffboardingNamespace(request);
+    this.offboarding = new OffboardingClient(request);
     this.reportingPacks = new AdminReportingPacksNamespace(request);
+    this.tenantStorage = new TenantStorageClient(nonAdminRequest);
+    this.subjectExports = new SubjectExportClient(request);
+    this.privacyErasures = new PrivacyErasureClient(request);
   }
 }
 
@@ -1942,26 +1988,6 @@ class AdminPrivacyNamespace {
   }
 }
 
-class AdminRetentionNamespace {
-  constructor(private readonly request: AdminRequester) {}
-
-  list(): Promise<AdminRetentionPolicyListResponse> {
-    return this.request("GET", "/retention/policies");
-  }
-
-  upsert(tenantSlug: string, body: AdminRetentionPolicyUpsertRequest): Promise<AdminRetentionPolicy> {
-    return this.request("PUT", `/retention/policies/${encodeURIComponent(tenantSlug)}`, body);
-  }
-
-  get(tenantSlug: string): Promise<AdminRetentionPolicy> {
-    return this.request("GET", `/retention/policies/${encodeURIComponent(tenantSlug)}`);
-  }
-
-  delete(tenantSlug: string): Promise<void> {
-    return this.request("DELETE", `/retention/policies/${encodeURIComponent(tenantSlug)}`);
-  }
-}
-
 class AdminStorageAlertsNamespace {
   constructor(private readonly request: AdminRequester) {}
 
@@ -2004,42 +2030,6 @@ class AdminAuditNamespace {
 
   listReportingPackEvents(): Promise<AdminReportingPackAuditListResponse> {
     return this.request("GET", "/reporting-packs/audit-events");
-  }
-}
-
-class AdminOffboardingNamespace {
-  constructor(private readonly request: AdminRequester) {}
-
-  schedule(body: AdminOffboardingScheduleRequest): Promise<AdminOffboardingSchedule> {
-    return this.request("POST", "/offboarding/schedules", body);
-  }
-
-  listSchedules(): Promise<AdminOffboardingScheduleListResponse> {
-    return this.request("GET", "/offboarding/schedules");
-  }
-
-  getSchedule(tenantSlug: string): Promise<AdminOffboardingSchedule> {
-    return this.request("GET", `/offboarding/schedules/${encodeURIComponent(tenantSlug)}`);
-  }
-
-  cancelSchedule(tenantSlug: string, body: AdminOffboardingCancelRequest): Promise<void> {
-    return this.request("POST", `/offboarding/schedules/${encodeURIComponent(tenantSlug)}/cancel`, body);
-  }
-
-  requestOffboarding(body: AdminOffboardingRequestCreate): Promise<AdminOffboardingRequest> {
-    return this.request("POST", "/offboarding", body);
-  }
-
-  getRequest(requestUuid: string): Promise<AdminOffboardingRequest> {
-    return this.request("GET", `/offboarding/${encodeURIComponent(requestUuid)}`);
-  }
-
-  cancelRequest(requestUuid: string): Promise<void> {
-    return this.request("POST", `/offboarding/${encodeURIComponent(requestUuid)}/cancel`);
-  }
-
-  confirmRequest(requestUuid: string): Promise<void> {
-    return this.request("POST", `/offboarding/${encodeURIComponent(requestUuid)}/confirm`);
   }
 }
 

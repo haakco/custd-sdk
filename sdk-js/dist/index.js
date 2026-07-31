@@ -1,3 +1,13 @@
+import { OffboardingClient } from "./admin-offboarding.js";
+import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
+import { RetentionClient } from "./admin-retention.js";
+import { SubjectExportClient } from "./admin-subject-exports.js";
+import { TenantStorageClient } from "./admin-tenant-storage.js";
+export { OffboardingClient, } from "./admin-offboarding.js";
+export { PrivacyErasureClient, } from "./admin-privacy-erasures.js";
+export { RetentionClient, } from "./admin-retention.js";
+export { SubjectExportClient, } from "./admin-subject-exports.js";
+export { TenantStorageClient, } from "./admin-tenant-storage.js";
 export { createMobileAsyncQueueStorage, createMobileFlushTriggers, } from "./mobile-adapter.js";
 export { createMobileEvent, } from "./mobile-context.js";
 export { AsyncEventQueue } from "./mobile-queue.js";
@@ -85,7 +95,7 @@ export class CustdClient {
         this.flushOnOnline = config.queue?.flushOnOnline ?? true;
         this.compressionEnabled = config.compression?.enabled ?? true;
         this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
-        this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body));
+        this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body), (method, path, body, options) => this.apiRequest(method, path, body, options));
         this.provisioning = new ProvisioningNamespace((method, path, body, options) => this.apiRequest(method, path, body, options));
         this.reporting = new ReportingNamespace((method, path, body, options) => this.apiRequest(method, path, body, options));
         this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
@@ -344,7 +354,31 @@ export class CustdClient {
             signal: options?.signal,
         });
         if (!response.ok) {
-            throw new Error(`custd: request failed with status ${response.status}`);
+            const text = await response.text().catch(() => "");
+            let errorCode = "";
+            let detail = "";
+            let safeNextAction = "";
+            if (text.length > 0) {
+                try {
+                    const parsed = JSON.parse(text);
+                    errorCode = parsed.error || "";
+                    detail = parsed.detail || parsed.message || parsed.title || "";
+                    safeNextAction = parsed.safeNextAction || "";
+                }
+                catch {
+                    detail = text.slice(0, 200);
+                }
+            }
+            let message = detail.length > 0
+                ? `custd: ${detail} (status ${response.status})`
+                : `custd: request failed with status ${response.status}`;
+            if (errorCode.length > 0) {
+                message = `${message} [error=${errorCode}]`;
+            }
+            if (safeNextAction.length > 0) {
+                message = `${message} [safeNextAction=${safeNextAction}]`;
+            }
+            throw new Error(message);
         }
         if (response.status === 204) {
             return undefined;
@@ -576,18 +610,21 @@ class SchemaNamespace {
     }
 }
 class AdminNamespace {
-    constructor(request) {
+    constructor(request, nonAdminRequest) {
         this.tenants = new AdminTenantNamespace(request);
         this.oauthClients = new AdminOAuthClientNamespace(request);
         this.sites = new AdminSiteNamespace(request);
         this.schemas = new AdminSchemaNamespace(request);
         this.measurement = new AdminMeasurementNamespace(request);
         this.privacy = new AdminPrivacyNamespace(request);
-        this.retention = new AdminRetentionNamespace(request);
+        this.retention = new RetentionClient(request);
         this.storageAlerts = new AdminStorageAlertsNamespace(request);
         this.audit = new AdminAuditNamespace(request);
-        this.offboarding = new AdminOffboardingNamespace(request);
+        this.offboarding = new OffboardingClient(request);
         this.reportingPacks = new AdminReportingPacksNamespace(request);
+        this.tenantStorage = new TenantStorageClient(nonAdminRequest);
+        this.subjectExports = new SubjectExportClient(request);
+        this.privacyErasures = new PrivacyErasureClient(request);
     }
 }
 class ProvisioningNamespace {
@@ -754,23 +791,6 @@ class AdminPrivacyNamespace {
         return this.request("GET", `/privacy/identifiers/${encodeURIComponent(companySlug)}`);
     }
 }
-class AdminRetentionNamespace {
-    constructor(request) {
-        this.request = request;
-    }
-    list() {
-        return this.request("GET", "/retention/policies");
-    }
-    upsert(tenantSlug, body) {
-        return this.request("PUT", `/retention/policies/${encodeURIComponent(tenantSlug)}`, body);
-    }
-    get(tenantSlug) {
-        return this.request("GET", `/retention/policies/${encodeURIComponent(tenantSlug)}`);
-    }
-    delete(tenantSlug) {
-        return this.request("DELETE", `/retention/policies/${encodeURIComponent(tenantSlug)}`);
-    }
-}
 class AdminStorageAlertsNamespace {
     constructor(request) {
         this.request = request;
@@ -813,35 +833,6 @@ class AdminAuditNamespace {
     }
     listReportingPackEvents() {
         return this.request("GET", "/reporting-packs/audit-events");
-    }
-}
-class AdminOffboardingNamespace {
-    constructor(request) {
-        this.request = request;
-    }
-    schedule(body) {
-        return this.request("POST", "/offboarding/schedules", body);
-    }
-    listSchedules() {
-        return this.request("GET", "/offboarding/schedules");
-    }
-    getSchedule(tenantSlug) {
-        return this.request("GET", `/offboarding/schedules/${encodeURIComponent(tenantSlug)}`);
-    }
-    cancelSchedule(tenantSlug, body) {
-        return this.request("POST", `/offboarding/schedules/${encodeURIComponent(tenantSlug)}/cancel`, body);
-    }
-    requestOffboarding(body) {
-        return this.request("POST", "/offboarding", body);
-    }
-    getRequest(requestUuid) {
-        return this.request("GET", `/offboarding/${encodeURIComponent(requestUuid)}`);
-    }
-    cancelRequest(requestUuid) {
-        return this.request("POST", `/offboarding/${encodeURIComponent(requestUuid)}/cancel`);
-    }
-    confirmRequest(requestUuid) {
-        return this.request("POST", `/offboarding/${encodeURIComponent(requestUuid)}/confirm`);
     }
 }
 class AdminReportingPacksNamespace {

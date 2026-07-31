@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "custd-sdk"
-version = "1.7.2"
+version = "1.8.1"
 description = "custd ingestion SDK"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -20,7 +20,7 @@ dev = ["ruff", "mypy"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-custd = ["py.typed"]
+custd = ["py.typed", "lifecycle_fixtures/*.json"]
 
 [tool.ruff]
 target-version = "py311"

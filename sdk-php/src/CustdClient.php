@@ -131,6 +131,31 @@ final class CustdClient
         return new Admin\MeasurementProjectClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    public function adminTenantStorage(): Admin\TenantStorageClient
+    {
+        return new Admin\TenantStorageClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminSubjectExports(): Admin\SubjectExportClient
+    {
+        return new Admin\SubjectExportClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminPrivacyErasures(): Admin\PrivacyErasureClient
+    {
+        return new Admin\PrivacyErasureClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminRetention(): Admin\RetentionClient
+    {
+        return new Admin\RetentionClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminOffboarding(): Admin\OffboardingClient
+    {
+        return new Admin\OffboardingClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
     public function provisioning(): Provisioning\Client
     {
         return new Provisioning\Client($this->baseUrl, $this->authToken(), $this->adminHttpClient);

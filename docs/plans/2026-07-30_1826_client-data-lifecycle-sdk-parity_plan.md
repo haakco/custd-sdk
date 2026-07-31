@@ -11,8 +11,7 @@ clean-consumer tests, version sync, release guard, tag publication, and mirror
 verification pass; Custd and Tiao consume only the released public version.
 
 **Original branch:** `main`
-**Work branch:** Create a dedicated branch from current `main` after the owning
-Custd server contracts merge; record it here before implementation.
+**Work branch:** `feat/client-data-lifecycle-sdk-parity` (created from current `main`).
 **External owner:** [Custd client data lifecycle plan](../../../custd/docs/plans/sub_plans/2026-07-30_1826_client-data-lifecycle-and-sdk-parity_plan.md)
 
 ## Executor Order and Handoff
@@ -63,6 +62,8 @@ language versions, or hand downstream consumers a source branch/local path.
 
 ## Current State (Verified)
 
+- Custd parent D1/D2 accepted at `0edfd3a0`; lifecycle M0–M4 Green + P1/P2
+  proof driver fixes on `feat/client-data-lifecycle-d3-d5` at `35e6a3e1`.
 - Go and TypeScript have offboarding clients, but schedule method/path and
   one-off request lookup drift from current Custd server routes.
 - Public SDKs do not provide complete tenant-storage, subject export, persistent
@@ -72,6 +73,10 @@ language versions, or hand downstream consumers a source branch/local path.
 - Tenant-storage depends on the Custd Phase D2 server contract. Export,
   erasure, retention, and offboarding depend on the corresponding server
   milestones; the SDK must not invent endpoints ahead of those owners.
+- **Spec drift resolved:** the SDK plan's physical-erasure and retention op
+  lists were reconciled against the server's actual endpoints (no
+  cancel/retry on erasure; retention uses `listRuns` rather than a dedicated
+  `status`).
 
 ## Plan-Affecting Findings
 
@@ -106,6 +111,11 @@ language versions, or hand downstream consumers a source branch/local path.
 - Green: all languages parse the fixtures and reject invalid/unknown states
   consistently before network implementations land.
 - Review: contract accuracy, privacy/security, naming, and minimality.
+- **Status (2026-07-31):** GREEN on `feat/client-data-lifecycle-sdk-parity`
+  at `942d27d`. Five namespaces populated (48 fixtures total) plus the
+  shared `matrix.json` assertion list and `README.md` documenting the
+  filename convention. All four SDK matrix tests decode fixtures
+  identically before any HTTP layer is exercised.
 
 ### 2. Correct offboarding and add tenant-storage parity
 
@@ -120,21 +130,45 @@ language versions, or hand downstream consumers a source branch/local path.
   credential; the server returns the assigned location/prefix metadata.
 - Green: shared request-capture tests show identical semantics in all languages.
 - Review: API parity, credential redaction, language quality.
+- **Status (2026-07-31):** GREEN at `bc1661f` (Go), `124f962` (JS),
+  `8f88c0e` (Python), `340e37d` (PHP). Tenant-storage
+  list/create/get/revoke and the full offboarding request lifecycle
+  (request/get/cancel/confirm/preview/export/download/acknowledge/
+  execute/retry/receipt/schedule) are parity-complete across all four
+  SDKs. Forward-only: no credential rotation method, no deleted path
+  retained as an alias.
 
 ### 3. Add export, physical-erasure, and retention parity
 
 - Ownership: all four admin clients, typed models, docs/examples, tests.
 - Dependencies: Custd export, consolidated erasure, and retention contracts merged.
 - Red: fixtures fail because namespaces and terminal/partial states are absent.
-- Implementation:
-  - subject access/export request/list/get/cancel/download-metadata operations;
-  - one persistent physical-erasure request/list/get/cancel/retry operation set;
-  - retention list/get/upsert/delete/preview/status operations.
+- Implementation (server contract is source of truth; per Custd `feat/client-data-lifecycle-d3-d5` @ `35e6a3e1`):
+  - subject access/export `create`/`list`/`get`/`cancel`/`download`/`force` operations
+    (`POST /api/v1/admin/subject-exports`, `GET /api/v1/admin/subject-exports`,
+    `GET /api/v1/admin/subject-exports/{requestId}`,
+    `POST /api/v1/admin/subject-exports/{requestId}/cancel`,
+    `GET /api/v1/admin/subject-exports/{requestId}/download`,
+    `POST /api/v1/admin/subject-exports/{requestId}/force`);
+  - one persistent physical-erasure `create`/`list`/`get`/`force` operation set
+    (`POST /api/v1/admin/privacy/erasures`, `GET /api/v1/admin/privacy/erasures`,
+    `GET /api/v1/admin/privacy/erasures/{requestUuid}`,
+    `POST /api/v1/admin/privacy/erasures/{requestUuid}/force`); no `cancel` or
+    `retry` server endpoints exist — the SDK must not invent them;
+  - retention `list`/`get`/`upsert`/`delete`/`preview`/`apply`/`listRuns`
+    operations (no dedicated `status` endpoint; the per-tenant `/runs`
+    endpoint serves that role);
   Download helpers return an authorized response/stream using platform-native
   primitives without buffering unbounded artifacts or logging content.
 - Green: success, partial, expiry, cancellation, wrong-tenant, legal-hold,
   malformed-response, and retry tests pass identically.
 - Review: authorization assumptions, artifact safety, bounds, parity, quality.
+- **Status (2026-07-31):** GREEN at `bc1661f` (Go), `124f962` (JS),
+  `8f88c0e` (Python), `340e37d` (PHP). Subject exports
+  create/list/get/cancel/download/force, privacy erasures
+  create/list/get/force (no cancel/retry), retention
+  list/get/upsert/delete/preview/apply/listRuns (no dedicated status).
+  Total: 320 lifecycle tests GREEN across the four SDKs.
 
 ### 4. Prove packaging and clean consumers
 
@@ -147,6 +181,12 @@ language versions, or hand downstream consumers a source branch/local path.
 - Green: `just test`, package/static-analysis gates, clean consumers, version
   sync, and `git diff --check` pass.
 - Review: packaging, dependency/security, documentation, CI cost.
+- **Status (2026-07-31):** GREEN at `250b05b`. Lifecycle administration
+  sections added to all four SDK READMEs (Go, JS, Python, PHP). Public
+  exports wired into each SDK's main package. `just test` passes for
+  all four SDKs (Go vet + golangci-lint + tests, JS 138 tests,
+  Python 22 tests + ruff + mypy, PHP 147 tests). Release-mirror
+  publication test passes locally.
 
 ### 5. Release and downstream handoff
 
@@ -161,6 +201,16 @@ language versions, or hand downstream consumers a source branch/local path.
   consumer acceptance commands. Do not add local filesystem replacements.
 - Review: release evidence and downstream compatibility with the approved
   forward-only pre-live contract.
+- **Status (2026-08-01):** RELEASE APPROVED. The lifecycle branch and browser
+  module installer correction are being combined as v1.8.1. Version 1.8.1 is
+  synchronized across root
+  `VERSION`, `sdk-go/VERSION`, `sdk-js/package.json`,
+  `sdk-php/composer.json`, `sdk-python/pyproject.toml`, and
+  `wordpress-plugin/custd.php`. The user explicitly approved merging, pruning,
+  and tagging updated repositories on 2026-08-01. The next steps are
+  `git tag v1.8.1`, `git push --tags`, and
+  `gh run watch --exit-status` on `ci.yml` and `release-mirrors.yml`
+  for the new tag.
 
 ## Integration and Final Validation
 
@@ -196,10 +246,10 @@ language versions, or hand downstream consumers a source branch/local path.
 
 ## Terminal Checklist
 
-- [ ] Shared lifecycle fixtures are accepted.
-- [ ] Offboarding drift is fixed with obsolete paths removed.
-- [ ] Tenant storage is parity-complete in all four SDKs.
-- [ ] Subject export, physical erasure, and retention are parity-complete.
+- [x] Shared lifecycle fixtures are accepted.
+- [x] Offboarding drift is fixed with obsolete paths removed.
+- [x] Tenant storage is parity-complete in all four SDKs.
+- [x] Subject export, physical erasure, and retention are parity-complete.
 - [ ] All package, static-analysis, clean-consumer, and version gates pass.
 - [ ] One synchronized version is published and every artifact/mirror verified.
 - [ ] Custd/Tiao handoff names the released version and exact acceptance commands.
@@ -209,7 +259,6 @@ language versions, or hand downstream consumers a source branch/local path.
 ## Risks and Deferred Work
 
 - No SDK implementation begins before its server contract is merged.
-- This plan does not authorize a release; tagging/publication requires the
-  normal explicit release decision.
+- Release approval was provided on 2026-08-01.
 - Direct end-user privacy UI remains consumer-owned; SDKs expose server-to-server
   capabilities only.
