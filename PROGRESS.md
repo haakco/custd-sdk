@@ -1,8 +1,8 @@
-# Custd SDK v1.8.2 Progress
+# Custd SDK v1.8.3 Progress
 
 **Owning plan:**
 [`docs/plans/2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md`](docs/plans/2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md)
-**Status:** Milestones 1–5 complete and merged to `main`. Version `1.8.2`
+**Status:** Milestones 1–5 complete and merged to `main`. Version `1.8.3`
 combines lifecycle parity with the browser module installer correction. Release
 approval was provided on 2026-08-01; tag publication and downstream pinning are
 in progress.
@@ -63,11 +63,12 @@ in progress.
 
 ### M5 — Release
 
-- VERSION bumped to 1.8.2 across root `VERSION`, `sdk-go/VERSION`,
+- VERSION bumped to 1.8.3 across root `VERSION`, `sdk-go/VERSION`,
   `sdk-js/package.json`, `sdk-php/composer.json`,
   `sdk-python/pyproject.toml`, `wordpress-plugin/custd.php`.
-- Release approval was provided on 2026-08-01. Version `v1.8.2` follows the
-  immutable `v1.8.1` tag and corrects its lifecycle documentation gate.
+- Release approval was provided on 2026-08-01. Version `v1.8.3` follows the
+  immutable `v1.8.2` tag and routes mirror publication to the maintained
+  containerd runner fleet.
 
 ## Test totals (M1–M4)
 
@@ -81,8 +82,8 @@ in progress.
 
 ## Next
 
-- Tag `v1.8.2` → wait for `ci.yml` and `release-mirrors.yml` → verify the
-  published artifacts → pin Custd consumers to `v1.8.2`.
+- Tag `v1.8.3` → wait for `release-mirrors.yml` → verify the published
+  artifacts → pin Custd consumers to `v1.8.3`.
 
 ## Blockers
 

@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   split:
-    runs-on: self-hosted
+    runs-on: htz-containerd
     strategy:
       fail-fast: false
       matrix:
