@@ -331,3 +331,42 @@ pnpm run smoke:dev
 The smoke test uses `scripts/dev-hydra-token.sh` and `scripts/dev-seed-core.sh` to create a dev OAuth client and seed core tables (company, device type, event type, schema).
 
 To run all SDK checks, use `mise exec -- just check` from the repository root.
+
+## Lifecycle administration
+
+The TypeScript SDK exposes typed admin clients for the five lifecycle
+namespaces. Forward-only: no deprecated aliases.
+
+```ts
+const admin = client.admin();
+
+// Tenant storage: list/get/create/revoke.
+const loc = await admin.tenantStorage.create({
+  tenantSlug: "acme",
+  clientLocation: "s3://acme-prod-warehouse/events/",
+});
+
+// Subject exports: full request lifecycle.
+const exp = await admin.subjectExports.create({
+  tenantSlug: "acme",
+  subject: { type: "userUuid", value: "01J5..." },
+  scope: "portability",
+  idempotencyKey: "acme-2026-07-31",
+});
+
+// Physical erasures: NO cancel/retry.
+const force = await admin.privacyErasures.force("pe_01J5...");
+
+// Retention policies: list/get/upsert/delete + preview/apply/listRuns.
+const runs = await admin.retention.listRuns("acme");
+
+// Offboarding: full request lifecycle + schedules.
+const sched = await admin.offboarding.schedule({
+  tenantSlug: "acme",
+  executeAt: "2026-12-31T00:00:00Z",
+  reason: "contract_end",
+});
+```
+
+SDKs never log signed URLs, raw personal data, export bytes, or
+subject identifiers outside opaque IDs.

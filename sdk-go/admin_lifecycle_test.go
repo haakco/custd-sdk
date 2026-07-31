@@ -156,7 +156,7 @@ func TestSubjectExport_Expiry(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected terminal error for expired download")
 	}
-	problem := parseProblem([]byte(body))
+	problem := parseProblem(body)
 	if problem == nil {
 		t.Fatalf("expected Problem envelope in body, got nil")
 	}
@@ -323,7 +323,7 @@ func TestRetention_SelectorlessScope(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected selector_required error")
 	}
-	problem := parseProblem([]byte(body))
+	problem := parseProblem(body)
 	if problem == nil {
 		t.Fatalf("expected Problem envelope in body")
 	}

@@ -275,3 +275,42 @@ composer run smoke:dev
 The smoke test uses `scripts/dev-hydra-token.sh` and `scripts/dev-seed-core.sh` to create a dev OAuth client and seed core tables (company, device type, event type, schema).
 
 To run all SDK checks, use `mise exec -- just check` from the repository root.
+
+## Lifecycle administration
+
+The PHP SDK exposes typed admin clients for the five lifecycle
+namespaces. Forward-only: no deprecated aliases.
+
+```php
+$admin = $client->admin();
+
+// Tenant storage: list/create/get/revoke.
+$loc = $admin->getTenantStorage()->create([
+    "tenantSlug"    => "acme",
+    "clientLocation" => "s3://acme-prod-warehouse/events/",
+]);
+
+// Subject exports: full request lifecycle.
+$exp = $admin->getSubjectExport()->create([
+    "tenantSlug" => "acme",
+    "subject"    => ["type" => "userUuid", "value" => "01J5..."],
+    "scope"      => "portability",
+    "idempotencyKey" => "acme-2026-07-31",
+]);
+
+// Physical erasures: NO cancel/retry.
+$force = $admin->getPrivacyErasure()->force("pe_01J5...");
+
+// Retention policies: list/get/upsert/delete + preview/apply/listRuns.
+$runs = $admin->getRetention()->listRuns("acme");
+
+// Offboarding: full request lifecycle + schedules.
+$sched = $admin->getOffboarding()->schedule([
+    "tenantSlug" => "acme",
+    "executeAt"  => "2026-12-31T00:00:00Z",
+    "reason"     => "contract_end",
+]);
+```
+
+SDKs never log signed URLs, raw personal data, export bytes, or
+subject identifiers outside opaque IDs.

@@ -94,15 +94,15 @@ type SubjectExportSubject struct {
 // Checksum and ArtifactSize are present only once the request is in
 // terminal ready state.
 type SubjectExport struct {
-	RequestID    string              `json:"requestId"`
-	TenantSlug   string              `json:"tenantSlug"`
+	RequestID    string               `json:"requestId"`
+	TenantSlug   string               `json:"tenantSlug"`
 	Subject      SubjectExportSubject `json:"subject"`
-	Scope        string              `json:"scope"`
-	State        string              `json:"state"`
-	CreatedAt    string              `json:"createdAt,omitempty"`
-	ExpiresAt    string              `json:"expiresAt,omitempty"`
-	Checksum     string              `json:"checksum,omitempty"`
-	ArtifactSize int64               `json:"artifactSize,omitempty"`
+	Scope        string               `json:"scope"`
+	State        string               `json:"state"`
+	CreatedAt    string               `json:"createdAt,omitempty"`
+	ExpiresAt    string               `json:"expiresAt,omitempty"`
+	Checksum     string               `json:"checksum,omitempty"`
+	ArtifactSize int64                `json:"artifactSize,omitempty"`
 }
 
 // SubjectExportListResponse is the body for GET /admin/subject-exports.
@@ -213,13 +213,13 @@ type PrivacyErasureStoreProgress struct {
 
 // PrivacyErasure is the receipt returned for an erasure request.
 type PrivacyErasure struct {
-	RequestUUID      string                       `json:"requestUuid"`
-	TenantSlug       string                       `json:"tenantSlug"`
-	Selector         PrivacyErasureSelector       `json:"selector"`
-	State            string                       `json:"state"`
+	RequestUUID      string                        `json:"requestUuid"`
+	TenantSlug       string                        `json:"tenantSlug"`
+	Selector         PrivacyErasureSelector        `json:"selector"`
+	State            string                        `json:"state"`
 	PerStoreProgress []PrivacyErasureStoreProgress `json:"perStoreProgress,omitempty"`
-	CreatedAt        string                       `json:"createdAt,omitempty"`
-	CompletedAt      string                       `json:"completedAt,omitempty"`
+	CreatedAt        string                        `json:"createdAt,omitempty"`
+	CompletedAt      string                        `json:"completedAt,omitempty"`
 }
 
 // PrivacyErasureCreateRequest is the body for POST /admin/privacy/erasures.
@@ -426,10 +426,10 @@ type RetentionRunDeletion struct {
 // RetentionRunPreview is the body for POST /admin/retention/policies/{slug}/preview.
 // The PreviewId is server-issued; the SDK does not mint it.
 type RetentionRunPreview struct {
-	PreviewID          string                `json:"previewId"`
-	TenantSlug         string                `json:"tenantSlug"`
+	PreviewID          string                 `json:"previewId"`
+	TenantSlug         string                 `json:"tenantSlug"`
 	EstimatedDeletions []RetentionRunDeletion `json:"estimatedDeletions"`
-	PreviewedAt        string                `json:"previewedAt,omitempty"`
+	PreviewedAt        string                 `json:"previewedAt,omitempty"`
 }
 
 // RetentionRun is the body element for GET /admin/retention/policies/{slug}/runs.
@@ -808,22 +808,22 @@ type OffboardingExecuteRequest struct {
 // /admin/offboarding/requests/{requestUuid}/export. Complete=false means
 // the server is still gathering inventory; callers must poll.
 type OffboardingExportResponse struct {
-	RequestUUID     string `json:"requestUuid"`
+	RequestUUID      string `json:"requestUuid"`
 	ExportArtifactID string `json:"exportArtifactId,omitempty"`
-	SchemaVersion   string `json:"schemaVersion,omitempty"`
-	GeneratedAt     string `json:"generatedAt,omitempty"`
-	ExpiresAt       string `json:"expiresAt,omitempty"`
-	Complete        bool   `json:"complete"`
-	Checksum        string `json:"checksum,omitempty"`
+	SchemaVersion    string `json:"schemaVersion,omitempty"`
+	GeneratedAt      string `json:"generatedAt,omitempty"`
+	ExpiresAt        string `json:"expiresAt,omitempty"`
+	Complete         bool   `json:"complete"`
+	Checksum         string `json:"checksum,omitempty"`
 }
 
 // OffboardingDownloadResponse is the body for GET
 // /admin/offboarding/requests/{requestUuid}/download. The DownloadURL is
 // short-lived; callers must not log it or echo it into error messages.
 type OffboardingDownloadResponse struct {
-	RequestUUID  string `json:"requestUuid"`
-	DownloadURL  string `json:"downloadUrl"`
-	ExpiresAt    string `json:"expiresAt,omitempty"`
+	RequestUUID string `json:"requestUuid"`
+	DownloadURL string `json:"downloadUrl"`
+	ExpiresAt   string `json:"expiresAt,omitempty"`
 }
 
 // OffboardingAcknowledgeResponse is the body for POST
@@ -838,10 +838,10 @@ type OffboardingAcknowledgeResponse struct {
 // /admin/offboarding/requests/{requestUuid}/execute. The Waiver is echoed
 // back with the server-stamped timestamp.
 type OffboardingExecuteResponse struct {
-	RequestUUID string             `json:"requestUuid"`
-	State       string             `json:"state,omitempty"`
-	ExecutedAt  string             `json:"executedAt,omitempty"`
-	Waiver      OffboardingWaiver  `json:"waiver,omitempty"`
+	RequestUUID string            `json:"requestUuid"`
+	State       string            `json:"state,omitempty"`
+	ExecutedAt  string            `json:"executedAt,omitempty"`
+	Waiver      OffboardingWaiver `json:"waiver,omitempty"`
 }
 
 // OffboardingRetryResponse is the body for POST
@@ -856,10 +856,10 @@ type OffboardingRetryResponse struct {
 // DeletedCount is server-issued; RetainedExceptionsCount covers legal holds
 // and equivalent exclusions the SDK must not collapse.
 type OffboardingReceiptPerStore struct {
-	Store                  string `json:"store"`
-	RetentionClass         string `json:"retention_class"`
-	DeletedCount           int    `json:"deleted_count"`
-	RetainedExceptionsCount int   `json:"retained_exceptions_count"`
+	Store                   string `json:"store"`
+	RetentionClass          string `json:"retention_class"`
+	DeletedCount            int    `json:"deleted_count"`
+	RetainedExceptionsCount int    `json:"retained_exceptions_count"`
 }
 
 // OffboardingReceiptResponse is the body for GET
@@ -867,15 +867,15 @@ type OffboardingReceiptPerStore struct {
 // terminal state of the request; SHA256 is the signed digest the client
 // must store alongside its offboarding record.
 type OffboardingReceiptResponse struct {
-	RequestUUID    string                        `json:"requestUuid"`
-	TenantSlug     string                        `json:"tenantSlug"`
-	FinalState     string                        `json:"finalState"`
-	RequestedByUserID string                     `json:"requestedByUserId,omitempty"`
-	RequestedAt    string                        `json:"requestedAt,omitempty"`
-	CompletedAt    string                        `json:"completedAt,omitempty"`
-	PerStore       []OffboardingReceiptPerStore  `json:"perStore"`
-	Waiver         *OffboardingWaiver            `json:"waiver,omitempty"`
-	SHA256         string                        `json:"sha256,omitempty"`
+	RequestUUID       string                       `json:"requestUuid"`
+	TenantSlug        string                       `json:"tenantSlug"`
+	FinalState        string                       `json:"finalState"`
+	RequestedByUserID string                       `json:"requestedByUserId,omitempty"`
+	RequestedAt       string                       `json:"requestedAt,omitempty"`
+	CompletedAt       string                       `json:"completedAt,omitempty"`
+	PerStore          []OffboardingReceiptPerStore `json:"perStore"`
+	Waiver            *OffboardingWaiver           `json:"waiver,omitempty"`
+	SHA256            string                       `json:"sha256,omitempty"`
 }
 
 // Preview asks the server to compute the per-store inventory estimate for
