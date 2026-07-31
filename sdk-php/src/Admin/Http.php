@@ -28,10 +28,7 @@ final class Http
             : self::curlRequest($method, $url, $body, $token);
         $status = self::status($result);
         if ($status >= 400) {
-            $problem = Problem::parse($result["body"]);
-            $message = $problem !== null
-                ? $problem->message()
-                : "admin request failed with status {$status}";
+            $message = self::errorMessage($result["body"], $status);
             throw new \RuntimeException("custd: {$message}");
         }
         if ($status === 204 || $result["body"] === "") {
@@ -39,6 +36,47 @@ final class Http
         }
         $decoded = json_decode($result["body"], true, flags: JSON_THROW_ON_ERROR);
         return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * Surface a server error body as a human-readable message. Supports both
+     * RFC 9457 problem+json (type/title/status/detail/code) and the custd
+     * shorthand error/message shape used by the lifecycle admin endpoints.
+     * Falls back to the status-only message when neither shape decodes.
+     */
+    private static function errorMessage(string $body, int $status): string
+    {
+        $trimmed = trim($body);
+        if ($trimmed === "") {
+            return "admin request failed with status {$status}";
+        }
+        $decoded = json_decode($trimmed, true);
+        if (!is_array($decoded)) {
+            return "admin request failed with status {$status}";
+        }
+        $problem = Problem::fromArray($decoded);
+        if ($problem !== null) {
+            return $problem->message();
+        }
+        // Custd shorthand: { "error": "<machine_code>", "message": "<human>" }.
+        // The machine code is the smallest identifier the SDK can surface so
+        // callers can branch on it without parsing the human string.
+        $code = is_string($decoded["error"] ?? null) ? $decoded["error"] : "";
+        $human = is_string($decoded["message"] ?? null) ? $decoded["message"] : "";
+        $safeNext = is_string($decoded["safeNextAction"] ?? null) ? $decoded["safeNextAction"] : "";
+        if ($code !== "" && $human !== "") {
+            $message = "{$human} [status {$status}, code {$code}]";
+        } elseif ($human !== "") {
+            $message = "{$human} [status {$status}]";
+        } elseif ($code !== "") {
+            $message = "{$code} [status {$status}]";
+        } else {
+            $message = "admin request failed with status {$status}";
+        }
+        if ($safeNext !== "") {
+            $message .= ", safeNextAction {$safeNext}";
+        }
+        return $message;
     }
 
     /**
