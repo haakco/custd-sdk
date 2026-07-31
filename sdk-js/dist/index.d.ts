@@ -1,3 +1,13 @@
+import { OffboardingClient } from "./admin-offboarding.js";
+import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
+import { RetentionClient } from "./admin-retention.js";
+import { SubjectExportClient } from "./admin-subject-exports.js";
+import { TenantStorageClient } from "./admin-tenant-storage.js";
+export { type OffboardingAcknowledgeResponse, type OffboardingCancelRequest, OffboardingClient, type OffboardingDownloadResponse, type OffboardingExecuteRequest, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPerStore, type OffboardingPreviewResponse, type OffboardingReceiptPerStore, type OffboardingReceiptResponse, type OffboardingRequest, type OffboardingRequestCreate, type OffboardingRetryResponse, type OffboardingSchedule, type OffboardingScheduleListResponse, type OffboardingScheduleRequest, type OffboardingWaiver, } from "./admin-offboarding.js";
+export { type PrivacyErasure, PrivacyErasureClient, type PrivacyErasureCreateRequest, type PrivacyErasureListResponse, type PrivacyErasureSelector, type PrivacyErasureState, type PrivacyErasureStoreProgress, } from "./admin-privacy-erasures.js";
+export { RetentionClient, type RetentionPolicy, type RetentionPolicyListResponse, type RetentionPolicyUpsertRequest, type RetentionRun, type RetentionRunDeletion, type RetentionRunPreview, type RetentionRunsListResponse, } from "./admin-retention.js";
+export { type SubjectExport, SubjectExportClient, type SubjectExportCreateRequest, type SubjectExportDownloadResponse, type SubjectExportListResponse, type SubjectExportState, type SubjectExportSubject, } from "./admin-subject-exports.js";
+export { TenantStorageClient, type TenantStorageCreateRequest, type TenantStorageListResponse, type TenantStorageLocation, } from "./admin-tenant-storage.js";
 export type EventContext = {
     page?: {
         url?: string;
@@ -343,22 +353,6 @@ export type AdminPrivacyIdentifierMapping = {
 export type AdminPrivacyIdentifierMapRequest = {
     externalId: string;
 };
-export type AdminRetentionPolicy = {
-    tenantSlug: string;
-    maxAgeDays: number;
-    hardDeleteAfterDays: number;
-    applyToEventTypes: string[];
-    applyToDataSpaces: string[];
-};
-export type AdminRetentionPolicyUpsertRequest = {
-    maxAgeDays: number;
-    hardDeleteAfterDays: number;
-    applyToEventTypes?: string[];
-    applyToDataSpaces?: string[];
-};
-export type AdminRetentionPolicyListResponse = {
-    policies: AdminRetentionPolicy[];
-};
 export type AdminStorageAlertRule = {
     ruleId: string;
     tenantSlug: string;
@@ -412,33 +406,6 @@ export type AdminReportingPackAuditEvent = {
 };
 export type AdminReportingPackAuditListResponse = {
     events: AdminReportingPackAuditEvent[];
-};
-export type AdminOffboardingSchedule = {
-    tenantSlug: string;
-    effectiveAt: string;
-    gracePeriodDays: number;
-    reason: string;
-    status: string;
-    updatedAt?: string;
-};
-export type AdminOffboardingScheduleRequest = {
-    effectiveAt: string;
-    gracePeriodDays: number;
-    reason: string;
-    status: string;
-};
-export type AdminOffboardingScheduleListResponse = {
-    schedules: AdminOffboardingSchedule[];
-};
-export type AdminOffboardingCancelRequest = {
-    reason: string;
-};
-export type AdminOffboardingRequest = {
-    requestUuid: string;
-    tenantSlug: string;
-    status: string;
-    requestedBy: string;
-    requestedAt?: string;
 };
 export type PackMetric = {
     key: string;
@@ -923,7 +890,8 @@ export declare class CustdClient {
     private adminRequest;
     private apiRequest;
 }
-type AdminRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
+type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
+type NonAdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type APIRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 declare class ReportingNamespace {
@@ -952,12 +920,15 @@ declare class AdminNamespace {
     readonly schemas: AdminSchemaNamespace;
     readonly measurement: AdminMeasurementNamespace;
     readonly privacy: AdminPrivacyNamespace;
-    readonly retention: AdminRetentionNamespace;
+    readonly retention: RetentionClient;
     readonly storageAlerts: AdminStorageAlertsNamespace;
     readonly audit: AdminAuditNamespace;
-    readonly offboarding: AdminOffboardingNamespace;
+    readonly offboarding: OffboardingClient;
     readonly reportingPacks: AdminReportingPacksNamespace;
-    constructor(request: AdminRequester);
+    readonly tenantStorage: TenantStorageClient;
+    readonly subjectExports: SubjectExportClient;
+    readonly privacyErasures: PrivacyErasureClient;
+    constructor(request: AdminRequester, nonAdminRequest: NonAdminRequester);
 }
 declare class ProvisioningNamespace {
     readonly dataSpaces: ProvisioningDataSpaceNamespace;
@@ -1035,14 +1006,6 @@ declare class AdminPrivacyNamespace {
     mapIdentifier(companySlug: string, body: AdminPrivacyIdentifierMapRequest): Promise<AdminPrivacyIdentifierMapping>;
     listIdentifierMappings(companySlug: string): Promise<AdminPrivacyIdentifierMapping[]>;
 }
-declare class AdminRetentionNamespace {
-    private readonly request;
-    constructor(request: AdminRequester);
-    list(): Promise<AdminRetentionPolicyListResponse>;
-    upsert(tenantSlug: string, body: AdminRetentionPolicyUpsertRequest): Promise<AdminRetentionPolicy>;
-    get(tenantSlug: string): Promise<AdminRetentionPolicy>;
-    delete(tenantSlug: string): Promise<void>;
-}
 declare class AdminStorageAlertsNamespace {
     private readonly request;
     constructor(request: AdminRequester);
@@ -1057,16 +1020,6 @@ declare class AdminAuditNamespace {
     listEvents(options?: AdminAuditListOptions): Promise<AdminAuditListResponse>;
     getEvent(eventId: string): Promise<AdminAuditEvent>;
     listReportingPackEvents(): Promise<AdminReportingPackAuditListResponse>;
-}
-declare class AdminOffboardingNamespace {
-    private readonly request;
-    constructor(request: AdminRequester);
-    schedule(tenantSlug: string, body: AdminOffboardingScheduleRequest): Promise<AdminOffboardingSchedule>;
-    listSchedules(): Promise<AdminOffboardingScheduleListResponse>;
-    cancelSchedule(tenantSlug: string, body: AdminOffboardingCancelRequest): Promise<void>;
-    getRequest(requestUuid: string): Promise<AdminOffboardingRequest>;
-    cancelRequest(requestUuid: string): Promise<void>;
-    confirmRequest(requestUuid: string): Promise<void>;
 }
 declare class AdminReportingPacksNamespace {
     private readonly request;
