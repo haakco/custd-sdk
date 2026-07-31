@@ -11,8 +11,7 @@ clean-consumer tests, version sync, release guard, tag publication, and mirror
 verification pass; Custd and Tiao consume only the released public version.
 
 **Original branch:** `main`
-**Work branch:** Create a dedicated branch from current `main` after the owning
-Custd server contracts merge; record it here before implementation.
+**Work branch:** `feat/client-data-lifecycle-sdk-parity` (created from current `main`).
 **External owner:** [Custd client data lifecycle plan](../../../custd/docs/plans/sub_plans/2026-07-30_1826_client-data-lifecycle-and-sdk-parity_plan.md)
 
 ## Executor Order and Handoff
@@ -63,6 +62,8 @@ language versions, or hand downstream consumers a source branch/local path.
 
 ## Current State (Verified)
 
+- Custd parent D1/D2 accepted at `0edfd3a0`; lifecycle M0–M4 Green + P1/P2
+  proof driver fixes on `feat/client-data-lifecycle-d3-d5` at `35e6a3e1`.
 - Go and TypeScript have offboarding clients, but schedule method/path and
   one-off request lookup drift from current Custd server routes.
 - Public SDKs do not provide complete tenant-storage, subject export, persistent
@@ -72,6 +73,10 @@ language versions, or hand downstream consumers a source branch/local path.
 - Tenant-storage depends on the Custd Phase D2 server contract. Export,
   erasure, retention, and offboarding depend on the corresponding server
   milestones; the SDK must not invent endpoints ahead of those owners.
+- **Spec drift resolved:** the SDK plan's physical-erasure and retention op
+  lists were reconciled against the server's actual endpoints (no
+  cancel/retry on erasure; retention uses `listRuns` rather than a dedicated
+  `status`).
 
 ## Plan-Affecting Findings
 
@@ -126,10 +131,21 @@ language versions, or hand downstream consumers a source branch/local path.
 - Ownership: all four admin clients, typed models, docs/examples, tests.
 - Dependencies: Custd export, consolidated erasure, and retention contracts merged.
 - Red: fixtures fail because namespaces and terminal/partial states are absent.
-- Implementation:
-  - subject access/export request/list/get/cancel/download-metadata operations;
-  - one persistent physical-erasure request/list/get/cancel/retry operation set;
-  - retention list/get/upsert/delete/preview/status operations.
+- Implementation (server contract is source of truth; per Custd `feat/client-data-lifecycle-d3-d5` @ `35e6a3e1`):
+  - subject access/export `create`/`list`/`get`/`cancel`/`download`/`force` operations
+    (`POST /api/v1/admin/subject-exports`, `GET /api/v1/admin/subject-exports`,
+    `GET /api/v1/admin/subject-exports/{requestId}`,
+    `POST /api/v1/admin/subject-exports/{requestId}/cancel`,
+    `GET /api/v1/admin/subject-exports/{requestId}/download`,
+    `POST /api/v1/admin/subject-exports/{requestId}/force`);
+  - one persistent physical-erasure `create`/`list`/`get`/`force` operation set
+    (`POST /api/v1/admin/privacy/erasures`, `GET /api/v1/admin/privacy/erasures`,
+    `GET /api/v1/admin/privacy/erasures/{requestUuid}`,
+    `POST /api/v1/admin/privacy/erasures/{requestUuid}/force`); no `cancel` or
+    `retry` server endpoints exist — the SDK must not invent them;
+  - retention `list`/`get`/`upsert`/`delete`/`preview`/`apply`/`listRuns`
+    operations (no dedicated `status` endpoint; the per-tenant `/runs`
+    endpoint serves that role);
   Download helpers return an authorized response/stream using platform-native
   primitives without buffering unbounded artifacts or logging content.
 - Green: success, partial, expiry, cancellation, wrong-tenant, legal-hold,
