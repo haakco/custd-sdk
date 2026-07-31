@@ -19,6 +19,34 @@ Custd server contracts merge; record it here before implementation.
 
 This is the third implementation file.
 
+### Pre-start gate
+
+Do not create the SDK work branch or write client methods until both prior
+Custd plans are merged and pushed and the handoff records:
+
+- parent D1-D2 acceptance, including the frozen tenant-storage contract and
+  real data-path proof;
+- lifecycle Milestone 0's accepted store inventory and versioned shared
+  request/response/error fixtures;
+- lifecycle Milestones 1-4 server API, OpenAPI/schema, CLI, GUI, migrations,
+  workers, restart/retry/cancel, isolation, non-resurrection, legal-hold,
+  artifact, and hard-cleanup tests passing;
+- obsolete singular erasure and drifting offboarding contracts removed rather
+  than retained as aliases;
+- exact Custd source SHA and contract digest available to SDK tests;
+- explicit authority to publish the one synchronized SDK release when
+  Milestone 5 is reached.
+
+If any server contract or proof is missing, return to the Custd lifecycle plan.
+The SDK must not guess the endpoint, invent a temporary model, preserve a stale
+path, or defer one language.
+
+### Why this plan starts here
+
+One synchronized public release can remain forward-only only after every
+server-owned lifecycle state is stable. Starting earlier would create SDK/API
+drift or force prohibited compatibility paths.
+
 1. Confirm the Custd parent D2 and lifecycle Milestones 0-4 are merged; record
    their source SHA and frozen contract version.
 2. Execute Milestones 1-4 in this file in order.
@@ -70,8 +98,11 @@ language versions, or hand downstream consumers a source branch/local path.
 - Red: cross-language fixture matrix fails for the five lifecycle namespaces
   and records current offboarding drift.
 - Implementation: define request/response/error fixtures for list/create/get/
-  rotate or execute/status/cancel/retry/download/revoke as applicable,
+  execute/status/cancel/retry/download/revoke as applicable,
   including tenant isolation, partial failure, expiry, legal hold, and redaction.
+  Tenant-storage fixtures expose separate client locations and server-assigned
+  prefixes on shared environment credentials; they contain no credential
+  reference, credential value, or tenant rotation operation.
 - Green: all languages parse the fixtures and reject invalid/unknown states
   consistently before network implementations land.
 - Review: contract accuracy, privacy/security, naming, and minimality.
@@ -83,8 +114,10 @@ language versions, or hand downstream consumers a source branch/local path.
 - Red: exact request tests fail on current Go/TypeScript methods and missing
   Python/PHP/tenant-storage namespaces.
 - Implementation: match current server methods/paths and typed payloads; add
-  tenant-storage list/get/create/rotate/revoke/status/history operations; remove
-  obsolete offboarding paths and names.
+  tenant-storage list/get/create/revoke/status/history operations; remove
+  obsolete offboarding paths/names and every tenant credential or rotation
+  model/method. Location creation cannot accept a bucket, raw prefix, or
+  credential; the server returns the assigned location/prefix metadata.
 - Green: shared request-capture tests show identical semantics in all languages.
 - Review: API parity, credential redaction, language quality.
 

@@ -298,7 +298,8 @@ func (c *AuditAdminClient) ListReportingPackEvents(ctx context.Context) (*Report
 
 // OffboardingAdminClient owns the offboarding schedule and one-off request
 // surfaces. Schedule writes the effective tenant server-side; callers must not
-// pre-fill TenantSlug on the request.
+// pre-fill TenantSlug on the request body. The tenant is derived from the
+// authenticated client context.
 type OffboardingAdminClient struct {
 	admin *AdminClient
 }
@@ -327,6 +328,9 @@ type OffboardingCancelRequest struct {
 	Reason string `json:"reason"`
 }
 
+// OffboardingRequest is the receipt returned for one-off offboarding requests.
+// It is the response shape for RequestOffboarding, GetRequest, and the
+// single-tenant collection read.
 type OffboardingRequest struct {
 	RequestUUID string `json:"requestUuid"`
 	TenantSlug  string `json:"tenantSlug"`
@@ -335,16 +339,25 @@ type OffboardingRequest struct {
 	RequestedAt string `json:"requestedAt,omitempty"`
 }
 
+// OffboardingRequestCreate carries the body for POST /offboarding. Confirmation
+// is the human-typed string the server compares against the tenant slug before
+// accepting the destructive transition.
+type OffboardingRequestCreate struct {
+	Confirmation string `json:"confirmation"`
+}
+
+// Schedule writes a delayed offboarding schedule for the effective tenant.
+// The server pulls the tenant from the auth context; do not include TenantSlug
+// in the request body. The collection endpoint is POST /offboarding/schedules.
 func (c *OffboardingAdminClient) Schedule(
 	ctx context.Context,
-	tenantSlug string,
 	req OffboardingScheduleRequest,
 ) (*OffboardingSchedule, error) {
 	var out OffboardingSchedule
 	err := c.admin.request(
 		ctx,
-		http.MethodPut,
-		"/offboarding/schedules/"+url.PathEscape(tenantSlug),
+		http.MethodPost,
+		"/offboarding/schedules",
 		req,
 		&out,
 	)
@@ -355,6 +368,13 @@ func (c *OffboardingAdminClient) ListSchedules(ctx context.Context) (*Offboardin
 	var out OffboardingScheduleListResponse
 	err := c.admin.request(ctx, http.MethodGet, "/offboarding/schedules", nil, &out)
 	return &out, err
+}
+
+// GetSchedule reads the delayed offboarding schedule for a single tenant. It
+// targets the per-tenant route GET /offboarding/schedules/{tenantSlug}, which
+// is distinct from the global ListSchedules collection read.
+func (c *OffboardingAdminClient) GetSchedule(ctx context.Context, tenantSlug string) (*OffboardingSchedule, error) {
+	return adminGetByID[OffboardingSchedule](ctx, c.admin, "/offboarding/schedules/", tenantSlug)
 }
 
 func (c *OffboardingAdminClient) CancelSchedule(
@@ -369,6 +389,18 @@ func (c *OffboardingAdminClient) CancelSchedule(
 		req,
 		nil,
 	)
+}
+
+// RequestOffboarding submits a one-off offboarding request for the effective
+// tenant via POST /offboarding. The Confirmation field must match the tenant
+// slug the server reads from the auth context; mismatches fail with 400.
+func (c *OffboardingAdminClient) RequestOffboarding(
+	ctx context.Context,
+	req OffboardingRequestCreate,
+) (*OffboardingRequest, error) {
+	var out OffboardingRequest
+	err := c.admin.request(ctx, http.MethodPost, "/offboarding", req, &out)
+	return &out, err
 }
 
 func (c *OffboardingAdminClient) GetRequest(ctx context.Context, requestUUID string) (*OffboardingRequest, error) {

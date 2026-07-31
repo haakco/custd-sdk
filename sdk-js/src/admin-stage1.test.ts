@@ -258,7 +258,7 @@ describe("admin audit", () => {
 });
 
 describe("admin offboarding", () => {
-  it("covers schedule, list, cancel, request lifecycle", async () => {
+  it("covers schedule, list, get, cancel, request lifecycle", async () => {
     const fetchMock = mockFetch([
       {
         status: 200,
@@ -284,7 +284,27 @@ describe("admin offboarding", () => {
           ],
         }),
       },
+      {
+        status: 200,
+        body: JSON.stringify({
+          tenantSlug: "acme",
+          effectiveAt: "2026-08-23T00:00:00Z",
+          gracePeriodDays: 7,
+          reason: "client request",
+          status: "scheduled",
+        }),
+      },
       { status: 204, body: "" },
+      {
+        status: 201,
+        body: JSON.stringify({
+          requestUuid: "req-1",
+          tenantSlug: "acme",
+          status: "pending",
+          requestedBy: "u-1",
+          requestedAt: "2026-07-23T12:00:00Z",
+        }),
+      },
       {
         status: 200,
         body: JSON.stringify({
@@ -300,7 +320,7 @@ describe("admin offboarding", () => {
     ]);
     const client = newClient(fetchMock);
 
-    const scheduled = await client.admin.offboarding.schedule("acme", {
+    const scheduled = await client.admin.offboarding.schedule({
       effectiveAt: "2026-08-23T00:00:00Z",
       gracePeriodDays: 7,
       reason: "client request",
@@ -309,7 +329,11 @@ describe("admin offboarding", () => {
     expect(scheduled.tenantSlug).toBe("acme");
     const list = await client.admin.offboarding.listSchedules();
     expect(list.schedules).toHaveLength(1);
+    const fetched = await client.admin.offboarding.getSchedule("acme");
+    expect(fetched.tenantSlug).toBe("acme");
     await client.admin.offboarding.cancelSchedule("acme", { reason: "client cancelled" });
+    const requested = await client.admin.offboarding.requestOffboarding({ confirmation: "acme" });
+    expect(requested.requestUuid).toBe("req-1");
     const req = await client.admin.offboarding.getRequest("req-1");
     expect(req.requestUuid).toBe("req-1");
     await client.admin.offboarding.cancelRequest("req-1");

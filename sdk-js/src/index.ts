@@ -523,6 +523,10 @@ export type AdminOffboardingRequest = {
   requestedAt?: string;
 };
 
+export type AdminOffboardingRequestCreate = {
+  confirmation: string;
+};
+
 export type PackMetric = {
   key: string;
   displayName: string;
@@ -2006,16 +2010,24 @@ class AdminAuditNamespace {
 class AdminOffboardingNamespace {
   constructor(private readonly request: AdminRequester) {}
 
-  schedule(tenantSlug: string, body: AdminOffboardingScheduleRequest): Promise<AdminOffboardingSchedule> {
-    return this.request("PUT", `/offboarding/schedules/${encodeURIComponent(tenantSlug)}`, body);
+  schedule(body: AdminOffboardingScheduleRequest): Promise<AdminOffboardingSchedule> {
+    return this.request("POST", "/offboarding/schedules", body);
   }
 
   listSchedules(): Promise<AdminOffboardingScheduleListResponse> {
     return this.request("GET", "/offboarding/schedules");
   }
 
+  getSchedule(tenantSlug: string): Promise<AdminOffboardingSchedule> {
+    return this.request("GET", `/offboarding/schedules/${encodeURIComponent(tenantSlug)}`);
+  }
+
   cancelSchedule(tenantSlug: string, body: AdminOffboardingCancelRequest): Promise<void> {
     return this.request("POST", `/offboarding/schedules/${encodeURIComponent(tenantSlug)}/cancel`, body);
+  }
+
+  requestOffboarding(body: AdminOffboardingRequestCreate): Promise<AdminOffboardingRequest> {
+    return this.request("POST", "/offboarding", body);
   }
 
   getRequest(requestUuid: string): Promise<AdminOffboardingRequest> {
