@@ -1,45 +1,96 @@
-# Custd SDK v1.6.5 Progress
+# Custd SDK v1.8.0 Progress
 
 **Owning plan:**
-[`archive/docs/plans/2026-07-19_0135_2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md`](archive/docs/plans/2026-07-19_0135_2026-07-18_1948_exact-subject-insight-sdk-parity-plan.md)
-**Status:** Complete and archived; released as `v1.6.5`.
+[`docs/plans/2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md`](docs/plans/2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md)
+**Status:** Milestones 1–5 complete on `feat/client-data-lifecycle-sdk-parity`;
+version bumped to `1.8.0`; release tag + publication **pending explicit
+release approval** per the plan's release rule.
 
-## Current State (verified 2026-07-19)
+## Current State (verified 2026-07-31)
 
-- The release tag `v1.6.5` peels to `ea0e350`.
-- BUG-009 is fixed and committed.
-- Current in-scope cleanup deltas: owning plan, this file, resolved bug-ledger
-  archive, inactive-mailbox archive, and removal of disposable M3 receipts.
-- Concurrent history preserved: `3257e01` published the prior packet/tool
-  update; `5637e93` renamed `.mise.toml` to `mise.toml`.
+- Work branch `feat/client-data-lifecycle-sdk-parity` is ahead of `main` by
+  7 commits; branch is pushed to origin and tracked.
+- The lifecycle M0–M4 server contracts are merged on Custd
+  `feat/client-data-lifecycle-d3-d5` at `fb2b0cec` (admin suite ALL GREEN).
+- The pre-start gate in the SDK plan is open: server is the source of
+  truth, spec drift (no erasure cancel/retry, no retention status) is
+  reconciled against the actual server endpoints, and shared lifecycle
+  contract fixtures match the server shape.
 
 ## Completed
 
-- SDK implementation, versions, Go cancellation proof, audit/lint remediation,
-  and BUG-009 correction through `7b0f46d`.
-- Prior Codex full local gates on `7b0f46d` passed.
-- Codex final review and reconciliation committed through `30a3c7e`.
-- `main` pushed normally through `30a3c7e`.
-- Main CI run `29668016923` completed/success for exact SHA `30a3c7e`; all
-  required main jobs succeeded and tag-only jobs correctly skipped.
-- Tag CI `29668667152` and Release Mirrors `29668667174` passed.
-- Verdaccio resolves `@haakco/custd-sdk@1.6.5`.
+### M1 — Lifecycle contract fixtures
+- 5 namespaces populated under `contract-fixtures/lifecycle/`:
+  - `tenant-storage/` (6 fixtures)
+  - `subject-exports/` (9 fixtures)
+  - `privacy-erasures/` (8 fixtures)
+  - `retention/` (8 fixtures)
+  - `offboarding/` (17 fixtures)
+- Shared matrix at `contract-fixtures/lifecycle/matrix.json` declares
+  per-namespace assertions shared by Go, JS, Python, PHP test suites.
+- README documents namespace + filename convention.
 
-## Current
+### M2 — Offboarding + tenant-storage parity
+- Go: `TenantStorageAdminClient`, `OffboardingAdminClient` schedule +
+  full request lifecycle.
+- JS: `TenantStorageClient`, `OffboardingClient` with full request
+  lifecycle + schedules.
+- Python: same.
+- PHP: same.
 
-- Release and archive closeout complete.
+### M3 — Subject export, physical erasure, retention parity
+- Go: `SubjectExportAdminClient` (create/list/get/cancel/download/force),
+  `PrivacyErasureAdminClient` (create/list/get/force — NO cancel/retry;
+  server has none), `RetentionAdminClient` (+ preview/apply/listRuns;
+  no dedicated status).
+- JS, Python, PHP: same surface; no deprecated aliases.
+- Forward-only: removed-removed paths are not preserved.
+
+### M4 — Packaging + clean consumers
+- README lifecycle administration sections in all four SDK READMEs
+  (Go, JS, Python, PHP).
+- `just test` passes for all four SDKs:
+  - Go: vet + golangci-lint + tests
+  - JS: 12 test files, 138 tests, lint + typecheck + build
+  - Python: ruff + mypy + 22 lifecycle tests
+  - PHP: composer analyse + format-check + 147 tests
+- `bash scripts/test-publish-release-mirror.sh` passes locally.
+
+### M5 — Release prep (awaiting approval)
+- VERSION bumped: 1.7.1 → 1.8.0 across root `VERSION`, `sdk-go/VERSION`,
+  `sdk-js/package.json`, `sdk-php/composer.json`,
+  `sdk-python/pyproject.toml`, `wordpress-plugin/custd.php`.
+- Plan's release rule: "This plan does not authorize a release;
+  tagging/publication requires the normal explicit release decision."
+  Awaiting the explicit "publish v1.8.0" instruction before
+  creating `v1.8.0`, running `release-mirrors.yml`, and finalizing
+  the Verdaccio + Composer sources.
+
+## Test totals (M1–M4)
+
+| SDK       | Tests GREEN |
+| --------- | ----------- |
+| Go        | 13 lifecycle + existing |
+| JS        | 138 lifecycle |
+| Python    | 22 lifecycle |
+| PHP       | 147 lifecycle |
+| **Total** | **320**     |
 
 ## Next
 
-None for this release.
+- Explicit release approval → tag `v1.8.0` → wait for `ci.yml` and
+  `release-mirrors.yml` on the tag → verify Verdaccio resolves
+  `@haakco/custd-sdk@1.8.0` → hand off to Custd M5 (consumer pinning)
+  and Tiao.
 
 ## Blockers
 
-None.
+None on the SDK side. The plan stops here and resumes Custd-side only
+after an explicit release decision.
 
 ## Last Useful Commands
 
 - `just test` — passed.
-- `just lint-workflows lint-markdown diff-check` — passed.
 - `git diff --check` — passed.
-- `gh run view 29668016923` — completed/success for `30a3c7e`.
+- `bash scripts/test-bump-version.sh` — passed.
+- `bash scripts/bump-version.sh 1.8.0` — applied; see commit `c5d97a7`.

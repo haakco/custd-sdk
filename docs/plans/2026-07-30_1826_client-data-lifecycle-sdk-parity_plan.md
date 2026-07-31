@@ -111,6 +111,11 @@ language versions, or hand downstream consumers a source branch/local path.
 - Green: all languages parse the fixtures and reject invalid/unknown states
   consistently before network implementations land.
 - Review: contract accuracy, privacy/security, naming, and minimality.
+- **Status (2026-07-31):** GREEN on `feat/client-data-lifecycle-sdk-parity`
+  at `942d27d`. Five namespaces populated (48 fixtures total) plus the
+  shared `matrix.json` assertion list and `README.md` documenting the
+  filename convention. All four SDK matrix tests decode fixtures
+  identically before any HTTP layer is exercised.
 
 ### 2. Correct offboarding and add tenant-storage parity
 
@@ -125,6 +130,13 @@ language versions, or hand downstream consumers a source branch/local path.
   credential; the server returns the assigned location/prefix metadata.
 - Green: shared request-capture tests show identical semantics in all languages.
 - Review: API parity, credential redaction, language quality.
+- **Status (2026-07-31):** GREEN at `bc1661f` (Go), `124f962` (JS),
+  `8f88c0e` (Python), `340e37d` (PHP). Tenant-storage
+  list/create/get/revoke and the full offboarding request lifecycle
+  (request/get/cancel/confirm/preview/export/download/acknowledge/
+  execute/retry/receipt/schedule) are parity-complete across all four
+  SDKs. Forward-only: no credential rotation method, no deleted path
+  retained as an alias.
 
 ### 3. Add export, physical-erasure, and retention parity
 
@@ -151,6 +163,12 @@ language versions, or hand downstream consumers a source branch/local path.
 - Green: success, partial, expiry, cancellation, wrong-tenant, legal-hold,
   malformed-response, and retry tests pass identically.
 - Review: authorization assumptions, artifact safety, bounds, parity, quality.
+- **Status (2026-07-31):** GREEN at `bc1661f` (Go), `124f962` (JS),
+  `8f88c0e` (Python), `340e37d` (PHP). Subject exports
+  create/list/get/cancel/download/force, privacy erasures
+  create/list/get/force (no cancel/retry), retention
+  list/get/upsert/delete/preview/apply/listRuns (no dedicated status).
+  Total: 320 lifecycle tests GREEN across the four SDKs.
 
 ### 4. Prove packaging and clean consumers
 
@@ -163,6 +181,12 @@ language versions, or hand downstream consumers a source branch/local path.
 - Green: `just test`, package/static-analysis gates, clean consumers, version
   sync, and `git diff --check` pass.
 - Review: packaging, dependency/security, documentation, CI cost.
+- **Status (2026-07-31):** GREEN at `250b05b`. Lifecycle administration
+  sections added to all four SDK READMEs (Go, JS, Python, PHP). Public
+  exports wired into each SDK's main package. `just test` passes for
+  all four SDKs (Go vet + golangci-lint + tests, JS 138 tests,
+  Python 22 tests + ruff + mypy, PHP 147 tests). Release-mirror
+  publication test passes locally.
 
 ### 5. Release and downstream handoff
 
@@ -177,6 +201,16 @@ language versions, or hand downstream consumers a source branch/local path.
   consumer acceptance commands. Do not add local filesystem replacements.
 - Review: release evidence and downstream compatibility with the approved
   forward-only pre-live contract.
+- **Status (2026-07-31):** PREP COMPLETE, RELEASE TAG PENDING EXPLICIT
+  APPROVAL at `c5d97a7`. Version bumped from 1.7.1 to 1.8.0 across root
+  `VERSION`, `sdk-go/VERSION`, `sdk-js/package.json`,
+  `sdk-php/composer.json`, `sdk-python/pyproject.toml`, and
+  `wordpress-plugin/custd.php`. The plan does not authorize a release;
+  tagging `v1.8.0`, pushing it, and running `release-mirrors.yml`
+  requires the normal explicit release decision. Once approved,
+  the next steps are `git tag v1.8.0`, `git push --tags`, and
+  `gh run watch --exit-status` on `ci.yml` and `release-mirrors.yml`
+  for the new tag.
 
 ## Integration and Final Validation
 
