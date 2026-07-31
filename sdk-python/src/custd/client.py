@@ -359,6 +359,16 @@ class AdminClient:
         self.sites = SiteAdminClient(self)
         self.schemas = SchemaAdminClient(self)
         self.measurement = MeasurementAdminClient(self)
+        from .admin_offboarding import OffboardingClient
+        from .admin_privacy_erasures import PrivacyErasureClient
+        from .admin_retention import RetentionClient
+        from .admin_subject_exports import SubjectExportClient
+        from .admin_tenant_storage import TenantStorageClient
+        self.tenant_storage = TenantStorageClient(self)
+        self.subject_exports = SubjectExportClient(self)
+        self.privacy_erasures = PrivacyErasureClient(self)
+        self.retention = RetentionClient(self)
+        self.offboarding = OffboardingClient(self)
 
     def request(
         self,
