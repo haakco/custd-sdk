@@ -214,8 +214,8 @@ function sessionIDStorageKey(siteUuid) {
 function queueStorageKey(siteUuid) {
     return `custd:${siteUuid}:event_queue`;
 }
-export async function installBrowserTrackerFromScript() {
-    const script = currentScript();
+export async function installBrowserTrackerFromScript(scriptElement) {
+    const script = scriptElement ?? currentScript();
     const queuedGlobal = installQueuedGlobal();
     try {
         const siteUuid = script.dataset.siteUuid;

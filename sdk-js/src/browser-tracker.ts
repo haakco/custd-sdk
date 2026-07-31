@@ -289,8 +289,8 @@ function queueStorageKey(siteUuid: string): string {
   return `custd:${siteUuid}:event_queue`;
 }
 
-export async function installBrowserTrackerFromScript(): Promise<BrowserTracker> {
-  const script = currentScript();
+export async function installBrowserTrackerFromScript(scriptElement?: HTMLScriptElement): Promise<BrowserTracker> {
+  const script = scriptElement ?? currentScript();
   const queuedGlobal = installQueuedGlobal();
   try {
     const siteUuid = script.dataset.siteUuid;

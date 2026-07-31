@@ -819,14 +819,20 @@ class AdminOffboardingNamespace {
     constructor(request) {
         this.request = request;
     }
-    schedule(tenantSlug, body) {
-        return this.request("PUT", `/offboarding/schedules/${encodeURIComponent(tenantSlug)}`, body);
+    schedule(body) {
+        return this.request("POST", "/offboarding/schedules", body);
     }
     listSchedules() {
         return this.request("GET", "/offboarding/schedules");
     }
+    getSchedule(tenantSlug) {
+        return this.request("GET", `/offboarding/schedules/${encodeURIComponent(tenantSlug)}`);
+    }
     cancelSchedule(tenantSlug, body) {
         return this.request("POST", `/offboarding/schedules/${encodeURIComponent(tenantSlug)}/cancel`, body);
+    }
+    requestOffboarding(body) {
+        return this.request("POST", "/offboarding", body);
     }
     getRequest(requestUuid) {
         return this.request("GET", `/offboarding/${encodeURIComponent(requestUuid)}`);

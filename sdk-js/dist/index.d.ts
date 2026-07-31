@@ -440,6 +440,9 @@ export type AdminOffboardingRequest = {
     requestedBy: string;
     requestedAt?: string;
 };
+export type AdminOffboardingRequestCreate = {
+    confirmation: string;
+};
 export type PackMetric = {
     key: string;
     displayName: string;
@@ -1061,9 +1064,11 @@ declare class AdminAuditNamespace {
 declare class AdminOffboardingNamespace {
     private readonly request;
     constructor(request: AdminRequester);
-    schedule(tenantSlug: string, body: AdminOffboardingScheduleRequest): Promise<AdminOffboardingSchedule>;
+    schedule(body: AdminOffboardingScheduleRequest): Promise<AdminOffboardingSchedule>;
     listSchedules(): Promise<AdminOffboardingScheduleListResponse>;
+    getSchedule(tenantSlug: string): Promise<AdminOffboardingSchedule>;
     cancelSchedule(tenantSlug: string, body: AdminOffboardingCancelRequest): Promise<void>;
+    requestOffboarding(body: AdminOffboardingRequestCreate): Promise<AdminOffboardingRequest>;
     getRequest(requestUuid: string): Promise<AdminOffboardingRequest>;
     cancelRequest(requestUuid: string): Promise<void>;
     confirmRequest(requestUuid: string): Promise<void>;

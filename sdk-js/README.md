@@ -186,7 +186,7 @@ list.
 ```html
 <script
   type="module"
-  src="https://custd.example.com/browser-script.js"
+  src="https://custd.example.com/custd-sdk/browser-script.js"
   data-site-uuid="site-uuid"
   data-write-key="site_pk_public_write_key"
 ></script>
