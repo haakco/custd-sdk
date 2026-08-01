@@ -1,3 +1,3 @@
 import { installBrowserTrackerFromScript } from "./browser-tracker.js";
 const script = Array.from(document.scripts).find((candidate) => candidate.src === import.meta.url);
-void installBrowserTrackerFromScript(script);
+void installBrowserTrackerFromScript(script).then((tracker) => tracker.installSpaTracking());
