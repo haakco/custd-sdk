@@ -360,6 +360,7 @@ class AdminClient:
         self.schemas = SchemaAdminClient(self)
         self.measurement = MeasurementAdminClient(self)
         from .admin_offboarding import OffboardingClient
+        from .admin_predictions import PredictionAdminClient
         from .admin_privacy_erasures import PrivacyErasureClient
         from .admin_retention import RetentionClient
         from .admin_subject_exports import SubjectExportClient
@@ -369,6 +370,7 @@ class AdminClient:
         self.privacy_erasures = PrivacyErasureClient(self)
         self.retention = RetentionClient(self)
         self.offboarding = OffboardingClient(self)
+        self.predictions = PredictionAdminClient(self)
 
     def request(
         self,
@@ -391,9 +393,11 @@ class AdminClient:
             return {}
         if isinstance(body, str):
             decoded = json.loads(body)
-            return decoded if isinstance(decoded, dict) else {}
+            return decoded if isinstance(decoded, dict) else {"items": decoded}
         if isinstance(body, dict):
             return body
+        if isinstance(body, list):
+            return {"items": body}
         return {}
 
 

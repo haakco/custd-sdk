@@ -1,9 +1,11 @@
 import { OffboardingClient } from "./admin-offboarding.js";
+import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 export { OffboardingClient, } from "./admin-offboarding.js";
+export { PredictionAdminClient, } from "./admin-predictions.js";
 export { PrivacyErasureClient, } from "./admin-privacy-erasures.js";
 export { RetentionClient, } from "./admin-retention.js";
 export { SubjectExportClient, } from "./admin-subject-exports.js";
@@ -616,6 +618,7 @@ class AdminNamespace {
         this.sites = new AdminSiteNamespace(request);
         this.schemas = new AdminSchemaNamespace(request);
         this.measurement = new AdminMeasurementNamespace(request);
+        this.predictions = new PredictionAdminClient(request);
         this.privacy = new AdminPrivacyNamespace(request);
         this.retention = new RetentionClient(request);
         this.storageAlerts = new AdminStorageAlertsNamespace(request);
