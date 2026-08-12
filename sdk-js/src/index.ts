@@ -1,4 +1,5 @@
 import { OffboardingClient } from "./admin-offboarding.js";
+import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
@@ -24,6 +25,25 @@ export {
   type OffboardingScheduleRequest,
   type OffboardingWaiver,
 } from "./admin-offboarding.js";
+export {
+  type PredictionActivateRequest,
+  PredictionAdminClient,
+  type PredictionDefinition,
+  type PredictionDefinitionCreateRequest,
+  type PredictionDefinitionListResponse,
+  type PredictionDefinitionUpdateRequest,
+  type PredictionEvaluationSummary,
+  type PredictionOutcomeSummary,
+  type PredictionPauseRequest,
+  type PredictionRollbackRequest,
+  type PredictionRunNowRequest,
+  type PredictionRunSummary,
+  type PredictionSignalSource,
+  type PredictionSignalSourceCreateRequest,
+  type PredictionThresholdEvent,
+  type PredictionVersion,
+  type PredictionVersionPublishRequest,
+} from "./admin-predictions.js";
 export {
   type PrivacyErasure,
   PrivacyErasureClient,
@@ -1736,6 +1756,7 @@ class AdminNamespace {
   readonly sites: AdminSiteNamespace;
   readonly schemas: AdminSchemaNamespace;
   readonly measurement: AdminMeasurementNamespace;
+  readonly predictions: PredictionAdminClient;
   readonly privacy: AdminPrivacyNamespace;
   readonly retention: RetentionClient;
   readonly storageAlerts: AdminStorageAlertsNamespace;
@@ -1752,6 +1773,7 @@ class AdminNamespace {
     this.sites = new AdminSiteNamespace(request);
     this.schemas = new AdminSchemaNamespace(request);
     this.measurement = new AdminMeasurementNamespace(request);
+    this.predictions = new PredictionAdminClient(request);
     this.privacy = new AdminPrivacyNamespace(request);
     this.retention = new RetentionClient(request);
     this.storageAlerts = new AdminStorageAlertsNamespace(request);

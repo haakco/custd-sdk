@@ -218,6 +218,35 @@ final class AdminClientTest extends TestCase
         $this->assertSame("http://localhost:8080/api/v1/admin/measurement/projects", $calls[0]["url"]);
     }
 
+    public function testAdminMeasurementPredictionsKeepCompanyScopeAndSourceArrays(): void
+    {
+        $responses = [
+            ["status" => 201, "body" => '{"uuid":"definition-1","status":"draft"}'],
+            ["status" => 200, "body" => '[{"uuid":"source-1","source_mode":"http_json"}]'],
+            ["status" => 202, "body" => '{}'],
+        ];
+        $calls = [];
+        $client = new CustdClient("http://localhost:8080", "admin-token", [
+            "admin_http_client" => function (string $method, string $url, ?array $body, string $token) use (&$responses, &$calls): array {
+                $calls[] = compact("method", "url", "body", "token");
+                return array_shift($responses);
+            },
+        ]);
+
+        $definition = $client->adminMeasurementPredictions()->createDefinition("acme", [
+            "definition_key" => "quota", "display_name" => "Quota",
+        ]);
+        $sources = $client->adminMeasurementPredictions()->listSignalSources("acme", 10, "next");
+        $client->adminMeasurementPredictions()->runNow("acme", "definition-1", ["worker_id" => "proof"]);
+
+        $this->assertSame("definition-1", $definition["uuid"]);
+        $this->assertSame("source-1", $sources[0]["uuid"]);
+        $this->assertSame(
+            "http://localhost:8080/api/v1/admin/measurement/predictions/sources?companySlug=acme&pageSize=10&pageToken=next",
+            $calls[1]["url"],
+        );
+    }
+
     public function testAdminMeasurementObservationBulkValidatesRowResults(): void
     {
         $calls = [];

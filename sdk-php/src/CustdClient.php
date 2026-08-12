@@ -131,6 +131,11 @@ final class CustdClient
         return new Admin\MeasurementProjectClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    public function adminMeasurementPredictions(): Admin\PredictionClient
+    {
+        return new Admin\PredictionClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
     public function adminTenantStorage(): Admin\TenantStorageClient
     {
         return new Admin\TenantStorageClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);

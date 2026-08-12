@@ -42,6 +42,31 @@ class AdminClientTest(unittest.TestCase):
         self.assertEqual("Bearer admin-token", transport.calls[0]["headers"]["Authorization"])
         self.assertEqual({"slug": "acme", "companyName": "Acme Inc"}, transport.calls[0]["payload"])
 
+    def test_prediction_admin_keeps_company_scope_and_array_shapes(self):
+        transport = CapturingAdminTransport([
+            {"status": 201, "body": {"uuid": "definition-1", "status": "draft"}},
+            {"status": 200, "body": [{"uuid": "source-1", "source_mode": "http_json"}]},
+            {"status": 202, "body": {}},
+        ])
+        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+
+        definition = client.admin.predictions.create_definition("acme", {
+            "definition_key": "quota", "display_name": "Quota",
+        })
+        sources = client.admin.predictions.list_signal_sources("acme", 10, "next")
+        client.admin.predictions.run_now("acme", "definition-1", {"worker_id": "proof"})
+
+        self.assertEqual("definition-1", definition["uuid"])
+        self.assertEqual("source-1", sources[0]["uuid"])
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/measurement/predictions/definitions?companySlug=acme",
+            transport.calls[0]["url"],
+        )
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/measurement/predictions/sources?companySlug=acme&pageSize=10&pageToken=next",
+            transport.calls[1]["url"],
+        )
+
     def test_oauth_client_list_does_not_expose_client_secret(self):
         transport = CapturingAdminTransport([
             {
