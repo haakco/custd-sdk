@@ -99,7 +99,7 @@ export class CustdClient {
         this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
         this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body), (method, path, body, options) => this.apiRequest(method, path, body, options));
         this.provisioning = new ProvisioningNamespace((method, path, body, options) => this.apiRequest(method, path, body, options));
-        this.reporting = new ReportingNamespace((method, path, body, options) => this.apiRequest(method, path, body, options));
+        this.reporting = new ReportingNamespace((method, path, body, options) => this.apiRequest(method, path, body, options), (path, options) => this.apiDownload(path, options));
         this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
         if (this.queueEnabled) {
             this.queue = this.queueStorage.load();
@@ -387,10 +387,51 @@ export class CustdClient {
         }
         return (await response.json());
     }
+    async apiDownload(path, options) {
+        const token = await this.getToken(options);
+        const response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
+            signal: options?.signal,
+        });
+        if (!response.ok)
+            throw new Error(`custd: report export download failed with status ${response.status}`);
+        const declared = Number(response.headers.get("content-length") ?? "0");
+        if (declared > 64 * 1024 * 1024)
+            throw new Error("custd: report export download exceeds 64 MiB");
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (bytes.byteLength > 64 * 1024 * 1024)
+            throw new Error("custd: report export download exceeds 64 MiB");
+        return bytes;
+    }
 }
 class ReportingNamespace {
-    constructor(request) {
+    constructor(request, download) {
         this.request = request;
+        this.download = download;
+    }
+    createExport(input, options) {
+        if (!input.dashboardKey || input.formats.length < 1 || input.formats.length > 8)
+            throw new Error("custd: report export requires a dashboard key and 1 to 8 formats");
+        return this.request("POST", "/reporting/exports", input, options);
+    }
+    listExports(limit = 50, options) {
+        if (!Number.isInteger(limit) || limit < 1 || limit > 100)
+            throw new Error("custd: report export limit must be between 1 and 100");
+        return this.request("GET", `/reporting/exports?limit=${limit}`, undefined, options);
+    }
+    getExport(exportId, options) {
+        assertUuid(exportId, "exportId");
+        return this.request("GET", `/reporting/exports/${encodeURIComponent(exportId)}`, undefined, options);
+    }
+    cancelExport(exportId, reason = "", options) {
+        assertUuid(exportId, "exportId");
+        return this.request("POST", `/reporting/exports/${encodeURIComponent(exportId)}/cancel`, { reason }, options);
+    }
+    downloadExport(exportId, artifactId, options) {
+        assertUuid(exportId, "exportId");
+        assertUuid(artifactId, "artifactId");
+        return this.download(`/reporting/exports/${encodeURIComponent(exportId)}/artifacts/${encodeURIComponent(artifactId)}`, options);
     }
     dashboard(key, options) {
         return this.request("GET", `/reporting/dashboards/${encodeURIComponent(key)}`, undefined, options);

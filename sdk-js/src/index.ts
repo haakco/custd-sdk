@@ -1153,8 +1153,9 @@ export class CustdClient {
     this.provisioning = new ProvisioningNamespace((method, path, body, options) =>
       this.apiRequest(method, path, body, options),
     );
-    this.reporting = new ReportingNamespace((method, path, body, options) =>
-      this.apiRequest(method, path, body, options),
+    this.reporting = new ReportingNamespace(
+      (method, path, body, options) => this.apiRequest(method, path, body, options),
+      (path, options) => this.apiDownload(path, options),
     );
     this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
 
@@ -1479,15 +1480,111 @@ export class CustdClient {
     }
     return (await response.json()) as T;
   }
+
+  private async apiDownload(path: string, options?: RequestOptions): Promise<Uint8Array> {
+    const token = await this.getToken(options);
+    const response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
+      signal: options?.signal,
+    });
+    if (!response.ok) throw new Error(`custd: report export download failed with status ${response.status}`);
+    const declared = Number(response.headers.get("content-length") ?? "0");
+    if (declared > 64 * 1024 * 1024) throw new Error("custd: report export download exceeds 64 MiB");
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > 64 * 1024 * 1024) throw new Error("custd: report export download exceeds 64 MiB");
+    return bytes;
+  }
 }
 
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type NonAdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type APIRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
+type APIDownloader = (path: string, options?: RequestOptions) => Promise<Uint8Array>;
+
+export interface ReportExportCreateRequest {
+  dashboardKey: string;
+  formats: string[];
+  parameters: Record<string, unknown>;
+  idempotencyKey?: string;
+}
+
+export interface ReportExportArtifact {
+  id: string;
+  artifactKey: string;
+  format: string;
+  filename: string;
+  mediaType: string;
+  objectBytes: number;
+  objectSha256: string;
+  warnings?: string[];
+  fallbackForFormat?: string;
+  rendererVersion?: string;
+}
+
+export interface ReportExportJob {
+  id: string;
+  packKey: string;
+  packGeneration: number;
+  dashboardKey: string;
+  formats: string[];
+  parametersDigest: string;
+  snapshotSha256?: string;
+  state: string;
+  progressStage: string;
+  progressCounters?: Record<string, number>;
+  queuedAt: string;
+  startedAt?: string;
+  finishedAt?: string;
+  expiresAt?: string;
+  failureCategory?: string;
+  failureMessage?: string;
+  cancellationReason?: string;
+  attemptCount: number;
+  nextAttemptAt?: string;
+  cleanupState: string;
+  cleanupAttempts: number;
+  nextCleanupAt?: string;
+  artifacts?: ReportExportArtifact[];
+}
 
 class ReportingNamespace {
-  constructor(private readonly request: APIRequester) {}
+  constructor(
+    private readonly request: APIRequester,
+    private readonly download: APIDownloader,
+  ) {}
+
+  createExport(input: ReportExportCreateRequest, options?: RequestOptions): Promise<ReportExportJob> {
+    if (!input.dashboardKey || input.formats.length < 1 || input.formats.length > 8)
+      throw new Error("custd: report export requires a dashboard key and 1 to 8 formats");
+    return this.request("POST", "/reporting/exports", input, options);
+  }
+
+  listExports(limit = 50, options?: RequestOptions): Promise<ReportExportJob[]> {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100)
+      throw new Error("custd: report export limit must be between 1 and 100");
+    return this.request("GET", `/reporting/exports?limit=${limit}`, undefined, options);
+  }
+
+  getExport(exportId: string, options?: RequestOptions): Promise<ReportExportJob> {
+    assertUuid(exportId, "exportId");
+    return this.request("GET", `/reporting/exports/${encodeURIComponent(exportId)}`, undefined, options);
+  }
+
+  cancelExport(exportId: string, reason = "", options?: RequestOptions): Promise<ReportExportJob> {
+    assertUuid(exportId, "exportId");
+    return this.request("POST", `/reporting/exports/${encodeURIComponent(exportId)}/cancel`, { reason }, options);
+  }
+
+  downloadExport(exportId: string, artifactId: string, options?: RequestOptions): Promise<Uint8Array> {
+    assertUuid(exportId, "exportId");
+    assertUuid(artifactId, "artifactId");
+    return this.download(
+      `/reporting/exports/${encodeURIComponent(exportId)}/artifacts/${encodeURIComponent(artifactId)}`,
+      options,
+    );
+  }
 
   dashboard(key: string, options?: RequestOptions): Promise<ReportingDashboard> {
     return this.request("GET", `/reporting/dashboards/${encodeURIComponent(key)}`, undefined, options);

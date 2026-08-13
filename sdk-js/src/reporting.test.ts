@@ -21,6 +21,25 @@ function mockFetch(body: unknown) {
 }
 
 describe("reporting helpers", () => {
+  it("runs the report export lifecycle through authenticated routes", async () => {
+    const id = "123e4567-e89b-42d3-a456-426614174000";
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes("/artifacts/")
+        ? new Response(new Uint8Array([1, 2, 3]))
+        : new Response(JSON.stringify({ id, state: "queued" }), { headers: { "content-type": "application/json" } }),
+    );
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+    await client.reporting.createExport({ dashboardKey: "executive", formats: ["csv"], parameters: {} });
+    await client.reporting.getExport(id);
+    await client.reporting.cancelExport(id, "done");
+    expect(await client.reporting.downloadExport(id, id)).toEqual(new Uint8Array([1, 2, 3]));
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      "http://localhost:8080/api/v1/reporting/exports",
+      `http://localhost:8080/api/v1/reporting/exports/${id}`,
+      `http://localhost:8080/api/v1/reporting/exports/${id}/cancel`,
+      `http://localhost:8080/api/v1/reporting/exports/${id}/artifacts/${id}`,
+    ]);
+  });
   it("selects a canonical prepared-data output by UUID", async () => {
     const status = { outputUuid: "33333333-3333-4333-8333-333333333333", processingState: "ready", warnings: null };
     const fetchImpl = mockFetch(status);

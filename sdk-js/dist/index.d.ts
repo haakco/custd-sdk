@@ -891,14 +891,65 @@ export declare class CustdClient {
     private batchRejectionMessage;
     private adminRequest;
     private apiRequest;
+    private apiDownload;
 }
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type NonAdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type APIRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
+type APIDownloader = (path: string, options?: RequestOptions) => Promise<Uint8Array>;
+export interface ReportExportCreateRequest {
+    dashboardKey: string;
+    formats: string[];
+    parameters: Record<string, unknown>;
+    idempotencyKey?: string;
+}
+export interface ReportExportArtifact {
+    id: string;
+    artifactKey: string;
+    format: string;
+    filename: string;
+    mediaType: string;
+    objectBytes: number;
+    objectSha256: string;
+    warnings?: string[];
+    fallbackForFormat?: string;
+    rendererVersion?: string;
+}
+export interface ReportExportJob {
+    id: string;
+    packKey: string;
+    packGeneration: number;
+    dashboardKey: string;
+    formats: string[];
+    parametersDigest: string;
+    snapshotSha256?: string;
+    state: string;
+    progressStage: string;
+    progressCounters?: Record<string, number>;
+    queuedAt: string;
+    startedAt?: string;
+    finishedAt?: string;
+    expiresAt?: string;
+    failureCategory?: string;
+    failureMessage?: string;
+    cancellationReason?: string;
+    attemptCount: number;
+    nextAttemptAt?: string;
+    cleanupState: string;
+    cleanupAttempts: number;
+    nextCleanupAt?: string;
+    artifacts?: ReportExportArtifact[];
+}
 declare class ReportingNamespace {
     private readonly request;
-    constructor(request: APIRequester);
+    private readonly download;
+    constructor(request: APIRequester, download: APIDownloader);
+    createExport(input: ReportExportCreateRequest, options?: RequestOptions): Promise<ReportExportJob>;
+    listExports(limit?: number, options?: RequestOptions): Promise<ReportExportJob[]>;
+    getExport(exportId: string, options?: RequestOptions): Promise<ReportExportJob>;
+    cancelExport(exportId: string, reason?: string, options?: RequestOptions): Promise<ReportExportJob>;
+    downloadExport(exportId: string, artifactId: string, options?: RequestOptions): Promise<Uint8Array>;
     dashboard(key: string, options?: RequestOptions): Promise<ReportingDashboard>;
     receipt(receiptUuid: string, options?: RequestOptions): Promise<PreparedDataReceiptStatus>;
     outputs(options?: RequestOptions): Promise<PreparedDataOutputList>;

@@ -25,6 +25,51 @@ final class Client
         return $this->request("GET", "/api/v1/reporting/dashboards/" . rawurlencode($key));
     }
 
+    /** @param array{dashboardKey: string, formats: list<string>, parameters: array<string, mixed>, idempotencyKey?: string} $request
+     * @return array<string, mixed> */
+    public function createExport(array $request): array
+    {
+        if (($request["dashboardKey"] ?? "") === "" || !isset($request["formats"]) || count($request["formats"]) < 1 || count($request["formats"]) > 8) {
+            throw new \InvalidArgumentException("custd: report export requires a dashboard key and 1 to 8 formats");
+        }
+        return $this->request("POST", "/api/v1/reporting/exports", $request);
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function listExports(int $limit = 50): array
+    {
+        if ($limit < 1 || $limit > 100) {
+            throw new \InvalidArgumentException("custd: report export limit must be between 1 and 100");
+        }
+        $response = $this->request("GET", "/api/v1/reporting/exports?limit={$limit}");
+        return array_values($response);
+    }
+
+    /** @return array<string, mixed> */
+    public function getExport(string $exportId): array
+    {
+        self::validateUuid($exportId, "exportId");
+        return $this->request("GET", "/api/v1/reporting/exports/" . rawurlencode($exportId));
+    }
+
+    /** @return array<string, mixed> */
+    public function cancelExport(string $exportId, string $reason = ""): array
+    {
+        self::validateUuid($exportId, "exportId");
+        return $this->request("POST", "/api/v1/reporting/exports/" . rawurlencode($exportId) . "/cancel", ["reason" => $reason]);
+    }
+
+    public function downloadExport(string $exportId, string $artifactId): string
+    {
+        self::validateUuid($exportId, "exportId");
+        self::validateUuid($artifactId, "artifactId");
+        $response = $this->rawRequest("GET", "/api/v1/reporting/exports/" . rawurlencode($exportId) . "/artifacts/" . rawurlencode($artifactId));
+        if (strlen($response) > 64 * 1024 * 1024) {
+            throw new \RuntimeException("custd: report export download exceeds 64 MiB");
+        }
+        return $response;
+    }
+
     /**
      * @param array<string, mixed> $query
      * @return array<string, mixed>
@@ -100,6 +145,20 @@ final class Client
      */
     private function request(string $method, string $path, ?array $body = null): array
     {
+        $responseBody = $this->rawRequest($method, $path, $body);
+        if ($responseBody === "") {
+            return [];
+        }
+        $decoded = json_decode($responseBody, true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($decoded)) {
+            throw new \RuntimeException("custd: reporting response body must be JSON object");
+        }
+        return $decoded;
+    }
+
+    /** @param array<string, mixed>|null $body */
+    private function rawRequest(string $method, string $path, ?array $body = null): string
+    {
         if ($this->httpClient === null) {
             throw new \RuntimeException("custd: reporting requires an admin_http_client transport");
         }
@@ -110,14 +169,7 @@ final class Client
             throw new \RuntimeException("custd: reporting request failed with status {$status}");
         }
         $responseBody = $response["body"] ?? "";
-        if ($status === 204 || $responseBody === "") {
-            return [];
-        }
-        $decoded = json_decode((string) $responseBody, true, flags: JSON_THROW_ON_ERROR);
-        if (!is_array($decoded)) {
-            throw new \RuntimeException("custd: reporting response body must be JSON object");
-        }
-        return $decoded;
+        return $status === 204 ? "" : (string) $responseBody;
     }
 
     private static function containsUnsafeTrustKey(mixed $value): bool
