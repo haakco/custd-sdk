@@ -1,7 +1,9 @@
 import gzip
 import json
+import os
 import random
 import re
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -9,6 +11,7 @@ import urllib.request
 import uuid
 from collections.abc import Callable, Mapping
 from datetime import datetime
+from pathlib import Path
 from typing import Any, NotRequired, TypedDict
 
 INGEST_ENDPOINT = "/api/v1/events"
@@ -147,6 +150,20 @@ class RequestError(RuntimeError):
     pass
 
 
+class QueueStorageError(RuntimeError):
+    pass
+
+
+class QueueFullError(QueueStorageError):
+    pass
+
+
+class BatchRequestError(RequestError):
+    def __init__(self, message: str, acknowledged_event_uuids: set[str]) -> None:
+        super().__init__(message)
+        self.acknowledged_event_uuids = frozenset(acknowledged_event_uuids)
+
+
 class MemoryQueueStorage:
     def __init__(self) -> None:
         self._events: list[EventEnvelope] = []
@@ -159,6 +176,99 @@ class MemoryQueueStorage:
 
     def clear(self) -> None:
         self._events = []
+
+
+DEFAULT_QUEUE_MAX_BYTES = 10 * 1024 * 1024
+
+
+class FileQueueStorage:
+    """Persist queued events through an atomic, private JSON file replacement."""
+
+    def __init__(self, path: str | os.PathLike[str], *, max_bytes: int = DEFAULT_QUEUE_MAX_BYTES) -> None:
+        if not isinstance(max_bytes, int) or isinstance(max_bytes, bool) or max_bytes <= 0:
+            raise ValueError("custd: queue max_bytes must be a positive integer")
+        self.path = Path(path)
+        self.max_bytes = max_bytes
+
+    def load(self) -> list[EventEnvelope]:
+        self._assert_safe_path()
+        if not self.path.exists():
+            return []
+        try:
+            raw = self.path.read_bytes()
+        except OSError as error:
+            raise QueueStorageError(f"custd: failed to load queue file {self.path}") from error
+        if len(raw) > self.max_bytes:
+            raise QueueFullError(
+                f"custd: queue file exceeds max_bytes ({len(raw)} > {self.max_bytes})"
+            )
+        try:
+            decoded = json.loads(raw)
+        except json.JSONDecodeError as error:
+            raise QueueStorageError(f"custd: failed to load queue file {self.path}") from error
+        if not isinstance(decoded, list) or not all(isinstance(event, dict) for event in decoded):
+            raise QueueStorageError(f"custd: queue file {self.path} must contain an event list")
+        return [dict(event) for event in decoded]
+
+    def save(self, events: list[EventEnvelope]) -> None:
+        try:
+            raw = json.dumps(events, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
+        except (TypeError, ValueError) as error:
+            raise QueueStorageError("custd: queued events must be JSON serializable") from error
+        if len(raw) > self.max_bytes:
+            raise QueueFullError(
+                f"custd: queue file exceeds max_bytes ({len(raw)} > {self.max_bytes})"
+            )
+
+        directory = self.path.parent
+        try:
+            directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+            self._assert_safe_path()
+            descriptor, temporary = tempfile.mkstemp(prefix=f".{self.path.name}.", dir=directory)
+            try:
+                with os.fdopen(descriptor, "wb") as handle:
+                    os.fchmod(handle.fileno(), 0o600)
+                    handle.write(raw)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                os.replace(temporary, self.path)
+                self._sync_directory(directory)
+            except Exception:
+                self._remove_temporary(temporary)
+                raise
+        except QueueStorageError:
+            raise
+        except OSError as error:
+            raise QueueStorageError(f"custd: failed to save queue file {self.path}") from error
+
+    def clear(self) -> None:
+        self._assert_safe_path()
+        if not self.path.exists():
+            return
+        try:
+            self.path.unlink(missing_ok=True)
+            self._sync_directory(self.path.parent)
+        except OSError as error:
+            raise QueueStorageError(f"custd: failed to clear queue file {self.path}") from error
+
+    def _assert_safe_path(self) -> None:
+        if self.path.is_symlink() or (self.path.exists() and not self.path.is_file()):
+            raise QueueStorageError(f"custd: unsafe queue file path {self.path}")
+
+    @staticmethod
+    def _remove_temporary(path: str) -> None:
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+
+    @staticmethod
+    def _sync_directory(directory: Path) -> None:
+        descriptor = os.open(directory, os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
 
 
 class CustdClient:
@@ -190,10 +300,19 @@ class CustdClient:
             raise ValueError("custd: token or oauth config is required")
         self.retry = normalize_retry(retry)
         self.batch = batch
-        self.queue_enabled = bool((queue or {}).get("enabled", batch is not None))
-        self.queue_storage = (queue or {}).get("storage") or MemoryQueueStorage()
+        queue_config = queue or {}
+        self.queue_enabled = bool(queue_config.get("enabled", batch is not None))
+        queue_storage: Any = queue_config.get("storage")
+        if queue_storage is None and queue_config.get("path"):
+            queue_storage = FileQueueStorage(
+                queue_config["path"],
+                max_bytes=int(queue_config.get("max_bytes", DEFAULT_QUEUE_MAX_BYTES)),
+            )
+        self.queue_storage: Any = queue_storage or MemoryQueueStorage()
         self.queue: list[EventEnvelope] = self.queue_storage.load() if self.queue_enabled else []
-        self.max_queue_size = int((queue or {}).get("max_queue_size", 1000))
+        self.max_queue_size = int(queue_config.get("max_queue_size", 1000))
+        if self.max_queue_size <= 0:
+            raise ValueError("custd: queue max_queue_size must be a positive integer")
         self.compression = normalize_compression(compression)
         self.transport = transport or make_default_transport(self.compression)
         self.admin = AdminClient(self, admin_transport or default_admin_transport)
@@ -246,15 +365,22 @@ class CustdClient:
             max_batch_size = int(self.batch.get("max_batch_size", max_batch_size))
 
         batch = self.queue[:max_batch_size]
-        self.queue = self.queue[max_batch_size:]
+        remaining = self.queue[max_batch_size:]
 
         try:
             self._send_batch_with_retry(batch)
+        except BatchRequestError as error:
+            self.queue = [
+                event for event in batch if event.get("eventUuid") not in error.acknowledged_event_uuids
+            ] + remaining
+            self.queue_storage.save(self.queue)
+            raise
         except Exception:
-            self.queue = batch + self.queue
+            self.queue = batch + remaining
             self.queue_storage.save(self.queue)
             raise
 
+        self.queue = remaining
         self.queue_storage.save(self.queue)
 
     def close(self) -> None:
@@ -262,9 +388,12 @@ class CustdClient:
 
     def _enqueue(self, event: EventEnvelope) -> None:
         if len(self.queue) >= self.max_queue_size:
-            self.queue.pop(0)
-        self.queue.append(event)
-        self.queue_storage.save(self.queue)
+            raise QueueFullError(
+                f"custd: queue max_queue_size reached ({self.max_queue_size})"
+            )
+        next_queue = [*self.queue, event]
+        self.queue_storage.save(next_queue)
+        self.queue = next_queue
 
     def _send_with_retry(self, event: EventEnvelope) -> TransportResult:
         max_attempts = int(self.retry["max_attempts"])
@@ -312,10 +441,17 @@ class CustdClient:
             return result
         decoded = json.loads(body)
         if isinstance(decoded, dict):
-            failure = batch_rejection_message(status, decoded.get("results"))
+            results = decoded.get("results")
+            acknowledged = acknowledged_event_uuids(results, events)
+            failure = batch_rejection_message(status, results)
             if failure is not None:
-                raise RequestError(failure)
-        return result
+                raise BatchRequestError(failure, acknowledged)
+            if isinstance(results, list) and len(acknowledged) != len(events):
+                raise BatchRequestError("custd: batch response did not acknowledge every event", acknowledged)
+            if decoded.get("success") is False and not isinstance(results, list):
+                raise BatchRequestError("custd: batch request failed without per-event results", set())
+            return result
+        raise BatchRequestError("custd: batch response was not a JSON object", set())
 
     def _endpoint(self) -> str:
         return self.base_url + INGEST_ENDPOINT
@@ -677,6 +813,24 @@ def redacted_provisioned_producer(credentials: dict[str, Any]) -> dict[str, Any]
 
 
 BATCH_REJECTION_LIST_LIMIT = 10
+
+
+def acknowledged_event_uuids(results: Any, events: list[EventEnvelope]) -> set[str]:
+    if not isinstance(results, list):
+        return set()
+    expected = {
+        event["eventUuid"]
+        for event in events
+        if isinstance(event.get("eventUuid"), str) and event["eventUuid"]
+    }
+    acknowledged: set[str] = set()
+    for result in results:
+        if not isinstance(result, dict) or result.get("success") is not True:
+            continue
+        event_uuid = result.get("eventUuid") or result.get("event_uuid")
+        if isinstance(event_uuid, str) and event_uuid in expected:
+            acknowledged.add(event_uuid)
+    return acknowledged
 
 
 def problem_error_message(status: int, body: Any) -> str:

@@ -1,13 +1,16 @@
 import json
 import pathlib
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
 from custd import (
     CustdClient,
+    FileQueueStorage,
     MemoryQueueStorage,
+    QueueFullError,
     RequestError,
     RetryableError,
     ValidationError,
@@ -157,6 +160,136 @@ class CustdClientTest(unittest.TestCase):
         queued = storage.load()
         self.assertEqual(1, len(queued))
         self.assertEqual(self.base_event["eventUuid"], queued[0]["eventUuid"])
+
+    def test_file_queue_restart_retains_stable_event_uuid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "events.json"
+            storage = FileQueueStorage(path)
+            failed_transport = CapturingTransport([503])
+            client = CustdClient(
+                base_url="http://localhost:8080",
+                token="token",
+                batch={"max_batch_size": 10},
+                queue={"enabled": True, "storage": storage},
+                retry={"max_attempts": 1},
+                transport=failed_transport,
+            )
+            event = dict(self.base_event)
+            event.pop("eventUuid")
+            client.track(event)
+
+            with self.assertRaises(RetryableError):
+                client.flush()
+
+            self.assertEqual(0o600, path.stat().st_mode & 0o777)
+            queued = storage.load()
+            stable_uuid = queued[0]["eventUuid"]
+            restarted_transport = CapturingTransport([202])
+            restarted = CustdClient(
+                base_url="http://localhost:8080",
+                token="token",
+                batch={"max_batch_size": 10},
+                queue={"enabled": True, "storage": FileQueueStorage(path)},
+                retry={"max_attempts": 1},
+                transport=restarted_transport,
+            )
+
+            restarted.flush()
+
+            self.assertEqual(stable_uuid, restarted_transport.calls[0]["event"]["events"][0]["eventUuid"])
+            self.assertEqual([], storage.load())
+
+    def test_file_queue_retains_poison_event_after_repeated_rejection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "events.json"
+            poison_uuid = "evt-poison"
+            body = json.dumps({
+                "results": [{
+                    "eventUuid": poison_uuid,
+                    "success": False,
+                    "status": 422,
+                    "error": "invalid payload",
+                }],
+            })
+            transport = CapturingTransport([202, 202], [body, body])
+            client = CustdClient(
+                base_url="http://localhost:8080",
+                token="token",
+                batch={"max_batch_size": 10},
+                queue={"enabled": True, "storage": FileQueueStorage(path)},
+                retry={"max_attempts": 1},
+                transport=transport,
+            )
+            client.track({**self.base_event, "eventUuid": poison_uuid})
+
+            with self.assertRaises(RequestError):
+                client.flush()
+            with self.assertRaises(RequestError):
+                client.flush()
+
+            queued = FileQueueStorage(path).load()
+            self.assertEqual([poison_uuid], [event["eventUuid"] for event in queued])
+            self.assertEqual([poison_uuid, poison_uuid], [
+                call["event"]["events"][0]["eventUuid"] for call in transport.calls
+            ])
+
+    def test_file_queue_selectively_acknowledges_partial_batch_results(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "events.json"
+            body = json.dumps({
+                "success": False,
+                "results": [
+                    {"eventUuid": "evt-ok", "success": True, "status": 202},
+                    {"eventUuid": "evt-bad", "success": False, "status": 422, "error": "poison"},
+                ],
+            })
+            transport = CapturingTransport([202], [body])
+            storage = FileQueueStorage(path)
+            client = CustdClient(
+                base_url="http://localhost:8080",
+                token="token",
+                batch={"max_batch_size": 10},
+                queue={"enabled": True, "storage": storage},
+                retry={"max_attempts": 1},
+                transport=transport,
+            )
+            client.track({**self.base_event, "eventUuid": "evt-ok"})
+            client.track({**self.base_event, "eventUuid": "evt-bad"})
+
+            with self.assertRaisesRegex(RequestError, "evt-bad"):
+                client.flush()
+
+            self.assertEqual(["evt-bad"], [event["eventUuid"] for event in storage.load()])
+
+    def test_file_queue_rejects_events_that_exceed_disk_bound(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "events.json"
+            storage = FileQueueStorage(path, max_bytes=16)
+
+            with self.assertRaises(QueueFullError):
+                storage.save([self.base_event])
+
+            self.assertFalse(path.exists())
+
+    def test_queue_count_bound_fails_without_dropping_oldest_event(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "events.json"
+            storage = FileQueueStorage(path)
+            client = CustdClient(
+                base_url="http://localhost:8080",
+                token="token",
+                batch={"max_batch_size": 10},
+                queue={"enabled": True, "storage": storage, "max_queue_size": 1},
+                retry={"max_attempts": 1},
+                transport=CapturingTransport([202]),
+            )
+            client.track({**self.base_event, "eventUuid": "evt-existing"})
+
+            with self.assertRaisesRegex(QueueFullError, "max_queue_size"):
+                client.track({**self.base_event, "eventUuid": "evt-new"})
+
+            self.assertEqual(["evt-existing"], [event["eventUuid"] for event in client.queue])
+            self.assertEqual(["evt-existing"], [event["eventUuid"] for event in storage.load()])
 
     def test_uses_oauth_producer_credentials_for_bearer_auth(self):
         token_requests = []
@@ -314,7 +447,7 @@ class RfcProblemErrorTest(unittest.TestCase):
     def test_batch_all_success_does_not_raise(self):
         body = json.dumps({
             "success": True,
-            "results": [{"eventUuid": "evt-ok", "success": True, "status": 202}],
+            "results": [{"eventUuid": self.base_event["eventUuid"], "success": True, "status": 202}],
         })
         client = CustdClient(
             base_url="http://localhost:8080",

@@ -1,6 +1,9 @@
 from .client import (
     CustdClient,
+    FileQueueStorage,
     MemoryQueueStorage,
+    QueueFullError,
+    QueueStorageError,
     RenderedMetricValue,
     RenderedWidgetBucket,
     RenderedWidgetData,
@@ -18,7 +21,10 @@ from .client import (
 
 __all__ = [
     "CustdClient",
+    "FileQueueStorage",
     "MemoryQueueStorage",
+    "QueueFullError",
+    "QueueStorageError",
     "RequestError",
     "RenderedMetricValue",
     "RenderedWidgetBucket",

@@ -1,4 +1,9 @@
+import os
 import pathlib
+import shutil
+import subprocess
+import sys
+import tempfile
 import tomllib
 import unittest
 
@@ -21,6 +26,21 @@ class PackagingTest(unittest.TestCase):
         config = tomllib.loads((ROOT / "pyproject.toml").read_text())
         package_data = config["tool"]["setuptools"]["package-data"]
         self.assertIn("py.typed", package_data.get("custd", []))
+
+    def test_clean_package_import_exposes_file_queue_storage(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            shutil.copytree(ROOT / "src" / "custd", pathlib.Path(directory) / "custd")
+            environment = {**os.environ, "PYTHONPATH": directory}
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "from custd import FileQueueStorage, QueueFullError; "
+                    "assert FileQueueStorage and QueueFullError",
+                ],
+                check=True,
+                env=environment,
+            )
 
 
 if __name__ == "__main__":

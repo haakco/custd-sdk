@@ -1,6 +1,6 @@
 # custd SDK (Python)
 
-Ingestion client with retry, batching, and in-memory queueing.
+Ingestion client with retry, batching, and bounded queueing.
 
 ## Compatibility
 
@@ -21,7 +21,7 @@ Pin `@v1.3.0` (or a later tag) to the release you want.
 ## Usage
 
 ```python
-from custd import CustdClient, create_dogfood_event
+from custd import CustdClient, FileQueueStorage, create_dogfood_event
 
 client = CustdClient(
     base_url="http://localhost:8087",
@@ -34,7 +34,11 @@ client = CustdClient(
     },
     retry={"max_attempts": 3},
     batch={"max_batch_size": 25},
-    queue={"enabled": True, "max_queue_size": 1000},
+    queue={
+        "enabled": True,
+        "storage": FileQueueStorage("/var/lib/custd/events.json", max_bytes=10 * 1024 * 1024),
+        "max_queue_size": 1000,
+    },
 )
 
 client.track({
@@ -51,6 +55,13 @@ client.track({
 
 client.flush()
 ```
+
+`MemoryQueueStorage` is the default. `FileQueueStorage` writes an atomic,
+private JSON replacement so queued event UUIDs survive process restart. Its
+`max_bytes` bound raises `QueueFullError` instead of silently losing events;
+the client raises the same error when `max_queue_size` is reached, preserving
+the queued events for an explicit backpressure decision. Use one queue file
+per process and protect the file as it contains event payloads.
 
 When Custd provisions a producer it returns a flat credential bundle. Pass it
 straight to `from_provisioned_producer` — no OAuth wiring required:
