@@ -165,6 +165,7 @@ custd-sdk-setup --register-schemas ./infra/custd/schemas ...
 | --- | --- | --- | --- | --- | --- | --- |
 | Event ingest | yes | yes | yes | yes | PHP wrapper | PHP wrapper |
 | Batch queue/flush | yes | yes | yes | yes | PHP wrapper | server hook events |
+| Durable file-backed queue (intentional asymmetry in v1.8.7) | no, in-memory | no, in-memory | yes (`FileQueueStorage` + selective ack) | yes (own `FileQueueStore`) | via PHP SDK | via PHP SDK defaults |
 | OAuth producer auth | yes | yes | yes | yes | config wrapper | settings wrapper |
 | Provisioned producer bundle | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Retry + gzip batch compression | yes | yes | yes | yes | via PHP SDK | via PHP SDK defaults |

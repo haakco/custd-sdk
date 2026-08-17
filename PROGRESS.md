@@ -1,24 +1,58 @@
-# Custd SDK v1.8.4 Progress
+# Custd SDK Progress
 
-**Owning plan:**
-[`docs/plans/2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md`](docs/plans/2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md)
-**Status:** Milestones 1–5 complete and merged to `main`. Version `1.8.4`
-combines lifecycle parity with the browser module installer correction. Release
-approval was provided on 2026-08-01; tag publication and downstream pinning are
-in progress.
+**Owning plans:**
+- [`docs/plans/2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md`](docs/plans/2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md)
+  (M1–M5 below)
+- `docs/changelog/2026-08-17-v1.8.7-durable-selective-queue.md` (v1.8.7 release note)
 
-## Current State (verified 2026-07-31)
+**Status (2026-08-17):** v1.8.7 release preparation is one command away. The
+durable selective queue landed in `sdk-python` at `e53bc8a`; `VERSION` is
+bumped to `1.8.7` across every per-package manifest; the release-guard would
+accept `v1.8.7`. Tagging and pushing the cut are approval-gated and are not
+performed in this commit.
 
-- Work branch `feat/client-data-lifecycle-sdk-parity` is ahead of `main` by
-  7 commits; branch is pushed to origin and tracked.
-- The lifecycle M0–M4 server contracts are merged on Custd
-  `feat/client-data-lifecycle-d3-d5` at `fb2b0cec` (admin suite ALL GREEN).
-- The pre-start gate in the SDK plan is open: server is the source of
-  truth, spec drift (no erasure cancel/retry, no retention status) is
-  reconciled against the actual server endpoints, and shared lifecycle
-  contract fixtures match the server shape.
+## Current State
 
-## Completed
+- `main` is at `e53bc8a` (`feat(python-sdk): add durable selective queue`).
+- `VERSION`, `sdk-go/VERSION`, `sdk-python/pyproject.toml`,
+  `sdk-js/package.json`, `sdk-php/composer.json`, and
+  `wordpress-plugin/custd.php` are all set to `1.8.7`.
+- Release-guard would pass on a `v1.8.7` tag (matches `VERSION` and every
+  manifest mirror).
+- v1.8.4 has shipped (`v1.8.4` tag, mirror split completed). v1.8.5 and
+  v1.8.6 were small follow-up patches (browser script pageviews, Dependabot
+  security fixes) that also shipped.
+- v1.8.7 is a Python-only capability release. The durable selective queue is
+  documented as Python-only; PHP keeps its existing `FileQueueStore`, JS and
+  Go keep their in-memory queues, and the README parity table records the
+  intentional asymmetry. See the v1.8.7 changelog for scope.
+
+### v1.8.7 release prep
+
+- `VERSION` bumped to `1.8.7` (every manifest mirrored).
+- Changelog created at
+  `docs/changelog/2026-08-17-v1.8.7-durable-selective-queue.md`.
+- README parity table extended with the "Durable file-backed queue" row.
+- `release-guard` (CI) and the `release-mirrors.yml` tag guard both use the
+  same `VERSION == tag` check; both would pass for `v1.8.7`.
+- No new PyPI publish job is added in this release. The Python SDK stays on
+  the existing `git+https` install path; no Python mirror is opened, and
+  `release-mirrors.yml` continues to split only `laravel-package`,
+  `wordpress-plugin`, and `sdk-go`. A `publish-python` job would require a
+  PyPI project + trusted-publishing configuration that is out of scope for
+  this release prep.
+
+### Out of scope (recorded, not actioned)
+
+- `tools/loadgen/js/package.json` (in the `custd` repository, not this SDK)
+  has a stale pin mismatch. That fix lives in the `custd` repo and is not
+  touched here.
+
+## Historical record — v1.8.4 lifecycle SDK parity (M1–M5)
+
+The following milestones describe the v1.8.4 work that shipped on 2026-08-01.
+They are kept as the durable record of how the lifecycle SDK parity landed;
+the Current State section above is the headline that matters now.
 
 ### M1 — Lifecycle contract fixtures
 
@@ -63,12 +97,18 @@ in progress.
 
 ### M5 — Release
 
-- VERSION bumped to 1.8.4 across root `VERSION`, `sdk-go/VERSION`,
+- v1.8.4: VERSION bumped to 1.8.4 across root `VERSION`, `sdk-go/VERSION`,
   `sdk-js/package.json`, `sdk-php/composer.json`,
-  `sdk-python/pyproject.toml`, `wordpress-plugin/custd.php`.
-- Release approval was provided on 2026-08-01. Version `v1.8.4` follows the
-  immutable `v1.8.3` tag and supplies the maintained containerd runner's
-  required pinned job container.
+  `sdk-python/pyproject.toml`, `wordpress-plugin/custd.php`. Release approval
+  was provided on 2026-08-01. Version `v1.8.4` follows the immutable
+  `v1.8.3` tag and supplies the maintained containerd runner's required
+  pinned job container.
+- v1.8.5 / v1.8.6: small follow-up patches (browser script pageviews,
+  Dependabot security fixes). Tags `v1.8.5` and `v1.8.6` were both cut and
+  mirrored through the same flow.
+- v1.8.7: VERSION bumped to 1.8.7 across the same six files (see Current
+  State above). Python-only capability addition (durable selective queue).
+  Tag + push is the approval-gated next step.
 
 ## Test totals (M1–M4)
 
@@ -80,10 +120,17 @@ in progress.
 | PHP       | 147 lifecycle           |
 | **Total** | **320**                 |
 
+Python `sdk-python/tests/` grew by the durable-queue tests committed at
+`e53bc8a` (queue overflow, selective ack, file-backed storage survival); the
+counts above describe the M1–M4 lifecycle baseline.
+
 ## Next
 
-- Tag `v1.8.4` → wait for `release-mirrors.yml` → verify the published
-  artifacts → pin Custd consumers to `v1.8.4`.
+- After operator approval, tag `v1.8.7` and push it:
+  `git tag v1.8.7 && git push origin v1.8.7`.
+- Wait for `release-mirrors.yml` to split `laravel-package`,
+  `wordpress-plugin`, `sdk-go` to their mirrors; verify the published
+  artifacts; pin Custd consumers to `v1.8.7`.
 
 ## Blockers
 
@@ -91,7 +138,9 @@ None.
 
 ## Last Useful Commands
 
-- `just test` — passed.
-- `git diff --check` — passed.
-- `bash scripts/test-bump-version.sh` — passed.
-- `bash scripts/bump-version.sh 1.8.0` — lifecycle release prep at `c5d97a7`.
+- `bash scripts/test-bump-version.sh` — passes (bumps a tmp tree to `9.8.7`
+  and asserts every manifest matches).
+- `git diff --check` — passed on the bump diff.
+- `bash scripts/bump-version.sh 1.8.7` — produces the current `1.8.7`
+  bump; committed in this prep change set.
+- `bash scripts/test-publish-release-mirror.sh` — passes.
