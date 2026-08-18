@@ -3,38 +3,41 @@
 **Owning plans:**
 - [`docs/plans/2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md`](docs/plans/2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md)
   (M1–M5 below)
-- `docs/changelog/2026-08-17-v1.8.7-durable-selective-queue.md` (v1.8.7 release note)
+- `docs/changelog/2026-08-18-v1.8.9-durable-prediction-reporting.md` (v1.8.9 release note)
 
-**Status (2026-08-17):** v1.8.7 release preparation is one command away. The
-durable selective queue landed in `sdk-python` at `e53bc8a`; `VERSION` is
-bumped to `1.8.7` across every per-package manifest; the release-guard would
-accept `v1.8.7`. Tagging and pushing the cut are approval-gated and are not
-performed in this commit.
+**Status (2026-08-18):** v1.8.9 release preparation reconciles the local
+durable selective queue commits with the public v1.8.7 prediction helpers and
+the tagged v1.8.8 report-export lifecycle. The synchronized manifests are set
+to `1.8.9`; tagging and pushing remain approval-gated and are not performed in
+this commit.
 
 ## Current State
 
-- `main` is at `e53bc8a` (`feat(python-sdk): add durable selective queue`).
+- Local `main` integrates durable queue commits `e53bc8a`/`aebc87c` with
+  prediction helper commit `3d08c10` and report-export history ending at the
+  tagged `3cc0d6e` (`v1.8.8`).
 - `VERSION`, `sdk-go/VERSION`, `sdk-python/pyproject.toml`,
   `sdk-js/package.json`, `sdk-php/composer.json`, and
-  `wordpress-plugin/custd.php` are all set to `1.8.7`.
-- Release-guard would pass on a `v1.8.7` tag (matches `VERSION` and every
+  `wordpress-plugin/custd.php` are all set to `1.8.9`.
+- Release-guard would pass on a `v1.8.9` tag (matches `VERSION` and every
   manifest mirror).
 - v1.8.4 has shipped (`v1.8.4` tag, mirror split completed). v1.8.5 and
-  v1.8.6 were small follow-up patches (browser script pageviews, Dependabot
-  security fixes) that also shipped.
-- v1.8.7 is a Python-only capability release. The durable selective queue is
-  documented as Python-only; PHP keeps its existing `FileQueueStore`, JS and
-  Go keep their in-memory queues, and the README parity table records the
-  intentional asymmetry. See the v1.8.7 changelog for scope.
+  v1.8.6 were follow-up patches that also shipped. v1.8.7 and v1.8.8 are
+  already public tags for prediction helpers and report-export lifecycle.
+- v1.8.9 carries the Python-only durable selective queue alongside those
+  public capabilities. PHP keeps its existing `FileQueueStore`; JS and Go
+  keep their in-memory queues; the README parity table records the intentional
+  asymmetry. See the v1.8.9 changelog for scope.
 
-### v1.8.7 release prep
+### v1.8.9 release prep
 
-- `VERSION` bumped to `1.8.7` (every manifest mirrored).
+- `VERSION` bumped to `1.8.9` (every manifest mirrored).
 - Changelog created at
-  `docs/changelog/2026-08-17-v1.8.7-durable-selective-queue.md`.
-- README parity table extended with the "Durable file-backed queue" row.
+  `docs/changelog/2026-08-18-v1.8.9-durable-prediction-reporting.md`.
+- README parity table records the "Durable file-backed queue" row as an
+  intentional v1.8.9 asymmetry.
 - `release-guard` (CI) and the `release-mirrors.yml` tag guard both use the
-  same `VERSION == tag` check; both would pass for `v1.8.7`.
+  same `VERSION == tag` check; both would pass for `v1.8.9`.
 - No new PyPI publish job is added in this release. The Python SDK stays on
   the existing `git+https` install path; no Python mirror is opened, and
   `release-mirrors.yml` continues to split only `laravel-package`,
@@ -106,9 +109,11 @@ the Current State section above is the headline that matters now.
 - v1.8.5 / v1.8.6: small follow-up patches (browser script pageviews,
   Dependabot security fixes). Tags `v1.8.5` and `v1.8.6` were both cut and
   mirrored through the same flow.
-- v1.8.7: VERSION bumped to 1.8.7 across the same six files (see Current
-  State above). Python-only capability addition (durable selective queue).
-  Tag + push is the approval-gated next step.
+- v1.8.7: public prediction admin helper tag at `3d08c10`.
+- v1.8.8: public report-export lifecycle tag at `3cc0d6e`.
+- v1.8.9: VERSION is prepared across the same six files. Python-only durable
+  selective queue is combined with the v1.8.7/v1.8.8 capabilities in this
+  local release cut; tag + push remain approval-gated.
 
 ## Test totals (M1–M4)
 
@@ -126,11 +131,12 @@ counts above describe the M1–M4 lifecycle baseline.
 
 ## Next
 
-- After operator approval, tag `v1.8.7` and push it:
-  `git tag v1.8.7 && git push origin v1.8.7`.
+- After operator approval, push the reconciled `main`, tag `v1.8.9`, and push
+  the tag:
+  `git tag v1.8.9 && git push origin main && git push origin v1.8.9`.
 - Wait for `release-mirrors.yml` to split `laravel-package`,
   `wordpress-plugin`, `sdk-go` to their mirrors; verify the published
-  artifacts; pin Custd consumers to `v1.8.7`.
+  artifacts; then pin Custd consumers to `v1.8.9`.
 
 ## Blockers
 
@@ -141,6 +147,6 @@ None.
 - `bash scripts/test-bump-version.sh` — passes (bumps a tmp tree to `9.8.7`
   and asserts every manifest matches).
 - `git diff --check` — passed on the bump diff.
-- `bash scripts/bump-version.sh 1.8.7` — produces the current `1.8.7`
+- `bash scripts/bump-version.sh 1.8.9` — produces the current `1.8.9`
   bump; committed in this prep change set.
 - `bash scripts/test-publish-release-mirror.sh` — passes.

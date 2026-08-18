@@ -31,6 +31,17 @@ def fixture(name: str) -> dict[str, Any]:
 
 
 class ReportingClientTest(unittest.TestCase):
+    def test_report_export_lifecycle_uses_authenticated_routes(self) -> None:
+        export_id = "123e4567-e89b-42d3-a456-426614174000"
+        transport = FakeTransport({"id": export_id, "state": "queued"})
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+        client.reporting.create_export({"dashboardKey": "executive", "formats": ["csv"], "parameters": {}})
+        client.reporting.get_export(export_id)
+        client.reporting.cancel_export(export_id, "done")
+        self.assertEqual(
+            ["/reporting/exports", f"/reporting/exports/{export_id}", f"/reporting/exports/{export_id}/cancel"],
+            [call[1].removeprefix("http://localhost:8080/api/v1") for call in transport.calls],
+        )
     def test_output_selects_canonical_ready_output(self) -> None:
         output_uuid = "33333333-3333-4333-8333-333333333333"
         response = {"outputUuid": output_uuid, "processingState": "ready"}

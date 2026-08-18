@@ -35,8 +35,8 @@ class PackagingTest(unittest.TestCase):
                 [
                     sys.executable,
                     "-c",
-                    "from custd import FileQueueStorage, QueueFullError; "
-                    "assert FileQueueStorage and QueueFullError",
+                    "from custd import BatchRequestError, FileQueueStorage, QueueFullError; "
+                    "assert BatchRequestError and FileQueueStorage and QueueFullError",
                 ],
                 check=True,
                 env=environment,

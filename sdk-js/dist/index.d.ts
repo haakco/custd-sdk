@@ -1,9 +1,11 @@
 import { OffboardingClient } from "./admin-offboarding.js";
+import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 export { type OffboardingAcknowledgeResponse, type OffboardingCancelRequest, OffboardingClient, type OffboardingDownloadResponse, type OffboardingExecuteRequest, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPerStore, type OffboardingPreviewResponse, type OffboardingReceiptPerStore, type OffboardingReceiptResponse, type OffboardingRequest, type OffboardingRequestCreate, type OffboardingRetryResponse, type OffboardingSchedule, type OffboardingScheduleListResponse, type OffboardingScheduleRequest, type OffboardingWaiver, } from "./admin-offboarding.js";
+export { type PredictionActivateRequest, PredictionAdminClient, type PredictionDefinition, type PredictionDefinitionCreateRequest, type PredictionDefinitionListResponse, type PredictionDefinitionUpdateRequest, type PredictionEvaluationSummary, type PredictionOutcomeSummary, type PredictionPauseRequest, type PredictionRollbackRequest, type PredictionRunNowRequest, type PredictionRunSummary, type PredictionSignalSource, type PredictionSignalSourceCreateRequest, type PredictionThresholdEvent, type PredictionVersion, type PredictionVersionPublishRequest, } from "./admin-predictions.js";
 export { type PrivacyErasure, PrivacyErasureClient, type PrivacyErasureCreateRequest, type PrivacyErasureListResponse, type PrivacyErasureSelector, type PrivacyErasureState, type PrivacyErasureStoreProgress, } from "./admin-privacy-erasures.js";
 export { RetentionClient, type RetentionPolicy, type RetentionPolicyListResponse, type RetentionPolicyUpsertRequest, type RetentionRun, type RetentionRunDeletion, type RetentionRunPreview, type RetentionRunsListResponse, } from "./admin-retention.js";
 export { type SubjectExport, SubjectExportClient, type SubjectExportCreateRequest, type SubjectExportDownloadResponse, type SubjectExportListResponse, type SubjectExportState, type SubjectExportSubject, } from "./admin-subject-exports.js";
@@ -889,14 +891,65 @@ export declare class CustdClient {
     private batchRejectionMessage;
     private adminRequest;
     private apiRequest;
+    private apiDownload;
 }
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type NonAdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type APIRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
+type APIDownloader = (path: string, options?: RequestOptions) => Promise<Uint8Array>;
+export interface ReportExportCreateRequest {
+    dashboardKey: string;
+    formats: string[];
+    parameters: Record<string, unknown>;
+    idempotencyKey?: string;
+}
+export interface ReportExportArtifact {
+    id: string;
+    artifactKey: string;
+    format: string;
+    filename: string;
+    mediaType: string;
+    objectBytes: number;
+    objectSha256: string;
+    warnings?: string[];
+    fallbackForFormat?: string;
+    rendererVersion?: string;
+}
+export interface ReportExportJob {
+    id: string;
+    packKey: string;
+    packGeneration: number;
+    dashboardKey: string;
+    formats: string[];
+    parametersDigest: string;
+    snapshotSha256?: string;
+    state: string;
+    progressStage: string;
+    progressCounters?: Record<string, number>;
+    queuedAt: string;
+    startedAt?: string;
+    finishedAt?: string;
+    expiresAt?: string;
+    failureCategory?: string;
+    failureMessage?: string;
+    cancellationReason?: string;
+    attemptCount: number;
+    nextAttemptAt?: string;
+    cleanupState: string;
+    cleanupAttempts: number;
+    nextCleanupAt?: string;
+    artifacts?: ReportExportArtifact[];
+}
 declare class ReportingNamespace {
     private readonly request;
-    constructor(request: APIRequester);
+    private readonly download;
+    constructor(request: APIRequester, download: APIDownloader);
+    createExport(input: ReportExportCreateRequest, options?: RequestOptions): Promise<ReportExportJob>;
+    listExports(limit?: number, options?: RequestOptions): Promise<ReportExportJob[]>;
+    getExport(exportId: string, options?: RequestOptions): Promise<ReportExportJob>;
+    cancelExport(exportId: string, reason?: string, options?: RequestOptions): Promise<ReportExportJob>;
+    downloadExport(exportId: string, artifactId: string, options?: RequestOptions): Promise<Uint8Array>;
     dashboard(key: string, options?: RequestOptions): Promise<ReportingDashboard>;
     receipt(receiptUuid: string, options?: RequestOptions): Promise<PreparedDataReceiptStatus>;
     outputs(options?: RequestOptions): Promise<PreparedDataOutputList>;
@@ -919,6 +972,7 @@ declare class AdminNamespace {
     readonly sites: AdminSiteNamespace;
     readonly schemas: AdminSchemaNamespace;
     readonly measurement: AdminMeasurementNamespace;
+    readonly predictions: PredictionAdminClient;
     readonly privacy: AdminPrivacyNamespace;
     readonly retention: RetentionClient;
     readonly storageAlerts: AdminStorageAlertsNamespace;

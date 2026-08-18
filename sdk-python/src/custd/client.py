@@ -496,6 +496,7 @@ class AdminClient:
         self.schemas = SchemaAdminClient(self)
         self.measurement = MeasurementAdminClient(self)
         from .admin_offboarding import OffboardingClient
+        from .admin_predictions import PredictionAdminClient
         from .admin_privacy_erasures import PrivacyErasureClient
         from .admin_retention import RetentionClient
         from .admin_subject_exports import SubjectExportClient
@@ -505,6 +506,7 @@ class AdminClient:
         self.privacy_erasures = PrivacyErasureClient(self)
         self.retention = RetentionClient(self)
         self.offboarding = OffboardingClient(self)
+        self.predictions = PredictionAdminClient(self)
 
     def request(
         self,
@@ -527,9 +529,11 @@ class AdminClient:
             return {}
         if isinstance(body, str):
             decoded = json.loads(body)
-            return decoded if isinstance(decoded, dict) else {}
+            return decoded if isinstance(decoded, dict) else {"items": decoded}
         if isinstance(body, dict):
             return body
+        if isinstance(body, list):
+            return {"items": body}
         return {}
 
 
@@ -577,6 +581,40 @@ class ReportingClient:
     def dashboard(self, key: str) -> TransportResult:
         return self._request("GET", f"/reporting/dashboards/{quote_path(key)}")
 
+    def create_export(self, request: dict[str, Any]) -> TransportResult:
+        formats = request.get("formats")
+        if not request.get("dashboardKey") or not isinstance(formats, list) or not 1 <= len(formats) <= 8:
+            raise ValueError("custd: report export requires a dashboard key and 1 to 8 formats")
+        return self._request("POST", "/reporting/exports", request)
+
+    def list_exports(self, limit: int = 50) -> list[TransportResult]:
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
+            raise ValueError("custd: report export limit must be between 1 and 100")
+        result = self._request_value("GET", f"/reporting/exports?limit={limit}")
+        if not isinstance(result, list):
+            raise ValueError("custd: report export list response must be an array")
+        return result
+
+    def get_export(self, export_id: str) -> TransportResult:
+        validate_uuid(export_id, "export_id")
+        return self._request("GET", f"/reporting/exports/{quote_path(export_id)}")
+
+    def cancel_export(self, export_id: str, reason: str = "") -> TransportResult:
+        validate_uuid(export_id, "export_id")
+        return self._request("POST", f"/reporting/exports/{quote_path(export_id)}/cancel", {"reason": reason})
+
+    def download_export(self, export_id: str, artifact_id: str) -> bytes:
+        validate_uuid(export_id, "export_id")
+        validate_uuid(artifact_id, "artifact_id")
+        path = f"/reporting/exports/{quote_path(export_id)}/artifacts/{quote_path(artifact_id)}"
+        value = self._request_value("GET", path)
+        data = value.encode() if isinstance(value, str) else value
+        if not isinstance(data, bytes):
+            raise ValueError("custd: report export download response must be bytes")
+        if len(data) > 64 * 1024 * 1024:
+            raise ValueError("custd: report export download exceeds 64 MiB")
+        return data
+
     def query(self, request: dict[str, Any]) -> TransportResult:
         widget = self._request("POST", "/reporting/query", request)
         if contains_unsafe_reporting_trust_key(widget.get("trust")):
@@ -611,6 +649,17 @@ class ReportingClient:
         path: str,
         payload: dict[str, Any] | None = None,
     ) -> TransportResult:
+        body = self._request_value(method, path, payload)
+        if isinstance(body, str):
+            decoded = json.loads(body)
+            if not isinstance(decoded, dict):
+                raise ValueError("custd: reporting response must be an object")
+            return decoded
+        if isinstance(body, dict):
+            return body
+        raise ValueError("custd: reporting response must be an object")
+
+    def _request_value(self, method: str, path: str, payload: dict[str, Any] | None = None) -> Any:
         result = self._transport(
             method,
             self._client.base_url + "/api/v1" + path,
@@ -624,14 +673,7 @@ class ReportingClient:
         body = result.get("body")
         if status == 204 or body in (None, ""):
             return {}
-        if isinstance(body, str):
-            decoded = json.loads(body)
-            if not isinstance(decoded, dict):
-                raise ValueError("custd: reporting response must be an object")
-            return decoded
-        if isinstance(body, dict):
-            return body
-        raise ValueError("custd: reporting response must be an object")
+        return body
 
 
 class DataSpaceProvisioningClient:
@@ -1288,7 +1330,9 @@ def default_admin_transport(
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            return {"status": response.status, "body": response.read().decode("utf-8")}
+            raw = response.read()
+            body = raw if "/artifacts/" in url else raw.decode("utf-8")
+            return {"status": response.status, "body": body}
     except urllib.error.HTTPError as err:
         return {"status": err.code, "body": err.read().decode("utf-8")}
     except urllib.error.URLError as err:

@@ -1,4 +1,5 @@
 from .client import (
+    BatchRequestError,
     CustdClient,
     FileQueueStorage,
     MemoryQueueStorage,
@@ -20,6 +21,7 @@ from .client import (
 )
 
 __all__ = [
+    "BatchRequestError",
     "CustdClient",
     "FileQueueStorage",
     "MemoryQueueStorage",
@@ -39,11 +41,12 @@ __all__ = [
     "redacted_provisioned_producer",
     "validate_event",
     "read_lifecycle_fixture", "TenantStorageClient", "SubjectExportClient",
-    "PrivacyErasureClient", "RetentionClient", "OffboardingClient",
+    "PrivacyErasureClient", "PredictionAdminClient", "RetentionClient", "OffboardingClient",
 ]
 
 from ._lifecycle_fixtures import read_lifecycle_fixture
 from .admin_offboarding import OffboardingClient
+from .admin_predictions import PredictionAdminClient
 from .admin_privacy_erasures import PrivacyErasureClient
 from .admin_retention import RetentionClient
 from .admin_subject_exports import SubjectExportClient

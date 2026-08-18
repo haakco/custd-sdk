@@ -9,6 +9,20 @@ use PHPUnit\Framework\TestCase;
 
 final class ReportingClientTest extends TestCase
 {
+    public function testReportExportLifecycleUsesAuthenticatedRoutes(): void
+    {
+        $id = "123e4567-e89b-42d3-a456-426614174000";
+        $calls = [];
+        $client = $this->clientWithResponse(["id" => $id, "state" => "queued"], $calls);
+        $client->reporting()->createExport(["dashboardKey" => "executive", "formats" => ["csv"], "parameters" => []]);
+        $client->reporting()->getExport($id);
+        $client->reporting()->cancelExport($id, "done");
+        self::assertSame([
+            "http://localhost:8080/api/v1/reporting/exports",
+            "http://localhost:8080/api/v1/reporting/exports/{$id}",
+            "http://localhost:8080/api/v1/reporting/exports/{$id}/cancel",
+        ], array_column($calls, "url"));
+    }
     public function testOutputSelectsCanonicalReadyOutput(): void
     {
         $uuid = "33333333-3333-4333-8333-333333333333";
