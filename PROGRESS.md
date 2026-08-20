@@ -1,6 +1,7 @@
 # Custd SDK Progress
 
 **Owning plans:**
+
 - [`docs/plans/2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md`](docs/plans/2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md)
   (M1–M5 below)
 - `docs/changelog/2026-08-18-v1.8.9-durable-prediction-reporting.md` (v1.8.9 release note)
