@@ -35,7 +35,6 @@ final class AwthyAuditRedactionRequest
 
         return new self([
             "sourceSystem" => "awthy",
-            "storeId" => $storeId,
             "redactionId" => (string) $input["redactionId"],
             "reason" => (string) $input["reason"],
             "events" => self::normalizeEvents($events),

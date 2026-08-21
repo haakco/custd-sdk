@@ -269,7 +269,7 @@ final class AwthyAuditContractTest extends TestCase
         ])->toArray();
 
         $this->assertSame("awthy", $request["sourceSystem"]);
-        $this->assertSame("store-123", $request["storeId"]);
+        $this->assertArrayNotHasKey("storeId", $request);
         $this->assertSame("01957abc-0000-0000-0000-000000000099", $request["redactionId"]);
         $this->assertSame("privacy_erasure", $request["reason"]);
         $this->assertSame("evt-local-1", $request["events"][0]["selectors"]["localAuditEventId"]);
