@@ -188,6 +188,48 @@ final class CustdClientTest extends TestCase
         }
     }
 
+    public function testFlushWithResultsReturnsPerEventProviderOutcomes(): void
+    {
+        $store = new MemoryQueueStore();
+        $client = new CustdClient("http://localhost:8080", "token", [
+            "batch" => ["max_batch_size" => 10],
+            "queue" => ["enabled" => true, "store" => $store],
+            "retry" => ["max_attempts" => 1],
+            "http_client" => static function (string $url, array $payload, string $token): array {
+                return [
+                    "status" => 202,
+                    "body" => json_encode([
+                        "success" => false,
+                        "results" => [
+                            ["eventUuid" => $payload["events"][0]["eventUuid"], "success" => true, "status" => 202],
+                            [
+                                "eventUuid" => $payload["events"][1]["eventUuid"],
+                                "success" => false,
+                                "status" => 422,
+                                "error" => ["type" => "validation_failed", "detail" => "not retained"],
+                            ],
+                        ],
+                    ], JSON_THROW_ON_ERROR),
+                ];
+            },
+        ]);
+
+        $first = $this->baseEvent;
+        $first["eventUuid"] = "evt-accepted";
+        $second = $this->baseEvent;
+        $second["eventUuid"] = "evt-rejected";
+        $client->track($first);
+        $client->track($second);
+
+        $outcomes = $client->flushWithResults();
+
+        $this->assertSame([
+            ["eventUuid" => "evt-accepted", "accepted" => true, "status" => 202, "errorCode" => null],
+            ["eventUuid" => "evt-rejected", "accepted" => false, "status" => 422, "errorCode" => "validation_failed"],
+        ], $outcomes);
+        $this->assertSame([], $store->load());
+    }
+
     public function testFileQueueStoreWritesPrivateJson(): void
     {
         $path = sys_get_temp_dir() . "/custd-queue-" . bin2hex(random_bytes(4)) . ".json";

@@ -211,15 +211,42 @@ final class CustdClient
 
     public function flush(): void
     {
+        $this->flushBatch(true);
+    }
+
+    /**
+     * Flush the queued batch and return bounded provider outcomes.
+     *
+     * The existing flush() contract remains exception-based. This seam is
+     * for integrations that must distinguish provider acceptance from a
+     * local retry after a post-send failure.
+     *
+     * @return list<array{eventUuid:string,accepted:bool,status:int,errorCode:?string}>
+     */
+    public function flushWithResults(): array
+    {
+        return $this->flushBatch(false);
+    }
+
+    /**
+     * Flush one queued batch.
+     *
+     * @param bool $validateBatch Whether partial provider rejection should be
+     *                            translated into the legacy exception contract.
+     * @return list<array{eventUuid:string,accepted:bool,status:int,errorCode:?string}>
+     */
+    private function flushBatch(bool $validateBatch): array
+    {
         if (!$this->queueEnabled || count($this->queue) === 0) {
-            return;
+            return [];
         }
 
         $maxBatchSize = $this->batchOptions["max_batch_size"] ?? count($this->queue);
         $batch = array_splice($this->queue, 0, $maxBatchSize);
 
         try {
-            $this->sendBatchWithRetry($batch);
+            $response = $this->sendBatchWithRetry($batch, $validateBatch);
+            $outcomes = $validateBatch ? [] : $this->batchOutcomes($batch, $response);
         } catch (\Throwable $err) {
             $this->queue = array_merge($batch, $this->queue);
             $this->queueStore->save($this->queue);
@@ -227,6 +254,7 @@ final class CustdClient
         }
 
         $this->queueStore->save($this->queue);
+        return $outcomes;
     }
 
     /**
@@ -433,7 +461,7 @@ final class CustdClient
      * @param array<int, array<string, mixed>> $events
      * @return array<string, mixed>
      */
-    private function sendBatchWithRetry(array $events): array
+    private function sendBatchWithRetry(array $events, bool $validateBatch = true): array
     {
         $attempt = 0;
         $maxAttempts = (int) $this->retryOptions["max_attempts"];
@@ -441,7 +469,7 @@ final class CustdClient
         while (true) {
             $attempt++;
             try {
-                return $this->sendBatchRequest($events);
+                return $this->sendBatchRequest($events, $validateBatch);
             } catch (RetryableException $err) {
                 if ($attempt >= $maxAttempts) {
                     throw $err;
@@ -526,7 +554,7 @@ final class CustdClient
      * @param array<int, array<string, mixed>> $events
      * @return array{status:int, body:string}
      */
-    private function sendBatchRequest(array $events): array
+    private function sendBatchRequest(array $events, bool $validateBatch = true): array
     {
         $payload = ["events" => $events];
         $url = $this->baseUrl . "/api/v1/events/batch";
@@ -535,7 +563,9 @@ final class CustdClient
             $client = $this->httpClient;
             $result = $this->normalizeHttpClientResult($client($url, $payload, $this->authToken()));
             $this->translateStatus($result["status"], $result["body"]);
-            $this->translateBatchBody($result);
+            if ($validateBatch) {
+                $this->translateBatchBody($result);
+            }
             return $result;
         }
 
@@ -565,8 +595,63 @@ final class CustdClient
             "body" => is_string($response) ? $response : "",
         ];
         $this->translateStatus($result["status"], $result["body"]);
-        $this->translateBatchBody($result);
+        if ($validateBatch) {
+            $this->translateBatchBody($result);
+        }
         return $result;
+    }
+
+    /**
+     * Convert one provider batch response into bounded per-event outcomes.
+     *
+     * @param array<int, array<string, mixed>> $events
+     * @param array{status:int, body:string}   $result
+     * @return list<array{eventUuid:string,accepted:bool,status:int,errorCode:?string}>
+     */
+    private function batchOutcomes(array $events, array $result): array
+    {
+        $decoded = $result["body"] === "" ? [] : json_decode($result["body"], true);
+        $rows = is_array($decoded) && is_array($decoded["results"] ?? null) ? $decoded["results"] : [];
+        $topLevelSuccess = !is_array($decoded) || ($decoded["success"] ?? true) !== false;
+        $byUuid = [];
+        foreach ($rows as $row) {
+            if (!is_array($row) || !is_string($row["eventUuid"] ?? null)) {
+                continue;
+            }
+            $byUuid[$row["eventUuid"]] = $row;
+        }
+
+        $outcomes = [];
+        foreach ($events as $event) {
+            $eventUuid = is_string($event["eventUuid"] ?? null) ? $event["eventUuid"] : "";
+            $row = $byUuid[$eventUuid] ?? null;
+            $accepted = is_array($row) && ($row["success"] ?? $topLevelSuccess) === true;
+            $status = is_array($row) && is_int($row["status"] ?? null) ? $row["status"] : $result["status"];
+            $errorCode = $accepted ? null : self::boundedErrorCode(is_array($row) ? ($row["error"] ?? null) : null);
+            $outcomes[] = [
+                "eventUuid" => $eventUuid,
+                "accepted" => $accepted,
+                "status" => $status,
+                "errorCode" => $errorCode,
+            ];
+        }
+        return $outcomes;
+    }
+
+    /**
+     * Return a bounded provider error identifier without retaining details.
+     *
+     * @param mixed $error Provider problem projection.
+     */
+    private static function boundedErrorCode(mixed $error): string
+    {
+        if (is_array($error) && is_string($error["type"] ?? null)) {
+            $code = strtolower(trim($error["type"]));
+            if (preg_match('/^[a-z0-9_.-]{1,80}$/', $code) === 1) {
+                return $code;
+            }
+        }
+        return "provider_rejected";
     }
 
     /**
