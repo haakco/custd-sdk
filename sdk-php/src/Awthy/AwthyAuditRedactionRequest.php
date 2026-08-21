@@ -75,17 +75,18 @@ final class AwthyAuditRedactionRequest
                 throw new \InvalidArgumentException("custd: redaction event fields are required");
             }
 
-            $normalizedEvent = [
-                "fields" => self::normalizeFields($fields),
-            ];
+            $selectors = [];
             if ($localAuditEventId !== "") {
-                $normalizedEvent["localAuditEventId"] = $localAuditEventId;
+                $selectors["localAuditEventId"] = $localAuditEventId;
             }
             if ($localAuditEventUuid !== "") {
-                $normalizedEvent["localAuditEventUuid"] = $localAuditEventUuid;
+                $selectors["localAuditEventUuid"] = $localAuditEventUuid;
             }
 
-            $normalized[] = $normalizedEvent;
+            $normalized[] = [
+                "selectors" => $selectors,
+                "fields" => self::normalizeFields($fields),
+            ];
         }
 
         return $normalized;

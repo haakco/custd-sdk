@@ -272,7 +272,11 @@ final class AwthyAuditContractTest extends TestCase
         $this->assertSame("store-123", $request["storeId"]);
         $this->assertSame("01957abc-0000-0000-0000-000000000099", $request["redactionId"]);
         $this->assertSame("privacy_erasure", $request["reason"]);
-        $this->assertSame("evt-local-1", $request["events"][0]["localAuditEventId"]);
+        $this->assertSame("evt-local-1", $request["events"][0]["selectors"]["localAuditEventId"]);
+        $this->assertSame(
+            "01957abc-0000-0000-0000-000000000001",
+            $request["events"][0]["selectors"]["localAuditEventUuid"]
+        );
         $this->assertSame(["actor", "target", "sanitizedContext"], $request["events"][0]["fields"]);
     }
 
@@ -285,7 +289,7 @@ final class AwthyAuditContractTest extends TestCase
 
                 return [
                     "status" => 202,
-                    "body" => '{"success":true,"redactionId":"01957abc-0000-0000-0000-000000000099","results":[{"localAuditEventId":"evt-local-1","status":"redacted"}]}',
+                    "body" => '{"success":true,"redactionId":"01957abc-0000-0000-0000-000000000099","results":[{"selectors":{"localAuditEventId":"evt-local-1"},"status":"redacted"}]}',
                 ];
             },
         ]);
