@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TypedDict, cast
 
 from .client import AdminClient, quote_path
 
@@ -54,32 +54,32 @@ class RetentionClient:
         self._admin = admin
 
     def list(self) -> RetentionPolicyListResponse:
-        return self._admin.request("GET", "/retention/policies")  # type: ignore[return-value]
+        return cast(RetentionPolicyListResponse, self._admin.request("GET", "/retention/policies"))
 
     def get(self, slug: str) -> RetentionPolicy:
-        return self._admin.request(
+        return cast(RetentionPolicy, self._admin.request(
             "GET", f"/retention/policies/{quote_path(slug)}"
-        )  # type: ignore[return-value]
+        ))
 
     def upsert(self, slug: str, b: RetentionPolicyUpsertRequest) -> RetentionPolicy:
-        return self._admin.request(
+        return cast(RetentionPolicy, self._admin.request(
             "PUT", f"/retention/policies/{quote_path(slug)}", dict(b)
-        )  # type: ignore[return-value]
+        ))
 
     def delete(self, slug: str) -> None:
         self._admin.request("DELETE", f"/retention/policies/{quote_path(slug)}")
 
     def preview(self, slug: str) -> RetentionRunPreview:
-        return self._admin.request(
+        return cast(RetentionRunPreview, self._admin.request(
             "POST", f"/retention/policies/{quote_path(slug)}/preview"
-        )  # type: ignore[return-value]
+        ))
 
     def apply(self, slug: str) -> RetentionRun:
-        return self._admin.request(
+        return cast(RetentionRun, self._admin.request(
             "POST", f"/retention/policies/{quote_path(slug)}/apply"
-        )  # type: ignore[return-value]
+        ))
 
     def list_runs(self, slug: str) -> RetentionRunsListResponse:
-        return self._admin.request(
+        return cast(RetentionRunsListResponse, self._admin.request(
             "GET", f"/retention/policies/{quote_path(slug)}/runs"
-        )  # type: ignore[return-value]
+        ))

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TypedDict, cast
 
 from .client import AdminClient, quote_path
 
@@ -41,19 +41,19 @@ class PrivacyErasureClient:
         self._admin = admin
 
     def create(self, b: PrivacyErasureCreateRequest) -> PrivacyErasure:
-        return self._admin.request(
+        return cast(PrivacyErasure, self._admin.request(
             "POST", "/privacy/erasures", dict(b)
-        )  # type: ignore[return-value]
+        ))
 
     def list(self) -> PrivacyErasureListResponse:
-        return self._admin.request("GET", "/privacy/erasures")  # type: ignore[return-value]
+        return cast(PrivacyErasureListResponse, self._admin.request("GET", "/privacy/erasures"))
 
     def get(self, request_id: str) -> PrivacyErasure:
-        return self._admin.request(
+        return cast(PrivacyErasure, self._admin.request(
             "GET", f"/privacy/erasures/{quote_path(request_id)}"
-        )  # type: ignore[return-value]
+        ))
 
     def force(self, request_id: str) -> PrivacyErasureState:
-        return self._admin.request(
+        return cast(PrivacyErasureState, self._admin.request(
             "POST", f"/privacy/erasures/{quote_path(request_id)}/force"
-        )  # type: ignore[return-value]
+        ))

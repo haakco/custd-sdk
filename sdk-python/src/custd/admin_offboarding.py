@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TypedDict, cast
 
 from .client import AdminClient, quote_path
 
@@ -53,17 +53,17 @@ class OffboardingClient:
         self._admin = admin
 
     def schedule(self, b: OffboardingScheduleRequest) -> OffboardingSchedule:
-        return self._admin.request(
+        return cast(OffboardingSchedule, self._admin.request(
             "POST", "/offboarding/schedules", dict(b)
-        )  # type: ignore[return-value]
+        ))
 
     def list_schedules(self) -> OffboardingScheduleListResponse:
-        return self._admin.request("GET", "/offboarding/schedules")  # type: ignore[return-value]
+        return cast(OffboardingScheduleListResponse, self._admin.request("GET", "/offboarding/schedules"))
 
     def get_schedule(self, slug: str) -> OffboardingSchedule:
-        return self._admin.request(
+        return cast(OffboardingSchedule, self._admin.request(
             "GET", f"/offboarding/schedules/{quote_path(slug)}"
-        )  # type: ignore[return-value]
+        ))
 
     def cancel_schedule(self, slug: str, b: dict[str, str]) -> None:
         self._admin.request(
@@ -71,12 +71,12 @@ class OffboardingClient:
         )
 
     def request(self, b: OffboardingRequestCreate) -> OffboardingRequest:
-        return self._admin.request("POST", "/offboarding", dict(b))  # type: ignore[return-value]
+        return cast(OffboardingRequest, self._admin.request("POST", "/offboarding", dict(b)))
 
     def get_request(self, request_id: str) -> OffboardingRequest:
-        return self._admin.request(
+        return cast(OffboardingRequest, self._admin.request(
             "GET", f"/offboarding/{quote_path(request_id)}"
-        )  # type: ignore[return-value]
+        ))
 
     def cancel_request(self, request_id: str) -> None:
         self._admin.request("POST", f"/offboarding/{quote_path(request_id)}/cancel")
@@ -85,9 +85,9 @@ class OffboardingClient:
         self._admin.request("POST", f"/offboarding/{quote_path(request_id)}/confirm")
 
     def preview(self, request_id: str) -> OffboardingPreviewResponse:
-        return self._admin.request(
+        return cast(OffboardingPreviewResponse, self._admin.request(
             "POST", f"/offboarding/requests/{quote_path(request_id)}/preview"
-        )  # type: ignore[return-value]
+        ))
 
     def export(self, request_id: str) -> dict[str, object]:
         return self._admin.request(

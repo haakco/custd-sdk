@@ -12,7 +12,7 @@ import uuid
 from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
-from typing import Any, NotRequired, TypedDict
+from typing import Any, NotRequired, TypedDict, cast
 
 INGEST_ENDPOINT = "/api/v1/events"
 INGEST_BATCH_ENDPOINT = "/api/v1/events/batch"
@@ -629,7 +629,7 @@ class ReportingClient:
 
     def receipt(self, receipt_uuid: str) -> PreparedDataStatus:
         validate_uuid(receipt_uuid, "receipt_uuid")
-        return self._request("GET", f"/processing/{quote_path(receipt_uuid)}")  # type: ignore[return-value]
+        return cast(PreparedDataStatus, self._request("GET", f"/processing/{quote_path(receipt_uuid)}"))
 
     def outputs(self) -> PreparedDataOutputList:
         response = self._request("GET", "/reporting/outputs")
@@ -637,7 +637,7 @@ class ReportingClient:
 
     def output(self, output_uuid: str) -> PreparedDataStatus:
         validate_uuid(output_uuid, "output_uuid")
-        return self._request("GET", f"/reporting/outputs/{quote_path(output_uuid)}")  # type: ignore[return-value]
+        return cast(PreparedDataStatus, self._request("GET", f"/reporting/outputs/{quote_path(output_uuid)}"))
 
     def query_output(self, output_uuid: str, request: dict[str, Any]) -> TransportResult:
         validate_uuid(output_uuid, "output_uuid")

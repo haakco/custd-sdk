@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TypedDict, cast
 
 from .client import AdminClient, quote_path
 
@@ -51,27 +51,27 @@ class SubjectExportClient:
         self._admin = admin
 
     def create(self, b: SubjectExportCreateRequest) -> SubjectExport:
-        return self._admin.request("POST", "/subject-exports", dict(b))  # type: ignore[return-value]
+        return cast(SubjectExport, self._admin.request("POST", "/subject-exports", dict(b)))
 
     def list(self) -> SubjectExportListResponse:
-        return self._admin.request("GET", "/subject-exports")  # type: ignore[return-value]
+        return cast(SubjectExportListResponse, self._admin.request("GET", "/subject-exports"))
 
     def get(self, request_id: str) -> SubjectExport:
-        return self._admin.request(
+        return cast(SubjectExport, self._admin.request(
             "GET", f"/subject-exports/{quote_path(request_id)}"
-        )  # type: ignore[return-value]
+        ))
 
     def cancel(self, request_id: str) -> SubjectExportState:
-        return self._admin.request(
+        return cast(SubjectExportState, self._admin.request(
             "POST", f"/subject-exports/{quote_path(request_id)}/cancel"
-        )  # type: ignore[return-value]
+        ))
 
     def download(self, request_id: str) -> SubjectExportDownloadResponse:
-        return self._admin.request(
+        return cast(SubjectExportDownloadResponse, self._admin.request(
             "GET", f"/subject-exports/{quote_path(request_id)}/download"
-        )  # type: ignore[return-value]
+        ))
 
     def force(self, request_id: str) -> SubjectExportState:
-        return self._admin.request(
+        return cast(SubjectExportState, self._admin.request(
             "POST", f"/subject-exports/{quote_path(request_id)}/force"
-        )  # type: ignore[return-value]
+        ))
