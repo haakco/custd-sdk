@@ -100,7 +100,7 @@ export class CustdClient {
         this.flushOnOnline = config.queue?.flushOnOnline ?? true;
         this.compressionEnabled = config.compression?.enabled ?? true;
         this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
-        this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body), (method, path, body, options) => this.apiRequest(method, path, body, options));
+        this.admin = new AdminNamespace((method, path, body, options) => this.adminRequest(method, path, body, options), (method, path, body, options) => this.apiRequest(method, path, body, options));
         this.provisioning = new ProvisioningNamespace((method, path, body, options) => this.apiRequest(method, path, body, options));
         this.reporting = new ReportingNamespace((method, path, body, options) => this.apiRequest(method, path, body, options), (path, options) => this.apiDownload(path, options));
         this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
@@ -343,8 +343,8 @@ export class CustdClient {
         }
         return `custd: batch rejected ${failed.length} of ${results?.length ?? failed.length} event(s): ${parts.join("; ")}`;
     }
-    async adminRequest(method, path, body) {
-        return this.apiRequest(method, `/admin${path}`, body);
+    async adminRequest(method, path, body, options) {
+        return this.apiRequest(method, `/admin${path}`, body, options);
     }
     async apiRequest(method, path, body, options) {
         const token = await this.getToken(options);

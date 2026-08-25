@@ -1172,7 +1172,7 @@ export class CustdClient {
     this.compressionEnabled = config.compression?.enabled ?? true;
     this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
     this.admin = new AdminNamespace(
-      (method, path, body) => this.adminRequest(method, path, body),
+      (method, path, body, options) => this.adminRequest(method, path, body, options),
       (method, path, body, options) => this.apiRequest(method, path, body, options),
     );
     this.provisioning = new ProvisioningNamespace((method, path, body, options) =>
@@ -1450,8 +1450,8 @@ export class CustdClient {
     return `custd: batch rejected ${failed.length} of ${results?.length ?? failed.length} event(s): ${parts.join("; ")}`;
   }
 
-  private async adminRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
-    return this.apiRequest(method, `/admin${path}`, body);
+  private async adminRequest<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+    return this.apiRequest(method, `/admin${path}`, body, options);
   }
 
   private async apiRequest<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {

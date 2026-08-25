@@ -8,10 +8,10 @@ const REQUEST_UUID = "pe_019ef2d5-8b4e-77d8-a8e8-9da8fc97dd10";
 type ResponsePlan = { status: number; body: unknown };
 
 function installFetch(plans: ResponsePlan[]) {
-  const calls: Array<{ url: string; method: string; body: unknown }> = [];
+  const calls: Array<{ url: string; method: string; body: unknown; signal?: AbortSignal | null }> = [];
   globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const body = typeof init?.body === "string" && init.body.length > 0 ? JSON.parse(init.body) : undefined;
-    calls.push({ url: String(input), method: init?.method ?? "GET", body });
+    calls.push({ url: String(input), method: init?.method ?? "GET", body, signal: init?.signal });
     const plan = plans[calls.length - 1];
     if (!plan) throw new Error("unexpected test request");
     return new Response(JSON.stringify(plan.body), {
@@ -160,5 +160,35 @@ describe("PrivacyErasureClient", () => {
     expect(failure).toBeInstanceOf(PrivacyErasureError);
     expect(failure).toMatchObject({ code: "poll_timeout", retryClassification: "retryable", retryable: true });
     expect((failure as Error).message).not.toContain("opaque-selector");
+  });
+
+  it("classifies the server retry action as retryable and forwards cancellation", async () => {
+    const calls = installFetch([
+      { status: 200, body: request("failed") },
+      {
+        status: 202,
+        body: {
+          request: request("failed"),
+          safe_next_action: "retry",
+          safe_next_action_code: "worker_unavailable",
+        },
+      },
+    ]);
+    const controller = new AbortController();
+    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
+
+    const failure = await client.admin.privacyErasures
+      .waitForCompletion("acme", REQUEST_UUID, {
+        pollIntervalMs: 0,
+        signal: controller.signal,
+      })
+      .catch((error: unknown) => error);
+
+    expect(failure).toMatchObject({
+      code: "force_recovery_retry",
+      retryClassification: "retryable",
+      retryable: true,
+    });
+    expect(calls.every((call) => call.signal === controller.signal)).toBe(true);
   });
 });

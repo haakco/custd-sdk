@@ -15,16 +15,16 @@ export class PrivacyErasureClient {
         this.request = request;
     }
     create(body, options) {
-        return this.request("POST", "/privacy/erasures", body, options);
+        return classifiedRequest(() => this.request("POST", "/privacy/erasures", body, options), "create_request_failed");
     }
-    list(options) {
-        return this.request("GET", "/privacy/erasures", undefined, options);
+    list(companySlug, options) {
+        return classifiedRequest(() => this.request("GET", `/privacy/erasures?companySlug=${encodeURIComponent(companySlug)}`, undefined, options), "list_request_failed");
     }
     get(companySlug, requestUuid, options) {
-        return this.request("GET", `/privacy/erasures/${encodeURIComponent(requestUuid)}?companySlug=${encodeURIComponent(companySlug)}`, undefined, options);
+        return classifiedRequest(() => this.request("GET", `/privacy/erasures/${encodeURIComponent(requestUuid)}?companySlug=${encodeURIComponent(companySlug)}`, undefined, options), "get_request_failed");
     }
     force(companySlug, requestUuid, options) {
-        return this.request("POST", `/privacy/erasures/${encodeURIComponent(requestUuid)}/force?companySlug=${encodeURIComponent(companySlug)}`, undefined, options);
+        return classifiedRequest(() => this.request("POST", `/privacy/erasures/${encodeURIComponent(requestUuid)}/force?companySlug=${encodeURIComponent(companySlug)}`, undefined, options), "force_request_failed");
     }
     async createAndWait(body, options = {}) {
         const created = await this.create(body, options);
@@ -49,11 +49,24 @@ export class PrivacyErasureClient {
                 const recovery = await this.force(companySlug, requestUuid, options);
                 forced = true;
                 if (recovery.safe_next_action) {
-                    throw new PrivacyErasureError("force_recovery_blocked", "non_retryable", `Custd privacy erasure recovery blocked (${recovery.safe_next_action_code || "unknown"})`);
+                    const retryable = recovery.safe_next_action === "retry";
+                    throw new PrivacyErasureError(retryable ? "force_recovery_retry" : "force_recovery_blocked", retryable ? "retryable" : "non_retryable", `Custd privacy erasure recovery blocked (${recovery.safe_next_action_code || "unknown"})`);
                 }
                 current = recovery.request;
             }
         }
         throw new PrivacyErasureError("poll_timeout", "retryable", "Custd privacy erasure did not complete within the polling limit");
+    }
+}
+async function classifiedRequest(request, code) {
+    try {
+        return await request();
+    }
+    catch (error) {
+        if (error instanceof PrivacyErasureError)
+            throw error;
+        const status = error?.problem?.status;
+        const retryable = typeof status !== "number" || status === 429 || status >= 500;
+        throw new PrivacyErasureError(code, retryable ? "retryable" : "non_retryable", `Custd privacy erasure request failed${typeof status === "number" ? ` (HTTP ${status})` : ""}`);
     }
 }

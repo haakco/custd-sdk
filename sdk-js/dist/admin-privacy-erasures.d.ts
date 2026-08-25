@@ -27,7 +27,7 @@ export type PrivacyErasureCreateRequest = {
     forceNow?: boolean;
 };
 export type PrivacyErasureListResponse = {
-    erasures: PrivacyErasure[];
+    requests: PrivacyErasure[];
 };
 export type PrivacyErasureState = {
     request?: PrivacyErasure;
@@ -51,7 +51,7 @@ export declare class PrivacyErasureClient {
     private readonly request;
     constructor(request: AdminRequester);
     create(body: PrivacyErasureCreateRequest, options?: RequestOptions): Promise<PrivacyErasure>;
-    list(options?: RequestOptions): Promise<PrivacyErasureListResponse>;
+    list(companySlug: string, options?: RequestOptions): Promise<PrivacyErasureListResponse>;
     get(companySlug: string, requestUuid: string, options?: RequestOptions): Promise<PrivacyErasure>;
     force(companySlug: string, requestUuid: string, options?: RequestOptions): Promise<PrivacyErasureState>;
     createAndWait(body: PrivacyErasureCreateRequest, options?: PrivacyErasureWaitOptions): Promise<PrivacyErasure>;
