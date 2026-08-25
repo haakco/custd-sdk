@@ -28,7 +28,7 @@ export class PrivacyErasureClient {
     }
     async createAndWait(body, options = {}) {
         const created = await this.create(body, options);
-        options.onProgress?.(created);
+        await options.onProgress?.(created);
         return this.waitForCompletion(body.companySlug, created.requestUuid, { ...options, initialRequest: created });
     }
     async waitForCompletion(companySlug, requestUuid, options = {}) {
@@ -41,7 +41,7 @@ export class PrivacyErasureClient {
                 if (pollIntervalMs > 0)
                     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
                 current = await this.get(companySlug, requestUuid, options);
-                options.onProgress?.(current);
+                await options.onProgress?.(current);
             }
             if (current.status === "s3_reflected")
                 return current;

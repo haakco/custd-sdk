@@ -37,7 +37,7 @@ export type PrivacyErasureState = {
 export type PrivacyErasureWaitOptions = RequestOptions & {
     maxPolls?: number;
     pollIntervalMs?: number;
-    onProgress?: (request: PrivacyErasure) => void;
+    onProgress?: (request: PrivacyErasure) => void | Promise<void>;
 };
 export type PrivacyErasureRetryClassification = "retryable" | "non_retryable";
 export declare class PrivacyErasureError extends Error {

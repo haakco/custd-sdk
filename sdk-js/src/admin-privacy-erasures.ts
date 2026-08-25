@@ -53,7 +53,7 @@ export type PrivacyErasureState = {
 export type PrivacyErasureWaitOptions = RequestOptions & {
   maxPolls?: number;
   pollIntervalMs?: number;
-  onProgress?: (request: PrivacyErasure) => void;
+  onProgress?: (request: PrivacyErasure) => void | Promise<void>;
 };
 
 export type PrivacyErasureRetryClassification = "retryable" | "non_retryable";
@@ -108,7 +108,7 @@ export class PrivacyErasureClient {
     options: PrivacyErasureWaitOptions = {},
   ): Promise<PrivacyErasure> {
     const created = await this.create(body, options);
-    options.onProgress?.(created);
+    await options.onProgress?.(created);
     return this.waitForCompletion(body.companySlug, created.requestUuid, { ...options, initialRequest: created });
   }
 
@@ -125,7 +125,7 @@ export class PrivacyErasureClient {
       if (!current || poll > 0 || options.initialRequest) {
         if (pollIntervalMs > 0) await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
         current = await this.get(companySlug, requestUuid, options);
-        options.onProgress?.(current);
+        await options.onProgress?.(current);
       }
       if (current.status === "s3_reflected") return current;
       if (current.status === "failed" && !forced) {

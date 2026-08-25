@@ -8,7 +8,7 @@ import { TenantStorageClient } from "./admin-tenant-storage.js";
 export { ClientSetupClient, } from "./admin-client-setup.js";
 export { OffboardingClient, } from "./admin-offboarding.js";
 export { PredictionAdminClient, } from "./admin-predictions.js";
-export { PrivacyErasureClient, } from "./admin-privacy-erasures.js";
+export { PrivacyErasureClient, PrivacyErasureError, } from "./admin-privacy-erasures.js";
 export { RetentionClient, } from "./admin-retention.js";
 export { SubjectExportClient, } from "./admin-subject-exports.js";
 export { TenantStorageClient, } from "./admin-tenant-storage.js";

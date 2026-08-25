@@ -63,10 +63,13 @@ export {
   type PrivacyErasure,
   PrivacyErasureClient,
   type PrivacyErasureCreateRequest,
+  PrivacyErasureError,
   type PrivacyErasureListResponse,
+  type PrivacyErasureRetryClassification,
   type PrivacyErasureSelector,
   type PrivacyErasureState,
   type PrivacyErasureStoreProgress,
+  type PrivacyErasureWaitOptions,
 } from "./admin-privacy-erasures.js";
 export {
   RetentionClient,

@@ -52,7 +52,13 @@ describe("PrivacyErasureClient", () => {
         reason: "account_deletion",
         redactionId: "tiao-job-map",
       },
-      { maxPolls: 4, pollIntervalMs: 0, onProgress: ({ status }) => progress.push(status) },
+      {
+        maxPolls: 4,
+        pollIntervalMs: 0,
+        onProgress: ({ status }) => {
+          progress.push(status);
+        },
+      },
     );
 
     expect(completed.status).toBe("s3_reflected");
