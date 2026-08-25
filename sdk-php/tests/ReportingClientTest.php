@@ -173,28 +173,30 @@ final class ReportingClientTest extends TestCase
     public function testQueryReturnsTrustDiagnostics(): void
     {
         $calls = [];
-        $client = $this->clientWithFixture("reporting-query-security-trust.json", $calls);
+        $client = $this->clientWithFixture("reporting-query-rendered.json", $calls);
 
         $request = $this->fixture("reporting-query-security.json");
         $widget = $client->reporting()->query($request);
 
-        self::assertSame(2, $widget["count"]);
-        self::assertTrue($widget["complete"]);
-        self::assertFalse($widget["truncated"]);
+        self::assertSame(50, $widget["value"]["value"]);
+        self::assertSame(50, $widget["value"]["sampleCount"]);
+        self::assertTrue($widget["value"]["complete"]);
+        self::assertFalse($widget["value"]["truncated"]);
         self::assertSame(42, $widget["queryDurationMs"]);
         self::assertSame(1, $widget["parquetUriCount"]);
         self::assertSame(120000, $widget["snapshotAgeMs"]);
         self::assertSame(8000, $widget["eventLagP95Ms"]);
-        self::assertSame(1, $widget["deltaCount"]);
+        self::assertSame(25, $widget["delta"]["value"]);
         self::assertSame(100, $widget["deltaPercent"]);
         self::assertSame("vs previous period", $widget["deltaLabel"]);
-        self::assertSame("reviewed events", $widget["secondaryLabel"]);
         self::assertSame("auto", $widget["buckets"][0]["source"]);
-        self::assertTrue($widget["buckets"][0]["complete"]);
+        self::assertTrue($widget["buckets"][0]["value"]["complete"]);
         self::assertSame(42, $widget["buckets"][0]["queryDurationMs"]);
         self::assertSame(1, $widget["buckets"][0]["parquetUriCount"]);
         self::assertSame("healthy", $widget["trust"]["status"]);
-        self::assertSame("healthy", $widget["trust"]["rollupState"]);
+        self::assertSame("complete", $widget["trust"]["rollupState"]);
+        self::assertSame("none", $widget["trust"]["retryability"]);
+        self::assertSame("none", $widget["trust"]["nextAction"]["action"]);
         self::assertSame("security-event/1.0.0", $widget["trust"]["schemaVersion"]);
         self::assertSame("complete", $widget["trust"]["coverage"]);
         self::assertSame("reporting.read", $widget["trust"]["permissionClass"]);
@@ -207,7 +209,7 @@ final class ReportingClientTest extends TestCase
     public function testQuerySerializesMaxRowsWithoutRowLimit(): void
     {
         $calls = [];
-        $client = $this->clientWithFixture("reporting-query-security-trust.json", $calls);
+        $client = $this->clientWithFixture("reporting-query-rendered.json", $calls);
         $request = $this->fixture("reporting-query-max-rows.json");
 
         $client->reporting()->query($request);

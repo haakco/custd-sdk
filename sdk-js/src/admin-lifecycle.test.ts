@@ -339,12 +339,31 @@ describe("OffboardingClient", () => {
 
     const receipt = await client.admin.offboarding.receipt("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
     expect(receipt.finalState).toBe("complete");
+    expect(receipt.requestedByActor).toBe("user:u_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    expect(receipt.requestedByUserId).toBe("u_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
     expect(receipt.sha256).not.toBe("");
     expect(receipt.perStore).toHaveLength(3);
     for (const row of receipt.perStore) {
       expect(row.store).not.toBe("");
       expect(row.retentionClass).not.toBe("");
     }
+  });
+
+  it("accepts a machine receipt without fabricating a user id", async () => {
+    const humanReceipt = readLifecycleFixture("offboarding", "valid-receipt-response.json") as Record<string, unknown>;
+    const machineReceipt = {
+      ...humanReceipt,
+      requestedByActor: "client:tiao-lifecycle",
+      requestedByUserId: null,
+    };
+    const { fetchMock } = bootstrapFetch(200, machineReceipt);
+    globalThis.fetch = fetchMock;
+    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
+
+    const receipt = await client.admin.offboarding.receipt("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+
+    expect(receipt.requestedByActor).toBe("client:tiao-lifecycle");
+    expect(receipt.requestedByUserId).toBeNull();
   });
 
   it("execute surfaces the waiver_required error without leaking the signed URL", async () => {

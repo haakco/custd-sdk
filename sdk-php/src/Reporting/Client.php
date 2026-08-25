@@ -77,9 +77,7 @@ final class Client
     public function query(array $query): array
     {
         $widget = $this->request("POST", "/api/v1/reporting/query", $query);
-        if (self::containsUnsafeTrustKey($widget["trust"] ?? null)) {
-            throw new \RuntimeException("custd: unsafe reporting trust diagnostics");
-        }
+        self::validateRenderedWidgetData($widget, "custd: reporting query response contains malformed rendered widget data");
         return $widget;
     }
 
@@ -235,31 +233,39 @@ final class Client
     /** @param array<string, mixed> $response */
     private static function validateSubjectInsightResponse(array $response): void
     {
-        $data = $response["data"] ?? null;
+        self::validateRenderedWidgetData(
+            $response["data"] ?? null,
+            "custd: subject insight response contains malformed rendered widget data",
+        );
+    }
+
+    /** @param mixed $data */
+    private static function validateRenderedWidgetData(mixed $data, string $message): void
+    {
         $required = ["buckets", "value", "queryDurationMs", "snapshotAgeMs", "eventLagP95Ms"];
         if (!is_array($data) || array_diff($required, array_keys($data)) !== []) {
-            throw new \RuntimeException("custd: subject insight response contains malformed rendered widget data");
+            throw new \RuntimeException($message);
         }
         if (!is_array($data["buckets"]) || !self::isRenderedMetricValue($data["value"])) {
-            throw new \RuntimeException("custd: subject insight response contains malformed rendered widget data");
+            throw new \RuntimeException($message);
         }
         foreach ($data["buckets"] as $bucket) {
             if (!is_array($bucket) || array_diff(["date", "value", "source", "queryDurationMs"], array_keys($bucket)) !== []
                 || !is_string($bucket["date"]) || !is_string($bucket["source"]) || !is_int($bucket["queryDurationMs"])
                 || !self::isRenderedMetricValue($bucket["value"])) {
-                throw new \RuntimeException("custd: subject insight response contains malformed rendered widget data");
+                throw new \RuntimeException($message);
             }
         }
         foreach (["queryDurationMs", "snapshotAgeMs", "eventLagP95Ms"] as $field) {
             if (!is_int($data[$field])) {
-                throw new \RuntimeException("custd: subject insight response contains malformed rendered widget data");
+                throw new \RuntimeException($message);
             }
         }
         if (self::containsUnsafeTrustKey($data["trust"] ?? null)) {
             throw new \RuntimeException("custd: unsafe reporting trust diagnostics");
         }
         if (!self::hasValidOptionalRenderedFields($data)) {
-            throw new \RuntimeException("custd: subject insight response contains malformed rendered widget data");
+            throw new \RuntimeException($message);
         }
     }
 
@@ -359,10 +365,13 @@ final class Client
         if (!is_array($value)) {
             return false;
         }
-        foreach (["status", "dataFreshness", "rollupState", "coverage", "captureState", "consentState", "exportState"] as $field) {
+        foreach (["status", "dataFreshness", "retryability", "rollupState", "coverage", "captureState", "consentState", "exportState"] as $field) {
             if (!is_string($value[$field] ?? null)) {
                 return false;
             }
+        }
+        if (!self::isReportingNextAction($value["nextAction"] ?? null)) {
+            return false;
         }
         if (!self::hasOptionalStringFields(
             $value,
@@ -374,6 +383,14 @@ final class Client
         return !array_key_exists("queryWarnings", $value)
             || is_array($value["queryWarnings"])
             && array_filter($value["queryWarnings"], fn (mixed $item): bool => !is_string($item)) === [];
+    }
+
+    private static function isReportingNextAction(mixed $value): bool
+    {
+        return is_array($value)
+            && is_string($value["action"] ?? null)
+            && (!array_key_exists("pollAfterSeconds", $value) || is_int($value["pollAfterSeconds"]))
+            && (!array_key_exists("maxRetries", $value) || is_int($value["maxRetries"]));
     }
 
     /**

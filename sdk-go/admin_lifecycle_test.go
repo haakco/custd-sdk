@@ -440,6 +440,12 @@ func TestOffboarding_FullLifecycle(t *testing.T) {
 	if receipt.FinalState != "complete" {
 		t.Fatalf("receipt.FinalState = %q", receipt.FinalState)
 	}
+	if receipt.RequestedByActor != "user:u_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ" {
+		t.Fatalf("receipt.RequestedByActor = %q", receipt.RequestedByActor)
+	}
+	if receipt.RequestedByUserID == nil || *receipt.RequestedByUserID != "u_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ" {
+		t.Fatalf("receipt.RequestedByUserID = %v", receipt.RequestedByUserID)
+	}
 	if receipt.SHA256 == "" {
 		t.Fatalf("receipt.SHA256 empty")
 	}
@@ -450,6 +456,28 @@ func TestOffboarding_FullLifecycle(t *testing.T) {
 		if row.Store == "" || row.RetentionClass == "" {
 			t.Fatalf("incomplete perStore row: %+v", row)
 		}
+	}
+
+	machineReceipt := map[string]any{}
+	if err := json.Unmarshal([]byte(doer.body), &machineReceipt); err != nil {
+		t.Fatalf("decode receipt fixture: %v", err)
+	}
+	machineReceipt["requestedByActor"] = "client:tiao-lifecycle"
+	machineReceipt["requestedByUserId"] = nil
+	machineBody, err := json.Marshal(machineReceipt)
+	if err != nil {
+		t.Fatalf("encode machine receipt fixture: %v", err)
+	}
+	doer.body = string(machineBody)
+	machine, err := client.Admin.Offboarding.Receipt(context.Background(), "ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ")
+	if err != nil {
+		t.Fatalf("machine Receipt error: %v", err)
+	}
+	if machine.RequestedByActor != "client:tiao-lifecycle" {
+		t.Fatalf("machine.RequestedByActor = %q", machine.RequestedByActor)
+	}
+	if machine.RequestedByUserID != nil {
+		t.Fatalf("machine.RequestedByUserID = %q, want nil", *machine.RequestedByUserID)
 	}
 }
 

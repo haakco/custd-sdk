@@ -3,9 +3,8 @@ import invalidSubjectInsightRequestFixture from "../../contract-fixtures/invalid
 import invalidSubjectInsightResponseFixture from "../../contract-fixtures/invalid-reporting-subject-insight-response.json";
 import dashboardFixture from "../../contract-fixtures/reporting-dashboard-security.json";
 import maxRowsRequestFixture from "../../contract-fixtures/reporting-query-max-rows.json";
+import renderedQueryFixture from "../../contract-fixtures/reporting-query-rendered.json";
 import requestFixture from "../../contract-fixtures/reporting-query-security.json";
-import trustFixture from "../../contract-fixtures/reporting-query-security-trust.json";
-import unsafeTrustFixture from "../../contract-fixtures/reporting-query-unsafe-trust.json";
 import subjectInsightDateRangeRequestFixture from "../../contract-fixtures/reporting-subject-insight-date-range-request.json";
 import subjectInsightRequestFixture from "../../contract-fixtures/reporting-subject-insight-request.json";
 import subjectInsightResponseFixture from "../../contract-fixtures/reporting-subject-insight-response.json";
@@ -160,34 +159,33 @@ describe("reporting helpers", () => {
   });
 
   it("runs a reporting query and returns trust diagnostics", async () => {
-    const fetchImpl = mockFetch(trustFixture);
+    const fetchImpl = mockFetch(renderedQueryFixture);
     const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
 
     const request: ReportingQueryRequest = requestFixture;
     const widget = await client.reporting.query(request);
 
     expect(widget).toMatchObject({
-      count: 2,
-      complete: true,
-      truncated: false,
+      value: { value: 50, unit: "count", complete: true },
       queryDurationMs: 42,
       parquetUriCount: 1,
       snapshotAgeMs: 120000,
       eventLagP95Ms: 8000,
-      deltaCount: 1,
+      delta: { value: 25, unit: "count" },
       deltaPercent: 100,
       deltaLabel: "vs previous period",
-      secondaryLabel: "reviewed events",
     });
     expect(widget.buckets[0]).toMatchObject({
       source: "auto",
-      complete: true,
+      value: { value: 50, complete: true },
       queryDurationMs: 42,
       parquetUriCount: 1,
     });
     expect(widget.trust).toMatchObject({
       status: "healthy",
-      rollupState: "healthy",
+      rollupState: "complete",
+      retryability: "none",
+      nextAction: { action: "none" },
       schemaVersion: "security-event/1.0.0",
       coverage: "complete",
       permissionClass: "reporting.read",
@@ -198,7 +196,7 @@ describe("reporting helpers", () => {
   });
 
   it("serializes maxRows without the removed rowLimit field", async () => {
-    const fetchImpl = mockFetch(trustFixture);
+    const fetchImpl = mockFetch(renderedQueryFixture);
     const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
 
     await client.reporting.query(maxRowsRequestFixture);
@@ -210,10 +208,17 @@ describe("reporting helpers", () => {
   });
 
   it("rejects unsafe reporting trust diagnostics", async () => {
+    const unsafeResponse = {
+      ...renderedQueryFixture,
+      trust: {
+        ...renderedQueryFixture.trust,
+        rawPayload: { email: "person@example.com" },
+      },
+    };
     const client = new CustdClient({
       baseUrl: "http://localhost:8080",
       getToken: () => "token",
-      fetch: mockFetch(unsafeTrustFixture),
+      fetch: mockFetch(unsafeResponse),
     });
 
     let thrown: unknown;

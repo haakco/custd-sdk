@@ -12,6 +12,7 @@ export { type PrivacyErasure, PrivacyErasureClient, type PrivacyErasureCreateReq
 export { RetentionClient, type RetentionPolicy, type RetentionPolicyListResponse, type RetentionPolicyUpsertRequest, type RetentionRun, type RetentionRunDeletion, type RetentionRunPreview, type RetentionRunsListResponse, } from "./admin-retention.js";
 export { type SubjectExport, SubjectExportClient, type SubjectExportCreateRequest, type SubjectExportDownloadResponse, type SubjectExportListResponse, type SubjectExportState, type SubjectExportSubject, } from "./admin-subject-exports.js";
 export { TenantStorageClient, type TenantStorageCreateRequest, type TenantStorageListResponse, type TenantStorageLocation, } from "./admin-tenant-storage.js";
+export { classifyReportingData, getReportingViewState, type ReportingDataState, type ReportingQueryState, type ReportingViewState, reportingQueryKey, } from "./reporting-state.js";
 export { checkRuntimeReadiness, type RuntimeReadinessCredentialResult, type RuntimeReadinessOAuthConfig, type RuntimeReadinessOptions, type RuntimeReadinessResult, } from "./runtime-readiness.js";
 export type EventContext = {
     page?: {
@@ -711,6 +712,8 @@ export type ReportingWidget = {
     dimensions?: string[];
 };
 export type ReportingQueryRequest = {
+    dashboardKey?: string;
+    widgetKey?: string;
     template: string;
     metrics: string[];
     dimensions?: string[];
@@ -720,6 +723,7 @@ export type ReportingQueryRequest = {
     rangeDays?: number;
     maxRows?: number;
     countOnly?: boolean;
+    comparison?: "previous_period" | "previous_year";
 };
 export type ReportingFilter = {
     dimension: string;
@@ -751,10 +755,13 @@ export type RenderedWidgetData = {
     deltaLabel?: string;
     secondaryLabel?: string;
     trust?: RenderedReportingTrust;
+    visual?: unknown;
 };
 export type RenderedReportingTrust = {
     status: string;
     dataFreshness: string;
+    retryability: "none" | "bounded" | string;
+    nextAction: ReportingNextActionHint;
     lastExport?: string;
     schemaVersion?: string;
     contractVersion?: string;
@@ -767,6 +774,12 @@ export type RenderedReportingTrust = {
     exportState: string;
     partialReason?: string;
     unavailableReason?: string;
+};
+export type ReportingNextAction = "none" | "poll" | "retry" | "rotate" | "escalate" | string;
+export type ReportingNextActionHint = {
+    action: ReportingNextAction;
+    pollAfterSeconds?: number;
+    maxRetries?: number;
 };
 export type RenderedWidgetBucket = {
     date: string;
@@ -801,48 +814,8 @@ export type ReportingSourceSummary = {
     coverageEnd?: string;
     completeness: string;
 };
-export type ReportingWidgetData = {
-    buckets: ReportingWidgetBucket[];
-    count: number;
-    complete: boolean;
-    truncated: boolean;
-    queryDurationMs: number;
-    parquetUriCount?: number;
-    snapshotAgeMs?: number;
-    eventLagP95Ms?: number;
-    deltaCount?: number;
-    deltaPercent?: number;
-    deltaLabel?: string;
-    secondaryLabel?: string;
-    trust?: ReportingTrust;
-};
-export type ReportingWidgetBucket = {
-    date: string;
-    count: number;
-    source: string;
-    complete: boolean;
-    queryDurationMs?: number;
-    parquetUriCount?: number;
-    message?: string;
-    secondaryCount?: number;
-};
-export type ReportingTrust = {
-    status: string;
-    dataFreshness: string;
-    lastAwthyExport?: string;
-    schemaVersion?: string;
-    contractVersion?: string;
-    rollupState: string;
-    queryWarnings?: string[];
-    coverage: string;
-    permissionClass?: string;
-    dataSufficiency: string;
-    captureState: string;
-    consentState: string;
-    exportState: string;
-    partialReason?: string;
-    unavailableReason?: string;
-};
+export type ReportingWidgetData = RenderedWidgetData;
+export type ReportingTrust = RenderedReportingTrust;
 export declare class MemoryQueueStorage implements QueueStorage {
     private events;
     load(): EventEnvelope[];
@@ -958,7 +931,7 @@ declare class ReportingNamespace {
     outputs(options?: RequestOptions): Promise<PreparedDataOutputList>;
     output(outputUuid: string, options?: RequestOptions): Promise<PreparedDataOutputStatus>;
     queryOutput(outputUuid: string, request: ReportingQueryRequest, options?: RequestOptions): Promise<PreparedDataQueryEnvelope>;
-    query(request: ReportingQueryRequest, options?: RequestOptions): Promise<ReportingWidgetData>;
+    query(request: ReportingQueryRequest, options?: RequestOptions): Promise<RenderedWidgetData>;
     subjectInsight(request: SubjectInsightRequest, options?: RequestOptions): Promise<SubjectInsightResponse>;
 }
 declare class SchemaNamespace {

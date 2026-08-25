@@ -97,6 +97,14 @@ export {
   type TenantStorageLocation,
 } from "./admin-tenant-storage.js";
 export {
+  classifyReportingData,
+  getReportingViewState,
+  type ReportingDataState,
+  type ReportingQueryState,
+  type ReportingViewState,
+  reportingQueryKey,
+} from "./reporting-state.js";
+export {
   checkRuntimeReadiness,
   type RuntimeReadinessCredentialResult,
   type RuntimeReadinessOAuthConfig,
@@ -919,6 +927,8 @@ export type ReportingWidget = {
 };
 
 export type ReportingQueryRequest = {
+  dashboardKey?: string;
+  widgetKey?: string;
   template: string;
   metrics: string[];
   dimensions?: string[];
@@ -928,6 +938,7 @@ export type ReportingQueryRequest = {
   rangeDays?: number;
   maxRows?: number;
   countOnly?: boolean;
+  comparison?: "previous_period" | "previous_year";
 };
 
 export type ReportingFilter = {
@@ -963,11 +974,14 @@ export type RenderedWidgetData = {
   deltaLabel?: string;
   secondaryLabel?: string;
   trust?: RenderedReportingTrust;
+  visual?: unknown;
 };
 
 export type RenderedReportingTrust = {
   status: string;
   dataFreshness: string;
+  retryability: "none" | "bounded" | string;
+  nextAction: ReportingNextActionHint;
   lastExport?: string;
   schemaVersion?: string;
   contractVersion?: string;
@@ -980,6 +994,14 @@ export type RenderedReportingTrust = {
   exportState: string;
   partialReason?: string;
   unavailableReason?: string;
+};
+
+export type ReportingNextAction = "none" | "poll" | "retry" | "rotate" | "escalate" | string;
+
+export type ReportingNextActionHint = {
+  action: ReportingNextAction;
+  pollAfterSeconds?: number;
+  maxRetries?: number;
 };
 
 export type RenderedWidgetBucket = {
@@ -1019,50 +1041,8 @@ export type ReportingSourceSummary = {
   completeness: string;
 };
 
-export type ReportingWidgetData = {
-  buckets: ReportingWidgetBucket[];
-  count: number;
-  complete: boolean;
-  truncated: boolean;
-  queryDurationMs: number;
-  parquetUriCount?: number;
-  snapshotAgeMs?: number;
-  eventLagP95Ms?: number;
-  deltaCount?: number;
-  deltaPercent?: number;
-  deltaLabel?: string;
-  secondaryLabel?: string;
-  trust?: ReportingTrust;
-};
-
-export type ReportingWidgetBucket = {
-  date: string;
-  count: number;
-  source: string;
-  complete: boolean;
-  queryDurationMs?: number;
-  parquetUriCount?: number;
-  message?: string;
-  secondaryCount?: number;
-};
-
-export type ReportingTrust = {
-  status: string;
-  dataFreshness: string;
-  lastAwthyExport?: string;
-  schemaVersion?: string;
-  contractVersion?: string;
-  rollupState: string;
-  queryWarnings?: string[];
-  coverage: string;
-  permissionClass?: string;
-  dataSufficiency: string;
-  captureState: string;
-  consentState: string;
-  exportState: string;
-  partialReason?: string;
-  unavailableReason?: string;
-};
+export type ReportingWidgetData = RenderedWidgetData;
+export type ReportingTrust = RenderedReportingTrust;
 
 function publicAdminSite(site: AdminSite & { writeKey?: unknown }): AdminSite {
   const { writeKey: _writeKey, ...safeSite } = site;
@@ -1638,8 +1618,11 @@ class ReportingNamespace {
     return this.request("POST", `/reporting/outputs/${encodeURIComponent(outputUuid)}/query`, request, options);
   }
 
-  async query(request: ReportingQueryRequest, options?: RequestOptions): Promise<ReportingWidgetData> {
-    const data = await this.request<ReportingWidgetData>("POST", "/reporting/query", request, options);
+  async query(request: ReportingQueryRequest, options?: RequestOptions): Promise<RenderedWidgetData> {
+    const data = await this.request<RenderedWidgetData>("POST", "/reporting/query", request, options);
+    if (!isRenderedWidgetData(data)) {
+      throw new Error("custd: invalid reporting query response");
+    }
     if (data.trust && containsForbiddenReportingTrustKey(data.trust)) {
       throw new Error("custd: unsafe reporting trust diagnostics");
     }
@@ -1803,6 +1786,8 @@ function isRenderedReportingTrust(value: unknown): value is RenderedReportingTru
     isRecord(value) &&
     typeof value.status === "string" &&
     typeof value.dataFreshness === "string" &&
+    typeof value.retryability === "string" &&
+    isReportingNextActionHint(value.nextAction) &&
     isOptionalString(value.lastExport) &&
     isOptionalString(value.schemaVersion) &&
     isOptionalString(value.contractVersion) &&
@@ -1815,6 +1800,15 @@ function isRenderedReportingTrust(value: unknown): value is RenderedReportingTru
     typeof value.exportState === "string" &&
     isOptionalString(value.partialReason) &&
     isOptionalString(value.unavailableReason)
+  );
+}
+
+function isReportingNextActionHint(value: unknown): value is ReportingNextActionHint {
+  return (
+    isRecord(value) &&
+    typeof value.action === "string" &&
+    isOptionalInteger(value.pollAfterSeconds) &&
+    isOptionalInteger(value.maxRetries)
   );
 }
 

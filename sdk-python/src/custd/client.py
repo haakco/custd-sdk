@@ -39,6 +39,25 @@ SubjectInsightRequest = TypedDict(
 )
 
 
+ReportingQueryRequest = TypedDict(
+    "ReportingQueryRequest",
+    {
+        "template": str,
+        "metrics": list[str],
+        "dashboardKey": NotRequired[str],
+        "widgetKey": NotRequired[str],
+        "dimensions": NotRequired[list[str]],
+        "filters": NotRequired[list[dict[str, str]]],
+        "from": NotRequired[str],
+        "to": NotRequired[str],
+        "rangeDays": NotRequired[int],
+        "maxRows": NotRequired[int],
+        "countOnly": NotRequired[bool],
+        "comparison": NotRequired[str],
+    },
+)
+
+
 class RenderedMetricValue(TypedDict):
     value: float
     unit: str
@@ -79,6 +98,8 @@ class ReportingSourceSummary(TypedDict):
 class RenderedReportingTrust(TypedDict):
     status: str
     dataFreshness: str
+    retryability: str
+    nextAction: dict[str, Any]
     rollupState: str
     coverage: str
     captureState: str
@@ -615,11 +636,12 @@ class ReportingClient:
             raise ValueError("custd: report export download exceeds 64 MiB")
         return data
 
-    def query(self, request: dict[str, Any]) -> TransportResult:
-        widget = self._request("POST", "/reporting/query", request)
+    def query(self, request: ReportingQueryRequest) -> RenderedWidgetData:
+        widget = self._request("POST", "/reporting/query", dict(request))
         if contains_unsafe_reporting_trust_key(widget.get("trust")):
             raise ValueError("custd: unsafe reporting trust diagnostics")
-        return widget
+        validate_rendered_widget_data(widget)
+        return cast(RenderedWidgetData, widget)
 
     def subject_insight(self, request: SubjectInsightRequest) -> SubjectInsightResponse:
         validate_subject_insight_request(request)
@@ -1093,22 +1115,31 @@ def validate_subject_insight_request(request: Mapping[str, Any]) -> None:
 
 def validate_subject_insight_response(response: dict[str, Any]) -> None:
     data = response.get("data")
+    try:
+        validate_rendered_widget_data(data)
+    except ValueError as error:
+        if str(error) == "custd: unsafe reporting trust diagnostics":
+            raise
+        raise ValueError("custd: subject insight response contains malformed rendered widget data") from error
+
+
+def validate_rendered_widget_data(data: Any) -> None:
     required = {"buckets", "value", "queryDurationMs", "snapshotAgeMs", "eventLagP95Ms"}
     if not isinstance(data, dict) or not required.issubset(data):
-        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+        raise ValueError("custd: rendered widget data is malformed")
     if not isinstance(data["buckets"], list) or not _is_rendered_metric_value(data["value"]):
-        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+        raise ValueError("custd: rendered widget data is malformed")
     if not all(_is_rendered_widget_bucket(bucket) for bucket in data["buckets"]):
-        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+        raise ValueError("custd: rendered widget data is malformed")
     if not all(
         isinstance(data[key], int) and not isinstance(data[key], bool)
         for key in ("queryDurationMs", "snapshotAgeMs", "eventLagP95Ms")
     ):
-        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+        raise ValueError("custd: rendered widget data is malformed")
     if contains_unsafe_reporting_trust_key(data.get("trust")):
         raise ValueError("custd: unsafe reporting trust diagnostics")
     if not _has_valid_optional_rendered_fields(data):
-        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+        raise ValueError("custd: rendered widget data is malformed")
 
 
 def _is_rendered_metric_value(value: Any) -> bool:
@@ -1205,19 +1236,38 @@ def _is_reporting_source(value: Any) -> bool:
 
 
 def _is_reporting_trust(value: Any) -> bool:
-    required = ("status", "dataFreshness", "rollupState", "coverage", "captureState", "consentState", "exportState")
+    required_strings = (
+        "status",
+        "dataFreshness",
+        "retryability",
+        "rollupState",
+        "coverage",
+        "captureState",
+        "consentState",
+        "exportState",
+    )
     optional_strings = (
         "lastExport", "schemaVersion", "contractVersion", "permissionClass", "partialReason", "unavailableReason"
     )
     return (
         isinstance(value, dict)
-        and all(isinstance(value.get(field), str) for field in required)
+        and all(isinstance(value.get(field), str) for field in required_strings)
+        and _is_reporting_next_action_hint(value["nextAction"])
         and all(field not in value or isinstance(value[field], str) for field in optional_strings)
         and (
             "queryWarnings" not in value
             or isinstance(value["queryWarnings"], list)
             and all(isinstance(item, str) for item in value["queryWarnings"])
         )
+    )
+
+
+def _is_reporting_next_action_hint(value: Any) -> bool:
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("action"), str)
+        and ("pollAfterSeconds" not in value or _is_int(value["pollAfterSeconds"]))
+        and ("maxRetries" not in value or _is_int(value["maxRetries"]))
     )
 
 

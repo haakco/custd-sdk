@@ -166,29 +166,31 @@ class ReportingClientTest(unittest.TestCase):
         )
 
     def test_reporting_query_returns_trust_diagnostics(self) -> None:
-        transport = FakeTransport(fixture("reporting-query-security-trust.json"))
+        transport = FakeTransport(fixture("reporting-query-rendered.json"))
         client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
 
         request = fixture("reporting-query-security.json")
         widget = client.reporting.query(request)
 
-        self.assertEqual(2, widget["count"])
-        self.assertTrue(widget["complete"])
-        self.assertFalse(widget["truncated"])
+        self.assertEqual(50, widget["value"]["value"])
+        self.assertEqual(50, widget["value"]["sampleCount"])
+        self.assertTrue(widget["value"]["complete"])
+        self.assertFalse(widget["value"]["truncated"])
         self.assertEqual(42, widget["queryDurationMs"])
         self.assertEqual(1, widget["parquetUriCount"])
         self.assertEqual(120000, widget["snapshotAgeMs"])
         self.assertEqual(8000, widget["eventLagP95Ms"])
-        self.assertEqual(1, widget["deltaCount"])
+        self.assertEqual(25, widget["delta"]["value"])
         self.assertEqual(100, widget["deltaPercent"])
         self.assertEqual("vs previous period", widget["deltaLabel"])
-        self.assertEqual("reviewed events", widget["secondaryLabel"])
         self.assertEqual("auto", widget["buckets"][0]["source"])
-        self.assertTrue(widget["buckets"][0]["complete"])
+        self.assertTrue(widget["buckets"][0]["value"]["complete"])
         self.assertEqual(42, widget["buckets"][0]["queryDurationMs"])
         self.assertEqual(1, widget["buckets"][0]["parquetUriCount"])
         self.assertEqual("healthy", widget["trust"]["status"])
-        self.assertEqual("healthy", widget["trust"]["rollupState"])
+        self.assertEqual("complete", widget["trust"]["rollupState"])
+        self.assertEqual("none", widget["trust"]["retryability"])
+        self.assertEqual("none", widget["trust"]["nextAction"]["action"])
         self.assertEqual("security-event/1.0.0", widget["trust"]["schemaVersion"])
         self.assertEqual("complete", widget["trust"]["coverage"])
         self.assertEqual("reporting.read", widget["trust"]["permissionClass"])
@@ -199,7 +201,7 @@ class ReportingClientTest(unittest.TestCase):
         self.assertEqual(request, request_body)
 
     def test_reporting_query_serializes_max_rows_without_row_limit(self) -> None:
-        transport = FakeTransport(fixture("reporting-query-security-trust.json"))
+        transport = FakeTransport(fixture("reporting-query-rendered.json"))
         client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
         request = fixture("reporting-query-max-rows.json")
 

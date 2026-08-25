@@ -870,7 +870,8 @@ type OffboardingReceiptResponse struct {
 	RequestUUID       string                       `json:"requestUuid"`
 	TenantSlug        string                       `json:"tenantSlug"`
 	FinalState        string                       `json:"finalState"`
-	RequestedByUserID string                       `json:"requestedByUserId,omitempty"`
+	RequestedByActor  string                       `json:"requestedByActor"`
+	RequestedByUserID *string                      `json:"requestedByUserId,omitempty"`
 	RequestedAt       string                       `json:"requestedAt,omitempty"`
 	CompletedAt       string                       `json:"completedAt,omitempty"`
 	PerStore          []OffboardingReceiptPerStore `json:"perStore"`

@@ -12,6 +12,7 @@ export { PrivacyErasureClient, PrivacyErasureError, } from "./admin-privacy-eras
 export { RetentionClient, } from "./admin-retention.js";
 export { SubjectExportClient, } from "./admin-subject-exports.js";
 export { TenantStorageClient, } from "./admin-tenant-storage.js";
+export { classifyReportingData, getReportingViewState, reportingQueryKey, } from "./reporting-state.js";
 export { checkRuntimeReadiness, } from "./runtime-readiness.js";
 export { createMobileAsyncQueueStorage, createMobileFlushTriggers, } from "./mobile-adapter.js";
 export { createMobileEvent, } from "./mobile-context.js";
@@ -456,6 +457,9 @@ class ReportingNamespace {
     }
     async query(request, options) {
         const data = await this.request("POST", "/reporting/query", request, options);
+        if (!isRenderedWidgetData(data)) {
+            throw new Error("custd: invalid reporting query response");
+        }
         if (data.trust && containsForbiddenReportingTrustKey(data.trust)) {
             throw new Error("custd: unsafe reporting trust diagnostics");
         }
@@ -598,6 +602,8 @@ function isRenderedReportingTrust(value) {
     return (isRecord(value) &&
         typeof value.status === "string" &&
         typeof value.dataFreshness === "string" &&
+        typeof value.retryability === "string" &&
+        isReportingNextActionHint(value.nextAction) &&
         isOptionalString(value.lastExport) &&
         isOptionalString(value.schemaVersion) &&
         isOptionalString(value.contractVersion) &&
@@ -610,6 +616,12 @@ function isRenderedReportingTrust(value) {
         typeof value.exportState === "string" &&
         isOptionalString(value.partialReason) &&
         isOptionalString(value.unavailableReason));
+}
+function isReportingNextActionHint(value) {
+    return (isRecord(value) &&
+        typeof value.action === "string" &&
+        isOptionalInteger(value.pollAfterSeconds) &&
+        isOptionalInteger(value.maxRetries));
 }
 function isFiniteNumber(value) {
     return typeof value === "number" && Number.isFinite(value);

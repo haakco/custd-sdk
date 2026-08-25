@@ -39,6 +39,39 @@ const insight = await client.reporting.subjectInsight({
 console.log(insight.data.value.value);
 ```
 
+`reporting.query()` returns the server-rendered `RenderedWidgetData` contract.
+It includes the summary value, bounded buckets, comparison values, and safe
+trust diagnostics; clients do not need to rebuild aggregation or freshness
+rules. Use the dependency-free state helpers when adapting a query library or
+UI:
+
+```ts
+import {
+  getReportingViewState,
+  reportingQueryKey,
+} from "@haakco/custd-sdk";
+
+const request = {
+  template: "security_events",
+  metrics: ["event_count"],
+  rangeDays: 7,
+};
+const queryKey = reportingQueryKey(request);
+const widget = await client.reporting.query(request);
+const view = getReportingViewState({
+  status: "success",
+  data: widget,
+});
+```
+
+The view state preserves previous data while a refresh or bounded retry is in
+flight and distinguishes `empty`, `ready`, `stale`, `partial`,
+`stale_partial`, and `unavailable`. A React application owns placement,
+wording, and theme; it should pass this state to a reusable display component
+instead of adding its own polling, cache, aggregation, or recovery rules. The
+SDK deliberately has no React dependency, so the same state model can be used
+by web, native, and server consumers.
+
 ## Go
 
 ```go

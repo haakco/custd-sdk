@@ -88,7 +88,8 @@ export type OffboardingReceiptResponse = {
     requestUuid: string;
     tenantSlug: string;
     finalState: string;
-    requestedByUserId?: string;
+    requestedByActor: string;
+    requestedByUserId?: string | null;
     requestedAt?: string;
     completedAt?: string;
     perStore: OffboardingReceiptPerStore[];
