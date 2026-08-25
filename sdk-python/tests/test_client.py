@@ -344,6 +344,17 @@ class CustdClientTest(unittest.TestCase):
             },
         )
 
+    def test_allows_plaintext_docker_host_gateway_urls(self):
+        CustdClient(
+            base_url="http://host.docker.internal:4456",
+            oauth={
+                "client_id": "producer",
+                "client_secret": "secret",
+                "token_url": "http://host.docker.internal:4444/oauth2/token",
+                "transport": lambda url, form, timeout: {"access_token": "token", "expires_in": 300},
+            },
+        )
+
 
 class RfcProblemErrorTest(unittest.TestCase):
     def setUp(self):

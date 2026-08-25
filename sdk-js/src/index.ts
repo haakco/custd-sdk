@@ -2580,7 +2580,9 @@ function assertSecureOrLocalHTTP(rawUrl: string, field: string): void {
 }
 
 function isLocalHostname(hostname: string): boolean {
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  return (
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "host.docker.internal"
+  );
 }
 
 export function normalizeRetryOptions(options?: RetryOptions): Required<RetryOptions> {

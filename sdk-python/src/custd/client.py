@@ -1240,7 +1240,12 @@ def assert_secure_or_local_http(raw_url: str, field: str) -> None:
     parsed = urllib.parse.urlparse(raw_url)
     if parsed.scheme == "https":
         return
-    if parsed.scheme == "http" and parsed.hostname in ("localhost", "127.0.0.1", "::1"):
+    if parsed.scheme == "http" and parsed.hostname in (
+        "localhost",
+        "127.0.0.1",
+        "::1",
+        "host.docker.internal",
+    ):
         return
     raise ValueError(f"custd: {field} must use https unless it targets localhost")
 

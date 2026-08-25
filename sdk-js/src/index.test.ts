@@ -476,6 +476,20 @@ describe("CustdClient", () => {
         }),
     ).not.toThrow();
   });
+
+  it("allows plaintext Docker host gateway URLs for local container development", () => {
+    expect(
+      () =>
+        new CustdClient({
+          baseUrl: "http://host.docker.internal:4456",
+          oauth: {
+            clientId: "producer",
+            clientSecret: "secret",
+            tokenUrl: "http://host.docker.internal:4444/oauth2/token",
+          },
+        }),
+    ).not.toThrow();
+  });
 });
 
 function loadFixture(name: string): EventEnvelope {

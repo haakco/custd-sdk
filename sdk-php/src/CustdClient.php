@@ -1014,7 +1014,7 @@ final class CustdClient
         if ($scheme === "https") {
             return;
         }
-        if ($scheme === "http" && in_array($host, ["localhost", "127.0.0.1", "::1"], true)) {
+        if ($scheme === "http" && in_array($host, ["localhost", "127.0.0.1", "::1", "host.docker.internal"], true)) {
             return;
         }
         throw new \InvalidArgumentException("custd: {$field} must use https unless it targets localhost");
