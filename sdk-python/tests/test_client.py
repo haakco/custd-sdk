@@ -62,6 +62,27 @@ class CustdClientTest(unittest.TestCase):
     def test_validate_event_accepts_canonical_dogfood_fixture(self):
         validate_event(load_fixture("valid-dogfood-event.json"))
 
+    def test_validate_event_accepts_canonical_labelled_fixture(self):
+        validate_event(load_fixture("valid-labelled-event.json"))
+
+    def test_validate_event_rejects_invalid_label_shapes_and_server_fields(self):
+        cases = [
+            {f"app.key{i}": "ok" for i in range(17)},
+            {"App Plan": "paid"},
+            {"a." + "b" * 63: "paid"},
+            {"custd.internal": "reserved"},
+            {"app.plan": ""},
+            {"app.plan": " paid "},
+            {"app.plan": "é" * 65},
+        ]
+        for labels in cases:
+            with self.subTest(labels=labels), self.assertRaisesRegex(ValidationError, "labels"):
+                validate_event({**self.base_event, "labels": labels})
+        with self.assertRaisesRegex(ValidationError, "labels"):
+            validate_event({**self.base_event, "labels": None})
+        with self.assertRaisesRegex(ValidationError, "server-owned"):
+            validate_event({**self.base_event, "resolvedLabels": [], "vocabularyFingerprint": "server"})
+
     def test_create_dogfood_event_builds_canonical_shape(self):
         event = create_dogfood_event({
             "eventTypeSlug": "dogfood.producer.metric",
@@ -134,12 +155,13 @@ class CustdClientTest(unittest.TestCase):
             transport=transport,
         )
 
-        client.track({**self.base_event, "eventUuid": "evt-1"})
+        client.track({**self.base_event, "eventUuid": "evt-1", "labels": {"app.plan": "paid"}})
         client.track({**self.base_event, "eventUuid": "evt-2"})
 
         self.assertEqual(1, len(transport.calls))
         self.assertEqual("http://localhost:8080/api/v1/events/batch", transport.calls[0]["url"])
         self.assertEqual(2, len(transport.calls[0]["event"]["events"]))
+        self.assertEqual({"app.plan": "paid"}, transport.calls[0]["event"]["events"][0]["labels"])
 
     def test_flush_requeues_and_reports_failed_send(self):
         storage = MemoryQueueStorage()

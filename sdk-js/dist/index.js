@@ -1,9 +1,11 @@
+import { DataLabelAdminClient } from "./admin-data-labels.js";
 import { OffboardingClient } from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+export { DataLabelAdminClient, } from "./admin-data-labels.js";
 export { OffboardingClient, } from "./admin-offboarding.js";
 export { PredictionAdminClient, } from "./admin-predictions.js";
 export { PrivacyErasureClient, } from "./admin-privacy-erasures.js";
@@ -654,6 +656,7 @@ class SchemaNamespace {
 }
 class AdminNamespace {
     constructor(request, nonAdminRequest) {
+        this.dataLabels = new DataLabelAdminClient(request);
         this.tenants = new AdminTenantNamespace(request);
         this.oauthClients = new AdminOAuthClientNamespace(request);
         this.sites = new AdminSiteNamespace(request);
@@ -994,6 +997,32 @@ export function validateEvent(event) {
     if (missing.length > 0) {
         throw new Error(`custd: missing required fields: ${missing.join(", ")}`);
     }
+    validateProducerLabels(event);
+}
+const labelKeyPattern = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
+function validateProducerLabels(event) {
+    if ("resolvedLabels" in event || "vocabularyFingerprint" in event) {
+        throw new Error("custd: server-owned label fields are not accepted");
+    }
+    if (event.labels === undefined)
+        return;
+    if (event.labels === null || typeof event.labels !== "object" || Array.isArray(event.labels)) {
+        throw new Error("custd: labels must be an object of strings");
+    }
+    const entries = Object.entries(event.labels);
+    if (entries.length > 16)
+        throw new Error("custd: labels may contain at most 16 entries");
+    for (const [key, value] of entries) {
+        if (!labelKeyPattern.test(key) || utf8Bytes(key) > 64 || key.startsWith("custd.")) {
+            throw new Error(`custd: labels.${key} has an invalid key`);
+        }
+        if (typeof value !== "string" || value === "" || value !== value.trim() || utf8Bytes(value) > 128) {
+            throw new Error(`custd: labels.${key} has an invalid value`);
+        }
+    }
+}
+function utf8Bytes(value) {
+    return new TextEncoder().encode(value).length;
 }
 export function validateBrowserEvent(event) {
     const missing = [];
@@ -1017,6 +1046,7 @@ export function validateBrowserEvent(event) {
     if (missing.length > 0) {
         throw new Error(`custd: missing required browser fields: ${missing.join(", ")}`);
     }
+    validateProducerLabels(event);
 }
 export function createDogfoodEvent(input) {
     const missing = [];

@@ -9,6 +9,57 @@ use PHPUnit\Framework\TestCase;
 
 final class AdminClientTest extends TestCase
 {
+    public function testDataLabelAdminRoutesVocabularyValuesAssignmentsAndCatalogue(): void
+    {
+        $calls = [];
+        $client = new CustdClient("http://localhost:8080", "admin-token", [
+            "admin_http_client" => function (string $method, string $url, ?array $body) use (&$calls): array {
+                $calls[] = [$method, str_replace("http://localhost:8080", "", $url), $body];
+                if ($method === "GET" && str_ends_with($url, "/data-labels")) {
+                    return ["status" => 200, "body" => '{"definitions":[]}'];
+                }
+                if ($method === "GET" && str_contains($url, "/catalogue")) {
+                    return ["status" => 200, "body" => '{"catalogue":{"labels":[]},"assignments":[],"reportingPacks":[],"fingerprint":"sha256"}'];
+                }
+                if ($method === "GET" && str_ends_with($url, "/usage")) {
+                    return ["status" => 200, "body" => '{"usage":[]}'];
+                }
+                if ($method === "GET" && str_ends_with($url, "/data-label-assignments")) {
+                    return ["status" => 200, "body" => '{"eventTypeDefaults":[],"schemaFieldAssignments":[]}'];
+                }
+                return ["status" => 204, "body" => ""];
+            },
+        ]);
+        $labels = $client->adminDataLabels();
+        $create = ["key" => "app.plan", "displayName" => "Plan", "description" => "Plan", "allowedScopes" => ["event"], "sensitivity" => "internal", "intendedUse" => "Reporting", "synonyms" => [], "propagationPolicy" => "none"];
+        $update = $create;
+        unset($update["key"]);
+        $labels->list(true);
+        $labels->catalogue(true);
+        $labels->get("definition/1", true);
+        $labels->create($create);
+        $labels->update("definition/1", $update);
+        $labels->disable("definition/1");
+        $labels->createValue("definition/1", ["value" => "paid", "displayName" => "Paid", "description" => "Paid"]);
+        $labels->updateValue("value/1", ["displayName" => "Paid", "description" => "Updated"]);
+        $labels->disableValue("value/1");
+        $labels->listUsage();
+        $labels->listAssignments();
+        $labels->setEventTypeDefault("page/view", "definition/1", ["valueUuid" => "value-1"]);
+        $labels->removeEventTypeDefault("page/view", "definition/1");
+        $labels->setSchemaFieldAssignment("schema/1", ["fieldPath" => "/user/id", "definitionUuid" => "definition-1", "valueUuid" => "value-1"]);
+        $labels->removeSchemaFieldAssignment("assignment/1");
+        $this->assertSame([
+            ["GET", "/api/v1/admin/data-labels?includeDisabled=true"], ["GET", "/api/v1/admin/data-labels/catalogue?includeDisabled=true"],
+            ["GET", "/api/v1/admin/data-labels/definition%2F1?includeDisabled=true"],
+            ["POST", "/api/v1/admin/data-labels"], ["PATCH", "/api/v1/admin/data-labels/definition%2F1"], ["POST", "/api/v1/admin/data-labels/definition%2F1/disable"],
+            ["POST", "/api/v1/admin/data-labels/definition%2F1/values"], ["PATCH", "/api/v1/admin/data-label-values/value%2F1"], ["POST", "/api/v1/admin/data-label-values/value%2F1/disable"],
+            ["GET", "/api/v1/admin/data-labels/usage"], ["GET", "/api/v1/admin/data-label-assignments"],
+            ["PUT", "/api/v1/admin/event-types/page%2Fview/data-label-defaults/definition%2F1"], ["DELETE", "/api/v1/admin/event-types/page%2Fview/data-label-defaults/definition%2F1"],
+            ["PUT", "/api/v1/admin/event-schemas/schema%2F1/field-data-labels"], ["DELETE", "/api/v1/admin/data-label-assignments/schema-fields/assignment%2F1"],
+        ], array_map(static fn (array $call): array => [$call[0], $call[1]], $calls));
+    }
+
     public function testAdminTenantsCreateUsesAdminApi(): void
     {
         $calls = [];

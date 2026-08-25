@@ -41,10 +41,11 @@ __all__ = [
     "redacted_provisioned_producer",
     "validate_event",
     "read_lifecycle_fixture", "TenantStorageClient", "SubjectExportClient",
-    "PrivacyErasureClient", "PredictionAdminClient", "RetentionClient", "OffboardingClient",
+    "PrivacyErasureClient", "PredictionAdminClient", "RetentionClient", "OffboardingClient", "DataLabelAdminClient",
 ]
 
 from ._lifecycle_fixtures import read_lifecycle_fixture
+from .admin_data_labels import DataLabelAdminClient
 from .admin_offboarding import OffboardingClient
 from .admin_predictions import PredictionAdminClient
 from .admin_privacy_erasures import PrivacyErasureClient

@@ -1,3 +1,4 @@
+import { DataLabelAdminClient } from "./admin-data-labels.js";
 import { OffboardingClient } from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
@@ -5,6 +6,31 @@ import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 
+export {
+  DataLabelAdminClient,
+  type DataLabelAssignmentListResponse,
+  type DataLabelCatalogue,
+  type DataLabelCatalogueAssignment,
+  type DataLabelCatalogueDataset,
+  type DataLabelCataloguePack,
+  type DataLabelCatalogueResponse,
+  type DataLabelDefinition,
+  type DataLabelDefinitionCreateRequest,
+  type DataLabelDefinitionListResponse,
+  type DataLabelDefinitionUpdateRequest,
+  type DataLabelPropagationPolicy,
+  type DataLabelSensitivity,
+  type DataLabelUsage,
+  type DataLabelUsageListResponse,
+  type DataLabelValue,
+  type DataLabelValueCreateRequest,
+  type DataLabelValueUpdateRequest,
+  type DescriptiveDataLabel,
+  type EventTypeDataLabelDefault,
+  type EventTypeDataLabelDefaultRequest,
+  type SchemaFieldDataLabelAssignment,
+  type SchemaFieldDataLabelAssignmentRequest,
+} from "./admin-data-labels.js";
 export {
   type OffboardingAcknowledgeResponse,
   type OffboardingCancelRequest,
@@ -127,6 +153,7 @@ export type EventEnvelope = {
   anonymousId?: string;
   userUuid?: string | null;
   companySlug?: string;
+  labels?: Record<string, string>;
   context: EventContext;
   payload: Record<string, unknown>;
 };
@@ -1848,6 +1875,7 @@ class SchemaNamespace {
 }
 
 class AdminNamespace {
+  readonly dataLabels: DataLabelAdminClient;
   readonly tenants: AdminTenantNamespace;
   readonly oauthClients: AdminOAuthClientNamespace;
   readonly sites: AdminSiteNamespace;
@@ -1865,6 +1893,7 @@ class AdminNamespace {
   readonly privacyErasures: PrivacyErasureClient;
 
   constructor(request: AdminRequester, nonAdminRequest: NonAdminRequester) {
+    this.dataLabels = new DataLabelAdminClient(request);
     this.tenants = new AdminTenantNamespace(request);
     this.oauthClients = new AdminOAuthClientNamespace(request);
     this.sites = new AdminSiteNamespace(request);
@@ -2305,6 +2334,33 @@ export function validateEvent(event: EventEnvelope): void {
   if (missing.length > 0) {
     throw new Error(`custd: missing required fields: ${missing.join(", ")}`);
   }
+  validateProducerLabels(event as EventEnvelope & Record<string, unknown>);
+}
+
+const labelKeyPattern = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
+
+function validateProducerLabels(event: EventEnvelope & Record<string, unknown>): void {
+  if ("resolvedLabels" in event || "vocabularyFingerprint" in event) {
+    throw new Error("custd: server-owned label fields are not accepted");
+  }
+  if (event.labels === undefined) return;
+  if (event.labels === null || typeof event.labels !== "object" || Array.isArray(event.labels)) {
+    throw new Error("custd: labels must be an object of strings");
+  }
+  const entries = Object.entries(event.labels);
+  if (entries.length > 16) throw new Error("custd: labels may contain at most 16 entries");
+  for (const [key, value] of entries) {
+    if (!labelKeyPattern.test(key) || utf8Bytes(key) > 64 || key.startsWith("custd.")) {
+      throw new Error(`custd: labels.${key} has an invalid key`);
+    }
+    if (typeof value !== "string" || value === "" || value !== value.trim() || utf8Bytes(value) > 128) {
+      throw new Error(`custd: labels.${key} has an invalid value`);
+    }
+  }
+}
+
+function utf8Bytes(value: string): number {
+  return new TextEncoder().encode(value).length;
 }
 
 export function validateBrowserEvent(event: EventEnvelope): void {
@@ -2324,6 +2380,7 @@ export function validateBrowserEvent(event: EventEnvelope): void {
   if (missing.length > 0) {
     throw new Error(`custd: missing required browser fields: ${missing.join(", ")}`);
   }
+  validateProducerLabels(event as EventEnvelope & Record<string, unknown>);
 }
 
 export function createDogfoodEvent(input: DogfoodEventInput): EventEnvelope {
