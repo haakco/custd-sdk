@@ -1,3 +1,4 @@
+import { ClientSetupClient } from "./admin-client-setup.js";
 import { OffboardingClient } from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
@@ -5,6 +6,20 @@ import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 
+export {
+  type ClientSetupApplyResponse,
+  ClientSetupClient,
+  type ClientSetupManifest,
+  type ClientSetupOAuthClientDesiredState,
+  type ClientSetupOAuthPurposeProfile,
+  type ClientSetupOneTimeCredential,
+  type ClientSetupPrivacyDesiredState,
+  type ClientSetupPrivacyRule,
+  type ClientSetupReadinessResponse,
+  type ClientSetupResourceStatus,
+  type ClientSetupRetentionDesiredState,
+  type ClientSetupSchemaDesiredState,
+} from "./admin-client-setup.js";
 export {
   type OffboardingAcknowledgeResponse,
   type OffboardingCancelRequest,
@@ -78,6 +93,13 @@ export {
   type TenantStorageListResponse,
   type TenantStorageLocation,
 } from "./admin-tenant-storage.js";
+export {
+  checkRuntimeReadiness,
+  type RuntimeReadinessCredentialResult,
+  type RuntimeReadinessOAuthConfig,
+  type RuntimeReadinessOptions,
+  type RuntimeReadinessResult,
+} from "./runtime-readiness.js";
 
 export type EventContext = {
   page?: {
@@ -1849,6 +1871,7 @@ class SchemaNamespace {
 
 class AdminNamespace {
   readonly tenants: AdminTenantNamespace;
+  readonly clientSetup: ClientSetupClient;
   readonly oauthClients: AdminOAuthClientNamespace;
   readonly sites: AdminSiteNamespace;
   readonly schemas: AdminSchemaNamespace;
@@ -1866,6 +1889,7 @@ class AdminNamespace {
 
   constructor(request: AdminRequester, nonAdminRequest: NonAdminRequester) {
     this.tenants = new AdminTenantNamespace(request);
+    this.clientSetup = new ClientSetupClient(request);
     this.oauthClients = new AdminOAuthClientNamespace(request);
     this.sites = new AdminSiteNamespace(request);
     this.schemas = new AdminSchemaNamespace(request);

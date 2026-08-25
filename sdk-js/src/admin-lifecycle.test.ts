@@ -179,13 +179,14 @@ describe("PrivacyErasureClient", () => {
     const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
 
     const created = await client.admin.privacyErasures.create({
-      tenantSlug: "acme",
+      companySlug: "acme",
       selector: { type: "userUuid", value: "01J5K7N4Y8X9Z2B6V3D1M0Q7RJ" },
       reason: "gdpr_erasure_request",
+      redactionId: "sdk-lifecycle-fixture",
     });
     expect(created.requestUuid).toBe("pe_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
 
-    const got = await client.admin.privacyErasures.get("pe_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    const got = await client.admin.privacyErasures.get("acme", "pe_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
     expect(got.state).toBe("complete");
     expect(got.perStoreProgress).toHaveLength(5);
     for (const row of got.perStoreProgress ?? []) {
@@ -200,7 +201,7 @@ describe("PrivacyErasureClient", () => {
     globalThis.fetch = fetchMock;
     const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
 
-    const got = await client.admin.privacyErasures.get("pe_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    const got = await client.admin.privacyErasures.get("acme", "pe_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
 
     expect(got.state).toBe("partial");
     const legalHold = (got.perStoreProgress ?? []).find((row) => row.store === "legal_hold");

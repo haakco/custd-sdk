@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ClientSetupManifest } from "./admin-client-setup.js";
 import { CustdClient } from "./index";
 
 beforeEach(() => {
@@ -480,5 +481,124 @@ describe("CustdClient schemas", () => {
         payload: { ok: true },
       }),
     ).rejects.toThrow("custd: test event was not accepted by ingest");
+  });
+
+  it("applies and checks a tenant desired-state manifest through client setup", async () => {
+    const manifest: ClientSetupManifest = {
+      schemas: [
+        {
+          eventTypeSlug: "card-review",
+          version: "1.0.0",
+          schemaJson: { type: "object", required: ["payload"] },
+          dialect: "jsonschema",
+          enabled: true,
+        },
+      ],
+      privacy: {
+        applyMode: "at_ingestion",
+        enabled: true,
+        rules: [
+          { fieldPath: "payload.email", action: "remove", enabled: true },
+          { fieldPath: "payload.credential", action: "remove", enabled: true },
+        ],
+      },
+      retention: {
+        maxAgeDays: 90,
+        classes: ["raw", "archive", "materialized", "cache", "object"],
+      },
+      oauthClients: [
+        {
+          name: "ingest",
+          clientId: "tiao-local-ingest",
+          purposeProfile: "ingest",
+          rotateSecret: false,
+        },
+        {
+          name: "lifecycle",
+          clientId: "tiao-local-lifecycle",
+          purposeProfile: "lifecycle",
+          rotateSecret: true,
+        },
+      ],
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            tenantSlug: "tiao-local",
+            manifestDigest: "digest-1",
+            ready: true,
+            state: "ready",
+            resources: [
+              {
+                kind: "schema",
+                key: "card-review@1.0.0",
+                state: "updated",
+                ready: true,
+                safeNextAction: "none",
+                safeNextActionCode: "",
+              },
+            ],
+            credentials: [
+              {
+                clientId: "tiao-local-lifecycle",
+                clientSecret: "one-time-secret",
+                purposeProfile: "lifecycle",
+              },
+            ],
+            safeNextAction: "none",
+            safeNextActionCode: "",
+            observedAt: "2026-08-25T00:00:00Z",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            tenantSlug: "tiao-local",
+            manifestDigest: "digest-1",
+            ready: true,
+            state: "ready",
+            resources: [],
+            safeNextAction: "none",
+            safeNextActionCode: "",
+            observedAt: "2026-08-25T00:00:00Z",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token" });
+
+    const applied = await client.admin.clientSetup.apply("tiao-local", manifest);
+    const readiness = await client.admin.clientSetup.readiness("tiao-local");
+
+    expect(applied.credentials).toEqual([
+      {
+        clientId: "tiao-local-lifecycle",
+        clientSecret: "one-time-secret",
+        purposeProfile: "lifecycle",
+      },
+    ]);
+    expect(readiness.ready).toBe(true);
+    expect(fetchMock.mock.calls.map((call) => [call[0], call[1]?.method])).toEqual([
+      ["http://localhost:8080/api/v1/admin/tenant-manifest/tiao-local", "PUT"],
+      ["http://localhost:8080/api/v1/admin/tenant-manifest/tiao-local/readiness", "GET"],
+    ]);
+    const applyBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(JSON.stringify(applyBody)).not.toContain("clientSecret");
+    expect(applyBody).not.toHaveProperty("providerId");
+    expect(applyBody).not.toHaveProperty("tenantSlug");
+    expect(applyBody).not.toHaveProperty("environment");
+    expect(applyBody.schemas[0]).toEqual({
+      eventTypeSlug: "card-review",
+      version: "1.0.0",
+      schemaJson: { type: "object", required: ["payload"] },
+      dialect: "jsonschema",
+      enabled: true,
+    });
+    expect(applyBody.oauthClients[1].rotateSecret).toBe(true);
   });
 });
