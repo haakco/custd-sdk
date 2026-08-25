@@ -12,6 +12,8 @@ namespace HaakCo\Custd\Admin;
  */
 final class OffboardingClient
 {
+    private const MAX_DOWNLOAD_BYTES = 64 * 1024 * 1024;
+
     public function __construct(
         private readonly string $baseUrl,
         private readonly string $token,
@@ -187,21 +189,42 @@ final class OffboardingClient
     }
 
     /**
-     * Download returns a short-lived signed URL for the offboarding export
-     * artifact. The downloadUrl is sensitive; callers must not log it or
-     * echo it into error messages.
+     * Download returns authenticated bytes with verified checksum and length.
      *
-     * @return array<string, mixed>
+     * @return array{bytes:string, checksumSha256:string, byteSize:int}
      */
     public function download(string $requestUuid): array
     {
-        return Http::request(
+        $response = Http::binaryRequest(
             $this->baseUrl,
             $this->token,
             $this->transport,
             "GET",
             "/offboarding/requests/" . rawurlencode($requestUuid) . "/download"
-        ) ?? [];
+        );
+        $body = $response["body"];
+        if (strlen($body) > self::MAX_DOWNLOAD_BYTES) {
+            throw new \RuntimeException("custd: offboarding download exceeds 64 MiB");
+        }
+        $lengthHeader = trim($response["headers"]["content-length"] ?? "");
+        if (preg_match('/^[0-9]+$/', $lengthHeader) !== 1) {
+            throw new \RuntimeException("custd: offboarding download content length is invalid");
+        }
+        $byteSize = (int) $lengthHeader;
+        if ($byteSize > self::MAX_DOWNLOAD_BYTES) {
+            throw new \RuntimeException("custd: offboarding download exceeds 64 MiB");
+        }
+        if ($byteSize !== strlen($body)) {
+            throw new \RuntimeException("custd: offboarding download content length mismatch");
+        }
+        $checksum = strtolower(trim($response["headers"]["x-checksum-sha256"] ?? ""));
+        if (preg_match('/^[a-f0-9]{64}$/', $checksum) !== 1) {
+            throw new \RuntimeException("custd: offboarding download checksum header is invalid");
+        }
+        if (!hash_equals($checksum, hash("sha256", $body))) {
+            throw new \RuntimeException("custd: offboarding download checksum mismatch");
+        }
+        return ["bytes" => $body, "checksumSha256" => $checksum, "byteSize" => $byteSize];
     }
 
     /**
@@ -222,22 +245,19 @@ final class OffboardingClient
     }
 
     /**
-     * Execute triggers the destructive phase. The server requires a non-empty
-     * waiver.role; an empty waiver returns 400 waiver_required, which the
-     * SDK surfaces without retry.
+     * Execute triggers the destructive phase. Authorization and approval are
+     * server-owned; callers cannot submit waiver metadata.
      *
-     * @param array<string, mixed> $request
      * @return array<string, mixed>
      */
-    public function execute(string $requestUuid, array $request): array
+    public function execute(string $requestUuid): array
     {
         return Http::request(
             $this->baseUrl,
             $this->token,
             $this->transport,
             "POST",
-            "/offboarding/requests/" . rawurlencode($requestUuid) . "/execute",
-            $request
+            "/offboarding/requests/" . rawurlencode($requestUuid) . "/execute"
         ) ?? [];
     }
 

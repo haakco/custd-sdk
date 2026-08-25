@@ -45,9 +45,6 @@ export type OffboardingWaiver = {
     reason: string;
     timestamp?: string;
 };
-export type OffboardingExecuteRequest = {
-    waiver: OffboardingWaiver;
-};
 export type OffboardingExportResponse = {
     requestUuid: string;
     exportArtifactId?: string;
@@ -58,9 +55,9 @@ export type OffboardingExportResponse = {
     checksum?: string;
 };
 export type OffboardingDownloadResponse = {
-    requestUuid: string;
-    downloadUrl: string;
-    expiresAt?: string;
+    bytes: Uint8Array;
+    checksumSha256: string;
+    byteSize: number;
 };
 export type OffboardingAcknowledgeResponse = {
     requestUuid: string;
@@ -96,9 +93,11 @@ export type OffboardingReceiptResponse = {
     sha256?: string;
 };
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
+type AdminDownloader = (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>;
 export declare class OffboardingClient {
     private readonly request;
-    constructor(request: AdminRequester);
+    private readonly downloadBinary;
+    constructor(request: AdminRequester, downloadBinary: AdminDownloader);
     schedule(body: OffboardingScheduleRequest, options?: RequestOptions): Promise<OffboardingSchedule>;
     listSchedules(options?: RequestOptions): Promise<OffboardingScheduleListResponse>;
     getSchedule(tenantSlug: string, options?: RequestOptions): Promise<OffboardingSchedule>;
@@ -111,7 +110,7 @@ export declare class OffboardingClient {
     export(requestUuid: string, options?: RequestOptions): Promise<OffboardingExportResponse>;
     download(requestUuid: string, options?: RequestOptions): Promise<OffboardingDownloadResponse>;
     acknowledge(requestUuid: string, options?: RequestOptions): Promise<OffboardingAcknowledgeResponse>;
-    execute(requestUuid: string, body: OffboardingExecuteRequest, options?: RequestOptions): Promise<OffboardingExecuteResponse>;
+    execute(requestUuid: string, options?: RequestOptions): Promise<OffboardingExecuteResponse>;
     retry(requestUuid: string, options?: RequestOptions): Promise<OffboardingRetryResponse>;
     receipt(requestUuid: string, options?: RequestOptions): Promise<OffboardingReceiptResponse>;
 }

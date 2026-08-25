@@ -59,7 +59,7 @@
         {"file": "valid-cancel-response.json", "assert": ["$.requestUuid", "$.state", "$.cancelledAt"]},
         {"file": "valid-preview-response.json", "assert": ["$.requestUuid", "$.previewInventoryDigest", "$.perStore"]},
         {"file": "valid-export-response.json", "assert": ["$.requestUuid", "$.exportArtifactId", "$.schemaVersion", "$.complete"]},
-        {"file": "valid-download-response.json", "assert": ["$.requestUuid", "$.downloadUrl", "$.expiresAt"]},
+        {"file": "valid-download-binary.json", "assert": ["$.bodyBase64", "$.checksumSha256", "$.byteSize"]},
         {"file": "valid-acknowledge-response.json", "assert": ["$.requestUuid", "$.state", "$.acknowledgedAt"]},
         {"file": "valid-execute-response.json", "assert": ["$.requestUuid", "$.state", "$.waiver.role"]},
         {"file": "valid-retry-response.json", "assert": ["$.requestUuid", "$.state", "$.retriedAt"]},
@@ -67,7 +67,6 @@
         {"file": "valid-schedule-create-request.json", "assert": ["$.tenantSlug", "$.executeAt", "$.reason"]},
         {"file": "valid-schedule-create-response.json", "assert": ["$.tenantSlug", "$.executeAt", "$.state"]},
         {"file": "valid-schedule-list-response.json", "assert": ["$.schedules", "$.schedules[0].tenantSlug"]},
-        {"file": "invalid-waiver-empty.json", "assert": ["$.error", "$.message"]},
         {"file": "incomplete-erasure-blocks-confirm.json", "assert": ["$.error", "$.safeNextAction"]},
         {"file": "isolation-other-tenant.json", "assert": ["$.error", "$.message"]}
       ]

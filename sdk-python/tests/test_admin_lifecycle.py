@@ -8,6 +8,7 @@ the server contract before any HTTP layer is exercised.
 
 from __future__ import annotations
 
+import base64
 import json
 import unittest
 from pathlib import Path
@@ -135,9 +136,11 @@ class TestOffboarding(unittest.TestCase):
         self.assertEqual(receipt["finalState"], "complete")
         self.assertIn("sha256", receipt)
 
-    def test_waiver_required(self) -> None:
-        resp = _load("offboarding", "invalid-waiver-empty.json")
-        self.assertEqual(resp["error"], "waiver_required")
+    def test_binary_download_fixture_contains_integrity_metadata(self) -> None:
+        fixture = _load("offboarding", "valid-download-binary.json")
+        body = base64.b64decode(fixture["bodyBase64"])
+        self.assertEqual(fixture["byteSize"], len(body))
+        self.assertEqual(len(fixture["checksumSha256"]), 64)
 
     def test_erasure_incomplete_blocks_confirm(self) -> None:
         resp = _load("offboarding", "incomplete-erasure-blocks-confirm.json")

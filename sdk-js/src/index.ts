@@ -1,4 +1,4 @@
-import { OffboardingClient } from "./admin-offboarding.js";
+import { OffboardingClient, type OffboardingDownloadResponse } from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
@@ -10,7 +10,6 @@ export {
   type OffboardingCancelRequest,
   OffboardingClient,
   type OffboardingDownloadResponse,
-  type OffboardingExecuteRequest,
   type OffboardingExecuteResponse,
   type OffboardingExportResponse,
   type OffboardingPerStore,
@@ -1147,8 +1146,9 @@ export class CustdClient {
     this.compressionEnabled = config.compression?.enabled ?? true;
     this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
     this.admin = new AdminNamespace(
-      (method, path, body) => this.adminRequest(method, path, body),
+      (method, path, body, options) => this.adminRequest(method, path, body, options),
       (method, path, body, options) => this.apiRequest(method, path, body, options),
+      (path, options) => this.offboardingDownload(path, options),
     );
     this.provisioning = new ProvisioningNamespace((method, path, body, options) =>
       this.apiRequest(method, path, body, options),
@@ -1425,8 +1425,41 @@ export class CustdClient {
     return `custd: batch rejected ${failed.length} of ${results?.length ?? failed.length} event(s): ${parts.join("; ")}`;
   }
 
-  private async adminRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
-    return this.apiRequest(method, `/admin${path}`, body);
+  private async adminRequest<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+    return this.apiRequest(method, `/admin${path}`, body, options);
+  }
+
+  private async offboardingDownload(path: string, options?: RequestOptions): Promise<OffboardingDownloadResponse> {
+    const token = await this.getToken(options);
+    const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${path}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
+      signal: options?.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`custd: offboarding download failed with status ${response.status}`);
+    }
+    const lengthHeader = response.headers.get("content-length")?.trim() ?? "";
+    const byteSize = Number(lengthHeader);
+    if (!/^\d+$/.test(lengthHeader) || !Number.isSafeInteger(byteSize)) {
+      throw new Error("custd: offboarding download content length is invalid");
+    }
+    if (byteSize > maxOffboardingDownloadBytes) {
+      throw new Error("custd: offboarding download exceeds 64 MiB");
+    }
+    const bytes = await readBoundedResponse(response, maxOffboardingDownloadBytes);
+    if (bytes.byteLength !== byteSize) {
+      throw new Error("custd: offboarding download content length mismatch");
+    }
+    const checksumSha256 = (response.headers.get("x-checksum-sha256") ?? "").trim().toLowerCase();
+    if (!/^[a-f0-9]{64}$/.test(checksumSha256)) {
+      throw new Error("custd: offboarding download checksum header is invalid");
+    }
+    const actual = await sha256Hex(bytes);
+    if (actual !== checksumSha256) {
+      throw new Error("custd: offboarding download checksum mismatch");
+    }
+    return { bytes, checksumSha256, byteSize };
   }
 
   private async apiRequest<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
@@ -1497,11 +1530,44 @@ export class CustdClient {
   }
 }
 
+async function readBoundedResponse(response: Response, maxBytes: number): Promise<Uint8Array> {
+  if (!response.body) {
+    return new Uint8Array();
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error("custd: offboarding download exceeds 64 MiB");
+    }
+    chunks.push(value);
+  }
+  const result = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return result;
+}
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const digest = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", Uint8Array.from(bytes).buffer));
+  return Array.from(digest, (value) => value.toString(16).padStart(2, "0")).join("");
+}
+
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type NonAdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type APIRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type APIDownloader = (path: string, options?: RequestOptions) => Promise<Uint8Array>;
+
+const maxOffboardingDownloadBytes = 64 * 1024 * 1024;
 
 export interface ReportExportCreateRequest {
   dashboardKey: string;
@@ -1864,7 +1930,11 @@ class AdminNamespace {
   readonly subjectExports: SubjectExportClient;
   readonly privacyErasures: PrivacyErasureClient;
 
-  constructor(request: AdminRequester, nonAdminRequest: NonAdminRequester) {
+  constructor(
+    request: AdminRequester,
+    nonAdminRequest: NonAdminRequester,
+    offboardingDownload: (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>,
+  ) {
     this.tenants = new AdminTenantNamespace(request);
     this.oauthClients = new AdminOAuthClientNamespace(request);
     this.sites = new AdminSiteNamespace(request);
@@ -1875,7 +1945,7 @@ class AdminNamespace {
     this.retention = new RetentionClient(request);
     this.storageAlerts = new AdminStorageAlertsNamespace(request);
     this.audit = new AdminAuditNamespace(request);
-    this.offboarding = new OffboardingClient(request);
+    this.offboarding = new OffboardingClient(request, offboardingDownload);
     this.reportingPacks = new AdminReportingPacksNamespace(request);
     this.tenantStorage = new TenantStorageClient(nonAdminRequest);
     this.subjectExports = new SubjectExportClient(request);

@@ -3,8 +3,9 @@
 // not pre-fill tenantSlug on the request body. The tenant is derived from
 // the authenticated client context.
 export class OffboardingClient {
-    constructor(request) {
+    constructor(request, downloadBinary) {
         this.request = request;
+        this.downloadBinary = downloadBinary;
     }
     // schedule writes a delayed offboarding schedule for the effective tenant.
     // The server pulls the tenant from the auth context; do not include
@@ -52,22 +53,19 @@ export class OffboardingClient {
     export(requestUuid, options) {
         return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/export`, undefined, options);
     }
-    // download returns a short-lived signed URL for the offboarding export
-    // artifact. The downloadUrl is sensitive; callers must not log it or
-    // echo it into error messages.
+    // download returns authenticated bytes with verified checksum and length.
     download(requestUuid, options) {
-        return this.request("GET", `/offboarding/requests/${encodeURIComponent(requestUuid)}/download`, undefined, options);
+        return this.downloadBinary(`/offboarding/requests/${encodeURIComponent(requestUuid)}/download`, options);
     }
     // acknowledge records that the operator (or client) has accepted the
     // preview. After acknowledgment the server is willing to accept execute.
     acknowledge(requestUuid, options) {
         return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/acknowledge`, undefined, options);
     }
-    // execute triggers the destructive phase. The server requires a non-empty
-    // waiver.role; an empty waiver returns 400 waiver_required, which the
-    // SDK surfaces without retry.
-    execute(requestUuid, body, options) {
-        return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/execute`, body, options);
+    // execute triggers the destructive phase. Approval is server-owned and the
+    // request intentionally has no caller-controlled body.
+    execute(requestUuid, options) {
+        return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/execute`, undefined, options);
     }
     // retry re-arms an offboarding request that previously failed. The server
     // decides whether the request is retryable; the SDK does not pre-filter.

@@ -74,14 +74,6 @@ export type OffboardingWaiver = {
   timestamp?: string;
 };
 
-// OffboardingExecuteRequest is the body for POST
-// /admin/offboarding/requests/{requestUuid}/execute. waiver is required for
-// destructive execution; an empty role returns a 400 waiver_required error
-// the SDK must surface without retry.
-export type OffboardingExecuteRequest = {
-  waiver: OffboardingWaiver;
-};
-
 // OffboardingExportResponse is the body for POST
 // /admin/offboarding/requests/{requestUuid}/export. complete=false means
 // the server is still gathering inventory; callers must poll.
@@ -95,13 +87,12 @@ export type OffboardingExportResponse = {
   checksum?: string;
 };
 
-// OffboardingDownloadResponse is the body for GET
-// /admin/offboarding/requests/{requestUuid}/download. The downloadUrl is
-// short-lived; callers must not log it or echo it into error messages.
+// OffboardingDownloadResponse contains authenticated bytes and verified
+// response integrity metadata.
 export type OffboardingDownloadResponse = {
-  requestUuid: string;
-  downloadUrl: string;
-  expiresAt?: string;
+  bytes: Uint8Array;
+  checksumSha256: string;
+  byteSize: number;
 };
 
 // OffboardingAcknowledgeResponse is the body for POST
@@ -157,9 +148,13 @@ export type OffboardingReceiptResponse = {
 };
 
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
+type AdminDownloader = (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>;
 
 export class OffboardingClient {
-  constructor(private readonly request: AdminRequester) {}
+  constructor(
+    private readonly request: AdminRequester,
+    private readonly downloadBinary: AdminDownloader,
+  ) {}
 
   // schedule writes a delayed offboarding schedule for the effective tenant.
   // The server pulls the tenant from the auth context; do not include
@@ -217,11 +212,9 @@ export class OffboardingClient {
     return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/export`, undefined, options);
   }
 
-  // download returns a short-lived signed URL for the offboarding export
-  // artifact. The downloadUrl is sensitive; callers must not log it or
-  // echo it into error messages.
+  // download returns authenticated bytes with verified checksum and length.
   download(requestUuid: string, options?: RequestOptions): Promise<OffboardingDownloadResponse> {
-    return this.request("GET", `/offboarding/requests/${encodeURIComponent(requestUuid)}/download`, undefined, options);
+    return this.downloadBinary(`/offboarding/requests/${encodeURIComponent(requestUuid)}/download`, options);
   }
 
   // acknowledge records that the operator (or client) has accepted the
@@ -235,15 +228,10 @@ export class OffboardingClient {
     );
   }
 
-  // execute triggers the destructive phase. The server requires a non-empty
-  // waiver.role; an empty waiver returns 400 waiver_required, which the
-  // SDK surfaces without retry.
-  execute(
-    requestUuid: string,
-    body: OffboardingExecuteRequest,
-    options?: RequestOptions,
-  ): Promise<OffboardingExecuteResponse> {
-    return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/execute`, body, options);
+  // execute triggers the destructive phase. Approval is server-owned and the
+  // request intentionally has no caller-controlled body.
+  execute(requestUuid: string, options?: RequestOptions): Promise<OffboardingExecuteResponse> {
+    return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/execute`, undefined, options);
   }
 
   // retry re-arms an offboarding request that previously failed. The server

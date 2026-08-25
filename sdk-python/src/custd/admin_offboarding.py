@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import re
 from typing import TypedDict, cast
 
 from .client import AdminClient, quote_path
@@ -44,8 +46,13 @@ class OffboardingPreviewResponse(TypedDict, total=False):
     perStore: list[dict[str, object]]
 
 
-class OffboardingExecuteRequest(TypedDict):
-    waiver: dict[str, str]
+class OffboardingDownloadResponse(TypedDict):
+    bytes: bytes
+    checksumSha256: str
+    byteSize: int
+
+
+MAX_OFFBOARDING_DOWNLOAD_BYTES = 64 * 1024 * 1024
 
 
 class OffboardingClient:
@@ -94,19 +101,35 @@ class OffboardingClient:
             "POST", f"/offboarding/requests/{quote_path(request_id)}/export"
         )
 
-    def download(self, request_id: str) -> dict[str, object]:
-        return self._admin.request(
+    def download(self, request_id: str) -> OffboardingDownloadResponse:
+        body, headers = self._admin.request_binary(
             "GET", f"/offboarding/requests/{quote_path(request_id)}/download"
         )
+        if len(body) > MAX_OFFBOARDING_DOWNLOAD_BYTES:
+            raise ValueError("custd: offboarding download exceeds 64 MiB")
+        length_header = headers.get("content-length", "").strip()
+        if not re.fullmatch(r"[0-9]+", length_header):
+            raise ValueError("custd: offboarding download content length is invalid")
+        byte_size = int(length_header)
+        if byte_size > MAX_OFFBOARDING_DOWNLOAD_BYTES:
+            raise ValueError("custd: offboarding download exceeds 64 MiB")
+        if byte_size != len(body):
+            raise ValueError("custd: offboarding download content length mismatch")
+        checksum = headers.get("x-checksum-sha256", "").strip().lower()
+        if not re.fullmatch(r"[0-9a-f]{64}", checksum):
+            raise ValueError("custd: offboarding download checksum header is invalid")
+        if hashlib.sha256(body).hexdigest() != checksum:
+            raise ValueError("custd: offboarding download checksum mismatch")
+        return {"bytes": body, "checksumSha256": checksum, "byteSize": byte_size}
 
     def acknowledge(self, request_id: str) -> dict[str, object]:
         return self._admin.request(
             "POST", f"/offboarding/requests/{quote_path(request_id)}/acknowledge"
         )
 
-    def execute(self, request_id: str, b: OffboardingExecuteRequest) -> dict[str, object]:
+    def execute(self, request_id: str) -> dict[str, object]:
         return self._admin.request(
-            "POST", f"/offboarding/requests/{quote_path(request_id)}/execute", dict(b)
+            "POST", f"/offboarding/requests/{quote_path(request_id)}/execute"
         )
 
     def retry(self, request_id: str) -> dict[str, object]:

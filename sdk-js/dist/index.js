@@ -97,7 +97,7 @@ export class CustdClient {
         this.flushOnOnline = config.queue?.flushOnOnline ?? true;
         this.compressionEnabled = config.compression?.enabled ?? true;
         this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
-        this.admin = new AdminNamespace((method, path, body) => this.adminRequest(method, path, body), (method, path, body, options) => this.apiRequest(method, path, body, options));
+        this.admin = new AdminNamespace((method, path, body, options) => this.adminRequest(method, path, body, options), (method, path, body, options) => this.apiRequest(method, path, body, options), (path, options) => this.offboardingDownload(path, options));
         this.provisioning = new ProvisioningNamespace((method, path, body, options) => this.apiRequest(method, path, body, options));
         this.reporting = new ReportingNamespace((method, path, body, options) => this.apiRequest(method, path, body, options), (path, options) => this.apiDownload(path, options));
         this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
@@ -340,8 +340,40 @@ export class CustdClient {
         }
         return `custd: batch rejected ${failed.length} of ${results?.length ?? failed.length} event(s): ${parts.join("; ")}`;
     }
-    async adminRequest(method, path, body) {
-        return this.apiRequest(method, `/admin${path}`, body);
+    async adminRequest(method, path, body, options) {
+        return this.apiRequest(method, `/admin${path}`, body, options);
+    }
+    async offboardingDownload(path, options) {
+        const token = await this.getToken(options);
+        const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${path}`, {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
+            signal: options?.signal,
+        });
+        if (!response.ok) {
+            throw new Error(`custd: offboarding download failed with status ${response.status}`);
+        }
+        const lengthHeader = response.headers.get("content-length")?.trim() ?? "";
+        const byteSize = Number(lengthHeader);
+        if (!/^\d+$/.test(lengthHeader) || !Number.isSafeInteger(byteSize)) {
+            throw new Error("custd: offboarding download content length is invalid");
+        }
+        if (byteSize > maxOffboardingDownloadBytes) {
+            throw new Error("custd: offboarding download exceeds 64 MiB");
+        }
+        const bytes = await readBoundedResponse(response, maxOffboardingDownloadBytes);
+        if (bytes.byteLength !== byteSize) {
+            throw new Error("custd: offboarding download content length mismatch");
+        }
+        const checksumSha256 = (response.headers.get("x-checksum-sha256") ?? "").trim().toLowerCase();
+        if (!/^[a-f0-9]{64}$/.test(checksumSha256)) {
+            throw new Error("custd: offboarding download checksum header is invalid");
+        }
+        const actual = await sha256Hex(bytes);
+        if (actual !== checksumSha256) {
+            throw new Error("custd: offboarding download checksum mismatch");
+        }
+        return { bytes, checksumSha256, byteSize };
     }
     async apiRequest(method, path, body, options) {
         const token = await this.getToken(options);
@@ -405,6 +437,37 @@ export class CustdClient {
         return bytes;
     }
 }
+async function readBoundedResponse(response, maxBytes) {
+    if (!response.body) {
+        return new Uint8Array();
+    }
+    const reader = response.body.getReader();
+    const chunks = [];
+    let total = 0;
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done)
+            break;
+        total += value.byteLength;
+        if (total > maxBytes) {
+            await reader.cancel();
+            throw new Error("custd: offboarding download exceeds 64 MiB");
+        }
+        chunks.push(value);
+    }
+    const result = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.byteLength;
+    }
+    return result;
+}
+async function sha256Hex(bytes) {
+    const digest = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", Uint8Array.from(bytes).buffer));
+    return Array.from(digest, (value) => value.toString(16).padStart(2, "0")).join("");
+}
+const maxOffboardingDownloadBytes = 64 * 1024 * 1024;
 class ReportingNamespace {
     constructor(request, download) {
         this.request = request;
@@ -653,7 +716,7 @@ class SchemaNamespace {
     }
 }
 class AdminNamespace {
-    constructor(request, nonAdminRequest) {
+    constructor(request, nonAdminRequest, offboardingDownload) {
         this.tenants = new AdminTenantNamespace(request);
         this.oauthClients = new AdminOAuthClientNamespace(request);
         this.sites = new AdminSiteNamespace(request);
@@ -664,7 +727,7 @@ class AdminNamespace {
         this.retention = new RetentionClient(request);
         this.storageAlerts = new AdminStorageAlertsNamespace(request);
         this.audit = new AdminAuditNamespace(request);
-        this.offboarding = new OffboardingClient(request);
+        this.offboarding = new OffboardingClient(request, offboardingDownload);
         this.reportingPacks = new AdminReportingPacksNamespace(request);
         this.tenantStorage = new TenantStorageClient(nonAdminRequest);
         this.subjectExports = new SubjectExportClient(request);

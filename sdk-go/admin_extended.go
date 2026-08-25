@@ -2,10 +2,18 @@ package custd
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
+
+const maxOffboardingDownloadBytes int64 = 64 << 20
 
 // TenantStorageAdminClient owns tenant-scoped storage location registration.
 // Locations are server-prefixed: the SDK submits clientLocation and the
@@ -796,14 +804,6 @@ type OffboardingWaiver struct {
 	Timestamp string `json:"timestamp,omitempty"`
 }
 
-// OffboardingExecuteRequest is the body for POST
-// /admin/offboarding/requests/{requestUuid}/execute. Waiver is required for
-// destructive execution; an empty Role returns a 400 waiver_required error
-// the SDK must surface without retry.
-type OffboardingExecuteRequest struct {
-	Waiver OffboardingWaiver `json:"waiver"`
-}
-
 // OffboardingExportResponse is the body for POST
 // /admin/offboarding/requests/{requestUuid}/export. Complete=false means
 // the server is still gathering inventory; callers must poll.
@@ -817,13 +817,12 @@ type OffboardingExportResponse struct {
 	Checksum         string `json:"checksum,omitempty"`
 }
 
-// OffboardingDownloadResponse is the body for GET
-// /admin/offboarding/requests/{requestUuid}/download. The DownloadURL is
-// short-lived; callers must not log it or echo it into error messages.
+// OffboardingDownloadResponse contains authenticated export bytes and the
+// integrity metadata verified against the response headers.
 type OffboardingDownloadResponse struct {
-	RequestUUID string `json:"requestUuid"`
-	DownloadURL string `json:"downloadUrl"`
-	ExpiresAt   string `json:"expiresAt,omitempty"`
+	Bytes          []byte
+	ChecksumSHA256 string
+	ByteSize       int64
 }
 
 // OffboardingAcknowledgeResponse is the body for POST
@@ -914,22 +913,90 @@ func (c *OffboardingAdminClient) Export(
 	return &out, err
 }
 
-// Download returns a short-lived signed URL for the offboarding export
-// artifact. The DownloadURL is sensitive; callers must not log it or echo
-// it into error messages.
+// Download returns the authenticated export bytes. It rejects missing or
+// inconsistent integrity headers and responses larger than 64 MiB.
 func (c *OffboardingAdminClient) Download(
 	ctx context.Context,
 	requestUUID string,
 ) (*OffboardingDownloadResponse, error) {
-	var out OffboardingDownloadResponse
-	err := c.admin.request(
-		ctx,
-		http.MethodGet,
-		"/offboarding/requests/"+url.PathEscape(requestUUID)+"/download",
-		nil,
-		&out,
-	)
-	return &out, err
+	path := "/offboarding/requests/" + url.PathEscape(requestUUID) + "/download"
+	if c.admin.client.config.HTTPClient != nil {
+		return c.downloadViaDoer(path)
+	}
+	return c.downloadViaHTTP(ctx, path)
+}
+
+func (c *OffboardingAdminClient) downloadViaDoer(path string) (*OffboardingDownloadResponse, error) {
+	resp, err := c.admin.client.config.HTTPClient.Do(&HTTPRequest{
+		Method: http.MethodGet, URL: c.admin.endpoint(path), Headers: c.admin.client.headers(false),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("custd: offboarding download failed: %w", err)
+	}
+	if err := c.admin.client.checkStatus(resp.StatusCode, resp.Body); err != nil {
+		return nil, err
+	}
+	return verifiedOffboardingDownload(resp.Body, responseHeader(resp.Headers, "Content-Length"), responseHeader(resp.Headers, "X-Checksum-SHA256"))
+}
+
+func (c *OffboardingAdminClient) downloadViaHTTP(ctx context.Context, path string) (*OffboardingDownloadResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.admin.endpoint(path), nil)
+	if err != nil {
+		return nil, fmt.Errorf("custd: create offboarding download: %w", err)
+	}
+	for key, value := range c.admin.client.headers(false) {
+		req.Header.Set(key, value)
+	}
+	resp, err := c.admin.client.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("custd: offboarding download failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.ContentLength > maxOffboardingDownloadBytes {
+		return nil, errors.New("custd: offboarding download exceeds 64 MiB")
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxOffboardingDownloadBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("custd: read offboarding download: %w", err)
+	}
+	if err := c.admin.client.checkStatus(resp.StatusCode, body); err != nil {
+		return nil, err
+	}
+	return verifiedOffboardingDownload(body, resp.Header.Get("Content-Length"), resp.Header.Get("X-Checksum-SHA256"))
+}
+
+func verifiedOffboardingDownload(body []byte, lengthHeader, checksumHeader string) (*OffboardingDownloadResponse, error) {
+	if int64(len(body)) > maxOffboardingDownloadBytes {
+		return nil, errors.New("custd: offboarding download exceeds 64 MiB")
+	}
+	declared, err := strconv.ParseInt(strings.TrimSpace(lengthHeader), 10, 64)
+	if err != nil || declared < 0 {
+		return nil, errors.New("custd: offboarding download content length is invalid")
+	}
+	if declared > maxOffboardingDownloadBytes {
+		return nil, errors.New("custd: offboarding download exceeds 64 MiB")
+	}
+	if declared != int64(len(body)) {
+		return nil, errors.New("custd: offboarding download content length mismatch")
+	}
+	checksum := strings.ToLower(strings.TrimSpace(checksumHeader))
+	if decoded, err := hex.DecodeString(checksum); err != nil || len(decoded) != sha256.Size {
+		return nil, errors.New("custd: offboarding download checksum header is invalid")
+	}
+	actual := sha256.Sum256(body)
+	if checksum != hex.EncodeToString(actual[:]) {
+		return nil, errors.New("custd: offboarding download checksum mismatch")
+	}
+	return &OffboardingDownloadResponse{Bytes: body, ChecksumSHA256: checksum, ByteSize: declared}, nil
+}
+
+func responseHeader(headers map[string]string, name string) string {
+	for key, value := range headers {
+		if strings.EqualFold(key, name) {
+			return value
+		}
+	}
+	return ""
 }
 
 // Acknowledge records that the operator (or client) has accepted the
@@ -949,20 +1016,18 @@ func (c *OffboardingAdminClient) Acknowledge(
 	return &out, err
 }
 
-// Execute triggers the destructive phase. The server requires a non-empty
-// Waiver.Role; an empty waiver returns 400 waiver_required, which the
-// SDK surfaces without retry.
+// Execute triggers the destructive phase. Authorization and approval are
+// server-owned; callers cannot submit waiver metadata.
 func (c *OffboardingAdminClient) Execute(
 	ctx context.Context,
 	requestUUID string,
-	req OffboardingExecuteRequest,
 ) (*OffboardingExecuteResponse, error) {
 	var out OffboardingExecuteResponse
 	err := c.admin.request(
 		ctx,
 		http.MethodPost,
 		"/offboarding/requests/"+url.PathEscape(requestUUID)+"/execute",
-		req,
+		nil,
 		&out,
 	)
 	return &out, err
