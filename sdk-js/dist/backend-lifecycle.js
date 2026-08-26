@@ -24,11 +24,7 @@ function requireRequestUuid(value, expected, step) {
         throw new Error(`Custd lifecycle ${step} returned a different offboarding request`);
     }
 }
-function requireReceipt(receipt, tenantSlug, requestUuid) {
-    requireRequestUuid(receipt, requestUuid, "receipt");
-    if (receipt.tenantSlug !== tenantSlug) {
-        throw new Error("Custd lifecycle receipt belongs to a different tenant");
-    }
+function requireReceipt(receipt) {
     if (receipt.finalState !== "complete") {
         throw new Error(`Custd lifecycle receipt is not complete (state ${receipt.finalState || "unknown"})`);
     }
@@ -46,6 +42,9 @@ function validateOffboarding(options) {
     requireText("offboarding request UUID", options.requestUuid);
     requireText("waiver role", options.waiver?.role);
     requireText("waiver reason", options.waiver?.reason);
+    if (typeof options.receiveAndVerifyExport !== "function") {
+        throw new Error("Custd lifecycle requires an export download, persistence, and verification callback");
+    }
     if (typeof options.verifyZeroState !== "function") {
         throw new Error("Custd lifecycle requires a zero-state reconciliation callback");
     }
@@ -110,18 +109,28 @@ export class BackendLifecycleClient {
         validateOffboarding(options);
         const preview = await this.offboarding.preview(options.requestUuid, options);
         requireRequestUuid(preview, options.requestUuid, "preview");
+        if (!preview.complete || preview.partial) {
+            throw new Error("Custd lifecycle offboarding preview is incomplete");
+        }
         const exported = await this.offboarding.export(options.requestUuid, options);
         requireRequestUuid(exported, options.requestUuid, "export");
-        if (exported.complete === false) {
-            throw new Error("Custd lifecycle offboarding export is incomplete");
+        const download = await this.offboarding.download(options.requestUuid, options);
+        requireText("offboarding download URL", download.downloadUrl);
+        const exportDelivery = await options.receiveAndVerifyExport({
+            tenantSlug: options.tenantSlug,
+            requestUuid: options.requestUuid,
+            downloadUrl: download.downloadUrl,
+            export: exported,
+        });
+        if (exportDelivery?.verified !== true) {
+            throw new Error("Custd lifecycle export delivery was not verified");
         }
         const acknowledgement = await this.offboarding.acknowledge(options.requestUuid, options);
         requireRequestUuid(acknowledgement, options.requestUuid, "acknowledgement");
         await this.offboarding.confirmRequest(options.requestUuid, options);
         const execution = await this.offboarding.execute(options.requestUuid, { waiver: options.waiver }, options);
-        requireRequestUuid(execution, options.requestUuid, "execution");
         const receipt = await this.offboarding.receipt(options.requestUuid, options);
-        requireReceipt(receipt, options.tenantSlug, options.requestUuid);
+        requireReceipt(receipt);
         const zeroState = await this.reconcileZeroState({
             tenantSlug: options.tenantSlug,
             requestUuid: options.requestUuid,
@@ -133,6 +142,8 @@ export class BackendLifecycleClient {
             requestUuid: options.requestUuid,
             preview,
             export: exported,
+            download,
+            exportDelivery,
             acknowledgement,
             execution,
             receipt,

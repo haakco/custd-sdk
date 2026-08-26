@@ -1,4 +1,5 @@
 from .client import (
+    AdminRequestOptions,
     BatchRequestError,
     CustdClient,
     FileQueueStorage,
@@ -22,6 +23,7 @@ from .client import (
 )
 
 __all__ = [
+    "AdminRequestOptions",
     "BatchRequestError",
     "CustdClient",
     "FileQueueStorage",

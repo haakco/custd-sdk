@@ -1,15 +1,41 @@
 // OffboardingClient owns the offboarding schedule and one-off request
-// surfaces. Schedule writes the effective tenant server-side; callers must
-// not pre-fill tenantSlug on the request body. The tenant is derived from
-// the authenticated client context.
+// surfaces. Its types mirror the current admin-api JSON wire contract.
+function mapPreview(response) {
+    return {
+        ...response,
+        stores: response.stores.map((store) => ({
+            store: store.store,
+            kind: store.kind,
+            retentionClass: store.retention_class,
+            estimatedCount: store.estimated_count,
+            ...(store.source_authority ? { sourceAuthority: store.source_authority } : {}),
+        })),
+    };
+}
+function mapReceipt(response) {
+    return {
+        companyId: response.company_id,
+        requestedByActor: response.requested_by_actor,
+        requestedByUserId: response.requested_by_user_id,
+        requestedAt: response.requested_at,
+        completedAt: response.completed_at,
+        finalState: response.final_state,
+        perStore: response.per_store.map((store) => ({
+            store: store.store,
+            retentionClass: store.retention_class,
+            deletedCount: store.deleted_count,
+            retainedExceptionsCount: store.retained_exceptions_count,
+        })),
+        waiver: response.waiver,
+        sha256: response.sha256,
+    };
+}
 export class OffboardingClient {
     constructor(request) {
         this.request = request;
     }
-    // schedule writes a delayed offboarding schedule for the effective tenant.
-    // The server pulls the tenant from the auth context; do not include
-    // tenantSlug in the request body. The collection endpoint is POST
-    // /offboarding/schedules.
+    // schedule writes a delayed offboarding schedule. tenantSlug is required and
+    // must match the authenticated tenant scope.
     schedule(body, options) {
         return this.request("POST", "/offboarding/schedules", body, options);
     }
@@ -34,8 +60,8 @@ export class OffboardingClient {
     getRequest(requestUuid, options) {
         return this.request("GET", `/offboarding/${encodeURIComponent(requestUuid)}`, undefined, options);
     }
-    cancelRequest(requestUuid, options) {
-        return this.request("POST", `/offboarding/${encodeURIComponent(requestUuid)}/cancel`, undefined, options);
+    cancelRequest(requestUuid, body, options) {
+        return this.request("POST", `/offboarding/${encodeURIComponent(requestUuid)}/cancel`, body, options);
     }
     confirmRequest(requestUuid, options) {
         return this.request("POST", `/offboarding/${encodeURIComponent(requestUuid)}/confirm`, undefined, options);
@@ -43,8 +69,9 @@ export class OffboardingClient {
     // preview asks the server to compute the per-store inventory estimate for
     // the offboarding request. The result is server-issued and must be
     // surfaced verbatim; the SDK must not re-derive estimatedCount.
-    preview(requestUuid, options) {
-        return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/preview`, undefined, options);
+    async preview(requestUuid, options) {
+        const response = await this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/preview`, undefined, options);
+        return mapPreview(response);
     }
     // export triggers the destructive export packaging for a request. The
     // response is the per-request artifact metadata; the download URL is
@@ -58,8 +85,8 @@ export class OffboardingClient {
     download(requestUuid, options) {
         return this.request("GET", `/offboarding/requests/${encodeURIComponent(requestUuid)}/download`, undefined, options);
     }
-    // acknowledge records that the operator (or client) has accepted the
-    // preview. After acknowledgment the server is willing to accept execute.
+    // acknowledge records that the export was downloaded successfully and its
+    // inventory was confirmed. Never call it merely because preview succeeded.
     acknowledge(requestUuid, options) {
         return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/acknowledge`, undefined, options);
     }
@@ -67,17 +94,22 @@ export class OffboardingClient {
     // waiver.role; an empty waiver returns 400 waiver_required, which the
     // SDK surfaces without retry.
     execute(requestUuid, body, options) {
-        return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/execute`, body, options);
+        const wireBody = {
+            waiver_role: body.waiver.role,
+            waiver_reason: body.waiver.reason,
+            ...(body.waiver.timestamp ? { waiver_timestamp: body.waiver.timestamp } : {}),
+        };
+        return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/execute`, wireBody, options).then(mapReceipt);
     }
     // retry re-arms an offboarding request that previously failed. The server
     // decides whether the request is retryable; the SDK does not pre-filter.
     retry(requestUuid, options) {
-        return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/retry`, undefined, options);
+        return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/retry`, undefined, options).then(mapReceipt);
     }
     // receipt returns the terminal offboarding receipt for a request. The
-    // sha256 digest is the signed evidence the client must retain alongside
-    // its offboarding record.
+    // sha256 is an unkeyed integrity checksum the client must retain alongside
+    // its offboarding record; it is not an authenticity signature.
     receipt(requestUuid, options) {
-        return this.request("GET", `/offboarding/requests/${encodeURIComponent(requestUuid)}/receipt`, undefined, options);
+        return this.request("GET", `/offboarding/requests/${encodeURIComponent(requestUuid)}/receipt`, undefined, options).then(mapReceipt);
     }
 }

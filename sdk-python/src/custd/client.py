@@ -23,6 +23,14 @@ EventEnvelope = dict[str, Any]
 TransportResult = dict[str, Any]
 Transport = Callable[[str, EventEnvelope, dict[str, str], float], TransportResult]
 AdminTransport = Callable[[str, str, dict[str, Any] | None, dict[str, str], float], TransportResult]
+
+
+class AdminRequestOptions(TypedDict, total=False):
+    """Optional metadata applied to one authenticated admin request."""
+
+    idempotency_key: str
+
+
 TokenProvider = Callable[[], str]
 OAuthTokenTransport = Callable[[str, dict[str, Any], float], dict[str, Any]]
 
@@ -168,7 +176,44 @@ class RetryableError(RuntimeError):
 
 
 class RequestError(RuntimeError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        status: int | None = None,
+        code: str | None = None,
+        safe_next_action: str | None = None,
+        reason: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.status = status
+        self.code = code
+        self.safe_next_action = safe_next_action
+        self.reason = reason
+
+
+def admin_request_error(status: int, body: object) -> RequestError:
+    decoded: object = body
+    if isinstance(body, str):
+        try:
+            decoded = json.loads(body)
+        except json.JSONDecodeError:
+            decoded = None
+    payload = decoded if isinstance(decoded, dict) else {}
+    reason = payload.get("error")
+    code = payload.get("code")
+    safe_next_action = payload.get("safe_next_action")
+    reason_text = reason if isinstance(reason, str) and reason else None
+    code_text = code if isinstance(code, str) and code else None
+    action_text = safe_next_action if isinstance(safe_next_action, str) and safe_next_action else None
+    message = reason_text or f"admin request failed with status {status}"
+    return RequestError(
+        f"custd: {message}",
+        status=status,
+        code=code_text,
+        safe_next_action=action_text,
+        reason=reason_text,
+    )
 
 
 class QueueStorageError(RuntimeError):
@@ -220,9 +265,7 @@ class FileQueueStorage:
         except OSError as error:
             raise QueueStorageError(f"custd: failed to load queue file {self.path}") from error
         if len(raw) > self.max_bytes:
-            raise QueueFullError(
-                f"custd: queue file exceeds max_bytes ({len(raw)} > {self.max_bytes})"
-            )
+            raise QueueFullError(f"custd: queue file exceeds max_bytes ({len(raw)} > {self.max_bytes})")
         try:
             decoded = json.loads(raw)
         except json.JSONDecodeError as error:
@@ -237,9 +280,7 @@ class FileQueueStorage:
         except (TypeError, ValueError) as error:
             raise QueueStorageError("custd: queued events must be JSON serializable") from error
         if len(raw) > self.max_bytes:
-            raise QueueFullError(
-                f"custd: queue file exceeds max_bytes ({len(raw)} > {self.max_bytes})"
-            )
+            raise QueueFullError(f"custd: queue file exceeds max_bytes ({len(raw)} > {self.max_bytes})")
 
         directory = self.path.parent
         try:
@@ -409,9 +450,7 @@ class CustdClient:
 
     def _enqueue(self, event: EventEnvelope) -> None:
         if len(self.queue) >= self.max_queue_size:
-            raise QueueFullError(
-                f"custd: queue max_queue_size reached ({self.max_queue_size})"
-            )
+            raise QueueFullError(f"custd: queue max_queue_size reached ({self.max_queue_size})")
         next_queue = [*self.queue, event]
         self.queue_storage.save(next_queue)
         self.queue = next_queue
@@ -522,6 +561,7 @@ class AdminClient:
         from .admin_retention import RetentionClient
         from .admin_subject_exports import SubjectExportClient
         from .admin_tenant_storage import TenantStorageClient
+
         self.tenant_storage = TenantStorageClient(self)
         self.subject_exports = SubjectExportClient(self)
         self.privacy_erasures = PrivacyErasureClient(self)
@@ -534,17 +574,22 @@ class AdminClient:
         method: str,
         path: str,
         payload: dict[str, Any] | None = None,
+        options: AdminRequestOptions | None = None,
     ) -> TransportResult:
+        headers = self._client._headers()
+        idempotency_key = (options or {}).get("idempotency_key")
+        if isinstance(idempotency_key, str) and idempotency_key.strip():
+            headers["Idempotency-Key"] = idempotency_key.strip()
         result = self._transport(
             method,
             self._client.base_url + "/api/v1/admin" + path,
             payload,
-            self._client._headers(),
+            headers,
             self._client.timeout,
         )
         status = int(result["status"])
         if status >= 400:
-            raise RequestError(f"custd: admin request failed with status {status}")
+            raise admin_request_error(status, result.get("body"))
         body = result.get("body")
         if status == 204 or body in (None, ""):
             return {}
@@ -883,9 +928,7 @@ def acknowledged_event_uuids(results: Any, events: list[EventEnvelope]) -> set[s
     if not isinstance(results, list):
         return set()
     expected = {
-        event["eventUuid"]
-        for event in events
-        if isinstance(event.get("eventUuid"), str) and event["eventUuid"]
+        event["eventUuid"] for event in events if isinstance(event.get("eventUuid"), str) and event["eventUuid"]
     }
     acknowledged: set[str] = set()
     for result in results:
@@ -1021,14 +1064,16 @@ def create_dogfood_event(input: dict[str, Any]) -> EventEnvelope:
     if input.get("correlationId"):
         payload["correlationId"] = input["correlationId"]
 
-    return prepare_event({
-        "eventTypeSlug": input["eventTypeSlug"],
-        "schemaVersion": input["schemaVersion"],
-        "timestamp": iso_now(),
-        "companySlug": input["companySlug"],
-        "context": {"device": {"type": "server"}},
-        "payload": payload,
-    })
+    return prepare_event(
+        {
+            "eventTypeSlug": input["eventTypeSlug"],
+            "schemaVersion": input["schemaVersion"],
+            "timestamp": iso_now(),
+            "companySlug": input["companySlug"],
+            "context": {"device": {"type": "server"}},
+            "payload": payload,
+        }
+    )
 
 
 DOGFOOD_PROTECTED_PAYLOAD_FIELDS = {
@@ -1247,7 +1292,12 @@ def _is_reporting_trust(value: Any) -> bool:
         "exportState",
     )
     optional_strings = (
-        "lastExport", "schemaVersion", "contractVersion", "permissionClass", "partialReason", "unavailableReason"
+        "lastExport",
+        "schemaVersion",
+        "contractVersion",
+        "permissionClass",
+        "partialReason",
+        "unavailableReason",
     )
     return (
         isinstance(value, dict)
@@ -1340,9 +1390,7 @@ def normalize_compression(compression: dict[str, Any] | None) -> dict[str, Any]:
     compression = compression or {}
     return {
         "enabled": bool(compression.get("enabled", True)),
-        "threshold_bytes": int(
-            compression.get("threshold_bytes", DEFAULT_COMPRESSION_THRESHOLD_BYTES)
-        ),
+        "threshold_bytes": int(compression.get("threshold_bytes", DEFAULT_COMPRESSION_THRESHOLD_BYTES)),
     }
 
 

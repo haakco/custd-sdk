@@ -73,8 +73,10 @@ final class CustdClient
      *       status code (e.g. transport error).
      *     - `admin_http_client`: callable|null Custom admin HTTP transport.
      *       When provided, it receives
-     *       `(string $method, string $url, ?array $body, string $token)` and
-     *       MUST return `array{status:int, body:string}`.
+     *       `(string $method, string $url, ?array $body, string $token, array<string, string> $headers)`
+     *       and MUST return `array{status:int, body:string}`. The fifth
+     *       headers argument is empty unless a request option needs an extra
+     *       header; existing four-argument callbacks remain valid.
      */
     public function __construct(string $baseUrl, ?string $token = null, array $options = [])
     {

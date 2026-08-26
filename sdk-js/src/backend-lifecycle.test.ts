@@ -129,12 +129,14 @@ describe("BackendLifecycleClient", () => {
   it("runs the complete offboarding workflow and requires a zero-state proof", async () => {
     const preview = readLifecycleFixture("offboarding", "valid-preview-response.json");
     const exported = readLifecycleFixture("offboarding", "valid-export-response.json");
+    const download = readLifecycleFixture("offboarding", "valid-download-response.json");
     const acknowledged = readLifecycleFixture("offboarding", "valid-acknowledge-response.json");
     const executed = readLifecycleFixture("offboarding", "valid-execute-response.json");
     const receipt = readLifecycleFixture("offboarding", "valid-receipt-response.json");
     const { client, fetchMock } = clientFor([
       jsonResponse(preview),
       jsonResponse(exported),
+      jsonResponse(download),
       jsonResponse(acknowledged),
       jsonResponse({ requestUuid: REQUEST_UUID, state: "confirmed" }),
       jsonResponse(executed),
@@ -145,21 +147,26 @@ describe("BackendLifecycleClient", () => {
       expect(input.requestUuid).toBe(REQUEST_UUID);
       return { zero: true };
     });
+    const receiveAndVerifyExport = vi.fn(async () => ({ verified: true as const, evidence: "stored:test" }));
 
     const result = await client.admin.lifecycle.completeOffboarding({
       tenantSlug: "acme",
       requestUuid: REQUEST_UUID,
       waiver: { role: "client_owner", reason: "explicit_client_request" },
+      receiveAndVerifyExport,
       verifyZeroState,
     });
 
     expect(result.requestUuid).toBe(REQUEST_UUID);
     expect(result.receipt.finalState).toBe("complete");
     expect(result.zeroState).toEqual({ zero: true });
+    expect(result.exportDelivery).toEqual({ verified: true, evidence: "stored:test" });
+    expect(receiveAndVerifyExport).toHaveBeenCalledTimes(1);
     expect(verifyZeroState).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls.map(([input, init]) => [String(input), init?.method])).toEqual([
       [`${BASE_URL}/api/v1/admin/offboarding/requests/${REQUEST_UUID}/preview`, "POST"],
       [`${BASE_URL}/api/v1/admin/offboarding/requests/${REQUEST_UUID}/export`, "POST"],
+      [`${BASE_URL}/api/v1/admin/offboarding/requests/${REQUEST_UUID}/download`, "GET"],
       [`${BASE_URL}/api/v1/admin/offboarding/requests/${REQUEST_UUID}/acknowledge`, "POST"],
       [`${BASE_URL}/api/v1/admin/offboarding/${REQUEST_UUID}/confirm`, "POST"],
       [`${BASE_URL}/api/v1/admin/offboarding/requests/${REQUEST_UUID}/execute`, "POST"],
@@ -167,10 +174,17 @@ describe("BackendLifecycleClient", () => {
     ]);
   });
 
-  it("fails closed on an explicitly incomplete export", async () => {
+  it("fails closed on an incomplete preview before export", async () => {
     const { client, fetchMock } = clientFor([
-      jsonResponse({ requestUuid: REQUEST_UUID, perStore: [] }),
-      jsonResponse({ requestUuid: REQUEST_UUID, complete: false }),
+      jsonResponse({
+        requestUuid: REQUEST_UUID,
+        generatedAt: "2026-08-26T00:00:00Z",
+        expiresAt: "2026-08-27T00:00:00Z",
+        stores: [],
+        previewInventoryDigest: "sha256:test",
+        complete: false,
+        partial: true,
+      }),
     ]);
 
     await expect(
@@ -178,21 +192,43 @@ describe("BackendLifecycleClient", () => {
         tenantSlug: "acme",
         requestUuid: REQUEST_UUID,
         waiver: { role: "client_owner", reason: "explicit_client_request" },
+        receiveAndVerifyExport: async () => ({ verified: true }),
         verifyZeroState: async () => ({ zero: true }),
       }),
-    ).rejects.toThrow("offboarding export is incomplete");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    ).rejects.toThrow("offboarding preview is incomplete");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not acknowledge until the downloaded export is persisted and verified", async () => {
+    const { client, fetchMock } = clientFor([
+      jsonResponse(readLifecycleFixture("offboarding", "valid-preview-response.json")),
+      jsonResponse(readLifecycleFixture("offboarding", "valid-export-response.json")),
+      jsonResponse(readLifecycleFixture("offboarding", "valid-download-response.json")),
+    ]);
+
+    await expect(
+      client.admin.lifecycle.completeOffboarding({
+        tenantSlug: "acme",
+        requestUuid: REQUEST_UUID,
+        waiver: { role: "client_owner", reason: "explicit_client_request" },
+        receiveAndVerifyExport: async () => ({ verified: false }),
+        verifyZeroState: async () => ({ zero: true }),
+      }),
+    ).rejects.toThrow("export delivery was not verified");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("fails closed when zero-state reconciliation reports residual data", async () => {
     const preview = readLifecycleFixture("offboarding", "valid-preview-response.json");
     const exported = readLifecycleFixture("offboarding", "valid-export-response.json");
+    const download = readLifecycleFixture("offboarding", "valid-download-response.json");
     const acknowledged = readLifecycleFixture("offboarding", "valid-acknowledge-response.json");
     const executed = readLifecycleFixture("offboarding", "valid-execute-response.json");
     const receipt = readLifecycleFixture("offboarding", "valid-receipt-response.json");
     const { client } = clientFor([
       jsonResponse(preview),
       jsonResponse(exported),
+      jsonResponse(download),
       jsonResponse(acknowledged),
       jsonResponse({ requestUuid: REQUEST_UUID, state: "confirmed" }),
       jsonResponse(executed),
@@ -204,6 +240,7 @@ describe("BackendLifecycleClient", () => {
         tenantSlug: "acme",
         requestUuid: REQUEST_UUID,
         waiver: { role: "client_owner", reason: "explicit_client_request" },
+        receiveAndVerifyExport: async () => ({ verified: true }),
         verifyZeroState: async () => ({ zero: false, remaining: ["tenant-row"] }),
       }),
     ).rejects.toThrow("zero-state reconciliation did not confirm an empty tenant");

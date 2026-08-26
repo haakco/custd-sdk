@@ -19,6 +19,21 @@ export { checkRuntimeReadiness, } from "./runtime-readiness.js";
 export { createMobileAsyncQueueStorage, createMobileFlushTriggers, } from "./mobile-adapter.js";
 export { createMobileEvent, } from "./mobile-context.js";
 export { AsyncEventQueue } from "./mobile-queue.js";
+export class AdminWorkflowError extends Error {
+    constructor(status, reason, code, safeNextAction) {
+        let message = `custd: ${reason || "admin workflow request failed"} (status ${status})`;
+        if (code)
+            message += ` [code=${code}]`;
+        if (safeNextAction)
+            message += ` [safeNextAction=${safeNextAction}]`;
+        super(message);
+        this.status = status;
+        this.reason = reason;
+        this.code = code;
+        this.safeNextAction = safeNextAction;
+        this.name = "AdminWorkflowError";
+    }
+}
 function publicAdminSite(site) {
     const { writeKey: _writeKey, ...safeSite } = site;
     return safeSite;
@@ -357,6 +372,7 @@ export class CustdClient {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
                 ...this.defaultHeaders,
+                ...(options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
             },
             body: body === undefined ? undefined : JSON.stringify(body),
             signal: options?.signal,
@@ -366,12 +382,14 @@ export class CustdClient {
             let errorCode = "";
             let detail = "";
             let safeNextAction = "";
+            let workflowEnvelope = false;
             if (text.length > 0) {
                 try {
                     const parsed = JSON.parse(text);
-                    errorCode = parsed.error || "";
-                    detail = parsed.detail || parsed.message || parsed.title || "";
-                    safeNextAction = parsed.safeNextAction || "";
+                    errorCode = parsed.code || "";
+                    detail = parsed.detail || parsed.error || parsed.message || parsed.title || "";
+                    safeNextAction = parsed.safeNextAction || parsed.safe_next_action || "";
+                    workflowEnvelope = typeof parsed.error === "string" && (errorCode.length > 0 || safeNextAction.length > 0);
                 }
                 catch {
                     detail = text.slice(0, 200);
@@ -385,6 +403,9 @@ export class CustdClient {
             }
             if (safeNextAction.length > 0) {
                 message = `${message} [safeNextAction=${safeNextAction}]`;
+            }
+            if (workflowEnvelope) {
+                throw new AdminWorkflowError(response.status, detail, errorCode, safeNextAction);
             }
             throw new Error(message);
         }

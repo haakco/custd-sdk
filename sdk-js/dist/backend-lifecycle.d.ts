@@ -29,6 +29,16 @@ export type VerifyZeroState = (input: {
     requestUuid: string;
     receipt: OffboardingReceiptResponse;
 }) => ZeroStateReconciliationResult | Promise<ZeroStateReconciliationResult>;
+export type ExportDeliveryVerificationResult = {
+    verified: boolean;
+    evidence?: string;
+};
+export type ReceiveAndVerifyOffboardingExport = (input: {
+    tenantSlug: string;
+    requestUuid: string;
+    downloadUrl: string;
+    export: OffboardingExportResponse;
+}) => ExportDeliveryVerificationResult | Promise<ExportDeliveryVerificationResult>;
 export type ZeroStateReconciliationOptions = {
     tenantSlug: string;
     requestUuid: string;
@@ -39,6 +49,7 @@ export type CompleteOffboardingOptions = RequestOptions & {
     tenantSlug: string;
     requestUuid: string;
     waiver: OffboardingWaiver;
+    receiveAndVerifyExport: ReceiveAndVerifyOffboardingExport;
     verifyZeroState: VerifyZeroState;
 };
 export type CompleteOffboardingResult = {
@@ -46,6 +57,10 @@ export type CompleteOffboardingResult = {
     requestUuid: string;
     preview: OffboardingPreviewResponse;
     export: OffboardingExportResponse;
+    download: {
+        downloadUrl: string;
+    };
+    exportDelivery: ExportDeliveryVerificationResult;
     acknowledgement: OffboardingAcknowledgeResponse;
     execution: OffboardingExecuteResponse;
     receipt: OffboardingReceiptResponse;

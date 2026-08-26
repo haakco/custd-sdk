@@ -7,7 +7,7 @@ import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
 export { type ClientSetupApplyAndWaitOptions, type ClientSetupApplyAndWaitResult, type ClientSetupApplyResponse, ClientSetupClient, type ClientSetupManifest, type ClientSetupOAuthClientDesiredState, type ClientSetupOAuthPurposeProfile, type ClientSetupOneTimeCredential, type ClientSetupPrivacyDesiredState, type ClientSetupPrivacyRule, type ClientSetupReadinessResponse, type ClientSetupReportingPackDesiredState, type ClientSetupResourceStatus, type ClientSetupRetentionDesiredState, type ClientSetupSchemaDesiredState, validateClientSetupManifest, } from "./admin-client-setup.js";
-export { type OffboardingAcknowledgeResponse, type OffboardingCancelRequest, OffboardingClient, type OffboardingDownloadResponse, type OffboardingExecuteRequest, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPerStore, type OffboardingPreviewResponse, type OffboardingReceiptPerStore, type OffboardingReceiptResponse, type OffboardingRequest, type OffboardingRequestCreate, type OffboardingRetryResponse, type OffboardingSchedule, type OffboardingScheduleListResponse, type OffboardingScheduleRequest, type OffboardingWaiver, } from "./admin-offboarding.js";
+export { type OffboardingAcknowledgeResponse, type OffboardingCancelRequest, OffboardingClient, type OffboardingDownloadResponse, type OffboardingExecuteRequest, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPreviewResponse, type OffboardingPreviewStore, type OffboardingReceiptPerStore, type OffboardingReceiptResponse, type OffboardingRequest, type OffboardingRequestCreate, type OffboardingRetryResponse, type OffboardingSchedule, type OffboardingScheduleListResponse, type OffboardingScheduleRequest, type OffboardingWaiver, } from "./admin-offboarding.js";
 export { type PredictionActivateRequest, PredictionAdminClient, type PredictionDefinition, type PredictionDefinitionCreateRequest, type PredictionDefinitionListResponse, type PredictionDefinitionUpdateRequest, type PredictionEvaluationSummary, type PredictionOutcomeSummary, type PredictionPauseRequest, type PredictionRollbackRequest, type PredictionRunNowRequest, type PredictionRunSummary, type PredictionSignalSource, type PredictionSignalSourceCreateRequest, type PredictionThresholdEvent, type PredictionVersion, type PredictionVersionPublishRequest, } from "./admin-predictions.js";
 export { type PrivacyErasure, PrivacyErasureClient, type PrivacyErasureCreateRequest, PrivacyErasureError, type PrivacyErasureListResponse, type PrivacyErasureRetryClassification, type PrivacyErasureSelector, type PrivacyErasureState, type PrivacyErasureStoreProgress, type PrivacyErasureWaitOptions, } from "./admin-privacy-erasures.js";
 export { RetentionClient, type RetentionPolicy, type RetentionPolicyListResponse, type RetentionPolicyUpsertRequest, type RetentionRun, type RetentionRunDeletion, type RetentionRunPreview, type RetentionRunsListResponse, } from "./admin-retention.js";
@@ -145,7 +145,17 @@ export type ClientConfig = {
 };
 export type RequestOptions = {
     signal?: AbortSignal;
+    /** Stable key for retry-safe POST operations supported by the API. */
+    idempotencyKey?: string;
 };
+export declare class AdminWorkflowError extends Error {
+    readonly status: number;
+    readonly reason: string;
+    readonly code: string;
+    readonly safeNextAction: string;
+    readonly name = "AdminWorkflowError";
+    constructor(status: number, reason: string, code: string, safeNextAction: string);
+}
 export type PreparedDataState = "accepted" | "processing" | "ready" | "failed";
 export type PreparedDataAvailability = "complete" | "partial" | "stale" | "unavailable";
 export type PreparedDataNextAction = "none" | "poll" | "retry" | "rotate" | "escalate";

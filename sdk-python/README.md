@@ -189,7 +189,8 @@ runs = admin.retention.list_runs("acme")
 # Offboarding: full request lifecycle + schedules.
 sched = admin.offboarding.schedule({
     "tenantSlug": "acme",
-    "executeAt": "2026-12-31T00:00:00Z",
+    "effectiveAt": "2026-12-31T00:00:00Z",
+    "gracePeriodDays": 7,
     "reason": "contract_end",
 })
 ```

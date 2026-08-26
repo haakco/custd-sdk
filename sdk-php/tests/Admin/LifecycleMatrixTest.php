@@ -27,7 +27,7 @@ final class LifecycleMatrixTest extends TestCase
      * relying on global transport state.
      *
      * @param array<int, array{0: string, 1: string}> $queue
-     * @return array{0: CustdClient, 1: object{calls: array<int, array{method:string, url:string, body:mixed, token:string}>}}
+     * @return array{0: CustdClient, 1: object{calls: array<int, array{method:string, url:string, body:mixed, token:string, headers:array<string, string>}>}}
      */
     private function client(array $queue): array
     {
@@ -37,7 +37,7 @@ final class LifecycleMatrixTest extends TestCase
         // an object wrapper is required to keep the state shared across
         // closure invocations.
         $bag = new class () {
-            /** @var array<int, array{method:string, url:string, body:mixed, token:string}> */
+            /** @var array<int, array{method:string, url:string, body:mixed, token:string, headers:array<string, string>}> */
             public array $calls = [];
             /** @var array<int, array{0: string, 1: string}> */
             public array $queue = [];
@@ -48,12 +48,14 @@ final class LifecycleMatrixTest extends TestCase
             string $url,
             ?array $body,
             string $token,
+            array $headers = [],
         ) use ($bag): array {
             $bag->calls[] = [
                 "method" => $method,
                 "url" => $url,
                 "body" => $body,
                 "token" => $token,
+                "headers" => $headers,
             ];
             $response = array_shift($bag->queue);
             $this->assertNotNull($response, "queue exhausted on call #" . count($bag->calls));
@@ -466,23 +468,30 @@ final class LifecycleMatrixTest extends TestCase
             ["200", $receiptBody],
         ]);
 
-        $created = $client->adminOffboarding()->requestOffboarding(["confirmation" => "acme"]);
+        $created = $client->adminOffboarding()->requestOffboarding(
+            ["confirmation" => "acme"],
+            ["idempotencyKey" => "tiao-offboarding-proof-1"],
+        );
         $this->assertSame("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ", $created["requestUuid"]);
-        $this->assertSame("requested", $created["state"]);
+        $this->assertSame("preview", $created["state"]);
         $this->assertSame("POST", $calls->calls[0]["method"]);
         $this->assertSame(self::BASE_URL . "/api/v1/admin/offboarding", $calls->calls[0]["url"]);
+        $this->assertSame(["confirmation" => "acme"], $calls->calls[0]["body"]);
+        $this->assertSame("tiao-offboarding-proof-1", $calls->calls[0]["headers"]["Idempotency-Key"]);
 
         $preview = $client->adminOffboarding()->preview("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
         $this->assertNotSame("", $preview["previewInventoryDigest"]);
-        $this->assertCount(3, $preview["perStore"]);
+        $this->assertCount(3, $preview["stores"]);
+        $this->assertSame("operational", $preview["stores"][0]["retentionClass"]);
+        $this->assertSame(1247, $preview["stores"][0]["estimatedCount"]);
         $this->assertSame(
             self::BASE_URL . "/api/v1/admin/offboarding/requests/ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ/preview",
             $calls->calls[1]["url"],
         );
 
         $exportReceipt = $client->adminOffboarding()->export("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-        $this->assertTrue($exportReceipt["complete"]);
-        $this->assertNotSame("", $exportReceipt["schemaVersion"]);
+        $this->assertSame(1357, $exportReceipt["recordCount"]);
+        $this->assertNotSame("", $exportReceipt["checksumSha256"]);
         $this->assertSame(
             self::BASE_URL . "/api/v1/admin/offboarding/requests/ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ/export",
             $calls->calls[2]["url"],
@@ -495,7 +504,7 @@ final class LifecycleMatrixTest extends TestCase
         $this->assertStringNotContainsString("signed.example.invalid", $calls->calls[3]["url"]);
 
         $ack = $client->adminOffboarding()->acknowledge("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-        $this->assertSame("confirmed", $ack["state"]);
+        $this->assertSame("requested", $ack["state"]);
         $this->assertSame(
             self::BASE_URL . "/api/v1/admin/offboarding/requests/ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ/acknowledge",
             $calls->calls[4]["url"],
@@ -507,7 +516,11 @@ final class LifecycleMatrixTest extends TestCase
                 "reason" => "explicit_client_request",
             ],
         ]);
-        $this->assertSame("deleting", $exec["state"]);
+        $this->assertSame([
+            "waiver_role" => "client_owner",
+            "waiver_reason" => "explicit_client_request",
+        ], $calls->calls[5]["body"]);
+        $this->assertSame("complete", $exec["finalState"]);
         $this->assertSame("client_owner", $exec["waiver"]["role"]);
         $this->assertSame(
             self::BASE_URL . "/api/v1/admin/offboarding/requests/ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ/execute",
@@ -516,11 +529,13 @@ final class LifecycleMatrixTest extends TestCase
 
         $receipt = $client->adminOffboarding()->receipt("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
         $this->assertSame("complete", $receipt["finalState"]);
+        $this->assertSame("user:u_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ", $receipt["requestedByActor"]);
+        $this->assertSame(7, $receipt["requestedByUserId"]);
         $this->assertNotSame("", $receipt["sha256"]);
         $this->assertCount(3, $receipt["perStore"]);
         foreach ($receipt["perStore"] as $row) {
             $this->assertNotSame("", $row["store"]);
-            $this->assertNotSame("", $row["retention_class"]);
+            $this->assertNotSame("", $row["retentionClass"]);
         }
         $this->assertSame(
             self::BASE_URL . "/api/v1/admin/offboarding/requests/ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ/receipt",
@@ -550,18 +565,22 @@ final class LifecycleMatrixTest extends TestCase
         );
 
         $confirmed = $client->adminOffboarding()->confirmRequest("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-        $this->assertSame("fencing", $confirmed["state"]);
+        $this->assertSame("confirmed", $confirmed["state"]);
         $this->assertSame(
             self::BASE_URL . "/api/v1/admin/offboarding/ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ/confirm",
             $calls->calls[1]["url"],
         );
 
-        $cancelled = $client->adminOffboarding()->cancelRequest("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+        $cancelled = $client->adminOffboarding()->cancelRequest(
+            "ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ",
+            ["reason" => "client_request_cancelled"],
+        );
         $this->assertSame("cancelled", $cancelled["state"]);
         $this->assertSame(
             self::BASE_URL . "/api/v1/admin/offboarding/ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ/cancel",
             $calls->calls[2]["url"],
         );
+        $this->assertSame(["reason" => "client_request_cancelled"], $calls->calls[2]["body"]);
     }
 
     public function testOffboardingExecuteSurfacesWaiverRequiredError(): void
@@ -590,8 +609,10 @@ final class LifecycleMatrixTest extends TestCase
         try {
             $client->adminOffboarding()->confirmRequest("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
             $this->fail("expected RuntimeException on erasure-incomplete error");
-        } catch (\RuntimeException $err) {
+        } catch (\HaakCo\Custd\Admin\AdminWorkflowException $err) {
             $this->assertStringContainsString("retry_erasure", $err->getMessage());
+            $this->assertSame("erasure_incomplete", $err->workflowCode);
+            $this->assertSame("retry_erasure", $err->safeNextAction);
         }
     }
 
@@ -603,7 +624,7 @@ final class LifecycleMatrixTest extends TestCase
 
         $row = $client->adminOffboarding()->retry("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
 
-        $this->assertSame("fencing", $row["state"]);
+        $this->assertSame("complete", $row["finalState"]);
         $this->assertSame(
             self::BASE_URL . "/api/v1/admin/offboarding/requests/ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ/retry",
             $calls->calls[0]["url"],
@@ -625,7 +646,9 @@ final class LifecycleMatrixTest extends TestCase
         ]);
 
         $created = $client->adminOffboarding()->schedule($createRequest);
-        $this->assertSame("scheduled", $created["state"]);
+        $this->assertSame("scheduled", $created["status"]);
+        $this->assertSame($createRequest["effectiveAt"], $created["effectiveAt"]);
+        $this->assertSame($createRequest["gracePeriodDays"], $created["gracePeriodDays"]);
         $this->assertSame(
             self::BASE_URL . "/api/v1/admin/offboarding/schedules",
             $calls->calls[0]["url"],
@@ -641,7 +664,7 @@ final class LifecycleMatrixTest extends TestCase
         );
 
         $perTenant = $client->adminOffboarding()->getSchedule("acme");
-        $this->assertSame("scheduled", $perTenant["state"]);
+        $this->assertSame("scheduled", $perTenant["status"]);
         $this->assertSame(
             self::BASE_URL . "/api/v1/admin/offboarding/schedules/acme",
             $calls->calls[2]["url"],

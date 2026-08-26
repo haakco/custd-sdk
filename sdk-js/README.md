@@ -363,9 +363,16 @@ const runs = await admin.retention.listRuns("acme");
 // Offboarding: full request lifecycle + schedules.
 const sched = await admin.offboarding.schedule({
   tenantSlug: "acme",
-  executeAt: "2026-12-31T00:00:00Z",
+  effectiveAt: "2026-12-31T00:00:00Z",
+  gracePeriodDays: 30,
   reason: "contract_end",
+  status: "scheduled",
 });
+
+const request = await admin.offboarding.requestOffboarding(
+  { confirmation: "acme" },
+  { idempotencyKey: "acme-offboarding-2026-12-31" },
+);
 ```
 
 SDKs never log signed URLs, raw personal data, export bytes, or

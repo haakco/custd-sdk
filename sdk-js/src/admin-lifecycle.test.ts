@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readLifecycleFixture } from "./fixtures.js";
-import { CustdClient } from "./index";
+import { AdminWorkflowError, CustdClient } from "./index";
 
 const BASE_URL = "http://localhost:8080/";
 
@@ -288,7 +288,7 @@ describe("OffboardingClient", () => {
     const execBody = readLifecycleFixture("offboarding", "valid-execute-response.json") as Record<string, unknown>;
     const receiptBody = readLifecycleFixture("offboarding", "valid-receipt-response.json") as Record<string, unknown>;
     const sequence = [createBody, previewBody, exportBody, downloadBody, ackBody, execBody, receiptBody];
-    const calls: Array<{ url: string; method: string; body: unknown }> = [];
+    const calls: Array<{ url: string; method: string; body: unknown; idempotencyKey: string | null }> = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? "GET";
@@ -296,7 +296,12 @@ describe("OffboardingClient", () => {
       if (typeof init?.body === "string" && init.body.length > 0) {
         parsed = JSON.parse(init.body);
       }
-      calls.push({ url, method, body: parsed });
+      calls.push({
+        url,
+        method,
+        body: parsed,
+        idempotencyKey: new Headers(init?.headers).get("Idempotency-Key"),
+      });
       const body = sequence[calls.length - 1];
       const status = calls.length === 1 ? 201 : 200;
       return new Response(JSON.stringify(body), {
@@ -306,21 +311,26 @@ describe("OffboardingClient", () => {
     }) as unknown as typeof fetch;
     const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
 
-    const created = await client.admin.offboarding.requestOffboarding({ confirmation: "acme" });
+    const created = await client.admin.offboarding.requestOffboarding(
+      { confirmation: "acme" },
+      { idempotencyKey: "tiao-offboarding-proof-1" },
+    );
     expect(created.requestUuid).toBe("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
     expect(calls[0].url).toBe("http://localhost:8080/api/v1/admin/offboarding");
     expect(calls[0].method).toBe("POST");
+    expect(calls[0].idempotencyKey).toBe("tiao-offboarding-proof-1");
 
     const preview = await client.admin.offboarding.preview("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
     expect(preview.previewInventoryDigest).not.toBe("");
-    expect(preview.perStore).toHaveLength(3);
+    expect(preview.stores).toHaveLength(3);
+    expect(preview.stores[0]?.retentionClass).toBe("operational");
     expect(calls[1].url).toBe(
       "http://localhost:8080/api/v1/admin/offboarding/requests/ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ/preview",
     );
 
     const exportReceipt = await client.admin.offboarding.export("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-    expect(exportReceipt.complete).toBe(true);
-    expect(exportReceipt.schemaVersion).not.toBe("");
+    expect(exportReceipt.recordCount).toBe(1357);
+    expect(exportReceipt.checksumSha256).not.toBe("");
 
     const download = await client.admin.offboarding.download("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
     expect(typeof download.downloadUrl).toBe("string");
@@ -329,18 +339,22 @@ describe("OffboardingClient", () => {
     expect(calls[3].url).not.toContain("signed.example.invalid");
 
     const ack = await client.admin.offboarding.acknowledge("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-    expect(ack.state).toBe("confirmed");
+    expect(ack.state).toBe("requested");
 
     const exec = await client.admin.offboarding.execute("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ", {
       waiver: { role: "client_owner", reason: "explicit_client_request" },
     });
-    expect(exec.state).toBe("deleting");
+    expect(calls[5]?.body).toEqual({
+      waiver_role: "client_owner",
+      waiver_reason: "explicit_client_request",
+    });
+    expect(exec.finalState).toBe("complete");
     expect(exec.waiver?.role).toBe("client_owner");
 
     const receipt = await client.admin.offboarding.receipt("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
     expect(receipt.finalState).toBe("complete");
     expect(receipt.requestedByActor).toBe("user:u_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-    expect(receipt.requestedByUserId).toBe("u_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    expect(receipt.requestedByUserId).toBe(7);
     expect(receipt.sha256).not.toBe("");
     expect(receipt.perStore).toHaveLength(3);
     for (const row of receipt.perStore) {
@@ -353,8 +367,8 @@ describe("OffboardingClient", () => {
     const humanReceipt = readLifecycleFixture("offboarding", "valid-receipt-response.json") as Record<string, unknown>;
     const machineReceipt = {
       ...humanReceipt,
-      requestedByActor: "client:tiao-lifecycle",
-      requestedByUserId: null,
+      requested_by_actor: "client:tiao-lifecycle",
+      requested_by_user_id: null,
     };
     const { fetchMock } = bootstrapFetch(200, machineReceipt);
     globalThis.fetch = fetchMock;
@@ -413,5 +427,8 @@ describe("OffboardingClient", () => {
     }
     expect(error).toBeDefined();
     expect(error?.message).toContain("retry_erasure");
+    expect(error).toBeInstanceOf(AdminWorkflowError);
+    expect((error as AdminWorkflowError).code).toBe("erasure_incomplete");
+    expect((error as AdminWorkflowError).safeNextAction).toBe("retry_erasure");
   });
 });
