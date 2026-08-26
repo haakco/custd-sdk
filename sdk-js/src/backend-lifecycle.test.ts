@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readLifecycleFixture } from "./fixtures.js";
-import { CustdClient } from "./index.js";
+import { CustdClient, createVerifiedOffboardingExportReceiver } from "./index.js";
 
 const BASE_URL = "http://localhost:8080";
 const REQUEST_UUID = "ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ";
@@ -29,6 +29,39 @@ beforeEach(() => {
 });
 
 describe("BackendLifecycleClient", () => {
+  it("downloads, verifies, and persists an offboarding export in the shared SDK", async () => {
+    const bytes = new TextEncoder().encode("artifact");
+    const checksumSha256 = "c7c5c1d70c5dec4416ab6158afd0b223ef40c29b1dc1f97ed9428b94d4cadb1c";
+    const persist = vi.fn(async () => "file:test-export");
+    const receive = createVerifiedOffboardingExportReceiver({
+      fetch: vi.fn(async () => new Response(bytes, { status: 200 })),
+      persist,
+    });
+
+    await expect(
+      receive({
+        tenantSlug: "acme",
+        requestUuid: REQUEST_UUID,
+        downloadUrl: "https://download.example.test/export",
+        export: {
+          requestUuid: REQUEST_UUID,
+          checksumSha256,
+          byteSize: bytes.byteLength,
+          recordCount: 1,
+          generatedAt: "2026-08-26T00:00:00Z",
+          expiresAt: "2026-08-27T00:00:00Z",
+          previewInventoryDigest: "a".repeat(64),
+        },
+      }),
+    ).resolves.toEqual({ verified: true, evidence: "file:test-export" });
+    expect(persist).toHaveBeenCalledWith({
+      tenantSlug: "acme",
+      requestUuid: REQUEST_UUID,
+      bytes,
+      checksumSha256,
+    });
+  });
+
   it("rotates an owned credential and delivers the one-time secret once", async () => {
     const secret = "rotated-secret";
     const { client, fetchMock } = clientFor([

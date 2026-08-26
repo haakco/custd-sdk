@@ -1,5 +1,30 @@
 import { OffboardingClient, } from "./admin-offboarding.js";
 import { checkRuntimeReadiness } from "./runtime-readiness.js";
+function hex(bytes) {
+    return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+}
+export function createVerifiedOffboardingExportReceiver(options) {
+    if (typeof options.persist !== "function") {
+        throw new Error("Custd lifecycle requires an export persistence callback");
+    }
+    const fetchImpl = options.fetch ?? globalThis.fetch;
+    return async ({ tenantSlug, requestUuid, downloadUrl, export: exported }) => {
+        const response = await fetchImpl(downloadUrl, { method: "GET" });
+        if (!response.ok) {
+            throw new Error(`Custd lifecycle export download failed with status ${response.status}`);
+        }
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (bytes.byteLength !== exported.byteSize) {
+            throw new Error("Custd lifecycle export byte size did not match server metadata");
+        }
+        const digest = hex(new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", bytes)));
+        if (digest !== exported.checksumSha256) {
+            throw new Error("Custd lifecycle export checksum verification failed");
+        }
+        const evidence = await options.persist({ tenantSlug, requestUuid, bytes, checksumSha256: digest });
+        return { verified: true, ...(evidence ? { evidence } : {}) };
+    };
+}
 const purposeProfiles = [
     "ingest",
     "schema",

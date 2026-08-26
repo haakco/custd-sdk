@@ -39,6 +39,17 @@ export type ReceiveAndVerifyOffboardingExport = (input: {
     downloadUrl: string;
     export: OffboardingExportResponse;
 }) => ExportDeliveryVerificationResult | Promise<ExportDeliveryVerificationResult>;
+export type PersistOffboardingExport = (input: {
+    tenantSlug: string;
+    requestUuid: string;
+    bytes: Uint8Array;
+    checksumSha256: string;
+}) => string | undefined | Promise<string | undefined>;
+export type VerifiedExportReceiverOptions = {
+    fetch?: typeof fetch;
+    persist: PersistOffboardingExport;
+};
+export declare function createVerifiedOffboardingExportReceiver(options: VerifiedExportReceiverOptions): ReceiveAndVerifyOffboardingExport;
 export type ZeroStateReconciliationOptions = {
     tenantSlug: string;
     requestUuid: string;
