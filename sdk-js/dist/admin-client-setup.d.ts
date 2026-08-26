@@ -1,4 +1,4 @@
-import type { RequestOptions } from "./index.js";
+import type { PackDefinition, RequestOptions } from "./index.js";
 export type ClientSetupOAuthPurposeProfile = "ingest" | "schema" | "reporting" | "lifecycle" | "broker";
 export type ClientSetupOAuthClientDesiredState = {
     name?: string;
@@ -28,10 +28,15 @@ export type ClientSetupRetentionDesiredState = {
     maxAgeDays: number;
     classes: string[];
 };
+export type ClientSetupReportingPackDesiredState = {
+    definition: PackDefinition;
+    expectedRevision?: number;
+};
 export type ClientSetupManifest = {
     schemas?: ClientSetupSchemaDesiredState[];
     privacy?: ClientSetupPrivacyDesiredState;
     retention?: ClientSetupRetentionDesiredState;
+    reportingPacks?: ClientSetupReportingPackDesiredState[];
     oauthClients?: ClientSetupOAuthClientDesiredState[];
 };
 export type ClientSetupResourceStatus = {
@@ -68,11 +73,21 @@ export type ClientSetupReadinessResponse = {
     safeNextActionCode: string;
     observedAt: string;
 };
+export type ClientSetupApplyAndWaitOptions = RequestOptions & {
+    timeoutMs?: number;
+    intervalMs?: number;
+};
+export type ClientSetupApplyAndWaitResult = {
+    apply: ClientSetupApplyResponse;
+    readiness: ClientSetupReadinessResponse;
+};
+export declare function validateClientSetupManifest(manifest: ClientSetupManifest): void;
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 export declare class ClientSetupClient {
     private readonly request;
     constructor(request: AdminRequester);
     apply(tenantSlug: string, manifest: ClientSetupManifest, options?: RequestOptions): Promise<ClientSetupApplyResponse>;
     readiness(tenantSlug: string, options?: RequestOptions): Promise<ClientSetupReadinessResponse>;
+    applyAndWait(tenantSlug: string, manifest: ClientSetupManifest, options?: ClientSetupApplyAndWaitOptions): Promise<ClientSetupApplyAndWaitResult>;
 }
 export {};

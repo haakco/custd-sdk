@@ -5,8 +5,11 @@ import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+import { BackendLifecycleClient } from "./backend-lifecycle.js";
 
 export {
+  type ClientSetupApplyAndWaitOptions,
+  type ClientSetupApplyAndWaitResult,
   type ClientSetupApplyResponse,
   ClientSetupClient,
   type ClientSetupManifest,
@@ -16,9 +19,11 @@ export {
   type ClientSetupPrivacyDesiredState,
   type ClientSetupPrivacyRule,
   type ClientSetupReadinessResponse,
+  type ClientSetupReportingPackDesiredState,
   type ClientSetupResourceStatus,
   type ClientSetupRetentionDesiredState,
   type ClientSetupSchemaDesiredState,
+  validateClientSetupManifest,
 } from "./admin-client-setup.js";
 export {
   type OffboardingAcknowledgeResponse,
@@ -96,6 +101,19 @@ export {
   type TenantStorageListResponse,
   type TenantStorageLocation,
 } from "./admin-tenant-storage.js";
+export {
+  BackendLifecycleClient,
+  type BackendLifecycleRequester,
+  type CompleteOffboardingOptions,
+  type CompleteOffboardingResult,
+  type OneTimeCredentialSecret,
+  type PersistOneTimeCredentialSecret,
+  type RotateCredentialOptions,
+  type RotateCredentialResult,
+  type VerifyZeroState,
+  type ZeroStateReconciliationOptions,
+  type ZeroStateReconciliationResult,
+} from "./backend-lifecycle.js";
 export {
   classifyReportingData,
   getReportingViewState,
@@ -1868,6 +1886,7 @@ class SchemaNamespace {
 
 class AdminNamespace {
   readonly tenants: AdminTenantNamespace;
+  readonly lifecycle: BackendLifecycleClient;
   readonly clientSetup: ClientSetupClient;
   readonly oauthClients: AdminOAuthClientNamespace;
   readonly sites: AdminSiteNamespace;
@@ -1886,6 +1905,7 @@ class AdminNamespace {
 
   constructor(request: AdminRequester, nonAdminRequest: NonAdminRequester) {
     this.tenants = new AdminTenantNamespace(request);
+    this.lifecycle = new BackendLifecycleClient(request);
     this.clientSetup = new ClientSetupClient(request);
     this.oauthClients = new AdminOAuthClientNamespace(request);
     this.sites = new AdminSiteNamespace(request);

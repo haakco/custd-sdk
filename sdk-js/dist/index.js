@@ -5,13 +5,15 @@ import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
-export { ClientSetupClient, } from "./admin-client-setup.js";
+import { BackendLifecycleClient } from "./backend-lifecycle.js";
+export { ClientSetupClient, validateClientSetupManifest, } from "./admin-client-setup.js";
 export { OffboardingClient, } from "./admin-offboarding.js";
 export { PredictionAdminClient, } from "./admin-predictions.js";
 export { PrivacyErasureClient, PrivacyErasureError, } from "./admin-privacy-erasures.js";
 export { RetentionClient, } from "./admin-retention.js";
 export { SubjectExportClient, } from "./admin-subject-exports.js";
 export { TenantStorageClient, } from "./admin-tenant-storage.js";
+export { BackendLifecycleClient, } from "./backend-lifecycle.js";
 export { classifyReportingData, getReportingViewState, reportingQueryKey, } from "./reporting-state.js";
 export { checkRuntimeReadiness, } from "./runtime-readiness.js";
 export { createMobileAsyncQueueStorage, createMobileFlushTriggers, } from "./mobile-adapter.js";
@@ -670,6 +672,7 @@ class SchemaNamespace {
 class AdminNamespace {
     constructor(request, nonAdminRequest) {
         this.tenants = new AdminTenantNamespace(request);
+        this.lifecycle = new BackendLifecycleClient(request);
         this.clientSetup = new ClientSetupClient(request);
         this.oauthClients = new AdminOAuthClientNamespace(request);
         this.sites = new AdminSiteNamespace(request);
