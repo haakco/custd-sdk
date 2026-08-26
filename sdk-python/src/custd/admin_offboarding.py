@@ -81,7 +81,14 @@ class OffboardingExportResponse(TypedDict):
 
 
 class OffboardingDownloadResponse(TypedDict):
+    request_uuid: str
     download_url: str
+    checksum_sha256: str
+    byte_size: int
+    record_count: int
+    generated_at: str
+    expires_at: str
+    preview_inventory_digest: str
 
 
 class OffboardingReceiptPerStore(TypedDict):
@@ -182,7 +189,14 @@ def _export_from_wire(response: Mapping[str, Any]) -> OffboardingExportResponse:
 
 def _download_from_wire(response: Mapping[str, Any]) -> OffboardingDownloadResponse:
     result: dict[str, Any] = {}
+    _copy_value(result, "request_uuid", response, "requestUuid")
     _copy_value(result, "download_url", response, "downloadUrl")
+    _copy_value(result, "checksum_sha256", response, "checksumSha256")
+    _copy_value(result, "byte_size", response, "byteSize")
+    _copy_value(result, "record_count", response, "recordCount")
+    _copy_value(result, "generated_at", response, "generatedAt")
+    _copy_value(result, "expires_at", response, "expiresAt")
+    _copy_value(result, "preview_inventory_digest", response, "previewInventoryDigest")
     return cast(OffboardingDownloadResponse, result)
 
 

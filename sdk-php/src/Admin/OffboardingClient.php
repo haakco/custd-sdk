@@ -14,6 +14,16 @@ namespace HaakCo\Custd\Admin;
  * @phpstan-type OffboardingCancelRequest array{reason: string}
  * @phpstan-type OffboardingWaiver array{role: string, reason: string, timestamp?: string}
  * @phpstan-type OffboardingExecuteRequest array{waiver: OffboardingWaiver}
+ * @phpstan-type OffboardingDownloadResponse array{
+ *     requestUuid: string,
+ *     downloadUrl: string,
+ *     checksumSha256: string,
+ *     byteSize: int,
+ *     recordCount: int,
+ *     generatedAt: string,
+ *     expiresAt: string,
+ *     previewInventoryDigest: string
+ * }
  */
 final class OffboardingClient
 {
@@ -201,11 +211,12 @@ final class OffboardingClient
     }
 
     /**
-     * Download returns a short-lived signed URL for the offboarding export
-     * artifact. The downloadUrl is sensitive; callers must not log it or
-     * echo it into error messages.
+     * Download returns the durable descriptor and short-lived signed URL for
+     * the offboarding export artifact. The downloadUrl is sensitive; callers
+     * must not log it or echo it into error messages. The remaining fields are
+     * the server's authoritative verification metadata.
      *
-     * @return array<string, mixed>
+     * @return OffboardingDownloadResponse
      */
     public function download(string $requestUuid): array
     {

@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readLifecycleFixture } from "./fixtures.js";
-import { CustdClient, createVerifiedOffboardingExportReceiver } from "./index.js";
+import {
+  CustdClient,
+  createVerifiedOffboardingExportReceiver,
+  type ReceiveAndVerifyOffboardingExport,
+} from "./index.js";
 
 const BASE_URL = "http://localhost:8080";
 const REQUEST_UUID = "ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ";
@@ -160,6 +164,7 @@ describe("BackendLifecycleClient", () => {
   });
 
   it("runs the complete offboarding workflow and requires a zero-state proof", async () => {
+    const request = readLifecycleFixture("offboarding", "valid-request-create-response.json");
     const preview = readLifecycleFixture("offboarding", "valid-preview-response.json");
     const exported = readLifecycleFixture("offboarding", "valid-export-response.json");
     const download = readLifecycleFixture("offboarding", "valid-download-response.json");
@@ -167,6 +172,7 @@ describe("BackendLifecycleClient", () => {
     const executed = readLifecycleFixture("offboarding", "valid-execute-response.json");
     const receipt = readLifecycleFixture("offboarding", "valid-receipt-response.json");
     const { client, fetchMock } = clientFor([
+      jsonResponse(request),
       jsonResponse(preview),
       jsonResponse(exported),
       jsonResponse(download),
@@ -180,7 +186,12 @@ describe("BackendLifecycleClient", () => {
       expect(input.requestUuid).toBe(REQUEST_UUID);
       return { zero: true };
     });
-    const receiveAndVerifyExport = vi.fn(async () => ({ verified: true as const, evidence: "stored:test" }));
+    const receiveAndVerifyExport: ReceiveAndVerifyOffboardingExport = vi.fn(async (input) => {
+      expect(input.export.checksumSha256).toBe("1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b");
+      expect(input.export.byteSize).toBe(4096);
+      expect(input.export.recordCount).toBe(1357);
+      return { verified: true as const, evidence: "stored:test" };
+    });
 
     const result = await client.admin.lifecycle.completeOffboarding({
       tenantSlug: "acme",
@@ -197,6 +208,7 @@ describe("BackendLifecycleClient", () => {
     expect(receiveAndVerifyExport).toHaveBeenCalledTimes(1);
     expect(verifyZeroState).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls.map(([input, init]) => [String(input), init?.method])).toEqual([
+      [`${BASE_URL}/api/v1/admin/offboarding/${REQUEST_UUID}`, "GET"],
       [`${BASE_URL}/api/v1/admin/offboarding/requests/${REQUEST_UUID}/preview`, "POST"],
       [`${BASE_URL}/api/v1/admin/offboarding/requests/${REQUEST_UUID}/export`, "POST"],
       [`${BASE_URL}/api/v1/admin/offboarding/requests/${REQUEST_UUID}/download`, "GET"],
@@ -207,8 +219,98 @@ describe("BackendLifecycleClient", () => {
     ]);
   });
 
+  it("resumes an exported request from its durable download descriptor", async () => {
+    const download = readLifecycleFixture("offboarding", "valid-download-response.json") as {
+      requestUuid: string;
+      downloadUrl: string;
+      checksumSha256: string;
+      byteSize: number;
+      recordCount: number;
+    };
+    const acknowledged = readLifecycleFixture("offboarding", "valid-acknowledge-response.json");
+    const executed = readLifecycleFixture("offboarding", "valid-execute-response.json");
+    const receipt = readLifecycleFixture("offboarding", "valid-receipt-response.json");
+    const { client, fetchMock } = clientFor([
+      jsonResponse(readLifecycleFixture("offboarding", "valid-request-get-response.json")),
+      jsonResponse(download),
+      jsonResponse(acknowledged),
+      jsonResponse({ requestUuid: REQUEST_UUID, state: "confirmed" }),
+      jsonResponse(executed),
+      jsonResponse(receipt),
+    ]);
+    const receiveAndVerifyExport: ReceiveAndVerifyOffboardingExport = vi.fn(async (input) => {
+      expect(input.downloadUrl).toBe(download.downloadUrl);
+      expect(input.export.checksumSha256).toBe(download.checksumSha256);
+      expect(input.export.byteSize).toBe(download.byteSize);
+      expect(input.export.recordCount).toBe(download.recordCount);
+      return { verified: true as const };
+    });
+
+    const result = await client.admin.lifecycle.completeOffboarding({
+      tenantSlug: "acme",
+      requestUuid: REQUEST_UUID,
+      waiver: { role: "client_owner", reason: "explicit_client_request" },
+      receiveAndVerifyExport,
+      verifyZeroState: async () => ({ zero: true }),
+    });
+
+    expect(result.preview).toBeUndefined();
+    expect(result.export).toBeUndefined();
+    expect(result.download).toEqual(download);
+    expect(fetchMock.mock.calls.map(([input, init]) => [String(input), init?.method])).toEqual([
+      [`${BASE_URL}/api/v1/admin/offboarding/${REQUEST_UUID}`, "GET"],
+      [`${BASE_URL}/api/v1/admin/offboarding/requests/${REQUEST_UUID}/download`, "GET"],
+      [`${BASE_URL}/api/v1/admin/offboarding/requests/${REQUEST_UUID}/acknowledge`, "POST"],
+      [`${BASE_URL}/api/v1/admin/offboarding/${REQUEST_UUID}/confirm`, "POST"],
+      [`${BASE_URL}/api/v1/admin/offboarding/requests/${REQUEST_UUID}/execute`, "POST"],
+      [`${BASE_URL}/api/v1/admin/offboarding/requests/${REQUEST_UUID}/receipt`, "GET"],
+    ]);
+  });
+
+  it("fails closed before mutation for an unsupported current state", async () => {
+    const { client, fetchMock } = clientFor([
+      jsonResponse({ requestUuid: REQUEST_UUID, state: "requested", requestedAt: "2026-08-26T00:00:00Z" }),
+    ]);
+
+    await expect(
+      client.admin.lifecycle.completeOffboarding({
+        tenantSlug: "acme",
+        requestUuid: REQUEST_UUID,
+        waiver: { role: "client_owner", reason: "explicit_client_request" },
+        receiveAndVerifyExport: async () => ({ verified: true }),
+        verifyZeroState: async () => ({ zero: true }),
+      }),
+    ).rejects.toThrow("cannot complete offboarding from state requested");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed when fresh export metadata disagrees with the download descriptor", async () => {
+    const exported = {
+      ...(readLifecycleFixture("offboarding", "valid-export-response.json") as Record<string, unknown>),
+      checksumSha256: "0".repeat(64),
+    };
+    const { client, fetchMock } = clientFor([
+      jsonResponse({ requestUuid: REQUEST_UUID, state: "preview", requestedAt: "2026-08-26T00:00:00Z" }),
+      jsonResponse(readLifecycleFixture("offboarding", "valid-preview-response.json")),
+      jsonResponse(exported),
+      jsonResponse(readLifecycleFixture("offboarding", "valid-download-response.json")),
+    ]);
+
+    await expect(
+      client.admin.lifecycle.completeOffboarding({
+        tenantSlug: "acme",
+        requestUuid: REQUEST_UUID,
+        waiver: { role: "client_owner", reason: "explicit_client_request" },
+        receiveAndVerifyExport: async () => ({ verified: true }),
+        verifyZeroState: async () => ({ zero: true }),
+      }),
+    ).rejects.toThrow("export metadata did not match the download descriptor");
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
   it("fails closed on an incomplete preview before export", async () => {
     const { client, fetchMock } = clientFor([
+      jsonResponse({ requestUuid: REQUEST_UUID, state: "preview", requestedAt: "2026-08-26T00:00:00Z" }),
       jsonResponse({
         requestUuid: REQUEST_UUID,
         generatedAt: "2026-08-26T00:00:00Z",
@@ -229,11 +331,12 @@ describe("BackendLifecycleClient", () => {
         verifyZeroState: async () => ({ zero: true }),
       }),
     ).rejects.toThrow("offboarding preview is incomplete");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("does not acknowledge until the downloaded export is persisted and verified", async () => {
     const { client, fetchMock } = clientFor([
+      jsonResponse({ requestUuid: REQUEST_UUID, state: "preview", requestedAt: "2026-08-26T00:00:00Z" }),
       jsonResponse(readLifecycleFixture("offboarding", "valid-preview-response.json")),
       jsonResponse(readLifecycleFixture("offboarding", "valid-export-response.json")),
       jsonResponse(readLifecycleFixture("offboarding", "valid-download-response.json")),
@@ -248,7 +351,7 @@ describe("BackendLifecycleClient", () => {
         verifyZeroState: async () => ({ zero: true }),
       }),
     ).rejects.toThrow("export delivery was not verified");
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("fails closed when zero-state reconciliation reports residual data", async () => {
@@ -259,6 +362,7 @@ describe("BackendLifecycleClient", () => {
     const executed = readLifecycleFixture("offboarding", "valid-execute-response.json");
     const receipt = readLifecycleFixture("offboarding", "valid-receipt-response.json");
     const { client } = clientFor([
+      jsonResponse({ requestUuid: REQUEST_UUID, state: "preview", requestedAt: "2026-08-26T00:00:00Z" }),
       jsonResponse(preview),
       jsonResponse(exported),
       jsonResponse(download),

@@ -498,8 +498,15 @@ final class LifecycleMatrixTest extends TestCase
         );
 
         $download = $client->adminOffboarding()->download("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+        $this->assertSame("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ", $download["requestUuid"]);
         $this->assertIsString($download["downloadUrl"]);
         $this->assertNotSame("", $download["downloadUrl"]);
+        $this->assertSame($exportReceipt["checksumSha256"], $download["checksumSha256"]);
+        $this->assertSame($exportReceipt["byteSize"], $download["byteSize"]);
+        $this->assertSame($exportReceipt["recordCount"], $download["recordCount"]);
+        $this->assertSame($exportReceipt["generatedAt"], $download["generatedAt"]);
+        $this->assertSame($exportReceipt["expiresAt"], $download["expiresAt"]);
+        $this->assertSame($exportReceipt["previewInventoryDigest"], $download["previewInventoryDigest"]);
         // The signed URL value must not leak into the outbound request URL.
         $this->assertStringNotContainsString("signed.example.invalid", $calls->calls[3]["url"]);
 

@@ -79,9 +79,9 @@ export class OffboardingClient {
     export(requestUuid, options) {
         return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/export`, undefined, options);
     }
-    // download returns a short-lived signed URL for the offboarding export
-    // artifact. The downloadUrl is sensitive; callers must not log it or
-    // echo it into error messages.
+    // download returns the durable export descriptor and a short-lived signed
+    // URL for the offboarding artifact. The downloadUrl is sensitive; callers
+    // must not log it or echo it into error messages.
     download(requestUuid, options) {
         return this.request("GET", `/offboarding/requests/${encodeURIComponent(requestUuid)}/download`, undefined, options);
     }

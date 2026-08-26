@@ -95,11 +95,19 @@ export type OffboardingExportResponse = {
   previewInventoryDigest: string;
 };
 
-// OffboardingDownloadResponse is the body for GET
-// /admin/offboarding/requests/{requestUuid}/download. The downloadUrl is
-// short-lived; callers must not log it or echo it into error messages.
+// OffboardingDownloadResponse is the durable export descriptor returned by
+// GET /admin/offboarding/requests/{requestUuid}/download. The downloadUrl is
+// short-lived; callers must not log it or echo it into error messages. The
+// remaining fields are the server's authoritative verification metadata.
 export type OffboardingDownloadResponse = {
+  requestUuid: string;
   downloadUrl: string;
+  checksumSha256: string;
+  byteSize: number;
+  recordCount: number;
+  generatedAt: string;
+  expiresAt: string;
+  previewInventoryDigest: string;
 };
 
 export type OffboardingAcknowledgeResponse = OffboardingRequest;
@@ -267,9 +275,9 @@ export class OffboardingClient {
     return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/export`, undefined, options);
   }
 
-  // download returns a short-lived signed URL for the offboarding export
-  // artifact. The downloadUrl is sensitive; callers must not log it or
-  // echo it into error messages.
+  // download returns the durable export descriptor and a short-lived signed
+  // URL for the offboarding artifact. The downloadUrl is sensitive; callers
+  // must not log it or echo it into error messages.
   download(requestUuid: string, options?: RequestOptions): Promise<OffboardingDownloadResponse> {
     return this.request("GET", `/offboarding/requests/${encodeURIComponent(requestUuid)}/download`, undefined, options);
   }

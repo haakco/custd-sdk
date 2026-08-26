@@ -856,11 +856,19 @@ type OffboardingExportResponse struct {
 	PreviewInventoryDigest string `json:"previewInventoryDigest"`
 }
 
-// OffboardingDownloadResponse is the body for GET
-// /admin/offboarding/requests/{requestUuid}/download. The DownloadURL is
-// short-lived; callers must not log it or echo it into error messages.
+// OffboardingDownloadResponse is the durable export descriptor returned by
+// GET /admin/offboarding/requests/{requestUuid}/download. DownloadURL is
+// short-lived; callers must not log it or echo it into error messages. The
+// remaining fields are the server's authoritative metadata for verification.
 type OffboardingDownloadResponse struct {
-	DownloadURL string `json:"downloadUrl"`
+	RequestUUID            string `json:"requestUuid"`
+	DownloadURL            string `json:"downloadUrl"`
+	ChecksumSHA256         string `json:"checksumSha256"`
+	ByteSize               int64  `json:"byteSize"`
+	RecordCount            int    `json:"recordCount"`
+	GeneratedAt            string `json:"generatedAt"`
+	ExpiresAt              string `json:"expiresAt"`
+	PreviewInventoryDigest string `json:"previewInventoryDigest"`
 }
 
 // OffboardingAcknowledgeResponse is the body for POST

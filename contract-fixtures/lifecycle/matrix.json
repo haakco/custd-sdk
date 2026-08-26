@@ -59,7 +59,7 @@
         {"file": "valid-cancel-response.json", "assert": ["$.requestUuid", "$.state", "$.requestedAt"]},
         {"file": "valid-preview-response.json", "assert": ["$.requestUuid", "$.previewInventoryDigest", "$.stores", "$.complete", "$.partial"]},
         {"file": "valid-export-response.json", "assert": ["$.requestUuid", "$.checksumSha256", "$.byteSize", "$.recordCount", "$.previewInventoryDigest"]},
-        {"file": "valid-download-response.json", "assert": ["$.downloadUrl"]},
+        {"file": "valid-download-response.json", "assert": ["$.requestUuid", "$.downloadUrl", "$.checksumSha256", "$.byteSize", "$.recordCount", "$.generatedAt", "$.expiresAt", "$.previewInventoryDigest"]},
         {"file": "valid-acknowledge-response.json", "assert": ["$.requestUuid", "$.state", "$.requestedAt"]},
         {"file": "valid-execute-response.json", "assert": ["$.company_id", "$.final_state", "$.per_store", "$.waiver.role", "$.sha256"]},
         {"file": "valid-retry-response.json", "assert": ["$.company_id", "$.final_state", "$.per_store", "$.waiver.role", "$.sha256"]},

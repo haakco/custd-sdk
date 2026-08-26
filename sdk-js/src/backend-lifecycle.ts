@@ -1,6 +1,7 @@
 import {
   type OffboardingAcknowledgeResponse,
   OffboardingClient,
+  type OffboardingDownloadResponse,
   type OffboardingExecuteRequest,
   type OffboardingExecuteResponse,
   type OffboardingExportResponse,
@@ -130,9 +131,9 @@ export type CompleteOffboardingOptions = RequestOptions & {
 export type CompleteOffboardingResult = {
   tenantSlug: string;
   requestUuid: string;
-  preview: OffboardingPreviewResponse;
-  export: OffboardingExportResponse;
-  download: { downloadUrl: string };
+  preview?: OffboardingPreviewResponse;
+  export?: OffboardingExportResponse;
+  download: OffboardingDownloadResponse;
   exportDelivery: ExportDeliveryVerificationResult;
   acknowledgement: OffboardingAcknowledgeResponse;
   execution: OffboardingExecuteResponse;
@@ -172,6 +173,47 @@ function requireReceipt(receipt: OffboardingReceiptResponse): void {
   if (receipt.finalState !== "complete") {
     throw new Error(`Custd lifecycle receipt is not complete (state ${receipt.finalState || "unknown"})`);
   }
+}
+
+function requireNonNegativeInteger(name: string, value: unknown): void {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`Custd lifecycle requires valid ${name}`);
+  }
+}
+
+function requirePositiveInteger(name: string, value: unknown): void {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`Custd lifecycle requires valid ${name}`);
+  }
+}
+
+function requireMatchingExportMetadata(
+  exported: OffboardingExportResponse,
+  download: OffboardingDownloadResponse,
+): void {
+  const matches = [
+    exported.requestUuid === download.requestUuid,
+    exported.checksumSha256 === download.checksumSha256,
+    exported.byteSize === download.byteSize,
+    exported.recordCount === download.recordCount,
+    exported.generatedAt === download.generatedAt,
+    exported.expiresAt === download.expiresAt,
+    exported.previewInventoryDigest === download.previewInventoryDigest,
+  ].every(Boolean);
+  if (!matches) {
+    throw new Error("Custd lifecycle export metadata did not match the download descriptor");
+  }
+}
+
+function requireDownloadDescriptor(download: OffboardingDownloadResponse, expectedRequestUuid: string): void {
+  requireRequestUuid(download, expectedRequestUuid, "download");
+  requireText("offboarding download URL", download.downloadUrl);
+  requireText("offboarding download checksum", download.checksumSha256);
+  requirePositiveInteger("offboarding download byte size", download.byteSize);
+  requireNonNegativeInteger("offboarding download record count", download.recordCount);
+  requireText("offboarding download generated timestamp", download.generatedAt);
+  requireText("offboarding download expiry", download.expiresAt);
+  requireText("offboarding download preview digest", download.previewInventoryDigest);
 }
 
 function validateRotation(options: RotateCredentialOptions): void {
@@ -269,27 +311,45 @@ export class BackendLifecycleClient {
 
   async completeOffboarding(options: CompleteOffboardingOptions): Promise<CompleteOffboardingResult> {
     validateOffboarding(options);
-    const preview = await this.offboarding.preview(options.requestUuid, options);
-    requireRequestUuid(preview, options.requestUuid, "preview");
-    if (!preview.complete || preview.partial) {
-      throw new Error("Custd lifecycle offboarding preview is incomplete");
+    const current = await this.offboarding.getRequest(options.requestUuid, options);
+    requireRequestUuid(current, options.requestUuid, "state");
+
+    let preview: OffboardingPreviewResponse | undefined;
+    let exported: OffboardingExportResponse | undefined;
+    switch (current.state) {
+      case "preview":
+        preview = await this.offboarding.preview(options.requestUuid, options);
+        requireRequestUuid(preview, options.requestUuid, "preview");
+        if (!preview.complete || preview.partial) {
+          throw new Error("Custd lifecycle offboarding preview is incomplete");
+        }
+        exported = await this.offboarding.export(options.requestUuid, options);
+        requireRequestUuid(exported, options.requestUuid, "export");
+        break;
+      case "exported":
+        break;
+      default:
+        throw new Error(`Custd lifecycle cannot complete offboarding from state ${current.state || "unknown"}`);
     }
-    const exported = await this.offboarding.export(options.requestUuid, options);
-    requireRequestUuid(exported, options.requestUuid, "export");
+
     const download = await this.offboarding.download(options.requestUuid, options);
-    requireText("offboarding download URL", download.downloadUrl);
+    requireDownloadDescriptor(download, options.requestUuid);
+    if (exported) {
+      requireMatchingExportMetadata(exported, download);
+    }
     const exportDelivery = await options.receiveAndVerifyExport({
       tenantSlug: options.tenantSlug,
       requestUuid: options.requestUuid,
       downloadUrl: download.downloadUrl,
-      export: exported,
+      export: download,
     });
     if (exportDelivery?.verified !== true) {
       throw new Error("Custd lifecycle export delivery was not verified");
     }
     const acknowledgement = await this.offboarding.acknowledge(options.requestUuid, options);
     requireRequestUuid(acknowledgement, options.requestUuid, "acknowledgement");
-    await this.offboarding.confirmRequest(options.requestUuid, options);
+    const confirmation = await this.offboarding.confirmRequest(options.requestUuid, options);
+    requireRequestUuid(confirmation, options.requestUuid, "confirmation");
     const execution = await this.offboarding.execute(
       options.requestUuid,
       { waiver: options.waiver } satisfies OffboardingExecuteRequest,
@@ -306,8 +366,8 @@ export class BackendLifecycleClient {
     return {
       tenantSlug: options.tenantSlug,
       requestUuid: options.requestUuid,
-      preview,
-      export: exported,
+      ...(preview ? { preview } : {}),
+      ...(exported ? { export: exported } : {}),
       download,
       exportDelivery,
       acknowledgement,

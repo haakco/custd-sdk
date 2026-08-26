@@ -405,10 +405,15 @@ func TestOffboarding_FullLifecycle(t *testing.T) {
 	if download.DownloadURL == "" {
 		t.Fatalf("DownloadURL empty")
 	}
+	if download.RequestUUID != "ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ" ||
+		download.ChecksumSHA256 == "" || download.ByteSize != 4096 || download.RecordCount != 1357 ||
+		download.GeneratedAt == "" || download.ExpiresAt == "" || download.PreviewInventoryDigest == "" {
+		t.Fatalf("download descriptor = %+v", download)
+	}
 	// The fixture's download URL must not leak into the returned typed value
 	// at any point that's reachable from the test. We sanity-check by
 	// ensuring the response typed value can be passed around safely.
-	var cleanup map[string]string
+	var cleanup map[string]any
 	if err := json.Unmarshal([]byte(doer.body), &cleanup); err != nil {
 		t.Fatalf("download body decode: %v", err)
 	}

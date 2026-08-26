@@ -63,7 +63,14 @@ export type OffboardingExportResponse = {
     previewInventoryDigest: string;
 };
 export type OffboardingDownloadResponse = {
+    requestUuid: string;
     downloadUrl: string;
+    checksumSha256: string;
+    byteSize: number;
+    recordCount: number;
+    generatedAt: string;
+    expiresAt: string;
+    previewInventoryDigest: string;
 };
 export type OffboardingAcknowledgeResponse = OffboardingRequest;
 export type OffboardingExecuteResponse = OffboardingReceiptResponse;
