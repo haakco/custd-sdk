@@ -67,20 +67,14 @@ export type OffboardingPreviewResponse = {
   partial: boolean;
 };
 
-// OffboardingWaiver is the typed waiver the execute endpoint requires.
+// OffboardingWaiver is the typed waiver recorded in a server-issued receipt.
 // role identifies the actor (e.g. client_owner); reason is the human-readable
-// rationale. timestamp is server-stamped on accept.
+// rationale. timestamp is server-stamped on acceptance. Callers do not submit
+// waiver metadata to execute.
 export type OffboardingWaiver = {
   role: string;
   reason: string;
   timestamp?: string;
-};
-
-// OffboardingExecuteRequest is the body for POST
-// /admin/offboarding/requests/{requestUuid}/execute. The server strictly
-// decodes these top-level snake_case fields; waiver is not a nested object.
-export type OffboardingExecuteRequest = {
-  waiver: OffboardingWaiver;
 };
 
 // OffboardingExportResponse is the body for POST
@@ -95,19 +89,12 @@ export type OffboardingExportResponse = {
   previewInventoryDigest: string;
 };
 
-// OffboardingDownloadResponse is the durable export descriptor returned by
-// GET /admin/offboarding/requests/{requestUuid}/download. The downloadUrl is
-// short-lived; callers must not log it or echo it into error messages. The
-// remaining fields are the server's authoritative verification metadata.
+// OffboardingDownloadResponse contains authenticated bytes and verified
+// response integrity metadata.
 export type OffboardingDownloadResponse = {
-  requestUuid: string;
-  downloadUrl: string;
+  bytes: Uint8Array;
   checksumSha256: string;
   byteSize: number;
-  recordCount: number;
-  generatedAt: string;
-  expiresAt: string;
-  previewInventoryDigest: string;
 };
 
 export type OffboardingAcknowledgeResponse = OffboardingRequest;
@@ -144,6 +131,7 @@ export type OffboardingReceiptResponse = {
 };
 
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
+type AdminDownloader = (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>;
 
 type WirePreviewStore = {
   store: string;
@@ -205,7 +193,10 @@ function mapReceipt(response: WireReceiptResponse): OffboardingReceiptResponse {
 }
 
 export class OffboardingClient {
-  constructor(private readonly request: AdminRequester) {}
+  constructor(
+    private readonly request: AdminRequester,
+    private readonly downloadBinary: AdminDownloader,
+  ) {}
 
   // schedule writes a delayed offboarding schedule. tenantSlug is required and
   // must match the authenticated tenant scope.
@@ -275,11 +266,9 @@ export class OffboardingClient {
     return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/export`, undefined, options);
   }
 
-  // download returns the durable export descriptor and a short-lived signed
-  // URL for the offboarding artifact. The downloadUrl is sensitive; callers
-  // must not log it or echo it into error messages.
+  // download returns authenticated bytes with verified checksum and length.
   download(requestUuid: string, options?: RequestOptions): Promise<OffboardingDownloadResponse> {
-    return this.request("GET", `/offboarding/requests/${encodeURIComponent(requestUuid)}/download`, undefined, options);
+    return this.downloadBinary(`/offboarding/requests/${encodeURIComponent(requestUuid)}/download`, options);
   }
 
   // acknowledge records that the export was downloaded successfully and its
@@ -293,23 +282,13 @@ export class OffboardingClient {
     );
   }
 
-  // execute triggers the destructive phase. The server requires a non-empty
-  // waiver.role; an empty waiver returns 400 waiver_required, which the
-  // SDK surfaces without retry.
-  execute(
-    requestUuid: string,
-    body: OffboardingExecuteRequest,
-    options?: RequestOptions,
-  ): Promise<OffboardingExecuteResponse> {
-    const wireBody = {
-      waiver_role: body.waiver.role,
-      waiver_reason: body.waiver.reason,
-      ...(body.waiver.timestamp ? { waiver_timestamp: body.waiver.timestamp } : {}),
-    };
+  // execute triggers the destructive phase. Approval is server-owned and the
+  // request intentionally has no caller-controlled body.
+  execute(requestUuid: string, options?: RequestOptions): Promise<OffboardingExecuteResponse> {
     return this.request<WireReceiptResponse>(
       "POST",
       `/offboarding/requests/${encodeURIComponent(requestUuid)}/execute`,
-      wireBody,
+      undefined,
       options,
     ).then(mapReceipt);
   }

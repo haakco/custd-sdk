@@ -16,6 +16,27 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+function binaryResponse(bytes: Uint8Array, checksumSha256: string, status = 200): Response {
+  return new Response(bytes as unknown as BodyInit, {
+    status,
+    headers: {
+      "Content-Length": String(bytes.byteLength),
+      "X-Checksum-SHA256": checksumSha256,
+    },
+  });
+}
+
+type DownloadFixture = {
+  bodyBase64: string;
+  checksumSha256: string;
+  byteSize: number;
+};
+
+function readDownloadFixture(): DownloadFixture {
+  const fixture = readLifecycleFixture("offboarding", "valid-download-binary.json") as DownloadFixture;
+  return fixture;
+}
+
 function clientFor(responses: Response[]) {
   const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit): Promise<Response> => {
     const response = responses.shift();
@@ -38,7 +59,6 @@ describe("BackendLifecycleClient", () => {
     const checksumSha256 = "c7c5c1d70c5dec4416ab6158afd0b223ef40c29b1dc1f97ed9428b94d4cadb1c";
     const persist = vi.fn(async () => "file:test-export");
     const receive = createVerifiedOffboardingExportReceiver({
-      fetch: vi.fn(async () => new Response(bytes, { status: 200 })),
       persist,
     });
 
@@ -46,7 +66,7 @@ describe("BackendLifecycleClient", () => {
       receive({
         tenantSlug: "acme",
         requestUuid: REQUEST_UUID,
-        downloadUrl: "https://download.example.test/export",
+        download: { bytes, checksumSha256, byteSize: bytes.byteLength },
         export: {
           requestUuid: REQUEST_UUID,
           checksumSha256,
@@ -166,8 +186,13 @@ describe("BackendLifecycleClient", () => {
   it("runs the complete offboarding workflow and requires a zero-state proof", async () => {
     const request = readLifecycleFixture("offboarding", "valid-request-create-response.json");
     const preview = readLifecycleFixture("offboarding", "valid-preview-response.json");
-    const exported = readLifecycleFixture("offboarding", "valid-export-response.json");
-    const download = readLifecycleFixture("offboarding", "valid-download-response.json");
+    const downloadFixture = readDownloadFixture();
+    const exported = {
+      ...(readLifecycleFixture("offboarding", "valid-export-response.json") as Record<string, unknown>),
+      checksumSha256: downloadFixture.checksumSha256,
+      byteSize: downloadFixture.byteSize,
+    };
+    const downloadBytes = Uint8Array.from(atob(downloadFixture.bodyBase64), (character) => character.charCodeAt(0));
     const acknowledged = readLifecycleFixture("offboarding", "valid-acknowledge-response.json");
     const executed = readLifecycleFixture("offboarding", "valid-execute-response.json");
     const receipt = readLifecycleFixture("offboarding", "valid-receipt-response.json");
@@ -175,7 +200,7 @@ describe("BackendLifecycleClient", () => {
       jsonResponse(request),
       jsonResponse(preview),
       jsonResponse(exported),
-      jsonResponse(download),
+      binaryResponse(downloadBytes, downloadFixture.checksumSha256),
       jsonResponse(acknowledged),
       jsonResponse({ requestUuid: REQUEST_UUID, state: "confirmed" }),
       jsonResponse(executed),
@@ -187,16 +212,16 @@ describe("BackendLifecycleClient", () => {
       return { zero: true };
     });
     const receiveAndVerifyExport: ReceiveAndVerifyOffboardingExport = vi.fn(async (input) => {
-      expect(input.export.checksumSha256).toBe("1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b");
-      expect(input.export.byteSize).toBe(4096);
-      expect(input.export.recordCount).toBe(1357);
+      expect(input.export?.checksumSha256).toBe(downloadFixture.checksumSha256);
+      expect(input.export?.byteSize).toBe(downloadFixture.byteSize);
+      expect(input.export?.recordCount).toBe(1357);
+      expect(input.download.byteSize).toBe(25);
       return { verified: true as const, evidence: "stored:test" };
     });
 
     const result = await client.admin.lifecycle.completeOffboarding({
       tenantSlug: "acme",
       requestUuid: REQUEST_UUID,
-      waiver: { role: "client_owner", reason: "explicit_client_request" },
       receiveAndVerifyExport,
       verifyZeroState,
     });
@@ -219,37 +244,39 @@ describe("BackendLifecycleClient", () => {
     ]);
   });
 
-  it("resumes an exported request from its durable download descriptor", async () => {
-    const download = readLifecycleFixture("offboarding", "valid-download-response.json") as {
-      requestUuid: string;
-      downloadUrl: string;
+  it("resumes an exported request from its durable binary download", async () => {
+    const downloadFixture = readLifecycleFixture("offboarding", "valid-download-binary.json") as {
+      bodyBase64: string;
       checksumSha256: string;
       byteSize: number;
-      recordCount: number;
+    };
+    const downloadBytes = Uint8Array.from(atob(downloadFixture.bodyBase64), (character) => character.charCodeAt(0));
+    const download = {
+      bytes: downloadBytes,
+      checksumSha256: downloadFixture.checksumSha256,
+      byteSize: downloadFixture.byteSize,
     };
     const acknowledged = readLifecycleFixture("offboarding", "valid-acknowledge-response.json");
     const executed = readLifecycleFixture("offboarding", "valid-execute-response.json");
     const receipt = readLifecycleFixture("offboarding", "valid-receipt-response.json");
     const { client, fetchMock } = clientFor([
       jsonResponse(readLifecycleFixture("offboarding", "valid-request-get-response.json")),
-      jsonResponse(download),
+      binaryResponse(downloadBytes, downloadFixture.checksumSha256),
       jsonResponse(acknowledged),
       jsonResponse({ requestUuid: REQUEST_UUID, state: "confirmed" }),
       jsonResponse(executed),
       jsonResponse(receipt),
     ]);
     const receiveAndVerifyExport: ReceiveAndVerifyOffboardingExport = vi.fn(async (input) => {
-      expect(input.downloadUrl).toBe(download.downloadUrl);
-      expect(input.export.checksumSha256).toBe(download.checksumSha256);
-      expect(input.export.byteSize).toBe(download.byteSize);
-      expect(input.export.recordCount).toBe(download.recordCount);
+      expect(input.download.checksumSha256).toBe(download.checksumSha256);
+      expect(input.download.byteSize).toBe(download.byteSize);
+      expect(input.export).toBeUndefined();
       return { verified: true as const };
     });
 
     const result = await client.admin.lifecycle.completeOffboarding({
       tenantSlug: "acme",
       requestUuid: REQUEST_UUID,
-      waiver: { role: "client_owner", reason: "explicit_client_request" },
       receiveAndVerifyExport,
       verifyZeroState: async () => ({ zero: true }),
     });
@@ -276,7 +303,6 @@ describe("BackendLifecycleClient", () => {
       client.admin.lifecycle.completeOffboarding({
         tenantSlug: "acme",
         requestUuid: REQUEST_UUID,
-        waiver: { role: "client_owner", reason: "explicit_client_request" },
         receiveAndVerifyExport: async () => ({ verified: true }),
         verifyZeroState: async () => ({ zero: true }),
       }),
@@ -284,7 +310,8 @@ describe("BackendLifecycleClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("fails closed when fresh export metadata disagrees with the download descriptor", async () => {
+  it("fails closed when fresh export metadata disagrees with the download", async () => {
+    const downloadFixture = readDownloadFixture();
     const exported = {
       ...(readLifecycleFixture("offboarding", "valid-export-response.json") as Record<string, unknown>),
       checksumSha256: "0".repeat(64),
@@ -293,18 +320,20 @@ describe("BackendLifecycleClient", () => {
       jsonResponse({ requestUuid: REQUEST_UUID, state: "preview", requestedAt: "2026-08-26T00:00:00Z" }),
       jsonResponse(readLifecycleFixture("offboarding", "valid-preview-response.json")),
       jsonResponse(exported),
-      jsonResponse(readLifecycleFixture("offboarding", "valid-download-response.json")),
+      binaryResponse(
+        Uint8Array.from(atob(downloadFixture.bodyBase64), (character) => character.charCodeAt(0)),
+        downloadFixture.checksumSha256,
+      ),
     ]);
 
     await expect(
       client.admin.lifecycle.completeOffboarding({
         tenantSlug: "acme",
         requestUuid: REQUEST_UUID,
-        waiver: { role: "client_owner", reason: "explicit_client_request" },
         receiveAndVerifyExport: async () => ({ verified: true }),
         verifyZeroState: async () => ({ zero: true }),
       }),
-    ).rejects.toThrow("export metadata did not match the download descriptor");
+    ).rejects.toThrow("export metadata did not match the download");
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
@@ -326,7 +355,6 @@ describe("BackendLifecycleClient", () => {
       client.admin.lifecycle.completeOffboarding({
         tenantSlug: "acme",
         requestUuid: REQUEST_UUID,
-        waiver: { role: "client_owner", reason: "explicit_client_request" },
         receiveAndVerifyExport: async () => ({ verified: true }),
         verifyZeroState: async () => ({ zero: true }),
       }),
@@ -335,18 +363,26 @@ describe("BackendLifecycleClient", () => {
   });
 
   it("does not acknowledge until the downloaded export is persisted and verified", async () => {
+    const downloadFixture = readDownloadFixture();
+    const exported = {
+      ...(readLifecycleFixture("offboarding", "valid-export-response.json") as Record<string, unknown>),
+      checksumSha256: downloadFixture.checksumSha256,
+      byteSize: downloadFixture.byteSize,
+    };
     const { client, fetchMock } = clientFor([
       jsonResponse({ requestUuid: REQUEST_UUID, state: "preview", requestedAt: "2026-08-26T00:00:00Z" }),
       jsonResponse(readLifecycleFixture("offboarding", "valid-preview-response.json")),
-      jsonResponse(readLifecycleFixture("offboarding", "valid-export-response.json")),
-      jsonResponse(readLifecycleFixture("offboarding", "valid-download-response.json")),
+      jsonResponse(exported),
+      binaryResponse(
+        Uint8Array.from(atob(downloadFixture.bodyBase64), (character) => character.charCodeAt(0)),
+        downloadFixture.checksumSha256,
+      ),
     ]);
 
     await expect(
       client.admin.lifecycle.completeOffboarding({
         tenantSlug: "acme",
         requestUuid: REQUEST_UUID,
-        waiver: { role: "client_owner", reason: "explicit_client_request" },
         receiveAndVerifyExport: async () => ({ verified: false }),
         verifyZeroState: async () => ({ zero: true }),
       }),
@@ -356,8 +392,13 @@ describe("BackendLifecycleClient", () => {
 
   it("fails closed when zero-state reconciliation reports residual data", async () => {
     const preview = readLifecycleFixture("offboarding", "valid-preview-response.json");
-    const exported = readLifecycleFixture("offboarding", "valid-export-response.json");
-    const download = readLifecycleFixture("offboarding", "valid-download-response.json");
+    const downloadFixture = readDownloadFixture();
+    const exported = {
+      ...(readLifecycleFixture("offboarding", "valid-export-response.json") as Record<string, unknown>),
+      checksumSha256: downloadFixture.checksumSha256,
+      byteSize: downloadFixture.byteSize,
+    };
+    const downloadBytes = Uint8Array.from(atob(downloadFixture.bodyBase64), (character) => character.charCodeAt(0));
     const acknowledged = readLifecycleFixture("offboarding", "valid-acknowledge-response.json");
     const executed = readLifecycleFixture("offboarding", "valid-execute-response.json");
     const receipt = readLifecycleFixture("offboarding", "valid-receipt-response.json");
@@ -365,7 +406,7 @@ describe("BackendLifecycleClient", () => {
       jsonResponse({ requestUuid: REQUEST_UUID, state: "preview", requestedAt: "2026-08-26T00:00:00Z" }),
       jsonResponse(preview),
       jsonResponse(exported),
-      jsonResponse(download),
+      binaryResponse(downloadBytes, downloadFixture.checksumSha256),
       jsonResponse(acknowledged),
       jsonResponse({ requestUuid: REQUEST_UUID, state: "confirmed" }),
       jsonResponse(executed),
@@ -376,7 +417,6 @@ describe("BackendLifecycleClient", () => {
       client.admin.lifecycle.completeOffboarding({
         tenantSlug: "acme",
         requestUuid: REQUEST_UUID,
-        waiver: { role: "client_owner", reason: "explicit_client_request" },
         receiveAndVerifyExport: async () => ({ verified: true }),
         verifyZeroState: async () => ({ zero: false, remaining: ["tenant-row"] }),
       }),

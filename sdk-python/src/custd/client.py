@@ -602,6 +602,33 @@ class AdminClient:
             return {"items": body}
         return {}
 
+    def request_binary(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | None = None,
+    ) -> tuple[bytes, dict[str, str]]:
+        result = self._transport(
+            method,
+            self._client.base_url + "/api/v1/admin" + path,
+            payload,
+            self._client._headers(),
+            self._client.timeout,
+        )
+        status = int(result["status"])
+        if status >= 400:
+            raise RequestError(f"custd: admin request failed with status {status}")
+        body = result.get("body")
+        if not isinstance(body, bytes):
+            raise ValueError("custd: binary admin response must be bytes")
+        raw_headers = result.get("headers")
+        if raw_headers is None:
+            raw_headers = {}
+        if not isinstance(raw_headers, Mapping):
+            raise ValueError("custd: binary admin response headers must be a mapping")
+        headers = {str(key).lower(): str(value) for key, value in raw_headers.items()}
+        return body, headers
+
 
 class ProvisioningClient:
     def __init__(self, client: CustdClient, transport: AdminTransport) -> None:
@@ -1433,9 +1460,16 @@ def default_admin_transport(
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            raw = response.read()
-            body = raw if "/artifacts/" in url else raw.decode("utf-8")
-            return {"status": response.status, "body": body}
+            is_binary = "/artifacts/" in url or "/offboarding/requests/" in url and url.endswith("/download")
+            declared = response.headers.get("Content-Length") if is_binary else None
+            if declared is not None and declared.isdigit() and int(declared) > 64 * 1024 * 1024:
+                raise RequestError("custd: binary admin response exceeds 64 MiB")
+            raw = response.read(64 * 1024 * 1024 + 1) if is_binary else response.read()
+            if is_binary and len(raw) > 64 * 1024 * 1024:
+                raise RequestError("custd: binary admin response exceeds 64 MiB")
+            body = raw if is_binary else raw.decode("utf-8")
+            response_headers = {str(key): str(value) for key, value in response.headers.items()}
+            return {"status": response.status, "body": body, "headers": response_headers}
     except urllib.error.HTTPError as err:
         return {"status": err.code, "body": err.read().decode("utf-8")}
     except urllib.error.URLError as err:

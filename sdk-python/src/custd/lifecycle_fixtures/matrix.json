@@ -59,7 +59,7 @@
         {"file": "valid-cancel-response.json", "assert": ["$.requestUuid", "$.state", "$.requestedAt"]},
         {"file": "valid-preview-response.json", "assert": ["$.requestUuid", "$.previewInventoryDigest", "$.stores", "$.complete", "$.partial"]},
         {"file": "valid-export-response.json", "assert": ["$.requestUuid", "$.checksumSha256", "$.byteSize", "$.recordCount", "$.previewInventoryDigest"]},
-        {"file": "valid-download-response.json", "assert": ["$.requestUuid", "$.downloadUrl", "$.checksumSha256", "$.byteSize", "$.recordCount", "$.generatedAt", "$.expiresAt", "$.previewInventoryDigest"]},
+        {"file": "valid-download-binary.json", "assert": ["$.bodyBase64", "$.checksumSha256", "$.byteSize"]},
         {"file": "valid-acknowledge-response.json", "assert": ["$.requestUuid", "$.state", "$.requestedAt"]},
         {"file": "valid-execute-response.json", "assert": ["$.company_id", "$.final_state", "$.per_store", "$.waiver.role", "$.sha256"]},
         {"file": "valid-retry-response.json", "assert": ["$.company_id", "$.final_state", "$.per_store", "$.waiver.role", "$.sha256"]},
@@ -67,7 +67,6 @@
         {"file": "valid-schedule-create-request.json", "assert": ["$.tenantSlug", "$.effectiveAt", "$.gracePeriodDays", "$.reason"]},
         {"file": "valid-schedule-create-response.json", "assert": ["$.tenantSlug", "$.effectiveAt", "$.gracePeriodDays", "$.status", "$.updatedAt"]},
         {"file": "valid-schedule-list-response.json", "assert": ["$.schedules", "$.schedules[0].tenantSlug", "$.schedules[0].effectiveAt", "$.schedules[0].gracePeriodDays", "$.schedules[0].status", "$.schedules[0].updatedAt"]},
-        {"file": "invalid-waiver-empty.json", "assert": ["$.error", "$.message"]},
         {"file": "incomplete-erasure-blocks-confirm.json", "assert": ["$.error", "$.code", "$.safe_next_action"]},
         {"file": "isolation-other-tenant.json", "assert": ["$.error", "$.message"]}
       ]

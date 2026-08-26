@@ -2,12 +2,10 @@ import {
   type OffboardingAcknowledgeResponse,
   OffboardingClient,
   type OffboardingDownloadResponse,
-  type OffboardingExecuteRequest,
   type OffboardingExecuteResponse,
   type OffboardingExportResponse,
   type OffboardingPreviewResponse,
   type OffboardingReceiptResponse,
-  type OffboardingWaiver,
 } from "./admin-offboarding.js";
 import type {
   AdminOAuthClient,
@@ -25,6 +23,11 @@ export type BackendLifecycleRequester = <T>(
   body?: unknown,
   options?: RequestOptions,
 ) => Promise<T>;
+
+export type BackendLifecycleDownloader = (
+  path: string,
+  options?: RequestOptions,
+) => Promise<OffboardingDownloadResponse>;
 
 export type OneTimeCredentialSecret = {
   tenantSlug: string;
@@ -68,8 +71,8 @@ export type ExportDeliveryVerificationResult = {
 export type ReceiveAndVerifyOffboardingExport = (input: {
   tenantSlug: string;
   requestUuid: string;
-  downloadUrl: string;
-  export: OffboardingExportResponse;
+  download: OffboardingDownloadResponse;
+  export?: OffboardingExportResponse;
 }) => ExportDeliveryVerificationResult | Promise<ExportDeliveryVerificationResult>;
 
 export type PersistOffboardingExport = (input: {
@@ -80,7 +83,6 @@ export type PersistOffboardingExport = (input: {
 }) => string | undefined | Promise<string | undefined>;
 
 export type VerifiedExportReceiverOptions = {
-  fetch?: typeof fetch;
   persist: PersistOffboardingExport;
 };
 
@@ -94,21 +96,22 @@ export function createVerifiedOffboardingExportReceiver(
   if (typeof options.persist !== "function") {
     throw new Error("Custd lifecycle requires an export persistence callback");
   }
-  const fetchImpl = options.fetch ?? globalThis.fetch;
-  return async ({ tenantSlug, requestUuid, downloadUrl, export: exported }) => {
-    const response = await fetchImpl(downloadUrl, { method: "GET" });
-    if (!response.ok) {
-      throw new Error(`Custd lifecycle export download failed with status ${response.status}`);
-    }
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.byteLength !== exported.byteSize) {
+  return async ({ tenantSlug, requestUuid, download, export: exported }) => {
+    if (download.bytes.byteLength !== download.byteSize || (exported && download.byteSize !== exported.byteSize)) {
       throw new Error("Custd lifecycle export byte size did not match server metadata");
     }
-    const digest = hex(new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", bytes)));
-    if (digest !== exported.checksumSha256) {
+    const digest = hex(
+      new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", Uint8Array.from(download.bytes).buffer)),
+    );
+    if (digest !== download.checksumSha256 || (exported && digest !== exported.checksumSha256)) {
       throw new Error("Custd lifecycle export checksum verification failed");
     }
-    const evidence = await options.persist({ tenantSlug, requestUuid, bytes, checksumSha256: digest });
+    const evidence = await options.persist({
+      tenantSlug,
+      requestUuid,
+      bytes: download.bytes,
+      checksumSha256: digest,
+    });
     return { verified: true, ...(evidence ? { evidence } : {}) };
   };
 }
@@ -123,7 +126,6 @@ export type ZeroStateReconciliationOptions = {
 export type CompleteOffboardingOptions = RequestOptions & {
   tenantSlug: string;
   requestUuid: string;
-  waiver: OffboardingWaiver;
   receiveAndVerifyExport: ReceiveAndVerifyOffboardingExport;
   verifyZeroState: VerifyZeroState;
 };
@@ -181,39 +183,27 @@ function requireNonNegativeInteger(name: string, value: unknown): void {
   }
 }
 
-function requirePositiveInteger(name: string, value: unknown): void {
-  if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) {
-    throw new Error(`Custd lifecycle requires valid ${name}`);
-  }
-}
-
 function requireMatchingExportMetadata(
   exported: OffboardingExportResponse,
   download: OffboardingDownloadResponse,
 ): void {
-  const matches = [
-    exported.requestUuid === download.requestUuid,
-    exported.checksumSha256 === download.checksumSha256,
-    exported.byteSize === download.byteSize,
-    exported.recordCount === download.recordCount,
-    exported.generatedAt === download.generatedAt,
-    exported.expiresAt === download.expiresAt,
-    exported.previewInventoryDigest === download.previewInventoryDigest,
-  ].every(Boolean);
+  const matches = [exported.checksumSha256 === download.checksumSha256, exported.byteSize === download.byteSize].every(
+    Boolean,
+  );
   if (!matches) {
-    throw new Error("Custd lifecycle export metadata did not match the download descriptor");
+    throw new Error("Custd lifecycle export metadata did not match the download");
   }
 }
 
-function requireDownloadDescriptor(download: OffboardingDownloadResponse, expectedRequestUuid: string): void {
-  requireRequestUuid(download, expectedRequestUuid, "download");
-  requireText("offboarding download URL", download.downloadUrl);
+function requireDownload(download: OffboardingDownloadResponse): void {
+  if (!(download.bytes instanceof Uint8Array)) {
+    throw new Error("Custd lifecycle requires offboarding download bytes");
+  }
   requireText("offboarding download checksum", download.checksumSha256);
-  requirePositiveInteger("offboarding download byte size", download.byteSize);
-  requireNonNegativeInteger("offboarding download record count", download.recordCount);
-  requireText("offboarding download generated timestamp", download.generatedAt);
-  requireText("offboarding download expiry", download.expiresAt);
-  requireText("offboarding download preview digest", download.previewInventoryDigest);
+  requireNonNegativeInteger("offboarding download byte size", download.byteSize);
+  if (download.bytes.byteLength !== download.byteSize) {
+    throw new Error("Custd lifecycle offboarding download byte size did not match its body");
+  }
 }
 
 function validateRotation(options: RotateCredentialOptions): void {
@@ -228,8 +218,6 @@ function validateRotation(options: RotateCredentialOptions): void {
 function validateOffboarding(options: CompleteOffboardingOptions): void {
   requireText("tenant slug", options.tenantSlug);
   requireText("offboarding request UUID", options.requestUuid);
-  requireText("waiver role", options.waiver?.role);
-  requireText("waiver reason", options.waiver?.reason);
   if (typeof options.receiveAndVerifyExport !== "function") {
     throw new Error("Custd lifecycle requires an export download, persistence, and verification callback");
   }
@@ -241,8 +229,11 @@ function validateOffboarding(options: CompleteOffboardingOptions): void {
 export class BackendLifecycleClient {
   private readonly offboarding: OffboardingClient;
 
-  constructor(private readonly request: BackendLifecycleRequester) {
-    this.offboarding = new OffboardingClient(request);
+  constructor(
+    private readonly request: BackendLifecycleRequester,
+    offboardingDownload: BackendLifecycleDownloader,
+  ) {
+    this.offboarding = new OffboardingClient(request, offboardingDownload);
   }
 
   async rotateCredential(options: RotateCredentialOptions): Promise<RotateCredentialResult> {
@@ -333,15 +324,15 @@ export class BackendLifecycleClient {
     }
 
     const download = await this.offboarding.download(options.requestUuid, options);
-    requireDownloadDescriptor(download, options.requestUuid);
+    requireDownload(download);
     if (exported) {
       requireMatchingExportMetadata(exported, download);
     }
     const exportDelivery = await options.receiveAndVerifyExport({
       tenantSlug: options.tenantSlug,
       requestUuid: options.requestUuid,
-      downloadUrl: download.downloadUrl,
-      export: download,
+      download,
+      ...(exported ? { export: exported } : {}),
     });
     if (exportDelivery?.verified !== true) {
       throw new Error("Custd lifecycle export delivery was not verified");
@@ -350,11 +341,7 @@ export class BackendLifecycleClient {
     requireRequestUuid(acknowledgement, options.requestUuid, "acknowledgement");
     const confirmation = await this.offboarding.confirmRequest(options.requestUuid, options);
     requireRequestUuid(confirmation, options.requestUuid, "confirmation");
-    const execution = await this.offboarding.execute(
-      options.requestUuid,
-      { waiver: options.waiver } satisfies OffboardingExecuteRequest,
-      options,
-    );
+    const execution = await this.offboarding.execute(options.requestUuid, options);
     const receipt = await this.offboarding.receipt(options.requestUuid, options);
     requireReceipt(receipt);
     const zeroState = await this.reconcileZeroState({

@@ -26,7 +26,7 @@ final class LifecycleMatrixTest extends TestCase
      * outbound admin request so tests can assert URL + method + body without
      * relying on global transport state.
      *
-     * @param array<int, array{0: string, 1: string}> $queue
+     * @param array<int, array{0: string, 1: string, 2?: array<string, string>}> $queue
      * @return array{0: CustdClient, 1: object{calls: array<int, array{method:string, url:string, body:mixed, token:string, headers:array<string, string>}>}}
      */
     private function client(array $queue): array
@@ -39,7 +39,7 @@ final class LifecycleMatrixTest extends TestCase
         $bag = new class () {
             /** @var array<int, array{method:string, url:string, body:mixed, token:string, headers:array<string, string>}> */
             public array $calls = [];
-            /** @var array<int, array{0: string, 1: string}> */
+            /** @var array<int, array{0: string, 1: string, 2?: array<string, string>}> */
             public array $queue = [];
         };
         $bag->queue = array_values($queue);
@@ -62,6 +62,7 @@ final class LifecycleMatrixTest extends TestCase
             return [
                 "status" => (int) $response[0],
                 "body" => $response[1],
+                "headers" => $response[2] ?? [],
             ];
         };
 
@@ -445,7 +446,7 @@ final class LifecycleMatrixTest extends TestCase
         $createFixture = LifecycleFixtures::load("offboarding", "valid-request-create-response.json");
         $previewFixture = LifecycleFixtures::load("offboarding", "valid-preview-response.json");
         $exportFixture = LifecycleFixtures::load("offboarding", "valid-export-response.json");
-        $downloadFixture = LifecycleFixtures::load("offboarding", "valid-download-response.json");
+        $downloadFixture = LifecycleFixtures::load("offboarding", "valid-download-binary.json");
         $ackFixture = LifecycleFixtures::load("offboarding", "valid-acknowledge-response.json");
         $execFixture = LifecycleFixtures::load("offboarding", "valid-execute-response.json");
         $receiptFixture = LifecycleFixtures::load("offboarding", "valid-receipt-response.json");
@@ -453,7 +454,8 @@ final class LifecycleMatrixTest extends TestCase
         $createBody = (string) json_encode($createFixture, JSON_THROW_ON_ERROR);
         $previewBody = (string) json_encode($previewFixture, JSON_THROW_ON_ERROR);
         $exportBody = (string) json_encode($exportFixture, JSON_THROW_ON_ERROR);
-        $downloadBody = (string) json_encode($downloadFixture, JSON_THROW_ON_ERROR);
+        $downloadBody = base64_decode((string) $downloadFixture["bodyBase64"], true);
+        $this->assertIsString($downloadBody);
         $ackBody = (string) json_encode($ackFixture, JSON_THROW_ON_ERROR);
         $execBody = (string) json_encode($execFixture, JSON_THROW_ON_ERROR);
         $receiptBody = (string) json_encode($receiptFixture, JSON_THROW_ON_ERROR);
@@ -462,7 +464,10 @@ final class LifecycleMatrixTest extends TestCase
             ["201", $createBody],
             ["200", $previewBody],
             ["200", $exportBody],
-            ["200", $downloadBody],
+            ["200", $downloadBody, [
+                "Content-Length" => (string) $downloadFixture["byteSize"],
+                "X-Checksum-SHA256" => (string) $downloadFixture["checksumSha256"],
+            ]],
             ["200", $ackBody],
             ["200", $execBody],
             ["200", $receiptBody],
@@ -498,17 +503,11 @@ final class LifecycleMatrixTest extends TestCase
         );
 
         $download = $client->adminOffboarding()->download("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-        $this->assertSame("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ", $download["requestUuid"]);
-        $this->assertIsString($download["downloadUrl"]);
-        $this->assertNotSame("", $download["downloadUrl"]);
-        $this->assertSame($exportReceipt["checksumSha256"], $download["checksumSha256"]);
-        $this->assertSame($exportReceipt["byteSize"], $download["byteSize"]);
-        $this->assertSame($exportReceipt["recordCount"], $download["recordCount"]);
-        $this->assertSame($exportReceipt["generatedAt"], $download["generatedAt"]);
-        $this->assertSame($exportReceipt["expiresAt"], $download["expiresAt"]);
-        $this->assertSame($exportReceipt["previewInventoryDigest"], $download["previewInventoryDigest"]);
-        // The signed URL value must not leak into the outbound request URL.
-        $this->assertStringNotContainsString("signed.example.invalid", $calls->calls[3]["url"]);
+        $this->assertSame($downloadBody, $download["bytes"]);
+        $this->assertSame($downloadFixture["checksumSha256"], $download["checksumSha256"]);
+        $this->assertSame($downloadFixture["byteSize"], $download["byteSize"]);
+        $this->assertSame("GET", $calls->calls[3]["method"]);
+        $this->assertNull($calls->calls[3]["body"]);
 
         $ack = $client->adminOffboarding()->acknowledge("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
         $this->assertSame("requested", $ack["state"]);
@@ -517,16 +516,8 @@ final class LifecycleMatrixTest extends TestCase
             $calls->calls[4]["url"],
         );
 
-        $exec = $client->adminOffboarding()->execute("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ", [
-            "waiver" => [
-                "role" => "client_owner",
-                "reason" => "explicit_client_request",
-            ],
-        ]);
-        $this->assertSame([
-            "waiver_role" => "client_owner",
-            "waiver_reason" => "explicit_client_request",
-        ], $calls->calls[5]["body"]);
+        $exec = $client->adminOffboarding()->execute("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+        $this->assertNull($calls->calls[5]["body"]);
         $this->assertSame("complete", $exec["finalState"]);
         $this->assertSame("client_owner", $exec["waiver"]["role"]);
         $this->assertSame(
@@ -590,21 +581,28 @@ final class LifecycleMatrixTest extends TestCase
         $this->assertSame(["reason" => "client_request_cancelled"], $calls->calls[2]["body"]);
     }
 
-    public function testOffboardingExecuteSurfacesWaiverRequiredError(): void
+    public function testOffboardingDownloadRejectsChecksumMismatch(): void
     {
-        $fixture = LifecycleFixtures::load("offboarding", "invalid-waiver-empty.json");
-        $body = (string) json_encode($fixture, JSON_THROW_ON_ERROR);
-        [$client] = $this->client([["400", $body]]);
+        $body = "custd offboarding";
+        [$client] = $this->client([["200", $body, [
+            "Content-Length" => (string) strlen($body),
+            "X-Checksum-SHA256" => hash("sha256", "other"),
+        ]]]);
 
-        try {
-            $client->adminOffboarding()->execute("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ", [
-                "waiver" => ["role" => "", "reason" => ""],
-            ]);
-            $this->fail("expected RuntimeException on waiver-required error");
-        } catch (\RuntimeException $err) {
-            $msg = strtolower($err->getMessage());
-            $this->assertStringContainsString("waiver", $msg);
-        }
+        $this->expectExceptionMessage("checksum mismatch");
+        $client->adminOffboarding()->download("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    }
+
+    public function testOffboardingDownloadRejectsDeclaredSizeAboveBound(): void
+    {
+        $body = "custd offboarding";
+        [$client] = $this->client([["200", $body, [
+            "Content-Length" => (string) (64 * 1024 * 1024 + 1),
+            "X-Checksum-SHA256" => hash("sha256", $body),
+        ]]]);
+
+        $this->expectExceptionMessage("exceeds 64 MiB");
+        $client->adminOffboarding()->download("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
     }
 
     public function testOffboardingConfirmSurfacesErasureIncompleteSafeNextAction(): void

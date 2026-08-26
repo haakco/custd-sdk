@@ -1,6 +1,7 @@
-import { type OffboardingAcknowledgeResponse, type OffboardingDownloadResponse, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPreviewResponse, type OffboardingReceiptResponse, type OffboardingWaiver } from "./admin-offboarding.js";
+import { type OffboardingAcknowledgeResponse, type OffboardingDownloadResponse, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPreviewResponse, type OffboardingReceiptResponse } from "./admin-offboarding.js";
 import type { ClientSetupOAuthPurposeProfile, RequestOptions, RuntimeReadinessOptions, RuntimeReadinessResult } from "./index.js";
 export type BackendLifecycleRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
+export type BackendLifecycleDownloader = (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>;
 export type OneTimeCredentialSecret = {
     tenantSlug: string;
     clientId: string;
@@ -36,8 +37,8 @@ export type ExportDeliveryVerificationResult = {
 export type ReceiveAndVerifyOffboardingExport = (input: {
     tenantSlug: string;
     requestUuid: string;
-    downloadUrl: string;
-    export: OffboardingExportResponse;
+    download: OffboardingDownloadResponse;
+    export?: OffboardingExportResponse;
 }) => ExportDeliveryVerificationResult | Promise<ExportDeliveryVerificationResult>;
 export type PersistOffboardingExport = (input: {
     tenantSlug: string;
@@ -46,7 +47,6 @@ export type PersistOffboardingExport = (input: {
     checksumSha256: string;
 }) => string | undefined | Promise<string | undefined>;
 export type VerifiedExportReceiverOptions = {
-    fetch?: typeof fetch;
     persist: PersistOffboardingExport;
 };
 export declare function createVerifiedOffboardingExportReceiver(options: VerifiedExportReceiverOptions): ReceiveAndVerifyOffboardingExport;
@@ -59,7 +59,6 @@ export type ZeroStateReconciliationOptions = {
 export type CompleteOffboardingOptions = RequestOptions & {
     tenantSlug: string;
     requestUuid: string;
-    waiver: OffboardingWaiver;
     receiveAndVerifyExport: ReceiveAndVerifyOffboardingExport;
     verifyZeroState: VerifyZeroState;
 };
@@ -78,7 +77,7 @@ export type CompleteOffboardingResult = {
 export declare class BackendLifecycleClient {
     private readonly request;
     private readonly offboarding;
-    constructor(request: BackendLifecycleRequester);
+    constructor(request: BackendLifecycleRequester, offboardingDownload: BackendLifecycleDownloader);
     rotateCredential(options: RotateCredentialOptions): Promise<RotateCredentialResult>;
     verifyReadiness(options: RuntimeReadinessOptions): Promise<RuntimeReadinessResult>;
     reconcileZeroState(options: ZeroStateReconciliationOptions): Promise<ZeroStateReconciliationResult>;

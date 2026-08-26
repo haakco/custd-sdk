@@ -283,12 +283,23 @@ describe("OffboardingClient", () => {
     >;
     const previewBody = readLifecycleFixture("offboarding", "valid-preview-response.json") as Record<string, unknown>;
     const exportBody = readLifecycleFixture("offboarding", "valid-export-response.json") as Record<string, unknown>;
-    const downloadBody = readLifecycleFixture("offboarding", "valid-download-response.json") as Record<string, unknown>;
+    const downloadFixture = readLifecycleFixture("offboarding", "valid-download-binary.json") as {
+      bodyBase64: string;
+      checksumSha256: string;
+      byteSize: number;
+    };
+    const downloadBytes = Uint8Array.from(atob(downloadFixture.bodyBase64), (character) => character.charCodeAt(0));
     const ackBody = readLifecycleFixture("offboarding", "valid-acknowledge-response.json") as Record<string, unknown>;
     const execBody = readLifecycleFixture("offboarding", "valid-execute-response.json") as Record<string, unknown>;
     const receiptBody = readLifecycleFixture("offboarding", "valid-receipt-response.json") as Record<string, unknown>;
-    const sequence = [createBody, previewBody, exportBody, downloadBody, ackBody, execBody, receiptBody];
-    const calls: Array<{ url: string; method: string; body: unknown; idempotencyKey: string | null }> = [];
+    const sequence = [createBody, previewBody, exportBody, undefined, ackBody, execBody, receiptBody];
+    const calls: Array<{
+      url: string;
+      method: string;
+      body: unknown;
+      authorization: string | null;
+      idempotencyKey: string | null;
+    }> = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? "GET";
@@ -300,8 +311,18 @@ describe("OffboardingClient", () => {
         url,
         method,
         body: parsed,
+        authorization: new Headers(init?.headers).get("Authorization"),
         idempotencyKey: new Headers(init?.headers).get("Idempotency-Key"),
       });
+      if (calls.length === 4) {
+        return new Response(downloadBytes, {
+          status: 200,
+          headers: {
+            "Content-Length": String(downloadFixture.byteSize),
+            "X-Checksum-SHA256": downloadFixture.checksumSha256,
+          },
+        });
+      }
       const body = sequence[calls.length - 1];
       const status = calls.length === 1 ? 201 : 200;
       return new Response(JSON.stringify(body), {
@@ -333,23 +354,17 @@ describe("OffboardingClient", () => {
     expect(exportReceipt.checksumSha256).not.toBe("");
 
     const download = await client.admin.offboarding.download("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-    expect(typeof download.downloadUrl).toBe("string");
-    expect(download.downloadUrl).not.toBe("");
-    // The signed URL value must not leak into the outbound request URL.
-    expect(calls[3].url).not.toContain("signed.example.invalid");
+    expect(download.bytes).toEqual(downloadBytes);
+    expect(download.checksumSha256).toBe(downloadFixture.checksumSha256);
+    expect(download.byteSize).toBe(downloadFixture.byteSize);
+    expect(calls[3].authorization).toBe("Bearer admin-token");
 
     const ack = await client.admin.offboarding.acknowledge("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
     expect(ack.state).toBe("requested");
 
-    const exec = await client.admin.offboarding.execute("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ", {
-      waiver: { role: "client_owner", reason: "explicit_client_request" },
-    });
-    expect(calls[5]?.body).toEqual({
-      waiver_role: "client_owner",
-      waiver_reason: "explicit_client_request",
-    });
+    const exec = await client.admin.offboarding.execute("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
     expect(exec.finalState).toBe("complete");
-    expect(exec.waiver?.role).toBe("client_owner");
+    expect(calls[5].body).toBeUndefined();
 
     const receipt = await client.admin.offboarding.receipt("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
     expect(receipt.finalState).toBe("complete");
@@ -380,28 +395,17 @@ describe("OffboardingClient", () => {
     expect(receipt.requestedByUserId).toBeNull();
   });
 
-  it("execute surfaces the waiver_required error without leaking the signed URL", async () => {
-    const body = readLifecycleFixture("offboarding", "invalid-waiver-empty.json") as Record<string, unknown>;
-    const fetchMock = vi.fn(
-      async () =>
-        new Response(JSON.stringify(body), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }),
-    );
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
+  it.each([
+    ["missing checksum", { "Content-Length": "3" }],
+    ["wrong checksum", { "Content-Length": "3", "X-Checksum-SHA256": "0".repeat(64) }],
+    ["length mismatch", { "Content-Length": "2", "X-Checksum-SHA256": "0".repeat(64) }],
+    ["declared oversize", { "Content-Length": String(64 * 1024 * 1024 + 1), "X-Checksum-SHA256": "0".repeat(64) }],
+  ])("download rejects %s", async (_name, headers) => {
+    globalThis.fetch = vi.fn(
+      async () => new Response(new Uint8Array([1, 2, 3]), { status: 200, headers }),
+    ) as unknown as typeof fetch;
     const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
-
-    let error: Error | undefined;
-    try {
-      await client.admin.offboarding.execute("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ", {
-        waiver: { role: "", reason: "" },
-      });
-    } catch (err) {
-      error = err as Error;
-    }
-    expect(error).toBeDefined();
-    expect(error?.message.toLowerCase()).toContain("waiver");
+    await expect(client.admin.offboarding.download("request-1")).rejects.toThrow(/offboarding download/);
   });
 
   it("confirmRequest surfaces the erasure-incomplete safeNextAction guidance", async () => {

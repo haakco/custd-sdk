@@ -8,6 +8,8 @@ use HaakCo\Custd\Problem;
 
 final class Http
 {
+    private const MAX_BINARY_RESPONSE_BYTES = 64 * 1024 * 1024;
+
     /**
      * @param callable|null $transport Receives method, URL, body, token and
      *     an optional array of extra request headers. Existing four-argument
@@ -65,6 +67,36 @@ final class Http
             return null;
         }
         return new AdminWorkflowException($status, $reason, $code, $safeNextAction);
+    }
+
+    /**
+     * Fetch an authenticated binary response without attempting JSON decoding.
+     *
+     * @param callable|null $transport
+     * @param array<string, mixed>|null $body
+     * @return array{body:string, headers:array<string, string>}
+     */
+    public static function binaryRequest(
+        string $baseUrl,
+        string $token,
+        ?callable $transport,
+        string $method,
+        string $path,
+        ?array $body = null,
+        string $prefix = "/api/v1/admin"
+    ): array {
+        $url = rtrim($baseUrl, "/") . $prefix . $path;
+        $result = $transport
+            ? $transport($method, $url, $body, $token)
+            : self::curlBinaryRequest($method, $url, $body, $token);
+        $status = self::status($result);
+        if ($status >= 400) {
+            throw new \RuntimeException("custd: " . self::errorMessage($result["body"], $status));
+        }
+        return [
+            "body" => $result["body"],
+            "headers" => self::headers($result),
+        ];
     }
 
     /**
@@ -148,6 +180,65 @@ final class Http
     }
 
     /**
+     * @param array<string, mixed>|null $body
+     * @return array{status:int, body:string, headers:array<string, string>}
+     */
+    private static function curlBinaryRequest(string $method, string $url, ?array $body, string $token): array
+    {
+        $ch = curl_init($url);
+        $headers = [
+            "Content-Type: application/json",
+            "Authorization: Bearer " . $token,
+        ];
+        /** @var array<string, string> $responseHeaders */
+        $responseHeaders = [];
+        $responseBody = "";
+        $tooLarge = false;
+        $options = [
+            CURLOPT_CUSTOMREQUEST => $method,
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_HEADERFUNCTION => static function ($unused, string $line) use (&$responseHeaders): int {
+                $length = strlen($line);
+                $separator = strpos($line, ":");
+                if ($separator === false) {
+                    return $length;
+                }
+                $name = strtolower(trim(substr($line, 0, $separator)));
+                $value = trim(substr($line, $separator + 1));
+                if ($name !== "") {
+                    $responseHeaders[$name] = $value;
+                }
+                return $length;
+            },
+            CURLOPT_WRITEFUNCTION => static function ($unused, string $chunk) use (&$responseBody, &$tooLarge): int {
+                if (strlen($responseBody) + strlen($chunk) > self::MAX_BINARY_RESPONSE_BYTES) {
+                    $tooLarge = true;
+                    return 0;
+                }
+                $responseBody .= $chunk;
+                return strlen($chunk);
+            },
+        ];
+        if ($body !== null) {
+            $options[CURLOPT_POSTFIELDS] = json_encode($body, JSON_THROW_ON_ERROR);
+        }
+        curl_setopt_array($ch, $options);
+        if (curl_exec($ch) === false && !$tooLarge) {
+            throw new \RuntimeException("custd: admin request failed: " . curl_error($ch));
+        }
+        if ($tooLarge) {
+            throw new \RuntimeException("custd: binary admin response exceeds 64 MiB");
+        }
+        return [
+            "status" => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE),
+            "body" => $responseBody,
+            "headers" => $responseHeaders,
+        ];
+    }
+
+    /**
      * @param mixed $result
      */
     private static function status(mixed $result): int
@@ -163,5 +254,29 @@ final class Http
             );
         }
         return $result["status"];
+    }
+
+    /**
+     * @param array<string, mixed> $result
+     * @return array<string, string>
+     */
+    private static function headers(array $result): array
+    {
+        $headers = $result["headers"] ?? [];
+        if (!is_array($headers)) {
+            throw new \UnexpectedValueException(
+                "custd: admin_http_client binary response headers must be array<string, string>"
+            );
+        }
+        $normalized = [];
+        foreach ($headers as $name => $value) {
+            if (!is_string($name) || !is_string($value)) {
+                throw new \UnexpectedValueException(
+                    "custd: admin_http_client binary response headers must be array<string, string>"
+                );
+            }
+            $normalized[strtolower($name)] = $value;
+        }
+        return $normalized;
     }
 }

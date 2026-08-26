@@ -2,10 +2,15 @@ package custd
 
 import (
 	"context"
-	"encoding/json"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 // TenantStorageAdminClient owns tenant-scoped storage location registration.
@@ -813,35 +818,13 @@ type OffboardingPreviewResponse struct {
 	Partial                bool                          `json:"partial"`
 }
 
-// OffboardingWaiver is the typed waiver the execute endpoint requires.
-// Role identifies the actor (e.g. client_owner); Reason is the human-readable
-// rationale. Timestamp is server-stamped on accept.
+// OffboardingWaiver is the typed waiver echoed in an offboarding receipt.
+// Authorization and approval are server-owned; callers cannot submit waiver
+// metadata to the execute endpoint.
 type OffboardingWaiver struct {
 	Role      string `json:"role"`
 	Reason    string `json:"reason"`
 	Timestamp string `json:"timestamp,omitempty"`
-}
-
-// OffboardingExecuteRequest is the body for POST
-// /admin/offboarding/requests/{requestUuid}/execute. Waiver is required for
-// destructive execution; an empty Role returns a 400 waiver_required error
-// the SDK must surface without retry.
-type OffboardingExecuteRequest struct {
-	Waiver OffboardingWaiver `json:"waiver"`
-}
-
-// MarshalJSON maps the ergonomic nested waiver into the top-level snake_case
-// fields accepted by the server's strict execute decoder.
-func (r OffboardingExecuteRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		WaiverRole      string `json:"waiver_role"`
-		WaiverReason    string `json:"waiver_reason"`
-		WaiverTimestamp string `json:"waiver_timestamp,omitempty"`
-	}{
-		WaiverRole:      r.Waiver.Role,
-		WaiverReason:    r.Waiver.Reason,
-		WaiverTimestamp: r.Waiver.Timestamp,
-	})
 }
 
 // OffboardingExportResponse is the body for POST
@@ -856,19 +839,14 @@ type OffboardingExportResponse struct {
 	PreviewInventoryDigest string `json:"previewInventoryDigest"`
 }
 
-// OffboardingDownloadResponse is the durable export descriptor returned by
-// GET /admin/offboarding/requests/{requestUuid}/download. DownloadURL is
-// short-lived; callers must not log it or echo it into error messages. The
-// remaining fields are the server's authoritative metadata for verification.
+const maxOffboardingDownloadBytes int64 = 64 << 20
+
+// OffboardingDownloadResponse contains authenticated export bytes and the
+// integrity metadata verified against the response headers.
 type OffboardingDownloadResponse struct {
-	RequestUUID            string `json:"requestUuid"`
-	DownloadURL            string `json:"downloadUrl"`
-	ChecksumSHA256         string `json:"checksumSha256"`
-	ByteSize               int64  `json:"byteSize"`
-	RecordCount            int    `json:"recordCount"`
-	GeneratedAt            string `json:"generatedAt"`
-	ExpiresAt              string `json:"expiresAt"`
-	PreviewInventoryDigest string `json:"previewInventoryDigest"`
+	Bytes          []byte
+	ChecksumSHA256 string
+	ByteSize       int64
 }
 
 // OffboardingAcknowledgeResponse is the body for POST
@@ -943,22 +921,90 @@ func (c *OffboardingAdminClient) Export(
 	return &out, err
 }
 
-// Download returns a short-lived signed URL for the offboarding export
-// artifact. The DownloadURL is sensitive; callers must not log it or echo
-// it into error messages.
+// Download returns the authenticated export bytes. It rejects missing or
+// inconsistent integrity headers and responses larger than 64 MiB.
 func (c *OffboardingAdminClient) Download(
 	ctx context.Context,
 	requestUUID string,
 ) (*OffboardingDownloadResponse, error) {
-	var out OffboardingDownloadResponse
-	err := c.admin.request(
-		ctx,
-		http.MethodGet,
-		"/offboarding/requests/"+url.PathEscape(requestUUID)+"/download",
-		nil,
-		&out,
-	)
-	return &out, err
+	path := "/offboarding/requests/" + url.PathEscape(requestUUID) + "/download"
+	if c.admin.client.config.HTTPClient != nil {
+		return c.downloadViaDoer(path)
+	}
+	return c.downloadViaHTTP(ctx, path)
+}
+
+func (c *OffboardingAdminClient) downloadViaDoer(path string) (*OffboardingDownloadResponse, error) {
+	resp, err := c.admin.client.config.HTTPClient.Do(&HTTPRequest{
+		Method: http.MethodGet, URL: c.admin.endpoint(path), Headers: c.admin.client.headers(false),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("custd: offboarding download failed: %w", err)
+	}
+	if err := c.admin.client.checkStatus(resp.StatusCode, resp.Body); err != nil {
+		return nil, err
+	}
+	return verifiedOffboardingDownload(resp.Body, responseHeader(resp.Headers, "Content-Length"), responseHeader(resp.Headers, "X-Checksum-SHA256"))
+}
+
+func (c *OffboardingAdminClient) downloadViaHTTP(ctx context.Context, path string) (*OffboardingDownloadResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.admin.endpoint(path), nil)
+	if err != nil {
+		return nil, fmt.Errorf("custd: create offboarding download: %w", err)
+	}
+	for key, value := range c.admin.client.headers(false) {
+		req.Header.Set(key, value)
+	}
+	resp, err := c.admin.client.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("custd: offboarding download failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.ContentLength > maxOffboardingDownloadBytes {
+		return nil, errors.New("custd: offboarding download exceeds 64 MiB")
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxOffboardingDownloadBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("custd: read offboarding download: %w", err)
+	}
+	if err := c.admin.client.checkStatus(resp.StatusCode, body); err != nil {
+		return nil, err
+	}
+	return verifiedOffboardingDownload(body, resp.Header.Get("Content-Length"), resp.Header.Get("X-Checksum-SHA256"))
+}
+
+func verifiedOffboardingDownload(body []byte, lengthHeader, checksumHeader string) (*OffboardingDownloadResponse, error) {
+	if int64(len(body)) > maxOffboardingDownloadBytes {
+		return nil, errors.New("custd: offboarding download exceeds 64 MiB")
+	}
+	declared, err := strconv.ParseInt(strings.TrimSpace(lengthHeader), 10, 64)
+	if err != nil || declared < 0 {
+		return nil, errors.New("custd: offboarding download content length is invalid")
+	}
+	if declared > maxOffboardingDownloadBytes {
+		return nil, errors.New("custd: offboarding download exceeds 64 MiB")
+	}
+	checksum := strings.ToLower(strings.TrimSpace(checksumHeader))
+	if decoded, err := hex.DecodeString(checksum); err != nil || len(decoded) != sha256.Size {
+		return nil, errors.New("custd: offboarding download checksum header is invalid")
+	}
+	actual := sha256.Sum256(body)
+	if checksum != hex.EncodeToString(actual[:]) {
+		return nil, errors.New("custd: offboarding download checksum mismatch")
+	}
+	if declared != int64(len(body)) {
+		return nil, errors.New("custd: offboarding download content length mismatch")
+	}
+	return &OffboardingDownloadResponse{Bytes: body, ChecksumSHA256: checksum, ByteSize: declared}, nil
+}
+
+func responseHeader(headers map[string]string, name string) string {
+	for key, value := range headers {
+		if strings.EqualFold(key, name) {
+			return value
+		}
+	}
+	return ""
 }
 
 // Acknowledge records that the export was downloaded successfully and its
@@ -978,20 +1024,18 @@ func (c *OffboardingAdminClient) Acknowledge(
 	return &out, err
 }
 
-// Execute triggers the destructive phase. The server requires a non-empty
-// Waiver.Role; an empty waiver returns 400 waiver_required, which the
-// SDK surfaces without retry.
+// Execute triggers the destructive phase. Authorization and approval are
+// server-owned; callers cannot submit waiver metadata.
 func (c *OffboardingAdminClient) Execute(
 	ctx context.Context,
 	requestUUID string,
-	req OffboardingExecuteRequest,
 ) (*OffboardingExecuteResponse, error) {
 	var out OffboardingExecuteResponse
 	err := c.admin.request(
 		ctx,
 		http.MethodPost,
 		"/offboarding/requests/"+url.PathEscape(requestUUID)+"/execute",
-		req,
+		nil,
 		&out,
 	)
 	return &out, err

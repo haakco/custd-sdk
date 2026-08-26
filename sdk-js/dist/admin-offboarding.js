@@ -31,8 +31,9 @@ function mapReceipt(response) {
     };
 }
 export class OffboardingClient {
-    constructor(request) {
+    constructor(request, downloadBinary) {
         this.request = request;
+        this.downloadBinary = downloadBinary;
     }
     // schedule writes a delayed offboarding schedule. tenantSlug is required and
     // must match the authenticated tenant scope.
@@ -79,27 +80,19 @@ export class OffboardingClient {
     export(requestUuid, options) {
         return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/export`, undefined, options);
     }
-    // download returns the durable export descriptor and a short-lived signed
-    // URL for the offboarding artifact. The downloadUrl is sensitive; callers
-    // must not log it or echo it into error messages.
+    // download returns authenticated bytes with verified checksum and length.
     download(requestUuid, options) {
-        return this.request("GET", `/offboarding/requests/${encodeURIComponent(requestUuid)}/download`, undefined, options);
+        return this.downloadBinary(`/offboarding/requests/${encodeURIComponent(requestUuid)}/download`, options);
     }
     // acknowledge records that the export was downloaded successfully and its
     // inventory was confirmed. Never call it merely because preview succeeded.
     acknowledge(requestUuid, options) {
         return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/acknowledge`, undefined, options);
     }
-    // execute triggers the destructive phase. The server requires a non-empty
-    // waiver.role; an empty waiver returns 400 waiver_required, which the
-    // SDK surfaces without retry.
-    execute(requestUuid, body, options) {
-        const wireBody = {
-            waiver_role: body.waiver.role,
-            waiver_reason: body.waiver.reason,
-            ...(body.waiver.timestamp ? { waiver_timestamp: body.waiver.timestamp } : {}),
-        };
-        return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/execute`, wireBody, options).then(mapReceipt);
+    // execute triggers the destructive phase. Approval is server-owned and the
+    // request intentionally has no caller-controlled body.
+    execute(requestUuid, options) {
+        return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/execute`, undefined, options).then(mapReceipt);
     }
     // retry re-arms an offboarding request that previously failed. The server
     // decides whether the request is retryable; the SDK does not pre-filter.

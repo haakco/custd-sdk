@@ -8,6 +8,7 @@ the server contract before any HTTP layer is exercised.
 
 from __future__ import annotations
 
+import base64
 import json
 import unittest
 from pathlib import Path
@@ -24,7 +25,7 @@ def _load(namespace: str, name: str) -> dict:
 
 
 class CapturingAdminTransport:
-    def __init__(self, responses: list[tuple[int, dict]]) -> None:
+    def __init__(self, responses: list[tuple[int, object] | dict[str, object]]) -> None:
         self.responses = list(responses)
         self.calls: list[dict] = []
 
@@ -38,7 +39,10 @@ class CapturingAdminTransport:
                 "timeout": timeout,
             }
         )
-        status, body = self.responses.pop(0)
+        response = self.responses.pop(0)
+        if isinstance(response, dict):
+            return response
+        status, body = response
         return {"status": status, "body": body}
 
 
@@ -153,11 +157,20 @@ class TestOffboarding(unittest.TestCase):
         self.assertIn("sha256", receipt)
 
     def test_client_maps_wire_shapes_and_sends_idempotency_header(self) -> None:
+        download_fixture = _load("offboarding", "valid-download-binary.json")
+        download_body = base64.b64decode(download_fixture["bodyBase64"])
         responses = [
             (202, _load("offboarding", "valid-request-create-response.json")),
             (200, _load("offboarding", "valid-preview-response.json")),
             (200, _load("offboarding", "valid-export-response.json")),
-            (200, _load("offboarding", "valid-download-response.json")),
+            {
+                "status": 200,
+                "body": download_body,
+                "headers": {
+                    "Content-Length": str(download_fixture["byteSize"]),
+                    "X-Checksum-SHA256": download_fixture["checksumSha256"],
+                },
+            },
             (200, _load("offboarding", "valid-acknowledge-response.json")),
             (200, _load("offboarding", "valid-execute-response.json")),
             (200, _load("offboarding", "valid-receipt-response.json")),
@@ -181,36 +194,21 @@ class TestOffboarding(unittest.TestCase):
         exported = offboarding.export(request_uuid)
         downloaded = offboarding.download(request_uuid)
         acknowledged = offboarding.acknowledge(request_uuid)
-        executed = offboarding.execute(
-            request_uuid,
-            {"waiver": {"role": "client_owner", "reason": "explicit_client_request"}},
-        )
+        executed = offboarding.execute(request_uuid)
         receipt = offboarding.receipt(request_uuid)
 
         self.assertEqual("preview", created["state"])
         self.assertEqual("operational", preview["stores"][0]["retention_class"])
         self.assertEqual(1357, exported["record_count"])
-        self.assertIn("signed.example.invalid", downloaded["download_url"])
-        self.assertEqual(request_uuid, downloaded["request_uuid"])
-        self.assertEqual(exported["checksum_sha256"], downloaded["checksum_sha256"])
-        self.assertEqual(exported["byte_size"], downloaded["byte_size"])
-        self.assertEqual(exported["record_count"], downloaded["record_count"])
-        self.assertEqual(exported["generated_at"], downloaded["generated_at"])
-        self.assertEqual(exported["expires_at"], downloaded["expires_at"])
-        self.assertEqual(exported["preview_inventory_digest"], downloaded["preview_inventory_digest"])
-        self.assertNotIn("signed.example.invalid", transport.calls[3]["url"])
+        self.assertEqual(download_body, downloaded["bytes"])
+        self.assertEqual(download_fixture["checksumSha256"], downloaded["checksumSha256"])
+        self.assertEqual(download_fixture["byteSize"], downloaded["byteSize"])
+        self.assertIsNone(transport.calls[3]["payload"])
         self.assertEqual("requested", acknowledged["state"])
         self.assertEqual("complete", executed["final_state"])
-        self.assertEqual("client_owner", executed["waiver"]["role"])
         self.assertEqual(7, receipt["requested_by_user_id"])
         self.assertEqual("complete", receipt["final_state"])
-        self.assertEqual(
-            {
-                "waiver_role": "client_owner",
-                "waiver_reason": "explicit_client_request",
-            },
-            transport.calls[5]["payload"],
-        )
+        self.assertIsNone(transport.calls[5]["payload"])
         self.assertEqual("offboarding-proof-1", transport.calls[0]["headers"]["Idempotency-Key"])
         self.assertNotIn("Idempotency-Key", transport.calls[1]["headers"])
 
@@ -232,10 +230,11 @@ class TestOffboarding(unittest.TestCase):
         self.assertEqual("client:tiao-lifecycle", result["requested_by_actor"])
         self.assertIsNone(result["requested_by_user_id"])
 
-    def test_waiver_required(self) -> None:
-        resp = _load("offboarding", "invalid-waiver-empty.json")
-        self.assertEqual(resp["code"], "waiver_required")
-        self.assertEqual(resp["safe_next_action"], "escalate")
+    def test_binary_download_fixture_contains_integrity_metadata(self) -> None:
+        fixture = _load("offboarding", "valid-download-binary.json")
+        body = base64.b64decode(fixture["bodyBase64"])
+        self.assertEqual(fixture["byteSize"], len(body))
+        self.assertEqual(len(fixture["checksumSha256"]), 64)
 
     def test_erasure_incomplete_blocks_confirm(self) -> None:
         resp = _load("offboarding", "incomplete-erasure-blocks-confirm.json")

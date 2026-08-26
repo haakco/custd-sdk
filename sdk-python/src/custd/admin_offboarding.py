@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import re
 from collections.abc import Mapping
 from typing import Any, NotRequired, TypedDict, cast
 
@@ -66,10 +68,6 @@ class OffboardingWaiver(TypedDict):
     timestamp: NotRequired[str]
 
 
-class OffboardingExecuteRequest(TypedDict):
-    waiver: OffboardingWaiver
-
-
 class OffboardingExportResponse(TypedDict):
     request_uuid: str
     checksum_sha256: str
@@ -81,14 +79,12 @@ class OffboardingExportResponse(TypedDict):
 
 
 class OffboardingDownloadResponse(TypedDict):
-    request_uuid: str
-    download_url: str
-    checksum_sha256: str
-    byte_size: int
-    record_count: int
-    generated_at: str
-    expires_at: str
-    preview_inventory_digest: str
+    bytes: bytes
+    checksumSha256: str
+    byteSize: int
+
+
+MAX_OFFBOARDING_DOWNLOAD_BYTES = 64 * 1024 * 1024
 
 
 class OffboardingReceiptPerStore(TypedDict):
@@ -187,19 +183,6 @@ def _export_from_wire(response: Mapping[str, Any]) -> OffboardingExportResponse:
     return cast(OffboardingExportResponse, result)
 
 
-def _download_from_wire(response: Mapping[str, Any]) -> OffboardingDownloadResponse:
-    result: dict[str, Any] = {}
-    _copy_value(result, "request_uuid", response, "requestUuid")
-    _copy_value(result, "download_url", response, "downloadUrl")
-    _copy_value(result, "checksum_sha256", response, "checksumSha256")
-    _copy_value(result, "byte_size", response, "byteSize")
-    _copy_value(result, "record_count", response, "recordCount")
-    _copy_value(result, "generated_at", response, "generatedAt")
-    _copy_value(result, "expires_at", response, "expiresAt")
-    _copy_value(result, "preview_inventory_digest", response, "previewInventoryDigest")
-    return cast(OffboardingDownloadResponse, result)
-
-
 def _receipt_from_wire(response: Mapping[str, Any]) -> OffboardingReceiptResponse:
     result: dict[str, Any] = {}
     _copy_value(result, "company_id", response, "company_id")
@@ -208,6 +191,7 @@ def _receipt_from_wire(response: Mapping[str, Any]) -> OffboardingReceiptRespons
     _copy_value(result, "requested_at", response, "requested_at")
     _copy_value(result, "completed_at", response, "completed_at")
     _copy_value(result, "final_state", response, "final_state")
+    _copy_value(result, "state", response, "state")
     _copy_value(result, "sha256", response, "sha256")
     if "waiver" in response:
         result["waiver"] = response["waiver"]
@@ -339,10 +323,24 @@ class OffboardingClient:
         request_uuid: str,
         options: AdminRequestOptions | None = None,
     ) -> OffboardingDownloadResponse:
-        response = self._admin.request(
-            "GET", f"/offboarding/requests/{quote_path(request_uuid)}/download", options=options
-        )
-        return _download_from_wire(response)
+        del options
+        body, headers = self._admin.request_binary("GET", f"/offboarding/requests/{quote_path(request_uuid)}/download")
+        if len(body) > MAX_OFFBOARDING_DOWNLOAD_BYTES:
+            raise ValueError("custd: offboarding download exceeds 64 MiB")
+        length_header = headers.get("content-length", "").strip()
+        if re.fullmatch(r"[0-9]+", length_header) is None:
+            raise ValueError("custd: offboarding download content length is invalid")
+        byte_size = int(length_header)
+        if byte_size > MAX_OFFBOARDING_DOWNLOAD_BYTES:
+            raise ValueError("custd: offboarding download exceeds 64 MiB")
+        if byte_size != len(body):
+            raise ValueError("custd: offboarding download content length mismatch")
+        checksum = headers.get("x-checksum-sha256", "").strip().lower()
+        if re.fullmatch(r"[0-9a-f]{64}", checksum) is None:
+            raise ValueError("custd: offboarding download checksum header is invalid")
+        if hashlib.sha256(body).hexdigest() != checksum:
+            raise ValueError("custd: offboarding download checksum mismatch")
+        return {"bytes": body, "checksumSha256": checksum, "byteSize": byte_size}
 
     def acknowledge(
         self,
@@ -357,18 +355,10 @@ class OffboardingClient:
     def execute(
         self,
         request_uuid: str,
-        body: OffboardingExecuteRequest,
         options: AdminRequestOptions | None = None,
     ) -> OffboardingReceiptResponse:
-        waiver = body["waiver"]
-        wire_body: dict[str, Any] = {
-            "waiver_role": waiver["role"],
-            "waiver_reason": waiver["reason"],
-        }
-        if waiver.get("timestamp"):
-            wire_body["waiver_timestamp"] = waiver["timestamp"]
         response = self._admin.request(
-            "POST", f"/offboarding/requests/{quote_path(request_uuid)}/execute", wire_body, options
+            "POST", f"/offboarding/requests/{quote_path(request_uuid)}/execute", options=options
         )
         return _receipt_from_wire(response)
 
