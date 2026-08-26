@@ -118,6 +118,7 @@ export {
   type ZeroStateReconciliationOptions,
   type ZeroStateReconciliationResult,
 } from "./backend-lifecycle.js";
+export { type ExactMoney, type ExactMoneyFormatOptions, formatExactMoney } from "./exact-money.js";
 export {
   classifyReportingData,
   getReportingViewState,
