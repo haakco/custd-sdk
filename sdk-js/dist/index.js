@@ -14,7 +14,6 @@ export { RetentionClient, } from "./admin-retention.js";
 export { SubjectExportClient, } from "./admin-subject-exports.js";
 export { TenantStorageClient, } from "./admin-tenant-storage.js";
 export { BackendLifecycleClient, createVerifiedOffboardingExportReceiver, } from "./backend-lifecycle.js";
-export { formatExactMoney } from "./exact-money.js";
 export { classifyReportingData, getReportingViewState, reportingQueryKey, } from "./reporting-state.js";
 export { checkRuntimeReadiness, } from "./runtime-readiness.js";
 export { createMobileAsyncQueueStorage, createMobileFlushTriggers, } from "./mobile-adapter.js";
