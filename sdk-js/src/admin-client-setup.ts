@@ -201,14 +201,8 @@ function validateSetupReportingPacks(packs: unknown): void {
   packs.forEach((entry, index) => {
     const desired = setupRecord(entry, `reportingPacks[${index}]`);
     const definition = setupRecord(desired.definition, `reportingPacks[${index}].definition`);
-    const key = setupString(definition.key, `reportingPacks[${index}].definition.key`);
-    setupString(definition.displayName, `reportingPacks[${index}].definition.displayName`);
-    if (typeof definition.enabled !== "boolean") {
-      throw new Error(`custd: reportingPacks[${index}].definition.enabled must be a boolean`);
-    }
-    if (!Array.isArray(definition.eventTypes) || !definition.eventTypes.every((item) => typeof item === "string")) {
-      throw new Error(`custd: reportingPacks[${index}].definition.eventTypes must be an array of strings`);
-    }
+    const definitionField = `reportingPacks[${index}].definition`;
+    const key = validateSetupPackDefinition(definition, definitionField);
     if (
       desired.expectedRevision !== undefined &&
       (!isInteger(desired.expectedRevision) || desired.expectedRevision < 0)
@@ -221,6 +215,128 @@ function validateSetupReportingPacks(packs: unknown): void {
     if (seen.has(key)) throw new Error(`custd: duplicate reporting pack ${key}`);
     seen.add(key);
   });
+}
+
+function validateSetupPackDefinition(definition: Record<string, unknown>, field: string): string {
+  const key = setupString(definition.key, `${field}.key`);
+  setupString(definition.displayName, `${field}.displayName`);
+  setupString(definition.owner, `${field}.owner`);
+  if (!isInteger(definition.version) || definition.version < 1) {
+    throw new Error(`custd: ${field}.version must be a positive integer`);
+  }
+  if (typeof definition.enabled !== "boolean") {
+    throw new Error(`custd: ${field}.enabled must be a boolean`);
+  }
+  setupStringArray(definition.eventTypes, `${field}.eventTypes`);
+  validateSetupPackMetrics(definition.metrics, `${field}.metrics`);
+  validateSetupPackDimensions(definition.dimensions, `${field}.dimensions`);
+  validateSetupPackTemplates(definition.templates, `${field}.templates`);
+  validateSetupPackTrust(definition.trust, `${field}.trust`);
+  validateSetupPackProof(definition.proof, `${field}.proof`);
+  if (definition.identity !== undefined) validateSetupPackIdentity(definition.identity, `${field}.identity`);
+  return key;
+}
+
+function validateSetupPackMetrics(metrics: unknown, field: string): void {
+  if (!Array.isArray(metrics) || metrics.length === 0) {
+    throw new Error(`custd: ${field} must be a non-empty array`);
+  }
+  metrics.forEach((entry, index) => {
+    const metric = setupRecord(entry, `${field}[${index}]`);
+    setupString(metric.key, `${field}[${index}].key`);
+    setupString(metric.label, `${field}[${index}].label`);
+    setupString(metric.kind, `${field}[${index}].kind`);
+    setupString(metric.calculation, `${field}[${index}].calculation`);
+  });
+}
+
+function validateSetupPackDimensions(dimensions: unknown, field: string): void {
+  if (!Array.isArray(dimensions)) throw new Error(`custd: ${field} must be an array`);
+  dimensions.forEach((entry, index) => {
+    const dimension = setupRecord(entry, `${field}[${index}]`);
+    setupString(dimension.key, `${field}[${index}].key`);
+    setupString(dimension.label, `${field}[${index}].label`);
+    setupString(dimension.selector, `${field}[${index}].selector`);
+  });
+}
+
+function validateSetupPackTemplates(templates: unknown, field: string): void {
+  if (!Array.isArray(templates) || templates.length === 0) {
+    throw new Error(`custd: ${field} must be a non-empty array`);
+  }
+  templates.forEach((entry, index) => {
+    const template = setupRecord(entry, `${field}[${index}]`);
+    const templateField = `${field}[${index}]`;
+    setupString(template.name, `${templateField}.name`);
+    setupStringArray(template.allowedMetrics, `${templateField}.allowedMetrics`);
+    setupStringArray(template.sourceModes, `${templateField}.sourceModes`);
+    if (!isInteger(template.maxRows) || template.maxRows < 1) {
+      throw new Error(`custd: ${templateField}.maxRows must be a positive integer`);
+    }
+    setupStringArray(template.eventTypes, `${templateField}.eventTypes`);
+    setupString(template.aggregation, `${templateField}.aggregation`);
+    if (template.allowedDimensions !== undefined) {
+      setupStringArray(template.allowedDimensions, `${templateField}.allowedDimensions`, false);
+    }
+    if (template.allowedFilters !== undefined) {
+      validateSetupPackFilters(template.allowedFilters, `${templateField}.allowedFilters`);
+    }
+    if (template.compositionRules !== undefined) {
+      setupStringArray(template.compositionRules, `${templateField}.compositionRules`, false);
+    }
+    if (template.defaultRange !== undefined) setupString(template.defaultRange, `${templateField}.defaultRange`);
+    if (template.subjectScope !== undefined) {
+      const scope = setupRecord(template.subjectScope, `${templateField}.subjectScope`);
+      if (typeof scope.required !== "boolean") {
+        throw new Error(`custd: ${templateField}.subjectScope.required must be a boolean`);
+      }
+      setupString(scope.dimension, `${templateField}.subjectScope.dimension`);
+    }
+  });
+}
+
+function validateSetupPackFilters(filters: unknown, field: string): void {
+  if (!Array.isArray(filters)) throw new Error(`custd: ${field} must be an array`);
+  filters.forEach((entry, index) => {
+    const filter = setupRecord(entry, `${field}[${index}]`);
+    setupString(filter.dimension, `${field}[${index}].dimension`);
+    setupStringArray(filter.operators, `${field}[${index}].operators`);
+  });
+}
+
+function validateSetupPackTrust(trust: unknown, field: string): void {
+  const value = setupRecord(trust, field);
+  setupStringArray(value.safeFields, `${field}.safeFields`, false);
+  setupStringArray(value.redactionGuard, `${field}.redactionGuard`, false);
+}
+
+function validateSetupPackProof(proof: unknown, field: string): void {
+  const value = setupRecord(proof, field);
+  setupString(value.key, `${field}.key`);
+  setupStringArray(value.templates, `${field}.templates`, false);
+  setupStringArray(value.safeMetadataFields, `${field}.safeMetadataFields`, false);
+  setupStringArray(value.forbiddenFields, `${field}.forbiddenFields`, false);
+  setupString(value.outputLayout, `${field}.outputLayout`);
+}
+
+function validateSetupPackIdentity(identity: unknown, field: string): void {
+  const value = setupRecord(identity, field);
+  for (const key of ["subject", "session", "entity", "cohort", "correlation"]) {
+    if (value[key] === undefined) continue;
+    const selector = setupRecord(value[key], `${field}.${key}`);
+    setupString(selector.selector, `${field}.${key}.selector`);
+    setupString(selector.type, `${field}.${key}.type`);
+  }
+}
+
+function setupStringArray(value: unknown, field: string, requireEntries = true): void {
+  if (
+    !Array.isArray(value) ||
+    (requireEntries && value.length === 0) ||
+    !value.every((item) => typeof item === "string")
+  ) {
+    throw new Error(`custd: ${field} must be ${requireEntries ? "a non-empty " : "an "}array of strings`);
+  }
 }
 
 function validateSetupOAuthClients(clients: unknown): void {

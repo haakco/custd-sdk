@@ -1,11 +1,45 @@
 import { describe, expect, it, vi } from "vitest";
 import { ClientSetupClient, type ClientSetupManifest, validateClientSetupManifest } from "./admin-client-setup.js";
+import type { PackDefinition } from "./index.js";
 
-const reportingPack = {
+const reportingPack: PackDefinition = {
   key: "acme-pack",
   displayName: "Acme reporting",
+  owner: "acme",
+  version: 1,
   enabled: true,
-  eventTypes: ["page-view"],
+  eventTypes: ["card-review"],
+  metrics: [{ key: "card_review_count", label: "Card reviews", kind: "count", calculation: "count" }],
+  dimensions: [{ key: "subject", label: "Subject", selector: "anonymousId" }],
+  templates: [
+    {
+      name: "acme_card_review_activity",
+      allowedMetrics: ["card_review_count"],
+      sourceModes: ["auto"],
+      maxRows: 100,
+      eventTypes: ["card-review"],
+      aggregation: "count",
+    },
+    {
+      name: "acme_card_review_subject_insight",
+      allowedMetrics: ["card_review_count"],
+      allowedFilters: [{ dimension: "subject", operators: ["eq"] }],
+      sourceModes: ["auto"],
+      maxRows: 100,
+      eventTypes: ["card-review"],
+      aggregation: "count",
+      subjectScope: { required: true, dimension: "subject" },
+    },
+  ],
+  trust: { safeFields: ["coverage.status"], redactionGuard: ["email"] },
+  proof: {
+    key: "acme-card-review-proof",
+    templates: ["acme_card_review_activity", "acme_card_review_subject_insight"],
+    safeMetadataFields: ["coverage.status"],
+    forbiddenFields: ["email"],
+    outputLayout: "summary",
+  },
+  identity: { subject: { selector: "anonymousId", type: "string" } },
 };
 
 describe("client setup reporting-pack manifests", () => {
@@ -46,6 +80,32 @@ describe("client setup reporting-pack manifests", () => {
       }),
     ).toThrow("client secrets");
     expect(request).not.toHaveBeenCalled();
+  });
+
+  it("accepts a count pack with staff and exact-subject templates", () => {
+    expect(() => validateClientSetupManifest({ reportingPacks: [{ definition: reportingPack }] })).not.toThrow();
+  });
+
+  it("rejects reporting packs without required core fields or templates", () => {
+    const requiredFields: Array<keyof PackDefinition> = ["owner", "version", "metrics", "templates", "trust", "proof"];
+
+    for (const field of requiredFields) {
+      const incomplete = { ...reportingPack } as Record<string, unknown>;
+      delete incomplete[field];
+      expect(() => validateClientSetupManifest({ reportingPacks: [{ definition: incomplete as never }] })).toThrow(
+        field,
+      );
+    }
+
+    const missingTemplateFields = ["name", "allowedMetrics", "sourceModes", "maxRows", "eventTypes", "aggregation"];
+    for (const field of missingTemplateFields) {
+      const template = { ...reportingPack.templates[0] } as Record<string, unknown>;
+      delete template[field];
+      const incomplete = { ...reportingPack, templates: [template] };
+      expect(() => validateClientSetupManifest({ reportingPacks: [{ definition: incomplete as never }] })).toThrow(
+        field,
+      );
+    }
   });
 
   it("applies once and polls readiness until the runtime activates the pack", async () => {

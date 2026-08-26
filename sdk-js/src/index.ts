@@ -604,47 +604,104 @@ export type AdminReportingPackAuditListResponse = {
   events: AdminReportingPackAuditEvent[];
 };
 
+export type SelectorDefinition = {
+  selector: string;
+  type: string;
+};
+
+export type NumericSelector = SelectorDefinition & {
+  unit: string;
+};
+
+export type IdentitySelectors = {
+  subject?: SelectorDefinition;
+  session?: SelectorDefinition;
+  entity?: SelectorDefinition;
+  cohort?: SelectorDefinition;
+  correlation?: SelectorDefinition;
+};
+
+export type FilterDefinition = {
+  dimension: string;
+  operators: string[];
+};
+
+export type SubjectScopeRule = {
+  required: boolean;
+  dimension: string;
+};
+
 export type PackMetric = {
   key: string;
-  displayName: string;
-  template: string;
-  metrics: string[];
-  dimensions?: string[];
+  label: string;
+  kind: string;
+  unit?: string;
+  description?: string;
+  calculation: string;
+  numeric?: NumericSelector;
+  distinct?: SelectorDefinition;
+  measurementKind?: string;
+  maximumGapSeconds?: number;
+  resetPolicy?: string;
+  rolloverAt?: number;
+  canonicalUnit?: string;
+  percentile?: number;
+  numeratorMetric?: string;
+  denominatorMetric?: string;
+  seriesKey?: string;
+  hierarchyRootKey?: string;
 };
 
 export type PackDimension = {
   key: string;
-  displayName: string;
+  label: string;
+  description?: string;
+  selector: string;
+  allowedValuePattern?: string;
+  fallback?: string;
+  maxCardinality?: number;
 };
 
-export type PackDashboardWidget = {
-  key: string;
-  title: string;
-  kind: string;
-  template: string;
-  metrics: string[];
-  dimensions?: string[];
+export type PackTemplate = {
+  name: string;
+  allowedMetrics: string[];
+  allowedDimensions?: string[];
+  allowedFilters?: FilterDefinition[];
+  sourceModes: string[];
+  maxRows: number;
+  defaultRange?: string;
+  subjectScope?: SubjectScopeRule;
+  compositionRules?: string[];
+  eventTypes: string[];
+  aggregation: string;
 };
 
-export type PackDashboard = {
+export type TrustDiagnostics = {
+  safeFields: string[];
+  redactionGuard: string[];
+};
+
+export type ProofProfile = {
   key: string;
-  title: string;
-  hidden: boolean;
-  defaultRange: string;
-  refreshSeconds: number;
-  requiredScopes: string[];
-  widgets: PackDashboardWidget[];
+  templates: string[];
+  safeMetadataFields: string[];
+  forbiddenFields: string[];
+  outputLayout: string;
 };
 
 export type PackDefinition = {
   key: string;
   displayName: string;
-  owner?: string;
+  owner: string;
+  version: number;
   enabled: boolean;
   eventTypes: string[];
-  metrics?: PackMetric[];
-  dimensions?: PackDimension[];
-  dashboards?: PackDashboard[];
+  metrics: PackMetric[];
+  dimensions: PackDimension[];
+  templates: PackTemplate[];
+  trust: TrustDiagnostics;
+  proof: ProofProfile;
+  identity?: IdentitySelectors;
 };
 
 export type ReportingPackDraft = {
