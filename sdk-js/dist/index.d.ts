@@ -14,7 +14,6 @@ export { RetentionClient, type RetentionPolicy, type RetentionPolicyListResponse
 export { type SubjectExport, SubjectExportClient, type SubjectExportCreateRequest, type SubjectExportDownloadResponse, type SubjectExportListResponse, type SubjectExportState, type SubjectExportSubject, } from "./admin-subject-exports.js";
 export { TenantStorageClient, type TenantStorageCreateRequest, type TenantStorageListResponse, type TenantStorageLocation, } from "./admin-tenant-storage.js";
 export { BackendLifecycleClient, type BackendLifecycleDownloader, type BackendLifecycleRequester, type CompleteOffboardingOptions, type CompleteOffboardingResult, createVerifiedOffboardingExportReceiver, type OneTimeCredentialSecret, type PersistOffboardingExport, type PersistOneTimeCredentialSecret, type ReceiveAndVerifyOffboardingExport, type RotateCredentialOptions, type RotateCredentialResult, type VerifiedExportReceiverOptions, type VerifyZeroState, type ZeroStateReconciliationOptions, type ZeroStateReconciliationResult, } from "./backend-lifecycle.js";
-export { type ExactMoney, type ExactMoneyFormatOptions, formatExactMoney } from "./exact-money.js";
 export { classifyReportingData, getReportingViewState, type ReportingDataState, type ReportingQueryState, type ReportingViewState, reportingQueryKey, } from "./reporting-state.js";
 export { checkRuntimeReadiness, type RuntimeReadinessCredentialResult, type RuntimeReadinessOAuthConfig, type RuntimeReadinessOptions, type RuntimeReadinessResult, } from "./runtime-readiness.js";
 export type EventContext = {
