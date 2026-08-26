@@ -38,6 +38,7 @@ final class VersionSyncTest extends TestCase
     public static function hardcodedVersionManifests(): iterable
     {
         yield "sdk-js (Verdaccio)" => ["sdk-js/package.json", "json"];
+        yield "sdk-react (Verdaccio)" => ["sdk-react/package.json", "json"];
         yield "sdk-python (registry)" => ["sdk-python/pyproject.toml", "toml"];
         yield "sdk-php (path-shim)" => ["sdk-php/composer.json", "json"];
         yield "sdk-go (VERSION file)" => ["sdk-go/VERSION", "raw"];

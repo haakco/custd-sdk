@@ -49,6 +49,16 @@ jobs:
         run: pnpm -C sdk-js run build
       - name: Check committed JS dist is current
         run: git diff --exit-code -- sdk-js/dist
+      - name: Lint React SDK
+        run: pnpm -C sdk-react run lint
+      - name: Typecheck React SDK
+        run: pnpm -C sdk-react run typecheck
+      - name: Test React SDK
+        run: pnpm -C sdk-react test
+      - name: Build React SDK
+        run: pnpm -C sdk-react run build
+      - name: Check committed React SDK dist is current
+        run: git diff --exit-code -- sdk-react/dist
 
   python:
     runs-on: self-hosted
@@ -145,7 +155,7 @@ jobs:
       - name: Lint GitHub Actions workflows
         run: PATH="$(go env GOPATH)/bin:$PATH" actionlint
       - name: Lint Markdown
-        run: pnpm exec markdownlint-cli2 '**/*.md' '#node_modules' '#vendor' '#sdk-js/node_modules' '#sdk-php/vendor' '#laravel-package/vendor' '#wordpress-plugin/vendor'
+        run: pnpm exec markdownlint-cli2 '**/*.md' '#node_modules' '#vendor' '#sdk-js/node_modules' '#sdk-react/node_modules' '#sdk-php/vendor' '#laravel-package/vendor' '#wordpress-plugin/vendor'
       - name: Check diff whitespace
         run: git diff-tree --check --no-commit-id --root -r HEAD
 
@@ -186,8 +196,11 @@ jobs:
         run: pnpm -C sdk-js install --frozen-lockfile
       - name: Build JS SDK
         run: pnpm -C sdk-js run build
+      - name: Build React SDK
+        run: pnpm -C sdk-react run build
       # Auth is written to a temporary npm user config so GitHub installs from
-      # `path:/sdk-js` never inherit Verdaccio registry settings. The token is
+      # `path:/sdk-js` and `path:/sdk-react` never inherit Verdaccio registry
+      # settings. The token is
       # pulled from Infisical at runtime (Universal Auth, matching custd/cb).
       - name: Publish JS SDK to Verdaccio
         env:
@@ -210,6 +223,7 @@ jobs:
           printf '//verdaccio.k8.haak.co/:_auth=%s\n' "$VERDACCIO_TOKEN" > "$npm_config"
           export NPM_CONFIG_USERCONFIG="$npm_config"
           cd sdk-js && npm publish --registry=https://verdaccio.k8.haak.co/ --access restricted --ignore-scripts
+          cd ../sdk-react && npm publish --registry=https://verdaccio.k8.haak.co/ --access restricted --ignore-scripts
 
   publish-packagist:
     runs-on: self-hosted

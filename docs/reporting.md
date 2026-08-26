@@ -67,10 +67,38 @@ const view = getReportingViewState({
 The view state preserves previous data while a refresh or bounded retry is in
 flight and distinguishes `empty`, `ready`, `stale`, `partial`,
 `stale_partial`, and `unavailable`. A React application owns placement,
-wording, and theme; it should pass this state to a reusable display component
-instead of adding its own polling, cache, aggregation, or recovery rules. The
-SDK deliberately has no React dependency, so the same state model can be used
-by web, native, and server consumers.
+wording, and theme; it should pass this state to the optional
+`@haakco/custd-react` display component instead of adding its own polling,
+cache, aggregation, or recovery rules. The core SDK deliberately has no React
+dependency, so the same state model can be used by web, native, and server
+consumers. The React package accepts an app-owned query function or existing
+TanStack Query result and never receives Custd browser credentials.
+
+Install the optional package alongside the core SDK and your existing React
+Query/React versions:
+
+```bash
+pnpm add @haakco/custd-sdk @haakco/custd-react @tanstack/react-query react
+```
+
+```tsx
+import { CustdReportingState, useCustdReportingQuery } from "@haakco/custd-react";
+
+const report = useCustdReportingQuery({
+  queryKey: ["report", request],
+  queryFn: () => appApi.reporting.query(request),
+});
+
+return (
+  <CustdReportingState view={report.view} onRetry={() => report.refetch()}>
+    {(data) => <ReportChart data={data} />}
+  </CustdReportingState>
+);
+```
+
+`CustdReportingState` renders accessible status/alert feedback for loading,
+error, unavailable, empty, stale, partial, stale/partial, and ready results.
+Use `labels`, `renderState`, and `className` for consumer wording and styling.
 
 ## Go
 
