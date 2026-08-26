@@ -407,7 +407,7 @@ function assertSecureOrLocalHTTP(rawUrl, field) {
     throw new Error(`custd: ${field} must use https unless it targets localhost`);
 }
 function isLocalHostname(hostname) {
-    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+    return (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "host.docker.internal");
 }
 function randomUUID() {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {

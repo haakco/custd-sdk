@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -341,7 +342,7 @@ func TestRetention_SelectorlessScope(t *testing.T) {
 // TestOffboarding_FullLifecycle covers the end-to-end offboarding
 // lifecycle: request create, preview, export, download, acknowledge,
 // execute, and receipt. The receipt must include the per-store deletion
-// summary and signed SHA256.
+// summary and its unkeyed SHA256 integrity checksum.
 func TestOffboarding_FullLifecycle(t *testing.T) {
 	client := newLifecycleTestClient(t,
 		&lifecycleDoer{
@@ -360,6 +361,9 @@ func TestOffboarding_FullLifecycle(t *testing.T) {
 	if created.RequestUUID != "ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ" {
 		t.Fatalf("created.RequestUUID = %q", created.RequestUUID)
 	}
+	if created.State != "preview" || created.RequestedAt == "" {
+		t.Fatalf("created = %+v", created)
+	}
 
 	doer, ok := client.config.HTTPClient.(*lifecycleDoer)
 	if !ok {
@@ -371,11 +375,17 @@ func TestOffboarding_FullLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Preview error: %v", err)
 	}
-	if preview.PreviewInventoryDigest == "" {
+	if preview.PreviewInventoryDigest == "" || preview.GeneratedAt == "" || preview.ExpiresAt == "" {
 		t.Fatalf("PreviewInventoryDigest empty")
 	}
-	if len(preview.PerStore) != 3 {
-		t.Fatalf("expected 3 perStore rows, got %d", len(preview.PerStore))
+	if !preview.Complete || preview.Partial {
+		t.Fatalf("preview completeness = complete:%v partial:%v", preview.Complete, preview.Partial)
+	}
+	if len(preview.Stores) != 3 {
+		t.Fatalf("expected 3 stores, got %d", len(preview.Stores))
+	}
+	if preview.Stores[0].RetentionClass != "operational" {
+		t.Fatalf("first preview store = %+v", preview.Stores[0])
 	}
 
 	doer.body = string(readLifecycleFixture(t, "offboarding", "valid-export-response.json"))
@@ -383,11 +393,11 @@ func TestOffboarding_FullLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Export error: %v", err)
 	}
-	if !export.Complete {
-		t.Fatalf("export.Complete = false")
+	if export.ChecksumSHA256 == "" || export.ByteSize != 4096 || export.RecordCount != 1357 {
+		t.Fatalf("export metadata = %+v", export)
 	}
-	if export.SchemaVersion == "" {
-		t.Fatalf("export.SchemaVersion empty")
+	if export.PreviewInventoryDigest == "" || export.GeneratedAt == "" || export.ExpiresAt == "" {
+		t.Fatalf("export timestamps/digest = %+v", export)
 	}
 
 	var downloadFixture struct {
@@ -411,7 +421,9 @@ func TestOffboarding_FullLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Download error: %v", err)
 	}
-	if string(download.Bytes) != string(downloadBytes) || download.ChecksumSHA256 != downloadFixture.ChecksumSHA256 || download.ByteSize != downloadFixture.ByteSize {
+	if string(download.Bytes) != string(downloadBytes) ||
+		download.ChecksumSHA256 != downloadFixture.ChecksumSHA256 ||
+		download.ByteSize != downloadFixture.ByteSize {
 		t.Fatalf("download = %+v, want exact fixture bytes and metadata", download)
 	}
 	if got := doer.requests[len(doer.requests)-1].Headers["Authorization"]; got != "Bearer admin-token" {
@@ -423,7 +435,7 @@ func TestOffboarding_FullLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Acknowledge error: %v", err)
 	}
-	if ack.State != "confirmed" {
+	if ack.State != "requested" || ack.RequestedAt == "" {
 		t.Fatalf("ack.State = %q", ack.State)
 	}
 
@@ -433,8 +445,11 @@ func TestOffboarding_FullLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute error: %v", err)
 	}
-	if exec.State != "deleting" {
-		t.Fatalf("exec.State = %q", exec.State)
+	if exec.CompanyID != 42 || exec.FinalState != "complete" {
+		t.Fatalf("exec = %+v", exec)
+	}
+	if exec.Waiver == nil || exec.Waiver.Role != "client_owner" {
+		t.Fatalf("exec.Waiver = %+v", exec.Waiver)
 	}
 	if got := doer.requests[len(doer.requests)-1].Body; len(got) != 0 {
 		t.Fatalf("execute body = %q, want empty", got)
@@ -445,8 +460,14 @@ func TestOffboarding_FullLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Receipt error: %v", err)
 	}
-	if receipt.FinalState != "complete" {
+	if receipt.CompanyID != 42 || receipt.FinalState != "complete" {
 		t.Fatalf("receipt.FinalState = %q", receipt.FinalState)
+	}
+	if receipt.RequestedByActor != "user:u_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ" {
+		t.Fatalf("receipt.RequestedByActor = %q", receipt.RequestedByActor)
+	}
+	if receipt.RequestedByUserID == nil || *receipt.RequestedByUserID != 7 {
+		t.Fatalf("receipt.RequestedByUserID = %v", receipt.RequestedByUserID)
 	}
 	if receipt.SHA256 == "" {
 		t.Fatalf("receipt.SHA256 empty")
@@ -458,6 +479,28 @@ func TestOffboarding_FullLifecycle(t *testing.T) {
 		if row.Store == "" || row.RetentionClass == "" {
 			t.Fatalf("incomplete perStore row: %+v", row)
 		}
+	}
+
+	machineReceipt := map[string]any{}
+	if err := json.Unmarshal([]byte(doer.body), &machineReceipt); err != nil {
+		t.Fatalf("decode receipt fixture: %v", err)
+	}
+	machineReceipt["requested_by_actor"] = "client:tiao-lifecycle"
+	machineReceipt["requested_by_user_id"] = nil
+	machineBody, err := json.Marshal(machineReceipt)
+	if err != nil {
+		t.Fatalf("encode machine receipt fixture: %v", err)
+	}
+	doer.body = string(machineBody)
+	machine, err := client.Admin.Offboarding.Receipt(context.Background(), "ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ")
+	if err != nil {
+		t.Fatalf("machine Receipt error: %v", err)
+	}
+	if machine.RequestedByActor != "client:tiao-lifecycle" {
+		t.Fatalf("machine.RequestedByActor = %q", machine.RequestedByActor)
+	}
+	if machine.RequestedByUserID != nil {
+		t.Fatalf("machine.RequestedByUserID = %d, want nil", *machine.RequestedByUserID)
 	}
 }
 
@@ -482,9 +525,6 @@ func TestOffboarding_DownloadFailsClosedOnInvalidIntegrityMetadata(t *testing.T)
 	}
 }
 
-// TestOffboarding_WaiverRequired covers the destructive-execute safety
-// rule. An empty waiver must surface as a server error the SDK does not
-// retry. The error envelope carries a stable error code; we assert it.
 // TestOffboarding_ErasureIncompleteBlocksConfirm covers the cross-pipeline
 // safety rule: a destructive offboarding confirm must be rejected when a
 // related erasure is not yet terminal-complete. The server returns a
@@ -494,13 +534,20 @@ func TestOffboarding_ErasureIncompleteBlocksConfirm(t *testing.T) {
 	doer := &lifecycleDoer{status: http.StatusConflict, body: string(body)}
 	client := newLifecycleTestClient(t, doer, "http://localhost:8080/")
 
-	err := client.Admin.Offboarding.ConfirmRequest(context.Background(), "ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ")
+	_, err := client.Admin.Offboarding.ConfirmRequest(context.Background(), "ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ")
 	if err == nil {
 		t.Fatalf("expected erasure_incomplete error")
 	}
 	// Verify the SDK's error contains the safeNextAction guidance.
 	if !contains(err.Error(), "retry_erasure") {
 		t.Fatalf("error did not surface safeNextAction retry_erasure: %s", err.Error())
+	}
+	var sendErr *sendError
+	if !errors.As(err, &sendErr) || sendErr.Problem == nil {
+		t.Fatalf("error type = %T, want typed problem", err)
+	}
+	if sendErr.Problem.Code != "erasure_incomplete" || sendErr.Problem.SafeNextAction != "retry_erasure" {
+		t.Fatalf("problem = %+v, want code and recovery guidance", sendErr.Problem)
 	}
 }
 

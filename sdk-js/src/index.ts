@@ -1,10 +1,30 @@
+import { ClientSetupClient } from "./admin-client-setup.js";
 import { OffboardingClient, type OffboardingDownloadResponse } from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+import { BackendLifecycleClient } from "./backend-lifecycle.js";
 
+export {
+  type ClientSetupApplyAndWaitOptions,
+  type ClientSetupApplyAndWaitResult,
+  type ClientSetupApplyResponse,
+  ClientSetupClient,
+  type ClientSetupManifest,
+  type ClientSetupOAuthClientDesiredState,
+  type ClientSetupOAuthPurposeProfile,
+  type ClientSetupOneTimeCredential,
+  type ClientSetupPrivacyDesiredState,
+  type ClientSetupPrivacyRule,
+  type ClientSetupReadinessResponse,
+  type ClientSetupReportingPackDesiredState,
+  type ClientSetupResourceStatus,
+  type ClientSetupRetentionDesiredState,
+  type ClientSetupSchemaDesiredState,
+  validateClientSetupManifest,
+} from "./admin-client-setup.js";
 export {
   type OffboardingAcknowledgeResponse,
   type OffboardingCancelRequest,
@@ -12,8 +32,8 @@ export {
   type OffboardingDownloadResponse,
   type OffboardingExecuteResponse,
   type OffboardingExportResponse,
-  type OffboardingPerStore,
   type OffboardingPreviewResponse,
+  type OffboardingPreviewStore,
   type OffboardingReceiptPerStore,
   type OffboardingReceiptResponse,
   type OffboardingRequest,
@@ -47,10 +67,13 @@ export {
   type PrivacyErasure,
   PrivacyErasureClient,
   type PrivacyErasureCreateRequest,
+  PrivacyErasureError,
   type PrivacyErasureListResponse,
+  type PrivacyErasureRetryClassification,
   type PrivacyErasureSelector,
   type PrivacyErasureState,
   type PrivacyErasureStoreProgress,
+  type PrivacyErasureWaitOptions,
 } from "./admin-privacy-erasures.js";
 export {
   RetentionClient,
@@ -77,6 +100,39 @@ export {
   type TenantStorageListResponse,
   type TenantStorageLocation,
 } from "./admin-tenant-storage.js";
+export {
+  BackendLifecycleClient,
+  type BackendLifecycleDownloader,
+  type BackendLifecycleRequester,
+  type CompleteOffboardingOptions,
+  type CompleteOffboardingResult,
+  createVerifiedOffboardingExportReceiver,
+  type OneTimeCredentialSecret,
+  type PersistOffboardingExport,
+  type PersistOneTimeCredentialSecret,
+  type ReceiveAndVerifyOffboardingExport,
+  type RotateCredentialOptions,
+  type RotateCredentialResult,
+  type VerifiedExportReceiverOptions,
+  type VerifyZeroState,
+  type ZeroStateReconciliationOptions,
+  type ZeroStateReconciliationResult,
+} from "./backend-lifecycle.js";
+export {
+  classifyReportingData,
+  getReportingViewState,
+  type ReportingDataState,
+  type ReportingQueryState,
+  type ReportingViewState,
+  reportingQueryKey,
+} from "./reporting-state.js";
+export {
+  checkRuntimeReadiness,
+  type RuntimeReadinessCredentialResult,
+  type RuntimeReadinessOAuthConfig,
+  type RuntimeReadinessOptions,
+  type RuntimeReadinessResult,
+} from "./runtime-readiness.js";
 
 export type EventContext = {
   page?: {
@@ -253,7 +309,25 @@ export type ClientConfig = {
 
 export type RequestOptions = {
   signal?: AbortSignal;
+  /** Stable key for retry-safe POST operations supported by the API. */
+  idempotencyKey?: string;
 };
+
+export class AdminWorkflowError extends Error {
+  readonly name = "AdminWorkflowError";
+
+  constructor(
+    readonly status: number,
+    readonly reason: string,
+    readonly code: string,
+    readonly safeNextAction: string,
+  ) {
+    let message = `custd: ${reason || "admin workflow request failed"} (status ${status})`;
+    if (code) message += ` [code=${code}]`;
+    if (safeNextAction) message += ` [safeNextAction=${safeNextAction}]`;
+    super(message);
+  }
+}
 
 export type PreparedDataState = "accepted" | "processing" | "ready" | "failed";
 export type PreparedDataAvailability = "complete" | "partial" | "stale" | "unavailable";
@@ -552,47 +626,104 @@ export type AdminReportingPackAuditListResponse = {
   events: AdminReportingPackAuditEvent[];
 };
 
+export type SelectorDefinition = {
+  selector: string;
+  type: string;
+};
+
+export type NumericSelector = SelectorDefinition & {
+  unit: string;
+};
+
+export type IdentitySelectors = {
+  subject?: SelectorDefinition;
+  session?: SelectorDefinition;
+  entity?: SelectorDefinition;
+  cohort?: SelectorDefinition;
+  correlation?: SelectorDefinition;
+};
+
+export type FilterDefinition = {
+  dimension: string;
+  operators: string[];
+};
+
+export type SubjectScopeRule = {
+  required: boolean;
+  dimension: string;
+};
+
 export type PackMetric = {
   key: string;
-  displayName: string;
-  template: string;
-  metrics: string[];
-  dimensions?: string[];
+  label: string;
+  kind: string;
+  unit?: string;
+  description?: string;
+  calculation: string;
+  numeric?: NumericSelector;
+  distinct?: SelectorDefinition;
+  measurementKind?: string;
+  maximumGapSeconds?: number;
+  resetPolicy?: string;
+  rolloverAt?: number;
+  canonicalUnit?: string;
+  percentile?: number;
+  numeratorMetric?: string;
+  denominatorMetric?: string;
+  seriesKey?: string;
+  hierarchyRootKey?: string;
 };
 
 export type PackDimension = {
   key: string;
-  displayName: string;
+  label: string;
+  description?: string;
+  selector: string;
+  allowedValuePattern?: string;
+  fallback?: string;
+  maxCardinality?: number;
 };
 
-export type PackDashboardWidget = {
-  key: string;
-  title: string;
-  kind: string;
-  template: string;
-  metrics: string[];
-  dimensions?: string[];
+export type PackTemplate = {
+  name: string;
+  allowedMetrics: string[];
+  allowedDimensions?: string[];
+  allowedFilters?: FilterDefinition[];
+  sourceModes: string[];
+  maxRows: number;
+  defaultRange?: string;
+  subjectScope?: SubjectScopeRule;
+  compositionRules?: string[];
+  eventTypes: string[];
+  aggregation: string;
 };
 
-export type PackDashboard = {
+export type TrustDiagnostics = {
+  safeFields: string[];
+  redactionGuard: string[];
+};
+
+export type ProofProfile = {
   key: string;
-  title: string;
-  hidden: boolean;
-  defaultRange: string;
-  refreshSeconds: number;
-  requiredScopes: string[];
-  widgets: PackDashboardWidget[];
+  templates: string[];
+  safeMetadataFields: string[];
+  forbiddenFields: string[];
+  outputLayout: string;
 };
 
 export type PackDefinition = {
   key: string;
   displayName: string;
-  owner?: string;
+  owner: string;
+  version: number;
   enabled: boolean;
   eventTypes: string[];
-  metrics?: PackMetric[];
-  dimensions?: PackDimension[];
-  dashboards?: PackDashboard[];
+  metrics: PackMetric[];
+  dimensions: PackDimension[];
+  templates: PackTemplate[];
+  trust: TrustDiagnostics;
+  proof: ProofProfile;
+  identity?: IdentitySelectors;
 };
 
 export type ReportingPackDraft = {
@@ -893,6 +1024,8 @@ export type ReportingWidget = {
 };
 
 export type ReportingQueryRequest = {
+  dashboardKey?: string;
+  widgetKey?: string;
   template: string;
   metrics: string[];
   dimensions?: string[];
@@ -902,6 +1035,7 @@ export type ReportingQueryRequest = {
   rangeDays?: number;
   maxRows?: number;
   countOnly?: boolean;
+  comparison?: "previous_period" | "previous_year";
 };
 
 export type ReportingFilter = {
@@ -937,11 +1071,14 @@ export type RenderedWidgetData = {
   deltaLabel?: string;
   secondaryLabel?: string;
   trust?: RenderedReportingTrust;
+  visual?: unknown;
 };
 
 export type RenderedReportingTrust = {
   status: string;
   dataFreshness: string;
+  retryability: "none" | "bounded" | string;
+  nextAction: ReportingNextActionHint;
   lastExport?: string;
   schemaVersion?: string;
   contractVersion?: string;
@@ -954,6 +1091,14 @@ export type RenderedReportingTrust = {
   exportState: string;
   partialReason?: string;
   unavailableReason?: string;
+};
+
+export type ReportingNextAction = "none" | "poll" | "retry" | "rotate" | "escalate" | string;
+
+export type ReportingNextActionHint = {
+  action: ReportingNextAction;
+  pollAfterSeconds?: number;
+  maxRetries?: number;
 };
 
 export type RenderedWidgetBucket = {
@@ -993,50 +1138,8 @@ export type ReportingSourceSummary = {
   completeness: string;
 };
 
-export type ReportingWidgetData = {
-  buckets: ReportingWidgetBucket[];
-  count: number;
-  complete: boolean;
-  truncated: boolean;
-  queryDurationMs: number;
-  parquetUriCount?: number;
-  snapshotAgeMs?: number;
-  eventLagP95Ms?: number;
-  deltaCount?: number;
-  deltaPercent?: number;
-  deltaLabel?: string;
-  secondaryLabel?: string;
-  trust?: ReportingTrust;
-};
-
-export type ReportingWidgetBucket = {
-  date: string;
-  count: number;
-  source: string;
-  complete: boolean;
-  queryDurationMs?: number;
-  parquetUriCount?: number;
-  message?: string;
-  secondaryCount?: number;
-};
-
-export type ReportingTrust = {
-  status: string;
-  dataFreshness: string;
-  lastAwthyExport?: string;
-  schemaVersion?: string;
-  contractVersion?: string;
-  rollupState: string;
-  queryWarnings?: string[];
-  coverage: string;
-  permissionClass?: string;
-  dataSufficiency: string;
-  captureState: string;
-  consentState: string;
-  exportState: string;
-  partialReason?: string;
-  unavailableReason?: string;
-};
+export type ReportingWidgetData = RenderedWidgetData;
+export type ReportingTrust = RenderedReportingTrust;
 
 function publicAdminSite(site: AdminSite & { writeKey?: unknown }): AdminSite {
   const { writeKey: _writeKey, ...safeSite } = site;
@@ -1470,6 +1573,7 @@ export class CustdClient {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
         ...this.defaultHeaders,
+        ...(options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: options?.signal,
@@ -1480,18 +1584,22 @@ export class CustdClient {
       let errorCode = "";
       let detail = "";
       let safeNextAction = "";
+      let workflowEnvelope = false;
       if (text.length > 0) {
         try {
           const parsed = JSON.parse(text) as {
             error?: string;
+            code?: string;
             message?: string;
             detail?: string;
             title?: string;
             safeNextAction?: string;
+            safe_next_action?: string;
           };
-          errorCode = parsed.error || "";
-          detail = parsed.detail || parsed.message || parsed.title || "";
-          safeNextAction = parsed.safeNextAction || "";
+          errorCode = parsed.code || "";
+          detail = parsed.detail || parsed.error || parsed.message || parsed.title || "";
+          safeNextAction = parsed.safeNextAction || parsed.safe_next_action || "";
+          workflowEnvelope = typeof parsed.error === "string" && (errorCode.length > 0 || safeNextAction.length > 0);
         } catch {
           detail = text.slice(0, 200);
         }
@@ -1505,6 +1613,9 @@ export class CustdClient {
       }
       if (safeNextAction.length > 0) {
         message = `${message} [safeNextAction=${safeNextAction}]`;
+      }
+      if (workflowEnvelope) {
+        throw new AdminWorkflowError(response.status, detail, errorCode, safeNextAction);
       }
       throw new Error(message);
     }
@@ -1679,8 +1790,11 @@ class ReportingNamespace {
     return this.request("POST", `/reporting/outputs/${encodeURIComponent(outputUuid)}/query`, request, options);
   }
 
-  async query(request: ReportingQueryRequest, options?: RequestOptions): Promise<ReportingWidgetData> {
-    const data = await this.request<ReportingWidgetData>("POST", "/reporting/query", request, options);
+  async query(request: ReportingQueryRequest, options?: RequestOptions): Promise<RenderedWidgetData> {
+    const data = await this.request<RenderedWidgetData>("POST", "/reporting/query", request, options);
+    if (!isRenderedWidgetData(data)) {
+      throw new Error("custd: invalid reporting query response");
+    }
     if (data.trust && containsForbiddenReportingTrustKey(data.trust)) {
       throw new Error("custd: unsafe reporting trust diagnostics");
     }
@@ -1844,6 +1958,8 @@ function isRenderedReportingTrust(value: unknown): value is RenderedReportingTru
     isRecord(value) &&
     typeof value.status === "string" &&
     typeof value.dataFreshness === "string" &&
+    typeof value.retryability === "string" &&
+    isReportingNextActionHint(value.nextAction) &&
     isOptionalString(value.lastExport) &&
     isOptionalString(value.schemaVersion) &&
     isOptionalString(value.contractVersion) &&
@@ -1856,6 +1972,15 @@ function isRenderedReportingTrust(value: unknown): value is RenderedReportingTru
     typeof value.exportState === "string" &&
     isOptionalString(value.partialReason) &&
     isOptionalString(value.unavailableReason)
+  );
+}
+
+function isReportingNextActionHint(value: unknown): value is ReportingNextActionHint {
+  return (
+    isRecord(value) &&
+    typeof value.action === "string" &&
+    isOptionalInteger(value.pollAfterSeconds) &&
+    isOptionalInteger(value.maxRetries)
   );
 }
 
@@ -1915,6 +2040,8 @@ class SchemaNamespace {
 
 class AdminNamespace {
   readonly tenants: AdminTenantNamespace;
+  readonly lifecycle: BackendLifecycleClient;
+  readonly clientSetup: ClientSetupClient;
   readonly oauthClients: AdminOAuthClientNamespace;
   readonly sites: AdminSiteNamespace;
   readonly schemas: AdminSchemaNamespace;
@@ -1936,6 +2063,8 @@ class AdminNamespace {
     offboardingDownload: (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>,
   ) {
     this.tenants = new AdminTenantNamespace(request);
+    this.lifecycle = new BackendLifecycleClient(request, offboardingDownload);
+    this.clientSetup = new ClientSetupClient(request);
     this.oauthClients = new AdminOAuthClientNamespace(request);
     this.sites = new AdminSiteNamespace(request);
     this.schemas = new AdminSchemaNamespace(request);
@@ -2623,7 +2752,9 @@ function assertSecureOrLocalHTTP(rawUrl: string, field: string): void {
 }
 
 function isLocalHostname(hostname: string): boolean {
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  return (
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "host.docker.internal"
+  );
 }
 
 export function normalizeRetryOptions(options?: RetryOptions): Required<RetryOptions> {

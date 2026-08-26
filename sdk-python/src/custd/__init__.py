@@ -1,4 +1,5 @@
 from .client import (
+    AdminRequestOptions,
     BatchRequestError,
     CustdClient,
     FileQueueStorage,
@@ -8,6 +9,7 @@ from .client import (
     RenderedMetricValue,
     RenderedWidgetBucket,
     RenderedWidgetData,
+    ReportingQueryRequest,
     RequestError,
     RetryableError,
     SubjectInsightRequest,
@@ -21,6 +23,7 @@ from .client import (
 )
 
 __all__ = [
+    "AdminRequestOptions",
     "BatchRequestError",
     "CustdClient",
     "FileQueueStorage",
@@ -31,6 +34,7 @@ __all__ = [
     "RenderedMetricValue",
     "RenderedWidgetBucket",
     "RenderedWidgetData",
+    "ReportingQueryRequest",
     "RetryableError",
     "SubjectInsightRequest",
     "SubjectInsightResponse",

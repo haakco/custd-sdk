@@ -1,18 +1,39 @@
+import { ClientSetupClient } from "./admin-client-setup.js";
 import { OffboardingClient } from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+import { BackendLifecycleClient } from "./backend-lifecycle.js";
+export { ClientSetupClient, validateClientSetupManifest, } from "./admin-client-setup.js";
 export { OffboardingClient, } from "./admin-offboarding.js";
 export { PredictionAdminClient, } from "./admin-predictions.js";
-export { PrivacyErasureClient, } from "./admin-privacy-erasures.js";
+export { PrivacyErasureClient, PrivacyErasureError, } from "./admin-privacy-erasures.js";
 export { RetentionClient, } from "./admin-retention.js";
 export { SubjectExportClient, } from "./admin-subject-exports.js";
 export { TenantStorageClient, } from "./admin-tenant-storage.js";
+export { BackendLifecycleClient, createVerifiedOffboardingExportReceiver, } from "./backend-lifecycle.js";
+export { classifyReportingData, getReportingViewState, reportingQueryKey, } from "./reporting-state.js";
+export { checkRuntimeReadiness, } from "./runtime-readiness.js";
 export { createMobileAsyncQueueStorage, createMobileFlushTriggers, } from "./mobile-adapter.js";
 export { createMobileEvent, } from "./mobile-context.js";
 export { AsyncEventQueue } from "./mobile-queue.js";
+export class AdminWorkflowError extends Error {
+    constructor(status, reason, code, safeNextAction) {
+        let message = `custd: ${reason || "admin workflow request failed"} (status ${status})`;
+        if (code)
+            message += ` [code=${code}]`;
+        if (safeNextAction)
+            message += ` [safeNextAction=${safeNextAction}]`;
+        super(message);
+        this.status = status;
+        this.reason = reason;
+        this.code = code;
+        this.safeNextAction = safeNextAction;
+        this.name = "AdminWorkflowError";
+    }
+}
 function publicAdminSite(site) {
     const { writeKey: _writeKey, ...safeSite } = site;
     return safeSite;
@@ -383,6 +404,7 @@ export class CustdClient {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
                 ...this.defaultHeaders,
+                ...(options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
             },
             body: body === undefined ? undefined : JSON.stringify(body),
             signal: options?.signal,
@@ -392,12 +414,14 @@ export class CustdClient {
             let errorCode = "";
             let detail = "";
             let safeNextAction = "";
+            let workflowEnvelope = false;
             if (text.length > 0) {
                 try {
                     const parsed = JSON.parse(text);
-                    errorCode = parsed.error || "";
-                    detail = parsed.detail || parsed.message || parsed.title || "";
-                    safeNextAction = parsed.safeNextAction || "";
+                    errorCode = parsed.code || "";
+                    detail = parsed.detail || parsed.error || parsed.message || parsed.title || "";
+                    safeNextAction = parsed.safeNextAction || parsed.safe_next_action || "";
+                    workflowEnvelope = typeof parsed.error === "string" && (errorCode.length > 0 || safeNextAction.length > 0);
                 }
                 catch {
                     detail = text.slice(0, 200);
@@ -411,6 +435,9 @@ export class CustdClient {
             }
             if (safeNextAction.length > 0) {
                 message = `${message} [safeNextAction=${safeNextAction}]`;
+            }
+            if (workflowEnvelope) {
+                throw new AdminWorkflowError(response.status, detail, errorCode, safeNextAction);
             }
             throw new Error(message);
         }
@@ -516,6 +543,9 @@ class ReportingNamespace {
     }
     async query(request, options) {
         const data = await this.request("POST", "/reporting/query", request, options);
+        if (!isRenderedWidgetData(data)) {
+            throw new Error("custd: invalid reporting query response");
+        }
         if (data.trust && containsForbiddenReportingTrustKey(data.trust)) {
             throw new Error("custd: unsafe reporting trust diagnostics");
         }
@@ -658,6 +688,8 @@ function isRenderedReportingTrust(value) {
     return (isRecord(value) &&
         typeof value.status === "string" &&
         typeof value.dataFreshness === "string" &&
+        typeof value.retryability === "string" &&
+        isReportingNextActionHint(value.nextAction) &&
         isOptionalString(value.lastExport) &&
         isOptionalString(value.schemaVersion) &&
         isOptionalString(value.contractVersion) &&
@@ -670,6 +702,12 @@ function isRenderedReportingTrust(value) {
         typeof value.exportState === "string" &&
         isOptionalString(value.partialReason) &&
         isOptionalString(value.unavailableReason));
+}
+function isReportingNextActionHint(value) {
+    return (isRecord(value) &&
+        typeof value.action === "string" &&
+        isOptionalInteger(value.pollAfterSeconds) &&
+        isOptionalInteger(value.maxRetries));
 }
 function isFiniteNumber(value) {
     return typeof value === "number" && Number.isFinite(value);
@@ -718,6 +756,8 @@ class SchemaNamespace {
 class AdminNamespace {
     constructor(request, nonAdminRequest, offboardingDownload) {
         this.tenants = new AdminTenantNamespace(request);
+        this.lifecycle = new BackendLifecycleClient(request, offboardingDownload);
+        this.clientSetup = new ClientSetupClient(request);
         this.oauthClients = new AdminOAuthClientNamespace(request);
         this.sites = new AdminSiteNamespace(request);
         this.schemas = new AdminSchemaNamespace(request);
@@ -1285,7 +1325,7 @@ function assertSecureOrLocalHTTP(rawUrl, field) {
     throw new Error(`custd: ${field} must use https unless it targets localhost`);
 }
 function isLocalHostname(hostname) {
-    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+    return (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "host.docker.internal");
 }
 export function normalizeRetryOptions(options) {
     return {

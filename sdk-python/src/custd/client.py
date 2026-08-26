@@ -23,6 +23,14 @@ EventEnvelope = dict[str, Any]
 TransportResult = dict[str, Any]
 Transport = Callable[[str, EventEnvelope, dict[str, str], float], TransportResult]
 AdminTransport = Callable[[str, str, dict[str, Any] | None, dict[str, str], float], TransportResult]
+
+
+class AdminRequestOptions(TypedDict, total=False):
+    """Optional metadata applied to one authenticated admin request."""
+
+    idempotency_key: str
+
+
 TokenProvider = Callable[[], str]
 OAuthTokenTransport = Callable[[str, dict[str, Any], float], dict[str, Any]]
 
@@ -35,6 +43,25 @@ SubjectInsightRequest = TypedDict(
         "from": NotRequired[str],
         "to": NotRequired[str],
         "rangeDays": NotRequired[int],
+    },
+)
+
+
+ReportingQueryRequest = TypedDict(
+    "ReportingQueryRequest",
+    {
+        "template": str,
+        "metrics": list[str],
+        "dashboardKey": NotRequired[str],
+        "widgetKey": NotRequired[str],
+        "dimensions": NotRequired[list[str]],
+        "filters": NotRequired[list[dict[str, str]]],
+        "from": NotRequired[str],
+        "to": NotRequired[str],
+        "rangeDays": NotRequired[int],
+        "maxRows": NotRequired[int],
+        "countOnly": NotRequired[bool],
+        "comparison": NotRequired[str],
     },
 )
 
@@ -79,6 +106,8 @@ class ReportingSourceSummary(TypedDict):
 class RenderedReportingTrust(TypedDict):
     status: str
     dataFreshness: str
+    retryability: str
+    nextAction: dict[str, Any]
     rollupState: str
     coverage: str
     captureState: str
@@ -147,7 +176,44 @@ class RetryableError(RuntimeError):
 
 
 class RequestError(RuntimeError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        status: int | None = None,
+        code: str | None = None,
+        safe_next_action: str | None = None,
+        reason: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.status = status
+        self.code = code
+        self.safe_next_action = safe_next_action
+        self.reason = reason
+
+
+def admin_request_error(status: int, body: object) -> RequestError:
+    decoded: object = body
+    if isinstance(body, str):
+        try:
+            decoded = json.loads(body)
+        except json.JSONDecodeError:
+            decoded = None
+    payload = decoded if isinstance(decoded, dict) else {}
+    reason = payload.get("error")
+    code = payload.get("code")
+    safe_next_action = payload.get("safe_next_action")
+    reason_text = reason if isinstance(reason, str) and reason else None
+    code_text = code if isinstance(code, str) and code else None
+    action_text = safe_next_action if isinstance(safe_next_action, str) and safe_next_action else None
+    message = reason_text or f"admin request failed with status {status}"
+    return RequestError(
+        f"custd: {message}",
+        status=status,
+        code=code_text,
+        safe_next_action=action_text,
+        reason=reason_text,
+    )
 
 
 class QueueStorageError(RuntimeError):
@@ -199,9 +265,7 @@ class FileQueueStorage:
         except OSError as error:
             raise QueueStorageError(f"custd: failed to load queue file {self.path}") from error
         if len(raw) > self.max_bytes:
-            raise QueueFullError(
-                f"custd: queue file exceeds max_bytes ({len(raw)} > {self.max_bytes})"
-            )
+            raise QueueFullError(f"custd: queue file exceeds max_bytes ({len(raw)} > {self.max_bytes})")
         try:
             decoded = json.loads(raw)
         except json.JSONDecodeError as error:
@@ -216,9 +280,7 @@ class FileQueueStorage:
         except (TypeError, ValueError) as error:
             raise QueueStorageError("custd: queued events must be JSON serializable") from error
         if len(raw) > self.max_bytes:
-            raise QueueFullError(
-                f"custd: queue file exceeds max_bytes ({len(raw)} > {self.max_bytes})"
-            )
+            raise QueueFullError(f"custd: queue file exceeds max_bytes ({len(raw)} > {self.max_bytes})")
 
         directory = self.path.parent
         try:
@@ -388,9 +450,7 @@ class CustdClient:
 
     def _enqueue(self, event: EventEnvelope) -> None:
         if len(self.queue) >= self.max_queue_size:
-            raise QueueFullError(
-                f"custd: queue max_queue_size reached ({self.max_queue_size})"
-            )
+            raise QueueFullError(f"custd: queue max_queue_size reached ({self.max_queue_size})")
         next_queue = [*self.queue, event]
         self.queue_storage.save(next_queue)
         self.queue = next_queue
@@ -501,6 +561,7 @@ class AdminClient:
         from .admin_retention import RetentionClient
         from .admin_subject_exports import SubjectExportClient
         from .admin_tenant_storage import TenantStorageClient
+
         self.tenant_storage = TenantStorageClient(self)
         self.subject_exports = SubjectExportClient(self)
         self.privacy_erasures = PrivacyErasureClient(self)
@@ -513,17 +574,22 @@ class AdminClient:
         method: str,
         path: str,
         payload: dict[str, Any] | None = None,
+        options: AdminRequestOptions | None = None,
     ) -> TransportResult:
+        headers = self._client._headers()
+        idempotency_key = (options or {}).get("idempotency_key")
+        if isinstance(idempotency_key, str) and idempotency_key.strip():
+            headers["Idempotency-Key"] = idempotency_key.strip()
         result = self._transport(
             method,
             self._client.base_url + "/api/v1/admin" + path,
             payload,
-            self._client._headers(),
+            headers,
             self._client.timeout,
         )
         status = int(result["status"])
         if status >= 400:
-            raise RequestError(f"custd: admin request failed with status {status}")
+            raise admin_request_error(status, result.get("body"))
         body = result.get("body")
         if status == 204 or body in (None, ""):
             return {}
@@ -642,11 +708,12 @@ class ReportingClient:
             raise ValueError("custd: report export download exceeds 64 MiB")
         return data
 
-    def query(self, request: dict[str, Any]) -> TransportResult:
-        widget = self._request("POST", "/reporting/query", request)
+    def query(self, request: ReportingQueryRequest) -> RenderedWidgetData:
+        widget = self._request("POST", "/reporting/query", dict(request))
         if contains_unsafe_reporting_trust_key(widget.get("trust")):
             raise ValueError("custd: unsafe reporting trust diagnostics")
-        return widget
+        validate_rendered_widget_data(widget)
+        return cast(RenderedWidgetData, widget)
 
     def subject_insight(self, request: SubjectInsightRequest) -> SubjectInsightResponse:
         validate_subject_insight_request(request)
@@ -888,9 +955,7 @@ def acknowledged_event_uuids(results: Any, events: list[EventEnvelope]) -> set[s
     if not isinstance(results, list):
         return set()
     expected = {
-        event["eventUuid"]
-        for event in events
-        if isinstance(event.get("eventUuid"), str) and event["eventUuid"]
+        event["eventUuid"] for event in events if isinstance(event.get("eventUuid"), str) and event["eventUuid"]
     }
     acknowledged: set[str] = set()
     for result in results:
@@ -1026,14 +1091,16 @@ def create_dogfood_event(input: dict[str, Any]) -> EventEnvelope:
     if input.get("correlationId"):
         payload["correlationId"] = input["correlationId"]
 
-    return prepare_event({
-        "eventTypeSlug": input["eventTypeSlug"],
-        "schemaVersion": input["schemaVersion"],
-        "timestamp": iso_now(),
-        "companySlug": input["companySlug"],
-        "context": {"device": {"type": "server"}},
-        "payload": payload,
-    })
+    return prepare_event(
+        {
+            "eventTypeSlug": input["eventTypeSlug"],
+            "schemaVersion": input["schemaVersion"],
+            "timestamp": iso_now(),
+            "companySlug": input["companySlug"],
+            "context": {"device": {"type": "server"}},
+            "payload": payload,
+        }
+    )
 
 
 DOGFOOD_PROTECTED_PAYLOAD_FIELDS = {
@@ -1120,22 +1187,31 @@ def validate_subject_insight_request(request: Mapping[str, Any]) -> None:
 
 def validate_subject_insight_response(response: dict[str, Any]) -> None:
     data = response.get("data")
+    try:
+        validate_rendered_widget_data(data)
+    except ValueError as error:
+        if str(error) == "custd: unsafe reporting trust diagnostics":
+            raise
+        raise ValueError("custd: subject insight response contains malformed rendered widget data") from error
+
+
+def validate_rendered_widget_data(data: Any) -> None:
     required = {"buckets", "value", "queryDurationMs", "snapshotAgeMs", "eventLagP95Ms"}
     if not isinstance(data, dict) or not required.issubset(data):
-        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+        raise ValueError("custd: rendered widget data is malformed")
     if not isinstance(data["buckets"], list) or not _is_rendered_metric_value(data["value"]):
-        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+        raise ValueError("custd: rendered widget data is malformed")
     if not all(_is_rendered_widget_bucket(bucket) for bucket in data["buckets"]):
-        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+        raise ValueError("custd: rendered widget data is malformed")
     if not all(
         isinstance(data[key], int) and not isinstance(data[key], bool)
         for key in ("queryDurationMs", "snapshotAgeMs", "eventLagP95Ms")
     ):
-        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+        raise ValueError("custd: rendered widget data is malformed")
     if contains_unsafe_reporting_trust_key(data.get("trust")):
         raise ValueError("custd: unsafe reporting trust diagnostics")
     if not _has_valid_optional_rendered_fields(data):
-        raise ValueError("custd: subject insight response contains malformed rendered widget data")
+        raise ValueError("custd: rendered widget data is malformed")
 
 
 def _is_rendered_metric_value(value: Any) -> bool:
@@ -1232,19 +1308,43 @@ def _is_reporting_source(value: Any) -> bool:
 
 
 def _is_reporting_trust(value: Any) -> bool:
-    required = ("status", "dataFreshness", "rollupState", "coverage", "captureState", "consentState", "exportState")
+    required_strings = (
+        "status",
+        "dataFreshness",
+        "retryability",
+        "rollupState",
+        "coverage",
+        "captureState",
+        "consentState",
+        "exportState",
+    )
     optional_strings = (
-        "lastExport", "schemaVersion", "contractVersion", "permissionClass", "partialReason", "unavailableReason"
+        "lastExport",
+        "schemaVersion",
+        "contractVersion",
+        "permissionClass",
+        "partialReason",
+        "unavailableReason",
     )
     return (
         isinstance(value, dict)
-        and all(isinstance(value.get(field), str) for field in required)
+        and all(isinstance(value.get(field), str) for field in required_strings)
+        and _is_reporting_next_action_hint(value["nextAction"])
         and all(field not in value or isinstance(value[field], str) for field in optional_strings)
         and (
             "queryWarnings" not in value
             or isinstance(value["queryWarnings"], list)
             and all(isinstance(item, str) for item in value["queryWarnings"])
         )
+    )
+
+
+def _is_reporting_next_action_hint(value: Any) -> bool:
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("action"), str)
+        and ("pollAfterSeconds" not in value or _is_int(value["pollAfterSeconds"]))
+        and ("maxRetries" not in value or _is_int(value["maxRetries"]))
     )
 
 
@@ -1267,7 +1367,12 @@ def assert_secure_or_local_http(raw_url: str, field: str) -> None:
     parsed = urllib.parse.urlparse(raw_url)
     if parsed.scheme == "https":
         return
-    if parsed.scheme == "http" and parsed.hostname in ("localhost", "127.0.0.1", "::1"):
+    if parsed.scheme == "http" and parsed.hostname in (
+        "localhost",
+        "127.0.0.1",
+        "::1",
+        "host.docker.internal",
+    ):
         return
     raise ValueError(f"custd: {field} must use https unless it targets localhost")
 
@@ -1312,9 +1417,7 @@ def normalize_compression(compression: dict[str, Any] | None) -> dict[str, Any]:
     compression = compression or {}
     return {
         "enabled": bool(compression.get("enabled", True)),
-        "threshold_bytes": int(
-            compression.get("threshold_bytes", DEFAULT_COMPRESSION_THRESHOLD_BYTES)
-        ),
+        "threshold_bytes": int(compression.get("threshold_bytes", DEFAULT_COMPRESSION_THRESHOLD_BYTES)),
     }
 
 

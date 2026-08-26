@@ -6,6 +6,7 @@ Public SDKs for sending events to Custd.
 
 - `sdk-go` — Go ingestion, admin, OAuth2 producer auth, batching, retry, queueing, and dogfood helpers.
 - `sdk-js` — TypeScript ingestion SDK and browser tracker.
+- `sdk-react` — optional React reporting query and accessible state-display helpers for web consumers.
 - `sdk-python` — Python ingestion SDK.
 - `sdk-php` — PHP ingestion SDK.
 - `laravel-package` — Laravel provider, facade, config, and queue job wrapping the PHP SDK.
@@ -38,6 +39,37 @@ mise exec -- just test-js
 mise exec -- just test-python
 mise exec -- just test-php
 ```
+
+The React helpers are a separate optional package. Install it alongside the
+core TypeScript SDK and your app's existing React Query version:
+
+```bash
+pnpm add @haakco/custd-sdk @haakco/custd-react @tanstack/react-query react
+```
+
+`@haakco/custd-react` does not create a Custd client or hold browser
+credentials. The application owns authentication and supplies either its
+TanStack query options or an existing `UseQueryResult`:
+
+```tsx
+import { CustdReportingState, useCustdReportingQuery } from "@haakco/custd-react";
+
+const report = useCustdReportingQuery({
+  queryKey: ["report", request],
+  queryFn: () => appApi.reporting.query(request),
+});
+
+return (
+  <CustdReportingState view={report.view} onRetry={() => report.refetch()}>
+    {(data) => <ReportChart data={data} />}
+  </CustdReportingState>
+);
+```
+
+The display helper exposes loading, error, unavailable, empty, stale,
+partial, stale/partial, and ready states with semantic status/alert markup.
+Consumers own wording, placement, and styling through `labels`,
+`renderState`, and `className`.
 
 ## Go Usage
 

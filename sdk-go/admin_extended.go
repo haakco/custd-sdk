@@ -13,8 +13,6 @@ import (
 	"strings"
 )
 
-const maxOffboardingDownloadBytes int64 = 64 << 20
-
 // TenantStorageAdminClient owns tenant-scoped storage location registration.
 // Locations are server-prefixed: the SDK submits clientLocation and the
 // server returns a serverAssignedPrefix that the SDK must use for raw
@@ -647,9 +645,7 @@ func (c *AuditAdminClient) ListReportingPackEvents(ctx context.Context) (*Report
 }
 
 // OffboardingAdminClient owns the offboarding schedule and one-off request
-// surfaces. Schedule writes the effective tenant server-side; callers must not
-// pre-fill TenantSlug on the request body. The tenant is derived from the
-// authenticated client context.
+// surfaces.
 type OffboardingAdminClient struct {
 	admin *AdminClient
 }
@@ -664,10 +660,11 @@ type OffboardingSchedule struct {
 }
 
 type OffboardingScheduleRequest struct {
+	TenantSlug      string `json:"tenantSlug"`
 	EffectiveAt     string `json:"effectiveAt"`
 	GracePeriodDays int    `json:"gracePeriodDays"`
 	Reason          string `json:"reason"`
-	Status          string `json:"status"`
+	Status          string `json:"status,omitempty"`
 }
 
 type OffboardingScheduleListResponse struct {
@@ -678,27 +675,24 @@ type OffboardingCancelRequest struct {
 	Reason string `json:"reason"`
 }
 
-// OffboardingRequest is the receipt returned for one-off offboarding requests.
-// It is the response shape for RequestOffboarding, GetRequest, and the
-// single-tenant collection read.
+// OffboardingRequest is the public request state returned by RequestOffboarding,
+// GetRequest, and the acknowledgement endpoint.
 type OffboardingRequest struct {
 	RequestUUID string `json:"requestUuid"`
-	TenantSlug  string `json:"tenantSlug"`
-	Status      string `json:"status"`
-	RequestedBy string `json:"requestedBy"`
-	RequestedAt string `json:"requestedAt,omitempty"`
+	State       string `json:"state"`
+	RequestedAt string `json:"requestedAt"`
 }
 
 // OffboardingRequestCreate carries the body for POST /offboarding. Confirmation
 // is the human-typed string the server compares against the tenant slug before
 // accepting the destructive transition.
 type OffboardingRequestCreate struct {
-	Confirmation string `json:"confirmation"`
+	Confirmation   string `json:"confirmation"`
+	IdempotencyKey string `json:"-"`
 }
 
-// Schedule writes a delayed offboarding schedule for the effective tenant.
-// The server pulls the tenant from the auth context; do not include TenantSlug
-// in the request body. The collection endpoint is POST /offboarding/schedules.
+// Schedule writes a delayed offboarding schedule. The server checks TenantSlug
+// against the authenticated tenant before persisting the schedule.
 func (c *OffboardingAdminClient) Schedule(
 	ctx context.Context,
 	req OffboardingScheduleRequest,
@@ -731,14 +725,16 @@ func (c *OffboardingAdminClient) CancelSchedule(
 	ctx context.Context,
 	tenantSlug string,
 	req OffboardingCancelRequest,
-) error {
-	return c.admin.request(
+) (*OffboardingSchedule, error) {
+	var out OffboardingSchedule
+	err := c.admin.request(
 		ctx,
 		http.MethodPost,
 		"/offboarding/schedules/"+url.PathEscape(tenantSlug)+"/cancel",
 		req,
-		nil,
+		&out,
 	)
+	return &out, err
 }
 
 // RequestOffboarding submits a one-off offboarding request for the effective
@@ -749,7 +745,11 @@ func (c *OffboardingAdminClient) RequestOffboarding(
 	req OffboardingRequestCreate,
 ) (*OffboardingRequest, error) {
 	var out OffboardingRequest
-	err := c.admin.request(ctx, http.MethodPost, "/offboarding", req, &out)
+	headers := map[string]string{}
+	if req.IdempotencyKey != "" {
+		headers["Idempotency-Key"] = req.IdempotencyKey
+	}
+	err := c.admin.requestWithHeaders(ctx, http.MethodPost, "/offboarding", req, &out, headers)
 	return &out, err
 }
 
@@ -757,47 +757,70 @@ func (c *OffboardingAdminClient) GetRequest(ctx context.Context, requestUUID str
 	return adminGetByID[OffboardingRequest](ctx, c.admin, "/offboarding/", requestUUID)
 }
 
-func (c *OffboardingAdminClient) CancelRequest(ctx context.Context, requestUUID string) error {
-	return c.admin.request(
+func (c *OffboardingAdminClient) CancelRequest(
+	ctx context.Context,
+	requestUUID string,
+	req OffboardingCancelRequest,
+) (*OffboardingRequest, error) {
+	var out OffboardingRequest
+	err := c.admin.request(
 		ctx,
 		http.MethodPost,
 		"/offboarding/"+url.PathEscape(requestUUID)+"/cancel",
-		nil,
-		nil,
+		req,
+		&out,
 	)
+	return &out, err
 }
 
-func (c *OffboardingAdminClient) ConfirmRequest(ctx context.Context, requestUUID string) error {
-	return c.admin.request(
+func (c *OffboardingAdminClient) ConfirmRequest(
+	ctx context.Context,
+	requestUUID string,
+) (*OffboardingRequest, error) {
+	var out OffboardingRequest
+	err := c.admin.request(
 		ctx,
 		http.MethodPost,
 		"/offboarding/"+url.PathEscape(requestUUID)+"/confirm",
 		nil,
-		nil,
+		&out,
 	)
+	return &out, err
 }
 
-// OffboardingPerStore is one row of the per-store inventory the preview
-// endpoint returns. EstimatedCount is server-computed; the SDK must not
-// re-derive it.
-type OffboardingPerStore struct {
-	Store          string `json:"store"`
-	Kind           string `json:"kind"`
-	RetentionClass string `json:"retention_class"`
-	EstimatedCount int    `json:"estimated_count"`
+// OffboardingPreviewStore is one row of the server-computed preview
+// inventory. EstimatedCount is server-computed; the SDK must not re-derive it.
+type OffboardingPreviewStore struct {
+	Store           string `json:"store"`
+	Kind            string `json:"kind"`
+	RetentionClass  string `json:"retention_class"`
+	EstimatedCount  int64  `json:"estimated_count"`
+	SourceAuthority string `json:"source_authority,omitempty"`
+}
+
+// OffboardingPreviewExclusion identifies a known store omitted from the
+// preview and explains why it could not be classified.
+type OffboardingPreviewExclusion struct {
+	Store  string `json:"store"`
+	Reason string `json:"reason"`
 }
 
 // OffboardingPreviewResponse is the body for POST
 // /admin/offboarding/requests/{requestUuid}/preview.
 type OffboardingPreviewResponse struct {
-	RequestUUID            string                `json:"requestUuid"`
-	PreviewInventoryDigest string                `json:"previewInventoryDigest,omitempty"`
-	PerStore               []OffboardingPerStore `json:"perStore"`
+	RequestUUID            string                        `json:"requestUuid"`
+	GeneratedAt            string                        `json:"generatedAt"`
+	ExpiresAt              string                        `json:"expiresAt"`
+	Stores                 []OffboardingPreviewStore     `json:"stores"`
+	Exclusions             []OffboardingPreviewExclusion `json:"exclusions,omitempty"`
+	PreviewInventoryDigest string                        `json:"previewInventoryDigest"`
+	Complete               bool                          `json:"complete"`
+	Partial                bool                          `json:"partial"`
 }
 
-// OffboardingWaiver is the typed waiver the execute endpoint requires.
-// Role identifies the actor (e.g. client_owner); Reason is the human-readable
-// rationale. Timestamp is server-stamped on accept.
+// OffboardingWaiver is the typed waiver echoed in an offboarding receipt.
+// Authorization and approval are server-owned; callers cannot submit waiver
+// metadata to the execute endpoint.
 type OffboardingWaiver struct {
 	Role      string `json:"role"`
 	Reason    string `json:"reason"`
@@ -805,17 +828,18 @@ type OffboardingWaiver struct {
 }
 
 // OffboardingExportResponse is the body for POST
-// /admin/offboarding/requests/{requestUuid}/export. Complete=false means
-// the server is still gathering inventory; callers must poll.
+// /admin/offboarding/requests/{requestUuid}/export.
 type OffboardingExportResponse struct {
-	RequestUUID      string `json:"requestUuid"`
-	ExportArtifactID string `json:"exportArtifactId,omitempty"`
-	SchemaVersion    string `json:"schemaVersion,omitempty"`
-	GeneratedAt      string `json:"generatedAt,omitempty"`
-	ExpiresAt        string `json:"expiresAt,omitempty"`
-	Complete         bool   `json:"complete"`
-	Checksum         string `json:"checksum,omitempty"`
+	RequestUUID            string `json:"requestUuid"`
+	ChecksumSHA256         string `json:"checksumSha256"`
+	ByteSize               int64  `json:"byteSize"`
+	RecordCount            int    `json:"recordCount"`
+	GeneratedAt            string `json:"generatedAt"`
+	ExpiresAt              string `json:"expiresAt"`
+	PreviewInventoryDigest string `json:"previewInventoryDigest"`
 }
+
+const maxOffboardingDownloadBytes int64 = 64 << 20
 
 // OffboardingDownloadResponse contains authenticated export bytes and the
 // integrity metadata verified against the response headers.
@@ -827,29 +851,13 @@ type OffboardingDownloadResponse struct {
 
 // OffboardingAcknowledgeResponse is the body for POST
 // /admin/offboarding/requests/{requestUuid}/acknowledge.
-type OffboardingAcknowledgeResponse struct {
-	RequestUUID    string `json:"requestUuid"`
-	State          string `json:"state,omitempty"`
-	AcknowledgedAt string `json:"acknowledgedAt,omitempty"`
-}
+type OffboardingAcknowledgeResponse = OffboardingRequest
 
-// OffboardingExecuteResponse is the body for POST
-// /admin/offboarding/requests/{requestUuid}/execute. The Waiver is echoed
-// back with the server-stamped timestamp.
-type OffboardingExecuteResponse struct {
-	RequestUUID string            `json:"requestUuid"`
-	State       string            `json:"state,omitempty"`
-	ExecutedAt  string            `json:"executedAt,omitempty"`
-	Waiver      OffboardingWaiver `json:"waiver,omitempty"`
-}
+// OffboardingExecuteResponse is the content-free receipt returned by execute.
+type OffboardingExecuteResponse = OffboardingReceiptResponse
 
-// OffboardingRetryResponse is the body for POST
-// /admin/offboarding/requests/{requestUuid}/retry.
-type OffboardingRetryResponse struct {
-	RequestUUID string `json:"requestUuid"`
-	State       string `json:"state,omitempty"`
-	RetriedAt   string `json:"retriedAt,omitempty"`
-}
+// OffboardingRetryResponse is the content-free receipt returned by retry.
+type OffboardingRetryResponse = OffboardingReceiptResponse
 
 // OffboardingReceiptPerStore is one row of the receipt's per-store summary.
 // DeletedCount is server-issued; RetainedExceptionsCount covers legal holds
@@ -857,24 +865,24 @@ type OffboardingRetryResponse struct {
 type OffboardingReceiptPerStore struct {
 	Store                   string `json:"store"`
 	RetentionClass          string `json:"retention_class"`
-	DeletedCount            int    `json:"deleted_count"`
-	RetainedExceptionsCount int    `json:"retained_exceptions_count"`
+	DeletedCount            int64  `json:"deleted_count"`
+	RetainedExceptionsCount int64  `json:"retained_exceptions_count"`
 }
 
 // OffboardingReceiptResponse is the body for GET
 // /admin/offboarding/requests/{requestUuid}/receipt. FinalState is the
-// terminal state of the request; SHA256 is the signed digest the client
-// must store alongside its offboarding record.
+// terminal state of the request; SHA256 is the unkeyed integrity checksum the
+// client must store alongside its offboarding record.
 type OffboardingReceiptResponse struct {
-	RequestUUID       string                       `json:"requestUuid"`
-	TenantSlug        string                       `json:"tenantSlug"`
-	FinalState        string                       `json:"finalState"`
-	RequestedByUserID string                       `json:"requestedByUserId,omitempty"`
-	RequestedAt       string                       `json:"requestedAt,omitempty"`
-	CompletedAt       string                       `json:"completedAt,omitempty"`
-	PerStore          []OffboardingReceiptPerStore `json:"perStore"`
+	CompanyID         int64                        `json:"company_id"`
+	RequestedByUserID *int64                       `json:"requested_by_user_id,omitempty"`
+	RequestedByActor  string                       `json:"requested_by_actor"`
+	RequestedAt       string                       `json:"requested_at"`
+	CompletedAt       string                       `json:"completed_at"`
+	FinalState        string                       `json:"final_state"`
+	PerStore          []OffboardingReceiptPerStore `json:"per_store"`
 	Waiver            *OffboardingWaiver           `json:"waiver,omitempty"`
-	SHA256            string                       `json:"sha256,omitempty"`
+	SHA256            string                       `json:"sha256"`
 }
 
 // Preview asks the server to compute the per-store inventory estimate for
@@ -976,9 +984,6 @@ func verifiedOffboardingDownload(body []byte, lengthHeader, checksumHeader strin
 	if declared > maxOffboardingDownloadBytes {
 		return nil, errors.New("custd: offboarding download exceeds 64 MiB")
 	}
-	if declared != int64(len(body)) {
-		return nil, errors.New("custd: offboarding download content length mismatch")
-	}
 	checksum := strings.ToLower(strings.TrimSpace(checksumHeader))
 	if decoded, err := hex.DecodeString(checksum); err != nil || len(decoded) != sha256.Size {
 		return nil, errors.New("custd: offboarding download checksum header is invalid")
@@ -986,6 +991,9 @@ func verifiedOffboardingDownload(body []byte, lengthHeader, checksumHeader strin
 	actual := sha256.Sum256(body)
 	if checksum != hex.EncodeToString(actual[:]) {
 		return nil, errors.New("custd: offboarding download checksum mismatch")
+	}
+	if declared != int64(len(body)) {
+		return nil, errors.New("custd: offboarding download content length mismatch")
 	}
 	return &OffboardingDownloadResponse{Bytes: body, ChecksumSHA256: checksum, ByteSize: declared}, nil
 }
@@ -999,8 +1007,8 @@ func responseHeader(headers map[string]string, name string) string {
 	return ""
 }
 
-// Acknowledge records that the operator (or client) has accepted the
-// preview. After acknowledgment the server is willing to accept Execute.
+// Acknowledge records that the export was downloaded successfully and its
+// inventory was confirmed. It must not be called merely after Preview.
 func (c *OffboardingAdminClient) Acknowledge(
 	ctx context.Context,
 	requestUUID string,
@@ -1051,8 +1059,8 @@ func (c *OffboardingAdminClient) Retry(
 }
 
 // Receipt returns the terminal offboarding receipt for a request. The
-// SHA256 digest is the signed evidence the client must retain alongside
-// its offboarding record.
+// SHA256 is an unkeyed integrity checksum the client must retain alongside
+// its offboarding record; it is not an authenticity signature.
 func (c *OffboardingAdminClient) Receipt(
 	ctx context.Context,
 	requestUUID string,

@@ -1,15 +1,21 @@
+import { ClientSetupClient } from "./admin-client-setup.js";
 import { OffboardingClient, type OffboardingDownloadResponse } from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
-export { type OffboardingAcknowledgeResponse, type OffboardingCancelRequest, OffboardingClient, type OffboardingDownloadResponse, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPerStore, type OffboardingPreviewResponse, type OffboardingReceiptPerStore, type OffboardingReceiptResponse, type OffboardingRequest, type OffboardingRequestCreate, type OffboardingRetryResponse, type OffboardingSchedule, type OffboardingScheduleListResponse, type OffboardingScheduleRequest, type OffboardingWaiver, } from "./admin-offboarding.js";
+import { BackendLifecycleClient } from "./backend-lifecycle.js";
+export { type ClientSetupApplyAndWaitOptions, type ClientSetupApplyAndWaitResult, type ClientSetupApplyResponse, ClientSetupClient, type ClientSetupManifest, type ClientSetupOAuthClientDesiredState, type ClientSetupOAuthPurposeProfile, type ClientSetupOneTimeCredential, type ClientSetupPrivacyDesiredState, type ClientSetupPrivacyRule, type ClientSetupReadinessResponse, type ClientSetupReportingPackDesiredState, type ClientSetupResourceStatus, type ClientSetupRetentionDesiredState, type ClientSetupSchemaDesiredState, validateClientSetupManifest, } from "./admin-client-setup.js";
+export { type OffboardingAcknowledgeResponse, type OffboardingCancelRequest, OffboardingClient, type OffboardingDownloadResponse, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPreviewResponse, type OffboardingPreviewStore, type OffboardingReceiptPerStore, type OffboardingReceiptResponse, type OffboardingRequest, type OffboardingRequestCreate, type OffboardingRetryResponse, type OffboardingSchedule, type OffboardingScheduleListResponse, type OffboardingScheduleRequest, type OffboardingWaiver, } from "./admin-offboarding.js";
 export { type PredictionActivateRequest, PredictionAdminClient, type PredictionDefinition, type PredictionDefinitionCreateRequest, type PredictionDefinitionListResponse, type PredictionDefinitionUpdateRequest, type PredictionEvaluationSummary, type PredictionOutcomeSummary, type PredictionPauseRequest, type PredictionRollbackRequest, type PredictionRunNowRequest, type PredictionRunSummary, type PredictionSignalSource, type PredictionSignalSourceCreateRequest, type PredictionThresholdEvent, type PredictionVersion, type PredictionVersionPublishRequest, } from "./admin-predictions.js";
-export { type PrivacyErasure, PrivacyErasureClient, type PrivacyErasureCreateRequest, type PrivacyErasureListResponse, type PrivacyErasureSelector, type PrivacyErasureState, type PrivacyErasureStoreProgress, } from "./admin-privacy-erasures.js";
+export { type PrivacyErasure, PrivacyErasureClient, type PrivacyErasureCreateRequest, PrivacyErasureError, type PrivacyErasureListResponse, type PrivacyErasureRetryClassification, type PrivacyErasureSelector, type PrivacyErasureState, type PrivacyErasureStoreProgress, type PrivacyErasureWaitOptions, } from "./admin-privacy-erasures.js";
 export { RetentionClient, type RetentionPolicy, type RetentionPolicyListResponse, type RetentionPolicyUpsertRequest, type RetentionRun, type RetentionRunDeletion, type RetentionRunPreview, type RetentionRunsListResponse, } from "./admin-retention.js";
 export { type SubjectExport, SubjectExportClient, type SubjectExportCreateRequest, type SubjectExportDownloadResponse, type SubjectExportListResponse, type SubjectExportState, type SubjectExportSubject, } from "./admin-subject-exports.js";
 export { TenantStorageClient, type TenantStorageCreateRequest, type TenantStorageListResponse, type TenantStorageLocation, } from "./admin-tenant-storage.js";
+export { BackendLifecycleClient, type BackendLifecycleDownloader, type BackendLifecycleRequester, type CompleteOffboardingOptions, type CompleteOffboardingResult, createVerifiedOffboardingExportReceiver, type OneTimeCredentialSecret, type PersistOffboardingExport, type PersistOneTimeCredentialSecret, type ReceiveAndVerifyOffboardingExport, type RotateCredentialOptions, type RotateCredentialResult, type VerifiedExportReceiverOptions, type VerifyZeroState, type ZeroStateReconciliationOptions, type ZeroStateReconciliationResult, } from "./backend-lifecycle.js";
+export { classifyReportingData, getReportingViewState, type ReportingDataState, type ReportingQueryState, type ReportingViewState, reportingQueryKey, } from "./reporting-state.js";
+export { checkRuntimeReadiness, type RuntimeReadinessCredentialResult, type RuntimeReadinessOAuthConfig, type RuntimeReadinessOptions, type RuntimeReadinessResult, } from "./runtime-readiness.js";
 export type EventContext = {
     page?: {
         url?: string;
@@ -139,7 +145,17 @@ export type ClientConfig = {
 };
 export type RequestOptions = {
     signal?: AbortSignal;
+    /** Stable key for retry-safe POST operations supported by the API. */
+    idempotencyKey?: string;
 };
+export declare class AdminWorkflowError extends Error {
+    readonly status: number;
+    readonly reason: string;
+    readonly code: string;
+    readonly safeNextAction: string;
+    readonly name = "AdminWorkflowError";
+    constructor(status: number, reason: string, code: string, safeNextAction: string);
+}
 export type PreparedDataState = "accepted" | "processing" | "ready" | "failed";
 export type PreparedDataAvailability = "complete" | "partial" | "stale" | "unavailable";
 export type PreparedDataNextAction = "none" | "poll" | "retry" | "rotate" | "escalate";
@@ -409,43 +425,94 @@ export type AdminReportingPackAuditEvent = {
 export type AdminReportingPackAuditListResponse = {
     events: AdminReportingPackAuditEvent[];
 };
+export type SelectorDefinition = {
+    selector: string;
+    type: string;
+};
+export type NumericSelector = SelectorDefinition & {
+    unit: string;
+};
+export type IdentitySelectors = {
+    subject?: SelectorDefinition;
+    session?: SelectorDefinition;
+    entity?: SelectorDefinition;
+    cohort?: SelectorDefinition;
+    correlation?: SelectorDefinition;
+};
+export type FilterDefinition = {
+    dimension: string;
+    operators: string[];
+};
+export type SubjectScopeRule = {
+    required: boolean;
+    dimension: string;
+};
 export type PackMetric = {
     key: string;
-    displayName: string;
-    template: string;
-    metrics: string[];
-    dimensions?: string[];
+    label: string;
+    kind: string;
+    unit?: string;
+    description?: string;
+    calculation: string;
+    numeric?: NumericSelector;
+    distinct?: SelectorDefinition;
+    measurementKind?: string;
+    maximumGapSeconds?: number;
+    resetPolicy?: string;
+    rolloverAt?: number;
+    canonicalUnit?: string;
+    percentile?: number;
+    numeratorMetric?: string;
+    denominatorMetric?: string;
+    seriesKey?: string;
+    hierarchyRootKey?: string;
 };
 export type PackDimension = {
     key: string;
-    displayName: string;
+    label: string;
+    description?: string;
+    selector: string;
+    allowedValuePattern?: string;
+    fallback?: string;
+    maxCardinality?: number;
 };
-export type PackDashboardWidget = {
-    key: string;
-    title: string;
-    kind: string;
-    template: string;
-    metrics: string[];
-    dimensions?: string[];
+export type PackTemplate = {
+    name: string;
+    allowedMetrics: string[];
+    allowedDimensions?: string[];
+    allowedFilters?: FilterDefinition[];
+    sourceModes: string[];
+    maxRows: number;
+    defaultRange?: string;
+    subjectScope?: SubjectScopeRule;
+    compositionRules?: string[];
+    eventTypes: string[];
+    aggregation: string;
 };
-export type PackDashboard = {
+export type TrustDiagnostics = {
+    safeFields: string[];
+    redactionGuard: string[];
+};
+export type ProofProfile = {
     key: string;
-    title: string;
-    hidden: boolean;
-    defaultRange: string;
-    refreshSeconds: number;
-    requiredScopes: string[];
-    widgets: PackDashboardWidget[];
+    templates: string[];
+    safeMetadataFields: string[];
+    forbiddenFields: string[];
+    outputLayout: string;
 };
 export type PackDefinition = {
     key: string;
     displayName: string;
-    owner?: string;
+    owner: string;
+    version: number;
     enabled: boolean;
     eventTypes: string[];
-    metrics?: PackMetric[];
-    dimensions?: PackDimension[];
-    dashboards?: PackDashboard[];
+    metrics: PackMetric[];
+    dimensions: PackDimension[];
+    templates: PackTemplate[];
+    trust: TrustDiagnostics;
+    proof: ProofProfile;
+    identity?: IdentitySelectors;
 };
 export type ReportingPackDraft = {
     id: number;
@@ -708,6 +775,8 @@ export type ReportingWidget = {
     dimensions?: string[];
 };
 export type ReportingQueryRequest = {
+    dashboardKey?: string;
+    widgetKey?: string;
     template: string;
     metrics: string[];
     dimensions?: string[];
@@ -717,6 +786,7 @@ export type ReportingQueryRequest = {
     rangeDays?: number;
     maxRows?: number;
     countOnly?: boolean;
+    comparison?: "previous_period" | "previous_year";
 };
 export type ReportingFilter = {
     dimension: string;
@@ -748,10 +818,13 @@ export type RenderedWidgetData = {
     deltaLabel?: string;
     secondaryLabel?: string;
     trust?: RenderedReportingTrust;
+    visual?: unknown;
 };
 export type RenderedReportingTrust = {
     status: string;
     dataFreshness: string;
+    retryability: "none" | "bounded" | string;
+    nextAction: ReportingNextActionHint;
     lastExport?: string;
     schemaVersion?: string;
     contractVersion?: string;
@@ -764,6 +837,12 @@ export type RenderedReportingTrust = {
     exportState: string;
     partialReason?: string;
     unavailableReason?: string;
+};
+export type ReportingNextAction = "none" | "poll" | "retry" | "rotate" | "escalate" | string;
+export type ReportingNextActionHint = {
+    action: ReportingNextAction;
+    pollAfterSeconds?: number;
+    maxRetries?: number;
 };
 export type RenderedWidgetBucket = {
     date: string;
@@ -798,48 +877,8 @@ export type ReportingSourceSummary = {
     coverageEnd?: string;
     completeness: string;
 };
-export type ReportingWidgetData = {
-    buckets: ReportingWidgetBucket[];
-    count: number;
-    complete: boolean;
-    truncated: boolean;
-    queryDurationMs: number;
-    parquetUriCount?: number;
-    snapshotAgeMs?: number;
-    eventLagP95Ms?: number;
-    deltaCount?: number;
-    deltaPercent?: number;
-    deltaLabel?: string;
-    secondaryLabel?: string;
-    trust?: ReportingTrust;
-};
-export type ReportingWidgetBucket = {
-    date: string;
-    count: number;
-    source: string;
-    complete: boolean;
-    queryDurationMs?: number;
-    parquetUriCount?: number;
-    message?: string;
-    secondaryCount?: number;
-};
-export type ReportingTrust = {
-    status: string;
-    dataFreshness: string;
-    lastAwthyExport?: string;
-    schemaVersion?: string;
-    contractVersion?: string;
-    rollupState: string;
-    queryWarnings?: string[];
-    coverage: string;
-    permissionClass?: string;
-    dataSufficiency: string;
-    captureState: string;
-    consentState: string;
-    exportState: string;
-    partialReason?: string;
-    unavailableReason?: string;
-};
+export type ReportingWidgetData = RenderedWidgetData;
+export type ReportingTrust = RenderedReportingTrust;
 export declare class MemoryQueueStorage implements QueueStorage {
     private events;
     load(): EventEnvelope[];
@@ -956,7 +995,7 @@ declare class ReportingNamespace {
     outputs(options?: RequestOptions): Promise<PreparedDataOutputList>;
     output(outputUuid: string, options?: RequestOptions): Promise<PreparedDataOutputStatus>;
     queryOutput(outputUuid: string, request: ReportingQueryRequest, options?: RequestOptions): Promise<PreparedDataQueryEnvelope>;
-    query(request: ReportingQueryRequest, options?: RequestOptions): Promise<ReportingWidgetData>;
+    query(request: ReportingQueryRequest, options?: RequestOptions): Promise<RenderedWidgetData>;
     subjectInsight(request: SubjectInsightRequest, options?: RequestOptions): Promise<SubjectInsightResponse>;
 }
 declare class SchemaNamespace {
@@ -969,6 +1008,8 @@ declare class SchemaNamespace {
 }
 declare class AdminNamespace {
     readonly tenants: AdminTenantNamespace;
+    readonly lifecycle: BackendLifecycleClient;
+    readonly clientSetup: ClientSetupClient;
     readonly oauthClients: AdminOAuthClientNamespace;
     readonly sites: AdminSiteNamespace;
     readonly schemas: AdminSchemaNamespace;

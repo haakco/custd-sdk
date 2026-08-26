@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CustdClient } from "./index";
+import { CustdClient, type PackDefinition } from "./index";
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -27,6 +27,35 @@ function newClient(fetchMock: typeof fetch): CustdClient {
     getToken: () => "admin-token",
   });
 }
+
+const reportingPackDefinition: PackDefinition = {
+  key: "security",
+  displayName: "Security",
+  owner: "platform",
+  version: 1,
+  enabled: true,
+  eventTypes: ["login.success"],
+  metrics: [{ key: "events", label: "Events", kind: "count", calculation: "count" }],
+  dimensions: [],
+  templates: [
+    {
+      name: "security_overview",
+      allowedMetrics: ["events"],
+      sourceModes: ["auto"],
+      maxRows: 100,
+      eventTypes: ["login.success"],
+      aggregation: "count",
+    },
+  ],
+  trust: { safeFields: [], redactionGuard: [] },
+  proof: {
+    key: "security-proof",
+    templates: ["security_overview"],
+    safeMetadataFields: [],
+    forbiddenFields: [],
+    outputLayout: "summary",
+  },
+};
 
 describe("admin privacy", () => {
   it("round-trips privacy rules and identifiers", async () => {
@@ -121,7 +150,16 @@ describe("admin retention", () => {
           applyToDataSpaces: [],
         }),
       },
-      { status: 204, body: "" },
+      {
+        status: 200,
+        body: JSON.stringify({
+          tenantSlug: "acme",
+          effectiveAt: "2026-08-23T00:00:00Z",
+          gracePeriodDays: 7,
+          reason: "client cancelled",
+          status: "cancelled",
+        }),
+      },
     ]);
     const client = newClient(fetchMock);
 
@@ -175,7 +213,16 @@ describe("admin storage alerts", () => {
           enabled: true,
         }),
       },
-      { status: 204, body: "" },
+      {
+        status: 200,
+        body: JSON.stringify({
+          tenantSlug: "acme",
+          effectiveAt: "2026-08-23T00:00:00Z",
+          gracePeriodDays: 7,
+          reason: "client cancelled",
+          status: "cancelled",
+        }),
+      },
     ]);
     const client = newClient(fetchMock);
 
@@ -294,14 +341,21 @@ describe("admin offboarding", () => {
           status: "scheduled",
         }),
       },
-      { status: 204, body: "" },
+      {
+        status: 200,
+        body: JSON.stringify({
+          tenantSlug: "acme",
+          effectiveAt: "2026-08-23T00:00:00Z",
+          gracePeriodDays: 7,
+          reason: "client cancelled",
+          status: "cancelled",
+        }),
+      },
       {
         status: 201,
         body: JSON.stringify({
           requestUuid: "req-1",
-          tenantSlug: "acme",
-          status: "pending",
-          requestedBy: "u-1",
+          state: "preview",
           requestedAt: "2026-07-23T12:00:00Z",
         }),
       },
@@ -309,35 +363,35 @@ describe("admin offboarding", () => {
         status: 200,
         body: JSON.stringify({
           requestUuid: "req-1",
-          tenantSlug: "acme",
-          status: "pending",
-          requestedBy: "u-1",
+          state: "preview",
           requestedAt: "2026-07-23T12:00:00Z",
         }),
       },
-      { status: 204, body: "" },
-      { status: 204, body: "" },
+      {
+        status: 200,
+        body: JSON.stringify({ requestUuid: "req-1", state: "cancelled", requestedAt: "2026-07-23T12:00:00Z" }),
+      },
     ]);
     const client = newClient(fetchMock);
 
     const scheduled = await client.admin.offboarding.schedule({
+      tenantSlug: "acme",
       effectiveAt: "2026-08-23T00:00:00Z",
       gracePeriodDays: 7,
       reason: "client request",
-      status: "scheduled",
     });
     expect(scheduled.tenantSlug).toBe("acme");
     const list = await client.admin.offboarding.listSchedules();
     expect(list.schedules).toHaveLength(1);
     const fetched = await client.admin.offboarding.getSchedule("acme");
     expect(fetched.tenantSlug).toBe("acme");
-    await client.admin.offboarding.cancelSchedule("acme", { reason: "client cancelled" });
+    const cancelled = await client.admin.offboarding.cancelSchedule("acme", { reason: "client cancelled" });
+    expect(cancelled.status).toBe("cancelled");
     const requested = await client.admin.offboarding.requestOffboarding({ confirmation: "acme" });
     expect(requested.requestUuid).toBe("req-1");
     const req = await client.admin.offboarding.getRequest("req-1");
     expect(req.requestUuid).toBe("req-1");
-    await client.admin.offboarding.cancelRequest("req-1");
-    await client.admin.offboarding.confirmRequest("req-1");
+    await client.admin.offboarding.cancelRequest("req-1", { reason: "client_request_cancelled" });
   });
 });
 
@@ -445,20 +499,20 @@ describe("admin reporting packs", () => {
     const draft = await client.admin.reportingPacks.getDraft("42");
     expect(draft.id).toBe(42);
     const created = await client.admin.reportingPacks.createDraft({
-      definition: { key: "security", displayName: "Security", enabled: true, eventTypes: ["login.success"] },
+      definition: reportingPackDefinition,
     });
     expect(created.id).toBe(43);
     const updated = await client.admin.reportingPacks.updateDraft("43", {
-      definition: { key: "security", displayName: "Security v2", enabled: true, eventTypes: ["login.success"] },
+      definition: { ...reportingPackDefinition, displayName: "Security v2" },
       expectedRevision: 1,
     });
     expect(updated.revision).toBe(2);
     const validated = await client.admin.reportingPacks.validate({
-      definition: { key: "security", displayName: "Security", enabled: true, eventTypes: [] },
+      definition: { ...reportingPackDefinition, eventTypes: [] },
     });
     expect(validated.valid).toBe(true);
     const previewed = await client.admin.reportingPacks.preview({
-      definition: { key: "security", displayName: "Security", enabled: true, eventTypes: [] },
+      definition: { ...reportingPackDefinition, eventTypes: [] },
       tenantSlug: "acme",
       query: { template: "count", metrics: ["events"] },
     });

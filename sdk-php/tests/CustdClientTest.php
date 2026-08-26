@@ -665,6 +665,20 @@ final class CustdClientTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    public function testAllowsPlaintextDockerHostGatewayUrls(): void
+    {
+        new CustdClient("http://host.docker.internal:4456", null, [
+            "oauth" => [
+                "client_id" => "producer",
+                "client_secret" => "secret",
+                "token_url" => "http://host.docker.internal:4444/oauth2/token",
+                "transport" => fn (): array => ["access_token" => "token", "expires_in" => 300],
+            ],
+        ]);
+
+        $this->addToAssertionCount(1);
+    }
+
     public function testFromProvisionedProducerCreatesClientWithoutManualMapping(): void
     {
         $credentials = $this->loadFixture("valid-provisioned-producer.json");

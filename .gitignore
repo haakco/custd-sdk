@@ -16,6 +16,8 @@ vendor/
 dist/
 !/sdk-js/dist/
 !/sdk-js/dist/**
+!/sdk-react/dist/
+!/sdk-react/dist/**
 coverage/
 .phpunit.result.cache
 .pytest_cache/

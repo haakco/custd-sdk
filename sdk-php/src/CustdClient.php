@@ -73,8 +73,10 @@ final class CustdClient
      *       status code (e.g. transport error).
      *     - `admin_http_client`: callable|null Custom admin HTTP transport.
      *       When provided, it receives
-     *       `(string $method, string $url, ?array $body, string $token)` and
-     *       MUST return `array{status:int, body:string}`.
+     *       `(string $method, string $url, ?array $body, string $token, array<string, string> $headers)`
+     *       and MUST return `array{status:int, body:string}`. The fifth
+     *       headers argument is empty unless a request option needs an extra
+     *       header; existing four-argument callbacks remain valid.
      */
     public function __construct(string $baseUrl, ?string $token = null, array $options = [])
     {
@@ -1014,7 +1016,7 @@ final class CustdClient
         if ($scheme === "https") {
             return;
         }
-        if ($scheme === "http" && in_array($host, ["localhost", "127.0.0.1", "::1"], true)) {
+        if ($scheme === "http" && in_array($host, ["localhost", "127.0.0.1", "::1", "host.docker.internal"], true)) {
             return;
         }
         throw new \InvalidArgumentException("custd: {$field} must use https unless it targets localhost");
