@@ -92,6 +92,7 @@ export type ClientSetupReadinessResponse = {
 export type ClientSetupApplyAndWaitOptions = RequestOptions & {
   timeoutMs?: number;
   intervalMs?: number;
+  persistCredentials?: (credentials: readonly ClientSetupOneTimeCredential[]) => void | Promise<void>;
 };
 
 export type ClientSetupApplyAndWaitResult = {
@@ -303,6 +304,23 @@ function readinessTimeoutError(tenantSlug: string, readiness: ClientSetupReadine
   );
 }
 
+async function persistSetupCredentials(
+  credentials: readonly ClientSetupOneTimeCredential[] | undefined,
+  persistCredentials: ClientSetupApplyAndWaitOptions["persistCredentials"],
+): Promise<void> {
+  if (!credentials || credentials.length === 0) return;
+  if (typeof persistCredentials !== "function") {
+    throw new Error("custd: tenant manifest returned secrets without a one-time credential persistence callback");
+  }
+  try {
+    await persistCredentials(credentials);
+  } catch {
+    throw new Error(
+      "custd: tenant manifest applied but one-time credential persistence failed; reconcile before retrying",
+    );
+  }
+}
+
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 
 export class ClientSetupClient {
@@ -330,6 +348,7 @@ export class ClientSetupClient {
     const intervalMs = setupWaitDuration(options.intervalMs, defaultSetupReadinessIntervalMs, "intervalMs");
     const requestOptions = setupRequestOptions(options);
     const apply = await this.apply(tenantSlug, manifest, requestOptions);
+    await persistSetupCredentials(apply.credentials, options.persistCredentials);
     let readiness: ClientSetupReadinessResponse = apply;
     const deadline = Date.now() + timeoutMs;
     while (!readiness.ready && readiness.safeNextAction === "retry") {

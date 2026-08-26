@@ -205,6 +205,19 @@ function readinessTimeoutError(tenantSlug, readiness, timeoutMs) {
     return new Error(`custd: timed out waiting for tenant manifest readiness for "${tenantSlug}" after ${timeoutMs}ms ` +
         `(action=${readiness.safeNextAction || "unknown"}, code=${code})`);
 }
+async function persistSetupCredentials(credentials, persistCredentials) {
+    if (!credentials || credentials.length === 0)
+        return;
+    if (typeof persistCredentials !== "function") {
+        throw new Error("custd: tenant manifest returned secrets without a one-time credential persistence callback");
+    }
+    try {
+        await persistCredentials(credentials);
+    }
+    catch {
+        throw new Error("custd: tenant manifest applied but one-time credential persistence failed; reconcile before retrying");
+    }
+}
 export class ClientSetupClient {
     constructor(request) {
         this.request = request;
@@ -221,6 +234,7 @@ export class ClientSetupClient {
         const intervalMs = setupWaitDuration(options.intervalMs, defaultSetupReadinessIntervalMs, "intervalMs");
         const requestOptions = setupRequestOptions(options);
         const apply = await this.apply(tenantSlug, manifest, requestOptions);
+        await persistSetupCredentials(apply.credentials, options.persistCredentials);
         let readiness = apply;
         const deadline = Date.now() + timeoutMs;
         while (!readiness.ready && readiness.safeNextAction === "retry") {

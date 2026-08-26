@@ -77,6 +77,65 @@ describe("client setup reporting-pack manifests", () => {
     ]);
   });
 
+  it("persists one-time credentials before the first readiness poll", async () => {
+    const manifest: ClientSetupManifest = {
+      oauthClients: [{ clientId: "acme-reporting", purposeProfile: "reporting" }],
+    };
+    const applied = {
+      tenantSlug: "acme",
+      manifestDigest: "digest-1",
+      ready: false,
+      state: "attention_required",
+      resources: [],
+      safeNextAction: "retry",
+      safeNextActionCode: "reporting_pack_activation_pending",
+      observedAt: "2026-08-26T00:00:00Z",
+      credentials: [{ clientId: "acme-reporting", clientSecret: "one-time", purposeProfile: "reporting" as const }],
+    };
+    const ready = {
+      ...applied,
+      credentials: [],
+      ready: true,
+      state: "ready",
+      safeNextAction: "none",
+      safeNextActionCode: "",
+    };
+    const order: string[] = [];
+    const request = vi.fn(async (method: string) => {
+      order.push(method);
+      return method === "PUT" ? applied : ready;
+    });
+    const persistCredentials = vi.fn(async () => {
+      order.push("persist");
+    });
+
+    await new ClientSetupClient(request as never).applyAndWait("acme", manifest, {
+      timeoutMs: 100,
+      intervalMs: 1,
+      persistCredentials,
+    });
+
+    expect(order).toEqual(["PUT", "persist", "GET"]);
+    expect(persistCredentials).toHaveBeenCalledWith(applied.credentials);
+  });
+
+  it("fails before polling when one-time credentials have no persistence owner", async () => {
+    const manifest: ClientSetupManifest = {
+      oauthClients: [{ clientId: "acme-reporting", purposeProfile: "reporting" }],
+    };
+    const request = vi.fn().mockResolvedValue({
+      tenantSlug: "acme",
+      ready: false,
+      safeNextAction: "retry",
+      credentials: [{ clientId: "acme-reporting", clientSecret: "one-time", purposeProfile: "reporting" }],
+    });
+
+    await expect(new ClientSetupClient(request).applyAndWait("acme", manifest)).rejects.toThrow(
+      "one-time credential persistence callback",
+    );
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
   it("returns the readiness response without polling again on a fix action", async () => {
     const manifest: ClientSetupManifest = { reportingPacks: [{ definition: reportingPack }] };
     const applied = {

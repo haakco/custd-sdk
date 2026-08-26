@@ -76,6 +76,7 @@ export type ClientSetupReadinessResponse = {
 export type ClientSetupApplyAndWaitOptions = RequestOptions & {
     timeoutMs?: number;
     intervalMs?: number;
+    persistCredentials?: (credentials: readonly ClientSetupOneTimeCredential[]) => void | Promise<void>;
 };
 export type ClientSetupApplyAndWaitResult = {
     apply: ClientSetupApplyResponse;
