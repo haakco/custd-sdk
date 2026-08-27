@@ -163,6 +163,11 @@ final class CustdClient
         return new Admin\OffboardingClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    public function adminDataLabels(): Admin\DataLabelClient
+    {
+        return new Admin\DataLabelClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
     public function provisioning(): Provisioning\Client
     {
         return new Provisioning\Client($this->baseUrl, $this->authToken(), $this->adminHttpClient);
@@ -367,6 +372,33 @@ final class CustdClient
         if (count($missing) > 0) {
             $fields = implode(", ", $missing);
             throw new \InvalidArgumentException("custd: missing required fields: {$fields}");
+        }
+        self::validateEventLabels($event);
+    }
+
+    /** @param array<string, mixed> $event */
+    private static function validateEventLabels(array $event): void
+    {
+        if (array_key_exists("resolvedLabels", $event) || array_key_exists("vocabularyFingerprint", $event)) {
+            throw new \InvalidArgumentException("custd: server-owned label fields are not accepted");
+        }
+        if (!array_key_exists("labels", $event)) {
+            return;
+        }
+        $labels = $event["labels"];
+        if (!is_array($labels) || array_is_list($labels)) {
+            throw new \InvalidArgumentException("custd: labels must be an object of strings");
+        }
+        if (count($labels) > 16) {
+            throw new \InvalidArgumentException("custd: labels may contain at most 16 entries");
+        }
+        foreach ($labels as $key => $value) {
+            if (!is_string($key) || strlen($key) > 64 || str_starts_with($key, "custd.") || preg_match('/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/D', $key) !== 1) {
+                throw new \InvalidArgumentException("custd: labels has an invalid key");
+            }
+            if (!is_string($value) || $value === "" || trim($value) !== $value || strlen($value) > 128) {
+                throw new \InvalidArgumentException("custd: labels.{$key} has an invalid value");
+            }
         }
     }
 

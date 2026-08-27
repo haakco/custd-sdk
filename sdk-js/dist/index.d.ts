@@ -1,4 +1,5 @@
 import { ClientSetupClient } from "./admin-client-setup.js";
+import { DataLabelAdminClient } from "./admin-data-labels.js";
 import { OffboardingClient, type OffboardingDownloadResponse } from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
@@ -7,6 +8,7 @@ import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
 export { type ClientSetupApplyAndWaitOptions, type ClientSetupApplyAndWaitResult, type ClientSetupApplyResponse, ClientSetupClient, type ClientSetupManifest, type ClientSetupOAuthClientDesiredState, type ClientSetupOAuthPurposeProfile, type ClientSetupOneTimeCredential, type ClientSetupPrivacyDesiredState, type ClientSetupPrivacyRule, type ClientSetupReadinessResponse, type ClientSetupReportingPackDesiredState, type ClientSetupResourceStatus, type ClientSetupRetentionDesiredState, type ClientSetupSchemaDesiredState, validateClientSetupManifest, } from "./admin-client-setup.js";
+export { DataLabelAdminClient, type DataLabelAssignmentListResponse, type DataLabelCatalogue, type DataLabelCatalogueAssignment, type DataLabelCatalogueDataset, type DataLabelCataloguePack, type DataLabelCatalogueResponse, type DataLabelDefinition, type DataLabelDefinitionCreateRequest, type DataLabelDefinitionListResponse, type DataLabelDefinitionUpdateRequest, type DataLabelPropagationPolicy, type DataLabelSensitivity, type DataLabelUsage, type DataLabelUsageListResponse, type DataLabelValue, type DataLabelValueCreateRequest, type DataLabelValueUpdateRequest, type DescriptiveDataLabel, type EventTypeDataLabelDefault, type EventTypeDataLabelDefaultRequest, type SchemaFieldDataLabelAssignment, type SchemaFieldDataLabelAssignmentRequest, } from "./admin-data-labels.js";
 export { type OffboardingAcknowledgeResponse, type OffboardingCancelRequest, OffboardingClient, type OffboardingDownloadResponse, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPreviewResponse, type OffboardingPreviewStore, type OffboardingReceiptPerStore, type OffboardingReceiptResponse, type OffboardingRequest, type OffboardingRequestCreate, type OffboardingRetryResponse, type OffboardingSchedule, type OffboardingScheduleListResponse, type OffboardingScheduleRequest, type OffboardingWaiver, } from "./admin-offboarding.js";
 export { type PredictionActivateRequest, PredictionAdminClient, type PredictionDefinition, type PredictionDefinitionCreateRequest, type PredictionDefinitionListResponse, type PredictionDefinitionUpdateRequest, type PredictionEvaluationSummary, type PredictionOutcomeSummary, type PredictionPauseRequest, type PredictionRollbackRequest, type PredictionRunNowRequest, type PredictionRunSummary, type PredictionSignalSource, type PredictionSignalSourceCreateRequest, type PredictionThresholdEvent, type PredictionVersion, type PredictionVersionPublishRequest, } from "./admin-predictions.js";
 export { type PrivacyErasure, PrivacyErasureClient, type PrivacyErasureCreateRequest, PrivacyErasureError, type PrivacyErasureListResponse, type PrivacyErasureRetryClassification, type PrivacyErasureSelector, type PrivacyErasureState, type PrivacyErasureStoreProgress, type PrivacyErasureWaitOptions, } from "./admin-privacy-erasures.js";
@@ -46,6 +48,7 @@ export type EventEnvelope = {
     anonymousId?: string;
     userUuid?: string | null;
     companySlug?: string;
+    labels?: Record<string, string>;
     context: EventContext;
     payload: Record<string, unknown>;
 };
@@ -1007,6 +1010,7 @@ declare class SchemaNamespace {
     sendTestEvent(event: EventEnvelope): Promise<SendTestEventResponse>;
 }
 declare class AdminNamespace {
+    readonly dataLabels: DataLabelAdminClient;
     readonly tenants: AdminTenantNamespace;
     readonly lifecycle: BackendLifecycleClient;
     readonly clientSetup: ClientSetupClient;

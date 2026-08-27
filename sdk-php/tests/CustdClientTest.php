@@ -74,6 +74,33 @@ final class CustdClientTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    public function testValidateEventAcceptsCanonicalLabelledFixture(): void
+    {
+        CustdClient::validateEvent($this->loadFixture("valid-labelled-event.json"));
+        $this->addToAssertionCount(1);
+    }
+
+    public function testValidateEventRejectsInvalidLabelsAndServerFields(): void
+    {
+        $cases = [
+            array_combine(array_map(static fn (int $i): string => "app.key{$i}", range(0, 16)), array_fill(0, 17, "ok")),
+            ["App Plan" => "paid"], ["a." . str_repeat("b", 63) => "paid"],
+            ["custd.internal" => "reserved"], [],
+            ["app.plan" => ""], ["app.plan" => " paid "], ["app.plan" => str_repeat("é", 65)],
+        ];
+        foreach ($cases as $labels) {
+            try {
+                CustdClient::validateEvent($this->baseEvent + ["labels" => $labels]);
+                $this->fail("expected invalid labels to fail");
+            } catch (\InvalidArgumentException $error) {
+                $this->assertStringContainsString("labels", $error->getMessage());
+            }
+        }
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("server-owned");
+        CustdClient::validateEvent($this->baseEvent + ["resolvedLabels" => [], "vocabularyFingerprint" => "server"]);
+    }
+
     public function testCreateDogfoodEventBuildsCanonicalShape(): void
     {
         $event = CustdClient::createDogfoodEvent([
@@ -586,6 +613,7 @@ final class CustdClientTest extends TestCase
 
         $eventA = $this->baseEvent;
         $eventA["eventUuid"] = "evt-1";
+        $eventA["labels"] = ["app.plan" => "paid"];
         $eventB = $this->baseEvent;
         $eventB["eventUuid"] = "evt-2";
 
@@ -597,6 +625,7 @@ final class CustdClientTest extends TestCase
         $this->assertCount(2, $seenPayload["events"]);
         $this->assertSame("evt-1", $seenPayload["events"][0]["eventUuid"]);
         $this->assertSame("evt-2", $seenPayload["events"][1]["eventUuid"]);
+        $this->assertSame(["app.plan" => "paid"], $seenPayload["events"][0]["labels"]);
     }
 
     public function testUsesOauthProducerCredentialsForBearerAuth(): void

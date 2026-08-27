@@ -68,6 +68,28 @@ describe("validateEvent", () => {
 
     expect(() => validateEvent(event)).not.toThrow();
   });
+
+  it("accepts the canonical labelled fixture", async () => {
+    const event = await loadFixture("valid-labelled-event.json");
+    expect(() => validateEvent(event)).not.toThrow();
+  });
+
+  it.each([
+    ["too many", Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`app.key${i}`, "ok"]))],
+    ["invalid key", { "App Plan": "paid" }],
+    ["long key", { [`a.${"b".repeat(63)}`]: "paid" }],
+    ["reserved key", { "custd.internal": "reserved" }],
+    ["empty value", { "app.plan": "" }],
+    ["untrimmed value", { "app.plan": " paid " }],
+    ["long value", { "app.plan": "é".repeat(65) }],
+  ])("rejects %s labels", (_name, labels) => {
+    expect(() => validateEvent({ ...baseEvent, labels })).toThrow(/labels/);
+  });
+
+  it("rejects server-owned accepted-event fields", () => {
+    const event = { ...baseEvent, resolvedLabels: [], vocabularyFingerprint: "server" } as unknown as EventEnvelope;
+    expect(() => validateEvent(event)).toThrow(/server-owned/);
+  });
 });
 
 describe("createDogfoodEvent", () => {
@@ -173,13 +195,14 @@ describe("CustdClient", () => {
       retry: { maxAttempts: 1 },
     });
 
-    await client.track({ ...baseEvent, eventUuid: "evt-1" });
+    await client.track({ ...baseEvent, eventUuid: "evt-1", labels: { "app.plan": "paid" } });
     await client.track({ ...baseEvent, eventUuid: "evt-2" });
     await client.flush();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:8080/api/v1/events/batch");
     expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).events).toHaveLength(2);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).events[0].labels).toEqual({ "app.plan": "paid" });
   });
 
   it("names the rejected events when a batch partially fails", async () => {

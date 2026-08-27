@@ -18,6 +18,7 @@ INGEST_ENDPOINT = "/api/v1/events"
 INGEST_BATCH_ENDPOINT = "/api/v1/events/batch"
 DEFAULT_RETRY_STATUSES = (408, 429, 500, 502, 503, 504)
 DEFAULT_COMPRESSION_THRESHOLD_BYTES = 1024
+EVENT_LABEL_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$")
 
 EventEnvelope = dict[str, Any]
 TransportResult = dict[str, Any]
@@ -555,6 +556,7 @@ class AdminClient:
         self.sites = SiteAdminClient(self)
         self.schemas = SchemaAdminClient(self)
         self.measurement = MeasurementAdminClient(self)
+        from .admin_data_labels import DataLabelAdminClient
         from .admin_offboarding import OffboardingClient
         from .admin_predictions import PredictionAdminClient
         from .admin_privacy_erasures import PrivacyErasureClient
@@ -568,6 +570,7 @@ class AdminClient:
         self.retention = RetentionClient(self)
         self.offboarding = OffboardingClient(self)
         self.predictions = PredictionAdminClient(self)
+        self.data_labels = DataLabelAdminClient(self)
 
     def request(
         self,
@@ -1057,6 +1060,26 @@ def validate_event(event: EventEnvelope) -> None:
 
     if missing:
         raise ValidationError(f"custd: missing required fields: {', '.join(missing)}")
+    validate_event_labels(event)
+
+
+def validate_event_labels(event: EventEnvelope) -> None:
+    if "resolvedLabels" in event or "vocabularyFingerprint" in event:
+        raise ValidationError("custd: server-owned label fields are not accepted")
+    if "labels" not in event:
+        return
+    labels = event["labels"]
+    if not isinstance(labels, dict) or not all(
+        isinstance(key, str) and isinstance(value, str) for key, value in labels.items()
+    ):
+        raise ValidationError("custd: labels must be an object of strings")
+    if len(labels) > 16:
+        raise ValidationError("custd: labels may contain at most 16 entries")
+    for key, value in labels.items():
+        if len(key.encode("utf-8")) > 64 or EVENT_LABEL_KEY_PATTERN.fullmatch(key) is None or key.startswith("custd."):
+            raise ValidationError(f"custd: labels.{key} has an invalid key")
+        if not value or value != value.strip() or len(value.encode("utf-8")) > 128:
+            raise ValidationError(f"custd: labels.{key} has an invalid value")
 
 
 def prepare_event(event: EventEnvelope) -> EventEnvelope:
