@@ -161,10 +161,24 @@ final class Client
             throw new \RuntimeException("custd: reporting requires an admin_http_client transport");
         }
         $request = $this->httpClient;
-        $response = $request($method, $this->baseUrl . $path, $body, $this->token);
+        try {
+            $response = $request($method, $this->baseUrl . $path, $body, $this->token);
+        } catch (RequestException $error) {
+            throw $error;
+        } catch (\Throwable $error) {
+            throw new RequestException("custd: reporting transport unavailable", null, "transport_unavailable", "bounded", null, $error);
+        }
         $status = (int) ($response["status"] ?? 0);
         if ($status >= 400) {
-            throw new \RuntimeException("custd: reporting request failed with status {$status}");
+            $decoded = json_decode((string) ($response["body"] ?? ""), true);
+            $problem = is_array($decoded) ? $decoded : [];
+            $retryability = in_array($problem["retryability"] ?? null, ["none", "bounded"], true)
+                ? $problem["retryability"]
+                : (($status === 429 || $status >= 500) ? "bounded" : "none");
+            $nextAction = is_array($problem["nextAction"] ?? null) ? $problem["nextAction"] : null;
+            $code = is_string($problem["code"] ?? null) ? $problem["code"] : null;
+            $detail = is_string($problem["detail"] ?? null) ? $problem["detail"] : "custd: reporting request failed with status {$status}";
+            throw new RequestException($detail, $status, $code, $retryability, $nextAction);
         }
         $responseBody = $response["body"] ?? "";
         return $status === 204 ? "" : (string) $responseBody;

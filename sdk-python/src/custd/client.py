@@ -185,12 +185,20 @@ class RequestError(RuntimeError):
         code: str | None = None,
         safe_next_action: str | None = None,
         reason: str | None = None,
+        retryability: str = "none",
+        next_action: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message)
         self.status = status
         self.code = code
         self.safe_next_action = safe_next_action
         self.reason = reason
+        self.retryability = retryability
+        self.next_action = next_action
+
+    @property
+    def unavailable(self) -> bool:
+        return self.status is None or self.status == 429 or self.status >= 500
 
 
 def admin_request_error(status: int, body: object) -> RequestError:
@@ -757,16 +765,46 @@ class ReportingClient:
         raise ValueError("custd: reporting response must be an object")
 
     def _request_value(self, method: str, path: str, payload: dict[str, Any] | None = None) -> Any:
-        result = self._transport(
-            method,
-            self._client.base_url + "/api/v1" + path,
-            payload,
-            self._client._headers(),
-            self._client.timeout,
-        )
+        try:
+            result = self._transport(
+                method,
+                self._client.base_url + "/api/v1" + path,
+                payload,
+                self._client._headers(),
+                self._client.timeout,
+            )
+        except RequestError:
+            raise
+        except Exception as error:
+            raise RequestError(
+                "custd: reporting transport unavailable",
+                code="transport_unavailable",
+                retryability="bounded",
+            ) from error
         status = int(result["status"])
         if status >= 400:
-            raise RequestError(f"custd: reporting request failed with status {status}")
+            body = result.get("body")
+            try:
+                problem = json.loads(body) if isinstance(body, str) else body
+            except json.JSONDecodeError:
+                problem = None
+            problem = problem if isinstance(problem, dict) else {}
+            problem_retryability = problem.get("retryability")
+            retryability = (
+                problem_retryability
+                if isinstance(problem_retryability, str) and problem_retryability in ("none", "bounded")
+                else ("bounded" if status == 429 or status >= 500 else "none")
+            )
+            next_action = problem.get("nextAction") if isinstance(problem.get("nextAction"), dict) else None
+            code = problem.get("code") if isinstance(problem.get("code"), str) else None
+            detail = problem.get("detail") if isinstance(problem.get("detail"), str) else None
+            raise RequestError(
+                detail or f"custd: reporting request failed with status {status}",
+                status=status,
+                code=code,
+                retryability=retryability,
+                next_action=next_action,
+            )
         body = result.get("body")
         if status == 204 or body in (None, ""):
             return {}

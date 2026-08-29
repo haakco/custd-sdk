@@ -72,6 +72,12 @@ export type ProblemDetails = {
     instance?: string;
     traceId?: string;
     fields?: Record<string, string>;
+    retryability?: "none" | "bounded";
+    nextAction?: {
+        action: "none" | "poll" | "retry" | "rotate" | "escalate";
+        pollAfterSeconds?: number;
+        maxRetries?: number;
+    };
 };
 type EventResult = {
     eventUuid?: string;
@@ -158,6 +164,19 @@ export declare class AdminWorkflowError extends Error {
     readonly safeNextAction: string;
     readonly name = "AdminWorkflowError";
     constructor(status: number, reason: string, code: string, safeNextAction: string);
+}
+export declare class CustdRequestError extends Error {
+    readonly status: number | null;
+    readonly code: string;
+    readonly retryability: "none" | "bounded";
+    readonly nextAction: NonNullable<ProblemDetails["nextAction"]>;
+    readonly problem?: ProblemDetails | undefined;
+    readonly name = "CustdRequestError";
+    readonly cause?: unknown;
+    constructor(status: number | null, code: string, retryability: "none" | "bounded", nextAction: NonNullable<ProblemDetails["nextAction"]>, problem?: ProblemDetails | undefined, options?: {
+        cause?: unknown;
+    });
+    get unavailable(): boolean;
 }
 export type PreparedDataState = "accepted" | "processing" | "ready" | "failed";
 export type PreparedDataAvailability = "complete" | "partial" | "stale" | "unavailable";

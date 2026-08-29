@@ -5,10 +5,28 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\CustdClient;
+use HaakCo\Custd\Reporting\RequestException;
 use PHPUnit\Framework\TestCase;
 
 final class ReportingClientTest extends TestCase
 {
+    public function testUnavailablePreservesCanonicalProblem(): void
+    {
+        $calls = [];
+        $client = $this->clientWithResponse($this->fixture("reporting-unavailable-problem.json"), $calls, 503);
+
+        try {
+            $client->reporting()->dashboard("executive");
+            self::fail("expected reporting RequestException");
+        } catch (RequestException $error) {
+            self::assertTrue($error->unavailable());
+            self::assertSame(503, $error->status);
+            self::assertSame("reporting_unavailable", $error->errorCode);
+            self::assertSame("bounded", $error->retryability);
+            self::assertSame("retry", $error->nextAction["action"]);
+        }
+    }
+
     public function testReportExportLifecycleUsesAuthenticatedRoutes(): void
     {
         $id = "123e4567-e89b-42d3-a456-426614174000";

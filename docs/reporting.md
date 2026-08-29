@@ -19,6 +19,12 @@ Exact-subject insights accept only a server-owned template, one pseudonymous
 subject, and either `rangeDays` or a complete `from`/`to` window. They do not
 accept arbitrary filters or tenant identifiers.
 
+Reporting request failures retain Custd's RFC 9457 `code`, `retryability`, and
+`nextAction` fields. Transport failures use the same language-native request
+error with no HTTP status and a preserved cause. Callers can branch on the
+typed unavailable property/method instead of matching messages; intentional
+caller aborts remain aborts.
+
 ## TypeScript
 
 ```ts
@@ -37,6 +43,14 @@ const insight = await client.reporting.subjectInsight({
   rangeDays: 14,
 });
 console.log(insight.data.value.value);
+
+try {
+  await client.reporting.dashboard("security_operations");
+} catch (error) {
+  if (error instanceof CustdRequestError && error.unavailable) {
+    // Render the application's bounded unavailable state.
+  }
+}
 ```
 
 `reporting.query()` returns the server-rendered `RenderedWidgetData` contract.
@@ -116,6 +130,11 @@ insight, err := client.Reporting.SubjectInsight(ctx, custd.SubjectInsightRequest
     Subject: "subject-42",
     RangeDays: 14,
 })
+
+var requestErr *custd.RequestError
+if errors.As(err, &requestErr) && requestErr.Unavailable() {
+    // Render the application's bounded unavailable state.
+}
 ```
 
 ## PHP
@@ -134,6 +153,14 @@ $insight = $client->reporting()->subjectInsight([
     "subject" => "subject-42",
     "rangeDays" => 14,
 ]);
+
+try {
+    $client->reporting()->dashboard("security_operations");
+} catch (\HaakCo\Custd\Reporting\RequestException $error) {
+    if ($error->unavailable()) {
+        // Render the application's bounded unavailable state.
+    }
+}
 ```
 
 ## Python
@@ -152,4 +179,11 @@ insight = client.reporting.subject_insight({
     "subject": "subject-42",
     "rangeDays": 14,
 })
+
+try:
+    client.reporting.dashboard("security_operations")
+except RequestError as error:
+    if error.unavailable:
+        # Render the application's bounded unavailable state.
+        pass
 ```

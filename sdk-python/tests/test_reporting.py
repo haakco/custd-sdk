@@ -31,6 +31,30 @@ def fixture(name: str) -> dict[str, Any]:
 
 
 class ReportingClientTest(unittest.TestCase):
+    def test_unavailable_preserves_canonical_problem(self) -> None:
+        transport = FakeTransport(fixture("reporting-unavailable-problem.json"), status=503)
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+
+        with self.assertRaises(RequestError) as raised:
+            client.reporting.dashboard("executive")
+
+        error = raised.exception
+        self.assertTrue(error.unavailable)
+        self.assertEqual(503, error.status)
+        self.assertEqual("reporting_unavailable", error.code)
+        self.assertEqual("bounded", error.retryability)
+        self.assertEqual("retry", error.next_action["action"])
+
+    def test_transport_failure_is_typed_unavailable(self) -> None:
+        def unavailable_transport(*_args: object) -> dict[str, Any]:
+            raise OSError("connection refused")
+
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=unavailable_transport)
+        with self.assertRaises(RequestError) as raised:
+            client.reporting.dashboard("executive")
+        self.assertTrue(raised.exception.unavailable)
+        self.assertEqual("transport_unavailable", raised.exception.code)
+
     def test_report_export_lifecycle_uses_authenticated_routes(self) -> None:
         export_id = "123e4567-e89b-42d3-a456-426614174000"
         transport = FakeTransport({"id": export_id, "state": "queued"})

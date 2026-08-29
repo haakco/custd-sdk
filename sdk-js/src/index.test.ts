@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CustdClient,
   CustdProblemError,
+  CustdRequestError,
   createDogfoodEvent,
   type EventEnvelope,
   MemoryQueueStorage,
@@ -145,6 +146,71 @@ describe("createDogfoodEvent", () => {
 });
 
 describe("CustdClient", () => {
+  it("preserves canonical reporting availability from RFC 9457 problems", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      problemResponse({
+        type: "https://custd.example/problems/unavailable",
+        title: "Service Unavailable",
+        status: 503,
+        code: "reporting_unavailable",
+        retryability: "bounded",
+        nextAction: { action: "retry", maxRetries: 2 },
+      }),
+    );
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "token",
+      fetch: fetchMock,
+      retry: { maxAttempts: 1 },
+    });
+
+    const error = await client.reporting.query({ template: "activity", metrics: ["events"], rangeDays: 7 }).then(
+      () => null,
+      (reason: unknown) => reason,
+    );
+
+    expect(error).toBeInstanceOf(CustdRequestError);
+    expect(error).toMatchObject({
+      status: 503,
+      code: "reporting_unavailable",
+      retryability: "bounded",
+      nextAction: { action: "retry", maxRetries: 2 },
+      unavailable: true,
+    });
+  });
+
+  it("classifies an unreachable reporting transport without message matching", async () => {
+    const cause = new TypeError("fetch failed");
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "token",
+      fetch: vi.fn().mockRejectedValue(cause),
+      retry: { maxAttempts: 1 },
+    });
+
+    const error = await client.reporting.query({ template: "activity", metrics: ["events"], rangeDays: 7 }).then(
+      () => null,
+      (reason: unknown) => reason as CustdRequestError,
+    );
+
+    expect(error).toBeInstanceOf(CustdRequestError);
+    expect(error).toMatchObject({ status: null, code: "transport_unavailable", unavailable: true });
+    expect((error as CustdRequestError).cause).toBe(cause);
+  });
+
+  it("preserves an intentional reporting abort", async () => {
+    const abort = new DOMException("aborted", "AbortError");
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "token",
+      fetch: vi.fn().mockRejectedValue(abort),
+      retry: { maxAttempts: 1 },
+    });
+
+    await expect(client.reporting.query({ template: "activity", metrics: ["events"], rangeDays: 7 })).rejects.toBe(
+      abort,
+    );
+  });
   it("generates missing envelope identities before sending", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 202 }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;

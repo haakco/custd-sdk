@@ -36,6 +36,21 @@ export class AdminWorkflowError extends Error {
         this.name = "AdminWorkflowError";
     }
 }
+export class CustdRequestError extends Error {
+    constructor(status, code, retryability, nextAction, problem, options) {
+        super(`custd: request failed [code=${code}]`);
+        this.status = status;
+        this.code = code;
+        this.retryability = retryability;
+        this.nextAction = nextAction;
+        this.problem = problem;
+        this.name = "CustdRequestError";
+        this.cause = options?.cause;
+    }
+    get unavailable() {
+        return this.status === null || this.status === 429 || (this.status !== null && this.status >= 500);
+    }
+}
 function publicAdminSite(site) {
     const { writeKey: _writeKey, ...safeSite } = site;
     return safeSite;
@@ -184,14 +199,20 @@ export class CustdClient {
         if (config.scopes && config.scopes.length > 0) {
             body.set("scope", config.scopes.join(" "));
         }
-        const response = await this.fetchImpl(config.tokenUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body,
-            signal: options?.signal,
-        });
+        let response;
+        try {
+            response = await this.fetchImpl(config.tokenUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body,
+                signal: options?.signal,
+            });
+        }
+        catch (error) {
+            throw transportRequestError(error);
+        }
         if (!response.ok) {
-            throw new Error(`custd: token request failed with status ${response.status}`);
+            throw await responseRequestError(response, "oauth_unavailable");
         }
         const token = (await response.json());
         if (!token.access_token) {
@@ -400,17 +421,23 @@ export class CustdClient {
     }
     async apiRequest(method, path, body, options) {
         const token = await this.getToken(options);
-        const response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
-            method,
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-                ...this.defaultHeaders,
-                ...(options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
-            },
-            body: body === undefined ? undefined : JSON.stringify(body),
-            signal: options?.signal,
-        });
+        let response;
+        try {
+            response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
+                method,
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                    ...this.defaultHeaders,
+                    ...(options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
+                },
+                body: body === undefined ? undefined : JSON.stringify(body),
+                signal: options?.signal,
+            });
+        }
+        catch (error) {
+            throw transportRequestError(error);
+        }
         if (!response.ok) {
             const text = await response.text().catch(() => "");
             let errorCode = "";
@@ -441,7 +468,7 @@ export class CustdClient {
             if (workflowEnvelope) {
                 throw new AdminWorkflowError(response.status, detail, errorCode, safeNextAction);
             }
-            throw new Error(message);
+            throw await responseRequestError(response, errorCode || "request_failed", message, text);
         }
         if (response.status === 204) {
             return undefined;
@@ -1206,6 +1233,35 @@ export function prepareEvent(event, options = {}) {
     };
 }
 export class RetryableError extends Error {
+}
+function transportRequestError(error) {
+    if (error instanceof Error && error.name === "AbortError")
+        return error;
+    return new CustdRequestError(null, "transport_unavailable", "bounded", { action: "retry", maxRetries: 1 }, undefined, { cause: error });
+}
+async function responseRequestError(response, fallbackCode, fallbackMessage, responseText) {
+    const text = responseText ??
+        (await response
+            .clone()
+            .text()
+            .catch(() => ""));
+    let problem;
+    try {
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed === "object" && parsed.status === response.status)
+            problem = parsed;
+    }
+    catch {
+        problem = undefined;
+    }
+    const retryability = problem?.retryability ?? (response.status === 429 || response.status >= 500 ? "bounded" : "none");
+    const nextAction = problem?.nextAction ??
+        (retryability === "bounded" ? { action: "retry", maxRetries: 1 } : { action: "none" });
+    const code = problem?.code || fallbackCode;
+    const requestError = new CustdRequestError(response.status, code, retryability, nextAction, problem);
+    if (fallbackMessage)
+        requestError.message = fallbackMessage;
+    return requestError;
 }
 // CustdProblemError carries the decoded RFC 9457 problem document (when the
 // server sent one) and, for batch sends, the failed per-event results so a
