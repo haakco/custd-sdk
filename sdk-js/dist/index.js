@@ -7,6 +7,7 @@ import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
+import { basicAuthorization } from "./oauth.js";
 export { ClientSetupClient, validateClientSetupManifest, } from "./admin-client-setup.js";
 export { DataLabelAdminClient, } from "./admin-data-labels.js";
 export { OffboardingClient, } from "./admin-offboarding.js";
@@ -194,8 +195,6 @@ export class CustdClient {
         }
         const body = new URLSearchParams();
         body.set("grant_type", "client_credentials");
-        body.set("client_id", config.clientId);
-        body.set("client_secret", config.clientSecret);
         if (config.audience) {
             body.set("audience", config.audience);
         }
@@ -206,7 +205,10 @@ export class CustdClient {
         try {
             response = await this.fetchImpl(config.tokenUrl, {
                 method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    Authorization: basicAuthorization(config.clientId, config.clientSecret),
+                },
                 body,
                 signal: options?.signal,
             });

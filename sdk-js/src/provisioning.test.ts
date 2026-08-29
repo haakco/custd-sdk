@@ -45,10 +45,13 @@ describe("CustdClient provisioning", () => {
 
     const tokenBody = new URLSearchParams(String(fetchMock.mock.calls[0][1]?.body ?? ""));
     expect(fetchMock.mock.calls[0][0]).toBe("https://auth.custd.com/oauth2/token");
-    expect(fetchMock.mock.calls[0][1]?.headers).toEqual({ "Content-Type": "application/x-www-form-urlencoded" });
+    expect(fetchMock.mock.calls[0][1]?.headers).toEqual({
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: "Basic YXd0aHktaHViLWJyb2tlci1wcm9kOmJyb2tlci1zZWNyZXQ=",
+    });
     expect(tokenBody.get("grant_type")).toBe("client_credentials");
-    expect(tokenBody.get("client_id")).toBe("awthy-hub-broker-prod");
-    expect(tokenBody.get("client_secret")).toBe("broker-secret");
+    expect(tokenBody.get("client_id")).toBeNull();
+    expect(tokenBody.get("client_secret")).toBeNull();
     expect(tokenBody.get("audience")).toBe("custd");
     expect(tokenBody.get("scope")).toBe("admin producers.provision");
     expect(fetchMock.mock.calls[1][0]).toBe("https://custd.com/api/v1/producer-provisioning");

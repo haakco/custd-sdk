@@ -527,6 +527,12 @@ describe("CustdClient", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:4444/oauth2/token");
+    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({
+      Authorization: "Basic cHJvZHVjZXI6c2VjcmV0",
+    });
+    const tokenBody = new URLSearchParams(String(fetchMock.mock.calls[0][1]?.body ?? ""));
+    expect(tokenBody.has("client_id")).toBe(false);
+    expect(tokenBody.has("client_secret")).toBe(false);
     expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe("Bearer oauth-token");
   });
 

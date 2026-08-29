@@ -1,3 +1,5 @@
+import { basicAuthorization } from "./oauth.js";
+
 export type RuntimeReadinessOAuthConfig = {
   name: string;
   clientId: string;
@@ -113,8 +115,6 @@ async function readJson(response: Response, label: string): Promise<unknown> {
 async function issueToken(fetchImpl: typeof fetch, credential: RuntimeReadinessOAuthConfig): Promise<string> {
   const body = new URLSearchParams({
     grant_type: "client_credentials",
-    client_id: credential.clientId,
-    client_secret: credential.clientSecret,
     ...(credential.audience ? { audience: credential.audience } : {}),
     ...(credential.scopes?.length ? { scope: credential.scopes.join(" ") } : {}),
   });
@@ -123,7 +123,10 @@ async function issueToken(fetchImpl: typeof fetch, credential: RuntimeReadinessO
     normalizeEndpoint("token URL", credential.tokenUrl),
     {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: basicAuthorization(credential.clientId, credential.clientSecret),
+      },
       body,
     },
     `credential "${credential.name}" token issuance`,

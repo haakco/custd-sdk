@@ -7,13 +7,11 @@ beforeEach(() => {
 
 describe("checkRuntimeReadiness", () => {
   it("checks health, named credentials, tenant binding, and the active schema", async () => {
-    const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (input: string | URL, _init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith("/health")) return new Response("ok");
       if (url.endsWith("/oauth2/token")) {
-        const body = String(init?.body ?? "");
-        const clientId = new URLSearchParams(body).get("client_id");
-        return new Response(JSON.stringify({ access_token: `${clientId}-token` }), {
+        return new Response(JSON.stringify({ access_token: "opaque-token" }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
@@ -73,6 +71,15 @@ describe("checkRuntimeReadiness", () => {
       ["http://127.0.0.1:8087/api/v1/account/me", "GET"],
       ["http://127.0.0.1:8087/api/v1/schemas/card-review/versions", "GET"],
     ]);
+    const tokenCalls = fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/oauth2/token"));
+    for (const [, init] of tokenCalls) {
+      expect(init?.headers).toMatchObject({
+        Authorization: expect.stringMatching(/^Basic [A-Za-z0-9+/]+=*$/u),
+      });
+      const body = new URLSearchParams(String(init?.body ?? ""));
+      expect(body.has("client_id")).toBe(false);
+      expect(body.has("client_secret")).toBe(false);
+    }
   });
 
   it("uses an explicit schema URL when the registry is separate", async () => {

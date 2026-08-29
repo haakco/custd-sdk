@@ -1,3 +1,4 @@
+import { basicAuthorization } from "./oauth.js";
 function nonEmpty(value) {
     return typeof value === "string" && value.trim() !== "";
 }
@@ -67,14 +68,15 @@ async function readJson(response, label) {
 async function issueToken(fetchImpl, credential) {
     const body = new URLSearchParams({
         grant_type: "client_credentials",
-        client_id: credential.clientId,
-        client_secret: credential.clientSecret,
         ...(credential.audience ? { audience: credential.audience } : {}),
         ...(credential.scopes?.length ? { scope: credential.scopes.join(" ") } : {}),
     });
     const response = await requireOk(fetchImpl, normalizeEndpoint("token URL", credential.tokenUrl), {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: basicAuthorization(credential.clientId, credential.clientSecret),
+        },
         body,
     }, `credential "${credential.name}" token issuance`);
     const token = await readJson(response, `credential "${credential.name}" token issuance`);

@@ -1,3 +1,4 @@
+import base64
 import gzip
 import json
 import os
@@ -1439,11 +1440,19 @@ def assert_secure_or_local_http(raw_url: str, field: str) -> None:
 
 
 def fetch_oauth_token(token_url: str, form: dict[str, Any], timeout: float) -> dict[str, Any]:
-    body = urllib.parse.urlencode({key: value for key, value in form.items() if value}).encode("utf-8")
+    client_id = str(form.get("client_id", ""))
+    client_secret = str(form.get("client_secret", ""))
+    basic = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode("ascii")
+    body = urllib.parse.urlencode({
+        key: value for key, value in form.items() if value and key not in {"client_id", "client_secret"}
+    }).encode("utf-8")
     request = urllib.request.Request(
         token_url,
         data=body,
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": f"Basic {basic}",
+        },
         method="POST",
     )
     try:

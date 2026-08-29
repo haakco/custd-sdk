@@ -959,11 +959,17 @@ final class CustdClient
         }
 
         $ch = curl_init((string) $oauth["token_url"]);
+        $form = self::oauthForm($oauth);
+        $clientId = (string) ($form["client_id"] ?? "");
+        $clientSecret = (string) ($form["client_secret"] ?? "");
+        unset($form["client_id"], $form["client_secret"]);
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
+            CURLOPT_USERPWD => $clientId . ":" . $clientSecret,
             CURLOPT_HTTPHEADER => ["Content-Type: application/x-www-form-urlencoded"],
-            CURLOPT_POSTFIELDS => http_build_query(self::oauthForm($oauth)),
+            CURLOPT_POSTFIELDS => http_build_query($form),
             CURLOPT_TIMEOUT => 15,
         ]);
         $response = curl_exec($ch);

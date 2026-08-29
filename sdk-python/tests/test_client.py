@@ -1,8 +1,11 @@
+import http.server
 import json
 import pathlib
 import sys
 import tempfile
+import threading
 import unittest
+import urllib.parse
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
@@ -18,6 +21,7 @@ from custd import (
     redacted_provisioned_producer,
     validate_event,
 )
+from custd.client import fetch_oauth_token
 
 FIXTURE_ROOT = pathlib.Path(__file__).resolve().parents[2] / "contract-fixtures"
 
@@ -340,6 +344,40 @@ class CustdClientTest(unittest.TestCase):
         self.assertEqual("http://localhost:4444/oauth2/token", token_requests[0]["url"])
         self.assertEqual("client_credentials", token_requests[0]["form"]["grant_type"])
         self.assertEqual("Bearer oauth-token", transport.calls[0]["headers"]["Authorization"])
+
+    def test_default_oauth_transport_uses_basic_auth(self):
+        captured = {}
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802
+                captured["authorization"] = self.headers.get("Authorization")
+                length = int(self.headers.get("Content-Length", "0"))
+                captured["body"] = self.rfile.read(length).decode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"access_token":"token"}')
+
+            def log_message(self, *_args):
+                return
+
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            result = fetch_oauth_token(
+                f"http://127.0.0.1:{server.server_port}/oauth2/token",
+                {"client_id": "client", "client_secret": "secret", "scope": "events.write"},
+                2,
+            )
+        finally:
+            server.shutdown()
+            thread.join()
+            server.server_close()
+
+        self.assertEqual({"access_token": "token"}, result)
+        self.assertEqual("Basic Y2xpZW50OnNlY3JldA==", captured["authorization"])
+        self.assertEqual("scope=events.write", urllib.parse.unquote(captured["body"]))
 
     def test_rejects_plaintext_non_local_urls(self):
         with self.assertRaisesRegex(ValueError, "base_url must use https"):
