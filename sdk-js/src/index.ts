@@ -379,7 +379,12 @@ export class CustdRequestError extends Error {
   }
 
   get unavailable(): boolean {
-    return this.status === null || this.status === 429 || (this.status !== null && this.status >= 500);
+    return (
+      this.code === "oauth_unavailable" ||
+      this.status === null ||
+      this.status === 429 ||
+      (this.status !== null && this.status >= 500)
+    );
   }
 }
 

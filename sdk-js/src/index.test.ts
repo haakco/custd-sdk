@@ -530,6 +530,37 @@ describe("CustdClient", () => {
     expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe("Bearer oauth-token");
   });
 
+  it("classifies OAuth token rejection as unavailable without parsing its response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("invalid client", { status: 401 }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      oauth: {
+        clientId: "producer",
+        clientSecret: "secret",
+        tokenUrl: "http://localhost:4444/oauth2/token",
+        audience: "custd",
+        scopes: ["reporting.read"],
+      },
+      retry: { maxAttempts: 1 },
+    });
+
+    const error = await client.reporting.query({ template: "activity", metrics: ["events"], rangeDays: 7 }).then(
+      () => null,
+      (reason: unknown) => reason,
+    );
+
+    expect(error).toBeInstanceOf(CustdRequestError);
+    expect(error).toMatchObject({
+      status: 401,
+      code: "oauth_unavailable",
+      retryability: "none",
+      nextAction: { action: "none" },
+      unavailable: true,
+    });
+  });
+
   it("rejects plaintext non-local URLs", () => {
     expect(
       () =>

@@ -48,7 +48,10 @@ export class CustdRequestError extends Error {
         this.cause = options?.cause;
     }
     get unavailable() {
-        return this.status === null || this.status === 429 || (this.status !== null && this.status >= 500);
+        return (this.code === "oauth_unavailable" ||
+            this.status === null ||
+            this.status === 429 ||
+            (this.status !== null && this.status >= 500));
     }
 }
 function publicAdminSite(site) {
