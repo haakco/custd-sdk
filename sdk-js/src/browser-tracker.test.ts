@@ -38,6 +38,25 @@ describe("createBrowserTracker", () => {
     expect(sent.context.page?.title).toBe("Start");
   });
 
+  it("keeps browser page context free of full URLs, referrers, queries, and identifiers", async () => {
+    const fetchMock = mockFetch();
+    document.title = "Course dashboard";
+    (document as unknown as { referrer: string }).referrer = "https://source.example.test/claim?token=referrer-secret";
+    window.history.replaceState(
+      {},
+      "",
+      "https://example.com/courses/123e4567-e89b-12d3-a456-426614174000/lessons/42?token=url-secret",
+    );
+
+    const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });
+    await tracker.trackPageView();
+
+    const page = eventFromFetch(fetchMock).context.page;
+    expect(page).toEqual({ path: "/courses/[redacted]/lessons/[redacted]", title: "Course dashboard" });
+    expect(JSON.stringify(page)).not.toContain("url-secret");
+    expect(JSON.stringify(page)).not.toContain("referrer-secret");
+  });
+
   it("stores extended identity only after consent is granted", async () => {
     const fetchMock = mockFetch();
     const tracker = createBrowserTracker({

@@ -45,6 +45,10 @@ export type BrowserSiteConfig = {
 
 const defaultSchemaVersion = "1.0.0";
 const maxQueuedGlobalCalls = 1000;
+const redactedPathSegment = "[redacted]";
+const safePathSegment = /^[A-Za-z][A-Za-z0-9._~-]{0,63}$/u;
+const uuidPathSegment = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const opaquePathSegment = /^[A-Za-z0-9_-]{24,}$/u;
 
 export function createBrowserTracker(config: BrowserTrackerConfig): BrowserTracker {
   return new DefaultBrowserTracker(config);
@@ -338,15 +342,42 @@ async function fetchSiteConfig(baseUrl: string, siteUuid: string): Promise<Brows
 function browserContext(): EventEnvelope["context"] {
   return {
     page: {
-      url: window.location.href,
-      path: window.location.pathname,
+      path: sanitizeBrowserPath(window.location.pathname),
       title: document.title,
-      referrer: document.referrer,
     },
     device: { type: deviceType() },
     locale: navigator.language,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
+}
+
+function sanitizeBrowserPath(pathname: string): string {
+  const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  const segments = path.split("/").map(sanitizePathSegment);
+  return segments.join("/") || "/";
+}
+
+function sanitizePathSegment(segment: string): string {
+  if (segment === "") {
+    return "";
+  }
+
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(segment);
+  } catch {
+    return redactedPathSegment;
+  }
+
+  if (
+    !safePathSegment.test(decoded) ||
+    uuidPathSegment.test(decoded) ||
+    /^\d+$/u.test(decoded) ||
+    opaquePathSegment.test(decoded)
+  ) {
+    return redactedPathSegment;
+  }
+  return decoded;
 }
 
 function collectorHeaders(writeKey: string): Record<string, string> {

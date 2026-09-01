@@ -70,7 +70,7 @@ await client.track({
   anonymousId: "...",
   companySlug: "acme",
   context: {
-    page: { url: "https://example.com" },
+    page: { path: "/start" },
     device: { type: "desktop" },
     locale: "en-US",
     timezone: "UTC",
@@ -186,7 +186,7 @@ list.
 ```html
 <script
   type="module"
-  src="https://custd.example.com/custd-sdk/browser-script.js"
+  src="https://custd.example.com/custd-sdk/browser-script-<content-hash>.js"
   data-site-uuid="site-uuid"
   data-write-key="site_pk_public_write_key"
 ></script>
