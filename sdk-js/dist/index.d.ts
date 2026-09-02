@@ -493,7 +493,7 @@ export type PackDimension = {
     key: string;
     label: string;
     description?: string;
-    selector: string;
+    selector?: string;
     allowedValuePattern?: string;
     fallback?: string;
     maxCardinality?: number;

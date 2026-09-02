@@ -86,6 +86,31 @@ describe("client setup reporting-pack manifests", () => {
     expect(() => validateClientSetupManifest({ reportingPacks: [{ definition: reportingPack }] })).not.toThrow();
   });
 
+  it("accepts Custd's selector-less standard environment dimension", () => {
+    const environmentPack = {
+      ...reportingPack,
+      dimensions: [{ key: "environment", label: "Environment" }],
+      templates: [
+        {
+          ...reportingPack.templates[0],
+          allowedDimensions: ["environment"],
+          allowedFilters: [{ dimension: "environment", operators: ["eq", "in"] }],
+        },
+      ],
+    };
+
+    expect(() =>
+      validateClientSetupManifest({ reportingPacks: [{ definition: environmentPack as PackDefinition }] }),
+    ).not.toThrow();
+    expect(() =>
+      validateClientSetupManifest({
+        reportingPacks: [
+          { definition: { ...environmentPack, dimensions: [{ key: "region", label: "Region" }] } as PackDefinition },
+        ],
+      }),
+    ).toThrow("selector");
+  });
+
   it("rejects reporting packs without required core fields or templates", () => {
     const requiredFields: Array<keyof PackDefinition> = ["owner", "version", "metrics", "templates", "trust", "proof"];
 

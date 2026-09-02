@@ -254,9 +254,11 @@ function validateSetupPackDimensions(dimensions: unknown, field: string): void {
   if (!Array.isArray(dimensions)) throw new Error(`custd: ${field} must be an array`);
   dimensions.forEach((entry, index) => {
     const dimension = setupRecord(entry, `${field}[${index}]`);
-    setupString(dimension.key, `${field}[${index}].key`);
+    const key = setupString(dimension.key, `${field}[${index}].key`);
     setupString(dimension.label, `${field}[${index}].label`);
-    setupString(dimension.selector, `${field}[${index}].selector`);
+    if (key !== "environment" || dimension.selector !== undefined) {
+      setupString(dimension.selector, `${field}[${index}].selector`);
+    }
   });
 }
 
