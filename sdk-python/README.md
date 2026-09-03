@@ -195,5 +195,32 @@ sched = admin.offboarding.schedule({
 })
 ```
 
+## Time-plan administration
+
+`client.admin.time_plans` exposes typed `TimePlan*` dataclasses for plan
+drafts/revisions, previews, publication and retirement, runs, commands,
+history, and annotation correction/redaction. Every call takes a company slug;
+the server remains authoritative for allocations and command results.
+
+```python
+from custd import TimePlanDefinition, TimePlanDefinitionBlock, TimePlanDraftRequest
+
+definition = TimePlanDefinition(
+    horizonMs=60_000,
+    blocks=[TimePlanDefinitionBlock(
+        uuid="block-1", semanticKey="focus", title="Focus", basis="absolute"
+    )],
+)
+
+preview = client.admin.time_plans.preview("acme", definition)
+plan = client.admin.time_plans.create(
+    "acme", TimePlanDraftRequest(planKey="focus", name="Focus", definition=definition)
+)
+```
+
+The typed clients are available from the exact development commit documented
+in the [root README](../README.md); wait for a released SDK tag containing that
+commit before updating a consumer.
+
 SDKs never log signed URLs, raw personal data, export bytes, or
 subject identifiers outside opaque IDs.

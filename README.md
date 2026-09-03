@@ -191,6 +191,47 @@ credential creation:
 custd-sdk-setup --register-schemas ./infra/custd/schemas ...
 ```
 
+## Time-plan Admin Helpers
+
+The Go, TypeScript, Python, and PHP SDKs expose the same tenant-scoped,
+typed time-plan admin client. It covers plan drafts and revisions, allocation
+previews, publishing and retirement, run creation and history, commands, and
+annotation create/list/correct/redact operations. Every call carries the
+company slug; the server remains authoritative for allocations and command
+results.
+
+Use the language-specific entry point:
+
+- Go: `client.Admin.TimePlans` with `TimePlan*` structs.
+- TypeScript: `client.admin.timePlans` with exported `TimePlan*` types.
+- Python: `client.admin.time_plans` with `TimePlan*` dataclasses.
+- PHP: `$client->adminTimePlans()` with `HaakCo\Custd\Admin\TimePlan\*` DTOs.
+
+For example, the typed TypeScript client validates the definition before it
+crosses the HTTP boundary:
+
+```ts
+import { type TimePlanDefinition } from "@haakco/custd-sdk";
+
+const definition: TimePlanDefinition = {
+  horizonMs: 60_000,
+  blocks: [{ uuid: "block-1", semanticKey: "focus", title: "Focus", basis: "absolute" }],
+};
+
+const plan = await client.admin.timePlans.create("acme", {
+  planKey: "focus",
+  name: "Focus",
+  definition,
+});
+const preview = await client.admin.timePlans.preview("acme", definition);
+```
+
+These helpers are present at commit
+`2f051267d1655d175bd848dc3e53b0ede0048dbd`, after the published `v1.8.24`
+tag. The current package version remains `1.8.24`; use a released version that
+contains this commit when one is published. The exact SHA is for source
+checkout or development verification, not a published mirror release.
+
 ## Feature Parity
 
 | Feature | Go | TypeScript | Python | PHP | Laravel | WordPress |
@@ -203,6 +244,7 @@ custd-sdk-setup --register-schemas ./infra/custd/schemas ...
 | Retry + gzip batch compression | yes | yes | yes | yes | via PHP SDK | via PHP SDK defaults |
 | RFC 9457 problem parsing | yes | yes | message rendering | yes | via PHP SDK | via PHP SDK |
 | Admin tenants/OAuth/sites/schemas | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
+| Typed time-plan admin clients | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Dogfood event helper | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Browser tracker | no, not a browser runtime | yes | no, not a browser runtime | no, not a browser runtime | no, use JS tracker | install/use JS tracker |
 | Awthy audit/redaction DTOs | no, not generic | no, not generic | no, not generic | yes | via PHP SDK | out of scope |

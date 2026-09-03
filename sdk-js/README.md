@@ -375,5 +375,32 @@ const request = await admin.offboarding.requestOffboarding(
 );
 ```
 
+## Time-plan administration
+
+`client.admin.timePlans` exposes typed `TimePlan*` types for plan
+drafts/revisions, previews, publication and retirement, runs, commands,
+history, and annotation correction/redaction. Every call takes a company slug;
+the server remains authoritative for allocations and command results.
+
+```ts
+import { type TimePlanDefinition } from "@haakco/custd-sdk";
+
+const definition: TimePlanDefinition = {
+  horizonMs: 60_000,
+  blocks: [{ uuid: "block-1", semanticKey: "focus", title: "Focus", basis: "absolute" }],
+};
+
+const preview = await client.admin.timePlans.preview("acme", definition);
+const plan = await client.admin.timePlans.create("acme", {
+  planKey: "focus",
+  name: "Focus",
+  definition,
+});
+```
+
+The typed clients are available from the exact development commit documented
+in the [root README](../README.md); wait for a released SDK tag containing that
+commit before updating a consumer.
+
 SDKs never log signed URLs, raw personal data, export bytes, or
 subject identifiers outside opaque IDs.

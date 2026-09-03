@@ -313,5 +313,34 @@ $sched = $admin->getOffboarding()->schedule([
 ]);
 ```
 
+## Time-plan administration
+
+`$client->adminTimePlans()` exposes typed, readonly `TimePlan` DTO classes for
+plan drafts/revisions, previews, publication and retirement, runs, commands,
+history, and annotation correction/redaction. Every call takes a company slug;
+the server remains authoritative for allocations and command results.
+
+```php
+use HaakCo\Custd\Admin\TimePlan\Definition;
+use HaakCo\Custd\Admin\TimePlan\DefinitionBlock;
+use HaakCo\Custd\Admin\TimePlan\DraftRequest;
+
+$definition = new Definition(
+    horizonMs: 60_000,
+    blocks: [new DefinitionBlock(
+        uuid: "block-1", semanticKey: "focus", title: "Focus", basis: "absolute",
+    )],
+);
+
+$preview = $client->adminTimePlans()->preview("acme", $definition);
+$plan = $client->adminTimePlans()->create("acme", new DraftRequest(
+    planKey: "focus", name: "Focus", definition: $definition,
+));
+```
+
+The typed clients are available from the exact development commit documented
+in the [root README](../README.md); wait for a released SDK tag containing that
+commit before updating a consumer.
+
 SDKs never log signed URLs, raw personal data, export bytes, or
 subject identifiers outside opaque IDs.
