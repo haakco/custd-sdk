@@ -168,6 +168,11 @@ final class CustdClient
         return new Admin\DataLabelClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    public function adminTimePlans(): Admin\TimePlanClient
+    {
+        return new Admin\TimePlanClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
     public function provisioning(): Provisioning\Client
     {
         return new Provisioning\Client($this->baseUrl, $this->authToken(), $this->adminHttpClient);

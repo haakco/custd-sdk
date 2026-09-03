@@ -6,6 +6,7 @@ import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+import { TimePlanAdminClient } from "./admin-timeplans.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
 import { basicAuthorization } from "./oauth.js";
 export { ClientSetupClient, validateClientSetupManifest, } from "./admin-client-setup.js";
@@ -16,6 +17,7 @@ export { PrivacyErasureClient, PrivacyErasureError, } from "./admin-privacy-eras
 export { RetentionClient, } from "./admin-retention.js";
 export { SubjectExportClient, } from "./admin-subject-exports.js";
 export { TenantStorageClient, } from "./admin-tenant-storage.js";
+export { TimePlanAdminClient, validateTimePlanDefinition, } from "./admin-timeplans.js";
 export { BackendLifecycleClient, createVerifiedOffboardingExportReceiver, } from "./backend-lifecycle.js";
 export { classifyReportingData, getReportingViewState, reportingQueryKey, } from "./reporting-state.js";
 export { checkRuntimeReadiness, } from "./runtime-readiness.js";
@@ -807,6 +809,7 @@ class AdminNamespace {
         this.tenantStorage = new TenantStorageClient(nonAdminRequest);
         this.subjectExports = new SubjectExportClient(request);
         this.privacyErasures = new PrivacyErasureClient(request);
+        this.timePlans = new TimePlanAdminClient(request);
     }
 }
 class ProvisioningNamespace {

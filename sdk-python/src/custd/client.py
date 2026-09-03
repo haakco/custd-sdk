@@ -572,6 +572,7 @@ class AdminClient:
         from .admin_retention import RetentionClient
         from .admin_subject_exports import SubjectExportClient
         from .admin_tenant_storage import TenantStorageClient
+        from .admin_timeplans import TimePlanAdminClient
 
         self.tenant_storage = TenantStorageClient(self)
         self.subject_exports = SubjectExportClient(self)
@@ -580,6 +581,7 @@ class AdminClient:
         self.offboarding = OffboardingClient(self)
         self.predictions = PredictionAdminClient(self)
         self.data_labels = DataLabelAdminClient(self)
+        self.time_plans = TimePlanAdminClient(self)
 
     def request(
         self,

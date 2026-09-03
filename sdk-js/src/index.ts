@@ -6,6 +6,7 @@ import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+import { TimePlanAdminClient } from "./admin-timeplans.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
 import { basicAuthorization } from "./oauth.js";
 
@@ -127,6 +128,41 @@ export {
   type TenantStorageListResponse,
   type TenantStorageLocation,
 } from "./admin-tenant-storage.js";
+export {
+  type TimePlan,
+  TimePlanAdminClient,
+  type TimePlanAllocation,
+  type TimePlanAllocationBasis,
+  type TimePlanAllocationPreview,
+  type TimePlanAnnotation,
+  type TimePlanAnnotationField,
+  type TimePlanAnnotationInput,
+  type TimePlanAnnotationListResponse,
+  type TimePlanAnnotationSchema,
+  type TimePlanAnnotationType,
+  type TimePlanCalculationChange,
+  type TimePlanCalculationReceipt,
+  type TimePlanCommandRequest,
+  type TimePlanCommandResult,
+  type TimePlanCorrectedCommand,
+  type TimePlanCreatedRun,
+  type TimePlanDefinition,
+  type TimePlanDefinitionBlock,
+  type TimePlanDraftRequest,
+  type TimePlanDraftRevisionRequest,
+  type TimePlanHistoryResponse,
+  type TimePlanListResponse,
+  type TimePlanRedactionRequest,
+  type TimePlanRevisionRequest,
+  type TimePlanRun,
+  type TimePlanRunBlock,
+  type TimePlanRunRequest,
+  type TimePlanThresholdCue,
+  type TimePlanThresholdCueSeverity,
+  type TimePlanTransition,
+  type TimePlanVersion,
+  validateTimePlanDefinition,
+} from "./admin-timeplans.js";
 export {
   BackendLifecycleClient,
   type BackendLifecycleDownloader,
@@ -2128,6 +2164,7 @@ class AdminNamespace {
   readonly tenantStorage: TenantStorageClient;
   readonly subjectExports: SubjectExportClient;
   readonly privacyErasures: PrivacyErasureClient;
+  readonly timePlans: TimePlanAdminClient;
 
   constructor(
     request: AdminRequester,
@@ -2152,6 +2189,7 @@ class AdminNamespace {
     this.tenantStorage = new TenantStorageClient(nonAdminRequest);
     this.subjectExports = new SubjectExportClient(request);
     this.privacyErasures = new PrivacyErasureClient(request);
+    this.timePlans = new TimePlanAdminClient(request);
   }
 }
 

@@ -5,6 +5,14 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\CustdClient;
+use HaakCo\Custd\Admin\TimePlanClient;
+use HaakCo\Custd\Admin\TimePlan\AnnotationSchema;
+use HaakCo\Custd\Admin\TimePlan\AnnotationInput;
+use HaakCo\Custd\Admin\TimePlan\CommandRequest;
+use HaakCo\Custd\Admin\TimePlan\Definition;
+use HaakCo\Custd\Admin\TimePlan\RunRequest;
+use HaakCo\Custd\Admin\TimePlan\RedactionRequest;
+use HaakCo\Custd\Admin\TimePlan\ThresholdCue;
 use PHPUnit\Framework\TestCase;
 
 final class AdminClientTest extends TestCase
@@ -58,6 +66,126 @@ final class AdminClientTest extends TestCase
             ["PUT", "/api/v1/admin/event-types/page%2Fview/data-label-defaults/definition%2F1"], ["DELETE", "/api/v1/admin/event-types/page%2Fview/data-label-defaults/definition%2F1"],
             ["PUT", "/api/v1/admin/event-schemas/schema%2F1/field-data-labels"], ["DELETE", "/api/v1/admin/data-label-assignments/schema-fields/assignment%2F1"],
         ], array_map(static fn (array $call): array => [$call[0], $call[1]], $calls));
+    }
+
+    public function testTimePlanAdminRoutesKeepTenantScopeAndTypedLifecyclePaths(): void
+    {
+        $responses = [
+            ["status" => 200, "body" => '{"plans":[{"uuid":"plan-1","planKey":"focus","name":"Focus","description":"","status":"ready","draftRevision":1,"definition":{"horizonMs":60000,"redistributionMode":"proportional_current","autoAdvance":false,"blocks":[]},"updatedAt":"2026-09-02T12:00:00Z"}]}'],
+            ["status" => 200, "body" => '{"transitions":[{"uuid":"transition-1","runUuid":"run-1","streamVersion":1,"commandId":"command-1","type":"start_run","actorKind":"human","actorRef":"user-1","serverReceivedAt":"2026-09-02T12:00:00Z","currentStatus":"running","allocatorVersion":"largest-remainder.v1","schemaVersion":"time-plan.transition.v1","receipt":{"allocatorVersion":"","reason":"","summary":"","source":[],"result":[],"changes":[]}}]}'],
+            ["status" => 201, "body" => '{"uuid":"annotation-1","runUuid":"run-1","type":"note","recordedAt":"2026-09-02T12:00:00Z","actorKind":"human","actorRef":"user-1"}'],
+            ["status" => 204, "body" => ""],
+        ];
+        $calls = [];
+        $client = new CustdClient("http://localhost:8080", "admin-token", [
+            "admin_http_client" => function (string $method, string $url, ?array $body) use (&$responses, &$calls): array {
+                $calls[] = [$method, $url, $body];
+                return array_shift($responses);
+            },
+        ]);
+
+        $plans = $client->adminTimePlans()->list("acme", 25);
+        $history = $client->adminTimePlans()->history("acme", "run-1", 10);
+        $annotation = $client->adminTimePlans()->createAnnotation("acme", "run-1", new AnnotationInput("note", text: "hello"));
+        $client->adminTimePlans()->redactAnnotation(
+            "acme",
+            "run-1",
+            "annotation-1",
+            new RedactionRequest("privacy request"),
+        );
+
+        $this->assertSame("plan-1", $plans->plans[0]->uuid);
+        $this->assertSame("start_run", $history->transitions[0]->type);
+        $this->assertSame("annotation-1", $annotation->uuid);
+        $this->assertSame([
+            ["GET", "http://localhost:8080/api/v1/admin/time-plans?companySlug=acme&limit=25"],
+            ["GET", "http://localhost:8080/api/v1/admin/time-plans/runs/run-1/history?companySlug=acme&limit=10"],
+            ["POST", "http://localhost:8080/api/v1/admin/time-plans/runs/run-1/annotations?companySlug=acme"],
+            ["POST", "http://localhost:8080/api/v1/admin/time-plans/runs/run-1/annotations/annotation-1/redact?companySlug=acme"],
+        ], array_map(static fn (array $call): array => [$call[0], $call[1]], $calls));
+    }
+
+    public function testTimePlanListRejectsLegacyBareArrayResponse(): void
+    {
+        $client = new CustdClient("http://localhost:8080", "admin-token", [
+            "admin_http_client" => static fn (): array => [
+                "status" => 200,
+                "body" => '[{"uuid":"plan-1"}]',
+            ],
+        ]);
+
+        $this->expectException(\UnexpectedValueException::class);
+        $client->adminTimePlans()->list("acme");
+    }
+
+    public function testTimePlanCollectionReadsRejectMissingResponseBody(): void
+    {
+        $readers = [
+            static fn (TimePlanClient $client): object => $client->list("acme"),
+            static fn (TimePlanClient $client): object => $client->history("acme", "run-1"),
+            static fn (TimePlanClient $client): object => $client->listAnnotations("acme", "run-1"),
+        ];
+
+        foreach ($readers as $reader) {
+            $client = new CustdClient("http://localhost:8080", "admin-token", [
+                "admin_http_client" => static fn (): array => ["status" => 200, "body" => ""],
+            ]);
+            $thrown = false;
+            try {
+                $reader($client->adminTimePlans());
+            } catch (\UnexpectedValueException) {
+                $thrown = true;
+            }
+            $this->assertTrue($thrown, "missing collection response body must be rejected");
+        }
+    }
+
+    public function testTimePlanRequestDtosOmitUnsetOptionalTimestamps(): void
+    {
+        $run = (new RunRequest("plan-1"))->toPayload();
+        $command = (new CommandRequest("command-1", "retry-1", 0, "start_run"))->toPayload();
+        $annotation = (new AnnotationInput("note", text: "hello"))->toPayload();
+
+        $this->assertSame(["planUuid" => "plan-1"], $run);
+        $this->assertArrayNotHasKey("clientOccurredAt", $command);
+        $this->assertArrayNotHasKey("boundaryEndsAt", $command);
+        $this->assertArrayNotHasKey("scheduledStartsAt", $command);
+        $this->assertArrayNotHasKey("scheduledEndsAt", $command);
+        $this->assertArrayNotHasKey("dueDate", $annotation);
+    }
+
+    public function testTimePlanDefinitionUsesTypedNestedDtos(): void
+    {
+        $definition = new Definition(
+            horizonMs: 60000,
+            redistributionMode: "proportional_current",
+            annotationSchema: new AnnotationSchema(["note"], ["text"]),
+            thresholdCues: [new ThresholdCue(remainingMs: 5000, severity: "warning")],
+            blocks: [],
+        );
+
+        $this->assertSame([
+            "horizonMs" => 60000,
+            "defaultStartsAt" => null,
+            "defaultEndsAt" => null,
+            "redistributionMode" => "proportional_current",
+            "autoAdvance" => false,
+            "annotationSchema" => ["allowedTypes" => ["note"], "fields" => ["text"]],
+            "thresholdCues" => [["remainingMs" => 5000, "severity" => "warning"]],
+            "blocks" => [],
+        ], $definition->toPayload());
+    }
+
+    public function testTimePlanDefinitionRejectsDuplicateThresholdTriggers(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new Definition(
+            horizonMs: 60000,
+            thresholdCues: [
+                new ThresholdCue(remainingMs: 5000, severity: "warning"),
+                new ThresholdCue(remainingMs: 5000, severity: "critical"),
+            ],
+        );
     }
 
     public function testAdminTenantsCreateUsesAdminApi(): void
