@@ -28,6 +28,16 @@ class Transport:
 
 
 class TimePlanAdminClientTest(unittest.TestCase):
+    def test_correction_request_uses_transition_uuid(self):
+        payload = _body(
+            TimePlanCommandRequest(
+                "command-1", "correction-1", 1, "append_correction", supersedesTransitionUuid="transition-1"
+            )
+        )
+
+        self.assertEqual("transition-1", payload["supersedesTransitionUuid"])
+        self.assertNotIn("supersedesTransitionId", payload)
+
     def test_request_dtos_omit_unset_optional_timestamps(self):
         run_payload = _body(TimePlanRunRequest(planUuid="plan-1"))
         command_payload = _body(TimePlanCommandRequest("command-1", "retry-1", 0, "start_run"))

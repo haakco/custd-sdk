@@ -2,6 +2,27 @@ import { describe, expect, it, vi } from "vitest";
 import { CustdClient, type TimePlanThresholdCue, validateTimePlanDefinition } from "./index";
 
 describe("CustdClient time-plan admin", () => {
+  it("serializes correction targets by transition UUID", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ transitionUuid: "correction-1" }), { status: 200 }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token" });
+
+    await client.admin.timePlans.execute("acme", "run-1", {
+      commandId: "command-1",
+      idempotencyKey: "correction-1",
+      expectedVersion: 1,
+      type: "append_correction",
+      supersedesTransitionUuid: "transition-1",
+      corrected: { type: "complete_run", effectiveAt: "2026-09-02T12:01:00Z" },
+    });
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.supersedesTransitionUuid).toBe("transition-1");
+    expect(body.supersedesTransitionId).toBeUndefined();
+  });
+
   it("uses tenant-scoped lifecycle, history, and annotation routes", async () => {
     const fetchMock = vi
       .fn()

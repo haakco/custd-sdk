@@ -344,7 +344,7 @@ class TimePlanCommandRequest:
     scheduledEndsAt: str | None = None
     startPolicy: str = ""
     reason: str = ""
-    supersedesTransitionId: int | None = None
+    supersedesTransitionUuid: str | None = None
     corrected: TimePlanCorrectedCommand | None = None
 
     def __post_init__(self) -> None:

@@ -18,7 +18,7 @@ final readonly class CommandRequest implements Dto
         public ?string $scheduledEndsAt = null,
         public string $startPolicy = "",
         public string $reason = "",
-        public ?int $supersedesTransitionId = null,
+        public ?string $supersedesTransitionUuid = null,
         public ?CorrectedCommand $corrected = null,
     ) {
         if (trim($commandId) === "" || trim($idempotencyKey) === "" || trim($type) === "") {
@@ -35,7 +35,7 @@ final readonly class CommandRequest implements Dto
             "blockId" => $this->blockId, "clientOccurredAt" => $this->clientOccurredAt,
             "boundaryEndsAt" => $this->boundaryEndsAt, "scheduledStartsAt" => $this->scheduledStartsAt,
             "scheduledEndsAt" => $this->scheduledEndsAt, "startPolicy" => $this->startPolicy,
-            "reason" => $this->reason, "supersedesTransitionId" => $this->supersedesTransitionId,
+            "reason" => $this->reason, "supersedesTransitionUuid" => $this->supersedesTransitionUuid,
             "corrected" => $this->corrected?->toPayload(),
         ]);
     }

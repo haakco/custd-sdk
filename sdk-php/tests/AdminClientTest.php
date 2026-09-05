@@ -154,6 +154,16 @@ final class AdminClientTest extends TestCase
         $this->assertArrayNotHasKey("dueDate", $annotation);
     }
 
+    public function testTimePlanCorrectionRequestUsesTransitionUuid(): void
+    {
+        $command = (new CommandRequest(
+            "command-1", "correction-1", 1, "append_correction", supersedesTransitionUuid: "transition-1",
+        ))->toPayload();
+
+        $this->assertSame("transition-1", $command["supersedesTransitionUuid"]);
+        $this->assertArrayNotHasKey("supersedesTransitionId", $command);
+    }
+
     public function testTimePlanDefinitionUsesTypedNestedDtos(): void
     {
         $definition = new Definition(

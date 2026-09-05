@@ -137,7 +137,7 @@ export type TimePlanCommandRequest = {
     scheduledEndsAt?: string;
     startPolicy?: string;
     reason?: string;
-    supersedesTransitionId?: number;
+    supersedesTransitionUuid?: string;
     corrected?: TimePlanCorrectedCommand;
 };
 export type TimePlanCorrectedCommand = {
