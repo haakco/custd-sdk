@@ -57,6 +57,42 @@ describe("createBrowserTracker", () => {
     expect(JSON.stringify(page)).not.toContain("referrer-secret");
   });
 
+  it("records only a valid powered-by project slug from the landing query", async () => {
+    const fetchMock = mockFetch();
+    window.history.replaceState(
+      {},
+      "",
+      "https://example.com/?ref=awthy&source=powered-by&email=private%40example.com&token=secret",
+    );
+
+    const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });
+    await tracker.trackPageView();
+
+    const sent = eventFromFetch(fetchMock);
+    expect(sent.payload).toEqual({
+      siteUuid: "site-123",
+      utmSource: "awthy",
+      utmMedium: "powered-by",
+    });
+    expect(JSON.stringify(sent)).not.toContain("private@example.com");
+    expect(JSON.stringify(sent)).not.toContain("secret");
+  });
+
+  it.each([
+    "https://example.com/?ref=awthy&source=other",
+    "https://example.com/?ref=Awthy&source=powered-by",
+    "https://example.com/?ref=user%40example.com&source=powered-by",
+    "https://example.com/?ref=abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl&source=powered-by",
+  ])("does not record invalid powered-by attribution from %s", async (url) => {
+    const fetchMock = mockFetch();
+    window.history.replaceState({}, "", url);
+
+    const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });
+    await tracker.trackPageView();
+
+    expect(eventFromFetch(fetchMock).payload).toEqual({ siteUuid: "site-123" });
+  });
+
   it("stores extended identity only after consent is granted", async () => {
     const fetchMock = mockFetch();
     const tracker = createBrowserTracker({
