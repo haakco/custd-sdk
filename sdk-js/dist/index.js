@@ -214,22 +214,30 @@ export class CustdClient {
                 body,
                 signal: options?.signal,
             });
+            if (!response.ok) {
+                const requestError = await responseRequestError(response, "oauth_unavailable");
+                if (requestError.code !== "oauth_unavailable") {
+                    throw new CustdRequestError(requestError.status, "oauth_unavailable", requestError.retryability, requestError.nextAction, requestError.problem);
+                }
+                throw requestError;
+            }
+            const token = (await response.json());
+            if (typeof token?.access_token !== "string" || token.access_token.trim() === "") {
+                throw new Error("custd: token response missing access_token");
+            }
+            this.oauthToken = {
+                value: token.access_token,
+                expiresAtMs: now + Math.max(0, token.expires_in ?? 300) * 1000,
+            };
+            return token.access_token;
         }
         catch (error) {
-            throw transportRequestError(error);
+            if (error instanceof CustdRequestError)
+                throw error;
+            if (error instanceof Error && error.name === "AbortError")
+                throw error;
+            throw new CustdRequestError(response?.status ?? null, "oauth_unavailable", "bounded", { action: "retry", maxRetries: 1 }, undefined, { cause: error });
         }
-        if (!response.ok) {
-            throw await responseRequestError(response, "oauth_unavailable");
-        }
-        const token = (await response.json());
-        if (!token.access_token) {
-            throw new Error("custd: token response missing access_token");
-        }
-        this.oauthToken = {
-            value: token.access_token,
-            expiresAtMs: now + Math.max(0, token.expires_in ?? 300) * 1000,
-        };
-        return token.access_token;
     }
     async ingestEvent(event) {
         const prepared = prepareEvent(event);
