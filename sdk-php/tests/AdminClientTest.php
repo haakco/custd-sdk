@@ -157,7 +157,11 @@ final class AdminClientTest extends TestCase
     public function testTimePlanCorrectionRequestUsesTransitionUuid(): void
     {
         $command = (new CommandRequest(
-            "command-1", "correction-1", 1, "append_correction", supersedesTransitionUuid: "transition-1",
+            "command-1",
+            "correction-1",
+            1,
+            "append_correction",
+            supersedesTransitionUuid: "transition-1",
         ))->toPayload();
 
         $this->assertSame("transition-1", $command["supersedesTransitionUuid"]);
