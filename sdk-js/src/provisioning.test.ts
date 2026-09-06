@@ -22,7 +22,7 @@ describe("CustdClient provisioning", () => {
             clientSecret: "once",
             companySlug: "agency-store-001",
             producerSlug: "webhook",
-            scopes: ["reporting:read"],
+            scopes: ["reporting:read", "reporting:subject-insight"],
           }),
           { status: 201, headers: { "Content-Type": "application/json" } },
         ),
@@ -40,7 +40,7 @@ describe("CustdClient provisioning", () => {
     const created = await client.provisioning.producers.provision({
       companySlug: "agency-store-001",
       producerSlug: "webhook",
-      scopeTemplate: "managed-audit-reporting-read",
+      scopeTemplate: "managed-audit-reporting-subject-insight",
     });
 
     const tokenBody = new URLSearchParams(String(fetchMock.mock.calls[0][1]?.body ?? ""));
@@ -56,7 +56,10 @@ describe("CustdClient provisioning", () => {
     expect(tokenBody.get("scope")).toBe("admin producers.provision");
     expect(fetchMock.mock.calls[1][0]).toBe("https://custd.com/api/v1/producer-provisioning");
     expect(fetchMock.mock.calls[1][1]?.headers.Authorization).toBe("Bearer broker-token");
-    expect(created.scopes).toEqual(["reporting:read"]);
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body ?? "")).scopeTemplate).toBe(
+      "managed-audit-reporting-subject-insight",
+    );
+    expect(created.scopes).toEqual(["reporting:read", "reporting:subject-insight"]);
   });
 
   it("creates, lists, and revokes data spaces through public provisioning APIs", async () => {
