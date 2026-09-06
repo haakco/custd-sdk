@@ -132,7 +132,7 @@ export type ProducerProvisionCreate = {
     displayName?: string;
     environment?: string;
     scopes?: string[];
-    scopeTemplate?: "events" | "schemas" | "managed-audit" | "managed-audit-reporting-read";
+    scopeTemplate?: "events" | "schemas" | "managed-audit" | "managed-audit-reporting-read" | "managed-audit-reporting-subject-insight";
     metadata?: Record<string, string>;
 };
 export type ProducerProvisionPublicClient = {
