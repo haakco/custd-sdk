@@ -1428,7 +1428,7 @@ export class CustdClient {
       body.set("scope", config.scopes.join(" "));
     }
 
-    let response: Response;
+    let response: Response | undefined;
     try {
       response = await this.fetchImpl(config.tokenUrl, {
         method: "POST",
@@ -1439,21 +1439,40 @@ export class CustdClient {
         body,
         signal: options?.signal,
       });
+      if (!response.ok) {
+        const requestError = await responseRequestError(response, "oauth_unavailable");
+        if (requestError.code !== "oauth_unavailable") {
+          throw new CustdRequestError(
+            requestError.status,
+            "oauth_unavailable",
+            requestError.retryability,
+            requestError.nextAction,
+            requestError.problem,
+          );
+        }
+        throw requestError;
+      }
+      const token = (await response.json()) as { access_token?: unknown; expires_in?: number };
+      if (typeof token?.access_token !== "string" || token.access_token.trim() === "") {
+        throw new Error("custd: token response missing access_token");
+      }
+      this.oauthToken = {
+        value: token.access_token,
+        expiresAtMs: now + Math.max(0, token.expires_in ?? 300) * 1000,
+      };
+      return token.access_token;
     } catch (error) {
-      throw transportRequestError(error);
+      if (error instanceof CustdRequestError) throw error;
+      if (error instanceof Error && error.name === "AbortError") throw error;
+      throw new CustdRequestError(
+        response?.status ?? null,
+        "oauth_unavailable",
+        "bounded",
+        { action: "retry", maxRetries: 1 },
+        undefined,
+        { cause: error },
+      );
     }
-    if (!response.ok) {
-      throw await responseRequestError(response, "oauth_unavailable");
-    }
-    const token = (await response.json()) as { access_token?: string; expires_in?: number };
-    if (!token.access_token) {
-      throw new Error("custd: token response missing access_token");
-    }
-    this.oauthToken = {
-      value: token.access_token,
-      expiresAtMs: now + Math.max(0, token.expires_in ?? 300) * 1000,
-    };
-    return token.access_token;
   }
 
   async ingestEvent(event: EventEnvelope): Promise<Response> {

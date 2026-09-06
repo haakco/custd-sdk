@@ -567,6 +567,145 @@ describe("CustdClient", () => {
     });
   });
 
+  it("normalizes a structured OAuth token error code while preserving its problem", async () => {
+    const problem: ProblemDetails = {
+      type: "https://custd.example/problems/oauth",
+      title: "OAuth client rejected",
+      status: 401,
+      code: "invalid_client",
+      detail: "The OAuth client is not recognized",
+      traceId: "trace-123",
+      retryability: "none",
+      nextAction: { action: "none" },
+    };
+    const fetchMock = vi.fn().mockResolvedValue(problemResponse(problem));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      oauth: {
+        clientId: "producer",
+        clientSecret: "secret",
+        tokenUrl: "http://localhost:4444/oauth2/token",
+      },
+      retry: { maxAttempts: 1 },
+    });
+
+    const error = await client.reporting.query({ template: "activity", metrics: ["events"], rangeDays: 7 }).then(
+      () => null,
+      (reason: unknown) => reason as CustdRequestError,
+    );
+
+    expect(error).toBeInstanceOf(CustdRequestError);
+    expect(error).toMatchObject({ status: 401, code: "oauth_unavailable", problem });
+    expect((error as CustdRequestError).problem).toEqual(problem);
+  });
+
+  it("classifies OAuth token transport failures as unavailable", async () => {
+    const cause = new TypeError("fetch failed");
+    const fetchMock = vi.fn().mockRejectedValue(cause);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      oauth: {
+        clientId: "producer",
+        clientSecret: "secret",
+        tokenUrl: "http://localhost:4444/oauth2/token",
+      },
+      retry: { maxAttempts: 1 },
+    });
+
+    const error = await client.reporting.query({ template: "activity", metrics: ["events"], rangeDays: 7 }).then(
+      () => null,
+      (reason: unknown) => reason as CustdRequestError,
+    );
+
+    expect(error).toBeInstanceOf(CustdRequestError);
+    expect(error).toMatchObject({
+      status: null,
+      code: "oauth_unavailable",
+      retryability: "bounded",
+      nextAction: { action: "retry", maxRetries: 1 },
+      unavailable: true,
+    });
+    expect((error as CustdRequestError).cause).toBe(cause);
+  });
+
+  it("classifies malformed JSON from a successful OAuth token response as unavailable", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{", { status: 200 }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      oauth: {
+        clientId: "producer",
+        clientSecret: "secret",
+        tokenUrl: "http://localhost:4444/oauth2/token",
+      },
+      retry: { maxAttempts: 1 },
+    });
+
+    const error = await client.reporting.query({ template: "activity", metrics: ["events"], rangeDays: 7 }).then(
+      () => null,
+      (reason: unknown) => reason as CustdRequestError,
+    );
+
+    expect(error).toBeInstanceOf(CustdRequestError);
+    expect(error).toMatchObject({
+      status: 200,
+      code: "oauth_unavailable",
+      retryability: "bounded",
+      nextAction: { action: "retry", maxRetries: 1 },
+      unavailable: true,
+    });
+    expect((error as CustdRequestError).cause).toBeInstanceOf(Error);
+  });
+
+  it("classifies a blank OAuth access token as unavailable", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ access_token: "   " }), { status: 200 }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      oauth: {
+        clientId: "producer",
+        clientSecret: "secret",
+        tokenUrl: "http://localhost:4444/oauth2/token",
+      },
+      retry: { maxAttempts: 1 },
+    });
+
+    const error = await client.reporting.query({ template: "activity", metrics: ["events"], rangeDays: 7 }).then(
+      () => null,
+      (reason: unknown) => reason as CustdRequestError,
+    );
+
+    expect(error).toBeInstanceOf(CustdRequestError);
+    expect(error).toMatchObject({ status: 200, code: "oauth_unavailable", unavailable: true });
+    expect((error as CustdRequestError).cause).toMatchObject({ message: "custd: token response missing access_token" });
+  });
+
+  it("passes through an OAuth token AbortError unchanged", async () => {
+    const abort = new DOMException("aborted", "AbortError");
+    const fetchMock = vi.fn().mockRejectedValue(abort);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      oauth: {
+        clientId: "producer",
+        clientSecret: "secret",
+        tokenUrl: "http://localhost:4444/oauth2/token",
+      },
+      retry: { maxAttempts: 1 },
+    });
+
+    await expect(client.reporting.query({ template: "activity", metrics: ["events"], rangeDays: 7 })).rejects.toBe(
+      abort,
+    );
+  });
+
   it("rejects plaintext non-local URLs", () => {
     expect(
       () =>
