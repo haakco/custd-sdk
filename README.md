@@ -226,11 +226,9 @@ const plan = await client.admin.timePlans.create("acme", {
 const preview = await client.admin.timePlans.preview("acme", definition);
 ```
 
-These helpers are present at commit
-`2f051267d1655d175bd848dc3e53b0ede0048dbd`, after the published `v1.8.24`
-tag. The current package version remains `1.8.24`; use a released version that
-contains this commit when one is published. The exact SHA is for source
-checkout or development verification, not a published mirror release.
+These helpers were introduced in `v1.8.25`. Release `v1.8.26` updates
+correction commands to target transitions by UUID through the typed
+`supersedesTransitionUuid` field.
 
 ## Feature Parity
 

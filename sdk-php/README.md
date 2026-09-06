@@ -338,9 +338,7 @@ $plan = $client->adminTimePlans()->create("acme", new DraftRequest(
 ));
 ```
 
-The typed clients are available from the exact development commit documented
-in the [root README](../README.md); wait for a released SDK tag containing that
-commit before updating a consumer.
+The typed clients are available in `v1.8.25` and later.
 
 SDKs never log signed URLs, raw personal data, export bytes, or
 subject identifiers outside opaque IDs.
