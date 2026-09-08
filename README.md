@@ -230,6 +230,37 @@ These helpers were introduced in `v1.8.25`. Release `v1.8.26` updates
 correction commands to target transitions by UUID through the typed
 `supersedesTransitionUuid` field.
 
+## Audit Admin Readers
+
+Go, TypeScript, Python, and PHP expose the canonical admin audit readers:
+
+- list: `GET /api/v1/admin/audit/events`
+- detail: `GET /api/v1/admin/audit/events/{eventId}`
+- export: `GET /api/v1/admin/audit/events/export`
+
+Each returned `eventId` is a stable UUID. List options support explicit `tenant` or `global` scope, `companySlug`,
+`affectedTenantSlug` for authorized global searches, `actorReference`, action, resource,
+outcome, correlation, RFC3339 time bounds, and opaque cursor paging. Detail
+lookups accept the scope and `companySlug` authorization parameters. The
+returned event projection includes outcome, correlation and
+operation IDs, actor display attribution and roles, safe changes/details,
+coverage start, and retention disclosure. Network values are exposed only
+through the server's per-field `available`, `redacted`, or `not_recorded`
+states; raw metadata is not exposed by the SDK readers. Exports accept `csv`
+or `json`, use the same filters without pagination parameters, and return
+bounded raw bytes plus response metadata.
+
+Use the language-specific entry point:
+
+- Go: `client.Admin.Audit.ListEvents`, `GetEvent`, and `ExportEvents`.
+- TypeScript: `client.admin.audit.listEvents`, `getEvent`, and `exportEvents`.
+- Python: `client.admin.audit.list_events`, `get_event`, and `export_events`.
+- PHP: `$client->adminAudit()->listEvents`, `getEvent`, and `exportEvents`.
+
+The server remains authoritative for tenant/global authorization, historical
+tenant visibility, filter validation, cursor validity, and the 1000-row export
+cap. Clients must treat export bytes as opaque and must not log audit details.
+
 ## Feature Parity
 
 | Feature | Go | TypeScript | Python | PHP | Laravel | WordPress |

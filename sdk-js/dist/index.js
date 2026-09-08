@@ -141,7 +141,7 @@ export class CustdClient {
         this.flushOnOnline = config.queue?.flushOnOnline ?? true;
         this.compressionEnabled = config.compression?.enabled ?? true;
         this.compressionThresholdBytes = config.compression?.thresholdBytes ?? 1024;
-        this.admin = new AdminNamespace((method, path, body, options) => this.adminRequest(method, path, body, options), (method, path, body, options) => this.apiRequest(method, path, body, options), (path, options) => this.offboardingDownload(path, options));
+        this.admin = new AdminNamespace((method, path, body, options) => this.adminRequest(method, path, body, options), (method, path, body, options) => this.apiRequest(method, path, body, options), (path, options) => this.offboardingDownload(path, options), (path, options) => this.auditExportDownload(path, options));
         this.provisioning = new ProvisioningNamespace((method, path, body, options) => this.apiRequest(method, path, body, options));
         this.reporting = new ReportingNamespace((method, path, body, options) => this.apiRequest(method, path, body, options), (path, options) => this.apiDownload(path, options));
         this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
@@ -418,7 +418,7 @@ export class CustdClient {
             throw new Error("custd: offboarding download content length is invalid");
         }
         if (byteSize > maxOffboardingDownloadBytes) {
-            throw new Error("custd: offboarding download exceeds 64 MiB");
+            throw new Error("custd: admin binary response exceeds 64 MiB");
         }
         const bytes = await readBoundedResponse(response, maxOffboardingDownloadBytes);
         if (bytes.byteLength !== byteSize) {
@@ -433,6 +433,19 @@ export class CustdClient {
             throw new Error("custd: offboarding download checksum mismatch");
         }
         return { bytes, checksumSha256, byteSize };
+    }
+    async auditExportDownload(path, options) {
+        const token = await this.getToken(options);
+        const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${path}`, {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
+            signal: options?.signal,
+        });
+        if (!response.ok) {
+            throw new Error(`custd: audit export failed with status ${response.status}`);
+        }
+        const bytes = await readBoundedResponse(response, maxAuditExportBytes);
+        return { bytes, contentType: response.headers.get("content-type") ?? "" };
     }
     async apiRequest(method, path, body, options) {
         const token = await this.getToken(options);
@@ -539,6 +552,7 @@ async function sha256Hex(bytes) {
     return Array.from(digest, (value) => value.toString(16).padStart(2, "0")).join("");
 }
 const maxOffboardingDownloadBytes = 64 * 1024 * 1024;
+const maxAuditExportBytes = 64 * 1024 * 1024;
 class ReportingNamespace {
     constructor(request, download) {
         this.request = request;
@@ -798,7 +812,7 @@ class SchemaNamespace {
     }
 }
 class AdminNamespace {
-    constructor(request, nonAdminRequest, offboardingDownload) {
+    constructor(request, nonAdminRequest, offboardingDownload, auditExportDownload) {
         this.dataLabels = new DataLabelAdminClient(request);
         this.tenants = new AdminTenantNamespace(request);
         this.lifecycle = new BackendLifecycleClient(request, offboardingDownload);
@@ -811,7 +825,7 @@ class AdminNamespace {
         this.privacy = new AdminPrivacyNamespace(request);
         this.retention = new RetentionClient(request);
         this.storageAlerts = new AdminStorageAlertsNamespace(request);
-        this.audit = new AdminAuditNamespace(request);
+        this.audit = new AdminAuditNamespace(request, auditExportDownload);
         this.offboarding = new OffboardingClient(request, offboardingDownload);
         this.reportingPacks = new AdminReportingPacksNamespace(request);
         this.tenantStorage = new TenantStorageClient(nonAdminRequest);
@@ -998,34 +1012,164 @@ class AdminStorageAlertsNamespace {
         return this.request("DELETE", `/storage/alerts/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(ruleId)}`);
     }
 }
-class AdminAuditNamespace {
-    constructor(request) {
-        this.request = request;
+const auditDisclosureStates = new Set(["available", "redacted", "not_recorded"]);
+function mapAdminAuditChange(value) {
+    if (!isRecord(value) || typeof value.field !== "string")
+        return undefined;
+    const change = { field: value.field };
+    if ("before" in value)
+        change.before = value.before;
+    if ("after" in value)
+        change.after = value.after;
+    return change;
+}
+function mapAdminAuditNetwork(value) {
+    if (!isRecord(value))
+        return undefined;
+    const ipAddressState = value.ipAddressState;
+    const userAgentState = value.userAgentState;
+    if (!auditDisclosureStates.has(ipAddressState) ||
+        !auditDisclosureStates.has(userAgentState))
+        return undefined;
+    return {
+        ...(typeof value.ipAddress === "string" ? { ipAddress: value.ipAddress } : {}),
+        ipAddressState: ipAddressState,
+        ...(typeof value.userAgent === "string" ? { userAgent: value.userAgent } : {}),
+        userAgentState: userAgentState,
+    };
+}
+function mapAdminAuditRetention(value) {
+    if (!isRecord(value) ||
+        typeof value.eventMaxAgeSeconds !== "number" ||
+        typeof value.ipAddressMaxAgeSeconds !== "number" ||
+        typeof value.userAgentMaxAgeSeconds !== "number")
+        return undefined;
+    return {
+        eventMaxAgeSeconds: value.eventMaxAgeSeconds,
+        ipAddressMaxAgeSeconds: value.ipAddressMaxAgeSeconds,
+        userAgentMaxAgeSeconds: value.userAgentMaxAgeSeconds,
+    };
+}
+function mapAdminAuditEvent(event) {
+    if (typeof event.eventId !== "string" || !AUDIT_EVENT_UUID_PATTERN.test(event.eventId)) {
+        throw new Error("custd: audit event response eventId must be a UUID");
     }
-    auditQuery(options) {
+    const details = event.details;
+    const actorRoles = Array.isArray(event.actorRoles)
+        ? event.actorRoles.filter((role) => typeof role === "string")
+        : [];
+    const changes = Array.isArray(event.changes)
+        ? event.changes.map(mapAdminAuditChange).filter((change) => change !== undefined)
+        : [];
+    const network = mapAdminAuditNetwork(event.network);
+    return {
+        eventId: event.eventId,
+        tenantSlug: event.tenantSlug,
+        actorKind: event.actorKind,
+        ...(event.actorReference !== undefined ? { actorReference: event.actorReference } : {}),
+        actorDisplayName: event.actorDisplayName,
+        ...(actorRoles.length > 0 ? { actorRoles } : {}),
+        action: event.action,
+        resourceType: event.resourceType,
+        ...(event.resourceId !== undefined ? { resourceId: event.resourceId } : {}),
+        outcome: event.outcome,
+        ...(event.correlationId !== undefined ? { correlationId: event.correlationId } : {}),
+        ...(event.operationId !== undefined ? { operationId: event.operationId } : {}),
+        ...(changes.length > 0 ? { changes } : {}),
+        ...(details !== undefined && typeof details === "object" && !Array.isArray(details) ? { details } : {}),
+        ...(network !== undefined ? { network } : {}),
+        createdAt: event.createdAt,
+    };
+}
+function mapAdminReportingPackAuditEvent(event) {
+    return {
+        action: event.action,
+        ...(event.actorReference !== undefined ? { actorReference: event.actorReference } : {}),
+        actorDisplayName: event.actorDisplayName,
+        resourceType: event.resourceType,
+        resourceId: event.resourceId,
+        packKey: event.packKey,
+        createdAt: event.createdAt,
+    };
+}
+const AUDIT_EVENT_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+class AdminAuditNamespace {
+    constructor(request, download) {
+        this.request = request;
+        this.download = download;
+    }
+    auditQuery(options, includePagination = true) {
         if (!options) {
             return "";
         }
         const params = new URLSearchParams();
+        if (options.scope)
+            params.set("scope", options.scope);
+        if (options.companySlug)
+            params.set("companySlug", options.companySlug);
+        if (options.affectedTenantSlug)
+            params.set("affectedTenantSlug", options.affectedTenantSlug);
+        if (options.since)
+            params.set("since", options.since);
+        if (options.until)
+            params.set("until", options.until);
+        if (options.actorKind)
+            params.set("actorKind", options.actorKind);
+        if (options.actorReference)
+            params.set("actorReference", options.actorReference);
+        if (options.action)
+            params.set("action", options.action);
         if (options.resourceType)
             params.set("resourceType", options.resourceType);
         if (options.resourceId)
             params.set("resourceId", options.resourceId);
-        if (typeof options.limit === "number")
+        if (options.outcome)
+            params.set("outcome", options.outcome);
+        if (options.correlationId)
+            params.set("correlationId", options.correlationId);
+        if (includePagination && typeof options.limit === "number")
             params.set("limit", String(options.limit));
-        if (options.cursor)
+        if (includePagination && options.cursor)
             params.set("cursor", options.cursor);
         const query = params.toString();
         return query.length === 0 ? "" : `?${query}`;
     }
-    listEvents(options) {
-        return this.request("GET", `/audit/events${this.auditQuery(options)}`);
+    auditLookupQuery(options) {
+        if (!options)
+            return "";
+        const params = new URLSearchParams();
+        if (options.scope)
+            params.set("scope", options.scope);
+        if (options.companySlug)
+            params.set("companySlug", options.companySlug);
+        const query = params.toString();
+        return query.length === 0 ? "" : `?${query}`;
     }
-    getEvent(eventId) {
-        return this.request("GET", `/audit/events/${encodeURIComponent(eventId)}`);
+    async listEvents(options) {
+        const response = await this.request("GET", `/audit/events${this.auditQuery(options)}`);
+        const retention = mapAdminAuditRetention(response.retention);
+        return {
+            events: response.events.map(mapAdminAuditEvent),
+            nextCursor: response.nextCursor ?? { cursor: "" },
+            ...(typeof response.coverageBeginsAt === "string" ? { coverageBeginsAt: response.coverageBeginsAt } : {}),
+            ...(retention === undefined ? {} : { retention }),
+        };
     }
-    listReportingPackEvents() {
-        return this.request("GET", "/reporting-packs/audit-events");
+    async getEvent(eventId, options) {
+        const response = await this.request("GET", `/audit/events/${encodeURIComponent(eventId)}${this.auditLookupQuery(options)}`);
+        return mapAdminAuditEvent(response);
+    }
+    exportEvents(options, format = "json") {
+        if (format !== "csv" && format !== "json") {
+            return Promise.reject(new Error("custd: audit export format must be csv or json"));
+        }
+        const query = this.auditQuery(options, false);
+        const suffix = query.length > 0 ? `${query}&format=${format}` : `?format=${format}`;
+        return this.download(`/audit/events/export${suffix}`);
+    }
+    async listReportingPackEvents(packKey) {
+        const response = await this.request("GET", `/reporting-packs/audit-events?packKey=${encodeURIComponent(packKey)}`);
+        return { events: response.events.map(mapAdminReportingPackAuditEvent) };
     }
 }
 class AdminReportingPacksNamespace {

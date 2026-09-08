@@ -93,6 +93,9 @@ final class Http
         if ($status >= 400) {
             throw new \RuntimeException("custd: " . self::errorMessage($result["body"], $status));
         }
+        if (strlen($result["body"]) > self::MAX_BINARY_RESPONSE_BYTES) {
+            throw new \RuntimeException("custd: binary admin response exceeds 64 MiB");
+        }
         return [
             "body" => $result["body"],
             "headers" => self::headers($result),

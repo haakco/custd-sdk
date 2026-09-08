@@ -24,6 +24,132 @@ class CapturingAdminTransport:
 
 
 class AdminClientTest(unittest.TestCase):
+    def test_audit_reader_carries_scope_filters_and_safe_export(self):
+        transport = CapturingAdminTransport([
+            {
+                "status": 200,
+                "body": {
+                    "events": [{
+                        "eventId": "01957abc-0000-7000-8000-000000000001",
+                        "tenantSlug": "acme",
+                        "actorKind": "user",
+                        "actorId": "private-user-id",
+                        "actorReference": "actor-0123456789ab",
+                        "actorDisplayName": "Admin User",
+                        "actorRoles": ["tenant-admin"],
+                        "action": "tenant.create",
+                        "resourceType": "tenant",
+                        "resourceId": "acme",
+                        "outcome": "success",
+                        "correlationId": "req-1",
+                        "operationId": "op-1",
+                        "changes": [{"field": "enabled", "before": False, "after": True}],
+                        "details": {"safe": "value"},
+                        "network": {
+                            "ipAddress": "10.0.0.1", "ipAddressState": "available", "userAgentState": "redacted",
+                        },
+                        "ipAddress": "legacy-sensitive",
+                        "metadata": "sensitive",
+                        "createdAt": "2026-07-23T12:00:00Z",
+                    }],
+                    "nextCursor": {"cursor": "next"},
+                    "coverageBeginsAt": "2026-07-01T00:00:00Z",
+                    "retention": {
+                        "eventMaxAgeSeconds": 31536000, "ipAddressMaxAgeSeconds": 15552000,
+                        "userAgentMaxAgeSeconds": 7776000,
+                    },
+                },
+            },
+            {"status": 200, "body": {
+                "eventId": "01957abc-0000-7000-8000-000000000001",
+                "tenantSlug": "acme", "actorKind": "user", "actorReference": "actor-0123456789ab",
+                "actorDisplayName": "Admin User", "actorRoles": ["tenant-admin"],
+                "action": "tenant.create", "resourceType": "tenant", "resourceId": "acme",
+                "outcome": "success", "correlationId": "req-1", "operationId": "op-1",
+                "changes": [{"field": "enabled", "before": False, "after": True}],
+                "details": {"safe": "value"},
+                "network": {"ipAddressState": "redacted", "userAgent": "Mozilla/5.0", "userAgentState": "available"},
+                "ipAddress": "legacy-sensitive", "metadata": "sensitive",
+                "createdAt": "2026-07-23T12:00:00Z",
+            }},
+            {
+                "status": 200,
+                "body": b"eventId,tenantSlug\n01957abc-0000-7000-8000-000000000001,acme\n",
+                "headers": {"Content-Type": "text/csv; charset=utf-8"},
+            },
+        ])
+        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+        options = {
+            "scope": "global", "affectedTenantSlug": "acme", "since": "2026-07-01T00:00:00Z",
+            "until": "2026-08-01T00:00:00Z", "actorKind": "user", "actorReference": "actor-0123456789ab",
+            "action": "tenant.create", "resourceType": "tenant", "resourceId": "acme",
+            "outcome": "success", "correlationId": "req-1", "limit": 50, "cursor": "next",
+        }
+
+        listed = client.admin.audit.list_events(options)
+        event = client.admin.audit.get_event(
+            "01957abc-0000-7000-8000-000000000001", {"scope": "tenant", "companySlug": "acme"}
+        )
+        exported = client.admin.audit.export_events(options, "csv")
+
+        self.assertEqual("next", listed["nextCursor"]["cursor"])
+        self.assertEqual("2026-07-01T00:00:00Z", listed["coverageBeginsAt"])
+        self.assertEqual(31536000, listed["retention"]["eventMaxAgeSeconds"])
+        self.assertEqual("Admin User", listed["events"][0]["actorDisplayName"])
+        self.assertNotIn("actorId", listed["events"][0])
+        self.assertEqual(["tenant-admin"], listed["events"][0]["actorRoles"])
+        self.assertEqual("success", listed["events"][0]["outcome"])
+        self.assertEqual("req-1", listed["events"][0]["correlationId"])
+        self.assertEqual("op-1", listed["events"][0]["operationId"])
+        self.assertEqual(True, listed["events"][0]["changes"][0]["after"])
+        self.assertEqual("available", listed["events"][0]["network"]["ipAddressState"])
+        self.assertEqual("value", listed["events"][0]["details"]["safe"])
+        self.assertNotIn("ipAddress", listed["events"][0])
+        self.assertNotIn("metadata", event)
+        self.assertEqual(b"eventId,tenantSlug\n01957abc-0000-7000-8000-000000000001,acme\n", exported["body"])
+        self.assertEqual("text/csv; charset=utf-8", exported["headers"]["content-type"])
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/audit/events?scope=global&affectedTenantSlug=acme&since=2026-07-01T00%3A00%3A00Z&until=2026-08-01T00%3A00%3A00Z&actorKind=user&actorReference=actor-0123456789ab&action=tenant.create&resourceType=tenant&resourceId=acme&outcome=success&correlationId=req-1&limit=50&cursor=next",
+            transport.calls[0]["url"],
+        )
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/audit/events/01957abc-0000-7000-8000-000000000001?scope=tenant&companySlug=acme",
+            transport.calls[1]["url"],
+        )
+        self.assertEqual(transport.calls[2]["url"].split("?")[0], "http://localhost:8080/api/v1/admin/audit/events/export")
+        self.assertIn("format=csv", transport.calls[2]["url"])
+        self.assertNotIn("limit=50", transport.calls[2]["url"])
+        self.assertNotIn("cursor=next", transport.calls[2]["url"])
+
+    def test_audit_reader_rejects_non_uuid_event_id(self):
+        transport = CapturingAdminTransport([
+            {"status": 200, "body": {"events": [{"eventId": "ev-1"}], "nextCursor": {"cursor": ""}}},
+        ])
+        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+
+        with self.assertRaisesRegex(ValueError, "eventId must be a UUID"):
+            client.admin.audit.list_events()
+
+    def test_reporting_pack_audit_reader_uses_pack_key_and_safe_actor_fields(self):
+        transport = CapturingAdminTransport([
+            {"status": 200, "body": {"events": [{
+                "action": "draft_created", "actorId": "private-user-id", "actorReference": "actor-0123456789ab",
+                "actorDisplayName": "Admin User", "resourceType": "reporting_pack", "resourceId": "42",
+                "packKey": "security", "createdAt": "2026-07-23T12:00:00Z", "metadata": "sensitive",
+            }]}}
+        ])
+        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+
+        result = client.admin.audit.list_reporting_pack_events("security")
+
+        self.assertEqual("actor-0123456789ab", result["events"][0]["actorReference"])
+        self.assertNotIn("actorId", result["events"][0])
+        self.assertNotIn("metadata", result["events"][0])
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/reporting-packs/audit-events?packKey=security",
+            transport.calls[0]["url"],
+        )
+
     def test_admin_tenants_create_uses_admin_api(self):
         transport = CapturingAdminTransport([
             {"status": 201, "body": {"slug": "acme", "companyName": "Acme Inc", "enabled": True}},

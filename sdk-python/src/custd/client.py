@@ -565,6 +565,7 @@ class AdminClient:
         self.sites = SiteAdminClient(self)
         self.schemas = SchemaAdminClient(self)
         self.measurement = MeasurementAdminClient(self)
+        from .admin_audit import AuditAdminClient
         from .admin_data_labels import DataLabelAdminClient
         from .admin_offboarding import OffboardingClient
         from .admin_predictions import PredictionAdminClient
@@ -582,6 +583,7 @@ class AdminClient:
         self.predictions = PredictionAdminClient(self)
         self.data_labels = DataLabelAdminClient(self)
         self.time_plans = TimePlanAdminClient(self)
+        self.audit = AuditAdminClient(self)
 
     def request(
         self,
@@ -635,6 +637,8 @@ class AdminClient:
         body = result.get("body")
         if not isinstance(body, bytes):
             raise ValueError("custd: binary admin response must be bytes")
+        if len(body) > 64 * 1024 * 1024:
+            raise RequestError("custd: binary admin response exceeds 64 MiB")
         raw_headers = result.get("headers")
         if raw_headers is None:
             raw_headers = {}
@@ -1532,7 +1536,11 @@ def default_admin_transport(
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            is_binary = "/artifacts/" in url or "/offboarding/requests/" in url and url.endswith("/download")
+            is_binary = (
+                "/artifacts/" in url
+                or ("/offboarding/requests/" in url and url.endswith("/download"))
+                or "/audit/events/export" in url
+            )
             declared = response.headers.get("Content-Length") if is_binary else None
             if declared is not None and declared.isdigit() and int(declared) > 64 * 1024 * 1024:
                 raise RequestError("custd: binary admin response exceeds 64 MiB")

@@ -47,6 +47,9 @@ __all__ = [
     "read_lifecycle_fixture", "TenantStorageClient", "SubjectExportClient",
     "PrivacyErasureClient", "PredictionAdminClient", "RetentionClient", "OffboardingClient", "DataLabelAdminClient",
     "TimePlanAdminClient",
+    "AuditAdminClient", "AuditChange", "AuditDisclosureState", "AuditEvent", "AuditExportResponse",
+    "AuditListOptions", "AuditListResponse", "AuditNetworkDisclosure", "AuditOutcome",
+    "AuditRetentionDisclosure", "AuditScope", "ReportingPackAuditEvent", "ReportingPackAuditListResponse",
     "TimePlanAnnotation",
     "TimePlanAnnotationInput",
     "TimePlanAnnotationListResponse",
@@ -72,6 +75,21 @@ __all__ = [
 ]
 
 from ._lifecycle_fixtures import read_lifecycle_fixture
+from .admin_audit import (
+    AuditAdminClient,
+    AuditChange,
+    AuditDisclosureState,
+    AuditEvent,
+    AuditExportResponse,
+    AuditListOptions,
+    AuditListResponse,
+    AuditNetworkDisclosure,
+    AuditOutcome,
+    AuditRetentionDisclosure,
+    AuditScope,
+    ReportingPackAuditEvent,
+    ReportingPackAuditListResponse,
+)
 from .admin_data_labels import DataLabelAdminClient
 from .admin_offboarding import OffboardingClient
 from .admin_predictions import PredictionAdminClient

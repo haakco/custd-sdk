@@ -687,14 +687,22 @@ export type AdminStorageAlertRuleListResponse = {
 };
 
 export type AdminAuditEvent = {
+  /** Stable public audit event UUID. */
   eventId: string;
-  action: string;
-  actorId: string;
+  tenantSlug: string;
   actorKind: string;
+  actorReference?: string;
+  actorDisplayName: string;
+  actorRoles?: string[];
+  action: string;
   resourceType: string;
-  resourceId: string;
-  ipAddress: string;
-  metadata?: string;
+  resourceId?: string;
+  outcome: AdminAuditOutcome;
+  correlationId?: string;
+  operationId?: string;
+  changes?: AdminAuditChange[];
+  details?: Record<string, unknown>;
+  network?: AdminAuditNetworkDisclosure;
   createdAt: string;
 };
 
@@ -702,21 +710,62 @@ export type AdminAuditListCursor = {
   cursor: string;
 };
 
+export type AdminAuditOutcome = "attempted" | "success" | "failure" | "denied" | "pending" | "unknown";
+
+export type AdminAuditDisclosureState = "available" | "redacted" | "not_recorded";
+
+export type AdminAuditChange = {
+  field: string;
+  before?: unknown;
+  after?: unknown;
+};
+
+export type AdminAuditNetworkDisclosure = {
+  ipAddress?: string;
+  ipAddressState: AdminAuditDisclosureState;
+  userAgent?: string;
+  userAgentState: AdminAuditDisclosureState;
+};
+
+export type AdminAuditRetentionDisclosure = {
+  eventMaxAgeSeconds: number;
+  ipAddressMaxAgeSeconds: number;
+  userAgentMaxAgeSeconds: number;
+};
+
 export type AdminAuditListResponse = {
   events: AdminAuditEvent[];
-  nextCursor?: AdminAuditListCursor;
+  nextCursor: AdminAuditListCursor;
+  coverageBeginsAt?: string;
+  retention?: AdminAuditRetentionDisclosure;
 };
 
 export type AdminAuditListOptions = {
+  scope?: "tenant" | "global";
+  companySlug?: string;
+  affectedTenantSlug?: string;
+  since?: string;
+  until?: string;
+  actorKind?: string;
+  actorReference?: string;
+  action?: string;
   resourceType?: string;
   resourceId?: string;
+  outcome?: AdminAuditOutcome;
+  correlationId?: string;
   limit?: number;
   cursor?: string;
 };
 
+export type AdminAuditExportResponse = {
+  bytes: Uint8Array;
+  contentType: string;
+};
+
 export type AdminReportingPackAuditEvent = {
   action: string;
-  actorId: string;
+  actorReference?: string;
+  actorDisplayName: string;
   resourceType: string;
   resourceId: string;
   packKey: string;
@@ -1353,6 +1402,7 @@ export class CustdClient {
       (method, path, body, options) => this.adminRequest(method, path, body, options),
       (method, path, body, options) => this.apiRequest(method, path, body, options),
       (path, options) => this.offboardingDownload(path, options),
+      (path, options) => this.auditExportDownload(path, options),
     );
     this.provisioning = new ProvisioningNamespace((method, path, body, options) =>
       this.apiRequest(method, path, body, options),
@@ -1674,7 +1724,7 @@ export class CustdClient {
       throw new Error("custd: offboarding download content length is invalid");
     }
     if (byteSize > maxOffboardingDownloadBytes) {
-      throw new Error("custd: offboarding download exceeds 64 MiB");
+      throw new Error("custd: admin binary response exceeds 64 MiB");
     }
     const bytes = await readBoundedResponse(response, maxOffboardingDownloadBytes);
     if (bytes.byteLength !== byteSize) {
@@ -1689,6 +1739,20 @@ export class CustdClient {
       throw new Error("custd: offboarding download checksum mismatch");
     }
     return { bytes, checksumSha256, byteSize };
+  }
+
+  private async auditExportDownload(path: string, options?: RequestOptions): Promise<AdminAuditExportResponse> {
+    const token = await this.getToken(options);
+    const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${path}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
+      signal: options?.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`custd: audit export failed with status ${response.status}`);
+    }
+    const bytes = await readBoundedResponse(response, maxAuditExportBytes);
+    return { bytes, contentType: response.headers.get("content-type") ?? "" };
   }
 
   private async apiRequest<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
@@ -1804,12 +1868,14 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
 }
 
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
+type AdminAuditDownloader = (path: string, options?: RequestOptions) => Promise<AdminAuditExportResponse>;
 type NonAdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type APIRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type APIDownloader = (path: string, options?: RequestOptions) => Promise<Uint8Array>;
 
 const maxOffboardingDownloadBytes = 64 * 1024 * 1024;
+const maxAuditExportBytes = 64 * 1024 * 1024;
 
 export interface ReportExportCreateRequest {
   dashboardKey: string;
@@ -2194,6 +2260,7 @@ class AdminNamespace {
     request: AdminRequester,
     nonAdminRequest: NonAdminRequester,
     offboardingDownload: (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>,
+    auditExportDownload: AdminAuditDownloader,
   ) {
     this.dataLabels = new DataLabelAdminClient(request);
     this.tenants = new AdminTenantNamespace(request);
@@ -2207,7 +2274,7 @@ class AdminNamespace {
     this.privacy = new AdminPrivacyNamespace(request);
     this.retention = new RetentionClient(request);
     this.storageAlerts = new AdminStorageAlertsNamespace(request);
-    this.audit = new AdminAuditNamespace(request);
+    this.audit = new AdminAuditNamespace(request, auditExportDownload);
     this.offboarding = new OffboardingClient(request, offboardingDownload);
     this.reportingPacks = new AdminReportingPacksNamespace(request);
     this.tenantStorage = new TenantStorageClient(nonAdminRequest);
@@ -2457,32 +2524,176 @@ class AdminStorageAlertsNamespace {
   }
 }
 
-class AdminAuditNamespace {
-  constructor(private readonly request: AdminRequester) {}
+type AdminAuditEventWire = AdminAuditEvent & Record<string, unknown>;
+type AdminAuditListResponseWire = {
+  events: AdminAuditEventWire[];
+  nextCursor?: AdminAuditListCursor;
+  coverageBeginsAt?: unknown;
+  retention?: unknown;
+};
 
-  private auditQuery(options?: AdminAuditListOptions): string {
+type AdminReportingPackAuditEventWire = AdminReportingPackAuditEvent & Record<string, unknown>;
+
+const auditDisclosureStates = new Set<AdminAuditDisclosureState>(["available", "redacted", "not_recorded"]);
+
+function mapAdminAuditChange(value: unknown): AdminAuditChange | undefined {
+  if (!isRecord(value) || typeof value.field !== "string") return undefined;
+  const change: AdminAuditChange = { field: value.field };
+  if ("before" in value) change.before = value.before;
+  if ("after" in value) change.after = value.after;
+  return change;
+}
+
+function mapAdminAuditNetwork(value: unknown): AdminAuditNetworkDisclosure | undefined {
+  if (!isRecord(value)) return undefined;
+  const ipAddressState = value.ipAddressState;
+  const userAgentState = value.userAgentState;
+  if (
+    !auditDisclosureStates.has(ipAddressState as AdminAuditDisclosureState) ||
+    !auditDisclosureStates.has(userAgentState as AdminAuditDisclosureState)
+  )
+    return undefined;
+  return {
+    ...(typeof value.ipAddress === "string" ? { ipAddress: value.ipAddress } : {}),
+    ipAddressState: ipAddressState as AdminAuditDisclosureState,
+    ...(typeof value.userAgent === "string" ? { userAgent: value.userAgent } : {}),
+    userAgentState: userAgentState as AdminAuditDisclosureState,
+  };
+}
+
+function mapAdminAuditRetention(value: unknown): AdminAuditRetentionDisclosure | undefined {
+  if (
+    !isRecord(value) ||
+    typeof value.eventMaxAgeSeconds !== "number" ||
+    typeof value.ipAddressMaxAgeSeconds !== "number" ||
+    typeof value.userAgentMaxAgeSeconds !== "number"
+  )
+    return undefined;
+  return {
+    eventMaxAgeSeconds: value.eventMaxAgeSeconds,
+    ipAddressMaxAgeSeconds: value.ipAddressMaxAgeSeconds,
+    userAgentMaxAgeSeconds: value.userAgentMaxAgeSeconds,
+  };
+}
+
+function mapAdminAuditEvent(event: AdminAuditEventWire): AdminAuditEvent {
+  if (typeof event.eventId !== "string" || !AUDIT_EVENT_UUID_PATTERN.test(event.eventId)) {
+    throw new Error("custd: audit event response eventId must be a UUID");
+  }
+  const details = event.details;
+  const actorRoles = Array.isArray(event.actorRoles)
+    ? event.actorRoles.filter((role): role is string => typeof role === "string")
+    : [];
+  const changes = Array.isArray(event.changes)
+    ? event.changes.map(mapAdminAuditChange).filter((change): change is AdminAuditChange => change !== undefined)
+    : [];
+  const network = mapAdminAuditNetwork(event.network);
+  return {
+    eventId: event.eventId,
+    tenantSlug: event.tenantSlug,
+    actorKind: event.actorKind,
+    ...(event.actorReference !== undefined ? { actorReference: event.actorReference } : {}),
+    actorDisplayName: event.actorDisplayName,
+    ...(actorRoles.length > 0 ? { actorRoles } : {}),
+    action: event.action,
+    resourceType: event.resourceType,
+    ...(event.resourceId !== undefined ? { resourceId: event.resourceId } : {}),
+    outcome: event.outcome,
+    ...(event.correlationId !== undefined ? { correlationId: event.correlationId } : {}),
+    ...(event.operationId !== undefined ? { operationId: event.operationId } : {}),
+    ...(changes.length > 0 ? { changes } : {}),
+    ...(details !== undefined && typeof details === "object" && !Array.isArray(details) ? { details } : {}),
+    ...(network !== undefined ? { network } : {}),
+    createdAt: event.createdAt,
+  };
+}
+
+function mapAdminReportingPackAuditEvent(event: AdminReportingPackAuditEventWire): AdminReportingPackAuditEvent {
+  return {
+    action: event.action,
+    ...(event.actorReference !== undefined ? { actorReference: event.actorReference } : {}),
+    actorDisplayName: event.actorDisplayName,
+    resourceType: event.resourceType,
+    resourceId: event.resourceId,
+    packKey: event.packKey,
+    createdAt: event.createdAt,
+  };
+}
+
+const AUDIT_EVENT_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+class AdminAuditNamespace {
+  constructor(
+    private readonly request: AdminRequester,
+    private readonly download: AdminAuditDownloader,
+  ) {}
+
+  private auditQuery(options?: AdminAuditListOptions, includePagination = true): string {
     if (!options) {
       return "";
     }
     const params = new URLSearchParams();
+    if (options.scope) params.set("scope", options.scope);
+    if (options.companySlug) params.set("companySlug", options.companySlug);
+    if (options.affectedTenantSlug) params.set("affectedTenantSlug", options.affectedTenantSlug);
+    if (options.since) params.set("since", options.since);
+    if (options.until) params.set("until", options.until);
+    if (options.actorKind) params.set("actorKind", options.actorKind);
+    if (options.actorReference) params.set("actorReference", options.actorReference);
+    if (options.action) params.set("action", options.action);
     if (options.resourceType) params.set("resourceType", options.resourceType);
     if (options.resourceId) params.set("resourceId", options.resourceId);
-    if (typeof options.limit === "number") params.set("limit", String(options.limit));
-    if (options.cursor) params.set("cursor", options.cursor);
+    if (options.outcome) params.set("outcome", options.outcome);
+    if (options.correlationId) params.set("correlationId", options.correlationId);
+    if (includePagination && typeof options.limit === "number") params.set("limit", String(options.limit));
+    if (includePagination && options.cursor) params.set("cursor", options.cursor);
     const query = params.toString();
     return query.length === 0 ? "" : `?${query}`;
   }
 
-  listEvents(options?: AdminAuditListOptions): Promise<AdminAuditListResponse> {
-    return this.request("GET", `/audit/events${this.auditQuery(options)}`);
+  private auditLookupQuery(options?: AdminAuditListOptions): string {
+    if (!options) return "";
+    const params = new URLSearchParams();
+    if (options.scope) params.set("scope", options.scope);
+    if (options.companySlug) params.set("companySlug", options.companySlug);
+    const query = params.toString();
+    return query.length === 0 ? "" : `?${query}`;
   }
 
-  getEvent(eventId: string): Promise<AdminAuditEvent> {
-    return this.request("GET", `/audit/events/${encodeURIComponent(eventId)}`);
+  async listEvents(options?: AdminAuditListOptions): Promise<AdminAuditListResponse> {
+    const response = await this.request<AdminAuditListResponseWire>("GET", `/audit/events${this.auditQuery(options)}`);
+    const retention = mapAdminAuditRetention(response.retention);
+    return {
+      events: response.events.map(mapAdminAuditEvent),
+      nextCursor: response.nextCursor ?? { cursor: "" },
+      ...(typeof response.coverageBeginsAt === "string" ? { coverageBeginsAt: response.coverageBeginsAt } : {}),
+      ...(retention === undefined ? {} : { retention }),
+    };
   }
 
-  listReportingPackEvents(): Promise<AdminReportingPackAuditListResponse> {
-    return this.request("GET", "/reporting-packs/audit-events");
+  async getEvent(eventId: string, options?: AdminAuditListOptions): Promise<AdminAuditEvent> {
+    const response = await this.request<AdminAuditEventWire>(
+      "GET",
+      `/audit/events/${encodeURIComponent(eventId)}${this.auditLookupQuery(options)}`,
+    );
+    return mapAdminAuditEvent(response);
+  }
+
+  exportEvents(options?: AdminAuditListOptions, format: "csv" | "json" = "json"): Promise<AdminAuditExportResponse> {
+    if (format !== "csv" && format !== "json") {
+      return Promise.reject(new Error("custd: audit export format must be csv or json"));
+    }
+    const query = this.auditQuery(options, false);
+    const suffix = query.length > 0 ? `${query}&format=${format}` : `?format=${format}`;
+    return this.download(`/audit/events/export${suffix}`);
+  }
+
+  async listReportingPackEvents(packKey: string): Promise<AdminReportingPackAuditListResponse> {
+    const response = await this.request<{ events: AdminReportingPackAuditEventWire[] }>(
+      "GET",
+      `/reporting-packs/audit-events?packKey=${encodeURIComponent(packKey)}`,
+    );
+    return { events: response.events.map(mapAdminReportingPackAuditEvent) };
   }
 }
 

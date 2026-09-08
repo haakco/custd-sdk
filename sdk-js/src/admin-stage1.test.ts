@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CustdClient, type PackDefinition } from "./index";
+import { type AdminAuditListOptions, CustdClient, type PackDefinition } from "./index";
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -247,39 +247,69 @@ describe("admin audit", () => {
         body: JSON.stringify({
           events: [
             {
-              eventId: "ev-1",
-              action: "create",
-              actorId: "u-1",
+              eventId: "01957abc-0000-7000-8000-000000000001",
+              tenantSlug: "acme",
+              action: "tenant.create",
+              actorId: "private-user-id",
+              actorReference: "actor-0123456789ab",
               actorKind: "user",
-              resourceType: "producer",
-              resourceId: "prod-1",
-              ipAddress: "10.0.0.1",
+              actorDisplayName: "Admin User",
+              actorRoles: ["tenant-admin"],
+              resourceType: "tenant",
+              resourceId: "acme",
+              outcome: "success",
+              correlationId: "req-1",
+              operationId: "op-1",
+              changes: [{ field: "enabled", before: false, after: true }],
+              details: { safe: "value" },
+              network: { ipAddress: "10.0.0.1", ipAddressState: "available", userAgentState: "redacted" },
+              ipAddress: "legacy-sensitive",
+              metadata: "sensitive",
               createdAt: "2026-07-23T12:00:00Z",
             },
           ],
           nextCursor: { cursor: "next" },
+          coverageBeginsAt: "2026-07-01T00:00:00Z",
+          retention: {
+            eventMaxAgeSeconds: 31536000,
+            ipAddressMaxAgeSeconds: 15552000,
+            userAgentMaxAgeSeconds: 7776000,
+          },
         }),
       },
       {
         status: 200,
         body: JSON.stringify({
-          eventId: "ev-1",
-          action: "create",
-          actorId: "u-1",
+          eventId: "01957abc-0000-7000-8000-000000000001",
+          tenantSlug: "acme",
+          action: "tenant.create",
+          actorReference: "actor-0123456789ab",
           actorKind: "user",
-          resourceType: "producer",
-          resourceId: "prod-1",
-          ipAddress: "10.0.0.1",
+          actorDisplayName: "Admin User",
+          actorRoles: ["tenant-admin"],
+          resourceType: "tenant",
+          resourceId: "acme",
+          outcome: "success",
+          correlationId: "req-1",
+          operationId: "op-1",
+          changes: [{ field: "enabled", before: false, after: true }],
+          details: { safe: "value" },
+          network: { ipAddressState: "redacted", userAgent: "Mozilla/5.0", userAgentState: "available" },
+          ipAddress: "legacy-sensitive",
+          metadata: "sensitive",
           createdAt: "2026-07-23T12:00:00Z",
         }),
       },
+      { status: 200, body: "eventId,tenantSlug\n01957abc-0000-7000-8000-000000000001,acme\n" },
       {
         status: 200,
         body: JSON.stringify({
           events: [
             {
               action: "draft_created",
-              actorId: "u-1",
+              actorId: "private-user-id",
+              actorReference: "actor-0123456789ab",
+              actorDisplayName: "Admin User",
               resourceType: "reporting_pack",
               resourceId: "42",
               packKey: "security",
@@ -291,16 +321,64 @@ describe("admin audit", () => {
     ]);
     const client = newClient(fetchMock);
 
-    const events = await client.admin.audit.listEvents({
-      resourceType: "producer",
-      resourceId: "prod-1",
+    const options: AdminAuditListOptions = {
+      scope: "global",
+      companySlug: "acme",
+      affectedTenantSlug: "acme",
+      since: "2026-07-01T00:00:00Z",
+      until: "2026-08-01T00:00:00Z",
+      actorKind: "user",
+      actorReference: "actor-0123456789ab",
+      action: "tenant.create",
+      resourceType: "tenant",
+      resourceId: "acme",
+      outcome: "success",
+      correlationId: "req-1",
       limit: 50,
+      cursor: "next",
+    };
+    const events = await client.admin.audit.listEvents(options);
+    expect(events.nextCursor.cursor).toBe("next");
+    expect(events.coverageBeginsAt).toBe("2026-07-01T00:00:00Z");
+    expect(events.retention?.eventMaxAgeSeconds).toBe(31536000);
+    expect(events.events[0]?.actorReference).toBe("actor-0123456789ab");
+    expect(events.events[0]).not.toHaveProperty("actorId");
+    expect(events.events[0]?.actorDisplayName).toBe("Admin User");
+    expect(events.events[0]?.actorRoles).toEqual(["tenant-admin"]);
+    expect(events.events[0]?.outcome).toBe("success");
+    expect(events.events[0]?.correlationId).toBe("req-1");
+    expect(events.events[0]?.operationId).toBe("op-1");
+    expect(events.events[0]?.changes?.[0]?.after).toBe(true);
+    expect(events.events[0]?.network?.ipAddressState).toBe("available");
+    expect(events.events[0]).not.toHaveProperty("ipAddress");
+    expect(events.events[0]?.details?.safe).toBe("value");
+    const one = await client.admin.audit.getEvent("01957abc-0000-7000-8000-000000000001", {
+      scope: "tenant",
+      companySlug: "acme",
     });
-    expect(events.nextCursor?.cursor).toBe("next");
-    const one = await client.admin.audit.getEvent("ev-1");
-    expect(one.eventId).toBe("ev-1");
-    const rpEvents = await client.admin.audit.listReportingPackEvents();
+    expect(one.eventId).toBe("01957abc-0000-7000-8000-000000000001");
+    expect(one).not.toHaveProperty("metadata");
+    const exported = await client.admin.audit.exportEvents({ ...options }, "csv");
+    expect(new TextDecoder().decode(exported.bytes)).toBe(
+      "eventId,tenantSlug\n01957abc-0000-7000-8000-000000000001,acme\n",
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/v1/admin/audit/events/export?scope=global&companySlug=acme&affectedTenantSlug=acme&since=2026-07-01T00%3A00%3A00Z&until=2026-08-01T00%3A00%3A00Z&actorKind=user&actorReference=actor-0123456789ab&action=tenant.create&resourceType=tenant&resourceId=acme&outcome=success&correlationId=req-1&format=csv",
+      expect.objectContaining({ method: "GET" }),
+    );
+    const rpEvents = await client.admin.audit.listReportingPackEvents("security");
+    expect(rpEvents.events[0]?.actorReference).toBe("actor-0123456789ab");
+    expect(rpEvents.events[0]).not.toHaveProperty("actorId");
     expect(rpEvents.events[0]?.packKey).toBe("security");
+  });
+
+  it("rejects a response with a non-UUID eventId", async () => {
+    const fetchMock = mockFetch([
+      { status: 200, body: JSON.stringify({ events: [{ eventId: "ev-1" }], nextCursor: { cursor: "" } }) },
+    ]);
+    const client = newClient(fetchMock);
+
+    await expect(client.admin.audit.listEvents()).rejects.toThrow("eventId must be a UUID");
   });
 });
 

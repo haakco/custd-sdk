@@ -415,32 +415,75 @@ export type AdminStorageAlertRuleListResponse = {
     rules: AdminStorageAlertRule[];
 };
 export type AdminAuditEvent = {
+    /** Stable public audit event UUID. */
     eventId: string;
-    action: string;
-    actorId: string;
+    tenantSlug: string;
     actorKind: string;
+    actorReference?: string;
+    actorDisplayName: string;
+    actorRoles?: string[];
+    action: string;
     resourceType: string;
-    resourceId: string;
-    ipAddress: string;
-    metadata?: string;
+    resourceId?: string;
+    outcome: AdminAuditOutcome;
+    correlationId?: string;
+    operationId?: string;
+    changes?: AdminAuditChange[];
+    details?: Record<string, unknown>;
+    network?: AdminAuditNetworkDisclosure;
     createdAt: string;
 };
 export type AdminAuditListCursor = {
     cursor: string;
 };
+export type AdminAuditOutcome = "attempted" | "success" | "failure" | "denied" | "pending" | "unknown";
+export type AdminAuditDisclosureState = "available" | "redacted" | "not_recorded";
+export type AdminAuditChange = {
+    field: string;
+    before?: unknown;
+    after?: unknown;
+};
+export type AdminAuditNetworkDisclosure = {
+    ipAddress?: string;
+    ipAddressState: AdminAuditDisclosureState;
+    userAgent?: string;
+    userAgentState: AdminAuditDisclosureState;
+};
+export type AdminAuditRetentionDisclosure = {
+    eventMaxAgeSeconds: number;
+    ipAddressMaxAgeSeconds: number;
+    userAgentMaxAgeSeconds: number;
+};
 export type AdminAuditListResponse = {
     events: AdminAuditEvent[];
-    nextCursor?: AdminAuditListCursor;
+    nextCursor: AdminAuditListCursor;
+    coverageBeginsAt?: string;
+    retention?: AdminAuditRetentionDisclosure;
 };
 export type AdminAuditListOptions = {
+    scope?: "tenant" | "global";
+    companySlug?: string;
+    affectedTenantSlug?: string;
+    since?: string;
+    until?: string;
+    actorKind?: string;
+    actorReference?: string;
+    action?: string;
     resourceType?: string;
     resourceId?: string;
+    outcome?: AdminAuditOutcome;
+    correlationId?: string;
     limit?: number;
     cursor?: string;
 };
+export type AdminAuditExportResponse = {
+    bytes: Uint8Array;
+    contentType: string;
+};
 export type AdminReportingPackAuditEvent = {
     action: string;
-    actorId: string;
+    actorReference?: string;
+    actorDisplayName: string;
     resourceType: string;
     resourceId: string;
     packKey: string;
@@ -954,10 +997,12 @@ export declare class CustdClient {
     private batchRejectionMessage;
     private adminRequest;
     private offboardingDownload;
+    private auditExportDownload;
     private apiRequest;
     private apiDownload;
 }
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
+type AdminAuditDownloader = (path: string, options?: RequestOptions) => Promise<AdminAuditExportResponse>;
 type NonAdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type APIRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
@@ -1050,7 +1095,7 @@ declare class AdminNamespace {
     readonly subjectExports: SubjectExportClient;
     readonly privacyErasures: PrivacyErasureClient;
     readonly timePlans: TimePlanAdminClient;
-    constructor(request: AdminRequester, nonAdminRequest: NonAdminRequester, offboardingDownload: (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>);
+    constructor(request: AdminRequester, nonAdminRequest: NonAdminRequester, offboardingDownload: (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>, auditExportDownload: AdminAuditDownloader);
 }
 declare class ProvisioningNamespace {
     readonly dataSpaces: ProvisioningDataSpaceNamespace;
@@ -1137,11 +1182,14 @@ declare class AdminStorageAlertsNamespace {
 }
 declare class AdminAuditNamespace {
     private readonly request;
-    constructor(request: AdminRequester);
+    private readonly download;
+    constructor(request: AdminRequester, download: AdminAuditDownloader);
     private auditQuery;
+    private auditLookupQuery;
     listEvents(options?: AdminAuditListOptions): Promise<AdminAuditListResponse>;
-    getEvent(eventId: string): Promise<AdminAuditEvent>;
-    listReportingPackEvents(): Promise<AdminReportingPackAuditListResponse>;
+    getEvent(eventId: string, options?: AdminAuditListOptions): Promise<AdminAuditEvent>;
+    exportEvents(options?: AdminAuditListOptions, format?: "csv" | "json"): Promise<AdminAuditExportResponse>;
+    listReportingPackEvents(packKey: string): Promise<AdminReportingPackAuditListResponse>;
 }
 declare class AdminReportingPacksNamespace {
     private readonly request;
