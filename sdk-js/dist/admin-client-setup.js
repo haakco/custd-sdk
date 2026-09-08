@@ -256,9 +256,6 @@ function validateSetupOAuthClients(clients) {
         if (client.name !== undefined && typeof client.name !== "string") {
             throw new Error(`custd: oauthClients[${index}].name must be a string`);
         }
-        if (client.rotateSecret !== undefined && typeof client.rotateSecret !== "boolean") {
-            throw new Error(`custd: oauthClients[${index}].rotateSecret must be a boolean`);
-        }
         if (Object.keys(client).includes("clientSecret")) {
             throw new Error("custd: client secrets are managed by Custd");
         }
@@ -290,8 +287,14 @@ function setupWaitDuration(value, fallback, field) {
     }
     return duration;
 }
-function setupRequestOptions(options) {
-    return options.signal ? { signal: options.signal } : undefined;
+function setupApplyOptions(options) {
+    if (typeof options.idempotencyKey !== "string" || options.idempotencyKey.trim() === "") {
+        throw new Error("custd: tenant manifest idempotencyKey must be non-empty");
+    }
+    return {
+        idempotencyKey: options.idempotencyKey,
+        ...(options.signal ? { signal: options.signal } : {}),
+    };
 }
 function waitForSetupReadiness(intervalMs, signal) {
     return new Promise((resolve, reject) => {
@@ -317,36 +320,22 @@ function readinessTimeoutError(tenantSlug, readiness, timeoutMs) {
     return new Error(`custd: timed out waiting for tenant manifest readiness for "${tenantSlug}" after ${timeoutMs}ms ` +
         `(action=${readiness.safeNextAction || "unknown"}, code=${code})`);
 }
-async function persistSetupCredentials(credentials, persistCredentials) {
-    if (!credentials || credentials.length === 0)
-        return;
-    if (typeof persistCredentials !== "function") {
-        throw new Error("custd: tenant manifest returned secrets without a one-time credential persistence callback");
-    }
-    try {
-        await persistCredentials(credentials);
-    }
-    catch {
-        throw new Error("custd: tenant manifest applied but one-time credential persistence failed; reconcile before retrying");
-    }
-}
 export class ClientSetupClient {
     constructor(request) {
         this.request = request;
     }
     async apply(tenantSlug, manifest, options) {
         validateClientSetupManifest(manifest);
-        return this.request("PUT", `/tenant-manifest/${encodeURIComponent(tenantSlug)}`, manifest, options);
+        return this.request("PUT", `/tenant-manifest/${encodeURIComponent(tenantSlug)}`, manifest, setupApplyOptions(options));
     }
     readiness(tenantSlug, options) {
         return this.request("GET", `/tenant-manifest/${encodeURIComponent(tenantSlug)}/readiness`, undefined, options);
     }
-    async applyAndWait(tenantSlug, manifest, options = {}) {
+    async applyAndWait(tenantSlug, manifest, options) {
         const timeoutMs = setupWaitDuration(options.timeoutMs, defaultSetupReadinessTimeoutMs, "timeoutMs");
         const intervalMs = setupWaitDuration(options.intervalMs, defaultSetupReadinessIntervalMs, "intervalMs");
-        const requestOptions = setupRequestOptions(options);
+        const requestOptions = setupApplyOptions(options);
         const apply = await this.apply(tenantSlug, manifest, requestOptions);
-        await persistSetupCredentials(apply.credentials, options.persistCredentials);
         let readiness = apply;
         const deadline = Date.now() + timeoutMs;
         while (!readiness.ready && readiness.safeNextAction === "retry") {

@@ -4,7 +4,6 @@ export type ClientSetupOAuthClientDesiredState = {
     name?: string;
     clientId: string;
     purposeProfile: ClientSetupOAuthPurposeProfile;
-    rotateSecret?: boolean;
 };
 export type ClientSetupSchemaDesiredState = {
     eventTypeSlug: string;
@@ -47,10 +46,14 @@ export type ClientSetupResourceStatus = {
     safeNextAction: string;
     safeNextActionCode: string;
 };
-export type ClientSetupOneTimeCredential = {
-    clientId: string;
-    clientSecret: string;
-    purposeProfile: ClientSetupOAuthPurposeProfile;
+export type ClientSetupOperationStatus = {
+    uuid: string;
+    idempotencyKey: string;
+    state: string;
+    errorCode?: string;
+    createdAt: string;
+    updatedAt: string;
+    completedAt?: string;
 };
 export type ClientSetupApplyResponse = {
     tenantSlug: string;
@@ -58,10 +61,10 @@ export type ClientSetupApplyResponse = {
     ready: boolean;
     state: string;
     resources: ClientSetupResourceStatus[];
-    credentials?: ClientSetupOneTimeCredential[];
     safeNextAction: string;
     safeNextActionCode: string;
     observedAt: string;
+    operation?: ClientSetupOperationStatus;
 };
 export type ClientSetupReadinessResponse = {
     tenantSlug: string;
@@ -72,11 +75,14 @@ export type ClientSetupReadinessResponse = {
     safeNextAction: string;
     safeNextActionCode: string;
     observedAt: string;
+    operation?: ClientSetupOperationStatus;
 };
-export type ClientSetupApplyAndWaitOptions = RequestOptions & {
+export type ClientSetupApplyOptions = RequestOptions & {
+    idempotencyKey: string;
+};
+export type ClientSetupApplyAndWaitOptions = ClientSetupApplyOptions & {
     timeoutMs?: number;
     intervalMs?: number;
-    persistCredentials?: (credentials: readonly ClientSetupOneTimeCredential[]) => void | Promise<void>;
 };
 export type ClientSetupApplyAndWaitResult = {
     apply: ClientSetupApplyResponse;
@@ -87,8 +93,8 @@ type AdminRequester = <T>(method: string, path: string, body?: unknown, options?
 export declare class ClientSetupClient {
     private readonly request;
     constructor(request: AdminRequester);
-    apply(tenantSlug: string, manifest: ClientSetupManifest, options?: RequestOptions): Promise<ClientSetupApplyResponse>;
+    apply(tenantSlug: string, manifest: ClientSetupManifest, options: ClientSetupApplyOptions): Promise<ClientSetupApplyResponse>;
     readiness(tenantSlug: string, options?: RequestOptions): Promise<ClientSetupReadinessResponse>;
-    applyAndWait(tenantSlug: string, manifest: ClientSetupManifest, options?: ClientSetupApplyAndWaitOptions): Promise<ClientSetupApplyAndWaitResult>;
+    applyAndWait(tenantSlug: string, manifest: ClientSetupManifest, options: ClientSetupApplyAndWaitOptions): Promise<ClientSetupApplyAndWaitResult>;
 }
 export {};

@@ -2,14 +2,12 @@ import type { PackDefinition, RequestOptions } from "./index.js";
 
 export type ClientSetupOAuthPurposeProfile = "ingest" | "schema" | "reporting" | "lifecycle" | "broker";
 
-// ClientSetupOAuthClientDesiredState deliberately has no secret field. Custd
-// owns existing credentials and returns a secret only when create/rotation
-// produces a one-time value.
+// ClientSetupOAuthClientDesiredState deliberately has no secret controls.
+// Custd owns existing credentials; explicit rotation uses OAuthClient.rotateSecret.
 export type ClientSetupOAuthClientDesiredState = {
   name?: string;
   clientId: string;
   purposeProfile: ClientSetupOAuthPurposeProfile;
-  rotateSecret?: boolean;
 };
 
 export type ClientSetupSchemaDesiredState = {
@@ -60,10 +58,14 @@ export type ClientSetupResourceStatus = {
   safeNextActionCode: string;
 };
 
-export type ClientSetupOneTimeCredential = {
-  clientId: string;
-  clientSecret: string;
-  purposeProfile: ClientSetupOAuthPurposeProfile;
+export type ClientSetupOperationStatus = {
+  uuid: string;
+  idempotencyKey: string;
+  state: string;
+  errorCode?: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
 };
 
 export type ClientSetupApplyResponse = {
@@ -72,10 +74,10 @@ export type ClientSetupApplyResponse = {
   ready: boolean;
   state: string;
   resources: ClientSetupResourceStatus[];
-  credentials?: ClientSetupOneTimeCredential[];
   safeNextAction: string;
   safeNextActionCode: string;
   observedAt: string;
+  operation?: ClientSetupOperationStatus;
 };
 
 export type ClientSetupReadinessResponse = {
@@ -87,12 +89,16 @@ export type ClientSetupReadinessResponse = {
   safeNextAction: string;
   safeNextActionCode: string;
   observedAt: string;
+  operation?: ClientSetupOperationStatus;
 };
 
-export type ClientSetupApplyAndWaitOptions = RequestOptions & {
+export type ClientSetupApplyOptions = RequestOptions & {
+  idempotencyKey: string;
+};
+
+export type ClientSetupApplyAndWaitOptions = ClientSetupApplyOptions & {
   timeoutMs?: number;
   intervalMs?: number;
-  persistCredentials?: (credentials: readonly ClientSetupOneTimeCredential[]) => void | Promise<void>;
 };
 
 export type ClientSetupApplyAndWaitResult = {
@@ -354,9 +360,6 @@ function validateSetupOAuthClients(clients: unknown): void {
     if (client.name !== undefined && typeof client.name !== "string") {
       throw new Error(`custd: oauthClients[${index}].name must be a string`);
     }
-    if (client.rotateSecret !== undefined && typeof client.rotateSecret !== "boolean") {
-      throw new Error(`custd: oauthClients[${index}].rotateSecret must be a boolean`);
-    }
     if (Object.keys(client).includes("clientSecret")) {
       throw new Error("custd: client secrets are managed by Custd");
     }
@@ -391,8 +394,14 @@ function setupWaitDuration(value: number | undefined, fallback: number, field: s
   return duration;
 }
 
-function setupRequestOptions(options: ClientSetupApplyAndWaitOptions): RequestOptions | undefined {
-  return options.signal ? { signal: options.signal } : undefined;
+function setupApplyOptions(options: ClientSetupApplyOptions): ClientSetupApplyOptions {
+  if (typeof options.idempotencyKey !== "string" || options.idempotencyKey.trim() === "") {
+    throw new Error("custd: tenant manifest idempotencyKey must be non-empty");
+  }
+  return {
+    idempotencyKey: options.idempotencyKey,
+    ...(options.signal ? { signal: options.signal } : {}),
+  };
 }
 
 function waitForSetupReadiness(intervalMs: number, signal?: AbortSignal): Promise<void> {
@@ -422,23 +431,6 @@ function readinessTimeoutError(tenantSlug: string, readiness: ClientSetupReadine
   );
 }
 
-async function persistSetupCredentials(
-  credentials: readonly ClientSetupOneTimeCredential[] | undefined,
-  persistCredentials: ClientSetupApplyAndWaitOptions["persistCredentials"],
-): Promise<void> {
-  if (!credentials || credentials.length === 0) return;
-  if (typeof persistCredentials !== "function") {
-    throw new Error("custd: tenant manifest returned secrets without a one-time credential persistence callback");
-  }
-  try {
-    await persistCredentials(credentials);
-  } catch {
-    throw new Error(
-      "custd: tenant manifest applied but one-time credential persistence failed; reconcile before retrying",
-    );
-  }
-}
-
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 
 export class ClientSetupClient {
@@ -447,10 +439,15 @@ export class ClientSetupClient {
   async apply(
     tenantSlug: string,
     manifest: ClientSetupManifest,
-    options?: RequestOptions,
+    options: ClientSetupApplyOptions,
   ): Promise<ClientSetupApplyResponse> {
     validateClientSetupManifest(manifest);
-    return this.request("PUT", `/tenant-manifest/${encodeURIComponent(tenantSlug)}`, manifest, options);
+    return this.request(
+      "PUT",
+      `/tenant-manifest/${encodeURIComponent(tenantSlug)}`,
+      manifest,
+      setupApplyOptions(options),
+    );
   }
 
   readiness(tenantSlug: string, options?: RequestOptions): Promise<ClientSetupReadinessResponse> {
@@ -460,13 +457,12 @@ export class ClientSetupClient {
   async applyAndWait(
     tenantSlug: string,
     manifest: ClientSetupManifest,
-    options: ClientSetupApplyAndWaitOptions = {},
+    options: ClientSetupApplyAndWaitOptions,
   ): Promise<ClientSetupApplyAndWaitResult> {
     const timeoutMs = setupWaitDuration(options.timeoutMs, defaultSetupReadinessTimeoutMs, "timeoutMs");
     const intervalMs = setupWaitDuration(options.intervalMs, defaultSetupReadinessIntervalMs, "intervalMs");
-    const requestOptions = setupRequestOptions(options);
+    const requestOptions = setupApplyOptions(options);
     const apply = await this.apply(tenantSlug, manifest, requestOptions);
-    await persistSetupCredentials(apply.credentials, options.persistCredentials);
     let readiness: ClientSetupReadinessResponse = apply;
     const deadline = Date.now() + timeoutMs;
     while (!readiness.ready && readiness.safeNextAction === "retry") {
