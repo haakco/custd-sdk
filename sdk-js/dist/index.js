@@ -418,9 +418,9 @@ export class CustdClient {
             throw new Error("custd: offboarding download content length is invalid");
         }
         if (byteSize > maxOffboardingDownloadBytes) {
-            throw new Error("custd: admin binary response exceeds 64 MiB");
+            throw new Error("custd: offboarding download exceeds 64 MiB");
         }
-        const bytes = await readBoundedResponse(response, maxOffboardingDownloadBytes);
+        const bytes = await readBoundedResponse(response, maxOffboardingDownloadBytes, "offboarding download");
         if (bytes.byteLength !== byteSize) {
             throw new Error("custd: offboarding download content length mismatch");
         }
@@ -444,7 +444,7 @@ export class CustdClient {
         if (!response.ok) {
             throw new Error(`custd: audit export failed with status ${response.status}`);
         }
-        const bytes = await readBoundedResponse(response, maxAuditExportBytes);
+        const bytes = await readBoundedResponse(response, maxAuditExportBytes, "audit export download");
         return { bytes, contentType: response.headers.get("content-type") ?? "" };
     }
     async apiRequest(method, path, body, options) {
@@ -521,7 +521,7 @@ export class CustdClient {
         return bytes;
     }
 }
-async function readBoundedResponse(response, maxBytes) {
+async function readBoundedResponse(response, maxBytes, operation) {
     if (!response.body) {
         return new Uint8Array();
     }
@@ -535,7 +535,7 @@ async function readBoundedResponse(response, maxBytes) {
         total += value.byteLength;
         if (total > maxBytes) {
             await reader.cancel();
-            throw new Error("custd: offboarding download exceeds 64 MiB");
+            throw new Error(`custd: ${operation} exceeds 64 MiB`);
         }
         chunks.push(value);
     }
