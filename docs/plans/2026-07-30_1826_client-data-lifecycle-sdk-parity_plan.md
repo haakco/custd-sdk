@@ -232,7 +232,7 @@ language versions, or hand downstream consumers a source branch/local path.
 - **Published-artifact proof:** install `@haakco/custd-sdk@<version>` from the
   configured Verdaccio registry; install PHP packages from their public
   Composer source; create a temporary Go module requiring
-  `github.com/haakco/custd-sdk-go@v<version>`; and install the Python artifact
+  `github.com/haakco/custd-sdk-go/v2@v<version>`; and install the Python artifact
   from its published package endpoint once that endpoint is frozen in
   Milestone 1. Each clean consumer imports every lifecycle namespace and runs
   the shared request fixture without a repository-local path replacement.
