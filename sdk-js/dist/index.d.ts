@@ -514,6 +514,23 @@ export type SubjectScopeRule = {
     required: boolean;
     dimension: string;
 };
+export type MatchPredicate = {
+    selector: string;
+    exact?: string;
+    anyOf?: string[];
+    nonEmpty?: boolean;
+    pattern?: string;
+};
+export type FlowRule = {
+    key: string;
+    correlationSelector: string;
+    familySelector?: string;
+    familyValue?: string;
+    stepSelector: string;
+    startMarkers: string[];
+    completionMarkers: string[];
+    includeUncorrelated: boolean;
+};
 export type PackMetric = {
     key: string;
     label: string;
@@ -533,6 +550,8 @@ export type PackMetric = {
     denominatorMetric?: string;
     seriesKey?: string;
     hierarchyRootKey?: string;
+    match?: MatchPredicate[];
+    flowResult?: "steps" | "starts" | "completions" | "drop_offs" | "completion_rate" | "uncorrelated";
 };
 export type PackDimension = {
     key: string;
@@ -555,6 +574,7 @@ export type PackTemplate = {
     compositionRules?: string[];
     eventTypes: string[];
     aggregation: string;
+    flowRule?: string;
 };
 export type TrustDiagnostics = {
     safeFields: string[];
@@ -577,6 +597,7 @@ export type PackDefinition = {
     metrics: PackMetric[];
     dimensions: PackDimension[];
     templates: PackTemplate[];
+    flowRules?: FlowRule[];
     trust: TrustDiagnostics;
     proof: ProofProfile;
     identity?: IdentitySelectors;

@@ -105,6 +105,37 @@ describe("client setup reporting-pack manifests", () => {
     expect(() => validateClientSetupManifest({ reportingPacks: [{ definition: reportingPack }] })).not.toThrow();
   });
 
+  it("accepts configured failure predicates and explicitly bound flows", () => {
+    const definition: PackDefinition = {
+      ...reportingPack,
+      metrics: [
+        {
+          key: "denials",
+          label: "Denials",
+          kind: "count",
+          calculation: "failure_count",
+          match: [{ selector: "payload.state", exact: "denied" }],
+        },
+        { key: "journeys", label: "Journeys", kind: "count", calculation: "flow", flowResult: "completions" },
+      ],
+      templates: [
+        { ...reportingPack.templates[0], allowedMetrics: ["journeys"], aggregation: "flow", flowRule: "journey" },
+      ],
+      flowRules: [
+        {
+          key: "journey",
+          correlationSelector: "payload.journeyId",
+          stepSelector: "payload.step",
+          startMarkers: ["open"],
+          completionMarkers: ["done"],
+          includeUncorrelated: false,
+        },
+      ],
+    };
+
+    expect(() => validateClientSetupManifest({ reportingPacks: [{ definition }] })).not.toThrow();
+  });
+
   it("accepts Custd's selector-less standard environment dimension", () => {
     const environmentPack = {
       ...reportingPack,

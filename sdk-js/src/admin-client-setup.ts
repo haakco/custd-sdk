@@ -237,6 +237,7 @@ function validateSetupPackDefinition(definition: Record<string, unknown>, field:
   validateSetupPackMetrics(definition.metrics, `${field}.metrics`);
   validateSetupPackDimensions(definition.dimensions, `${field}.dimensions`);
   validateSetupPackTemplates(definition.templates, `${field}.templates`);
+  if (definition.flowRules !== undefined) validateSetupFlowRules(definition.flowRules, `${field}.flowRules`);
   validateSetupPackTrust(definition.trust, `${field}.trust`);
   validateSetupPackProof(definition.proof, `${field}.proof`);
   if (definition.identity !== undefined) validateSetupPackIdentity(definition.identity, `${field}.identity`);
@@ -253,6 +254,8 @@ function validateSetupPackMetrics(metrics: unknown, field: string): void {
     setupString(metric.label, `${field}[${index}].label`);
     setupString(metric.kind, `${field}[${index}].kind`);
     setupString(metric.calculation, `${field}[${index}].calculation`);
+    if (metric.match !== undefined) validateSetupMatchPredicates(metric.match, `${field}[${index}].match`);
+    if (metric.flowResult !== undefined) setupString(metric.flowResult, `${field}[${index}].flowResult`);
   });
 }
 
@@ -283,6 +286,7 @@ function validateSetupPackTemplates(templates: unknown, field: string): void {
     }
     setupStringArray(template.eventTypes, `${templateField}.eventTypes`);
     setupString(template.aggregation, `${templateField}.aggregation`);
+    if (template.flowRule !== undefined) setupString(template.flowRule, `${templateField}.flowRule`);
     if (template.allowedDimensions !== undefined) {
       setupStringArray(template.allowedDimensions, `${templateField}.allowedDimensions`, false);
     }
@@ -299,6 +303,36 @@ function validateSetupPackTemplates(templates: unknown, field: string): void {
         throw new Error(`custd: ${templateField}.subjectScope.required must be a boolean`);
       }
       setupString(scope.dimension, `${templateField}.subjectScope.dimension`);
+    }
+  });
+}
+
+function validateSetupMatchPredicates(predicates: unknown, field: string): void {
+  if (!Array.isArray(predicates) || predicates.length === 0) {
+    throw new Error(`custd: ${field} must be a non-empty array`);
+  }
+  predicates.forEach((entry, index) => {
+    const predicate = setupRecord(entry, `${field}[${index}]`);
+    setupString(predicate.selector, `${field}[${index}].selector`);
+    if (predicate.exact !== undefined) setupString(predicate.exact, `${field}[${index}].exact`);
+    if (predicate.anyOf !== undefined) setupStringArray(predicate.anyOf, `${field}[${index}].anyOf`, false);
+  });
+}
+
+function validateSetupFlowRules(rules: unknown, field: string): void {
+  if (!Array.isArray(rules) || rules.length === 0) throw new Error(`custd: ${field} must be a non-empty array`);
+  rules.forEach((entry, index) => {
+    const rule = setupRecord(entry, `${field}[${index}]`);
+    const ruleField = `${field}[${index}]`;
+    setupString(rule.key, `${ruleField}.key`);
+    setupString(rule.correlationSelector, `${ruleField}.correlationSelector`);
+    setupString(rule.stepSelector, `${ruleField}.stepSelector`);
+    setupStringArray(rule.startMarkers, `${ruleField}.startMarkers`);
+    setupStringArray(rule.completionMarkers, `${ruleField}.completionMarkers`);
+    if (rule.familySelector !== undefined) setupString(rule.familySelector, `${ruleField}.familySelector`);
+    if (rule.familyValue !== undefined) setupString(rule.familyValue, `${ruleField}.familyValue`);
+    if (typeof rule.includeUncorrelated !== "boolean") {
+      throw new Error(`custd: ${ruleField}.includeUncorrelated must be a boolean`);
     }
   });
 }
