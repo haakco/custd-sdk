@@ -186,11 +186,20 @@ list.
 ```html
 <script
   type="module"
-  src="https://custd.example.com/custd-sdk/browser-script-<content-hash>.js"
+  src="https://custd.com/custd-sdk/browser-script.js"
   data-site-uuid="site-uuid"
   data-write-key="site_pk_public_write_key"
 ></script>
 ```
+
+Load the stable entry, not a content-hashed artifact name.
+`browser-script.js` aliases whatever build the deployed manifest
+(`/custd-sdk/browser-manifest.json`) names and is served with a one-hour bounded
+cache, so a host picks up new SDK builds without editing its markup, and it can
+never be left pointing at a retired artifact. A pinned
+`browser-script-<content-hash>.js` URL changes on every release: the markup has
+to be edited by hand to upgrade, and the old name stops resolving once the
+artifact is gone.
 
 ```ts
 await window.custd.track("purchase", { amount: 12.99 });
