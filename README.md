@@ -159,6 +159,22 @@ Required admin input:
 - `--tenant`: tenant/company slug.
 - `--client-id`: producer OAuth client ID.
 
+## Browser Tracker
+
+Load the tracker from the hosted stable entry:
+
+```html
+<script src="https://custd.com/custd-sdk/browser-script.js" defer></script>
+```
+
+`browser-script.js` aliases whatever artifact the deployed manifest
+(`/custd-sdk/browser-manifest.json`) names, and it is served with a one-hour
+bounded cache. Sites therefore pick up new SDK builds without touching their
+markup, and a build that is rolled forward is never left serving a retired file.
+Pinning `browser-script-<hash>.js` couples a site to one build: the file name
+changes on the next release, so the markup has to be edited by hand to upgrade,
+and the old URL eventually stops resolving.
+
 ## Browser Site Admin Helpers
 
 Each SDK exposes admin Site helpers for browser tracker setup:
