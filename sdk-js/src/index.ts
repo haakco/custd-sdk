@@ -246,6 +246,13 @@ export type EventEnvelope = {
   anonymousId?: string;
   userUuid?: string | null;
   companySlug?: string;
+  /**
+   * The environment this event came from. One credential serves every
+   * environment, so this is how a preview build, a staging deploy, or a local
+   * machine declares itself without provisioning another credential. It is sent
+   * as the reserved `custd.environment` label, not as a field of its own.
+   */
+  environment?: string;
   labels?: Record<string, string>;
   context: EventContext;
   payload: Record<string, unknown>;
@@ -373,6 +380,12 @@ export type ProducerProvisionPublicClient = {
 
 export type ClientConfig = {
   baseUrl: string;
+  /**
+   * The environment this process sends from: the default for events that do not
+   * declare their own. A credential is expected to carry every environment
+   * unless an operator deliberately restricts it.
+   */
+  environment?: string;
   getToken?: (options?: RequestOptions) => string | Promise<string>;
   oauth?: ProducerOAuthConfig;
   fetch?: typeof fetch;
@@ -1400,7 +1413,10 @@ export class CustdClient {
   private removeFlushTriggers: Array<() => void> = [];
   private oauthToken: { value: string; expiresAtMs: number } | null = null;
 
+  private readonly config: ClientConfig;
+
   constructor(config: ClientConfig) {
+    this.config = config;
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
     const fetchImpl = config.fetch ?? globalThis.fetch;
     this.fetchImpl = (input, init) => fetchImpl(input, init);
@@ -1559,6 +1575,7 @@ export class CustdClient {
   async track(event: EventEnvelope): Promise<void | Response> {
     const prepared = prepareEvent(event);
     validateEvent(prepared);
+    applyEnvironmentLabel(prepared, this.config.environment);
     if (!this.queueEnabled) {
       return this.sendWithRetry(prepared);
     }
@@ -2383,6 +2400,18 @@ class ProvisioningProducerNamespace {
     return this.request("POST", `/producer-provisioning/${encodeURIComponent(clientId)}/rotate-secret`);
   }
 
+  /**
+   * Sets the environment recorded for this producer. It is the authenticated
+   * default for events that do not declare their own, not a per-environment
+   * credential: one producer is expected to carry every environment unless an
+   * operator deliberately restricts it.
+   */
+  updateEnvironment(clientId: string, environment: string): Promise<ProducerProvisionPublicClient> {
+    return this.request("PATCH", `/producer-provisioning/${encodeURIComponent(clientId)}/environment`, {
+      environment,
+    });
+  }
+
   revoke(clientId: string): Promise<void> {
     return this.request("DELETE", `/producer-provisioning/${encodeURIComponent(clientId)}`);
   }
@@ -2874,10 +2903,46 @@ export function validateEvent(event: EventEnvelope): void {
   if (missing.length > 0) {
     throw new Error(`custd: missing required fields: ${missing.join(", ")}`);
   }
+  validateEnvironmentValue(event.environment ?? "");
   validateProducerLabels(event as EventEnvelope & Record<string, unknown>);
 }
 
 const labelKeyPattern = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
+
+/** Reserved envelope label carrying a declared environment. */
+export const environmentLabelKey = "custd.environment";
+
+const environmentValuePattern = /^[a-z][a-z0-9-]{0,31}$/;
+
+/**
+ * Checks a declared environment against the contract ingest applies, so a
+ * rejected declaration fails locally instead of failing the event at the API.
+ */
+export function validateEnvironmentValue(value: string): void {
+  if (value === "") return;
+  if (value !== value.trim() || !environmentValuePattern.test(value)) {
+    throw new Error(
+      `custd: environment ${JSON.stringify(value)} must be lowercase letters, digits and hyphens, at most 32 characters`,
+    );
+  }
+  if (value === "unclassified") {
+    throw new Error('custd: environment "unclassified" is reserved');
+  }
+}
+
+/**
+ * Stamps the effective environment onto the envelope labels. An event-level
+ * declaration wins over the client default, and a label the caller set is never
+ * overwritten.
+ */
+export function applyEnvironmentLabel(event: EventEnvelope, clientEnvironment?: string): void {
+  const effective = event.environment || clientEnvironment || "";
+  if (effective === "") return;
+  event.labels = { ...(event.labels ?? {}) };
+  if (event.labels[environmentLabelKey] === undefined) {
+    event.labels[environmentLabelKey] = effective;
+  }
+}
 
 function validateProducerLabels(event: EventEnvelope & Record<string, unknown>): void {
   if ("resolvedLabels" in event || "vocabularyFingerprint" in event) {
@@ -2920,6 +2985,7 @@ export function validateBrowserEvent(event: EventEnvelope): void {
   if (missing.length > 0) {
     throw new Error(`custd: missing required browser fields: ${missing.join(", ")}`);
   }
+  validateEnvironmentValue(event.environment ?? "");
   validateProducerLabels(event as EventEnvelope & Record<string, unknown>);
 }
 

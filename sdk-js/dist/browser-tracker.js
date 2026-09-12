@@ -1,4 +1,4 @@
-import { LocalStorageQueueStorage, MemoryQueueStorage, normalizeRetryOptions, prepareEvent, RetryableError, validateBrowserEvent, withRetry, } from "./index.js";
+import { applyEnvironmentLabel, LocalStorageQueueStorage, MemoryQueueStorage, normalizeRetryOptions, prepareEvent, RetryableError, validateBrowserEvent, withRetry, } from "./index.js";
 const defaultSchemaVersion = "1.0.0";
 const maxQueuedGlobalCalls = 1000;
 const redactedPathSegment = "[redacted]";
@@ -158,6 +158,7 @@ class DefaultBrowserTracker {
         const mode = this.config.identityMode === "extended" ? "producer" : "browser-cookieless";
         const prepared = prepareEvent(event, { mode });
         validateBrowserEvent(prepared);
+        applyEnvironmentLabel(prepared, this.config.environment);
         return prepared;
     }
     identityFields() {

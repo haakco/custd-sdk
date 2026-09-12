@@ -159,6 +159,51 @@ Required admin input:
 - `--tenant`: tenant/company slug.
 - `--client-id`: producer OAuth client ID.
 
+## Declaring an environment
+
+An environment (`production`, `staging`, `dev`, a preview name) records where an
+event came from. **One credential serves every environment**, so sending from a
+new one is not a provisioning step: set it once per process, or per event.
+
+```ts
+// JavaScript: the process default, applied to every event this client sends.
+const client = new CustdClient({ baseUrl, getToken, environment: "production" });
+
+// One event from somewhere else, e.g. a preview build.
+await client.track({ ...event, environment: "preview-pr-9" });
+```
+
+```go
+// Go: same shape, event declaration wins over the client default.
+client := custd.NewClient(&custd.ClientConfig{BaseURL: baseURL, APIKey: token, Environment: "production"})
+_ = client.Track(ctx, &custd.EventEnvelope{ ..., Environment: "preview-pr-9" })
+```
+
+```python
+client = CustdClient(base_url=base_url, token=token, environment="production")
+client.track({**event, "environment": "preview-pr-9"})
+```
+
+```php
+$client = new CustdClient($baseUrl, $token, ["environment" => "production"]);
+$client->track([...$event, "environment" => "preview-pr-9"]);
+```
+
+Details that matter:
+
+- The declaration is sent as the reserved `custd.environment` label. Writing that
+  label by hand is rejected, so there is one obvious way to declare it.
+- Values are lowercase letters, digits and hyphens, at most 32 characters.
+  `unclassified` is reserved for Custd and cannot be declared.
+- A tenant may restrict a credential to a set of environments. A declaration
+  outside that set is rejected by the API with the value named; nothing else in
+  the event is affected by an unrelated restriction.
+- Automatic value creation is on by default, so a new environment is recorded the
+  first time an event declares it. Where a tenant has turned it off, the event is
+  still accepted and reports as `unclassified` rather than being lost.
+- `unclassified` in a report means the event declared nothing and its credential
+  has no environment either.
+
 ## Browser Tracker
 
 Load the tracker from the hosted stable entry:

@@ -48,6 +48,67 @@ class CapturingTransport:
         return {"status": self.statuses.pop(0), "body": body}
 
 
+class DeclaredEnvironmentTest(unittest.TestCase):
+    """One credential serves every environment, so declaring one is an event or
+    process option rather than a provisioning step."""
+
+    def setUp(self):
+        self.base_event = load_fixture("valid-event.json")
+
+    def test_client_environment_applies_as_reserved_label(self):
+        transport = CapturingTransport([202], ['{"success":true}'])
+        client = CustdClient(
+            base_url="http://localhost:8080",
+            token="token",
+            environment="development",
+            transport=transport,
+        )
+        client.ingest_event(dict(self.base_event))
+
+        self.assertEqual(
+            transport.calls[0]["event"]["labels"],
+            {"custd.environment": "development"},
+        )
+
+    def test_event_environment_overrides_the_client_default(self):
+        transport = CapturingTransport([202], ['{"success":true}'])
+        client = CustdClient(
+            base_url="http://localhost:8080",
+            token="token",
+            environment="development",
+            transport=transport,
+        )
+        event = dict(self.base_event)
+        event["environment"] = "preview-pr-9"
+        client.ingest_event(event)
+
+        self.assertEqual(
+            transport.calls[0]["event"]["labels"],
+            {"custd.environment": "preview-pr-9"},
+        )
+
+    def test_no_environment_label_when_nothing_declares_one(self):
+        transport = CapturingTransport([202], ['{"success":true}'])
+        client = CustdClient(base_url="http://localhost:8080", token="token", transport=transport)
+        client.ingest_event(dict(self.base_event))
+
+        self.assertNotIn("labels", transport.calls[0]["event"])
+
+    def test_reserved_and_malformed_declarations_are_rejected_locally(self):
+        for value in ("unclassified", "Production", "staging_env", "1st-env"):
+            with self.subTest(value=value):
+                event = dict(self.base_event)
+                event["environment"] = value
+                with self.assertRaises(ValidationError):
+                    validate_event(event)
+
+    def test_hand_written_reserved_label_stays_rejected(self):
+        event = dict(self.base_event)
+        event["labels"] = {"custd.environment": "production"}
+        with self.assertRaisesRegex(ValidationError, "invalid key"):
+            validate_event(event)
+
+
 class CustdClientTest(unittest.TestCase):
     def setUp(self):
         self.base_event = load_fixture("valid-event.json")

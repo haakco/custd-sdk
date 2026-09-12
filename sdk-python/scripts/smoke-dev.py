@@ -12,8 +12,17 @@ from custd import CustdClient
 def main() -> None:
     base_url = os.environ.get("CUSTD_DEV_BASE_URL", "http://localhost:8087")
     company_slug = os.environ.get("CUSTD_DEV_COMPANY_SLUG", "test-company")
+    # A process-level default is enough: one credential serves every
+    # environment, so sending from dev needs no extra provisioning. Override it
+    # with CUSTD_DEV_ENVIRONMENT, or per event with the event's environment.
+    environment = os.environ.get("CUSTD_DEV_ENVIRONMENT", "dev")
     token = dev_token()
-    client = CustdClient(base_url=base_url, token=token, retry={"max_attempts": 1})
+    client = CustdClient(
+        base_url=base_url,
+        token=token,
+        environment=environment,
+        retry={"max_attempts": 1},
+    )
     response = client.ingest_event({
         "eventTypeSlug": "page-view",
         "schemaVersion": "1.0.0",
@@ -27,7 +36,7 @@ def main() -> None:
     })
     if int(response["status"]) >= 400:
         raise RuntimeError(f"custd sdk python smoke failed: {response['status']}")
-    print("custd sdk python smoke OK")
+    print(f"custd sdk python smoke OK environment={environment}")
 
 
 def dev_token() -> str:

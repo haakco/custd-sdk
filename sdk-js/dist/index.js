@@ -118,6 +118,7 @@ export class CustdClient {
         this.batchTimer = null;
         this.removeFlushTriggers = [];
         this.oauthToken = null;
+        this.config = config;
         this.baseUrl = config.baseUrl.replace(/\/$/, "");
         const fetchImpl = config.fetch ?? globalThis.fetch;
         this.fetchImpl = (input, init) => fetchImpl(input, init);
@@ -248,6 +249,7 @@ export class CustdClient {
     async track(event) {
         const prepared = prepareEvent(event);
         validateEvent(prepared);
+        applyEnvironmentLabel(prepared, this.config.environment);
         if (!this.queueEnabled) {
             return this.sendWithRetry(prepared);
         }
@@ -886,6 +888,17 @@ class ProvisioningProducerNamespace {
     rotateSecret(clientId) {
         return this.request("POST", `/producer-provisioning/${encodeURIComponent(clientId)}/rotate-secret`);
     }
+    /**
+     * Sets the environment recorded for this producer. It is the authenticated
+     * default for events that do not declare their own, not a per-environment
+     * credential: one producer is expected to carry every environment unless an
+     * operator deliberately restricts it.
+     */
+    updateEnvironment(clientId, environment) {
+        return this.request("PATCH", `/producer-provisioning/${encodeURIComponent(clientId)}/environment`, {
+            environment,
+        });
+    }
     revoke(clientId) {
         return this.request("DELETE", `/producer-provisioning/${encodeURIComponent(clientId)}`);
     }
@@ -1287,9 +1300,41 @@ export function validateEvent(event) {
     if (missing.length > 0) {
         throw new Error(`custd: missing required fields: ${missing.join(", ")}`);
     }
+    validateEnvironmentValue(event.environment ?? "");
     validateProducerLabels(event);
 }
 const labelKeyPattern = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
+/** Reserved envelope label carrying a declared environment. */
+export const environmentLabelKey = "custd.environment";
+const environmentValuePattern = /^[a-z][a-z0-9-]{0,31}$/;
+/**
+ * Checks a declared environment against the contract ingest applies, so a
+ * rejected declaration fails locally instead of failing the event at the API.
+ */
+export function validateEnvironmentValue(value) {
+    if (value === "")
+        return;
+    if (value !== value.trim() || !environmentValuePattern.test(value)) {
+        throw new Error(`custd: environment ${JSON.stringify(value)} must be lowercase letters, digits and hyphens, at most 32 characters`);
+    }
+    if (value === "unclassified") {
+        throw new Error('custd: environment "unclassified" is reserved');
+    }
+}
+/**
+ * Stamps the effective environment onto the envelope labels. An event-level
+ * declaration wins over the client default, and a label the caller set is never
+ * overwritten.
+ */
+export function applyEnvironmentLabel(event, clientEnvironment) {
+    const effective = event.environment || clientEnvironment || "";
+    if (effective === "")
+        return;
+    event.labels = { ...(event.labels ?? {}) };
+    if (event.labels[environmentLabelKey] === undefined) {
+        event.labels[environmentLabelKey] = effective;
+    }
+}
 function validateProducerLabels(event) {
     if ("resolvedLabels" in event || "vocabularyFingerprint" in event) {
         throw new Error("custd: server-owned label fields are not accepted");
@@ -1336,6 +1381,7 @@ export function validateBrowserEvent(event) {
     if (missing.length > 0) {
         throw new Error(`custd: missing required browser fields: ${missing.join(", ")}`);
     }
+    validateEnvironmentValue(event.environment ?? "");
     validateProducerLabels(event);
 }
 export function createDogfoodEvent(input) {

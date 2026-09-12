@@ -144,6 +144,17 @@ describe("CustdClient provisioning", () => {
           headers: { "Content-Type": "application/json" },
         }),
       )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            clientId: "custd-agency-store-001-webhook",
+            companySlug: "agency-store-001",
+            producerSlug: "webhook",
+            environment: "staging",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "broker-token" });
@@ -155,15 +166,18 @@ describe("CustdClient provisioning", () => {
     });
     const producers = await client.provisioning.producers.list("agency-store-001");
     const rotated = await client.provisioning.producers.rotateSecret("custd/agency store");
+    const updated = await client.provisioning.producers.updateEnvironment("custd/agency store", "staging");
     await client.provisioning.producers.revoke("custd/agency store");
 
     expect(created.clientSecret).toBe("once");
     expect(producers[0].producerSlug).toBe("webhook");
     expect(rotated.clientSecret).toBe("next");
+    expect(updated.environment).toBe("staging");
     expect(fetchMock.mock.calls.map((call) => [call[0], call[1]?.method])).toEqual([
       ["http://localhost:8080/api/v1/producer-provisioning", "POST"],
       ["http://localhost:8080/api/v1/producer-provisioning?companySlug=agency-store-001", "GET"],
       ["http://localhost:8080/api/v1/producer-provisioning/custd%2Fagency%20store/rotate-secret", "POST"],
+      ["http://localhost:8080/api/v1/producer-provisioning/custd%2Fagency%20store/environment", "PATCH"],
       ["http://localhost:8080/api/v1/producer-provisioning/custd%2Fagency%20store", "DELETE"],
     ]);
   });

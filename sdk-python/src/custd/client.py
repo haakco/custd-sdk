@@ -354,12 +354,17 @@ class CustdClient:
         batch: dict[str, Any] | None = None,
         queue: dict[str, Any] | None = None,
         compression: dict[str, Any] | None = None,
+        environment: str | None = None,
         transport: Transport | None = None,
         admin_transport: AdminTransport | None = None,
         timeout: float = 15,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         assert_secure_or_local_http(self.base_url, "base_url")
+        # One credential serves every environment, so this is the process
+        # default for events that do not declare their own.
+        validate_environment_value(environment or "")
+        self.environment = environment
         self._oauth = oauth
         self._oauth_token: tuple[str, float] | None = None
         self._token_transport = (oauth or {}).get("transport") or fetch_oauth_token
@@ -411,11 +416,13 @@ class CustdClient:
     def ingest_event(self, event: EventEnvelope) -> TransportResult:
         prepared = prepare_event(event)
         validate_event(prepared)
+        apply_environment_label(prepared, self.environment)
         return self._send_with_retry(prepared)
 
     def track(self, event: EventEnvelope) -> TransportResult | None:
         prepared = prepare_event(event)
         validate_event(prepared)
+        apply_environment_label(prepared, self.environment)
         if not self.queue_enabled:
             return self._send_with_retry(prepared)
 
@@ -848,6 +855,19 @@ class ProducerProvisioningClient:
     def rotate_secret(self, client_id: str) -> TransportResult:
         return self._provisioning.request("POST", f"/producer-provisioning/{quote_path(client_id)}/rotate-secret")
 
+    def update_environment(self, client_id: str, environment: str) -> TransportResult:
+        """Set the environment recorded for this producer.
+
+        It is the authenticated default for events that do not declare their
+        own, not a per-environment credential: one producer is expected to carry
+        every environment unless an operator deliberately restricts it.
+        """
+        return self._provisioning.request(
+            "PATCH",
+            f"/producer-provisioning/{quote_path(client_id)}/environment",
+            {"environment": environment},
+        )
+
     def revoke(self, client_id: str) -> None:
         self._provisioning.request("DELETE", f"/producer-provisioning/{quote_path(client_id)}")
 
@@ -1105,6 +1125,7 @@ def validate_event(event: EventEnvelope) -> None:
 
     if missing:
         raise ValidationError(f"custd: missing required fields: {', '.join(missing)}")
+    validate_environment_value(str(event.get("environment") or ""))
     validate_event_labels(event)
 
 
@@ -1125,6 +1146,42 @@ def validate_event_labels(event: EventEnvelope) -> None:
             raise ValidationError(f"custd: labels.{key} has an invalid key")
         if not value or value != value.strip() or len(value.encode("utf-8")) > 128:
             raise ValidationError(f"custd: labels.{key} has an invalid value")
+
+
+ENVIRONMENT_LABEL_KEY = "custd.environment"
+UNCLASSIFIED_ENVIRONMENT = "unclassified"
+ENVIRONMENT_VALUE_PATTERN = re.compile(r"^[a-z][a-z0-9-]{0,31}$")
+
+
+def validate_environment_value(value: str) -> None:
+    """Check a declared environment against the contract ingest applies."""
+    if not value:
+        return
+    if value != value.strip() or ENVIRONMENT_VALUE_PATTERN.fullmatch(value) is None:
+        raise ValidationError(
+            f"custd: environment {value!r} must be lowercase letters, digits and hyphens, "
+            "at most 32 characters"
+        )
+    if value == UNCLASSIFIED_ENVIRONMENT:
+        raise ValidationError("custd: environment 'unclassified' is reserved")
+
+
+def apply_environment_label(event: EventEnvelope, client_environment: str | None) -> None:
+    """Stamp the effective environment onto the envelope labels.
+
+    An event-level declaration wins over the client default, and a label the
+    caller already set is never overwritten. This runs after label validation
+    because the label key is reserved: callers declare the environment through
+    the field, not through labels.
+    """
+    effective = str(event.get("environment") or client_environment or "")
+    if not effective:
+        return
+    labels = event.get("labels")
+    if not isinstance(labels, dict):
+        labels = {}
+        event["labels"] = labels
+    labels.setdefault(ENVIRONMENT_LABEL_KEY, effective)
 
 
 def prepare_event(event: EventEnvelope) -> EventEnvelope:

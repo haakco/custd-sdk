@@ -5,6 +5,13 @@ export type BrowserTrackerConfig = {
     baseUrl: string;
     siteUuid: string;
     writeKey: string;
+    /**
+     * The environment this build runs in, for a preview deployment, a staging
+     * host, or a local server that shares the same Site. It is sent as the
+     * reserved `custd.environment` label; a Site serves every environment unless
+     * an operator restricts it, so this is not a second credential.
+     */
+    environment?: string;
     allowedOrigins?: string[];
     identityMode?: BrowserIdentityMode;
     consent?: "granted" | "required";

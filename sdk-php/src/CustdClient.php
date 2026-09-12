@@ -7,6 +7,8 @@ namespace HaakCo\Custd;
 final class CustdClient
 {
     private string $baseUrl;
+    /** Process default environment for events that do not declare their own. */
+    private string $environment;
     private ?string $token;
     /** @var array<string, mixed>|null */
     private ?array $oauthOptions;
@@ -82,6 +84,10 @@ final class CustdClient
     {
         $this->baseUrl = rtrim($baseUrl, "/");
         self::assertSecureOrLocalHttp($this->baseUrl, "baseUrl");
+        // One credential serves every environment, so this is the process
+        // default for events that do not declare their own.
+        self::validateEnvironmentValue((string) ($options["environment"] ?? ""));
+        $this->environment = isset($options["environment"]) ? (string) $options["environment"] : "";
         $this->token = $token;
         $this->oauthOptions = $options["oauth"] ?? null;
         if ($this->oauthOptions !== null) {
@@ -196,6 +202,7 @@ final class CustdClient
     {
         $event = self::prepareEvent($event);
         self::validateEvent($event);
+        $event = self::applyEnvironmentLabel($event, $this->environment);
 
         return $this->sendWithRetry($event);
     }
@@ -207,6 +214,7 @@ final class CustdClient
     {
         $event = self::prepareEvent($event);
         self::validateEvent($event);
+        $event = self::applyEnvironmentLabel($event, $this->environment);
 
         if (!$this->queueEnabled) {
             $this->sendWithRetry($event);
@@ -383,6 +391,7 @@ final class CustdClient
             $fields = implode(", ", $missing);
             throw new \InvalidArgumentException("custd: missing required fields: {$fields}");
         }
+        self::validateEnvironmentValue((string) ($event["environment"] ?? ""));
         self::validateEventLabels($event);
     }
 
@@ -410,6 +419,58 @@ final class CustdClient
                 throw new \InvalidArgumentException("custd: labels.{$key} has an invalid value");
             }
         }
+    }
+
+    /** Reserved envelope label carrying a declared environment. */
+    public const ENVIRONMENT_LABEL_KEY = "custd.environment";
+
+    /** Report-side value for events without a usable environment; not declarable. */
+    public const UNCLASSIFIED_ENVIRONMENT = "unclassified";
+
+    /**
+     * Checks a declared environment against the contract ingest applies, so a
+     * rejected declaration fails locally instead of failing the event at the API.
+     */
+    public static function validateEnvironmentValue(string $value): void
+    {
+        if ($value === "") {
+            return;
+        }
+        if (trim($value) !== $value || preg_match('/^[a-z][a-z0-9-]{0,31}$/D', $value) !== 1) {
+            throw new \InvalidArgumentException(
+                "custd: environment must be lowercase letters, digits and hyphens, at most 32 characters"
+            );
+        }
+        if ($value === self::UNCLASSIFIED_ENVIRONMENT) {
+            throw new \InvalidArgumentException("custd: environment 'unclassified' is reserved");
+        }
+    }
+
+    /**
+     * Stamps the effective environment onto the envelope labels: an event-level
+     * declaration wins over the client default, and a label the caller already
+     * set is never overwritten. Runs after label validation because the label
+     * key is reserved.
+     *
+     * @param array<string, mixed> $event
+     * @return array<string, mixed>
+     */
+    private static function applyEnvironmentLabel(array $event, string $clientEnvironment): array
+    {
+        $effective = (string) ($event["environment"] ?? "");
+        if ($effective === "") {
+            $effective = $clientEnvironment;
+        }
+        if ($effective === "") {
+            return $event;
+        }
+        if (!isset($event["labels"]) || !is_array($event["labels"]) || array_is_list($event["labels"])) {
+            $event["labels"] = [];
+        }
+        if (!array_key_exists(self::ENVIRONMENT_LABEL_KEY, $event["labels"])) {
+            $event["labels"][self::ENVIRONMENT_LABEL_KEY] = $effective;
+        }
+        return $event;
     }
 
     /**

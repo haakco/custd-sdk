@@ -50,6 +50,13 @@ export type EventEnvelope = {
     anonymousId?: string;
     userUuid?: string | null;
     companySlug?: string;
+    /**
+     * The environment this event came from. One credential serves every
+     * environment, so this is how a preview build, a staging deploy, or a local
+     * machine declares itself without provisioning another credential. It is sent
+     * as the reserved `custd.environment` label, not as a field of its own.
+     */
+    environment?: string;
     labels?: Record<string, string>;
     context: EventContext;
     payload: Record<string, unknown>;
@@ -145,6 +152,12 @@ export type ProducerProvisionPublicClient = {
 };
 export type ClientConfig = {
     baseUrl: string;
+    /**
+     * The environment this process sends from: the default for events that do not
+     * declare their own. A credential is expected to carry every environment
+     * unless an operator deliberately restricts it.
+     */
+    environment?: string;
     getToken?: (options?: RequestOptions) => string | Promise<string>;
     oauth?: ProducerOAuthConfig;
     fetch?: typeof fetch;
@@ -1002,6 +1015,7 @@ export declare class CustdClient {
     private batchTimer;
     private removeFlushTriggers;
     private oauthToken;
+    private readonly config;
     constructor(config: ClientConfig);
     static fromProvisionedProducer(credentials: ProvisionedProducerCredentials): CustdClient;
     static fromBrokerEnv(env: BrokerEnv, options?: BrokerEnvClientOptions): CustdClient;
@@ -1145,6 +1159,13 @@ declare class ProvisioningProducerNamespace {
     provision(request: ProducerProvisionCreate): Promise<ProvisionedProducerCredentials>;
     list(companySlug?: string): Promise<ProducerProvisionPublicClient[]>;
     rotateSecret(clientId: string): Promise<ProvisionedProducerCredentials>;
+    /**
+     * Sets the environment recorded for this producer. It is the authenticated
+     * default for events that do not declare their own, not a per-environment
+     * credential: one producer is expected to carry every environment unless an
+     * operator deliberately restricts it.
+     */
+    updateEnvironment(clientId: string, environment: string): Promise<ProducerProvisionPublicClient>;
     revoke(clientId: string): Promise<void>;
 }
 declare class AdminTenantNamespace {
@@ -1248,6 +1269,19 @@ export type PrepareEventOptions = {
 };
 export declare function redactedProvisionedProducer(credentials: ProvisionedProducerCredentials): RedactedProvisionedProducerCredentials;
 export declare function validateEvent(event: EventEnvelope): void;
+/** Reserved envelope label carrying a declared environment. */
+export declare const environmentLabelKey = "custd.environment";
+/**
+ * Checks a declared environment against the contract ingest applies, so a
+ * rejected declaration fails locally instead of failing the event at the API.
+ */
+export declare function validateEnvironmentValue(value: string): void;
+/**
+ * Stamps the effective environment onto the envelope labels. An event-level
+ * declaration wins over the client default, and a label the caller set is never
+ * overwritten.
+ */
+export declare function applyEnvironmentLabel(event: EventEnvelope, clientEnvironment?: string): void;
 export declare function validateBrowserEvent(event: EventEnvelope): void;
 export declare function createDogfoodEvent(input: DogfoodEventInput): EventEnvelope;
 export declare function prepareEvent(event: EventEnvelope, options?: PrepareEventOptions): EventEnvelope;

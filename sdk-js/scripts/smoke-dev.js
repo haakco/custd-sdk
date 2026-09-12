@@ -13,11 +13,16 @@ function getToken() {
 async function run() {
   const baseUrl = process.env.CUSTD_DEV_BASE_URL ?? "http://localhost:8087";
   const companySlug = process.env.CUSTD_DEV_COMPANY_SLUG ?? "test-company";
+  // A process-level default is enough: one credential serves every
+  // environment, so sending from dev needs no extra provisioning. Override it
+  // with CUSTD_DEV_ENVIRONMENT, or per event with the event's environment.
+  const environment = process.env.CUSTD_DEV_ENVIRONMENT ?? "dev";
   const token = getToken();
 
   const client = new CustdClient({
     baseUrl,
     getToken: () => token,
+    environment,
   });
 
   const response = await client.ingestEvent({
@@ -40,7 +45,7 @@ async function run() {
     throw new Error(`custd sdk js smoke failed: ${response.status} ${body}`);
   }
 
-  console.log("custd sdk js smoke OK");
+  console.log(`custd sdk js smoke OK environment=${environment}`);
 }
 
 run().catch((err) => {

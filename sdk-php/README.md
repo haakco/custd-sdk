@@ -262,6 +262,24 @@ $client->adminSchemas()->createVersion("courib.delivery.created", [
 ]);
 ```
 
+## Declaring an environment
+
+One credential serves every environment, so sending from `dev`, a preview build,
+or a local machine needs no extra provisioning:
+
+```php
+$client = new CustdClient($baseUrl, $token, ["environment" => "dev"]);
+
+// Per event, when this one came from somewhere else.
+$client->track([...$event, "environment" => "preview-pr-9"]);
+```
+
+The value is sent as the reserved `custd.environment` label; writing that label
+through `labels` is rejected. It must be lowercase letters, digits and hyphens, at
+most 32 characters, and `unclassified` is reserved. A tenant may restrict a
+credential to a set of environments, in which case a declaration outside that set
+is rejected by the API.
+
 ## Dev smoke test (Hydra)
 
 Requires dev stack running with Hydra using JWT access tokens and ingest-api configured with `AUTH_JWKS_URL`.

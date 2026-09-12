@@ -61,6 +61,10 @@ final class ProvisioningClientTest extends TestCase
                 "body" => '[{"clientId":"custd-agency-store-001-webhook","companySlug":"agency-store-001","producerSlug":"webhook","scopes":["events.write"]}]',
             ],
             ["status" => 200, "body" => '{"clientId":"custd-x","clientSecret":"next","scopes":["events.write"]}'],
+            [
+                "status" => 200,
+                "body" => '{"clientId":"custd-agency-store-001-webhook","companySlug":"agency-store-001","producerSlug":"webhook","environment":"staging"}',
+            ],
             ["status" => 204, "body" => ""],
         ];
         $calls = [];
@@ -78,15 +82,18 @@ final class ProvisioningClientTest extends TestCase
         ]);
         $producers = $client->provisioning()->listProducers("agency-store-001");
         $rotated = $client->provisioning()->rotateProducerSecret("custd/agency store");
+        $updated = $client->provisioning()->updateProducerEnvironment("custd/agency store", "staging");
         $client->provisioning()->revokeProducer("custd/agency store");
 
         $this->assertSame("once", $created["clientSecret"]);
         $this->assertSame("webhook", $producers[0]["producerSlug"]);
         $this->assertSame("next", $rotated["clientSecret"]);
+        $this->assertSame("staging", $updated["environment"]);
         $this->assertSame([
             ["POST", "http://localhost:8080/api/v1/producer-provisioning"],
             ["GET", "http://localhost:8080/api/v1/producer-provisioning?companySlug=agency-store-001"],
             ["POST", "http://localhost:8080/api/v1/producer-provisioning/custd%2Fagency%20store/rotate-secret"],
+            ["PATCH", "http://localhost:8080/api/v1/producer-provisioning/custd%2Fagency%20store/environment"],
             ["DELETE", "http://localhost:8080/api/v1/producer-provisioning/custd%2Fagency%20store"],
         ], array_map(
             static fn (array $call): array => [$call["method"], $call["url"]],

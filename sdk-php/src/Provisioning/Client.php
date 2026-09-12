@@ -69,6 +69,22 @@ final class Client
         ) ?? [];
     }
 
+    /**
+     * Sets the environment recorded for this producer. It is the authenticated
+     * default for events that do not declare their own, not a per-environment
+     * credential: one producer is expected to carry every environment.
+     *
+     * @return array<string, mixed>
+     */
+    public function updateProducerEnvironment(string $clientId, string $environment): array
+    {
+        return $this->request(
+            "PATCH",
+            "/producer-provisioning/" . rawurlencode($clientId) . "/environment",
+            ["environment" => $environment]
+        ) ?? [];
+    }
+
     public function revokeProducer(string $clientId): void
     {
         $this->request("DELETE", "/producer-provisioning/" . rawurlencode($clientId));

@@ -20,6 +20,29 @@ beforeEach(() => {
 });
 
 describe("createBrowserTracker", () => {
+  it("declares a shared Site's environment for one build", async () => {
+    const fetchMock = mockFetch();
+
+    const tracker = createBrowserTracker({
+      ...baseConfig,
+      allowedOrigins: ["https://example.com"],
+      environment: "preview-pr-9",
+      trackInitialPageView: false,
+    });
+    await tracker.trackPageView();
+
+    expect(eventFromFetch(fetchMock).labels).toEqual({ "custd.environment": "preview-pr-9" });
+  });
+
+  it("omits the environment label when nothing declares one", async () => {
+    const fetchMock = mockFetch();
+
+    const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });
+    await tracker.trackPageView();
+
+    expect(eventFromFetch(fetchMock).labels).toBeUndefined();
+  });
+
   it("sends cookieless page views with empty browser identity fields", async () => {
     const fetchMock = mockFetch();
     document.title = "Start";

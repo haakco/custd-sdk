@@ -90,6 +90,15 @@ class ProvisioningClientTest(unittest.TestCase):
                 ],
             },
             {"status": 200, "body": {"clientId": "custd-x", "clientSecret": "next", "scopes": ["events.write"]}},
+            {
+                "status": 200,
+                "body": {
+                    "clientId": "custd-agency-store-001-webhook",
+                    "companySlug": "agency-store-001",
+                    "producerSlug": "webhook",
+                    "environment": "staging",
+                },
+            },
             {"status": 204, "body": None},
         ])
         client = CustdClient(base_url="http://localhost:8080", token="broker-token", admin_transport=transport)
@@ -101,15 +110,18 @@ class ProvisioningClientTest(unittest.TestCase):
         })
         producers = client.provisioning.producers.list("agency-store-001")
         rotated = client.provisioning.producers.rotate_secret("custd/agency store")
+        updated = client.provisioning.producers.update_environment("custd/agency store", "staging")
         client.provisioning.producers.revoke("custd/agency store")
 
         self.assertEqual("once", created["clientSecret"])
         self.assertEqual("webhook", producers[0]["producerSlug"])
         self.assertEqual("next", rotated["clientSecret"])
+        self.assertEqual("staging", updated["environment"])
         self.assertEqual([
             ("POST", "http://localhost:8080/api/v1/producer-provisioning"),
             ("GET", "http://localhost:8080/api/v1/producer-provisioning?companySlug=agency-store-001"),
             ("POST", "http://localhost:8080/api/v1/producer-provisioning/custd%2Fagency%20store/rotate-secret"),
+            ("PATCH", "http://localhost:8080/api/v1/producer-provisioning/custd%2Fagency%20store/environment"),
             ("DELETE", "http://localhost:8080/api/v1/producer-provisioning/custd%2Fagency%20store"),
         ], [(call["method"], call["url"]) for call in transport.calls])
 
