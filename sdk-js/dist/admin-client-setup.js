@@ -271,6 +271,10 @@ function validateSetupPackIdentity(identity, field) {
         if (value[key] === undefined)
             continue;
         const selector = setupRecord(value[key], `${field}.${key}`);
+        // The platform serialises the whole identity block and leaves unset selectors empty, so a pack
+        // it exported always carries all five keys. Empty means unset; anything else must be complete.
+        if (selector.selector === "" && selector.type === "")
+            continue;
         setupString(selector.selector, `${field}.${key}.selector`);
         setupString(selector.type, `${field}.${key}.type`);
     }

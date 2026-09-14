@@ -57,6 +57,34 @@ describe("client setup reporting-pack manifests", () => {
     });
   });
 
+  // The platform serialises the whole identity block, so a pack it exports carries all five
+  // selectors with the unset ones empty. Requiring a non-empty selector for every present key
+  // rejected the platform's own output, which meant an exported pack could not be sent back
+  // through a setup manifest.
+  it("accepts the platform's identity serialisation, where unset selectors are empty", () => {
+    const definition: PackDefinition = {
+      ...reportingPack,
+      identity: {
+        subject: { selector: "anonymousId", type: "string" },
+        session: { selector: "", type: "" },
+        entity: { selector: "", type: "" },
+        cohort: { selector: "", type: "" },
+        correlation: { selector: "", type: "" },
+      },
+    };
+    expect(() => validateClientSetupManifest({ reportingPacks: [{ definition }] })).not.toThrow();
+  });
+
+  it("still rejects an identity selector that is only half configured", () => {
+    const definition: PackDefinition = {
+      ...reportingPack,
+      identity: { subject: { selector: "anonymousId", type: "" } },
+    };
+    expect(() => validateClientSetupManifest({ reportingPacks: [{ definition }] })).toThrow(
+      /identity.subject.type must be non-empty/,
+    );
+  });
+
   it("rejects duplicate pack keys, invalid revisions, and credentials before transport", async () => {
     const request = vi.fn().mockResolvedValue({ ready: false });
     const client = new ClientSetupClient(request);
