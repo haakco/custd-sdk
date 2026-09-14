@@ -7,6 +7,7 @@ import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 import { TimePlanAdminClient } from "./admin-timeplans.js";
+import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
 import { basicAuthorization } from "./oauth.js";
 export { ClientSetupClient, validateClientSetupManifest, } from "./admin-client-setup.js";
@@ -18,6 +19,7 @@ export { RetentionClient, } from "./admin-retention.js";
 export { SubjectExportClient, } from "./admin-subject-exports.js";
 export { TenantStorageClient, } from "./admin-tenant-storage.js";
 export { TimePlanAdminClient, validateTimePlanDefinition, } from "./admin-timeplans.js";
+export { ANALYTICS_MAX_LABEL_FILTERS, AnalyticsEventClient, } from "./analytics-events.js";
 export { BackendLifecycleClient, createVerifiedOffboardingExportReceiver, } from "./backend-lifecycle.js";
 export { classifyReportingData, getReportingViewState, reportingQueryKey, } from "./reporting-state.js";
 export { checkRuntimeReadiness, } from "./runtime-readiness.js";
@@ -146,6 +148,7 @@ export class CustdClient {
         this.provisioning = new ProvisioningNamespace((method, path, body, options) => this.apiRequest(method, path, body, options));
         this.reporting = new ReportingNamespace((method, path, body, options) => this.apiRequest(method, path, body, options), (path, options) => this.apiDownload(path, options));
         this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
+        this.analytics = new AnalyticsEventClient((method, path, body, options) => this.apiRequest(method, path, body, options));
         if (this.queueEnabled) {
             this.queue = this.queueStorage.load();
         }

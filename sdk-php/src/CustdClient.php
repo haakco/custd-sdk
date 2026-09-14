@@ -194,6 +194,11 @@ final class CustdClient
         return new Reporting\Client($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    public function analytics(): Analytics\Client
+    {
+        return new Analytics\Client($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
     /**
      * @param array<string, mixed> $event
      * @return array<string, mixed>

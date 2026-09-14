@@ -7,6 +7,7 @@ import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 import { TimePlanAdminClient } from "./admin-timeplans.js";
+import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
 import { basicAuthorization } from "./oauth.js";
 
@@ -164,6 +165,17 @@ export {
   type TimePlanVersion,
   validateTimePlanDefinition,
 } from "./admin-timeplans.js";
+export {
+  ANALYTICS_MAX_LABEL_FILTERS,
+  AnalyticsEventClient,
+  type AnalyticsEventQueryRequest,
+  type AnalyticsEventQueryResponse,
+  type AnalyticsEventRow,
+  type AnalyticsEventSourceSummary,
+  type AnalyticsEventTiming,
+  type AnalyticsLabelFilter,
+  type AnalyticsQuerySource,
+} from "./analytics-events.js";
 export {
   BackendLifecycleClient,
   type BackendLifecycleDownloader,
@@ -1396,6 +1408,7 @@ export class CustdClient {
   public readonly provisioning: ProvisioningNamespace;
   public readonly reporting: ReportingNamespace;
   public readonly schemas: SchemaNamespace;
+  public readonly analytics: AnalyticsEventClient;
   private baseUrl: string;
   private getToken: (options?: RequestOptions) => string | Promise<string>;
   private fetchImpl: typeof fetch;
@@ -1453,6 +1466,9 @@ export class CustdClient {
       (path, options) => this.apiDownload(path, options),
     );
     this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
+    this.analytics = new AnalyticsEventClient((method, path, body, options) =>
+      this.apiRequest(method, path, body, options),
+    );
 
     if (this.queueEnabled) {
       this.queue = this.queueStorage.load();

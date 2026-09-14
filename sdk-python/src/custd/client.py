@@ -395,6 +395,9 @@ class CustdClient:
         self.admin = AdminClient(self, admin_transport or default_admin_transport)
         self.provisioning = ProvisioningClient(self, admin_transport or default_admin_transport)
         self.reporting = ReportingClient(self, admin_transport or default_admin_transport)
+        from .analytics_events import AnalyticsEventClient
+
+        self.analytics = AnalyticsEventClient(self, admin_transport or default_admin_transport)
         self.timeout = timeout
 
     @classmethod
