@@ -365,7 +365,8 @@ export type ProducerProvisionCreate = {
     | "schemas"
     | "managed-audit"
     | "managed-audit-reporting-read"
-    | "managed-audit-reporting-subject-insight";
+    | "managed-audit-reporting-subject-insight"
+    | "managed-audit-event-read";
   metadata?: Record<string, string>;
 };
 
