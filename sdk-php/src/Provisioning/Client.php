@@ -55,7 +55,8 @@ final class Client
         if ($companySlug !== null && $companySlug !== "") {
             $path .= "?companySlug=" . rawurlencode($companySlug);
         }
-        return $this->request("GET", $path) ?? [];
+        $response = $this->request("GET", $path) ?? [];
+        return $response["producers"] ?? [];
     }
 
     /**

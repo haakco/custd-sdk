@@ -2410,7 +2410,9 @@ class ProvisioningProducerNamespace {
 
   list(companySlug?: string): Promise<ProducerProvisionPublicClient[]> {
     const query = companySlug ? `?companySlug=${encodeURIComponent(companySlug)}` : "";
-    return this.request("GET", `/producer-provisioning${query}`);
+    return this.request<{ producers: ProducerProvisionPublicClient[] }>("GET", `/producer-provisioning${query}`).then(
+      (response) => response.producers,
+    );
   }
 
   rotateSecret(clientId: string): Promise<ProvisionedProducerCredentials> {

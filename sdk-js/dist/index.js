@@ -886,7 +886,7 @@ class ProvisioningProducerNamespace {
     }
     list(companySlug) {
         const query = companySlug ? `?companySlug=${encodeURIComponent(companySlug)}` : "";
-        return this.request("GET", `/producer-provisioning${query}`);
+        return this.request("GET", `/producer-provisioning${query}`).then((response) => response.producers);
     }
     rotateSecret(clientId) {
         return this.request("POST", `/producer-provisioning/${encodeURIComponent(clientId)}/rotate-secret`);

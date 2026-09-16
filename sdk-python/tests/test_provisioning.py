@@ -80,14 +80,14 @@ class ProvisioningClientTest(unittest.TestCase):
             },
             {
                 "status": 200,
-                "body": [
+                "body": {"producers": [
                     {
                         "clientId": "custd-agency-store-001-webhook",
                         "companySlug": "agency-store-001",
                         "producerSlug": "webhook",
                         "scopes": ["events.write"],
                     },
-                ],
+                ]},
             },
             {"status": 200, "body": {"clientId": "custd-x", "clientSecret": "next", "scopes": ["events.write"]}},
             {

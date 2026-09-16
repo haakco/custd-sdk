@@ -127,14 +127,16 @@ describe("CustdClient provisioning", () => {
       )
       .mockResolvedValueOnce(
         new Response(
-          JSON.stringify([
-            {
-              clientId: "custd-agency-store-001-webhook",
-              companySlug: "agency-store-001",
-              producerSlug: "webhook",
-              scopes: ["events.write"],
-            },
-          ]),
+          JSON.stringify({
+            producers: [
+              {
+                clientId: "custd-agency-store-001-webhook",
+                companySlug: "agency-store-001",
+                producerSlug: "webhook",
+                scopes: ["events.write"],
+              },
+            ],
+          }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         ),
       )

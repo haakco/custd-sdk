@@ -852,7 +852,7 @@ class ProducerProvisioningClient:
     def list(self, company_slug: str | None = None) -> list[dict[str, Any]]:
         query = f"?companySlug={quote_path(company_slug)}" if company_slug else ""
         response = self._provisioning.request("GET", f"/producer-provisioning{query}")
-        items = response.get("items")
+        items = response.get("producers")
         return items if isinstance(items, list) else []
 
     def rotate_secret(self, client_id: str) -> TransportResult:
