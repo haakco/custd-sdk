@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   split:
-    runs-on: htz-containerd
+    runs-on: haakco-build
     container:
       image: ghcr.io/haakco/actions-runner:1
       credentials:
