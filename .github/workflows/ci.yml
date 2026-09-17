@@ -286,7 +286,7 @@ jobs:
           cd ../sdk-react && npm publish --registry=https://verdaccio.k8.haak.co/ --access restricted --ignore-scripts
 
   publish-packagist:
-    runs-on: [self-hosted, haakco]
+    runs-on: haakco-build
     needs: [php, php-analysis, php-laravel, php-wordpress, release-guard]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
