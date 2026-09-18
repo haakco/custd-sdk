@@ -1,8 +1,7 @@
 self-hosted-runner:
+  # Jobs select the shared `haakco-build` label, which the containerd lane serves.
+  # The retired DinD selector labels must not come back.
   labels:
-    - self-hosted
-    - haakco
     - haakco-build
-    - htz-containerd
 
 config-variables: null
