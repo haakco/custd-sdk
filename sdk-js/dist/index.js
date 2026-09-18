@@ -923,12 +923,16 @@ class AdminTenantNamespace {
         return this.request("DELETE", `/tenants/${encodeURIComponent(slug)}`);
     }
 }
+// Custd requires a canonical UUIDv7 Idempotency-Key on every OAuth client
+// mutation, so one is generated when the caller does not supply it. A caller that
+// retries the same mutation should pass its own key to reuse it; a caller that
+// checks for an existing client first, as a reconcile does, is safe either way.
 class AdminOAuthClientNamespace {
     constructor(request) {
         this.request = request;
     }
-    create(client) {
-        return this.request("POST", "/oauth-clients", client);
+    create(client, options = {}) {
+        return this.request("POST", "/oauth-clients", client, mutationOptions(options));
     }
     list() {
         return this.request("GET", "/oauth-clients");
@@ -936,15 +940,18 @@ class AdminOAuthClientNamespace {
     get(clientId) {
         return this.request("GET", `/oauth-clients/${encodeURIComponent(clientId)}`);
     }
-    delete(clientId) {
-        return this.request("DELETE", `/oauth-clients/${encodeURIComponent(clientId)}`);
+    delete(clientId, options = {}) {
+        return this.request("DELETE", `/oauth-clients/${encodeURIComponent(clientId)}`, undefined, mutationOptions(options));
     }
-    rotateSecret(clientId) {
-        return this.request("POST", `/oauth-clients/${encodeURIComponent(clientId)}/rotate-secret`);
+    rotateSecret(clientId, options = {}) {
+        return this.request("POST", `/oauth-clients/${encodeURIComponent(clientId)}/rotate-secret`, undefined, mutationOptions(options));
     }
-    updateScopes(clientId, body) {
-        return this.request("PATCH", `/oauth-clients/${encodeURIComponent(clientId)}/scopes`, body);
+    updateScopes(clientId, body, options = {}) {
+        return this.request("PATCH", `/oauth-clients/${encodeURIComponent(clientId)}/scopes`, body, mutationOptions(options));
     }
+}
+function mutationOptions(options) {
+    return { ...options, idempotencyKey: options.idempotencyKey ?? uuidv7() };
 }
 class AdminSiteNamespace {
     constructor(request) {
@@ -1665,6 +1672,28 @@ function isOnline() {
         return true;
     }
     return navigator.onLine;
+}
+// uuidv7 returns a canonical RFC 9562 version 7 UUID. Custd requires one as the
+// Idempotency-Key of an OAuth client mutation.
+function uuidv7() {
+    const bytes = new Uint8Array(16);
+    if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+        crypto.getRandomValues(bytes);
+    }
+    else {
+        for (let index = 0; index < bytes.length; index += 1) {
+            bytes[index] = Math.floor(Math.random() * 256);
+        }
+    }
+    let timestamp = Date.now();
+    for (let index = 5; index >= 0; index -= 1) {
+        bytes[index] = timestamp % 256;
+        timestamp = Math.floor(timestamp / 256);
+    }
+    bytes[6] = (bytes[6] & 0x0f) | 0x70;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 function randomUUID() {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {

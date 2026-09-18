@@ -1193,12 +1193,12 @@ declare class AdminTenantNamespace {
 declare class AdminOAuthClientNamespace {
     private readonly request;
     constructor(request: AdminRequester);
-    create(client: AdminOAuthClientCreate): Promise<AdminOAuthClientCreateResponse>;
+    create(client: AdminOAuthClientCreate, options?: RequestOptions): Promise<AdminOAuthClientCreateResponse>;
     list(): Promise<AdminOAuthClientListResponse>;
     get(clientId: string): Promise<AdminOAuthClient>;
-    delete(clientId: string): Promise<void>;
-    rotateSecret(clientId: string): Promise<AdminOAuthClientSecretResponse>;
-    updateScopes(clientId: string, body: AdminOAuthClientUpdateScopesRequest): Promise<AdminOAuthClient>;
+    delete(clientId: string, options?: RequestOptions): Promise<void>;
+    rotateSecret(clientId: string, options?: RequestOptions): Promise<AdminOAuthClientSecretResponse>;
+    updateScopes(clientId: string, body: AdminOAuthClientUpdateScopesRequest, options?: RequestOptions): Promise<AdminOAuthClient>;
 }
 declare class AdminSiteNamespace {
     private readonly request;

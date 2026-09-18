@@ -2474,10 +2474,7 @@ class AdminTenantNamespace {
 class AdminOAuthClientNamespace {
   constructor(private readonly request: AdminRequester) {}
 
-  create(
-    client: AdminOAuthClientCreate,
-    options: RequestOptions = {},
-  ): Promise<AdminOAuthClientCreateResponse> {
+  create(client: AdminOAuthClientCreate, options: RequestOptions = {}): Promise<AdminOAuthClientCreateResponse> {
     return this.request("POST", "/oauth-clients", client, mutationOptions(options));
   }
 
@@ -2498,10 +2495,7 @@ class AdminOAuthClientNamespace {
     );
   }
 
-  rotateSecret(
-    clientId: string,
-    options: RequestOptions = {},
-  ): Promise<AdminOAuthClientSecretResponse> {
+  rotateSecret(clientId: string, options: RequestOptions = {}): Promise<AdminOAuthClientSecretResponse> {
     return this.request(
       "POST",
       `/oauth-clients/${encodeURIComponent(clientId)}/rotate-secret`,
