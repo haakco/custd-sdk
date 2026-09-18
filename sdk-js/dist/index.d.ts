@@ -281,12 +281,23 @@ export type AdminTenantListResponse = {
 export type AdminOAuthClientCreate = {
     clientId: string;
     companySlug: string;
-    scopes: string[];
+    /**
+     * Custd derives the least-privilege scope set from `purposeProfile` and sets
+     * the matching client profile, so a caller states its intent rather than the
+     * scope vocabulary. Pass `scopes` explicitly only when no purpose profile fits.
+     */
+    scopes?: string[];
+    environment?: string;
+    profile?: string;
+    purposeProfile?: string;
 };
 export type AdminOAuthClient = {
     clientId: string;
     companySlug: string;
     scopes: string[];
+    environment?: string;
+    profile?: string;
+    purposeProfile?: string;
 };
 export type AdminOAuthClientCreateResponse = AdminOAuthClient & {
     clientSecret: string;

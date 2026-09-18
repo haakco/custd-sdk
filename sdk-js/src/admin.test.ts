@@ -33,6 +33,48 @@ describe("CustdClient admin", () => {
     );
   });
 
+  it("creates an OAuth client from a purpose profile without naming scopes", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          clientId: "tiao-local-ingest",
+          companySlug: "tiao-local",
+          scopes: ["events.write"],
+          profile: "tenant_machine",
+          purposeProfile: "ingest",
+          clientSecret: "secret",
+        }),
+        { status: 201, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "admin-token",
+    });
+
+    const created = await client.admin.oauthClients.create({
+      clientId: "tiao-local-ingest",
+      companySlug: "tiao-local",
+      purposeProfile: "ingest",
+      environment: "local",
+    });
+
+    expect(created.purposeProfile).toBe("ingest");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/v1/admin/oauth-clients",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          clientId: "tiao-local-ingest",
+          companySlug: "tiao-local",
+          purposeProfile: "ingest",
+          environment: "local",
+        }),
+      }),
+    );
+  });
+
   it("does not expose clientSecret on listed OAuth clients", async () => {
     const fetchMock = vi
       .fn()
