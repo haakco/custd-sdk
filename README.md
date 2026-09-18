@@ -460,3 +460,16 @@ For Laravel async delivery, prefer Laravel queues through `SendCustdEvent`.
 process; configure `CUSTD_QUEUE_STORE` and `CUSTD_QUEUE_PATH` if you need a
 durable store. Do not rely on the default in-memory store for FPM or Octane
 request-end durability.
+
+## Developer secrets and mise
+
+Verified 2026-09-18: mise loads static `.env` configuration only; it never
+runs an Infisical startup loader or reads a cached Infisical export.
+With Docker running, use `just infisical-login`, `just infisical-status`, and
+`just infisical-test` for this repository's isolated profile. Secret reads
+must select project, environment, and path explicitly through the wrapper.
+CI machine identities remain separate from these developer login volumes.
+
+For already-installed tools during GitHub rate limiting, use
+`MISE_OFFLINE=1 mise exec -- <command>`. Missing tools still require upstream
+access; this option blocks mise HTTP requests, not the child command's network.

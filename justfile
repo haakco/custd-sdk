@@ -1,6 +1,6 @@
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
-test: test-go test-js test-python test-php test-release-mirrors
+test: infisical-test test-go test-js test-python test-php test-release-mirrors
 
 check: test lint-workflows lint-markdown diff-check
 
@@ -47,3 +47,13 @@ test-php:
 
 test-release-mirrors:
   bash scripts/test-publish-release-mirror.sh
+
+# Repository-isolated developer Infisical profile (Docker required).
+infisical-login:
+    scripts/infisical-docker.sh login
+
+infisical-status:
+    scripts/infisical-docker.sh status
+
+infisical-test:
+    node --test scripts/test-infisical-docker.mjs
