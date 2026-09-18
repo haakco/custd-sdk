@@ -3,7 +3,7 @@
   "description": "custd ingestion SDK (minimal Phase 1)",
   "type": "library",
   "license": "MIT",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "autoload": {
     "psr-4": {
       "HaakCo\\Custd\\": "src/"
@@ -31,7 +31,7 @@
   },
   "scripts": {
     "test": "phpunit",
-    "analyse": "phpstan analyse",
+    "analyse": "phpstan analyse --memory-limit=1G",
     "format": "pint",
     "format-check": "pint --test",
     "smoke:dev": "php scripts/smoke-dev.php"

@@ -33,8 +33,10 @@ source of truth; the git release tag is `v<VERSION>` (e.g. `v1.3.0`). Mirror rep
 created by the subtree split inherit that same tag.
 
 - **Bump every package together.** When you change `VERSION`, update the same value
-  in every package that hardcodes it: `sdk-js/package.json`, `sdk-python/pyproject.toml`,
-  and `sdk-php/composer.json`.
+  in every package that hardcodes it: `sdk-js/package.json`, `sdk-react/package.json`,
+  `sdk-python/pyproject.toml`, `sdk-php/composer.json`, and `sdk-go/VERSION`.
+  `sdk-php/tests/VersionSyncTest.php` holds the enforced list — update that test in the
+  same change when a published package is added or removed, and keep this list equal to it.
 - **Never hardcode a version in the Packagist-derived manifests.** The root
   `composer.json`, `laravel-package/composer.json`, and `wordpress-plugin/composer.json`
   take their version from the git tag on their split mirror — adding a `version` key
