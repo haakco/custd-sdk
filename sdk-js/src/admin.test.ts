@@ -61,6 +61,10 @@ describe("CustdClient admin", () => {
     });
 
     expect(created.purposeProfile).toBe("ingest");
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)["Idempotency-Key"]).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:8080/api/v1/admin/oauth-clients",
       expect.objectContaining({
