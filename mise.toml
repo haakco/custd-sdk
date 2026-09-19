@@ -8,6 +8,11 @@ just = "latest"
 actionlint = "latest"
 markdownlint-cli2 = "latest"
 ripgrep = "latest"
+# Declared because the release-mirror job resolves it as `mise which infisical`
+# before invoking it by path. Undeclared, mise installs the bin but reports
+# "infisical is a mise bin however it is not currently active" and the job fails
+# before it can read its push token.
+infisical = "latest"
 
 # Static analysis — pinned because their output gates CI (a version bump can
 # change findings). Biome is intentionally absent: it is pinned via sdk-js's
