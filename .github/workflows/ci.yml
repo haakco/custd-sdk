@@ -13,7 +13,7 @@ jobs:
   go:
     runs-on: haakco-build
     container:
-      image: ghcr.io/haakco/actions-runner:1
+      image: ghcr.io/haakco/actions-runner:2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -35,7 +35,7 @@ jobs:
   js:
     runs-on: haakco-build
     container:
-      image: ghcr.io/haakco/actions-runner:1
+      image: ghcr.io/haakco/actions-runner:2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -75,7 +75,7 @@ jobs:
   python:
     runs-on: haakco-build
     container:
-      image: ghcr.io/haakco/actions-runner:1
+      image: ghcr.io/haakco/actions-runner:2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -97,7 +97,7 @@ jobs:
   php:
     runs-on: haakco-build
     container:
-      image: ghcr.io/haakco/actions-runner:1
+      image: ghcr.io/haakco/actions-runner:2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -120,7 +120,7 @@ jobs:
   php-analysis:
     runs-on: haakco-build
     container:
-      image: ghcr.io/haakco/actions-runner:1
+      image: ghcr.io/haakco/actions-runner:2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -141,7 +141,7 @@ jobs:
   php-laravel:
     runs-on: haakco-build
     container:
-      image: ghcr.io/haakco/actions-runner:1
+      image: ghcr.io/haakco/actions-runner:2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -160,7 +160,7 @@ jobs:
   php-wordpress:
     runs-on: haakco-build
     container:
-      image: ghcr.io/haakco/actions-runner:1
+      image: ghcr.io/haakco/actions-runner:2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -179,7 +179,7 @@ jobs:
   workflows:
     runs-on: haakco-build
     container:
-      image: ghcr.io/haakco/actions-runner:1
+      image: ghcr.io/haakco/actions-runner:2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -210,7 +210,7 @@ jobs:
   release-guard:
     runs-on: haakco-build
     container:
-      image: ghcr.io/haakco/actions-runner:1
+      image: ghcr.io/haakco/actions-runner:2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -232,7 +232,7 @@ jobs:
   publish-js:
     runs-on: haakco-build
     container:
-      image: ghcr.io/haakco/actions-runner:1
+      image: ghcr.io/haakco/actions-runner:2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -288,7 +288,7 @@ jobs:
   publish-packagist:
     runs-on: haakco-build
     container:
-      image: ghcr.io/haakco/actions-runner:1
+      image: ghcr.io/haakco/actions-runner:2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
