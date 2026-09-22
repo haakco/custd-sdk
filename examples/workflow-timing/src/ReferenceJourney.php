@@ -251,6 +251,10 @@ final class ReferenceJourney
         $this->proofs->check(
             'each entry names the revision it was observed under',
             array_filter($history->entries, static fn ($entry): bool => $entry->revisionNumber === 0) === [],
+            sprintf('revisions=%s', implode(',', array_unique(array_map(
+                static fn ($entry): int => $entry->revisionNumber,
+                $history->entries,
+            )))),
         );
         $this->proofs->check(
             'the outcome tally counts the completed run',
@@ -279,11 +283,19 @@ final class ReferenceJourney
             $history->contributions !== [] && $history->contribution('provision-host') !== null,
             sprintf('contributions=%d', count($history->contributions)),
         );
+        // Only an attempt that reached a completed state is a duration fact, so a
+        // retried phase contributes its successful attempt once — the failed one
+        // stays visible in the tally rather than being averaged into the timing.
         $retried = $history->contribution('provision-host');
         $this->proofs->check(
-            'a retried phase reports both of its attempts',
-            $retried !== null && $retried->attempts === 2,
+            'a retried phase contributes only its completed attempt',
+            $retried !== null && $retried->attempts === 1,
             $retried === null ? 'missing' : sprintf('attempts=%d', $retried->attempts),
+        );
+        $this->proofs->check(
+            'the failed attempt is still counted rather than dropped',
+            $history->outcomes->failedAttempts >= 1,
+            sprintf('failedAttempts=%d', $history->outcomes->failedAttempts),
         );
     }
 

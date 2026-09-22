@@ -8,16 +8,16 @@
     "packages": [
         {
             "name": "haakco/custd-sdk",
-            "version": "v2.2.0",
+            "version": "v2.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/haakco/custd-sdk.git",
-                "reference": "78c09f4eaed4dff9939337c862d932e02a402af6"
+                "reference": "589a378ba848dcebb4342ae952d46b6f7745f3ae"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/haakco/custd-sdk/zipball/78c09f4eaed4dff9939337c862d932e02a402af6",
-                "reference": "78c09f4eaed4dff9939337c862d932e02a402af6",
+                "url": "https://api.github.com/repos/haakco/custd-sdk/zipball/589a378ba848dcebb4342ae952d46b6f7745f3ae",
+                "reference": "589a378ba848dcebb4342ae952d46b6f7745f3ae",
                 "shasum": ""
             },
             "require": {
@@ -51,10 +51,10 @@
             ],
             "description": "Custd ingestion PHP SDK (pure PHP)",
             "support": {
-                "source": "https://github.com/haakco/custd-sdk/tree/v2.2.0",
+                "source": "https://github.com/haakco/custd-sdk/tree/v2.3.0",
                 "issues": "https://github.com/haakco/custd-sdk/issues"
             },
-            "time": "2026-09-22T20:46:46+00:00"
+            "time": "2026-09-22T20:59:10+00:00"
         }
     ],
     "packages-dev": [],

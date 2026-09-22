@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Examples\WorkflowTiming;
 
 use HaakCo\Custd\Admin\AdminWorkflowException;
+use HaakCo\Custd\Admin\WorkflowTiming\Observation;
 use HaakCo\Custd\Admin\WorkflowTimingClient;
 
 /**
