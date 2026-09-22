@@ -24,12 +24,14 @@ export type AnalyticsEventQueryRequest = {
 /**
  * One tenant event.
  *
- * The wire shape is a column bag taken from the underlying parquet schema rather than a
- * fixed struct: the analytics service serialises whatever the writer produced. Naming
- * individual columns here would silently drop any column added later, so the row is
- * surfaced verbatim and callers read the columns they need.
+ * The wire shape is an extensible column bag, but the canonical event payload is always
+ * a JSON object. Custd normalises its internal Parquet representation at the API boundary
+ * so consumers never need to parse an escaped JSON string.
  */
-export type AnalyticsEventRow = Record<string, unknown>;
+export type AnalyticsEventRow = {
+    payload?: Record<string, unknown>;
+    [column: string]: unknown;
+};
 /**
  * How one source contributed to a query.
  *

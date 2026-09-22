@@ -46,6 +46,8 @@ describe("analytics event query", () => {
     expect(response.sources[0]?.fresh).toBe(true);
     expect(response.timing.eventLagP95Ms).toBe(20);
     expect(response.results[0]).toEqual({ eventTypeSlug: "page_view", payload: { path: "/" } });
+    const payload: Record<string, unknown> = response.results[0]?.payload ?? {};
+    expect(payload.path).toBe("/");
   });
 
   it("serialises only documented public fields", async () => {
