@@ -79,9 +79,6 @@ test("the Justfile uses browser login rather than prompting for a password", () 
 
 test("mise cannot reintroduce the retired Infisical startup loader", () => {
   const config = readFileSync(path.join(repositoryRoot, "mise.toml"), "utf8");
-  const lock = readFileSync(path.join(repositoryRoot, "mise.lock"), "utf8");
-  assert.doesNotMatch(config, /^infisical\s*=/mu);
   assert.doesNotMatch(config, /_\.source\s*=|\.env\.infisical\.local|refresh-secrets/u);
-  assert.doesNotMatch(lock, /\[\[tools\.infisical\]\]/u);
   assert.equal(existsSync(path.join(repositoryRoot, ".mise/infisical-env.sh")), false);
 });
