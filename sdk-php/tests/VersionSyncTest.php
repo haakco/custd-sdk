@@ -86,6 +86,57 @@ final class VersionSyncTest extends TestCase
         );
     }
 
+    /**
+     * Manifests in this repository that depend on a sibling package in this same
+     * repository. A range here is version state exactly like a hardcoded version
+     * is, so it belongs to this test rather than to each package's own suite.
+     *
+     * @return iterable<string, array{string, string}>
+     */
+    public static function intraRepoDependencyManifests(): iterable
+    {
+        yield "haakco/custd-laravel" => ["laravel-package/composer.json", "haakco/custd-sdk"];
+        yield "haakco/custd-wordpress" => ["wordpress-plugin/composer.json", "haakco/custd-sdk"];
+        yield "@haakco/custd-sdk (react)" => ["sdk-react/package.json", "@haakco/custd-sdk"];
+    }
+
+    #[DataProvider("intraRepoDependencyManifests")]
+    public function testIntraRepoDependencyRangesAdmitTheReleasedVersion(string $relativePath, string $dependency): void
+    {
+        $manifest = $this->loadJson($relativePath);
+        $requires = array_merge(
+            (array) ($manifest["require"] ?? []),
+            (array) ($manifest["dependencies"] ?? []),
+            (array) ($manifest["peerDependencies"] ?? []),
+        );
+
+        $this->assertArrayHasKey(
+            $dependency,
+            $requires,
+            sprintf("%s must declare its dependency on %s.", $relativePath, $dependency)
+        );
+
+        $constraint = (string) $requires[$dependency];
+        $releasedMajor = (int) explode(".", $this->sourceOfTruth())[0];
+
+        // A range that does not admit the released major cannot be installed at
+        // all, so every consumer of this package is blocked. That is the exact
+        // defect this guard exists to catch: the framework packages stayed on
+        // `^1.1` while the released line moved to 2.x, which made both split
+        // mirrors unresolvable.
+        $this->assertContains(
+            $releasedMajor,
+            $this->admittedMajors($constraint),
+            sprintf(
+                "%s requires %s %s, which does not admit the released version %s.",
+                $relativePath,
+                $dependency,
+                $constraint,
+                $this->sourceOfTruth()
+            )
+        );
+    }
+
     public function testReleaseGuardEnforcesTagMatchesVersion(): void
     {
         $workflow = (string) file_get_contents($this->repoPath(".github/workflows/ci.yml"));
@@ -122,6 +173,32 @@ final class VersionSyncTest extends TestCase
     private function sourceOfTruth(): string
     {
         return trim((string) file_get_contents($this->repoPath("VERSION")));
+    }
+
+    /**
+     * admittedMajors returns the majors a constraint admits.
+     *
+     * Only the two forms this repository writes are understood, and any other form
+     * fails loudly: a constraint that cannot be parsed must not pass this guard by
+     * default, which is what a permissive check would do.
+     *
+     * @return list<int>
+     */
+    private function admittedMajors(string $constraint): array
+    {
+        $constraint = trim($constraint);
+
+        if (preg_match('/^\^(\d+)(?:\.\d+)*$/', $constraint, $matches) === 1) {
+            return [(int) $matches[1]];
+        }
+
+        if (preg_match('/^>=(\d+)(?:\.\d+)*\s+<(\d+)(?:\.\d+)*$/', $constraint, $matches) === 1) {
+            return range((int) $matches[1], (int) $matches[2] - 1);
+        }
+
+        throw new \UnexpectedValueException(
+            sprintf("VersionSyncTest does not understand the constraint \"%s\".", $constraint)
+        );
     }
 
     private function jsonVersion(string $relativePath): string

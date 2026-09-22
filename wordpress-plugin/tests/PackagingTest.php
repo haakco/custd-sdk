@@ -32,7 +32,9 @@ final class PackagingTest extends TestCase
         );
 
         $this->assertArrayHasKey("haakco/custd-sdk", $composer["require"]);
-        $this->assertSame("^1.1", $composer["require"]["haakco/custd-sdk"]);
+        // The range itself is VersionSyncTest's concern: it is the owner of the
+        // released-version rules and guards that this range admits the release.
+        $this->assertNotSame("", $composer["require"]["haakco/custd-sdk"]);
     }
 
     public function testPluginHeaderVersionMatchesRootVersion(): void

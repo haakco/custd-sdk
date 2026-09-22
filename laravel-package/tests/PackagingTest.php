@@ -24,7 +24,8 @@ final class PackagingTest extends TestCase
         $composer = $this->packageComposer();
 
         $this->assertArrayHasKey("haakco/custd-sdk", $composer["require"]);
-        $this->assertSame("^1.1", $composer["require"]["haakco/custd-sdk"]);
+        // The range itself is VersionSyncTest's concern: it is the owner of the
+        // released-version rules and guards that this range admits the release.
         // The provider/facade/config helpers and SendCustdEvent's
         // Illuminate\Foundation\Bus\Dispatchable trait ship only in
         // laravel/framework (Foundation is not a granular illuminate/* package).

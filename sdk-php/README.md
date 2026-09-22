@@ -22,7 +22,7 @@ Packagist — install via a Composer VCS repository pointing at the GitHub repo:
     { "type": "vcs", "url": "https://github.com/haakco/custd-sdk" }
   ],
   "require": {
-    "haakco/custd-sdk": "^1.3"
+    "haakco/custd-sdk": "^2.0"
   }
 }
 ```
@@ -219,7 +219,7 @@ included under `vendor/haakco/custd-sdk/wordpress-plugin/`:
     }
   ],
   "require": {
-    "haakco/custd-sdk": "^1.1"
+    "haakco/custd-sdk": "^2.0"
   }
 }
 ```
