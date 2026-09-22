@@ -139,6 +139,11 @@ final class CustdClient
         return new Admin\MeasurementProjectClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    public function adminWorkflowTimings(): Admin\WorkflowTimingClient
+    {
+        return new Admin\WorkflowTimingClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
     public function adminMeasurementPredictions(): Admin\PredictionClient
     {
         return new Admin\PredictionClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
