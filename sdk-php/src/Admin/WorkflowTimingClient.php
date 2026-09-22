@@ -12,6 +12,7 @@ use HaakCo\Custd\Admin\WorkflowTiming\DurationHistory;
 use HaakCo\Custd\Admin\WorkflowTiming\Evaluation;
 use HaakCo\Custd\Admin\WorkflowTiming\Observation;
 use HaakCo\Custd\Admin\WorkflowTiming\ObservedRun;
+use HaakCo\Custd\Admin\WorkflowTiming\ReconcileResult;
 use HaakCo\Custd\Admin\WorkflowTiming\RunPrediction;
 use HaakCo\Custd\Admin\WorkflowTiming\RunSummary;
 use HaakCo\Custd\Admin\WorkflowTiming\WorkflowDeclaration;
@@ -35,13 +36,14 @@ final class WorkflowTimingClient
 
     /**
      * reconcile declaratively applies one workflow shape. Repeating an identical
-     * declaration is a no-op.
+     * declaration is a no-op, and the result says which of the three cases
+     * happened: created, revision changed, or nothing changed.
      */
-    public function reconcile(string $companySlug, WorkflowDeclaration $declaration): Definition
+    public function reconcile(string $companySlug, WorkflowDeclaration $declaration): ReconcileResult
     {
         $path = $this->resource("/definitions/{$declaration->workflowKey}", $companySlug);
-        $payload = $this->requiredResponse('PUT', $path, $declaration);
-        return Definition::fromPayload(Payload::object($payload, 'definition'));
+
+        return ReconcileResult::fromPayload($this->requiredResponse('PUT', $path, $declaration));
     }
 
     /** @return list<Definition> */

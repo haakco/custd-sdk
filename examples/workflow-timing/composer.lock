@@ -1,0 +1,71 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "0f94b5732bb858b7d3d841f69ae030c4",
+    "packages": [
+        {
+            "name": "haakco/custd-sdk",
+            "version": "v2.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/haakco/custd-sdk.git",
+                "reference": "78c09f4eaed4dff9939337c862d932e02a402af6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/haakco/custd-sdk/zipball/78c09f4eaed4dff9939337c862d932e02a402af6",
+                "reference": "78c09f4eaed4dff9939337c862d932e02a402af6",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "php": ">=8.3"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^12.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "HaakCo\\Custd\\": "sdk-php/src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "HaakCo\\Custd\\Tests\\": "sdk-php/tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit --configuration phpunit.xml"
+                ],
+                "smoke:dev": [
+                    "php sdk-php/scripts/smoke-dev.php"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Custd ingestion PHP SDK (pure PHP)",
+            "support": {
+                "source": "https://github.com/haakco/custd-sdk/tree/v2.2.0",
+                "issues": "https://github.com/haakco/custd-sdk/issues"
+            },
+            "time": "2026-09-22T20:46:46+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": {},
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": {
+        "php": ">=8.3"
+    },
+    "platform-dev": {},
+    "plugin-api-version": "2.9.0"
+}

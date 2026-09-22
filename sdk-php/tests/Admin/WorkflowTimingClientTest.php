@@ -44,9 +44,12 @@ final class WorkflowTimingClientTest extends TestCase
         $this->assertSame('hosting.reconcile', $calls[0]['body']['workflowKey']);
         $this->assertSame('foundation', $calls[0]['body']['steps'][0]['stepKey']);
 
-        $this->assertSame('hosting.reconcile', $result->workflowKey);
-        $this->assertSame(2, $result->revisionCount);
-        $revision = $result->currentRevision;
+        $this->assertSame('hosting.reconcile', $result->definition->workflowKey);
+        $this->assertFalse($result->created);
+        $this->assertTrue($result->revisionChanged);
+        $this->assertFalse($result->wasNoOp());
+        $this->assertSame(2, $result->definition->revisionCount);
+        $revision = $result->definition->currentRevision;
         $this->assertSame(2, $revision->number);
         $this->assertSame(str_repeat('a', 64), $revision->hash);
         $this->assertFalse($revision->allowOverlap);

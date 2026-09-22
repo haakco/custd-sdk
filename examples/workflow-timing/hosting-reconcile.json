@@ -1,0 +1,24 @@
+{
+  "workflowKey": "hosting.reconcile",
+  "name": "Hosting reconcile",
+  "description": "Generic hosting provisioning phases as observed by a hosting reconciler. Provider-neutral: no provider, product or customer vocabulary appears in a key.",
+  "allowOverlap": false,
+  "dimensions": ["cluster"],
+  "steps": [
+    { "stepKey": "validate-plan", "name": "Validate plan", "nominalMs": 60000 },
+    { "stepKey": "provision-host", "name": "Provision host", "nominalMs": 600000 },
+    { "stepKey": "configure-database", "name": "Configure database", "nominalMs": 900000 },
+    { "stepKey": "publish-site", "name": "Publish site", "nominalMs": 300000 }
+  ],
+  "run": {
+    "dimensions": { "cluster": "fsn1-a" },
+    "phases": [
+      { "stepKey": "validate-plan", "attempt": 1, "startOffsetMs": 0, "endOffsetMs": 41000, "state": "completed" },
+      { "stepKey": "provision-host", "attempt": 1, "startOffsetMs": 41000, "endOffsetMs": 341000, "state": "failed", "errorClass": "timeout" },
+      { "stepKey": "provision-host", "attempt": 2, "startOffsetMs": 345000, "endOffsetMs": 372000, "state": "completed" },
+      { "stepKey": "configure-database", "attempt": 1, "startOffsetMs": 372000, "endOffsetMs": 1203000, "state": "completed" },
+      { "stepKey": "publish-site", "attempt": 1, "startOffsetMs": 1203000, "endOffsetMs": 1427000, "state": "completed" }
+    ],
+    "outcome": "completed"
+  }
+}
