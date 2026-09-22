@@ -9,9 +9,11 @@ use HaakCo\Custd\Admin\TimePlan\Payload;
 use HaakCo\Custd\Admin\WorkflowTiming\BatchResult;
 use HaakCo\Custd\Admin\WorkflowTiming\Definition;
 use HaakCo\Custd\Admin\WorkflowTiming\DurationHistory;
+use HaakCo\Custd\Admin\WorkflowTiming\Evaluation;
 use HaakCo\Custd\Admin\WorkflowTiming\Observation;
 use HaakCo\Custd\Admin\WorkflowTiming\ObservedRun;
 use HaakCo\Custd\Admin\WorkflowTiming\RunPrediction;
+use HaakCo\Custd\Admin\WorkflowTiming\RunSummary;
 use HaakCo\Custd\Admin\WorkflowTiming\WorkflowDeclaration;
 
 /**
@@ -131,6 +133,21 @@ final class WorkflowTimingClient
         );
     }
 
+    /**
+     * listRuns lists the tenant's observed runs, newest first. A run whose summary
+     * reports pending facts has observations that are not folded yet.
+     *
+     * @return list<RunSummary>
+     */
+    public function listRuns(string $companySlug, ?int $limit = null): array
+    {
+        $payload = $this->requiredResponse('GET', $this->collection('/runs', $companySlug, $limit));
+        return array_map(
+            static fn (array $item): RunSummary => RunSummary::fromPayload($item),
+            Payload::objects($payload, 'items'),
+        );
+    }
+
     public function getRun(string $companySlug, string $runUuid): ObservedRun
     {
         return ObservedRun::fromPayload(
@@ -149,6 +166,22 @@ final class WorkflowTimingClient
     {
         $path = $this->resource("/definitions/{$workflowKey}/duration-history", $companySlug, $limit);
         return DurationHistory::fromPayload($this->requiredResponse('GET', $path));
+    }
+
+    /**
+     * evaluation reads the rolling-origin evaluation of a workflow's duration
+     * series. An unavailable result carries the next safe action rather than an
+     * unattributed calibration.
+     */
+    public function evaluation(string $companySlug, string $workflowKey, string $seriesKey = ''): Evaluation
+    {
+        $query = ['companySlug' => $companySlug];
+        if ($seriesKey !== '') {
+            $query['seriesKey'] = $seriesKey;
+        }
+        $path = '/workflow-timings/definitions/' . rawurlencode($workflowKey) . '/evaluation?'
+            . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
+        return Evaluation::fromPayload($this->requiredResponse('GET', $path));
     }
 
     /** rebuild deterministically rebuilds one run's projections from its ledger. */

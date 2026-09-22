@@ -16,9 +16,21 @@ final readonly class RunPrediction
         public string $externalRunId = '',
         public string $state = '',
         public bool $allowOverlap = false,
+        public string $generatedAt = '',
         public Expectation $run = new Expectation(),
         public array $steps = [],
     ) {
+    }
+
+    /** step returns the expectation for one declared step key. */
+    public function step(string $stepKey): ?Expectation
+    {
+        foreach ($this->steps as $step) {
+            if ($step->stepKey === $stepKey) {
+                return $step;
+            }
+        }
+        return null;
     }
 
     /** @param array<string, mixed> $payload */
@@ -30,6 +42,7 @@ final readonly class RunPrediction
             Payload::string($payload, 'externalRunId'),
             Payload::string($payload, 'state'),
             Payload::boolean($payload, 'allowOverlap'),
+            Payload::string($payload, 'generatedAt'),
             Expectation::fromPayload(Payload::object($payload, 'run')),
             array_map(
                 static fn (array $item): Expectation => Expectation::fromPayload($item),

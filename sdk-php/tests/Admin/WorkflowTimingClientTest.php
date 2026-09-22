@@ -13,40 +13,27 @@ use HaakCo\Custd\CustdClient;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The workflow timing façade reports work another system performed. These tests
- * pin the shape a consumer depends on: a declarative definition, deterministic
- * idempotency, per-item append results, and the evidence state of a prediction.
+ * These tests read the shared fixtures under contract-fixtures/. The Go façade
+ * reads the same bytes and asserts the same values, so a field rename on either
+ * side fails here instead of at a consumer.
  */
 final class WorkflowTimingClientTest extends TestCase
 {
-    public function testReconcileSendsTheDeclarativeShape(): void
+    public function testConformanceDeclaresTheWorkflowShape(): void
     {
         $calls = [];
-        $client = $this->client($calls, static fn (): array => [
-            'status' => 200,
-            'body' => json_encode(['definition' => [
-                'uuid' => 'wf-1',
-                'workflowKey' => 'hosting.reconcile',
-                'name' => 'Hosting reconcile',
-                'status' => 'active',
-                'revisionCount' => 1,
-                'currentRevision' => [
-                    'uuid' => 'rev-1',
-                    'number' => 1,
-                    'hash' => str_repeat('a', 64),
-                    'allowOverlap' => false,
-                    'steps' => [['stepKey' => 'foundation', 'name' => 'Foundation', 'nominalMs' => 600000]],
-                ],
-            ]], JSON_THROW_ON_ERROR),
-        ]);
+        $client = $this->client($calls, fn (): array => $this->ok('workflow-timing-definition-reconcile-response.json'));
 
-        $definition = $client->adminWorkflowTimings()->reconcile(
+        $result = $client->adminWorkflowTimings()->reconcile(
             'acme',
             new WorkflowDeclaration(
                 workflowKey: 'hosting.reconcile',
                 name: 'Hosting reconcile',
+                description: 'Observed hosting provisioning phases.',
                 dimensions: ['cluster'],
-            )->withStep(new StepDeclaration('foundation', 'Foundation', 600000)),
+            )->withStep(new StepDeclaration('foundation', 'Foundation', 600000))
+                ->withStep(new StepDeclaration('database', 'Database', 900000))
+                ->withStep(new StepDeclaration('deploy', 'Deploy', 300000)),
         );
 
         $this->assertSame('PUT', $calls[0]['method']);
@@ -56,44 +43,224 @@ final class WorkflowTimingClientTest extends TestCase
         );
         $this->assertSame('hosting.reconcile', $calls[0]['body']['workflowKey']);
         $this->assertSame('foundation', $calls[0]['body']['steps'][0]['stepKey']);
-        $this->assertSame(600000, $calls[0]['body']['steps'][0]['nominalMs']);
-        $this->assertSame(1, $definition->revisionNumber);
-        $this->assertSame(str_repeat('a', 64), $definition->revisionHash);
-        $this->assertSame(1, $definition->revisionCount);
-        $this->assertCount(1, $definition->steps);
+
+        $this->assertSame('hosting.reconcile', $result->workflowKey);
+        $this->assertSame(2, $result->revisionCount);
+        $revision = $result->currentRevision;
+        $this->assertSame(2, $revision->number);
+        $this->assertSame(str_repeat('a', 64), $revision->hash);
+        $this->assertFalse($revision->allowOverlap);
+        $this->assertSame(3, count($revision->steps));
+        $deploy = $revision->step('deploy');
+        $this->assertNotNull($deploy);
+        $this->assertSame(3, $deploy->sequence);
+        $this->assertSame(300000, $deploy->nominalMs);
+        $this->assertNull($revision->step('absent'));
+        $this->assertSame('cluster', $revision->dimensions[0]->dimensionKey);
+        $this->assertNotSame('', $revision->predictionVersionUuid);
     }
 
-    public function testAppendCarriesAFactAndItsDeterministicKey(): void
+    public function testConformanceSendsEveryFactShape(): void
     {
         $calls = [];
-        $client = $this->client($calls, static fn (): array => [
-            'status' => 200,
-            'body' => json_encode([
-                'results' => [[
-                    'index' => 0, 'accepted' => true, 'duplicate' => false,
-                    'idempotencyKey' => 'workflow-timing:hosting.reconcile:op-1:step_finished:foundation:1',
-                    'runUuid' => 'run-1', 'factUuid' => 'fact-1',
-                ]],
-                'accepted' => 1, 'rejected' => 0, 'duplicates' => 0,
-            ], JSON_THROW_ON_ERROR),
-        ]);
+        $client = $this->client($calls, fn (): array => ['status' => 200, 'body' => json_encode(
+            ['results' => [], 'accepted' => 0, 'rejected' => 0, 'duplicates' => 0],
+            JSON_THROW_ON_ERROR,
+        )]);
 
-        $key = WorkflowTimingIdempotency::stepFinished('hosting.reconcile', 'op-1', 'foundation', 1);
-        $result = $client->adminWorkflowTimings()->append(
+        $key = WorkflowTimingIdempotency::stepFinished('hosting.reconcile', 'op-20260922-42', 'foundation', 1);
+        $client->adminWorkflowTimings()->append(
             'acme',
-            Observation::stepFinished('hosting.reconcile', 'op-1', '2026-09-22T10:00:30Z', $key, 'foundation'),
-        )->requireAccepted();
-
-        $this->assertSame(
-            '/api/v1/admin/workflow-timings/observations?companySlug=acme',
-            $this->path($calls[0]['url']),
+            Observation::stepFinished(
+                'hosting.reconcile',
+                'op-20260922-42',
+                '2026-09-22T10:05:00Z',
+                $key,
+                'foundation',
+                'hosting-worker-7',
+            )->superseding(str_repeat('0', 8)),
         );
+
         $body = $calls[0]['body']['observation'];
         $this->assertSame($key, $body['idempotencyKey']);
         $this->assertSame('step_finished', $body['fact']['kind']);
         $this->assertSame('foundation', $body['fact']['step']['stepKey']);
         $this->assertSame('completed', $body['fact']['step']['state']);
-        $this->assertSame('run-1', $result->results[0]->runUuid);
+        $this->assertSame(str_repeat('0', 8), $body['supersedesFactUuid']);
+        $this->assertSame('machine', $body['provenance']['actorKind']);
+        $this->assertSame('hosting-worker-7', $body['provenance']['actorRef']);
+    }
+
+    public function testConformanceDecodesTheSharedBatchFixture(): void
+    {
+        $calls = [];
+        $client = $this->client($calls, fn (): array => ['status' => 200, 'body' => json_encode(
+            ['results' => [], 'accepted' => 0, 'rejected' => 0, 'duplicates' => 0],
+            JSON_THROW_ON_ERROR,
+        )]);
+
+        $fixture = $this->fixture('workflow-timing-observation-batch-request.json');
+        $this->assertCount(4, $fixture['observations']);
+
+        $started = $fixture['observations'][0];
+        $this->assertSame('run_started', $started['fact']['kind']);
+        $this->assertSame('running', $started['fact']['run']['state']);
+        $this->assertSame('fsn1-a', $started['fact']['dimensions']['cluster']);
+        $this->assertSame('machine', $started['provenance']['actorKind']);
+        $this->assertArrayHasKey('actorRef', $started['provenance']);
+
+        $this->assertSame('timeout', $fixture['observations'][3]['fact']['step']['errorClass']);
+        $this->assertNotSame('', $fixture['observations'][3]['supersedesFactUuid']);
+
+        $observations = [];
+        foreach ($fixture['observations'] as $observation) {
+            $observations[] = Observation::stepFinished(
+                $observation['workflowKey'],
+                $observation['externalRunId'],
+                $observation['fact']['occurredAt'],
+                $observation['idempotencyKey'],
+                $observation['fact']['step']['stepKey'] ?? 'foundation',
+                $observation['provenance']['actorRef'],
+            );
+        }
+        $result = $client->adminWorkflowTimings()->appendBatch('acme', $observations);
+        $this->assertSame(0, $result->rejected);
+        $this->assertCount(4, $calls[0]['body']['observations']);
+        $this->assertSame(
+            '/api/v1/admin/workflow-timings/observations:batch?companySlug=acme',
+            $this->path($calls[0]['url']),
+        );
+    }
+
+    public function testConformanceFailsClosedOnAPartialBatch(): void
+    {
+        $calls = [];
+        $client = $this->client($calls, fn (): array => $this->ok('workflow-timing-batch-result-partial.json'));
+
+        $result = $client->adminWorkflowTimings()->appendBatch('acme', [
+            Observation::runStarted(
+                'hosting.reconcile',
+                'op-20260922-42',
+                '2026-09-22T10:00:00Z',
+                'k0',
+                'hosting-worker-7',
+            ),
+        ]);
+
+        $this->assertSame(2, $result->accepted);
+        $this->assertSame(1, $result->rejected);
+        $this->assertSame(1, $result->duplicates);
+        $this->assertCount(3, $result->results);
+        $this->assertSame('hosting.reconcile', $result->results[0]->workflowKey);
+        $this->assertSame('workflow_step_unknown', $result->results[1]->errorCode);
+        $this->assertTrue($result->results[2]->duplicate);
+
+        $this->expectException(AdminWorkflowException::class);
+        $this->expectExceptionMessageMatches('/1 of 3/');
+        $result->requireAccepted();
+    }
+
+    public function testConformanceReadsARunWithPendingFacts(): void
+    {
+        $calls = [];
+        $client = $this->client($calls, fn (): array => $this->ok('workflow-timing-run-read-response.json'));
+
+        $run = $client->adminWorkflowTimings()->getRun('acme', 'run-1');
+
+        $this->assertSame('running', $run->state);
+        $this->assertSame(2, $run->revisionNumber);
+        $this->assertSame('fsn1-a', $run->dimensions['cluster']);
+        $this->assertCount(2, $run->attempts);
+        $foundation = $run->attempt('foundation');
+        $this->assertNotNull($foundation);
+        $this->assertSame('completed', $foundation->state);
+        $this->assertFalse($foundation->isOpen());
+        $database = $run->attempt('database');
+        $this->assertNotNull($database);
+        $this->assertTrue($database->isOpen());
+        $this->assertNull($database->finishedAt);
+        $this->assertTrue($run->projectionBehind());
+        $this->assertSame('rebuild', $run->projectionStatus->nextAction);
+        $this->assertSame(
+            '/api/v1/admin/workflow-timings/runs/run-1?companySlug=acme',
+            $this->path($calls[0]['url']),
+        );
+    }
+
+    public function testConformanceKeepsColdStartDistinctFromReady(): void
+    {
+        $coldCalls = [];
+        $cold = $this->client($coldCalls, fn (): array => $this->ok('workflow-timing-prediction-cold-start.json'));
+        $coldStart = $cold->adminWorkflowTimings()->prediction('acme', 'run-1');
+
+        $this->assertSame('cold_start', $coldStart->run->state);
+        $this->assertFalse($coldStart->run->isSupported());
+        $this->assertNull($coldStart->run->expectedMs);
+        $this->assertNull($coldStart->run->conservativeLowMs);
+        $this->assertFalse($coldStart->run->hasRange());
+        $this->assertSame(600000, $coldStart->run->baselineMs);
+        $this->assertSame(0, $coldStart->run->sampleCount);
+        $this->assertSame(['cold_start'], $coldStart->run->warnings);
+        $this->assertNotSame('', $coldStart->generatedAt);
+        $this->assertNotSame('', $coldStart->run->evidenceWindowStart);
+        $this->assertCount(3, $coldStart->steps);
+
+        $readyCalls = [];
+        $ready = $this->client($readyCalls, fn (): array => $this->ok('workflow-timing-prediction-ready.json'));
+        $forecast = $ready->adminWorkflowTimings()->prediction('acme', 'run-2');
+
+        $this->assertTrue($forecast->run->isSupported());
+        $this->assertSame(1716000, $forecast->run->expectedMs);
+        $this->assertTrue($forecast->run->hasRange());
+        $this->assertLessThan(
+            (int) $forecast->run->conservativeHighMs,
+            (int) $forecast->run->conservativeLowMs,
+        );
+        $this->assertSame(24, $forecast->run->sampleCount);
+        $this->assertNotSame('', $forecast->run->predictionVersionUuid);
+
+        $database = $forecast->step('database');
+        $this->assertNotNull($database);
+        $this->assertSame('sparse', $database->state);
+        $this->assertSame(900000, $database->baselineMs);
+        $this->assertSame(['sparse_history'], $database->warnings);
+        $this->assertNull($forecast->step('absent'));
+    }
+
+    public function testConformanceSeparatesActiveFromWait(): void
+    {
+        $calls = [];
+        $client = $this->client($calls, fn (): array => $this->ok('workflow-timing-duration-history-response.json'));
+
+        $history = $client->adminWorkflowTimings()->durationHistory('acme', 'hosting.reconcile', 50);
+
+        $this->assertCount(2, $history->entries);
+        $this->assertFalse($history->entries[0]->corrected);
+        $this->assertTrue($history->entries[1]->corrected);
+        $this->assertSame(600000, $history->entries[0]->baselineMs);
+        $this->assertSame(2, $history->entries[0]->revisionNumber);
+        $this->assertSame(2, $history->outcomes->completedRuns);
+        $this->assertSame(1, $history->outcomes->failedRuns);
+        $this->assertSame(1, $history->outcomes->openAttempts);
+        $this->assertCount(2, $history->contributions);
+        $this->assertSame(662, $history->contributions[0]->contributionPermille);
+        $this->assertNotNull($history->contribution('database'));
+
+        $latest = $history->latestCompletedRun;
+        $this->assertNotNull($latest);
+        $this->assertSame(95000, $latest->wallClockMs);
+        $this->assertSame(85400, $latest->activeMs);
+        $this->assertSame(9600, $latest->waitMs);
+        $this->assertSame(1800000, $latest->nominalMs);
+        $this->assertSame(
+            $latest->wallClockMs,
+            $latest->activeMs + $latest->waitMs,
+            'active and wait must account for the wall clock',
+        );
+        $this->assertSame(
+            '/api/v1/admin/workflow-timings/definitions/hosting.reconcile/duration-history?companySlug=acme&limit=50',
+            $this->path($calls[0]['url']),
+        );
     }
 
     public function testIdempotencyKeysAreDeterministicPerFact(): void
@@ -110,100 +277,30 @@ final class WorkflowTimingClientTest extends TestCase
             WorkflowTimingIdempotency::stepStarted('hosting.reconcile', 'op-1', 'foundation', 1),
             WorkflowTimingIdempotency::stepFinished('hosting.reconcile', 'op-1', 'foundation', 1),
         );
-    }
-
-    public function testPartialBatchFailsWithItemContext(): void
-    {
-        $calls = [];
-        $client = $this->client($calls, static fn (): array => [
-            'status' => 200,
-            'body' => json_encode([
-                'results' => [
-                    ['index' => 0, 'accepted' => true, 'duplicate' => false, 'idempotencyKey' => 'k0'],
-                    [
-                        'index' => 1, 'accepted' => false, 'duplicate' => false,
-                        'idempotencyKey' => 'k1', 'errorCode' => 'workflow_step_unknown',
-                        'errorMessage' => 'workflow timings: step is not declared by the definition',
-                    ],
-                ],
-                'accepted' => 1, 'rejected' => 1, 'duplicates' => 0,
-            ], JSON_THROW_ON_ERROR),
-        ]);
-
-        $result = $client->adminWorkflowTimings()->appendBatch('acme', [
-            Observation::runStarted('hosting.reconcile', 'op-1', '2026-09-22T10:00:00Z', 'k0'),
-            Observation::stepStarted('hosting.reconcile', 'op-1', '2026-09-22T10:00:01Z', 'k1', 'nope'),
-        ]);
-
-        $this->assertSame(1, $result->accepted);
-        $this->assertSame(1, $result->rejected);
-        try {
-            $result->requireAccepted();
-            $this->fail('a partially applied batch reported success');
-        } catch (AdminWorkflowException $exception) {
-            $this->assertStringContainsString('1 of 2', $exception->getMessage());
-            $this->assertStringContainsString('k1', $exception->getMessage());
-            $this->assertStringContainsString('workflow_step_unknown', $exception->getMessage());
-        }
-    }
-
-    public function testPredictionKeepsAColdStartDistinctFromASupportedRange(): void
-    {
-        $calls = [];
-        $client = $this->client($calls, static fn (): array => [
-            'status' => 200,
-            'body' => json_encode([
-                'runUuid' => 'run-1',
-                'workflowKey' => 'hosting.reconcile',
-                'externalRunId' => 'op-1',
-                'state' => 'running',
-                'allowOverlap' => false,
-                'run' => [
-                    'seriesKey' => 'workflow_run', 'state' => 'cold_start', 'baselineMs' => 600000,
-                    'sampleCount' => 0, 'method' => 'nominal', 'methodVersion' => 'nominal.v1',
-                    'inputHash' => str_repeat('b', 64), 'warnings' => ['cold_start'],
-                ],
-                'steps' => [],
-            ], JSON_THROW_ON_ERROR),
-        ]);
-
-        $prediction = $client->adminWorkflowTimings()->prediction('acme', 'run-1');
-
-        $this->assertSame('cold_start', $prediction->run->state);
-        $this->assertFalse($prediction->run->isSupported());
-        $this->assertNull($prediction->run->conservativeLowMs);
-        $this->assertSame(600000, $prediction->run->baselineMs);
-        $this->assertSame(['cold_start'], $prediction->run->warnings);
-        $this->assertSame(
-            '/api/v1/admin/workflow-timings/runs/run-1/prediction?companySlug=acme',
-            $this->path($calls[0]['url']),
+        $this->assertNotSame(
+            WorkflowTimingIdempotency::runStarted('hosting.reconcile', 'op-1'),
+            WorkflowTimingIdempotency::runStarted('hosting.reconcile', 'op-2'),
         );
     }
 
-    public function testDurationHistorySeparatesActiveFromWait(): void
+    /** @return array<string, mixed> */
+    private function fixture(string $name): array
     {
-        $calls = [];
-        $client = $this->client($calls, static fn (): array => [
-            'status' => 200,
-            'body' => json_encode([
-                'workflowKey' => 'hosting.reconcile',
-                'workflowUuid' => 'wf-1',
-                'entries' => [['stepKey' => 'foundation', 'valueMs' => 29000]],
-                'contributions' => [['stepKey' => 'foundation', 'attempts' => 1, 'totalMs' => 29000]],
-                'latestCompletedRun' => ['wallClockMs' => 30000, 'activeMs' => 29000, 'waitMs' => 1000],
-            ], JSON_THROW_ON_ERROR),
-        ]);
+        $contents = file_get_contents(__DIR__ . '/../../../contract-fixtures/' . $name);
+        $this->assertIsString($contents, "contract fixture {$name} is unreadable");
+        $decoded = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        $this->assertIsArray($decoded);
 
-        $history = $client->adminWorkflowTimings()->durationHistory('acme', 'hosting.reconcile', 10);
+        return $decoded;
+    }
 
-        $this->assertSame(30000, $history->wallClockMs);
-        $this->assertSame(29000, $history->activeMs);
-        $this->assertSame(1000, $history->waitMs);
-        $this->assertCount(1, $history->contributions);
-        $this->assertSame(
-            '/api/v1/admin/workflow-timings/definitions/hosting.reconcile/duration-history?companySlug=acme&limit=10',
-            $this->path($calls[0]['url']),
-        );
+    /** @return array{status: int, body: string} */
+    private function ok(string $name): array
+    {
+        $contents = file_get_contents(__DIR__ . '/../../../contract-fixtures/' . $name);
+        $this->assertIsString($contents, "contract fixture {$name} is unreadable");
+
+        return ['status' => 200, 'body' => $contents];
     }
 
     private function path(string $url): string

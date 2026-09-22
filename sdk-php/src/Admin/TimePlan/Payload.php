@@ -80,8 +80,25 @@ final class Payload
      */
     public static function object(array $payload, string $key): array
     {
-        if (!array_key_exists($key, $payload)) {
+        $value = self::optionalObject($payload, $key);
+        if ($value === null) {
             throw new \UnexpectedValueException("custd: time-plan {$key} is required");
+        }
+        return $value;
+    }
+
+    /**
+     * optionalObject reads a nested object that the contract allows to be absent.
+     * A caller must handle the missing case rather than receiving an empty object,
+     * because an empty object would look like a present-but-empty measurement.
+     *
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>|null
+     */
+    public static function optionalObject(array $payload, string $key): ?array
+    {
+        if (!array_key_exists($key, $payload) || $payload[$key] === null) {
+            return null;
         }
         $value = $payload[$key];
         if (!is_array($value) || array_is_list($value)) {

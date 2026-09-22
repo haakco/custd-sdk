@@ -26,13 +26,27 @@ final readonly class Expectation
         public string $methodVersion = '',
         public string $predictionVersionUuid = '',
         public string $inputHash = '',
+        public string $generatedAt = '',
+        public string $evidenceWindowStart = '',
+        public string $stepKey = '',
+        public int $attempt = 0,
         public array $warnings = [],
     ) {
     }
 
+    /** isSupported reports whether the expectation is backed by enough comparable history. */
     public function isSupported(): bool
     {
         return $this->state === 'ready';
+    }
+
+    /**
+     * hasRange reports whether the engine produced an interval. A caller must not
+     * render a range it invented.
+     */
+    public function hasRange(): bool
+    {
+        return $this->conservativeLowMs !== null && $this->conservativeHighMs !== null;
     }
 
     /** @param array<string, mixed> $payload */
@@ -50,6 +64,10 @@ final readonly class Expectation
             Payload::string($payload, 'methodVersion'),
             Payload::optionalString($payload, 'predictionVersionUuid') ?? '',
             Payload::string($payload, 'inputHash'),
+            Payload::string($payload, 'generatedAt'),
+            Payload::string($payload, 'evidenceWindowStart'),
+            Payload::optionalString($payload, 'stepKey') ?? '',
+            Payload::optionalInteger($payload, 'attempt') ?? 0,
             array_values(array_filter($payload['warnings'] ?? [], 'is_string')),
         );
     }

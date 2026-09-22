@@ -13,32 +13,48 @@ use HaakCo\Custd\Admin\TimePlan\Payload;
  */
 final readonly class DurationHistory
 {
-    /** @param list<array<string, mixed>> $entries
-     *  @param list<array<string, mixed>> $contributions
+    /** @param list<DurationHistoryEntry> $entries
+     *  @param list<ContributionEntry> $contributions
      */
     public function __construct(
         public string $workflowKey = '',
         public string $workflowUuid = '',
         public array $entries = [],
+        public OutcomeCounts $outcomes = new OutcomeCounts(),
         public array $contributions = [],
-        public int $wallClockMs = 0,
-        public int $activeMs = 0,
-        public int $waitMs = 0,
+        public ?RunTimingSummary $latestCompletedRun = null,
     ) {
+    }
+
+    /** contribution returns one step's share of the active time. */
+    public function contribution(string $stepKey): ?ContributionEntry
+    {
+        foreach ($this->contributions as $entry) {
+            if ($entry->stepKey === $stepKey) {
+                return $entry;
+            }
+        }
+        return null;
     }
 
     /** @param array<string, mixed> $payload */
     public static function fromPayload(array $payload): self
     {
-        $latest = Payload::object($payload, 'latestCompletedRun');
+        $latest = Payload::optionalObject($payload, 'latestCompletedRun');
+
         return new self(
             Payload::string($payload, 'workflowKey'),
             Payload::string($payload, 'workflowUuid'),
-            Payload::objects($payload, 'entries'),
-            Payload::objects($payload, 'contributions'),
-            Payload::optionalInteger($latest, 'wallClockMs') ?? 0,
-            Payload::optionalInteger($latest, 'activeMs') ?? 0,
-            Payload::optionalInteger($latest, 'waitMs') ?? 0,
+            array_map(
+                static fn (array $item): DurationHistoryEntry => DurationHistoryEntry::fromPayload($item),
+                Payload::objects($payload, 'entries'),
+            ),
+            OutcomeCounts::fromPayload(Payload::object($payload, 'outcomes')),
+            array_map(
+                static fn (array $item): ContributionEntry => ContributionEntry::fromPayload($item),
+                Payload::objects($payload, 'contributions'),
+            ),
+            $latest === null ? null : RunTimingSummary::fromPayload($latest),
         );
     }
 }

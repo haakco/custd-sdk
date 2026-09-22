@@ -9,8 +9,11 @@ use HaakCo\Custd\Admin\TimePlan\Payload;
 
 /**
  * Observation is one observed run/step fact an external system reports after its
- * own commit. The kind is one of run_started, run_finished, step_started or
- * step_finished; the server folds the facts and derives duration facts from them.
+ * own commit.
+ *
+ * The kind is one of run_started, run_finished, step_started or step_finished.
+ * Every observation names the actor that produced it, because a fact nobody is
+ * attributable to is not evidence.
  */
 final readonly class Observation implements Dto
 {
@@ -20,6 +23,7 @@ final readonly class Observation implements Dto
         public string $kind,
         public string $occurredAt,
         public string $idempotencyKey,
+        public string $actorRef,
         public string $stepKey = '',
         public int $attempt = 0,
         public string $state = '',
@@ -27,6 +31,7 @@ final readonly class Observation implements Dto
         public string $supersedesFactUuid = '',
         /** @var array<string, string> */
         public array $dimensions = [],
+        public string $actorKind = 'machine',
         public string $collector = '',
     ) {
     }
@@ -37,20 +42,66 @@ final readonly class Observation implements Dto
         string $externalRunId,
         string $occurredAt,
         string $idempotencyKey,
+        string $actorRef,
         array $dimensions = [],
         string $collector = '',
     ): self {
-        return new self($workflowKey, $externalRunId, 'run_started', $occurredAt, $idempotencyKey, state: 'running', dimensions: $dimensions, collector: $collector);
+        return new self(
+            $workflowKey,
+            $externalRunId,
+            'run_started',
+            $occurredAt,
+            $idempotencyKey,
+            $actorRef,
+            state: 'running',
+            dimensions: $dimensions,
+            collector: $collector,
+        );
     }
 
-    public static function runFinished(string $workflowKey, string $externalRunId, string $occurredAt, string $idempotencyKey, string $state, string $collector = ''): self
-    {
-        return new self($workflowKey, $externalRunId, 'run_finished', $occurredAt, $idempotencyKey, state: $state, collector: $collector);
+    public static function runFinished(
+        string $workflowKey,
+        string $externalRunId,
+        string $occurredAt,
+        string $idempotencyKey,
+        string $state,
+        string $actorRef,
+        string $collector = '',
+    ): self {
+        return new self(
+            $workflowKey,
+            $externalRunId,
+            'run_finished',
+            $occurredAt,
+            $idempotencyKey,
+            $actorRef,
+            state: $state,
+            collector: $collector,
+        );
     }
 
-    public static function stepStarted(string $workflowKey, string $externalRunId, string $occurredAt, string $idempotencyKey, string $stepKey, int $attempt = 1, string $collector = ''): self
-    {
-        return new self($workflowKey, $externalRunId, 'step_started', $occurredAt, $idempotencyKey, $stepKey, $attempt, 'running', collector: $collector);
+    public static function stepStarted(
+        string $workflowKey,
+        string $externalRunId,
+        string $occurredAt,
+        string $idempotencyKey,
+        string $stepKey,
+        string $actorRef,
+        int $attempt = 1,
+        string $collector = '',
+    ): self {
+        return new self(
+            $workflowKey,
+            $externalRunId,
+            'step_started',
+            $occurredAt,
+            $idempotencyKey,
+            $actorRef,
+            $stepKey,
+            $attempt,
+            'running',
+            collector: $collector,
+        );
     }
 
     public static function stepFinished(
@@ -59,14 +110,32 @@ final readonly class Observation implements Dto
         string $occurredAt,
         string $idempotencyKey,
         string $stepKey,
+        string $actorRef,
         int $attempt = 1,
         string $state = 'completed',
         string $errorClass = '',
         string $collector = '',
     ): self {
-        return new self($workflowKey, $externalRunId, 'step_finished', $occurredAt, $idempotencyKey, $stepKey, $attempt, $state, $errorClass, collector: $collector);
+        return new self(
+            $workflowKey,
+            $externalRunId,
+            'step_finished',
+            $occurredAt,
+            $idempotencyKey,
+            $actorRef,
+            $stepKey,
+            $attempt,
+            $state,
+            $errorClass,
+            collector: $collector,
+        );
     }
 
+    /**
+     * superseding returns the same fact as a correction of an accepted fact. A
+     * correction is an append, never an edit: the projection is rebuilt from the
+     * ledger, so history cannot be mutated into an inconsistent state.
+     */
     public function superseding(string $supersedesFactUuid): self
     {
         return new self(
@@ -75,12 +144,14 @@ final readonly class Observation implements Dto
             $this->kind,
             $this->occurredAt,
             $this->idempotencyKey,
+            $this->actorRef,
             $this->stepKey,
             $this->attempt,
             $this->state,
             $this->errorClass,
             $supersedesFactUuid,
             $this->dimensions,
+            $this->actorKind,
             $this->collector,
         );
     }
@@ -102,6 +173,7 @@ final readonly class Observation implements Dto
                 'errorClass' => $this->errorClass === '' ? null : $this->errorClass,
             ]);
         }
+
         return Payload::withoutNulls([
             'workflowKey' => $this->workflowKey,
             'externalRunId' => $this->externalRunId,
@@ -115,6 +187,10 @@ final readonly class Observation implements Dto
     /** @return array<string, string> */
     private function provenancePayload(): array
     {
-        return $this->collector === '' ? [] : ['actorKind' => 'machine', 'collector' => $this->collector];
+        return Payload::withoutNulls([
+            'actorKind' => $this->actorKind,
+            'actorRef' => $this->actorRef,
+            'collector' => $this->collector === '' ? null : $this->collector,
+        ]);
     }
 }

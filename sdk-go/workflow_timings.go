@@ -63,9 +63,12 @@ type WorkflowTimingFact struct {
 	Step       *WorkflowTimingStepFact `json:"step,omitempty"`
 }
 
-// WorkflowTimingProvenance records which collector supplied a fact.
+// WorkflowTimingProvenance records which collector supplied a fact. The server
+// requires both the actor kind and the actor reference, because a fact nobody is
+// attributable to is not evidence.
 type WorkflowTimingProvenance struct {
-	ActorKind string `json:"actorKind,omitempty"`
+	ActorKind string `json:"actorKind"`
+	ActorRef  string `json:"actorRef"`
 	Collector string `json:"collector,omitempty"`
 }
 
@@ -85,6 +88,8 @@ type WorkflowTimingObservationResult struct {
 	Index          int    `json:"index"`
 	Accepted       bool   `json:"accepted"`
 	Duplicate      bool   `json:"duplicate"`
+	WorkflowKey    string `json:"workflowKey"`
+	ExternalRunID  string `json:"externalRunId"`
 	IdempotencyKey string `json:"idempotencyKey"`
 	RunUUID        string `json:"runUuid,omitempty"`
 	FactUUID       string `json:"factUuid,omitempty"`
@@ -121,18 +126,41 @@ func (result *WorkflowTimingBatchResult) RequireAccepted() error {
 	)
 }
 
+// RejectedItems returns the items the server refused, so a caller can retry exactly
+// those rather than the whole batch.
+func (result *WorkflowTimingBatchResult) RejectedItems() []WorkflowTimingObservationResult {
+	items := make([]WorkflowTimingObservationResult, 0, result.Rejected)
+	for _, item := range result.Results {
+		if !item.Accepted {
+			items = append(items, item)
+		}
+	}
+	return items
+}
+
+// WorkflowTimingDimensionDefinition is one declared comparison dimension.
+type WorkflowTimingDimensionDefinition struct {
+	DimensionKey  string `json:"dimensionKey"`
+	MaxValueBytes int64  `json:"maxValueBytes"`
+}
+
+// WorkflowTimingStepDefinition is one compiled step of a revision.
+type WorkflowTimingStepDefinition struct {
+	StepKey   string `json:"stepKey"`
+	Name      string `json:"name"`
+	Sequence  int    `json:"sequence"`
+	NominalMS int64  `json:"nominalMs"`
+}
+
 // WorkflowTimingRevision is an immutable compiled workflow shape.
 type WorkflowTimingRevision struct {
-	UUID         string `json:"uuid"`
-	Number       int64  `json:"number"`
-	Hash         string `json:"hash"`
-	AllowOverlap bool   `json:"allowOverlap"`
-	Steps        []struct {
-		StepKey   string `json:"stepKey"`
-		Name      string `json:"name"`
-		Sequence  int    `json:"sequence"`
-		NominalMS int64  `json:"nominalMs"`
-	} `json:"steps"`
+	UUID                  string                              `json:"uuid"`
+	Number                int64                               `json:"number"`
+	Hash                  string                              `json:"hash"`
+	AllowOverlap          bool                                `json:"allowOverlap"`
+	PredictionVersionUUID string                              `json:"predictionVersionUuid,omitempty"`
+	Dimensions            []WorkflowTimingDimensionDefinition `json:"dimensions"`
+	Steps                 []WorkflowTimingStepDefinition      `json:"steps"`
 }
 
 // WorkflowTimingDefinition is one tenant-scoped workflow shape.
@@ -162,19 +190,28 @@ type WorkflowTimingObservationBatch struct {
 // point and range are nil when the engine did not produce them, which is what
 // keeps a cold start from looking like a supported forecast.
 type WorkflowTimingExpectation struct {
-	SeriesKey             string   `json:"seriesKey"`
-	StepKey               string   `json:"stepKey,omitempty"`
-	State                 string   `json:"state"`
-	BaselineMS            int64    `json:"baselineMs"`
-	ExpectedMS            *int64   `json:"expectedMs,omitempty"`
-	ConservativeLowMS     *int64   `json:"conservativeLowMs,omitempty"`
-	ConservativeHighMS    *int64   `json:"conservativeHighMs,omitempty"`
-	SampleCount           int      `json:"sampleCount"`
-	Method                string   `json:"method"`
-	MethodVersion         string   `json:"methodVersion"`
-	PredictionVersionUUID string   `json:"predictionVersionUuid,omitempty"`
-	InputHash             string   `json:"inputHash"`
-	Warnings              []string `json:"warnings"`
+	SeriesKey          string   `json:"seriesKey"`
+	StepKey            string   `json:"stepKey,omitempty"`
+	Attempt            int      `json:"attempt,omitempty"`
+	State              string   `json:"state"`
+	BaselineMS         int64    `json:"baselineMs"`
+	ExpectedMS         *int64   `json:"expectedMs,omitempty"`
+	ConservativeLowMS  *int64   `json:"conservativeLowMs,omitempty"`
+	ConservativeHighMS *int64   `json:"conservativeHighMs,omitempty"`
+	SampleCount        int      `json:"sampleCount"`
+	Method             string   `json:"method"`
+	MethodVersion      string   `json:"methodVersion"`
+	PredictionVersion  string   `json:"predictionVersionUuid,omitempty"`
+	InputHash          string   `json:"inputHash"`
+	GeneratedAt        string   `json:"generatedAt"`
+	EvidenceWindowFrom string   `json:"evidenceWindowStart"`
+	Warnings           []string `json:"warnings"`
+}
+
+// Supported reports whether the expectation is backed by enough comparable
+// history. Only a ready expectation may be presented as a forecast.
+func (expectation WorkflowTimingExpectation) Supported() bool {
+	return expectation.State == WorkflowTimingStateReady
 }
 
 // WorkflowTimingPrediction is one observed run's completion expectation.
@@ -184,8 +221,19 @@ type WorkflowTimingPrediction struct {
 	ExternalRunID string                      `json:"externalRunId"`
 	State         string                      `json:"state"`
 	AllowOverlap  bool                        `json:"allowOverlap"`
+	GeneratedAt   string                      `json:"generatedAt"`
 	Run           WorkflowTimingExpectation   `json:"run"`
 	Steps         []WorkflowTimingExpectation `json:"steps"`
+}
+
+// StepExpectation returns the expectation for one step key.
+func (prediction WorkflowTimingPrediction) StepExpectation(stepKey string) (WorkflowTimingExpectation, bool) {
+	for _, step := range prediction.Steps {
+		if step.StepKey == stepKey {
+			return step, true
+		}
+	}
+	return WorkflowTimingExpectation{}, false
 }
 
 // WorkflowTimingProjectionStatus is the visible projection state of one run.
@@ -199,20 +247,159 @@ type WorkflowTimingProjectionStatus struct {
 	NextAction        string `json:"nextAction"`
 }
 
-// WorkflowTimingRun is one observed run with its projection status.
+// Behind reports whether observed facts are not folded into the projection yet,
+// which makes any duration read for the run not yet trustworthy.
+func (status WorkflowTimingProjectionStatus) Behind() bool {
+	return status.PendingFacts > 0
+}
+
+// WorkflowTimingAttempt is one projected step attempt.
+type WorkflowTimingAttempt struct {
+	StepKey    string `json:"stepKey"`
+	Attempt    int    `json:"attempt"`
+	State      string `json:"state"`
+	StartedAt  string `json:"startedAt,omitempty"`
+	FinishedAt string `json:"finishedAt,omitempty"`
+	ErrorClass string `json:"errorClass,omitempty"`
+	OccurredAt string `json:"occurredAt"`
+	ReceiptAt  string `json:"receiptAt"`
+}
+
+// WorkflowTimingRun is one observed run with its projection status and attempts.
 type WorkflowTimingRun struct {
 	RunUUID          string                         `json:"runUuid"`
 	WorkflowKey      string                         `json:"workflowKey"`
+	WorkflowUUID     string                         `json:"workflowUuid"`
+	RevisionUUID     string                         `json:"revisionUuid"`
+	RevisionNumber   int64                          `json:"revisionNumber"`
+	RevisionHash     string                         `json:"revisionHash"`
 	ExternalRunID    string                         `json:"externalRunId"`
 	State            string                         `json:"state"`
+	StartedAt        string                         `json:"startedAt,omitempty"`
+	FinishedAt       string                         `json:"finishedAt,omitempty"`
+	SourceOccurredAt string                         `json:"sourceOccurredAt,omitempty"`
+	ReceiptAt        string                         `json:"receiptAt"`
 	Dimensions       map[string]string              `json:"dimensions"`
+	Attempts         []WorkflowTimingAttempt        `json:"attempts"`
 	ProjectionStatus WorkflowTimingProjectionStatus `json:"projectionStatus"`
+}
+
+// WorkflowTimingRunSummary is one observed run in the bounded run list.
+type WorkflowTimingRunSummary struct {
+	RunUUID       string `json:"runUuid"`
+	ExternalRunID string `json:"externalRunId"`
+	WorkflowKey   string `json:"workflowKey"`
+	State         string `json:"state"`
+	StartedAt     string `json:"startedAt,omitempty"`
+	FinishedAt    string `json:"finishedAt,omitempty"`
+	PendingFacts  int64  `json:"pendingFacts"`
+	OpenAttempts  int64  `json:"openAttempts"`
+	ReceiptAt     string `json:"receiptAt"`
+}
+
+// WorkflowTimingOutcomeCounts is the closed outcome tally of a workflow.
+type WorkflowTimingOutcomeCounts struct {
+	CompletedRuns  int64 `json:"completedRuns"`
+	FailedRuns     int64 `json:"failedRuns"`
+	CancelledRuns  int64 `json:"cancelledRuns"`
+	RunningRuns    int64 `json:"runningRuns"`
+	CompletedSteps int64 `json:"completedSteps"`
+	FailedAttempts int64 `json:"failedAttempts"`
+	SkippedSteps   int64 `json:"skippedAttempts"`
+	CancelledSteps int64 `json:"cancelledSteps"`
+	OpenAttempts   int64 `json:"openAttempts"`
+	Retries        int64 `json:"retries"`
+}
+
+// WorkflowTimingDurationHistoryEntry is one completed duration fact.
+type WorkflowTimingDurationHistoryEntry struct {
+	RunUUID        string `json:"runUuid"`
+	StepKey        string `json:"stepKey"`
+	ValueMS        int64  `json:"valueMs"`
+	BaselineMS     int64  `json:"baselineMs"`
+	RevisionUUID   string `json:"revisionUuid"`
+	RevisionNumber int64  `json:"revisionNumber"`
+	Outcome        string `json:"outcome"`
+	Corrected      bool   `json:"corrected"`
+	ObservedAt     string `json:"observedAt"`
+}
+
+// WorkflowTimingContribution is one step's share of the active time.
+type WorkflowTimingContribution struct {
+	StepKey        string `json:"stepKey"`
+	Attempts       int    `json:"attempts"`
+	TotalMS        int64  `json:"totalMs"`
+	BaselineMS     int64  `json:"baselineMs"`
+	ContributionPM int64  `json:"contributionPermille"`
+}
+
+// WorkflowTimingRunTiming is the latest completed run's timing split. Active
+// time is the union of measured step intervals, so overlapping steps are never
+// summed into a wall clock that did not happen.
+type WorkflowTimingRunTiming struct {
+	RunUUID     string `json:"runUuid"`
+	WallClockMS int64  `json:"wallClockMs"`
+	ActiveMS    int64  `json:"activeMs"`
+	WaitMS      int64  `json:"waitMs"`
+	NominalMS   int64  `json:"nominalMs"`
+}
+
+// WorkflowTimingDurationHistory is the completed duration history of a workflow.
+type WorkflowTimingDurationHistory struct {
+	WorkflowKey        string                               `json:"workflowKey"`
+	WorkflowUUID       string                               `json:"workflowUuid"`
+	Entries            []WorkflowTimingDurationHistoryEntry `json:"entries"`
+	Outcomes           WorkflowTimingOutcomeCounts          `json:"outcomes"`
+	Contributions      []WorkflowTimingContribution         `json:"contributions"`
+	LatestCompletedRun *WorkflowTimingRunTiming             `json:"latestCompletedRun,omitempty"`
+}
+
+// WorkflowTimingEvaluation is the chronological rolling-origin evaluation. It
+// reports unavailable with a next action when the revision has not selected a
+// duration prediction version, because calibration cannot be attributed to a
+// version that was never selected.
+type WorkflowTimingEvaluation struct {
+	WorkflowKey           string                            `json:"workflowKey"`
+	WorkflowUUID          string                            `json:"workflowUuid"`
+	SeriesKey             string                            `json:"seriesKey"`
+	State                 string                            `json:"state"`
+	NextAction            string                            `json:"nextAction"`
+	BaselineMS            int64                             `json:"baselineMs"`
+	Outcomes              WorkflowTimingOutcomeCounts       `json:"outcomes"`
+	PredictionVersionUUID string                            `json:"predictionVersionUuid,omitempty"`
+	Artifact              *WorkflowTimingEvaluationArtifact `json:"artifact,omitempty"`
+}
+
+// WorkflowTimingEvaluationArtifact is the measurement owner's evaluation artifact.
+type WorkflowTimingEvaluationArtifact struct {
+	SchemaVersion     string         `json:"schema_version"`
+	Source            string         `json:"source"`
+	PredictionVersion string         `json:"prediction_version_uuid"`
+	ContentSHA256     string         `json:"content_sha256"`
+	Evaluation        map[string]any `json:"evaluation"`
 }
 
 // WorkflowTimingDefinitionList is the bounded definition list envelope.
 type WorkflowTimingDefinitionList struct {
 	Items []WorkflowTimingDefinition `json:"items"`
 }
+
+// WorkflowTimingRunList is the bounded run list envelope.
+type WorkflowTimingRunList struct {
+	Items []WorkflowTimingRunSummary `json:"items"`
+}
+
+// Workflow timing expectation states. A consumer UI must not render a cold start
+// and a ready forecast the same way.
+const (
+	WorkflowTimingStateReady       = "ready"
+	WorkflowTimingStateColdStart   = "cold_start"
+	WorkflowTimingStateSparse      = "sparse"
+	WorkflowTimingStateStale       = "stale"
+	WorkflowTimingStatePartial     = "partial"
+	WorkflowTimingStateUnavailable = "unavailable"
+	WorkflowTimingStateError       = "error"
+)
 
 // WorkflowTimingIdempotency builds the deterministic identity of one observed
 // fact. Deriving the key from the fact itself means a redelivery after an outage
@@ -254,8 +441,8 @@ func (c *WorkflowTimingAdminClient) Reconcile(
 	ctx context.Context, companySlug string, declaration WorkflowTimingDeclaration,
 ) (*WorkflowTimingReconcileResult, error) {
 	var out WorkflowTimingReconcileResult
-	err := c.admin.request(ctx, http.MethodPut, workflowTimingPath(
-		companySlug, "/definitions/"+url.PathEscape(declaration.WorkflowKey), 0,
+	err := c.admin.request(ctx, http.MethodPut, workflowTimingResourcePath(
+		companySlug, "/definitions/"+url.PathEscape(declaration.WorkflowKey),
 	), declaration, &out)
 	return &out, err
 }
@@ -287,9 +474,7 @@ func (c *WorkflowTimingAdminClient) Append(
 ) (*WorkflowTimingBatchResult, error) {
 	var out WorkflowTimingBatchResult
 	err := c.admin.request(ctx, http.MethodPost, workflowTimingPath(companySlug, "/observations", 0),
-		struct {
-			Observation WorkflowTimingObservation `json:"observation"`
-		}{Observation: observation}, &out)
+		workflowTimingObservationRequest{Observation: observation}, &out)
 	return &out, err
 }
 
@@ -316,19 +501,26 @@ func (c *WorkflowTimingAdminClient) Correct(
 	}
 	var out WorkflowTimingBatchResult
 	err := c.admin.request(ctx, http.MethodPost, workflowTimingPath(companySlug, "/corrections", 0),
-		struct {
-			Observation WorkflowTimingObservation `json:"observation"`
-		}{Observation: observation}, &out)
+		workflowTimingObservationRequest{Observation: observation}, &out)
 	return &out, err
 }
 
-// GetRun reads one observed run and its projection status.
+// ListRuns lists the tenant's observed runs, newest first.
+func (c *WorkflowTimingAdminClient) ListRuns(
+	ctx context.Context, companySlug string, limit int,
+) (*WorkflowTimingRunList, error) {
+	var out WorkflowTimingRunList
+	err := c.admin.request(ctx, http.MethodGet, workflowTimingPath(companySlug, "/runs", limit), nil, &out)
+	return &out, err
+}
+
+// GetRun reads one observed run with its attempts and projection status.
 func (c *WorkflowTimingAdminClient) GetRun(
 	ctx context.Context, companySlug, runUUID string,
 ) (*WorkflowTimingRun, error) {
 	var out WorkflowTimingRun
-	err := c.admin.request(ctx, http.MethodGet, workflowTimingPath(
-		companySlug, "/runs/"+url.PathEscape(runUUID), 0,
+	err := c.admin.request(ctx, http.MethodGet, workflowTimingResourcePath(
+		companySlug, "/runs/"+url.PathEscape(runUUID),
 	), nil, &out)
 	return &out, err
 }
@@ -338,17 +530,46 @@ func (c *WorkflowTimingAdminClient) Prediction(
 	ctx context.Context, companySlug, runUUID string,
 ) (*WorkflowTimingPrediction, error) {
 	var out WorkflowTimingPrediction
-	err := c.admin.request(ctx, http.MethodGet, workflowTimingPath(
-		companySlug, "/runs/"+url.PathEscape(runUUID)+"/prediction", 0,
+	err := c.admin.request(ctx, http.MethodGet, workflowTimingResourcePath(
+		companySlug, "/runs/"+url.PathEscape(runUUID)+"/prediction",
 	), nil, &out)
 	return &out, err
 }
 
-// Rebuild deterministically rebuilds one run's projections from its ledger.
+// DurationHistory reads the completed duration history of one workflow.
+func (c *WorkflowTimingAdminClient) DurationHistory(
+	ctx context.Context, companySlug, workflowKey string, limit int,
+) (*WorkflowTimingDurationHistory, error) {
+	var out WorkflowTimingDurationHistory
+	err := c.admin.request(ctx, http.MethodGet, workflowTimingPath(
+		companySlug, "/definitions/"+url.PathEscape(workflowKey)+"/duration-history", limit,
+	), nil, &out)
+	return &out, err
+}
+
+// Evaluation reads the rolling-origin evaluation of one workflow's duration series.
+func (c *WorkflowTimingAdminClient) Evaluation(
+	ctx context.Context, companySlug, workflowKey, seriesKey string,
+) (*WorkflowTimingEvaluation, error) {
+	var out WorkflowTimingEvaluation
+	path := workflowTimingPath(companySlug, "/definitions/"+url.PathEscape(workflowKey)+"/evaluation", 0)
+	if seriesKey != "" {
+		path += "&seriesKey=" + url.QueryEscape(seriesKey)
+	}
+	err := c.admin.request(ctx, http.MethodGet, path, nil, &out)
+	return &out, err
+}
+
+// Rebuild deterministically rebuilds one run's projections from its ledger. It is
+// the supported repair path when a run's projection status reports pending facts.
 func (c *WorkflowTimingAdminClient) Rebuild(ctx context.Context, companySlug, runUUID string) error {
-	return c.admin.request(ctx, http.MethodPost, workflowTimingPath(
-		companySlug, "/runs/"+url.PathEscape(runUUID)+"/rebuild", 0,
+	return c.admin.request(ctx, http.MethodPost, workflowTimingResourcePath(
+		companySlug, "/runs/"+url.PathEscape(runUUID)+"/rebuild",
 	), nil, nil)
+}
+
+type workflowTimingObservationRequest struct {
+	Observation WorkflowTimingObservation `json:"observation"`
 }
 
 func workflowTimingPath(companySlug, path string, limit int) string {
@@ -359,6 +580,8 @@ func workflowTimingPath(companySlug, path string, limit int) string {
 	return "/workflow-timings" + path + "?" + query.Encode()
 }
 
+// workflowTimingResourcePath escapes every path segment after the leading one, so
+// a workflow key or run id can never add a route.
 func workflowTimingResourcePath(companySlug, path string) string {
 	segments := strings.Split(path, "/")
 	for index, segment := range segments {
