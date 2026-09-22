@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Admin\Prediction\DurationEvaluationRequest;
+use HaakCo\Custd\Admin\Prediction\DurationEvaluationResponse;
+
 /**
  * PredictionClient owns the tenant-scoped configurable signal prediction
  * lifecycle. The company slug is sent explicitly on every request.
@@ -158,6 +161,23 @@ final class PredictionClient
     public function archiveSignalSource(string $companySlug, string $sourceUuid): void
     {
         $this->request("POST", $this->resource("/sources/{$sourceUuid}/archive", $companySlug));
+    }
+
+    /**
+     * Evaluate one duration history with the server's chronological
+     * rolling-origin fold. The response is typed: the caller reads prediction
+     * error and interval containment from named fields, and the version evidence
+     * says which immutable version produced them.
+     */
+    public function evaluateDurationHistory(
+        string $companySlug,
+        string $definitionUuid,
+        DurationEvaluationRequest $body,
+    ): DurationEvaluationResponse {
+        $path = $this->resource("/definitions/{$definitionUuid}/duration-evaluations", $companySlug);
+        return DurationEvaluationResponse::fromPayload(
+            $this->request("POST", $path, $body->toPayload()) ?? [],
+        );
     }
 
     /**
