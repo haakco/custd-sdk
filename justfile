@@ -44,6 +44,15 @@ test-php:
   cd sdk-php && composer analyse
   cd sdk-php && composer format-check
   composer test
+  # The framework packages resolve haakco/custd-sdk from its released tag, so these
+  # suites pass only against a release that carries the classes they use. They run
+  # here because leaving them unrunnable is how the Laravel and WordPress packages
+  # kept a `haakco/custd-sdk` range that no longer admitted any released version.
+  # Their lockfiles are not committed by design, hence `update` rather than install.
+  cd laravel-package && composer update --no-interaction --no-progress
+  cd laravel-package && composer test
+  cd wordpress-plugin && composer update --no-interaction --no-progress
+  cd wordpress-plugin && composer test
 
 test-release-mirrors:
   bash scripts/test-publish-release-mirror.sh
