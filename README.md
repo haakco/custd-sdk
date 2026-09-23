@@ -13,6 +13,22 @@ Public SDKs for sending events to Custd.
 - `wordpress-plugin` — WordPress plugin package wrapping the PHP SDK for product/activity hooks.
 - `contract-fixtures` — shared event fixtures used by every SDK test suite.
 
+## Supported versions
+
+Only the 2.x line is supported. The 1.x tags and their releases were removed on 2026-09-23: nothing consumed
+them any more, and a consumer resolving `^1.x` silently installs code that is two majors behind.
+
+| Package | Install |
+| --- | --- |
+| `haakco/custd-sdk` (PHP) | `^2.3` |
+| `haakco/custd-laravel` | `^2.2` — the workflow-timing job first ships in `v2.2.0` |
+| `github.com/haakco/custd-sdk-go/v2` | `v2.3.0` or later; the old path without `/v2` is removed |
+| `@haakco/custd-sdk` (JS) | `github:haakco/custd-sdk#v2.3.0&path:/sdk-js`, installed with pnpm |
+
+Deleting a Go tag does not remove the version from `proxy.golang.org`, which keeps serving what it has already
+cached: the old module path still answers for `v1.8.30` there. Treat it as unsupported, and add a `retract`
+directive on that path if it must be actively rejected.
+
 ## Rule
 
 SDK functionality belongs in this repository. Product repositories must consume released SDK versions instead of creating one-off clients or committing local filesystem replacements.
