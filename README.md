@@ -396,13 +396,13 @@ so the transitive `haakco/custd-sdk` resolves:
     { "type": "vcs", "url": "https://github.com/haakco/custd-sdk" }
   ],
   "require": {
-    "haakco/custd-laravel": "^1.3"
+    "haakco/custd-laravel": "^2.2"
   }
 }
 ```
 
 ```bash
-composer require haakco/custd-laravel:^1.3
+composer require haakco/custd-laravel:^2.2
 ```
 
 See `laravel-package/README.md` for the full config + usage reference.

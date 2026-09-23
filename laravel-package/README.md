@@ -24,13 +24,13 @@ repo so the transitive `haakco/custd-sdk` dependency resolves:
     { "type": "vcs", "url": "https://github.com/haakco/custd-sdk" }
   ],
   "require": {
-    "haakco/custd-laravel": "^1.3"
+    "haakco/custd-laravel": "^2.2"
   }
 }
 ```
 
 ```bash
-composer require haakco/custd-laravel:^1.3
+composer require haakco/custd-laravel:^2.2
 ```
 
 The service provider and `Custd` facade are auto-discovered. Publish the config:
