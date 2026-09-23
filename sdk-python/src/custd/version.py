@@ -5,7 +5,7 @@ VERSION file and scripts/bump-version.sh updates it, so a release cannot leave
 it behind.
 """
 
-VERSION = "2.3.0"
+VERSION = "2.4.0"
 
 #: Product named in X-Custd-Sdk, so Custd can report which callers use which release.
 PRODUCT = "python"
