@@ -27,9 +27,14 @@ final class CustdClientFactory
      */
     private function options(Settings $settings): array
     {
-        return array_filter([
+        // Named after the typed filter, which only accepts arrays: Custd
+        // reports WordPress consumers apart from raw PHP ones.
+        $options = array_filter([
             "oauth" => $this->oauthOptions($settings),
         ], static fn (?array $value): bool => $value !== null);
+        $options["product"] = "wordpress";
+
+        return $options;
     }
 
     /**

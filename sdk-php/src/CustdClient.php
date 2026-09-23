@@ -6,6 +6,16 @@ namespace HaakCo\Custd;
 
 final class CustdClient
 {
+    /**
+     * Released SDK version. scripts/check-sdk-version-identity.sh asserts it
+     * equals VERSION and scripts/bump-version.sh updates it, so a release cannot
+     * leave it behind.
+     */
+    public const VERSION = "2.3.0";
+
+    /** Product named in X-Custd-Sdk. The Laravel and WordPress wrappers override it. */
+    public const PRODUCT = "php";
+
     private string $baseUrl;
     /** Process default environment for events that do not declare their own. */
     private string $environment;
@@ -29,6 +39,8 @@ final class CustdClient
     private $httpClient;
     /** @var callable|null */
     private $adminHttpClient;
+    /** Product named in X-Custd-Sdk for this instance. */
+    private string $product;
 
     /**
      * @param array<string, mixed> $options Client options:
@@ -112,6 +124,21 @@ final class CustdClient
         $this->maxQueueSize = $options["queue"]["max_size"] ?? 1000;
         $this->httpClient = $options["http_client"] ?? null;
         $this->adminHttpClient = $options["admin_http_client"] ?? null;
+        $this->product = self::normalizeProduct($options["product"] ?? self::PRODUCT);
+    }
+
+    /**
+     * The X-Custd-Sdk product reaches Custd as recorded metadata, so it stays a
+     * lowercase token rather than carrying caller-controlled text.
+     */
+    private static function normalizeProduct(mixed $product): string
+    {
+        $value = is_string($product) ? $product : "";
+        if (preg_match('/^[a-z][a-z0-9-]{0,31}$/', $value) !== 1) {
+            throw new \InvalidArgumentException("custd: product must be a lowercase token");
+        }
+
+        return $value;
     }
 
     public function adminTenants(): Admin\TenantClient
@@ -617,6 +644,22 @@ final class CustdClient
     }
 
     /**
+     * Headers every ingest request carries. The SDK names its own release so
+     * Custd can report which versions actually call it. The OAuth token request
+     * is deliberately excluded: it goes to the auth server, not the API.
+     *
+     * @return array<int, string>
+     */
+    private function requestHeaders(): array
+    {
+        return [
+            "Content-Type: application/json",
+            "Authorization: Bearer " . $this->authToken(),
+            "X-Custd-Sdk: " . $this->product . "/" . self::VERSION,
+        ];
+    }
+
+    /**
      * @param array<string, mixed> $event
      * @return array{status:int, body:string}
      */
@@ -641,10 +684,7 @@ final class CustdClient
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => "POST",
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                "Content-Type: application/json",
-                "Authorization: Bearer " . $this->authToken(),
-            ],
+            CURLOPT_HTTPHEADER => $this->requestHeaders(),
             CURLOPT_POSTFIELDS => $payload,
             CURLOPT_TIMEOUT => 15,
         ]);
@@ -691,10 +731,7 @@ final class CustdClient
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => "POST",
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => array_merge([
-                "Content-Type: application/json",
-                "Authorization: Bearer " . $this->authToken(),
-            ], $encodingHeaders),
+            CURLOPT_HTTPHEADER => array_merge($this->requestHeaders(), $encodingHeaders),
             CURLOPT_POSTFIELDS => $sendBody,
             CURLOPT_TIMEOUT => 15,
         ]);
@@ -807,10 +844,7 @@ final class CustdClient
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => "POST",
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                "Content-Type: application/json",
-                "Authorization: Bearer " . $this->authToken(),
-            ],
+            CURLOPT_HTTPHEADER => $this->requestHeaders(),
             CURLOPT_POSTFIELDS => $body,
             CURLOPT_TIMEOUT => 15,
         ]);

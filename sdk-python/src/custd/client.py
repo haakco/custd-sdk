@@ -15,6 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, NotRequired, TypedDict, cast
 
+from .version import IDENTITY
+
 INGEST_ENDPOINT = "/api/v1/events"
 INGEST_BATCH_ENDPOINT = "/api/v1/events/batch"
 DEFAULT_RETRY_STATUSES = (408, 429, 500, 502, 503, 504)
@@ -543,6 +545,7 @@ class CustdClient:
         return {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._token_provider()}",
+            "X-Custd-Sdk": IDENTITY,
         }
 
     def _producer_token(self) -> str:

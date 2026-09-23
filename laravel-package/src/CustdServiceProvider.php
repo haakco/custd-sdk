@@ -49,11 +49,16 @@ final class CustdServiceProvider extends ServiceProvider
      */
     private function options(array $config): array
     {
-        return array_filter([
+        // Named after the typed filter, which only accepts arrays: Custd
+        // reports Laravel consumers apart from raw PHP ones.
+        $options = array_filter([
             "oauth" => $this->oauthOptions($config["oauth"] ?? []),
             "batch" => $this->batchOptions($config["batch"] ?? []),
             "queue" => $this->queueOptions($config["queue"] ?? []),
         ], static fn (?array $value): bool => $value !== null);
+        $options["product"] = "laravel";
+
+        return $options;
     }
 
     /**

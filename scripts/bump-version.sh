@@ -52,4 +52,14 @@ update_json_version("sdk-react/package.json")
 update_json_version("sdk-php/composer.json")
 replace_once("sdk-python/pyproject.toml", r'^version = "[0-9]+\.[0-9]+\.[0-9]+"$', f'version = "{version}"')
 replace_once("wordpress-plugin/custd.php", r'^ \* Version: [0-9]+\.[0-9]+\.[0-9]+$', f" * Version: {version}")
+# The X-Custd-Sdk identity each SDK reports. A release must move these with the
+# version, or the platform records a client under the wrong release.
+replace_once("sdk-go/version.go", r'^const Version = "[0-9]+\.[0-9]+\.[0-9]+"$', f'const Version = "{version}"')
+replace_once(
+    "sdk-php/src/CustdClient.php",
+    r'^    public const VERSION = "[0-9]+\.[0-9]+\.[0-9]+";$',
+    f'    public const VERSION = "{version}";',
+)
+replace_once("sdk-js/src/version.ts", r'^export const SDK_VERSION = "[0-9]+\.[0-9]+\.[0-9]+";$', f'export const SDK_VERSION = "{version}";')
+replace_once("sdk-python/src/custd/version.py", r'^VERSION = "[0-9]+\.[0-9]+\.[0-9]+"$', f'VERSION = "{version}"')
 PY

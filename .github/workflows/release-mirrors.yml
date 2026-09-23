@@ -55,6 +55,7 @@ jobs:
             echo "Release tag v$tag does not match VERSION ($version)." >&2
             exit 1
           fi
+          bash scripts/check-sdk-version-identity.sh
       - name: Split subtree and push to mirror
         env:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}

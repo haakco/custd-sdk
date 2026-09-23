@@ -2,7 +2,12 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
 test: infisical-test test-go test-js test-python test-php test-release-mirrors
 
-check: test lint-workflows lint-markdown diff-check
+check: test sdk-version-identity lint-workflows lint-markdown diff-check
+
+# The X-Custd-Sdk identity constants must equal VERSION, or a release ships a
+# client that misreports itself.
+sdk-version-identity:
+  bash scripts/check-sdk-version-identity.sh
 
 diff-check:
   git diff --check

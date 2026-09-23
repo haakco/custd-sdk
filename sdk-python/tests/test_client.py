@@ -22,6 +22,7 @@ from custd import (
     validate_event,
 )
 from custd.client import fetch_oauth_token
+from custd.version import VERSION
 
 FIXTURE_ROOT = pathlib.Path(__file__).resolve().parents[2] / "contract-fixtures"
 
@@ -634,6 +635,18 @@ class FromProvisionedProducerTest(unittest.TestCase):
         self.assertEqual(redacted["clientId"], credentials["clientId"])
         self.assertNotIn("clientSecret", redacted)
         self.assertNotIn(credentials["clientSecret"], json.dumps(redacted))
+
+
+class SdkIdentityTest(unittest.TestCase):
+    """Custd learns which release a caller runs from X-Custd-Sdk, so a consumer
+    stuck on an old version becomes visible without grepping repositories."""
+
+    def test_ingest_requests_identify_the_release(self):
+        transport = CapturingTransport([202], ['{"success":true}'])
+        client = CustdClient(base_url="http://localhost:8080", token="token", transport=transport)
+        client.ingest_event(dict(load_fixture("valid-event.json")))
+
+        self.assertEqual(transport.calls[0]["headers"]["X-Custd-Sdk"], f"python/{VERSION}")
 
 
 if __name__ == "__main__":

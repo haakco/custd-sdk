@@ -12,6 +12,7 @@ import {
   redactedProvisionedProducer,
   validateEvent,
 } from "./index";
+import { SDK_VERSION } from "./version";
 
 function problemResponse(problem: ProblemDetails): Response {
   return new Response(JSON.stringify(problem), {
@@ -438,6 +439,25 @@ describe("CustdClient", () => {
     const decoded = await gunzip(init.body as Uint8Array);
     expect(JSON.parse(decoded).events).toHaveLength(1);
     expect(JSON.parse(decoded).events[0].eventUuid).toBe("evt-1");
+  });
+
+  it("identifies the released SDK version on every request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 202 }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "token",
+      batch: { maxBatchSize: 1 },
+      queue: { enabled: true },
+      retry: { maxAttempts: 1 },
+    });
+
+    await client.track({ ...baseEvent, eventUuid: "evt-identity" });
+    await client.flush();
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit & { headers: Record<string, string> };
+    expect(init.headers["X-Custd-Sdk"]).toBe(`js/${SDK_VERSION}`);
   });
 
   it("sends the raw batch body when below the threshold", async () => {

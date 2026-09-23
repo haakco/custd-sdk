@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\CustdClient;
 use HaakCo\Custd\Problem;
 
 final class Http
@@ -143,6 +144,21 @@ final class Http
     }
 
     /**
+     * Headers every admin request carries. The SDK names its own release so
+     * Custd can report which versions actually call it.
+     *
+     * @return array<int, string>
+     */
+    private static function baseHeaders(string $token): array
+    {
+        return [
+            "Content-Type: application/json",
+            "Authorization: Bearer " . $token,
+            "X-Custd-Sdk: " . CustdClient::PRODUCT . "/" . CustdClient::VERSION,
+        ];
+    }
+
+    /**
      * @param array<string, mixed>|null $body
      * @param array<string, string> $extraHeaders
      * @return array{status:int, body:string}
@@ -155,10 +171,7 @@ final class Http
         array $extraHeaders = [],
     ): array {
         $ch = curl_init($url);
-        $headers = [
-            "Content-Type: application/json",
-            "Authorization: Bearer " . $token,
-        ];
+        $headers = self::baseHeaders($token);
         foreach ($extraHeaders as $name => $value) {
             $headers[] = $name . ": " . $value;
         }
@@ -189,10 +202,7 @@ final class Http
     private static function curlBinaryRequest(string $method, string $url, ?array $body, string $token): array
     {
         $ch = curl_init($url);
-        $headers = [
-            "Content-Type: application/json",
-            "Authorization: Bearer " . $token,
-        ];
+        $headers = self::baseHeaders($token);
         /** @var array<string, string> $responseHeaders */
         $responseHeaders = [];
         $responseBody = "";

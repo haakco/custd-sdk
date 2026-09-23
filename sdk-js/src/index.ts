@@ -10,6 +10,7 @@ import { TimePlanAdminClient } from "./admin-timeplans.js";
 import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
 import { basicAuthorization } from "./oauth.js";
+import { SDK_IDENTITY } from "./version.js";
 
 export {
   type ClientSetupApplyAndWaitOptions,
@@ -1454,7 +1455,9 @@ export class CustdClient {
     } else {
       throw new Error("custd: getToken or oauth config is required");
     }
-    this.defaultHeaders = config.defaultHeaders ?? {};
+    // The SDK's own identity is authoritative: a caller may add default
+    // headers, but cannot accidentally drop the release Custd records.
+    this.defaultHeaders = { ...(config.defaultHeaders ?? {}), "X-Custd-Sdk": SDK_IDENTITY };
     this.retry = normalizeRetryOptions(config.retry);
     this.batch = config.batch;
     this.queueEnabled = config.queue?.enabled ?? config.batch != null;
