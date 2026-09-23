@@ -1,3 +1,4 @@
+//#endregion
 //#region src/index.ts
 var e = class {
 	constructor() {

@@ -26,7 +26,7 @@ jobs:
       - name: Vet Go SDK
         run: cd sdk-go && go vet ./...
       - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
       - name: Lint Go SDK
         run: cd sdk-go && PATH="$(go env GOPATH)/bin:$PATH" golangci-lint run ./...
       - name: Test Go SDK
@@ -202,6 +202,8 @@ jobs:
         run: pnpm exec markdownlint-cli2 '**/*.md' '#node_modules' '#vendor' '#sdk-js/node_modules' '#sdk-react/node_modules' '#sdk-php/vendor' '#laravel-package/vendor' '#wordpress-plugin/vendor'
       - name: Check diff whitespace
         run: git diff-tree --check --no-commit-id --root -r HEAD
+      - name: Check SDK identity constants
+        run: bash scripts/check-sdk-version-identity.sh
 
   release-guard:
     runs-on: haakco-build
@@ -224,6 +226,8 @@ jobs:
             exit 1
           fi
           echo "Release tag v$tag matches VERSION."
+      - name: SDK identity constants must match VERSION
+        run: bash scripts/check-sdk-version-identity.sh
 
   publish-js:
     runs-on: haakco-build
