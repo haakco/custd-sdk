@@ -251,30 +251,12 @@ checksum = "sha256:158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e
 url = "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip"
 
 [[tools.php]]
-version = "8.5.5"
+version = "8.5.10"
 backend = "vfox:php"
-specifiers = ["8.5.5"]
-
-[tools.php."platforms.linux-arm64"]
-url = "https://github.com/php/php-src/archive/php-8.5.5.tar.gz"
-
-[tools.php."platforms.linux-arm64-musl"]
-url = "https://github.com/php/php-src/archive/php-8.5.5.tar.gz"
-
-[tools.php."platforms.linux-x64"]
-url = "https://github.com/php/php-src/archive/php-8.5.5.tar.gz"
-
-[tools.php."platforms.linux-x64-musl"]
-url = "https://github.com/php/php-src/archive/php-8.5.5.tar.gz"
+specifiers = ["8.5.10"]
 
 [tools.php."platforms.macos-arm64"]
-url = "https://github.com/php/php-src/archive/php-8.5.5.tar.gz"
-
-[tools.php."platforms.macos-x64"]
-url = "https://github.com/php/php-src/archive/php-8.5.5.tar.gz"
-
-[tools.php."platforms.windows-x64"]
-url = "https://github.com/php/php-src/archive/php-8.5.5.tar.gz"
+url = "https://github.com/php/php-src/archive/php-8.5.10.tar.gz"
 
 [[tools."pipx:mypy"]]
 version = "2.1.0"
