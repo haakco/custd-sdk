@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ANALYTICS_MAX_LABEL_FILTERS, AnalyticsEventClient, CustdClient } from "./index";
+import { ANALYTICS_MAX_LABEL_FILTERS, ANALYTICS_MAX_RANGE_DAYS, AnalyticsEventClient, CustdClient } from "./index";
 
 function mockFetch(body: unknown) {
   return vi.fn().mockResolvedValue(
@@ -80,5 +80,98 @@ describe("analytics event query", () => {
 
     await expect(client.query({ date: "2026-09-14", labelFilters: overLimit })).rejects.toThrow(RangeError);
     expect(request).not.toHaveBeenCalled();
+  });
+});
+
+const rangeResponseBody = {
+  rows: [{ eventTypeSlug: "page_view", payload: { path: "/" } }],
+  count: 3,
+  buckets: [
+    { date: "2026-09-14", count: 1, source: "duckdb", complete: true, queryDurationMs: 4, parquetUriCount: 2 },
+    { date: "2026-09-15", count: 2, source: "duckdb", complete: true, queryDurationMs: 5 },
+  ],
+  sources: [{ name: "duckdb", count: 3, complete: true, fresh: false, queryDurationMs: 9, freshnessLagMs: 0 }],
+  timing: { eventLagP50Ms: 10, eventLagP95Ms: 20, eventLagMaxMs: 30, queryDurationMs: 9, snapshotAgeMs: 100 },
+};
+
+describe("analytics event range query", () => {
+  it("queries the range route and surfaces per-day buckets", async () => {
+    const fetchImpl = mockFetch(rangeResponseBody);
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+
+    const response = await client.analytics.queryRange({
+      from: "2026-09-14",
+      to: "2026-09-15",
+      eventType: "page_view",
+      limit: 10000,
+      source: "auto",
+      groupBy: "day",
+    });
+
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      "http://localhost:8080/api/v1/analytics/query-range",
+    ]);
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
+    expect(body).toEqual({
+      from: "2026-09-14",
+      to: "2026-09-15",
+      eventType: "page_view",
+      limit: 10000,
+      source: "auto",
+      groupBy: "day",
+    });
+    // The per-day completeness belongs to the server; it is surfaced unchanged.
+    expect(response.buckets).toHaveLength(2);
+    expect(response.buckets[0]?.complete).toBe(true);
+    expect(response.buckets[0]?.parquetUriCount).toBe(2);
+    expect(response.count).toBe(3);
+    expect(response.timing.queryDurationMs).toBe(9);
+  });
+
+  it("serialises only documented public fields", async () => {
+    const fetchImpl = mockFetch(rangeResponseBody);
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+
+    await client.analytics.queryRange({
+      from: "2026-09-14",
+      to: "2026-09-15",
+      ...({ anonymousId: "subject-1", countOnly: true } as Record<string, unknown>),
+    });
+
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
+    expect(body).toEqual({ from: "2026-09-14", to: "2026-09-15" });
+    expect(body).not.toHaveProperty("anonymousId");
+    expect(body).not.toHaveProperty("countOnly");
+  });
+
+  it("rejects invalid ranges and requests before sending", async () => {
+    const overLimit = Array.from({ length: ANALYTICS_MAX_LABEL_FILTERS + 1 }, (_, index) => ({
+      key: `k${index}`,
+      value: `v${index}`,
+    }));
+    const cases = [
+      { from: "14-09-2026", to: "2026-09-15" },
+      { from: "2026-02-30", to: "2026-03-01" },
+      { from: "2026-09-15", to: "2026-09-14" },
+      { from: "2026-01-01", to: "2026-05-02" },
+      { from: "2026-09-14", to: "2026-09-15", groupBy: "week" as unknown as "day" },
+      { from: "2026-09-14", to: "2026-09-15", labelFilters: overLimit },
+    ];
+
+    for (const request of cases) {
+      const fetchImpl = mockFetch(rangeResponseBody);
+      const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+      await expect(client.analytics.queryRange(request)).rejects.toThrow(RangeError);
+      expect(fetchImpl).not.toHaveBeenCalled();
+    }
+  });
+
+  it("accepts a range at exactly the day cap", async () => {
+    const fetchImpl = mockFetch(rangeResponseBody);
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+
+    // 2026-01-01..2026-04-30 is 120 inclusive days, the documented maximum.
+    await expect(client.analytics.queryRange({ from: "2026-01-01", to: "2026-04-30" })).resolves.toBeDefined();
+    expect(ANALYTICS_MAX_RANGE_DAYS).toBe(120);
   });
 });

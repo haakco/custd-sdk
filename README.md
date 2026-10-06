@@ -35,6 +35,54 @@ SDK functionality belongs in this repository. Product repositories must consume 
 
 Local path replacements are allowed only for uncommitted experiments while actively changing the SDK. They must not be committed to downstream projects.
 
+## Tenant Usage Reporting
+
+Every SDK reads the attributed usage for the authenticated tenant through
+`GET /api/v1/admin/usage/me` (E7's client-visible usage reporting). The tenant
+comes from the credential, so the call never names a company slug, and the
+system-admin `/usage` and `/usage/export` surfaces are deliberately not exposed.
+
+Entry points:
+
+```go
+report, err := client.Admin.Usage.Get(ctx, custd.UsageQuery{MeterSlug: "events.ingested", Limit: 200})
+```
+
+```ts
+const report = await client.admin.usage.get({ meterSlug: "events.ingested", limit: 200 });
+```
+
+```python
+report = client.admin.usage.get({"meterSlug": "events.ingested", "limit": 200})
+```
+
+```php
+$report = $client->adminUsage()->get(["meterSlug" => "events.ingested", "limit" => 200]);
+```
+
+The report is typed in every SDK and returns per-meter totals plus per-window
+rows. `containsProvisional` and `containsIncomplete` are the server's own
+assessment of the rows, so a caller deciding whether a number is settled reads
+them rather than assuming every row is final. An omitted window uses the service
+default (the trailing 30 days); an out-of-range limit is rejected before a
+request is sent. A runnable Go example lives at `sdk-go/examples/usage-report`.
+
+## Analytics Event Range Query
+
+Every SDK reads a tenant's own events across an inclusive date range through
+`POST /api/v1/analytics/query-range` (at most 120 days, `groupBy: "day"`). The
+response carries per-day `buckets` (`count`/`source`/`complete`) plus the capped
+`rows`. The per-day completeness is the server's assessment and is surfaced
+unchanged; the SDK never substitutes its own confidence heuristic.
+
+- Go: `client.Analytics.QueryRange(ctx, custd.AnalyticsEventRangeQueryRequest{...})`
+- TypeScript: `client.analytics.queryRange({ ... })`
+- Python: `client.analytics.query_range({ ... })`
+- PHP: `$client->analytics()->queryRange([...])`
+
+An over-long, reversed, or malformed range is rejected locally before a request
+is sent.
+
 ## Validation
 
 Install the pinned local toolchain:
@@ -350,6 +398,8 @@ cap. Clients must treat export bytes as opaque and must not log audit details.
 | Retry + gzip batch compression | yes | yes | yes | yes | via PHP SDK | via PHP SDK defaults |
 | RFC 9457 problem parsing | yes | yes | message rendering | yes | via PHP SDK | via PHP SDK |
 | Admin tenants/OAuth/sites/schemas | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
+| Tenant usage report | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
+| Analytics event range query | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Typed time-plan admin clients | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Dogfood event helper | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Browser tracker | no, not a browser runtime | yes | no, not a browser runtime | no, not a browser runtime | no, use JS tracker | install/use JS tracker |

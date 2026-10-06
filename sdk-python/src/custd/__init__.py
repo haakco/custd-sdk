@@ -72,6 +72,12 @@ __all__ = [
     "TimePlanThresholdCue",
     "TimePlanTransition",
     "TimePlanVersion",
+    "UsageAdminClient",
+    "UsageCompletenessState",
+    "UsageQuery",
+    "UsageReport",
+    "UsageRow",
+    "UsageTotal",
 ]
 
 from ._lifecycle_fixtures import read_lifecycle_fixture
@@ -121,4 +127,12 @@ from .admin_timeplans import (
     TimePlanThresholdCue,
     TimePlanTransition,
     TimePlanVersion,
+)
+from .admin_usage import (
+    UsageAdminClient,
+    UsageCompletenessState,
+    UsageQuery,
+    UsageReport,
+    UsageRow,
+    UsageTotal,
 )

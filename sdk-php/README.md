@@ -358,5 +358,49 @@ $plan = $client->adminTimePlans()->create("acme", new DraftRequest(
 
 The typed clients are available in `v1.8.25` and later.
 
+## Usage reporting
+
+`$client->adminUsage()` reads the attributed usage for the authenticated tenant
+through `GET /api/v1/admin/usage/me`. The tenant comes from the credential, so
+the call never names a company slug. The system-admin `/usage` and `/usage/export`
+surfaces are deliberately not exposed.
+
+```php
+$report = $client->adminUsage()->get([
+    "meterSlug" => "events.ingested",
+    "start" => "2026-09-01T00:00:00Z",
+    "end" => "2026-10-01T00:00:00Z",
+    "limit" => 200,
+]);
+```
+
+`$report` is a typed `HaakCo\Custd\Admin\Usage\Report`; `->totals` carries the
+per-meter totals and `->rows` the per-window detail. `->containsProvisional` and
+`->containsIncomplete` are the server's own assessment, so a caller deciding
+whether a number is settled reads them rather than assuming every row is final.
+An omitted `start`/`end` uses the service default (the trailing 30 days) and an
+omitted `limit` uses `UsageClient::DEFAULT_LIMIT`; a limit outside
+`1..UsageClient::MAX_LIMIT` throws before a request is sent.
+
+## Analytics range query
+
+`$client->analytics()->queryRange()` reads a tenant's own events across an
+inclusive date range of at most `Client::MAX_RANGE_DAYS` days, with
+`groupBy => "day"`. It returns a typed `RangeQueryResponse` whose `buckets`
+carry each day's `count`/`source`/`complete` and whose `rows` are the capped
+detail. The per-day completeness is the server's assessment and is surfaced
+unchanged.
+
+```php
+$range = $client->analytics()->queryRange([
+    "from" => "2026-02-23",
+    "to" => "2026-05-23",
+    "eventType" => "page-view",
+    "limit" => 10000,
+    "source" => "auto",
+    "groupBy" => "day",
+]);
+```
+
 SDKs never log signed URLs, raw personal data, export bytes, or
 subject identifiers outside opaque IDs.

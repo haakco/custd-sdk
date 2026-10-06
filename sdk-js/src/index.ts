@@ -7,6 +7,7 @@ import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 import { TimePlanAdminClient } from "./admin-timeplans.js";
+import { UsageAdminClient } from "./admin-usage.js";
 import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
 import { basicAuthorization } from "./oauth.js";
@@ -167,10 +168,25 @@ export {
   validateTimePlanDefinition,
 } from "./admin-timeplans.js";
 export {
+  USAGE_DEFAULT_LIMIT,
+  USAGE_MAX_LIMIT,
+  UsageAdminClient,
+  type UsageCompletenessState,
+  type UsageQuery,
+  type UsageReport,
+  type UsageRow,
+  type UsageTotal,
+} from "./admin-usage.js";
+export {
   ANALYTICS_MAX_LABEL_FILTERS,
+  ANALYTICS_MAX_RANGE_DAYS,
+  ANALYTICS_RANGE_GROUP_BY,
   AnalyticsEventClient,
   type AnalyticsEventQueryRequest,
   type AnalyticsEventQueryResponse,
+  type AnalyticsEventRangeBucket,
+  type AnalyticsEventRangeQueryRequest,
+  type AnalyticsEventRangeQueryResponse,
   type AnalyticsEventRow,
   type AnalyticsEventSourceSummary,
   type AnalyticsEventTiming,
@@ -2327,6 +2343,7 @@ class AdminNamespace {
   readonly subjectExports: SubjectExportClient;
   readonly privacyErasures: PrivacyErasureClient;
   readonly timePlans: TimePlanAdminClient;
+  readonly usage: UsageAdminClient;
 
   constructor(
     request: AdminRequester,
@@ -2353,6 +2370,7 @@ class AdminNamespace {
     this.subjectExports = new SubjectExportClient(request);
     this.privacyErasures = new PrivacyErasureClient(request);
     this.timePlans = new TimePlanAdminClient(request);
+    this.usage = new UsageAdminClient(request);
   }
 }
 

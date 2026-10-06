@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // analyticsEventsEndpoint is the tenant event query. It reads a tenant's own ingested
@@ -14,8 +15,20 @@ import (
 // authority is enforced server-side, so the caller never supplies a tenant slug.
 const analyticsEventsEndpoint = "/api/v1/analytics/query"
 
+// analyticsEventsRangeEndpoint is the tenant event range query. It shares the tenant
+// and scope rules of analyticsEventsEndpoint; only the addressable window differs.
+const analyticsEventsRangeEndpoint = "/api/v1/analytics/query-range"
+
 // MaxAnalyticsLabelFilters is the most label filters the service accepts on one query.
 const MaxAnalyticsLabelFilters = 4
+
+// AnalyticsMaxRangeDays is the longest inclusive range the service accepts. A longer
+// request is rejected locally rather than spending a round trip on a 400.
+const AnalyticsMaxRangeDays = 120
+
+// AnalyticsRangeGroupByDay is the only bucket granularity the service supports today; a
+// request that omits groupBy is accepted and means the same thing.
+const AnalyticsRangeGroupByDay = "day"
 
 // AnalyticsQuerySource names a source the server may answer a query from.
 type AnalyticsQuerySource string
@@ -94,6 +107,52 @@ type AnalyticsEventQueryResponse struct {
 	Timing  AnalyticsEventTiming          `json:"timing"`
 }
 
+// AnalyticsEventRangeQueryRequest is the public range query body.
+//
+// The service also accepts an internal anonymousId exact-subject predicate and a
+// countOnly flag, but both are absent from its public JSON contract. They are therefore
+// not representable here, which keeps them off the wire by construction.
+type AnalyticsEventRangeQueryRequest struct {
+	// From and To bound the inclusive range, formatted YYYY-MM-DD. Both are required.
+	From string `json:"from"`
+	To   string `json:"to"`
+	// EventType is an exact event-type slug.
+	EventType string `json:"eventType,omitempty"`
+	// Limit caps returned rows across the whole range. The service clamps it and
+	// reports the applied count.
+	Limit  int                  `json:"limit,omitempty"`
+	Source AnalyticsQuerySource `json:"source,omitempty"`
+	// GroupBy selects the bucket granularity; AnalyticsRangeGroupByDay is the only
+	// accepted value.
+	GroupBy string `json:"groupBy,omitempty"`
+	// LabelFilters accepts at most MaxAnalyticsLabelFilters entries.
+	LabelFilters []AnalyticsLabelFilter `json:"labelFilters,omitempty"`
+}
+
+// AnalyticsEventRangeBucket is one day's coverage inside a range query.
+//
+// Complete is the server's own assessment of whether that day's source answered the
+// whole request, so it is surfaced unchanged; the SDK must not substitute its own
+// heuristic.
+type AnalyticsEventRangeBucket struct {
+	Date            string               `json:"date"`
+	Count           int                  `json:"count"`
+	Source          AnalyticsQuerySource `json:"source"`
+	Complete        bool                 `json:"complete"`
+	QueryDurationMs int64                `json:"queryDurationMs"`
+	ParquetURICount int                  `json:"parquetUriCount,omitempty"`
+	Message         string               `json:"message,omitempty"`
+}
+
+// AnalyticsEventRangeQueryResponse is the range query result, surfaced verbatim.
+type AnalyticsEventRangeQueryResponse struct {
+	Rows    []AnalyticsEventRow           `json:"rows"`
+	Count   int                           `json:"count"`
+	Buckets []AnalyticsEventRangeBucket   `json:"buckets"`
+	Sources []AnalyticsEventSourceSummary `json:"sources"`
+	Timing  AnalyticsEventTiming          `json:"timing"`
+}
+
 // AnalyticsEventClient queries this tenant's own events.
 type AnalyticsEventClient struct {
 	client *CustdClient
@@ -109,7 +168,22 @@ func (a *AnalyticsEventClient) Query(ctx context.Context, req AnalyticsEventQuer
 		return nil, err
 	}
 	var out AnalyticsEventQueryResponse
-	if err := a.request(ctx, http.MethodPost, req, &out); err != nil {
+	if err := a.request(ctx, http.MethodPost, analyticsEventsEndpoint, req, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// QueryRange reads this tenant's own events across an inclusive date range.
+func (a *AnalyticsEventClient) QueryRange(
+	ctx context.Context,
+	req AnalyticsEventRangeQueryRequest,
+) (*AnalyticsEventRangeQueryResponse, error) {
+	if err := validateAnalyticsEventRangeQuery(req); err != nil {
+		return nil, err
+	}
+	var out AnalyticsEventRangeQueryResponse
+	if err := a.request(ctx, http.MethodPost, analyticsEventsRangeEndpoint, req, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -131,7 +205,43 @@ func validateAnalyticsEventQuery(req AnalyticsEventQueryRequest) error {
 	return nil
 }
 
-func (a *AnalyticsEventClient) request(ctx context.Context, method string, payload any, out any) error {
+// validateAnalyticsEventRangeQuery rejects locally what the service would reject anyway,
+// so an over-long or malformed window never costs a round trip.
+func validateAnalyticsEventRangeQuery(req AnalyticsEventRangeQueryRequest) error {
+	if req.From == "" || req.To == "" {
+		return fmt.Errorf("custd: analytics range query requires from and to (YYYY-MM-DD)")
+	}
+	from, err := time.Parse("2006-01-02", req.From)
+	if err != nil {
+		return fmt.Errorf("custd: analytics range query from must be YYYY-MM-DD: %w", err)
+	}
+	to, err := time.Parse("2006-01-02", req.To)
+	if err != nil {
+		return fmt.Errorf("custd: analytics range query to must be YYYY-MM-DD: %w", err)
+	}
+	if to.Before(from) {
+		return fmt.Errorf("custd: analytics range query to must not be before from")
+	}
+	if days := int(to.Sub(from).Hours()/24) + 1; days > AnalyticsMaxRangeDays {
+		return fmt.Errorf(
+			"custd: analytics range query spans %d days, the maximum is %d",
+			days, AnalyticsMaxRangeDays,
+		)
+	}
+	if len(req.LabelFilters) > MaxAnalyticsLabelFilters {
+		return fmt.Errorf(
+			"custd: analytics range query accepts at most %d label filters, received %d",
+			MaxAnalyticsLabelFilters,
+			len(req.LabelFilters),
+		)
+	}
+	if req.GroupBy != "" && req.GroupBy != AnalyticsRangeGroupByDay {
+		return fmt.Errorf("custd: analytics range query groupBy must be %q", AnalyticsRangeGroupByDay)
+	}
+	return nil
+}
+
+func (a *AnalyticsEventClient) request(ctx context.Context, method, path string, payload any, out any) error {
 	var body []byte
 	var err error
 	if payload != nil {
@@ -141,15 +251,15 @@ func (a *AnalyticsEventClient) request(ctx context.Context, method string, paylo
 		}
 	}
 	if a.client.config.HTTPClient != nil {
-		return a.requestViaDoer(method, body, out)
+		return a.requestViaDoer(method, path, body, out)
 	}
-	return a.requestViaHTTP(ctx, method, body, out)
+	return a.requestViaHTTP(ctx, method, path, body, out)
 }
 
-func (a *AnalyticsEventClient) requestViaDoer(method string, body []byte, out any) error {
+func (a *AnalyticsEventClient) requestViaDoer(method, path string, body []byte, out any) error {
 	resp, err := a.client.config.HTTPClient.Do(&HTTPRequest{
 		Method:  method,
-		URL:     a.endpoint(),
+		URL:     a.endpoint(path),
 		Headers: a.client.headers(false),
 		Body:    body,
 	})
@@ -162,8 +272,8 @@ func (a *AnalyticsEventClient) requestViaDoer(method string, body []byte, out an
 	return decodeAnalyticsResponse(resp.Body, out)
 }
 
-func (a *AnalyticsEventClient) requestViaHTTP(ctx context.Context, method string, body []byte, out any) error {
-	req, err := http.NewRequestWithContext(ctx, method, a.endpoint(), bytes.NewReader(body))
+func (a *AnalyticsEventClient) requestViaHTTP(ctx context.Context, method, path string, body []byte, out any) error {
+	req, err := http.NewRequestWithContext(ctx, method, a.endpoint(path), bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("custd: create analytics request: %w", err)
 	}
@@ -184,8 +294,8 @@ func (a *AnalyticsEventClient) requestViaHTTP(ctx context.Context, method string
 	return decodeAnalyticsResponse(respBody, out)
 }
 
-func (a *AnalyticsEventClient) endpoint() string {
-	return strings.TrimRight(a.client.config.BaseURL, "/") + analyticsEventsEndpoint
+func (a *AnalyticsEventClient) endpoint(path string) string {
+	return strings.TrimRight(a.client.config.BaseURL, "/") + path
 }
 
 func decodeAnalyticsResponse(body []byte, out any) error {

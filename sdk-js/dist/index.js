@@ -7,6 +7,7 @@ import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 import { TimePlanAdminClient } from "./admin-timeplans.js";
+import { UsageAdminClient } from "./admin-usage.js";
 import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
 import { basicAuthorization } from "./oauth.js";
@@ -20,7 +21,8 @@ export { RetentionClient, } from "./admin-retention.js";
 export { SubjectExportClient, } from "./admin-subject-exports.js";
 export { TenantStorageClient, } from "./admin-tenant-storage.js";
 export { TimePlanAdminClient, validateTimePlanDefinition, } from "./admin-timeplans.js";
-export { ANALYTICS_MAX_LABEL_FILTERS, AnalyticsEventClient, } from "./analytics-events.js";
+export { USAGE_DEFAULT_LIMIT, USAGE_MAX_LIMIT, UsageAdminClient, } from "./admin-usage.js";
+export { ANALYTICS_MAX_LABEL_FILTERS, ANALYTICS_MAX_RANGE_DAYS, ANALYTICS_RANGE_GROUP_BY, AnalyticsEventClient, } from "./analytics-events.js";
 export { BackendLifecycleClient, createVerifiedOffboardingExportReceiver, } from "./backend-lifecycle.js";
 export { classifyReportingData, getReportingViewState, reportingQueryKey, } from "./reporting-state.js";
 export { checkRuntimeReadiness, } from "./runtime-readiness.js";
@@ -840,6 +842,7 @@ class AdminNamespace {
         this.subjectExports = new SubjectExportClient(request);
         this.privacyErasures = new PrivacyErasureClient(request);
         this.timePlans = new TimePlanAdminClient(request);
+        this.usage = new UsageAdminClient(request);
     }
 }
 class ProvisioningNamespace {

@@ -1,14 +1,23 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from typing import Any, NotRequired, TypedDict, cast
 
 from .client import AdminTransport, CustdClient, RequestError
 
 ANALYTICS_QUERY_PATH = "/analytics/query"
+ANALYTICS_QUERY_RANGE_PATH = "/analytics/query-range"
 
 # MaxAnalyticsLabelFilters is the most label filters the service accepts on one query.
 MAX_ANALYTICS_LABEL_FILTERS = 4
+
+# ANALYTICS_MAX_RANGE_DAYS is the longest inclusive range the service accepts. A longer
+# request is rejected locally rather than spending a round trip on a 400.
+ANALYTICS_MAX_RANGE_DAYS = 120
+
+# ANALYTICS_RANGE_GROUP_BY is the only bucket granularity the service supports today.
+ANALYTICS_RANGE_GROUP_BY = "day"
 
 ANALYTICS_QUERY_SOURCES = ("auto", "postgres", "duckdb", "rollup", "materialized")
 
@@ -81,6 +90,49 @@ class AnalyticsEventQueryResponse(TypedDict):
     timing: AnalyticsEventTiming
 
 
+# The range request carries a wire field named ``from``, which is a Python keyword, so the
+# TypedDict is declared functionally to keep the wire name rather than an aliased key.
+AnalyticsEventRangeQueryRequest = TypedDict(
+    "AnalyticsEventRangeQueryRequest",
+    {
+        "from": str,
+        "to": str,
+        "eventType": NotRequired[str],
+        "limit": NotRequired[int],
+        "source": NotRequired[str],
+        "groupBy": NotRequired[str],
+        "labelFilters": NotRequired[list[AnalyticsLabelFilter]],
+    },
+)
+
+
+class AnalyticsEventRangeBucket(TypedDict, total=False):
+    """One day's coverage inside a range query.
+
+    ``complete`` is the server's own assessment of whether that day's source answered the
+    whole request, so it is surfaced unchanged; the SDK must not substitute its own
+    heuristic.
+    """
+
+    date: str
+    count: int
+    source: str
+    complete: bool
+    queryDurationMs: int
+    parquetUriCount: int
+    message: str
+
+
+class AnalyticsEventRangeQueryResponse(TypedDict):
+    """The range query result, surfaced verbatim."""
+
+    rows: list[dict[str, Any]]
+    count: int
+    buckets: list[AnalyticsEventRangeBucket]
+    sources: list[AnalyticsEventSourceSummary]
+    timing: AnalyticsEventTiming
+
+
 class AnalyticsEventClient:
     """Query this tenant's own events.
 
@@ -96,6 +148,11 @@ class AnalyticsEventClient:
     def query(self, request: AnalyticsEventQueryRequest) -> AnalyticsEventQueryResponse:
         payload = _public_query_payload(request)
         return cast(AnalyticsEventQueryResponse, self._request("POST", ANALYTICS_QUERY_PATH, payload))
+
+    def query_range(self, request: AnalyticsEventRangeQueryRequest) -> AnalyticsEventRangeQueryResponse:
+        """Query this tenant's own events across an inclusive date range."""
+        payload = _public_range_query_payload(request)
+        return cast(AnalyticsEventRangeQueryResponse, self._request("POST", ANALYTICS_QUERY_RANGE_PATH, payload))
 
     def _request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         try:
@@ -191,3 +248,59 @@ def _public_query_payload(request: AnalyticsEventQueryRequest) -> dict[str, Any]
     if filters:
         payload["labelFilters"] = filters
     return payload
+
+
+def _public_range_query_payload(request: AnalyticsEventRangeQueryRequest) -> dict[str, Any]:
+    """Serialise only the documented public range fields.
+
+    As with the single-day payload, rebuilding the body from named keys keeps the internal
+    ``anonymousId`` predicate and ``countOnly`` flag off the wire by construction.
+    """
+    from_value = request.get("from")
+    to_value = request.get("to")
+    if not isinstance(from_value, str) or not isinstance(to_value, str) or from_value == "" or to_value == "":
+        raise ValueError("custd: analytics range query requires from and to (YYYY-MM-DD)")
+
+    start_day = _parse_utc_day(from_value, "from")
+    end_day = _parse_utc_day(to_value, "to")
+    if end_day < start_day:
+        raise ValueError("custd: analytics range query to must not be before from")
+    days = (end_day - start_day).days + 1
+    if days > ANALYTICS_MAX_RANGE_DAYS:
+        raise ValueError(
+            f"custd: analytics range query spans {days} days, the maximum is {ANALYTICS_MAX_RANGE_DAYS}"
+        )
+
+    group_by = request.get("groupBy")
+    if group_by is not None and group_by != ANALYTICS_RANGE_GROUP_BY:
+        raise ValueError(f"custd: analytics range query groupBy must be {ANALYTICS_RANGE_GROUP_BY!r}")
+
+    filters = request.get("labelFilters") or []
+    if len(filters) > MAX_ANALYTICS_LABEL_FILTERS:
+        raise ValueError(
+            f"custd: analytics range query accepts at most {MAX_ANALYTICS_LABEL_FILTERS} label filters, "
+            f"received {len(filters)}"
+        )
+
+    payload: dict[str, Any] = {"from": from_value, "to": to_value}
+    if request.get("eventType") is not None:
+        payload["eventType"] = request["eventType"]
+    if request.get("limit") is not None:
+        payload["limit"] = request["limit"]
+    source = request.get("source")
+    if source is not None:
+        if source not in ANALYTICS_QUERY_SOURCES:
+            raise ValueError(f"custd: analytics source must be one of {', '.join(ANALYTICS_QUERY_SOURCES)}")
+        payload["source"] = source
+    if group_by is not None:
+        payload["groupBy"] = group_by
+    if filters:
+        payload["labelFilters"] = filters
+    return payload
+
+
+def _parse_utc_day(value: str, field: str) -> date:
+    try:
+        return date.fromisoformat(value)
+    except ValueError as error:
+        raise ValueError(f"custd: analytics range query {field} must be YYYY-MM-DD") from error

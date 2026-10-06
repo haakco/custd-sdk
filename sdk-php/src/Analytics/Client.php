@@ -16,6 +16,12 @@ final class Client
     /** The most label filters the service accepts on one query. */
     public const MAX_LABEL_FILTERS = 4;
 
+    /** The longest inclusive range the service accepts, in days. */
+    public const MAX_RANGE_DAYS = 120;
+
+    /** The only bucket granularity the service supports today. */
+    public const RANGE_GROUP_BY = "day";
+
     private const SOURCES = ["auto", "postgres", "duckdb", "rollup", "materialized"];
 
     /** @var callable|null */
@@ -49,6 +55,107 @@ final class Client
     public function query(array $request): array
     {
         return $this->request("POST", "/api/v1/analytics/query", self::publicQueryPayload($request));
+    }
+
+    /**
+     * Query this tenant's own events across an inclusive date range.
+     *
+     * Accepts only the documented public fields. As with `query`, the service's
+     * internal `anonymousId` predicate and `countOnly` flag are absent from its
+     * public JSON contract, so rebuilding the body from named keys keeps them off
+     * the wire even when a caller passes extra entries.
+     *
+     * @param array{
+     *     from: string,
+     *     to: string,
+     *     eventType?: string,
+     *     limit?: int,
+     *     source?: string,
+     *     groupBy?: string,
+     *     labelFilters?: list<array{key: string, value: string}>
+     * } $request
+     */
+    public function queryRange(array $request): RangeQueryResponse
+    {
+        $payload = self::publicRangePayload($request);
+
+        return RangeQueryResponse::fromPayload($this->request("POST", "/api/v1/analytics/query-range", $payload));
+    }
+
+    /**
+     * @param array<string, mixed> $request
+     * @return array<string, mixed>
+     */
+    private static function publicRangePayload(array $request): array
+    {
+        $from = $request["from"] ?? null;
+        $to = $request["to"] ?? null;
+        if (!is_string($from) || !is_string($to) || $from === "" || $to === "") {
+            throw new \InvalidArgumentException("custd: analytics range query requires from and to (YYYY-MM-DD)");
+        }
+        $startDay = self::parseUtcDay($from, "from");
+        $endDay = self::parseUtcDay($to, "to");
+        if ($endDay < $startDay) {
+            throw new \InvalidArgumentException("custd: analytics range query to must not be before from");
+        }
+        $days = (int) $startDay->diff($endDay)->days + 1;
+        if ($days > self::MAX_RANGE_DAYS) {
+            throw new \InvalidArgumentException(
+                "custd: analytics range query spans {$days} days, the maximum is " . self::MAX_RANGE_DAYS
+            );
+        }
+
+        $groupBy = $request["groupBy"] ?? null;
+        if ($groupBy !== null && $groupBy !== self::RANGE_GROUP_BY) {
+            throw new \InvalidArgumentException(
+                "custd: analytics range query groupBy must be \"" . self::RANGE_GROUP_BY . "\""
+            );
+        }
+
+        $filters = $request["labelFilters"] ?? [];
+        if (!is_array($filters)) {
+            throw new \InvalidArgumentException("custd: analytics labelFilters must be a list");
+        }
+        if (count($filters) > self::MAX_LABEL_FILTERS) {
+            throw new \InvalidArgumentException(
+                "custd: analytics range query accepts at most " . self::MAX_LABEL_FILTERS
+                . " label filters, received " . count($filters)
+            );
+        }
+
+        $payload = ["from" => $from, "to" => $to];
+        if (isset($request["eventType"])) {
+            $payload["eventType"] = $request["eventType"];
+        }
+        if (isset($request["limit"])) {
+            $payload["limit"] = (int) $request["limit"];
+        }
+        if (isset($request["source"])) {
+            if (!in_array($request["source"], self::SOURCES, true)) {
+                throw new \InvalidArgumentException(
+                    "custd: analytics source must be one of " . implode(", ", self::SOURCES)
+                );
+            }
+            $payload["source"] = $request["source"];
+        }
+        if ($groupBy !== null) {
+            $payload["groupBy"] = $groupBy;
+        }
+        if ($filters !== []) {
+            $payload["labelFilters"] = array_values($filters);
+        }
+
+        return $payload;
+    }
+
+    private static function parseUtcDay(string $value, string $field): \DateTimeImmutable
+    {
+        $parsed = \DateTimeImmutable::createFromFormat("!Y-m-d", $value, new \DateTimeZone("UTC"));
+        if ($parsed === false || $parsed->format("Y-m-d") !== $value) {
+            throw new \InvalidArgumentException("custd: analytics range query {$field} must be YYYY-MM-DD");
+        }
+
+        return $parsed;
     }
 
     /**

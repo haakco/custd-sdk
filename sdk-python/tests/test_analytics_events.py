@@ -47,6 +47,97 @@ RESPONSE: dict[str, Any] = {
 }
 
 
+RANGE_RESPONSE: dict[str, Any] = {
+    "rows": [{"eventTypeSlug": "page_view", "payload": {"path": "/"}}],
+    "count": 3,
+    "buckets": [
+        {"date": "2026-09-14", "count": 1, "source": "duckdb", "complete": True, "queryDurationMs": 4,
+         "parquetUriCount": 2},
+        {"date": "2026-09-15", "count": 2, "source": "duckdb", "complete": True, "queryDurationMs": 5},
+    ],
+    "sources": [{"name": "duckdb", "count": 3, "complete": True, "fresh": False, "queryDurationMs": 9,
+                 "freshnessLagMs": 0}],
+    "timing": {"eventLagP50Ms": 10, "eventLagP95Ms": 20, "eventLagMaxMs": 30, "queryDurationMs": 9,
+               "snapshotAgeMs": 100},
+}
+
+
+class AnalyticsEventRangeClientTest(unittest.TestCase):
+    def test_queries_the_range_route_and_surfaces_per_day_buckets(self) -> None:
+        transport = FakeTransport(RANGE_RESPONSE)
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+
+        response = client.analytics.query_range(
+            {
+                "from": "2026-09-14",
+                "to": "2026-09-15",
+                "eventType": "page_view",
+                "limit": 10000,
+                "source": "auto",
+                "groupBy": "day",
+            }
+        )
+
+        self.assertEqual(["POST"], [call[0] for call in transport.calls])
+        self.assertEqual(["http://localhost:8080/api/v1/analytics/query-range"], [call[1] for call in transport.calls])
+        self.assertEqual(
+            {
+                "from": "2026-09-14",
+                "to": "2026-09-15",
+                "eventType": "page_view",
+                "limit": 10000,
+                "source": "auto",
+                "groupBy": "day",
+            },
+            transport.calls[0][2],
+        )
+        # The per-day completeness belongs to the server; it is surfaced unchanged.
+        self.assertEqual(2, len(response["buckets"]))
+        self.assertTrue(response["buckets"][0]["complete"])
+        self.assertEqual(2, response["buckets"][0]["parquetUriCount"])
+        self.assertEqual(3, response["count"])
+        self.assertEqual(9, response["timing"]["queryDurationMs"])
+
+    def test_serialises_only_documented_public_fields(self) -> None:
+        transport = FakeTransport(RANGE_RESPONSE)
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+
+        client.analytics.query_range(
+            {"from": "2026-09-14", "to": "2026-09-15", "anonymousId": "subject-1", "countOnly": True}
+        )  # type: ignore[typeddict-item]
+
+        self.assertEqual({"from": "2026-09-14", "to": "2026-09-15"}, transport.calls[0][2])
+
+    def test_rejects_invalid_ranges_before_sending(self) -> None:
+        too_many = [{"key": "k", "value": "v"} for _ in range(MAX_ANALYTICS_LABEL_FILTERS + 1)]
+        cases: list[dict[str, Any]] = [
+            {},
+            {"from": "14-09-2026", "to": "2026-09-15"},
+            {"from": "2026-02-30", "to": "2026-03-01"},
+            {"from": "2026-09-15", "to": "2026-09-14"},
+            {"from": "2026-01-01", "to": "2026-05-02"},
+            {"from": "2026-09-14", "to": "2026-09-15", "groupBy": "week"},
+            {"from": "2026-09-14", "to": "2026-09-15", "labelFilters": too_many},
+            {"from": "2026-09-14", "to": "2026-09-15", "source": "not-a-source"},
+        ]
+
+        for case in cases:
+            with self.subTest(case=case):
+                transport = FakeTransport(RANGE_RESPONSE)
+                client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+                with self.assertRaises(ValueError):
+                    client.analytics.query_range(case)  # type: ignore[arg-type]
+                self.assertEqual([], transport.calls)
+
+    def test_accepts_a_range_at_exactly_the_day_cap(self) -> None:
+        transport = FakeTransport(RANGE_RESPONSE)
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+
+        # 2026-01-01..2026-04-30 is 120 inclusive days, the documented maximum.
+        client.analytics.query_range({"from": "2026-01-01", "to": "2026-04-30"})
+        self.assertEqual(1, len(transport.calls))
+
+
 class AnalyticsEventClientTest(unittest.TestCase):
     def test_queries_the_tenant_route_and_surfaces_the_server_assessment(self) -> None:
         transport = FakeTransport(RESPONSE)

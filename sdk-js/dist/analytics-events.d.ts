@@ -66,6 +66,47 @@ export type AnalyticsEventQueryResponse = {
     sources: AnalyticsEventSourceSummary[];
     timing: AnalyticsEventTiming;
 };
+/** The longest inclusive range the service accepts, in days. */
+export declare const ANALYTICS_MAX_RANGE_DAYS = 120;
+/** The only bucket granularity the service supports today. */
+export declare const ANALYTICS_RANGE_GROUP_BY = "day";
+export type AnalyticsEventRangeQueryRequest = {
+    /** Inclusive range start, formatted YYYY-MM-DD. The server requires this. */
+    from: string;
+    /** Inclusive range end, formatted YYYY-MM-DD. The server requires this. */
+    to: string;
+    /** Exact event-type slug to match. */
+    eventType?: string;
+    /** Maximum rows across the whole range. The server clamps this and reports the applied count. */
+    limit?: number;
+    source?: AnalyticsQuerySource;
+    /** Bucket granularity. Omit, or set to {@link ANALYTICS_RANGE_GROUP_BY}. */
+    groupBy?: typeof ANALYTICS_RANGE_GROUP_BY;
+    labelFilters?: AnalyticsLabelFilter[];
+};
+/**
+ * One day's coverage inside a range query.
+ *
+ * `complete` is the server's own assessment of whether that day's source answered the
+ * whole request, so it is surfaced unchanged; the client must not substitute its own
+ * confidence heuristic.
+ */
+export type AnalyticsEventRangeBucket = {
+    date: string;
+    count: number;
+    source: AnalyticsQuerySource;
+    complete: boolean;
+    queryDurationMs: number;
+    parquetUriCount?: number;
+    message?: string;
+};
+export type AnalyticsEventRangeQueryResponse = {
+    rows: AnalyticsEventRow[];
+    count: number;
+    buckets: AnalyticsEventRangeBucket[];
+    sources: AnalyticsEventSourceSummary[];
+    timing: AnalyticsEventTiming;
+};
 /** The server accepts at most this many label filters on one query. */
 export declare const ANALYTICS_MAX_LABEL_FILTERS = 4;
 type AnalyticsRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
@@ -81,5 +122,13 @@ export declare class AnalyticsEventClient {
      * them even when a caller passes extra properties.
      */
     query(request: AnalyticsEventQueryRequest, options?: RequestOptions): Promise<AnalyticsEventQueryResponse>;
+    /**
+     * Query this tenant's own events across an inclusive date range.
+     *
+     * Only the documented public fields are serialised. As with {@link query}, the internal
+     * `anonymousId` predicate and `countOnly` flag are absent from the service's public JSON
+     * contract and cannot be transmitted by a caller passing extra properties.
+     */
+    queryRange(request: AnalyticsEventRangeQueryRequest, options?: RequestOptions): Promise<AnalyticsEventRangeQueryResponse>;
 }
 export {};

@@ -7,6 +7,7 @@ import { RetentionClient } from "./admin-retention.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 import { TimePlanAdminClient } from "./admin-timeplans.js";
+import { UsageAdminClient } from "./admin-usage.js";
 import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
 export { type ClientSetupApplyAndWaitOptions, type ClientSetupApplyAndWaitResult, type ClientSetupApplyOptions, type ClientSetupApplyResponse, ClientSetupClient, type ClientSetupManifest, type ClientSetupOAuthClientDesiredState, type ClientSetupOAuthPurposeProfile, type ClientSetupOperationStatus, type ClientSetupPrivacyDesiredState, type ClientSetupPrivacyRule, type ClientSetupReadinessResponse, type ClientSetupReportingPackDesiredState, type ClientSetupResourceStatus, type ClientSetupRetentionDesiredState, type ClientSetupSchemaDesiredState, validateClientSetupManifest, } from "./admin-client-setup.js";
@@ -18,7 +19,8 @@ export { RetentionClient, type RetentionPolicy, type RetentionPolicyListResponse
 export { type SubjectExport, SubjectExportClient, type SubjectExportCreateRequest, type SubjectExportDownloadResponse, type SubjectExportListResponse, type SubjectExportState, type SubjectExportSubject, } from "./admin-subject-exports.js";
 export { TenantStorageClient, type TenantStorageCreateRequest, type TenantStorageListResponse, type TenantStorageLocation, } from "./admin-tenant-storage.js";
 export { type TimePlan, TimePlanAdminClient, type TimePlanAllocation, type TimePlanAllocationBasis, type TimePlanAllocationPreview, type TimePlanAnnotation, type TimePlanAnnotationField, type TimePlanAnnotationInput, type TimePlanAnnotationListResponse, type TimePlanAnnotationSchema, type TimePlanAnnotationType, type TimePlanCalculationChange, type TimePlanCalculationReceipt, type TimePlanCommandRequest, type TimePlanCommandResult, type TimePlanCorrectedCommand, type TimePlanCreatedRun, type TimePlanDefinition, type TimePlanDefinitionBlock, type TimePlanDraftRequest, type TimePlanDraftRevisionRequest, type TimePlanHistoryResponse, type TimePlanListResponse, type TimePlanRedactionRequest, type TimePlanRevisionRequest, type TimePlanRun, type TimePlanRunBlock, type TimePlanRunRequest, type TimePlanThresholdCue, type TimePlanThresholdCueSeverity, type TimePlanTransition, type TimePlanVersion, validateTimePlanDefinition, } from "./admin-timeplans.js";
-export { ANALYTICS_MAX_LABEL_FILTERS, AnalyticsEventClient, type AnalyticsEventQueryRequest, type AnalyticsEventQueryResponse, type AnalyticsEventRow, type AnalyticsEventSourceSummary, type AnalyticsEventTiming, type AnalyticsLabelFilter, type AnalyticsQuerySource, } from "./analytics-events.js";
+export { USAGE_DEFAULT_LIMIT, USAGE_MAX_LIMIT, UsageAdminClient, type UsageCompletenessState, type UsageQuery, type UsageReport, type UsageRow, type UsageTotal, } from "./admin-usage.js";
+export { ANALYTICS_MAX_LABEL_FILTERS, ANALYTICS_MAX_RANGE_DAYS, ANALYTICS_RANGE_GROUP_BY, AnalyticsEventClient, type AnalyticsEventQueryRequest, type AnalyticsEventQueryResponse, type AnalyticsEventRangeBucket, type AnalyticsEventRangeQueryRequest, type AnalyticsEventRangeQueryResponse, type AnalyticsEventRow, type AnalyticsEventSourceSummary, type AnalyticsEventTiming, type AnalyticsLabelFilter, type AnalyticsQuerySource, } from "./analytics-events.js";
 export { BackendLifecycleClient, type BackendLifecycleDownloader, type BackendLifecycleRequester, type CompleteOffboardingOptions, type CompleteOffboardingResult, createVerifiedOffboardingExportReceiver, type OneTimeCredentialSecret, type PersistOffboardingExport, type PersistOneTimeCredentialSecret, type ReceiveAndVerifyOffboardingExport, type RotateCredentialOptions, type RotateCredentialResult, type VerifiedExportReceiverOptions, type VerifyZeroState, type ZeroStateReconciliationOptions, type ZeroStateReconciliationResult, } from "./backend-lifecycle.js";
 export { classifyReportingData, getReportingViewState, type ReportingDataState, type ReportingQueryState, type ReportingViewState, reportingQueryKey, } from "./reporting-state.js";
 export { checkRuntimeReadiness, type RuntimeReadinessCredentialResult, type RuntimeReadinessOAuthConfig, type RuntimeReadinessOptions, type RuntimeReadinessResult, } from "./runtime-readiness.js";
@@ -1144,6 +1146,7 @@ declare class AdminNamespace {
     readonly subjectExports: SubjectExportClient;
     readonly privacyErasures: PrivacyErasureClient;
     readonly timePlans: TimePlanAdminClient;
+    readonly usage: UsageAdminClient;
     constructor(request: AdminRequester, nonAdminRequest: NonAdminRequester, offboardingDownload: (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>, auditExportDownload: AdminAuditDownloader);
 }
 declare class ProvisioningNamespace {

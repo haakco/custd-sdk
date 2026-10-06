@@ -587,6 +587,7 @@ class AdminClient:
         from .admin_subject_exports import SubjectExportClient
         from .admin_tenant_storage import TenantStorageClient
         from .admin_timeplans import TimePlanAdminClient
+        from .admin_usage import UsageAdminClient
 
         self.tenant_storage = TenantStorageClient(self)
         self.subject_exports = SubjectExportClient(self)
@@ -597,6 +598,7 @@ class AdminClient:
         self.data_labels = DataLabelAdminClient(self)
         self.time_plans = TimePlanAdminClient(self)
         self.audit = AuditAdminClient(self)
+        self.usage = UsageAdminClient(self)
 
     def request(
         self,
