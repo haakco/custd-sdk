@@ -20,8 +20,8 @@ final readonly class TimingSummary
     ) {
     }
 
-    /** @param array<string, mixed> $payload */
-    public static function fromPayload(array $payload): self
+    /** @param \stdClass $payload */
+    public static function fromPayload(\stdClass $payload): self
     {
         return new self(
             Fields::integer($payload, 'eventLagP50Ms'),

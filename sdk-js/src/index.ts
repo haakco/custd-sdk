@@ -192,6 +192,7 @@ export {
   type AnalyticsEventTiming,
   type AnalyticsLabelFilter,
   type AnalyticsQuerySource,
+  type AnalyticsRangeQuerySource,
 } from "./analytics-events.js";
 export {
   BackendLifecycleClient,

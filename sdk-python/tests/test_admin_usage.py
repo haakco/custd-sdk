@@ -10,7 +10,7 @@ from custd.admin_usage import USAGE_MAX_LIMIT
 
 
 class FakeTransport:
-    def __init__(self, body: dict[str, Any]):
+    def __init__(self, body: Any):
         self.body = body
         self.calls: list[tuple[str, str, dict[str, Any] | None]] = []
 
@@ -90,11 +90,53 @@ class UsageAdminClientTest(unittest.TestCase):
             transport.calls[0][1],
         )
 
+    def test_rejects_a_malformed_success_body(self) -> None:
+        malformed: list[Any] = [
+            "",  # empty body
+            {},
+            {key: value for key, value in REPORT.items() if key != "containsIncomplete"},
+            {key: value for key, value in REPORT.items() if key != "rows"},
+            {**REPORT, "rows": {"unexpected": REPORT["rows"]}},
+            {**REPORT, "totals": None},
+            {**REPORT, "containsProvisional": "false"},
+            {
+                **REPORT,
+                "rows": [
+                    {key: value for key, value in REPORT["rows"][0].items() if key != "quantity"}
+                ],
+            },
+            # companySlug is omitted-or-string, never null.
+            {**REPORT, "companySlug": None},
+        ]
+
+        for payload in malformed:
+            with self.subTest(payload=payload):
+                transport = FakeTransport(payload)
+                client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+                with self.assertRaises(ValueError):
+                    client.admin.usage.get()
+                self.assertEqual(1, len(transport.calls))
+
+    def test_accepts_empty_collections_and_absent_optional_slug(self) -> None:
+        payload = {key: value for key, value in REPORT.items() if key != "companySlug"}
+        payload["rows"] = []
+        payload["totals"] = []
+        transport = FakeTransport(payload)
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+
+        report = client.admin.usage.get()
+
+        self.assertEqual([], report["rows"])
+        self.assertEqual([], report["totals"])
+        self.assertNotIn("companySlug", report)
+
     def test_rejects_an_invalid_window_or_limit_before_sending(self) -> None:
         cases: list[dict[str, Any]] = [
             {"start": "2026-10-01T00:00:00Z", "end": "2026-10-01T00:00:00Z"},
             {"start": "not-a-timestamp"},
             {"end": "2026-10-01T00:00:00"},  # no offset
+            {"start": "2026-09-01 00:00:00+00:00"},  # space separator, not RFC3339
+            {"start": "2026-09-01"},  # date only
             {"limit": 0},
             {"limit": USAGE_MAX_LIMIT + 1},
             {"limit": -1},
@@ -105,7 +147,7 @@ class UsageAdminClientTest(unittest.TestCase):
                 transport = FakeTransport(REPORT)
                 client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
                 with self.assertRaises(ValueError):
-                    client.admin.usage.get(case)  # type: ignore[arg-type]
+                    client.admin.usage.get(case)
                 self.assertEqual([], transport.calls)
 
 

@@ -104,9 +104,70 @@ class AnalyticsEventRangeClientTest(unittest.TestCase):
 
         client.analytics.query_range(
             {"from": "2026-09-14", "to": "2026-09-15", "anonymousId": "subject-1", "countOnly": True}
-        )  # type: ignore[typeddict-item]
+        )
 
         self.assertEqual({"from": "2026-09-14", "to": "2026-09-15"}, transport.calls[0][2])
+
+    def test_rejects_a_malformed_range_success_body(self) -> None:
+        malformed: list[Any] = [
+            "",  # empty body
+            {},
+            {key: value for key, value in RANGE_RESPONSE.items() if key != "rows"},
+            {**RANGE_RESPONSE, "rows": {"unexpected": RANGE_RESPONSE["rows"]}},
+            {**RANGE_RESPONSE, "sources": {"unexpected": RANGE_RESPONSE["sources"]}},
+            {key: value for key, value in RANGE_RESPONSE.items() if key != "timing"},
+            {
+                **RANGE_RESPONSE,
+                "timing": {
+                    key: value
+                    for key, value in RANGE_RESPONSE["timing"].items()
+                    if key != "snapshotAgeMs"
+                },
+            },
+            {
+                **RANGE_RESPONSE,
+                "buckets": [
+                    {key: value for key, value in RANGE_RESPONSE["buckets"][0].items() if key != "complete"}
+                ],
+            },
+            {
+                **RANGE_RESPONSE,
+                "sources": [
+                    {key: value for key, value in RANGE_RESPONSE["sources"][0].items() if key != "fresh"}
+                ],
+            },
+            {**RANGE_RESPONSE, "count": "3"},
+            # A present optional field must satisfy its declared type; only an absent
+            # one may be omitted.
+            {**RANGE_RESPONSE, "timing": {**RANGE_RESPONSE["timing"], "oldestEventTimestamp": []}},
+            {
+                **RANGE_RESPONSE,
+                "buckets": [{**RANGE_RESPONSE["buckets"][0], "parquetUriCount": {}}],
+            },
+            # A row declares `payload` as an object, so a present null or list must not
+            # pass as one.
+            {**RANGE_RESPONSE, "rows": [{"eventTypeSlug": "page_view", "payload": None}]},
+            {**RANGE_RESPONSE, "rows": [{"eventTypeSlug": "page_view", "payload": []}]},
+        ]
+
+        for payload in malformed:
+            with self.subTest(payload=payload):
+                transport = FakeTransport(payload)
+                client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+                with self.assertRaises(ValueError):
+                    client.analytics.query_range({"from": "2026-09-14", "to": "2026-09-15"})
+                self.assertEqual(1, len(transport.calls))
+
+    def test_rejects_retired_sources_before_sending(self) -> None:
+        for source in ("postgres", "rollup", "materialized"):
+            with self.subTest(source=source):
+                transport = FakeTransport(RANGE_RESPONSE)
+                client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+                with self.assertRaises(ValueError):
+                    client.analytics.query_range(
+                        {"from": "2026-09-14", "to": "2026-09-15", "source": source}
+                    )
+                self.assertEqual([], transport.calls)
 
     def test_rejects_invalid_ranges_before_sending(self) -> None:
         too_many = [{"key": "k", "value": "v"} for _ in range(MAX_ANALYTICS_LABEL_FILTERS + 1)]
@@ -114,6 +175,7 @@ class AnalyticsEventRangeClientTest(unittest.TestCase):
             {},
             {"from": "14-09-2026", "to": "2026-09-15"},
             {"from": "2026-02-30", "to": "2026-03-01"},
+            {"from": "20260914", "to": "2026-09-15"},
             {"from": "2026-09-15", "to": "2026-09-14"},
             {"from": "2026-01-01", "to": "2026-05-02"},
             {"from": "2026-09-14", "to": "2026-09-15", "groupBy": "week"},
@@ -126,8 +188,18 @@ class AnalyticsEventRangeClientTest(unittest.TestCase):
                 transport = FakeTransport(RANGE_RESPONSE)
                 client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
                 with self.assertRaises(ValueError):
-                    client.analytics.query_range(case)  # type: ignore[arg-type]
+                    client.analytics.query_range(case)
                 self.assertEqual([], transport.calls)
+
+    def test_accepts_an_empty_source_as_the_default(self) -> None:
+        transport = FakeTransport(RANGE_RESPONSE)
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+
+        client.analytics.query_range({"from": "2026-09-14", "to": "2026-09-15", "source": ""})
+
+        # An empty source is normalized to an omitted one, matching the Go SDK's
+        # omitempty wire tag.
+        self.assertEqual({"from": "2026-09-14", "to": "2026-09-15"}, transport.calls[0][2])
 
     def test_accepts_a_range_at_exactly_the_day_cap(self) -> None:
         transport = FakeTransport(RANGE_RESPONSE)
@@ -162,7 +234,7 @@ class AnalyticsEventClientTest(unittest.TestCase):
         # flag. Both are absent from the service's public JSON contract, so a caller must
         # not be able to smuggle them onto the wire by passing extra properties.
         client.analytics.query(
-            {"date": "2026-09-14", "anonymousId": "subject-1", "countOnly": True}  # type: ignore[typeddict-unknown-key]
+            {"date": "2026-09-14", "anonymousId": "subject-1", "countOnly": True}
         )
 
         self.assertEqual({"date": "2026-09-14"}, transport.calls[0][2])
@@ -180,7 +252,7 @@ class AnalyticsEventClientTest(unittest.TestCase):
                 transport = FakeTransport(RESPONSE)
                 client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
                 with self.assertRaises(ValueError):
-                    client.analytics.query(case)  # type: ignore[arg-type]
+                    client.analytics.query(case)
                 self.assertEqual([], transport.calls)
 
 

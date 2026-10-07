@@ -139,19 +139,88 @@ final class VersionSyncTest extends TestCase
 
     public function testReleaseGuardEnforcesTagMatchesVersion(): void
     {
-        $workflow = (string) file_get_contents($this->repoPath(".github/workflows/ci.yml"));
+        $workflow = (string) file_get_contents($this->repoPath(".github/workflows/release-mirrors.yml"));
 
-        // Assert the guard's behavioural contract, not just its name: it must exist,
-        // read the VERSION source of truth, derive the tag from the ref, and fail
-        // (non-zero exit) on mismatch. A renamed/commented/inverted guard fails here.
-        $this->assertStringContainsString("release-guard:", $workflow, "CI must carry a release-guard job.");
-        $this->assertStringContainsString("< VERSION", $workflow, "release-guard must read the VERSION source of truth.");
-        $this->assertStringContainsString('GITHUB_REF_NAME#v', $workflow, "release-guard must derive the version from the tag (stripping the leading 'v').");
-        $this->assertMatchesRegularExpression(
-            '/release-guard:.*exit 1/s',
+        $this->assertStringContainsString("release-guard:", $workflow, "The publishing workflow must carry a release-guard job.");
+        $this->assertStringContainsString(
+            "SDK identity constants must match VERSION",
             $workflow,
-            "release-guard must fail (exit 1) when the tag does not match VERSION."
+            "release-guard must also verify the SDK identity constants."
         );
+
+        // Execute the guard's own shell rather than grepping it. A guard whose
+        // tag/version comparison is inverted still contains every keyword and
+        // every `exit 1`, so a substring assertion cannot catch the inversion;
+        // only running the comparison with a matching and a differing tag can.
+        $guard = $this->releaseGuardRunBlock($workflow);
+
+        self::assertSame(
+            0,
+            $this->runReleaseGuard($guard, "2.5.0", "v2.5.0"),
+            "a tag equal to VERSION must be admitted"
+        );
+        self::assertNotSame(
+            0,
+            $this->runReleaseGuard($guard, "2.5.0", "v2.4.0"),
+            "a tag that differs from VERSION must fail the guard"
+        );
+    }
+
+    /**
+     * Extract the shell body of the guard step so it can actually be executed.
+     * The body is the run block indented one level inside the step.
+     */
+    private function releaseGuardRunBlock(string $workflow): string
+    {
+        $marker = "Tag must equal the VERSION source of truth";
+        $markerPosition = strpos($workflow, $marker);
+        self::assertNotFalse($markerPosition, "release-guard must carry the tag-version step");
+        $runPosition = strpos($workflow, "run: |", $markerPosition);
+        self::assertNotFalse($runPosition, "the tag-version step must run a shell block");
+        $bodyStart = (int) strpos($workflow, "\n", $runPosition) + 1;
+
+        $scriptLines = [];
+        foreach (explode("\n", substr($workflow, $bodyStart)) as $line) {
+            if ($line !== "" && !str_starts_with($line, "          ")) {
+                break;
+            }
+            $scriptLines[] = str_starts_with($line, "          ") ? substr($line, 10) : "";
+        }
+
+        return implode("\n", $scriptLines);
+    }
+
+    /**
+     * Run the extracted guard shell in a temporary checkout whose VERSION is the
+     * given source of truth, under the given tag ref, and return its exit code.
+     */
+    private function runReleaseGuard(string $guard, string $version, string $refName): int
+    {
+        $dir = sys_get_temp_dir() . "/custd-release-guard-" . bin2hex(random_bytes(6));
+        mkdir($dir);
+        file_put_contents($dir . "/VERSION", $version);
+        file_put_contents($dir . "/guard.sh", "set -eu\n" . $guard);
+
+        $environment = getenv();
+        $environment["GITHUB_REF_NAME"] = $refName;
+        $process = proc_open(
+            ["bash", $dir . "/guard.sh"],
+            [1 => ["pipe", "w"], 2 => ["pipe", "w"]],
+            $pipes,
+            $dir,
+            $environment
+        );
+        self::assertIsResource($process, "the release guard shell must start");
+        stream_get_contents($pipes[1]);
+        stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $exitCode = proc_close($process);
+        unlink($dir . "/VERSION");
+        unlink($dir . "/guard.sh");
+        rmdir($dir);
+
+        return $exitCode;
     }
 
     public function testReleaseWorkflowsNeverForcePushMain(): void

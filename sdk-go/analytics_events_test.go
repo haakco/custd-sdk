@@ -3,6 +3,7 @@ package custd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -103,7 +104,7 @@ func TestAnalyticsQueryRangeUsesTheRangeRoute(t *testing.T) {
 		To:        "2026-09-15",
 		EventType: "page_view",
 		Limit:     10000,
-		Source:    AnalyticsSourceAuto,
+		Source:    AnalyticsRangeSourceAuto,
 		GroupBy:   AnalyticsRangeGroupByDay,
 	})
 	if err != nil {
@@ -172,5 +173,135 @@ func TestAnalyticsQueryRangeAcceptsExactlyTheDayCap(t *testing.T) {
 	}
 	if len(doer.requests) != 1 {
 		t.Fatalf("requests = %d", len(doer.requests))
+	}
+}
+
+// rangeResponseBodyWith applies a mutation to the canonical range response so a
+// malformed variant can be built without restating every field.
+func rangeResponseBodyWith(t *testing.T, mutate func(response map[string]any)) string {
+	t.Helper()
+	var response map[string]any
+	if err := json.Unmarshal([]byte(analyticsRangeQueryResponseFixture), &response); err != nil {
+		t.Fatalf("unmarshal range fixture: %v", err)
+	}
+	mutate(response)
+	encoded, err := json.Marshal(response)
+	if err != nil {
+		t.Fatalf("marshal range fixture: %v", err)
+	}
+	return string(encoded)
+}
+
+func TestAnalyticsQueryRangeRejectsMalformedSuccessBody(t *testing.T) {
+	cases := map[string]func(t *testing.T) string{
+		"empty body": func(t *testing.T) string { t.Helper(); return "" },
+		"empty object": func(t *testing.T) string {
+			t.Helper()
+			return rangeResponseBodyWith(t, func(response map[string]any) {
+				for key := range response {
+					delete(response, key)
+				}
+			})
+		},
+		"missing rows collection": func(t *testing.T) string {
+			t.Helper()
+			return rangeResponseBodyWith(t, func(response map[string]any) { delete(response, "rows") })
+		},
+		"rows is an object": func(t *testing.T) string {
+			t.Helper()
+			return rangeResponseBodyWith(t, func(response map[string]any) {
+				response["rows"] = map[string]any{"unexpected": response["rows"]}
+			})
+		},
+		"sources is an object": func(t *testing.T) string {
+			t.Helper()
+			return rangeResponseBodyWith(t, func(response map[string]any) {
+				response["sources"] = map[string]any{"unexpected": response["sources"]}
+			})
+		},
+		"missing timing": func(t *testing.T) string {
+			t.Helper()
+			return rangeResponseBodyWith(t, func(response map[string]any) { delete(response, "timing") })
+		},
+		"timing missing completeness field": func(t *testing.T) string {
+			t.Helper()
+			return rangeResponseBodyWith(t, func(response map[string]any) {
+				timing := response["timing"].(map[string]any)
+				delete(timing, "snapshotAgeMs")
+			})
+		},
+		"bucket missing field": func(t *testing.T) string {
+			t.Helper()
+			return rangeResponseBodyWith(t, func(response map[string]any) {
+				buckets := response["buckets"].([]any)
+				delete(buckets[0].(map[string]any), "complete")
+			})
+		},
+		"source missing completeness flag": func(t *testing.T) string {
+			t.Helper()
+			return rangeResponseBodyWith(t, func(response map[string]any) {
+				sources := response["sources"].([]any)
+				delete(sources[0].(map[string]any), "fresh")
+			})
+		},
+		"wrong field type": func(t *testing.T) string {
+			t.Helper()
+			return rangeResponseBodyWith(t, func(response map[string]any) { response["count"] = "3" })
+		},
+	}
+
+	for name, body := range cases {
+		t.Run(name, func(t *testing.T) {
+			doer := newCaptureDoer(http.StatusOK, body(t))
+			client := newAdminTestClient(t, doer, "http://localhost:8080")
+
+			_, err := client.Analytics.QueryRange(context.Background(), AnalyticsEventRangeQueryRequest{
+				From: "2026-09-14",
+				To:   "2026-09-15",
+			})
+			var validationErr *ResponseValidationError
+			if !errors.As(err, &validationErr) {
+				t.Fatalf("QueryRange error = %v, want *ResponseValidationError", err)
+			}
+		})
+	}
+}
+
+func TestAnalyticsQueryRangeAcceptsEmptySource(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, analyticsRangeQueryResponseFixture)
+	client := newAdminTestClient(t, doer, "http://localhost:8080")
+
+	// The range contract accepts an omitted, empty, auto, or duckdb source; an empty
+	// source is normalized to omitted by the omitempty wire tag.
+	if _, err := client.Analytics.QueryRange(context.Background(), AnalyticsEventRangeQueryRequest{
+		From:   "2026-09-14",
+		To:     "2026-09-15",
+		Source: AnalyticsRangeQuerySource(""),
+	}); err != nil {
+		t.Fatalf("empty source should be accepted: %v", err)
+	}
+	if len(doer.requests) != 1 {
+		t.Fatalf("requests = %d", len(doer.requests))
+	}
+}
+
+func TestAnalyticsQueryRangeRejectsRetiredSourcesBeforeSending(t *testing.T) {
+	for _, source := range []AnalyticsRangeQuerySource{"postgres", "rollup", "materialized"} {
+		t.Run(string(source), func(t *testing.T) {
+			doer := newCaptureDoer(http.StatusOK, analyticsRangeQueryResponseFixture)
+			client := newAdminTestClient(t, doer, "http://localhost:8080")
+
+			_, err := client.Analytics.QueryRange(context.Background(), AnalyticsEventRangeQueryRequest{
+				From:   "2026-09-14",
+				To:     "2026-09-15",
+				Source: source,
+			})
+			if err == nil {
+				t.Fatalf("QueryRange accepted retired source %q", source)
+			}
+			if len(doer.requests) != 0 {
+				t.Fatalf("retired source %q sent %d request(s)", source, len(doer.requests))
+			}
+		})
 	}
 }

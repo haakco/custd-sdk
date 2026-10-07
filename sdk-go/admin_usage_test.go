@@ -2,6 +2,8 @@ package custd
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -90,6 +92,90 @@ func TestAdminUsageGetEncodesWindow(t *testing.T) {
 
 	want := "http://localhost:8080/api/v1/admin/usage/me" +
 		"?end=2026-10-01T00%3A00%3A00Z&limit=100&meter=events.ingested&start=2026-09-01T00%3A00%3A00Z"
+	if doer.requests[0].URL != want {
+		t.Fatalf("url = %s, want %s", doer.requests[0].URL, want)
+	}
+}
+
+// usageReportBodyWith applies a mutation to the canonical usage report so a
+// malformed variant can be built without restating every field.
+func usageReportBodyWith(t *testing.T, mutate func(report map[string]any)) string {
+	t.Helper()
+	var report map[string]any
+	if err := json.Unmarshal([]byte(usageReportBody), &report); err != nil {
+		t.Fatalf("unmarshal usage fixture: %v", err)
+	}
+	mutate(report)
+	encoded, err := json.Marshal(report)
+	if err != nil {
+		t.Fatalf("marshal usage fixture: %v", err)
+	}
+	return string(encoded)
+}
+
+func TestAdminUsageGetRejectsMalformedSuccessBody(t *testing.T) {
+	cases := map[string]func() string{
+		"empty body": func() string { return "" },
+		"empty object": func() string {
+			return usageReportBodyWith(t, func(report map[string]any) {
+				for key := range report {
+					delete(report, key)
+				}
+			})
+		},
+		"missing completeness flag": func() string {
+			return usageReportBodyWith(t, func(report map[string]any) { delete(report, "containsIncomplete") })
+		},
+		"missing collection": func() string {
+			return usageReportBodyWith(t, func(report map[string]any) { delete(report, "rows") })
+		},
+		"collection is an object": func() string {
+			return usageReportBodyWith(t, func(report map[string]any) {
+				report["rows"] = map[string]any{"unexpected": report["rows"]}
+			})
+		},
+		"collection is null": func() string {
+			return usageReportBodyWith(t, func(report map[string]any) { report["totals"] = nil })
+		},
+		"wrong field type": func() string {
+			return usageReportBodyWith(t, func(report map[string]any) { report["containsProvisional"] = "false" })
+		},
+		"row missing field": func() string {
+			return usageReportBodyWith(t, func(report map[string]any) {
+				rows := report["rows"].([]any)
+				delete(rows[0].(map[string]any), "quantity")
+			})
+		},
+	}
+
+	for name, body := range cases {
+		t.Run(name, func(t *testing.T) {
+			doer := newCaptureDoer(http.StatusOK, body())
+			client := newAdminTestClient(t, doer, "http://localhost:8080")
+
+			_, err := client.Admin.Usage.Get(context.Background(), UsageQuery{})
+			var validationErr *ResponseValidationError
+			if !errors.As(err, &validationErr) {
+				t.Fatalf("Get error = %v, want *ResponseValidationError", err)
+			}
+		})
+	}
+}
+
+func TestAdminUsageGetPreservesFractionalSecondsInWindow(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, usageReportBody)
+	client := newAdminTestClient(t, doer, "http://localhost:8080")
+
+	_, err := client.Admin.Usage.Get(context.Background(), UsageQuery{
+		Start: time.Date(2026, 9, 1, 0, 0, 0, 100_000_000, time.UTC),
+		End:   time.Date(2026, 9, 1, 0, 0, 0, 200_000_000, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("Get returned error: %v", err)
+	}
+
+	want := "http://localhost:8080/api/v1/admin/usage/me" +
+		"?end=2026-09-01T00%3A00%3A00.2Z&start=2026-09-01T00%3A00%3A00.1Z"
 	if doer.requests[0].URL != want {
 		t.Fatalf("url = %s, want %s", doer.requests[0].URL, want)
 	}

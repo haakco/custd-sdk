@@ -366,21 +366,23 @@ the call never names a company slug. The system-admin `/usage` and `/usage/expor
 surfaces are deliberately not exposed.
 
 ```php
-$report = $client->adminUsage()->get([
-    "meterSlug" => "events.ingested",
-    "start" => "2026-09-01T00:00:00Z",
-    "end" => "2026-10-01T00:00:00Z",
-    "limit" => 200,
-]);
+$report = $client->adminUsage()->get(new \HaakCo\Custd\Admin\Usage\Query(
+    meterSlug: "events.ingested",
+    start: "2026-09-01T00:00:00Z",
+    end: "2026-10-01T00:00:00Z",
+    limit: 200,
+));
 ```
 
 `$report` is a typed `HaakCo\Custd\Admin\Usage\Report`; `->totals` carries the
 per-meter totals and `->rows` the per-window detail. `->containsProvisional` and
 `->containsIncomplete` are the server's own assessment, so a caller deciding
 whether a number is settled reads them rather than assuming every row is final.
-An omitted `start`/`end` uses the service default (the trailing 30 days) and an
-omitted `limit` uses `UsageClient::DEFAULT_LIMIT`; a limit outside
-`1..UsageClient::MAX_LIMIT` throws before a request is sent.
+The window is a named `HaakCo\Custd\Admin\Usage\Query` and is validated when it
+is built: an omitted `start`/`end` uses the service default (the trailing 30
+days), an omitted `limit` uses `UsageClient::DEFAULT_LIMIT`, and a limit outside
+`1..UsageClient::MAX_LIMIT` or an invalid RFC3339 window throws before a request
+is sent.
 
 ## Analytics range query
 
@@ -392,15 +394,18 @@ detail. The per-day completeness is the server's assessment and is surfaced
 unchanged.
 
 ```php
-$range = $client->analytics()->queryRange([
-    "from" => "2026-02-23",
-    "to" => "2026-05-23",
-    "eventType" => "page-view",
-    "limit" => 10000,
-    "source" => "auto",
-    "groupBy" => "day",
-]);
+$range = $client->analytics()->queryRange(new \HaakCo\Custd\Analytics\RangeQueryRequest(
+    from: "2026-02-23",
+    to: "2026-05-23",
+    eventType: "page-view",
+    limit: 10000,
+    source: "auto",
+    groupBy: "day",
+));
 ```
+
+The request is a named `HaakCo\Custd\Analytics\RangeQueryRequest`; `source` accepts
+only omitted/empty, `auto`, or `duckdb`.
 
 SDKs never log signed URLs, raw personal data, export bytes, or
 subject identifiers outside opaque IDs.

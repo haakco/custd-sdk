@@ -41,6 +41,17 @@ const (
 	AnalyticsSourceMaterialized AnalyticsQuerySource = "materialized"
 )
 
+// AnalyticsRangeQuerySource names a source a range query may select. The range
+// API accepts only omitted/empty, auto, or duckdb; the single-day query's
+// retired postgres, rollup, and materialized sources are not part of the range
+// contract, so they are rejected before a request is sent.
+type AnalyticsRangeQuerySource string
+
+const (
+	AnalyticsRangeSourceAuto   AnalyticsRangeQuerySource = "auto"
+	AnalyticsRangeSourceDuckDB AnalyticsRangeQuerySource = "duckdb"
+)
+
 // AnalyticsLabelFilter is one exact tenant-vocabulary key/value filter.
 type AnalyticsLabelFilter struct {
 	Key   string `json:"key"`
@@ -120,8 +131,8 @@ type AnalyticsEventRangeQueryRequest struct {
 	EventType string `json:"eventType,omitempty"`
 	// Limit caps returned rows across the whole range. The service clamps it and
 	// reports the applied count.
-	Limit  int                  `json:"limit,omitempty"`
-	Source AnalyticsQuerySource `json:"source,omitempty"`
+	Limit  int                       `json:"limit,omitempty"`
+	Source AnalyticsRangeQuerySource `json:"source,omitempty"`
 	// GroupBy selects the bucket granularity; AnalyticsRangeGroupByDay is the only
 	// accepted value.
 	GroupBy string `json:"groupBy,omitempty"`
@@ -182,11 +193,11 @@ func (a *AnalyticsEventClient) QueryRange(
 	if err := validateAnalyticsEventRangeQuery(req); err != nil {
 		return nil, err
 	}
-	var out AnalyticsEventRangeQueryResponse
-	if err := a.request(ctx, http.MethodPost, analyticsEventsRangeEndpoint, req, &out); err != nil {
+	var body json.RawMessage
+	if err := a.request(ctx, http.MethodPost, analyticsEventsRangeEndpoint, req, &body); err != nil {
 		return nil, err
 	}
-	return &out, nil
+	return decodeAnalyticsRangeResponse(body)
 }
 
 // validateAnalyticsEventQuery rejects locally what the service would reject anyway, so an
@@ -237,6 +248,15 @@ func validateAnalyticsEventRangeQuery(req AnalyticsEventRangeQueryRequest) error
 	}
 	if req.GroupBy != "" && req.GroupBy != AnalyticsRangeGroupByDay {
 		return fmt.Errorf("custd: analytics range query groupBy must be %q", AnalyticsRangeGroupByDay)
+	}
+	switch req.Source {
+	case "", AnalyticsRangeSourceAuto, AnalyticsRangeSourceDuckDB:
+	default:
+		return fmt.Errorf(
+			"custd: analytics range query source must be %q or %q",
+			AnalyticsRangeSourceAuto,
+			AnalyticsRangeSourceDuckDB,
+		)
 	}
 	return nil
 }
@@ -306,4 +326,43 @@ func decodeAnalyticsResponse(body []byte, out any) error {
 		return fmt.Errorf("custd: decode analytics response: %w", err)
 	}
 	return nil
+}
+
+// decodeAnalyticsRangeResponse decodes and validates the POST /query-range
+// response. The collections, timing, and per-source/per-bucket completeness
+// flags are required so a partial success body cannot pass as a complete range.
+// parquetUriCount, message, and the two event timestamps are the optional wire
+// fields the owner emits with omitempty.
+func decodeAnalyticsRangeResponse(data []byte) (*AnalyticsEventRangeQueryResponse, error) {
+	const context = "analytics range response"
+	fields, err := decodeJSONObject(data, context)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireJSONFields(fields, context, "count"); err != nil {
+		return nil, err
+	}
+	if err := requireJSONObjectList(fields, context, "rows"); err != nil {
+		return nil, err
+	}
+	if err := requireJSONObjectList(fields, context, "buckets",
+		"date", "count", "source", "complete", "queryDurationMs",
+	); err != nil {
+		return nil, err
+	}
+	if err := requireJSONObjectList(fields, context, "sources",
+		"name", "count", "complete", "fresh", "queryDurationMs", "freshnessLagMs",
+	); err != nil {
+		return nil, err
+	}
+	if err := requireJSONObject(fields, context, "timing",
+		"eventLagP50Ms", "eventLagP95Ms", "eventLagMaxMs", "queryDurationMs", "snapshotAgeMs",
+	); err != nil {
+		return nil, err
+	}
+	var response AnalyticsEventRangeQueryResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, validationWrap(fmt.Sprintf("custd: decode %s", context), err)
+	}
+	return &response, nil
 }

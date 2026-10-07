@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import re
 import urllib.parse
+from collections.abc import Mapping
 from datetime import datetime
-from typing import NotRequired, TypedDict, cast
+from typing import Any, NotRequired, TypedDict, cast
 
 from .client import AdminClient
 
@@ -20,6 +22,14 @@ USAGE_MAX_LIMIT = 5000
 # and owns its meaning; the SDK surfaces it unchanged.
 UsageCompletenessState = str
 USAGE_COMPLETENESS_STATES = ("provisional", "final", "corrected", "incomplete")
+
+# _RFC3339_PATTERN is the documented wire grammar for the usage window: a full
+# timestamp with the T separator and an explicit Z or numeric offset. Matching it
+# before parsing rejects values Python's parser is lenient about, such as a
+# space-separated timestamp or a date-only string.
+_RFC3339_PATTERN = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$"
+)
 
 
 class UsageRow(TypedDict):
@@ -96,7 +106,89 @@ class UsageAdminClient:
         The tenant is derived from the credential, so the caller never supplies
         a company slug.
         """
-        return cast(UsageReport, self._admin.request("GET", "/usage/me" + _usage_query_string(query)))
+        return _validate_usage_report(self._admin.request("GET", "/usage/me" + _usage_query_string(query)))
+
+
+def _validate_usage_report(value: object) -> UsageReport:
+    """Validate the named usage response DTO.
+
+    The service always emits every required field, so a malformed success body
+    (an empty body, a partial object, or a wrongly shaped collection) fails here
+    instead of surfacing as a zero-valued report. ``companySlug`` is the only
+    optional wire field and is omitted, never null, when the tenant has none.
+    """
+    if not isinstance(value, Mapping):
+        raise ValueError("custd: usage response must be a JSON object")
+    payload = cast(dict[str, Any], value)
+    _require_string(payload, "schemaVersion")
+    _require_string(payload, "start")
+    _require_string(payload, "end")
+    _require_integer(payload, "sourceWatermark")
+    _require_boolean(payload, "containsProvisional")
+    _require_boolean(payload, "containsIncomplete")
+    # companySlug is omitted-or-string: absence is valid, but a present null is
+    # not a string and must not be retained on the report.
+    if "companySlug" in payload and not isinstance(payload["companySlug"], str):
+        raise ValueError("custd: usage response field companySlug must be a string")
+    for index, row in enumerate(_require_objects(payload, "rows")):
+        _require_string(row, "accountCompanySlug", f"rows[{index}]")
+        _require_string(row, "dataSpaceCompanySlug", f"rows[{index}]")
+        _require_string(row, "meterSlug", f"rows[{index}]")
+        _require_integer(row, "meterVersion", f"rows[{index}]")
+        _require_string(row, "unit", f"rows[{index}]")
+        _require_string(row, "windowStart", f"rows[{index}]")
+        _require_string(row, "windowEnd", f"rows[{index}]")
+        _require_integer(row, "quantity", f"rows[{index}]")
+        _require_integer(row, "sourceWatermark", f"rows[{index}]")
+        _require_string(row, "completenessState", f"rows[{index}]")
+        _require_integer(row, "correctionGeneration", f"rows[{index}]")
+        _require_integer(row, "calculationVersion", f"rows[{index}]")
+    for index, total in enumerate(_require_objects(payload, "totals")):
+        _require_string(total, "accountCompanySlug", f"totals[{index}]")
+        _require_string(total, "dataSpaceCompanySlug", f"totals[{index}]")
+        _require_string(total, "meterSlug", f"totals[{index}]")
+        _require_string(total, "unit", f"totals[{index}]")
+        _require_integer(total, "quantity", f"totals[{index}]")
+    return cast(UsageReport, payload)
+
+
+def _require(payload: Mapping[str, Any], key: str, context: str) -> Any:
+    if key not in payload or payload[key] is None:
+        raise ValueError(f"custd: usage response {context} field {key} is required")
+    return payload[key]
+
+
+def _require_string(payload: Mapping[str, Any], key: str, context: str = "") -> str:
+    value = _require(payload, key, context)
+    if not isinstance(value, str):
+        raise ValueError(f"custd: usage response {context} field {key} must be a string")
+    return value
+
+
+def _require_integer(payload: Mapping[str, Any], key: str, context: str = "") -> int:
+    value = _require(payload, key, context)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"custd: usage response {context} field {key} must be an integer")
+    return value
+
+
+def _require_boolean(payload: Mapping[str, Any], key: str, context: str = "") -> bool:
+    value = _require(payload, key, context)
+    if not isinstance(value, bool):
+        raise ValueError(f"custd: usage response {context} field {key} must be a boolean")
+    return value
+
+
+def _require_objects(payload: Mapping[str, Any], key: str) -> list[Mapping[str, Any]]:
+    value = _require(payload, key, "")
+    if not isinstance(value, list):
+        raise ValueError(f"custd: usage response field {key} must be a list")
+    objects: list[Mapping[str, Any]] = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            raise ValueError(f"custd: usage response field {key} must contain objects")
+        objects.append(item)
+    return objects
 
 
 def _usage_query_string(query: UsageQuery | None) -> str:
@@ -129,8 +221,12 @@ def _usage_query_string(query: UsageQuery | None) -> str:
 
 
 def _parse_instant(value: str, field: str) -> datetime:
+    if _RFC3339_PATTERN.match(value) is None:
+        raise ValueError(f"custd: usage {field} must be an RFC3339 timestamp")
     try:
-        parsed = datetime.fromisoformat(value)
+        # The pattern already requires the T separator and an explicit offset, so
+        # fromisoformat here only rejects an impossible calendar date.
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as error:
         raise ValueError(f"custd: usage {field} must be an RFC3339 timestamp") from error
     if parsed.tzinfo is None:

@@ -7,6 +7,7 @@
 // `containsProvisional` and `containsIncomplete` are the server's own assessment
 // of the returned rows, so a caller deciding whether a number is settled reads
 // them rather than assuming every row is final.
+import { optionalString, requireBoolean, requireInteger, requireObjectList, requireRecord, requireString, } from "./response-validation.js";
 /** The row cap the service applies when a request omits a limit. */
 export const USAGE_DEFAULT_LIMIT = 500;
 /** The most rows the usage endpoint returns in one request. */
@@ -27,10 +28,76 @@ export class UsageAdminClient {
         catch (error) {
             return Promise.reject(error);
         }
-        return this.request("GET", `/usage/me${params.length > 0 ? `?${params}` : ""}`, undefined, options);
+        return this.request("GET", `/usage/me${params.length > 0 ? `?${params}` : ""}`, undefined, options).then(assertUsageReport);
     }
 }
+// assertUsageReport validates the named response DTO. The service emits every
+// required field, so a truncated or wrongly shaped body fails here instead of
+// surfacing as a zero-valued report.
+function assertUsageReport(value) {
+    const context = "usage response";
+    const report = requireRecord(value, context);
+    requireString(report, "schemaVersion", context);
+    requireString(report, "start", context);
+    requireString(report, "end", context);
+    requireInteger(report, "sourceWatermark", context);
+    requireBoolean(report, "containsProvisional", context);
+    requireBoolean(report, "containsIncomplete", context);
+    optionalString(report, "companySlug", context);
+    for (const [index, row] of requireObjectList(report, "rows", context).entries()) {
+        const rowContext = `${context} rows[${index}]`;
+        requireString(row, "accountCompanySlug", rowContext);
+        requireString(row, "dataSpaceCompanySlug", rowContext);
+        requireString(row, "meterSlug", rowContext);
+        requireInteger(row, "meterVersion", rowContext);
+        requireString(row, "unit", rowContext);
+        requireString(row, "windowStart", rowContext);
+        requireString(row, "windowEnd", rowContext);
+        requireInteger(row, "quantity", rowContext);
+        requireInteger(row, "sourceWatermark", rowContext);
+        requireString(row, "completenessState", rowContext);
+        requireInteger(row, "correctionGeneration", rowContext);
+        requireInteger(row, "calculationVersion", rowContext);
+    }
+    for (const [index, total] of requireObjectList(report, "totals", context).entries()) {
+        const totalContext = `${context} totals[${index}]`;
+        requireString(total, "accountCompanySlug", totalContext);
+        requireString(total, "dataSpaceCompanySlug", totalContext);
+        requireString(total, "meterSlug", totalContext);
+        requireString(total, "unit", totalContext);
+        requireInteger(total, "quantity", totalContext);
+    }
+    return report;
+}
+// RFC3339_PATTERN is the documented usage-window grammar: a full timestamp with
+// the T separator, an explicit Z or numeric offset, and captured date and clock
+// components. It rejects values Date.parse accepts, such as a date-only string
+// or a space-separated timestamp.
+const RFC3339_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 function parseInstant(value, field) {
+    const match = RFC3339_PATTERN.exec(value);
+    if (match === null) {
+        throw new RangeError(`custd: usage ${field} must be an RFC3339 timestamp`);
+    }
+    // Date.parse normalizes values that are not valid RFC3339 clock times: hour 24
+    // rolls to the next day and second 60 rolls to the next minute. Bound the
+    // clock components before trusting the parse, exactly as the calendar date is
+    // checked below.
+    const hour = Number(match[4]);
+    const minute = Number(match[5]);
+    const second = Number(match[6]);
+    if (hour > 23 || minute > 59 || second > 59) {
+        throw new RangeError(`custd: usage ${field} must be an RFC3339 timestamp`);
+    }
+    // Date.parse normalizes an impossible day such as February 30, so verify the
+    // calendar date itself before trusting the parsed instant.
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const utc = new Date(Date.UTC(year, month - 1, day));
+    if (utc.getUTCFullYear() !== year || utc.getUTCMonth() !== month - 1 || utc.getUTCDate() !== day) {
+        throw new RangeError(`custd: usage ${field} must be an RFC3339 timestamp`);
+    }
     const parsed = Date.parse(value);
     if (Number.isNaN(parsed)) {
         throw new RangeError(`custd: usage ${field} must be an RFC3339 timestamp`);

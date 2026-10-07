@@ -32,28 +32,33 @@ final readonly class Report
     ) {
     }
 
-    /** @param array<string, mixed> $payload */
-    public static function fromPayload(array $payload): self
+    /**
+     * fromPayload decodes the shape-preserving response body: JSON objects are
+     * stdClass and JSON arrays are arrays, so a required collection cannot be
+     * satisfied by an object.
+     */
+    public static function fromPayload(mixed $payload): self
     {
+        $object = Fields::jsonObject($payload, 'usage response');
         $rows = [];
-        foreach (Fields::objects($payload, 'rows') as $row) {
+        foreach (Fields::objects($object, 'rows') as $row) {
             $rows[] = Row::fromPayload($row);
         }
         $totals = [];
-        foreach (Fields::objects($payload, 'totals') as $total) {
+        foreach (Fields::objects($object, 'totals') as $total) {
             $totals[] = Total::fromPayload($total);
         }
 
         return new self(
-            Fields::string($payload, 'schemaVersion'),
-            Fields::optionalString($payload, 'companySlug') ?? '',
-            Fields::string($payload, 'start'),
-            Fields::string($payload, 'end'),
+            Fields::string($object, 'schemaVersion'),
+            Fields::optionalString($object, 'companySlug') ?? '',
+            Fields::string($object, 'start'),
+            Fields::string($object, 'end'),
             $rows,
             $totals,
-            Fields::integer($payload, 'sourceWatermark'),
-            Fields::boolean($payload, 'containsProvisional'),
-            Fields::boolean($payload, 'containsIncomplete'),
+            Fields::integer($object, 'sourceWatermark'),
+            Fields::boolean($object, 'containsProvisional'),
+            Fields::boolean($object, 'containsIncomplete'),
         );
     }
 }

@@ -93,7 +93,6 @@ const rangeResponseBody = {
   sources: [{ name: "duckdb", count: 3, complete: true, fresh: false, queryDurationMs: 9, freshnessLagMs: 0 }],
   timing: { eventLagP50Ms: 10, eventLagP95Ms: 20, eventLagMaxMs: 30, queryDurationMs: 9, snapshotAgeMs: 100 },
 };
-
 describe("analytics event range query", () => {
   it("queries the range route and surfaces per-day buckets", async () => {
     const fetchImpl = mockFetch(rangeResponseBody);
@@ -152,6 +151,7 @@ describe("analytics event range query", () => {
     const cases = [
       { from: "14-09-2026", to: "2026-09-15" },
       { from: "2026-02-30", to: "2026-03-01" },
+      { from: "20260914", to: "2026-09-15" },
       { from: "2026-09-15", to: "2026-09-14" },
       { from: "2026-01-01", to: "2026-05-02" },
       { from: "2026-09-14", to: "2026-09-15", groupBy: "week" as unknown as "day" },
@@ -164,6 +164,84 @@ describe("analytics event range query", () => {
       await expect(client.analytics.queryRange(request)).rejects.toThrow(RangeError);
       expect(fetchImpl).not.toHaveBeenCalled();
     }
+  });
+
+  it("rejects retired sources before sending", async () => {
+    for (const source of ["postgres", "rollup", "materialized"] as const) {
+      const fetchImpl = mockFetch(rangeResponseBody);
+      const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+      await expect(
+        client.analytics.queryRange({
+          from: "2026-09-14",
+          to: "2026-09-15",
+          source: source as unknown as "auto",
+        }),
+      ).rejects.toThrow(RangeError);
+      expect(fetchImpl).not.toHaveBeenCalled();
+    }
+  });
+
+  it("rejects a malformed success body", async () => {
+    const malformed: unknown[] = [
+      {},
+      { ...rangeResponseBody, rows: undefined },
+      { ...rangeResponseBody, rows: { unexpected: rangeResponseBody.rows } },
+      { ...rangeResponseBody, sources: { unexpected: rangeResponseBody.sources } },
+      { ...rangeResponseBody, timing: undefined },
+      { ...rangeResponseBody, timing: { ...rangeResponseBody.timing, snapshotAgeMs: undefined } },
+      { ...rangeResponseBody, buckets: [{ ...rangeResponseBody.buckets[0], complete: undefined }] },
+      { ...rangeResponseBody, sources: [{ ...rangeResponseBody.sources[0], fresh: undefined }] },
+      { ...rangeResponseBody, count: "3" },
+      // A present optional field must satisfy its declared type; only an absent
+      // one is allowed to be omitted.
+      { ...rangeResponseBody, timing: { ...rangeResponseBody.timing, oldestEventTimestamp: null } },
+      { ...rangeResponseBody, sources: [{ ...rangeResponseBody.sources[0], message: null }] },
+      {
+        ...rangeResponseBody,
+        sources: [{ ...rangeResponseBody.sources[0], parquetUriCount: "2" }],
+      },
+      // A row declares `payload` as an object, so a present null or array must
+      // not pass as one.
+      { ...rangeResponseBody, rows: [{ eventTypeSlug: "page_view", payload: null }] },
+      { ...rangeResponseBody, rows: [{ eventTypeSlug: "page_view", payload: [] }] },
+    ];
+
+    for (const body of malformed) {
+      const fetchImpl = mockFetch(body);
+      const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+      await expect(client.analytics.queryRange({ from: "2026-09-14", to: "2026-09-15" })).rejects.toThrow(TypeError);
+    }
+  });
+
+  it("accepts empty collections and absent optional fields", async () => {
+    const fetchImpl = mockFetch({
+      rows: [{ eventTypeSlug: "page_view" }],
+      count: 0,
+      buckets: [],
+      sources: [],
+      timing: { eventLagP50Ms: 0, eventLagP95Ms: 0, eventLagMaxMs: 0, queryDurationMs: 1, snapshotAgeMs: 0 },
+    });
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+
+    const response = await client.analytics.queryRange({ from: "2026-09-14", to: "2026-09-15" });
+
+    // A row with an absent payload, and optional fields omitted entirely, stay valid.
+    expect(response.rows).toEqual([{ eventTypeSlug: "page_view" }]);
+    expect(response.buckets).toEqual([]);
+    expect(response.sources).toEqual([]);
+  });
+
+  it("accepts an empty source as the default", async () => {
+    const fetchImpl = mockFetch(rangeResponseBody);
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+
+    await expect(
+      client.analytics.queryRange({ from: "2026-09-14", to: "2026-09-15", source: "" }),
+    ).resolves.toBeDefined();
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
+    // An empty source is normalized to an omitted one, matching the Go SDK's
+    // omitempty wire tag.
+    expect(body).toEqual({ from: "2026-09-14", to: "2026-09-15" });
   });
 
   it("accepts a range at exactly the day cap", async () => {

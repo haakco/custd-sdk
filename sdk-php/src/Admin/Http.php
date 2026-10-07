@@ -29,6 +29,58 @@ final class Http
         string $prefix = "/api/v1/admin",
         ?string $idempotencyKey = null,
     ): ?array {
+        $responseBody = self::readBody($baseUrl, $token, $transport, $method, $path, $body, $prefix, $idempotencyKey);
+        if ($responseBody === null) {
+            return null;
+        }
+        $decoded = json_decode($responseBody, true, flags: JSON_THROW_ON_ERROR);
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * requestStructured issues the same request as {@see request} but decodes a
+     * success body without associative conversion, so a JSON object stays a
+     * stdClass and a JSON array stays an array. The new usage/range response
+     * DTOs use it so validation can still tell an empty `{}` collection from an
+     * empty `[]` collection.
+     *
+     * @param callable|null $transport
+     * @param array<string, mixed>|null $body
+     */
+    public static function requestStructured(
+        string $baseUrl,
+        string $token,
+        ?callable $transport,
+        string $method,
+        string $path,
+        ?array $body = null,
+        string $prefix = "/api/v1/admin",
+        ?string $idempotencyKey = null,
+    ): mixed {
+        $responseBody = self::readBody($baseUrl, $token, $transport, $method, $path, $body, $prefix, $idempotencyKey);
+        if ($responseBody === null) {
+            return null;
+        }
+        return json_decode($responseBody, false, flags: JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * readBody performs the request and status handling shared by the associative
+     * and shape-preserving decoders. It returns the raw success body, or null for
+     * an empty or 204 response.
+     *
+     * @param array<string, mixed>|null $body
+     */
+    private static function readBody(
+        string $baseUrl,
+        string $token,
+        ?callable $transport,
+        string $method,
+        string $path,
+        ?array $body,
+        string $prefix,
+        ?string $idempotencyKey,
+    ): ?string {
         $url = rtrim($baseUrl, "/") . $prefix . $path;
         $headers = [];
         if ($idempotencyKey !== null && trim($idempotencyKey) !== "") {
@@ -49,8 +101,7 @@ final class Http
         if ($status === 204 || $result["body"] === "") {
             return null;
         }
-        $decoded = json_decode($result["body"], true, flags: JSON_THROW_ON_ERROR);
-        return is_array($decoded) ? $decoded : null;
+        return $result["body"];
     }
 
     private static function workflowError(string $body, int $status): ?AdminWorkflowException

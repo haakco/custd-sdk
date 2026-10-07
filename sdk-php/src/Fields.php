@@ -5,17 +5,32 @@ declare(strict_types=1);
 namespace HaakCo\Custd;
 
 /**
- * Fields decodes the typed scalar fields of a JSON response object.
+ * Fields decodes and validates the named fields of a JSON response object.
  *
- * Boundary DTOs decode their named fields through this helper so a missing or
- * mistyped field fails at the boundary instead of becoming an empty string or a
- * zero deeper in. A row the server explicitly documents as an open column bag
- * stays an array; every named field is typed by its DTO.
+ * The usage and range response DTOs consume a shape-preserving decode: JSON
+ * objects are `stdClass` and JSON arrays are arrays. That distinction is kept
+ * until validation so a required collection cannot be satisfied by an object,
+ * even an empty one, which associative decoding would otherwise collapse into
+ * `[]`. A row the server explicitly documents as an open column bag stays an
+ * array; every named field is typed by its DTO.
  */
 final class Fields
 {
-    /** @param array<string, mixed> $payload */
-    public static function string(array $payload, string $key): string
+    /**
+     * jsonObject asserts that a decoded response body is a JSON object. A body
+     * whose top level is an array or a scalar fails here.
+     */
+    public static function jsonObject(mixed $value, string $context): \stdClass
+    {
+        if (!$value instanceof \stdClass) {
+            throw new \UnexpectedValueException("custd: {$context} must be a JSON object");
+        }
+
+        return $value;
+    }
+
+    /** @param \stdClass $payload */
+    public static function string(\stdClass $payload, string $key): string
     {
         $value = self::required($payload, $key);
         if (!is_string($value)) {
@@ -25,18 +40,22 @@ final class Fields
         return $value;
     }
 
-    /** @param array<string, mixed> $payload */
-    public static function optionalString(array $payload, string $key): ?string
+    /** @param \stdClass $payload */
+    public static function optionalString(\stdClass $payload, string $key): ?string
     {
-        if (!array_key_exists($key, $payload) || $payload[$key] === null) {
+        $value = self::optional($payload, $key);
+        if ($value === null) {
             return null;
         }
+        if (!is_string($value)) {
+            throw new \UnexpectedValueException("custd: response field {$key} must be a string");
+        }
 
-        return self::string($payload, $key);
+        return $value;
     }
 
-    /** @param array<string, mixed> $payload */
-    public static function integer(array $payload, string $key): int
+    /** @param \stdClass $payload */
+    public static function integer(\stdClass $payload, string $key): int
     {
         $value = self::required($payload, $key);
         if (!is_int($value)) {
@@ -46,18 +65,22 @@ final class Fields
         return $value;
     }
 
-    /** @param array<string, mixed> $payload */
-    public static function optionalInteger(array $payload, string $key): ?int
+    /** @param \stdClass $payload */
+    public static function optionalInteger(\stdClass $payload, string $key): ?int
     {
-        if (!array_key_exists($key, $payload) || $payload[$key] === null) {
+        $value = self::optional($payload, $key);
+        if ($value === null) {
             return null;
         }
+        if (!is_int($value)) {
+            throw new \UnexpectedValueException("custd: response field {$key} must be an integer");
+        }
 
-        return self::integer($payload, $key);
+        return $value;
     }
 
-    /** @param array<string, mixed> $payload */
-    public static function boolean(array $payload, string $key): bool
+    /** @param \stdClass $payload */
+    public static function boolean(\stdClass $payload, string $key): bool
     {
         $value = self::required($payload, $key);
         if (!is_bool($value)) {
@@ -68,40 +91,111 @@ final class Fields
     }
 
     /**
-     * objects returns the named list of JSON objects. A non-list value, or a
-     * list that contains a scalar, fails at the boundary.
+     * object returns a required nested JSON object. A missing or null field, or
+     * a field that is a JSON array or scalar, fails at the boundary.
      *
-     * @param array<string, mixed> $payload
-     * @return list<array<string, mixed>>
+     * @param \stdClass $payload
      */
-    public static function objects(array $payload, string $key): array
+    public static function object(\stdClass $payload, string $key): \stdClass
     {
-        $value = $payload[$key] ?? null;
-        if ($value === null) {
-            return [];
-        }
-        if (!is_array($value)) {
-            throw new \UnexpectedValueException("custd: response field {$key} must be a list");
-        }
-        $objects = [];
-        foreach ($value as $item) {
-            if (!is_array($item) || array_is_list($item)) {
-                throw new \UnexpectedValueException("custd: response field {$key} contains an invalid object");
-            }
-            /** @var array<string, mixed> $item */
-            $objects[] = $item;
+        $value = self::required($payload, $key);
+        if (!$value instanceof \stdClass) {
+            throw new \UnexpectedValueException("custd: response field {$key} must be an object");
         }
 
-        return $objects;
+        return $value;
     }
 
-    /** @param array<string, mixed> $payload */
-    private static function required(array $payload, string $key): mixed
+    /**
+     * objects returns the named required list of JSON objects. The container
+     * must be an actual JSON array, and every element an actual JSON object: an
+     * empty object `{}` is a `stdClass` and fails, while an empty array `[]`
+     * stays a valid empty collection. A scalar element also fails.
+     *
+     * @param \stdClass $payload
+     * @return list<\stdClass>
+     */
+    public static function objects(\stdClass $payload, string $key): array
     {
-        if (!array_key_exists($key, $payload)) {
+        $value = self::required($payload, $key);
+        if (!is_array($value) || !array_is_list($value)) {
+            throw new \UnexpectedValueException("custd: response field {$key} must be a list");
+        }
+        foreach ($value as $item) {
+            if (!$item instanceof \stdClass) {
+                throw new \UnexpectedValueException("custd: response field {$key} must contain objects");
+            }
+        }
+        /** @var list<\stdClass> $value */
+        return $value;
+    }
+
+    /**
+     * objectList returns the named required list of JSON objects converted to
+     * the associative arrays the public column-bag DTO exposes. Object/list
+     * shape is still enforced on the shape-preserving decode first.
+     *
+     * @param \stdClass $payload
+     * @return list<array<string, mixed>>
+     */
+    public static function objectList(\stdClass $payload, string $key): array
+    {
+        $rows = [];
+        foreach (self::objects($payload, $key) as $item) {
+            $rows[] = self::toArray($item);
+        }
+
+        return $rows;
+    }
+
+    /** @param \stdClass $payload */
+    private static function required(\stdClass $payload, string $key): mixed
+    {
+        $values = get_object_vars($payload);
+        if (!array_key_exists($key, $values) || $values[$key] === null) {
             throw new \UnexpectedValueException("custd: response field {$key} is required");
         }
 
-        return $payload[$key];
+        return $values[$key];
+    }
+
+    /** @param \stdClass $payload */
+    private static function optional(\stdClass $payload, string $key): mixed
+    {
+        $values = get_object_vars($payload);
+        if (!array_key_exists($key, $values)) {
+            return null;
+        }
+
+        return $values[$key];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function toArray(\stdClass $value): array
+    {
+        $array = [];
+        foreach (get_object_vars($value) as $key => $item) {
+            $array[$key] = self::assoc($item);
+        }
+
+        return $array;
+    }
+
+    /**
+     * assoc deep-converts a shape-preserving decode into associative arrays so
+     * the public column-bag DTO keeps the array shape callers already use.
+     */
+    private static function assoc(mixed $value): mixed
+    {
+        if ($value instanceof \stdClass) {
+            return self::toArray($value);
+        }
+        if (is_array($value)) {
+            return array_map(static fn (mixed $item): mixed => self::assoc($item), $value);
+        }
+
+        return $value;
     }
 }

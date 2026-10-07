@@ -2,6 +2,13 @@ import type { RequestOptions } from "./index.js";
 /** Sources the server may answer a query from. */
 export type AnalyticsQuerySource = "auto" | "postgres" | "duckdb" | "rollup" | "materialized";
 /**
+ * Sources the range query accepts. The range API accepts only omitted, empty,
+ * `auto`, or `duckdb`; the single-day query's retired `postgres`, `rollup`, and
+ * `materialized` sources are not part of the range contract. An empty string is
+ * accepted as the default and normalized to an omitted `source`.
+ */
+export type AnalyticsRangeQuerySource = "" | "auto" | "duckdb";
+/**
  * One exact tenant-vocabulary key/value filter.
  *
  * The server accepts at most ANALYTICS_MAX_LABEL_FILTERS of these; more is a request
@@ -79,7 +86,8 @@ export type AnalyticsEventRangeQueryRequest = {
     eventType?: string;
     /** Maximum rows across the whole range. The server clamps this and reports the applied count. */
     limit?: number;
-    source?: AnalyticsQuerySource;
+    /** Query source. Omitted, `auto`, or `duckdb` only. */
+    source?: AnalyticsRangeQuerySource;
     /** Bucket granularity. Omit, or set to {@link ANALYTICS_RANGE_GROUP_BY}. */
     groupBy?: typeof ANALYTICS_RANGE_GROUP_BY;
     labelFilters?: AnalyticsLabelFilter[];

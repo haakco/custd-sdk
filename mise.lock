@@ -255,7 +255,22 @@ version = "8.5.10"
 backend = "vfox:php"
 specifiers = ["8.5.10"]
 
+[tools.php."platforms.linux-arm64"]
+url = "https://github.com/php/php-src/archive/php-8.5.10.tar.gz"
+
+[tools.php."platforms.linux-arm64-musl"]
+url = "https://github.com/php/php-src/archive/php-8.5.10.tar.gz"
+
+[tools.php."platforms.linux-x64"]
+url = "https://github.com/php/php-src/archive/php-8.5.10.tar.gz"
+
+[tools.php."platforms.linux-x64-musl"]
+url = "https://github.com/php/php-src/archive/php-8.5.10.tar.gz"
+
 [tools.php."platforms.macos-arm64"]
+url = "https://github.com/php/php-src/archive/php-8.5.10.tar.gz"
+
+[tools.php."platforms.macos-x64"]
 url = "https://github.com/php/php-src/archive/php-8.5.10.tar.gz"
 
 [[tools."pipx:mypy"]]

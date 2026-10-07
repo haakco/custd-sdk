@@ -96,6 +96,13 @@ describe("admin usage", () => {
     const cases = [
       { start: "2026-10-01T00:00:00Z", end: "2026-10-01T00:00:00Z" },
       { start: "not-a-timestamp" },
+      { start: "2026-09-01" },
+      { start: "2026-09-01 00:00:00+00:00" },
+      { start: "2026-02-30T00:00:00Z" },
+      // Date.parse normalizes hour 24 and leap-second 60, so the preflight must
+      // bound hours, minutes, and seconds itself.
+      { start: "2026-09-01T24:00:00Z" },
+      { start: "2026-09-01T23:59:60Z" },
       { limit: 0 },
       { limit: USAGE_MAX_LIMIT + 1 },
       { limit: 1.5 },
@@ -107,5 +114,44 @@ describe("admin usage", () => {
       await expect(client.admin.usage.get(query)).rejects.toThrow(RangeError);
       expect(fetchImpl).not.toHaveBeenCalled();
     }
+  });
+
+  it("rejects a malformed success body", async () => {
+    const malformed: unknown[] = [
+      {},
+      { ...usageReportBody, containsIncomplete: undefined },
+      { ...usageReportBody, rows: undefined },
+      { ...usageReportBody, rows: { unexpected: usageReportBody.rows } },
+      { ...usageReportBody, totals: null },
+      { ...usageReportBody, containsProvisional: "false" },
+      { ...usageReportBody, rows: [{ ...usageReportBody.rows[0], quantity: undefined }] },
+      // companySlug is omitted-or-string, never null.
+      { ...usageReportBody, companySlug: null },
+    ];
+
+    for (const body of malformed) {
+      const fetchImpl = mockFetch(body);
+      const client = newClient(fetchImpl);
+      await expect(client.admin.usage.get()).rejects.toThrow(TypeError);
+    }
+  });
+
+  it("accepts an absent company slug", async () => {
+    const { companySlug: _omitted, ...reportWithoutSlug } = usageReportBody;
+    const fetchImpl = mockFetch(reportWithoutSlug);
+    const client = newClient(fetchImpl);
+
+    const report = await client.admin.usage.get();
+
+    expect(report.companySlug).toBeUndefined();
+  });
+
+  it("rejects an empty success body", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(new Response("", { status: 200, headers: { "content-type": "application/json" } }));
+    const client = newClient(fetchImpl);
+
+    await expect(client.admin.usage.get()).rejects.toThrow();
   });
 });

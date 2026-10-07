@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import re
+from collections.abc import Mapping
 from datetime import date
 from typing import Any, NotRequired, TypedDict, cast
 
@@ -20,6 +22,12 @@ ANALYTICS_MAX_RANGE_DAYS = 120
 ANALYTICS_RANGE_GROUP_BY = "day"
 
 ANALYTICS_QUERY_SOURCES = ("auto", "postgres", "duckdb", "rollup", "materialized")
+
+# ANALYTICS_RANGE_QUERY_SOURCES is the range query's named source contract. The
+# range API accepts only omitted/empty, auto, or duckdb; the single-day query's
+# retired postgres, rollup, and materialized sources are not part of it. An empty
+# source is accepted as the default and normalized to an omitted wire field.
+ANALYTICS_RANGE_QUERY_SOURCES = ("auto", "duckdb")
 
 
 class AnalyticsLabelFilter(TypedDict):
@@ -152,7 +160,7 @@ class AnalyticsEventClient:
     def query_range(self, request: AnalyticsEventRangeQueryRequest) -> AnalyticsEventRangeQueryResponse:
         """Query this tenant's own events across an inclusive date range."""
         payload = _public_range_query_payload(request)
-        return cast(AnalyticsEventRangeQueryResponse, self._request("POST", ANALYTICS_QUERY_RANGE_PATH, payload))
+        return _validate_range_response(self._request("POST", ANALYTICS_QUERY_RANGE_PATH, payload))
 
     def _request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         try:
@@ -288,9 +296,11 @@ def _public_range_query_payload(request: AnalyticsEventRangeQueryRequest) -> dic
     if request.get("limit") is not None:
         payload["limit"] = request["limit"]
     source = request.get("source")
-    if source is not None:
-        if source not in ANALYTICS_QUERY_SOURCES:
-            raise ValueError(f"custd: analytics source must be one of {', '.join(ANALYTICS_QUERY_SOURCES)}")
+    if source is not None and source != "":
+        if source not in ANALYTICS_RANGE_QUERY_SOURCES:
+            raise ValueError(
+                f"custd: analytics range query source must be one of {', '.join(ANALYTICS_RANGE_QUERY_SOURCES)}"
+            )
         payload["source"] = source
     if group_by is not None:
         payload["groupBy"] = group_by
@@ -299,7 +309,118 @@ def _public_range_query_payload(request: AnalyticsEventRangeQueryRequest) -> dic
     return payload
 
 
+def _validate_range_response(value: object) -> AnalyticsEventRangeQueryResponse:
+    """Validate the named range response DTO.
+
+    The service always emits every required field, so a malformed success body
+    (empty, partial, or a wrongly shaped collection) fails here instead of
+    surfacing as a zero-valued result. ``parquetUriCount``, ``message``, and the
+    two event timestamps are the documented optional wire fields.
+    """
+    if not isinstance(value, Mapping):
+        raise ValueError("custd: analytics range response must be a JSON object")
+    payload = cast(dict[str, Any], value)
+    for index, row in enumerate(_require_range_objects(payload, "rows")):
+        # A row is an open column bag, but `payload` is a declared object field,
+        # so a present null or list fails rather than passing through.
+        _validate_optional_range_object(row, "payload", f"rows[{index}]")
+    _require_range_integer(payload, "count")
+    for index, bucket in enumerate(_require_range_objects(payload, "buckets")):
+        context = f"buckets[{index}]"
+        _require_range_string(bucket, "date", context)
+        _require_range_integer(bucket, "count", context)
+        _require_range_string(bucket, "source", context)
+        _require_range_boolean(bucket, "complete", context)
+        _require_range_integer(bucket, "queryDurationMs", context)
+        _validate_optional_range_integer(bucket, "parquetUriCount", context)
+        _validate_optional_range_string(bucket, "message", context)
+    for index, source in enumerate(_require_range_objects(payload, "sources")):
+        context = f"sources[{index}]"
+        _require_range_string(source, "name", context)
+        _require_range_integer(source, "count", context)
+        _require_range_boolean(source, "complete", context)
+        _require_range_boolean(source, "fresh", context)
+        _require_range_integer(source, "queryDurationMs", context)
+        _require_range_integer(source, "freshnessLagMs", context)
+        _validate_optional_range_integer(source, "parquetUriCount", context)
+        _validate_optional_range_string(source, "message", context)
+    timing = _require_range(payload, "timing", "")
+    if not isinstance(timing, Mapping):
+        raise ValueError("custd: analytics range response field timing must be an object")
+    for key in ("eventLagP50Ms", "eventLagP95Ms", "eventLagMaxMs", "queryDurationMs", "snapshotAgeMs"):
+        _require_range_integer(timing, key, "timing")
+    _validate_optional_range_string(timing, "oldestEventTimestamp", "timing")
+    _validate_optional_range_string(timing, "newestEventTimestamp", "timing")
+    return cast(AnalyticsEventRangeQueryResponse, payload)
+
+
+def _require_range(payload: Mapping[str, Any], key: str, context: str) -> Any:
+    if key not in payload or payload[key] is None:
+        raise ValueError(f"custd: analytics range response {context} field {key} is required")
+    return payload[key]
+
+
+def _require_range_string(payload: Mapping[str, Any], key: str, context: str = "") -> str:
+    value = _require_range(payload, key, context)
+    if not isinstance(value, str):
+        raise ValueError(f"custd: analytics range response {context} field {key} must be a string")
+    return value
+
+
+def _require_range_integer(payload: Mapping[str, Any], key: str, context: str = "") -> int:
+    value = _require_range(payload, key, context)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"custd: analytics range response {context} field {key} must be an integer")
+    return value
+
+
+def _require_range_boolean(payload: Mapping[str, Any], key: str, context: str = "") -> bool:
+    value = _require_range(payload, key, context)
+    if not isinstance(value, bool):
+        raise ValueError(f"custd: analytics range response {context} field {key} must be a boolean")
+    return value
+
+
+def _require_range_objects(payload: Mapping[str, Any], key: str) -> list[Mapping[str, Any]]:
+    value = _require_range(payload, key, "")
+    if not isinstance(value, list):
+        raise ValueError(f"custd: analytics range response field {key} must be a list")
+    objects: list[Mapping[str, Any]] = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            raise ValueError(f"custd: analytics range response field {key} must contain objects")
+        objects.append(item)
+    return objects
+
+
+def _validate_optional_range_string(payload: Mapping[str, Any], key: str, context: str) -> None:
+    """A present optional string must be a string; only absence may skip it."""
+    if key not in payload:
+        return
+    if not isinstance(payload[key], str):
+        raise ValueError(f"custd: analytics range response {context} field {key} must be a string")
+
+
+def _validate_optional_range_integer(payload: Mapping[str, Any], key: str, context: str) -> None:
+    """A present optional integer must be an integer; only absence may skip it."""
+    if key not in payload:
+        return
+    value = payload[key]
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"custd: analytics range response {context} field {key} must be an integer")
+
+
+def _validate_optional_range_object(payload: Mapping[str, Any], key: str, context: str) -> None:
+    """A present optional object field must be a mapping; only absence may skip it."""
+    if key not in payload:
+        return
+    if not isinstance(payload[key], Mapping):
+        raise ValueError(f"custd: analytics range response {context} field {key} must be an object")
+
+
 def _parse_utc_day(value: str, field: str) -> date:
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value) is None:
+        raise ValueError(f"custd: analytics range query {field} must be YYYY-MM-DD")
     try:
         return date.fromisoformat(value)
     except ValueError as error:

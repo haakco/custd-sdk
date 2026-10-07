@@ -2,6 +2,7 @@ package custd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -102,11 +103,46 @@ func (c *UsageAdminClient) Get(ctx context.Context, query UsageQuery) (*UsageRep
 	if encoded := params.Encode(); encoded != "" {
 		path += "?" + encoded
 	}
-	var out UsageReport
-	if err := c.admin.request(ctx, http.MethodGet, path, nil, &out); err != nil {
+	var body json.RawMessage
+	if err := c.admin.request(ctx, http.MethodGet, path, nil, &body); err != nil {
 		return nil, err
 	}
-	return &out, nil
+	return decodeUsageReport(body)
+}
+
+// decodeUsageReport decodes and validates the GET /usage/me response. The
+// completeness flags and both collections are required: a report that omits them
+// is rejected rather than becoming a zero-valued report. Only companySlug is an
+// optional wire field, because the owner emits it with omitempty.
+func decodeUsageReport(data []byte) (*UsageReport, error) {
+	const context = "usage response"
+	fields, err := decodeJSONObject(data, context)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireJSONFields(fields, context,
+		"schemaVersion", "start", "end", "sourceWatermark",
+		"containsProvisional", "containsIncomplete",
+	); err != nil {
+		return nil, err
+	}
+	if err := requireJSONObjectList(fields, context, "rows",
+		"accountCompanySlug", "dataSpaceCompanySlug", "meterSlug", "meterVersion", "unit",
+		"windowStart", "windowEnd", "quantity", "sourceWatermark", "completenessState",
+		"correctionGeneration", "calculationVersion",
+	); err != nil {
+		return nil, err
+	}
+	if err := requireJSONObjectList(fields, context, "totals",
+		"accountCompanySlug", "dataSpaceCompanySlug", "meterSlug", "unit", "quantity",
+	); err != nil {
+		return nil, err
+	}
+	var report UsageReport
+	if err := json.Unmarshal(data, &report); err != nil {
+		return nil, validationWrap(fmt.Sprintf("custd: decode %s", context), err)
+	}
+	return &report, nil
 }
 
 // usageQueryParams builds the query string and rejects locally what the service
@@ -123,10 +159,10 @@ func usageQueryParams(query UsageQuery) (url.Values, error) {
 		params.Set("meter", query.MeterSlug)
 	}
 	if !query.Start.IsZero() {
-		params.Set("start", query.Start.UTC().Format(time.RFC3339))
+		params.Set("start", query.Start.UTC().Format(time.RFC3339Nano))
 	}
 	if !query.End.IsZero() {
-		params.Set("end", query.End.UTC().Format(time.RFC3339))
+		params.Set("end", query.End.UTC().Format(time.RFC3339Nano))
 	}
 	if query.Limit != 0 {
 		params.Set("limit", strconv.Itoa(query.Limit))

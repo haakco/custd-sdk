@@ -57,7 +57,10 @@ report = client.admin.usage.get({"meterSlug": "events.ingested", "limit": 200})
 ```
 
 ```php
-$report = $client->adminUsage()->get(["meterSlug" => "events.ingested", "limit" => 200]);
+$report = $client->adminUsage()->get(new \HaakCo\Custd\Admin\Usage\Query(
+    meterSlug: "events.ingested",
+    limit: 200,
+));
 ```
 
 The report is typed in every SDK and returns per-meter totals plus per-window
@@ -78,7 +81,7 @@ unchanged; the SDK never substitutes its own confidence heuristic.
 - Go: `client.Analytics.QueryRange(ctx, custd.AnalyticsEventRangeQueryRequest{...})`
 - TypeScript: `client.analytics.queryRange({ ... })`
 - Python: `client.analytics.query_range({ ... })`
-- PHP: `$client->analytics()->queryRange([...])`
+- PHP: `$client->analytics()->queryRange(new \HaakCo\Custd\Analytics\RangeQueryRequest(...))`
 
 An over-long, reversed, or malformed range is rejected locally before a request
 is sent.

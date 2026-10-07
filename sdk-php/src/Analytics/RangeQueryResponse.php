@@ -29,41 +29,30 @@ final readonly class RangeQueryResponse
     ) {
     }
 
-    /** @param array<string, mixed> $payload */
-    public static function fromPayload(array $payload): self
+    /**
+     * fromPayload decodes the shape-preserving response body: JSON objects are
+     * stdClass and JSON arrays are arrays, so a required collection cannot be
+     * satisfied by an object. `rows` is deep-converted back to the associative
+     * column bags the public DTO documents.
+     */
+    public static function fromPayload(mixed $payload): self
     {
+        $object = Fields::jsonObject($payload, 'analytics range response');
         $buckets = [];
-        foreach (Fields::objects($payload, 'buckets') as $bucket) {
+        foreach (Fields::objects($object, 'buckets') as $bucket) {
             $buckets[] = RangeBucket::fromPayload($bucket);
         }
         $sources = [];
-        foreach (Fields::objects($payload, 'sources') as $source) {
+        foreach (Fields::objects($object, 'sources') as $source) {
             $sources[] = SourceSummary::fromPayload($source);
         }
 
         return new self(
-            Fields::objects($payload, 'rows'),
-            Fields::integer($payload, 'count'),
+            Fields::objectList($object, 'rows'),
+            Fields::integer($object, 'count'),
             $buckets,
             $sources,
-            TimingSummary::fromPayload(self::timingPayload($payload)),
+            TimingSummary::fromPayload(Fields::object($object, 'timing')),
         );
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     * @return array<string, mixed>
-     */
-    private static function timingPayload(array $payload): array
-    {
-        $timing = $payload['timing'] ?? null;
-        if ($timing === null) {
-            throw new \UnexpectedValueException('custd: analytics range response timing is required');
-        }
-        if (!is_array($timing) || array_is_list($timing)) {
-            throw new \UnexpectedValueException('custd: analytics range response timing must be an object');
-        }
-        /** @var array<string, mixed> $timing */
-        return $timing;
     }
 }

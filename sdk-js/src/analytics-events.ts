@@ -5,9 +5,29 @@
 // never supplies a tenant slug — the credential already names the tenant.
 
 import type { RequestOptions } from "./index.js";
+import {
+  optionalInteger,
+  optionalRecord,
+  optionalString,
+  requireBoolean,
+  requireInteger,
+  requireObjectList,
+  requireRecord,
+  requireString,
+} from "./response-validation.js";
 
 /** Sources the server may answer a query from. */
 export type AnalyticsQuerySource = "auto" | "postgres" | "duckdb" | "rollup" | "materialized";
+
+/**
+ * Sources the range query accepts. The range API accepts only omitted, empty,
+ * `auto`, or `duckdb`; the single-day query's retired `postgres`, `rollup`, and
+ * `materialized` sources are not part of the range contract. An empty string is
+ * accepted as the default and normalized to an omitted `source`.
+ */
+export type AnalyticsRangeQuerySource = "" | "auto" | "duckdb";
+
+const ANALYTICS_RANGE_QUERY_SOURCES: readonly AnalyticsRangeQuerySource[] = ["", "auto", "duckdb"];
 
 /**
  * One exact tenant-vocabulary key/value filter.
@@ -95,7 +115,8 @@ export type AnalyticsEventRangeQueryRequest = {
   eventType?: string;
   /** Maximum rows across the whole range. The server clamps this and reports the applied count. */
   limit?: number;
-  source?: AnalyticsQuerySource;
+  /** Query source. Omitted, `auto`, or `duckdb` only. */
+  source?: AnalyticsRangeQuerySource;
   /** Bucket granularity. Omit, or set to {@link ANALYTICS_RANGE_GROUP_BY}. */
   groupBy?: typeof ANALYTICS_RANGE_GROUP_BY;
   labelFilters?: AnalyticsLabelFilter[];
@@ -189,6 +210,11 @@ export class AnalyticsEventClient {
     if (request.groupBy !== undefined && request.groupBy !== ANALYTICS_RANGE_GROUP_BY) {
       throw new RangeError(`custd: analytics range query groupBy must be "${ANALYTICS_RANGE_GROUP_BY}"`);
     }
+    if (request.source !== undefined && !ANALYTICS_RANGE_QUERY_SOURCES.includes(request.source)) {
+      throw new RangeError(
+        `custd: analytics range query source must be one of ${ANALYTICS_RANGE_QUERY_SOURCES.filter((value) => value !== "").join(", ")}`,
+      );
+    }
     assertRangeWithinLimit(request.from, request.to);
 
     const body: Record<string, unknown> = { from: request.from, to: request.to };
@@ -198,7 +224,7 @@ export class AnalyticsEventClient {
     if (request.limit !== undefined) {
       body.limit = request.limit;
     }
-    if (request.source !== undefined) {
+    if (request.source !== undefined && request.source !== "") {
       body.source = request.source;
     }
     if (request.groupBy !== undefined) {
@@ -208,7 +234,8 @@ export class AnalyticsEventClient {
       body.labelFilters = labelFilters;
     }
 
-    return this.request("POST", "/analytics/query-range", body, options);
+    const value = await this.request<unknown>("POST", "/analytics/query-range", body, options);
+    return assertRangeQueryResponse(value);
   }
 }
 
@@ -235,4 +262,48 @@ function parseUTCDay(value: string, field: string): number {
     throw new RangeError(`custd: analytics range query ${field} must be YYYY-MM-DD`);
   }
   return ms;
+}
+
+// assertRangeQueryResponse validates the named range response DTO. The service
+// emits every required field, so a truncated or wrongly shaped body fails here
+// instead of surfacing as a zero-valued result.
+function assertRangeQueryResponse(value: unknown): AnalyticsEventRangeQueryResponse {
+  const context = "analytics range response";
+  const response = requireRecord(value, context);
+  for (const [index, row] of requireObjectList(response, "rows", context).entries()) {
+    // A row is an open column bag, but `payload` is a declared object field, so
+    // a present null or array fails instead of being passed through.
+    optionalRecord(row, "payload", `${context} rows[${index}]`);
+  }
+  requireInteger(response, "count", context);
+  for (const [index, bucket] of requireObjectList(response, "buckets", context).entries()) {
+    const bucketContext = `${context} buckets[${index}]`;
+    requireString(bucket, "date", bucketContext);
+    requireInteger(bucket, "count", bucketContext);
+    requireString(bucket, "source", bucketContext);
+    requireBoolean(bucket, "complete", bucketContext);
+    requireInteger(bucket, "queryDurationMs", bucketContext);
+    optionalInteger(bucket, "parquetUriCount", bucketContext);
+    optionalString(bucket, "message", bucketContext);
+  }
+  for (const [index, source] of requireObjectList(response, "sources", context).entries()) {
+    const sourceContext = `${context} sources[${index}]`;
+    requireString(source, "name", sourceContext);
+    requireInteger(source, "count", sourceContext);
+    requireBoolean(source, "complete", sourceContext);
+    requireBoolean(source, "fresh", sourceContext);
+    requireInteger(source, "queryDurationMs", sourceContext);
+    requireInteger(source, "freshnessLagMs", sourceContext);
+    optionalInteger(source, "parquetUriCount", sourceContext);
+    optionalString(source, "message", sourceContext);
+  }
+  const timing = requireRecord(response.timing, `${context} timing`);
+  requireInteger(timing, "eventLagP50Ms", `${context} timing`);
+  requireInteger(timing, "eventLagP95Ms", `${context} timing`);
+  requireInteger(timing, "eventLagMaxMs", `${context} timing`);
+  requireInteger(timing, "queryDurationMs", `${context} timing`);
+  requireInteger(timing, "snapshotAgeMs", `${context} timing`);
+  optionalString(timing, "oldestEventTimestamp", `${context} timing`);
+  optionalString(timing, "newestEventTimestamp", `${context} timing`);
+  return response as unknown as AnalyticsEventRangeQueryResponse;
 }

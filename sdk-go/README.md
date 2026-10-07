@@ -282,7 +282,7 @@ response, err := client.Analytics.QueryRange(ctx, custd.AnalyticsEventRangeQuery
     To:        "2026-05-23",
     EventType: "page-view",
     Limit:     10000,
-    Source:    custd.AnalyticsSourceAuto,
+    Source:    custd.AnalyticsRangeSourceAuto,
     GroupBy:   custd.AnalyticsRangeGroupByDay,
 })
 ```
