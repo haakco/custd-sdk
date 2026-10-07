@@ -33,6 +33,11 @@ class AdminRequestOptions(TypedDict, total=False):
     """Optional metadata applied to one authenticated admin request."""
 
     idempotency_key: str
+    # The platform user a machine credential acts for, sent as
+    # X-Custd-Owning-User-UUID. The /admin/auth-projects surface requires it for
+    # a machine caller; a human administrator's own token subject is the actor
+    # and leaves it unset.
+    owning_user_uuid: str
 
 
 TokenProvider = Callable[[], str]
@@ -579,6 +584,7 @@ class AdminClient:
         self.schemas = SchemaAdminClient(self)
         self.measurement = MeasurementAdminClient(self)
         from .admin_audit import AuditAdminClient
+        from .admin_auth_projects import AuthProjectAdminClient
         from .admin_data_labels import DataLabelAdminClient
         from .admin_offboarding import OffboardingClient
         from .admin_predictions import PredictionAdminClient
@@ -599,6 +605,7 @@ class AdminClient:
         self.time_plans = TimePlanAdminClient(self)
         self.audit = AuditAdminClient(self)
         self.usage = UsageAdminClient(self)
+        self.auth_projects = AuthProjectAdminClient(self)
 
     def request(
         self,
@@ -608,9 +615,13 @@ class AdminClient:
         options: AdminRequestOptions | None = None,
     ) -> TransportResult:
         headers = self._client._headers()
-        idempotency_key = (options or {}).get("idempotency_key")
+        options = options or {}
+        idempotency_key = options.get("idempotency_key")
         if isinstance(idempotency_key, str) and idempotency_key.strip():
             headers["Idempotency-Key"] = idempotency_key.strip()
+        owning_user_uuid = options.get("owning_user_uuid")
+        if isinstance(owning_user_uuid, str) and owning_user_uuid.strip():
+            headers["X-Custd-Owning-User-UUID"] = owning_user_uuid.strip()
         result = self._transport(
             method,
             self._client.base_url + "/api/v1/admin" + path,

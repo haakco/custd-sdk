@@ -384,6 +384,44 @@ days), an omitted `limit` uses `UsageClient::DEFAULT_LIMIT`, and a limit outside
 `1..UsageClient::MAX_LIMIT` or an invalid RFC3339 window throws before a request
 is sent.
 
+## Auth-project admin helpers
+
+`$client->adminAuthProjects()` manages Custd projects, their environments, and
+the application principals a directory holds, through
+`/api/v1/admin/auth-projects`:
+
+- `createProject` / `listProjects` (pass the previous `nextAfter` as the `$after` cursor)
+- `createEnvironment`
+- `listPrincipalSessions`, `revokePrincipalSession`, `revokePrincipalSessions`
+- `revokePrincipalMembership`
+
+Every call takes an `AuthProject\RequestOptions`. A machine credential must name
+the platform user it acts for in `owningUserUuid`, sent as
+`X-Custd-Owning-User-UUID`; Custd validates the named user as a live member of
+the machine's own company. A human administrator's own token subject is the actor
+and leaves it unset. The operations Custd makes retry-safe (`createProject`,
+`revokePrincipalSession`, `revokePrincipalSessions`) require `idempotencyKey` and
+throw before a request is sent when it is blank.
+
+```php
+$creation = $client->adminAuthProjects()->createProject(
+    new \HaakCo\Custd\Admin\AuthProject\CreateRequest(
+        slug: "hosting-eu",
+        name: "Hosting EU",
+        environmentSlug: "production",
+        identityMode: \HaakCo\Custd\Admin\AuthProjectClient::IDENTITY_ISOLATED,
+    ),
+    new \HaakCo\Custd\Admin\AuthProject\RequestOptions(
+        owningUserUuid: $owningUserUuid,
+        idempotencyKey: "create-hosting-eu",
+    ),
+);
+```
+
+Responses are typed `HaakCo\Custd\Admin\AuthProject` DTOs: `Creation`,
+`ListResponse`, `ApplicationSessionInventory`, `SessionRevocation` and
+`MembershipRevocation`.
+
 ## Analytics range query
 
 `$client->analytics()->queryRange()` reads a tenant's own events across an

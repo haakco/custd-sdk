@@ -221,6 +221,11 @@ final class CustdClient
         return new Admin\UsageClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    public function adminAuthProjects(): Admin\AuthProjectClient
+    {
+        return new Admin\AuthProjectClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
     public function provisioning(): Provisioning\Client
     {
         return new Provisioning\Client($this->baseUrl, $this->authToken(), $this->adminHttpClient);

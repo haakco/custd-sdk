@@ -433,6 +433,35 @@ service default (the trailing 30 days) and an omitted `limit` uses
 `USAGE_DEFAULT_LIMIT`; a limit outside `1..USAGE_MAX_LIMIT` rejects before a
 request is sent.
 
+## Auth-project admin helpers
+
+`client.admin.authProjects` manages Custd projects, their environments, and the
+application principals a directory holds, through `/api/v1/admin/auth-projects`:
+
+- `createProject` / `listProjects` (pass the previous `nextAfter` as the `after` cursor)
+- `createEnvironment`
+- `listPrincipalSessions`, `revokePrincipalSession`, `revokePrincipalSessions`
+- `revokePrincipalMembership`
+
+Every call takes `RequestOptions`. A machine credential must name the platform
+user it acts for in `owningUserUuid`, sent as `X-Custd-Owning-User-UUID`; Custd
+validates the named user as a live member of the machine's own company. A human
+administrator's own token subject is the actor and leaves it unset. The
+operations Custd makes retry-safe (`createProject`, `revokePrincipalSession`,
+`revokePrincipalSessions`) require `idempotencyKey` and reject an empty value
+before a request is sent.
+
+```ts
+const creation = await client.admin.authProjects.createProject(
+  { slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "isolated" },
+  { owningUserUuid, idempotencyKey: "create-hosting-eu" },
+);
+```
+
+Responses are typed: `AuthProjectCreation`, `AuthProjectListResponse`,
+`ApplicationSessionInventory`, `ApplicationSessionRevocation` and
+`ApplicationMembershipRevocation`.
+
 ## Analytics range query
 
 `client.analytics.queryRange` reads a tenant's own events across an inclusive

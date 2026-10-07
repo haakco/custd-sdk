@@ -358,6 +358,50 @@ These helpers were introduced in `v1.8.25`. Release `v1.8.26` updates
 correction commands to target transitions by UUID through the typed
 `supersedesTransitionUuid` field.
 
+## Auth-project Admin Helpers
+
+A consumer service that provisions and operates its own Custd identity instances
+uses the project-auth control plane (`/api/v1/admin/auth-projects`) through the
+same typed admin clients:
+
+- create a project and list the projects the named owning user owns or operates
+- add an environment to an existing project
+- list an application principal's sessions, revoke one session, revoke all sessions
+- revoke an application principal's membership of one organisation
+
+The machine caller's owning-user header is explicit: every call takes request
+options whose `owningUserUuid` is sent as `X-Custd-Owning-User-UUID`. Custd
+validates the named user as a live member of the machine caller's own company; a
+human administrator's own token subject is the actor and leaves the option
+unset. The operations Custd makes retry-safe (create project, revoke one
+session, revoke all sessions) require an idempotency key and reject an empty one
+before a request is sent.
+
+Use the language-specific entry point:
+
+- Go: `client.Admin.AuthProjects` with `AuthProject*` and `Application*` structs.
+- TypeScript: `client.admin.authProjects` with the exported `AuthProject*` and `Application*` types.
+- Python: `client.admin.auth_projects` with the `AuthProject*` and `Application*` typed dicts.
+- PHP: `$client->adminAuthProjects()` with `HaakCo\Custd\Admin\AuthProject\*` DTOs.
+
+```ts
+const creation = await client.admin.authProjects.createProject(
+  { slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "isolated" },
+  { owningUserUuid, idempotencyKey: "create-hosting-eu" },
+);
+
+const inventory = await client.admin.authProjects.listPrincipalSessions(
+  creation.project.projectId,
+  creation.project.environmentId,
+  directoryId,
+  providerSubject,
+  { owningUserUuid },
+);
+```
+
+Every response is a named typed DTO; no operation the Admin API does not expose is
+added, and the owning-user header is never sent unless the caller names it.
+
 ## Audit Admin Readers
 
 Go, TypeScript, Python, and PHP expose the canonical admin audit readers:
@@ -404,6 +448,7 @@ cap. Clients must treat export bytes as opaque and must not log audit details.
 | Tenant usage report | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Analytics event range query | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Typed time-plan admin clients | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
+| Auth-project admin clients (projects/environments/principals) | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Dogfood event helper | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Browser tracker | no, not a browser runtime | yes | no, not a browser runtime | no, not a browser runtime | no, use JS tracker | install/use JS tracker |
 | Awthy audit/redaction DTOs | no, not generic | no, not generic | no, not generic | yes | via PHP SDK | out of scope |

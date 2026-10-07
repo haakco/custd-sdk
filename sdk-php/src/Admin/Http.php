@@ -28,8 +28,19 @@ final class Http
         ?array $body = null,
         string $prefix = "/api/v1/admin",
         ?string $idempotencyKey = null,
+        ?string $owningUserUuid = null,
     ): ?array {
-        $responseBody = self::readBody($baseUrl, $token, $transport, $method, $path, $body, $prefix, $idempotencyKey);
+        $responseBody = self::readBody(
+            $baseUrl,
+            $token,
+            $transport,
+            $method,
+            $path,
+            $body,
+            $prefix,
+            $idempotencyKey,
+            $owningUserUuid,
+        );
         if ($responseBody === null) {
             return null;
         }
@@ -56,8 +67,19 @@ final class Http
         ?array $body = null,
         string $prefix = "/api/v1/admin",
         ?string $idempotencyKey = null,
+        ?string $owningUserUuid = null,
     ): mixed {
-        $responseBody = self::readBody($baseUrl, $token, $transport, $method, $path, $body, $prefix, $idempotencyKey);
+        $responseBody = self::readBody(
+            $baseUrl,
+            $token,
+            $transport,
+            $method,
+            $path,
+            $body,
+            $prefix,
+            $idempotencyKey,
+            $owningUserUuid,
+        );
         if ($responseBody === null) {
             return null;
         }
@@ -80,11 +102,15 @@ final class Http
         ?array $body,
         string $prefix,
         ?string $idempotencyKey,
+        ?string $owningUserUuid,
     ): ?string {
         $url = rtrim($baseUrl, "/") . $prefix . $path;
         $headers = [];
         if ($idempotencyKey !== null && trim($idempotencyKey) !== "") {
             $headers["Idempotency-Key"] = trim($idempotencyKey);
+        }
+        if ($owningUserUuid !== null && trim($owningUserUuid) !== "") {
+            $headers["X-Custd-Owning-User-UUID"] = trim($owningUserUuid);
         }
         $result = $transport
             ? $transport($method, $url, $body, $token, $headers)

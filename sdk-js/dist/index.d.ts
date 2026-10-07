@@ -1,3 +1,4 @@
+import { AuthProjectAdminClient } from "./admin-auth-projects.js";
 import { ClientSetupClient } from "./admin-client-setup.js";
 import { DataLabelAdminClient } from "./admin-data-labels.js";
 import { OffboardingClient, type OffboardingDownloadResponse } from "./admin-offboarding.js";
@@ -10,6 +11,7 @@ import { TimePlanAdminClient } from "./admin-timeplans.js";
 import { UsageAdminClient } from "./admin-usage.js";
 import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
+export { type ApplicationMembershipRevocation, type ApplicationMembershipRevokeRequest, type ApplicationSession, type ApplicationSessionInventory, type ApplicationSessionRevocation, type ApplicationSessionRevokeRequest, type ApplicationSessionsRevokeAllRequest, AuthProjectAdminClient, type AuthProjectCreateRequest, type AuthProjectCreation, type AuthProjectEnvironmentCreateRequest, type AuthProjectIdentityMode, type AuthProjectListResponse, type AuthProjectSummary, } from "./admin-auth-projects.js";
 export { type ClientSetupApplyAndWaitOptions, type ClientSetupApplyAndWaitResult, type ClientSetupApplyOptions, type ClientSetupApplyResponse, ClientSetupClient, type ClientSetupManifest, type ClientSetupOAuthClientDesiredState, type ClientSetupOAuthPurposeProfile, type ClientSetupOperationStatus, type ClientSetupPrivacyDesiredState, type ClientSetupPrivacyRule, type ClientSetupReadinessResponse, type ClientSetupReportingPackDesiredState, type ClientSetupResourceStatus, type ClientSetupRetentionDesiredState, type ClientSetupSchemaDesiredState, validateClientSetupManifest, } from "./admin-client-setup.js";
 export { DataLabelAdminClient, type DataLabelAssignmentListResponse, type DataLabelCatalogue, type DataLabelCatalogueAssignment, type DataLabelCatalogueDataset, type DataLabelCataloguePack, type DataLabelCatalogueResponse, type DataLabelDefinition, type DataLabelDefinitionCreateRequest, type DataLabelDefinitionListResponse, type DataLabelDefinitionUpdateRequest, type DataLabelPropagationPolicy, type DataLabelSensitivity, type DataLabelUsage, type DataLabelUsageListResponse, type DataLabelValue, type DataLabelValueCreateRequest, type DataLabelValueUpdateRequest, type DescriptiveDataLabel, type EventTypeDataLabelDefault, type EventTypeDataLabelDefaultRequest, type SchemaFieldDataLabelAssignment, type SchemaFieldDataLabelAssignmentRequest, } from "./admin-data-labels.js";
 export { type OffboardingAcknowledgeResponse, type OffboardingCancelRequest, OffboardingClient, type OffboardingDownloadResponse, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPreviewResponse, type OffboardingPreviewStore, type OffboardingReceiptPerStore, type OffboardingReceiptResponse, type OffboardingRequest, type OffboardingRequestCreate, type OffboardingRetryResponse, type OffboardingSchedule, type OffboardingScheduleListResponse, type OffboardingScheduleRequest, type OffboardingWaiver, } from "./admin-offboarding.js";
@@ -175,6 +177,13 @@ export type RequestOptions = {
     signal?: AbortSignal;
     /** Stable key for retry-safe POST operations supported by the API. */
     idempotencyKey?: string;
+    /**
+     * The platform user a machine credential acts for, sent as
+     * X-Custd-Owning-User-UUID. Required by the /admin/auth-projects surface for a
+     * machine caller; a human administrator's own token subject is the actor and
+     * leaves it unset.
+     */
+    owningUserUuid?: string;
 };
 export declare class AdminWorkflowError extends Error {
     readonly status: number;
@@ -1147,6 +1156,7 @@ declare class AdminNamespace {
     readonly privacyErasures: PrivacyErasureClient;
     readonly timePlans: TimePlanAdminClient;
     readonly usage: UsageAdminClient;
+    readonly authProjects: AuthProjectAdminClient;
     constructor(request: AdminRequester, nonAdminRequest: NonAdminRequester, offboardingDownload: (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>, auditExportDownload: AdminAuditDownloader);
 }
 declare class ProvisioningNamespace {

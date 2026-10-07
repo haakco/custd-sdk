@@ -1,3 +1,4 @@
+import { AuthProjectAdminClient } from "./admin-auth-projects.js";
 import { ClientSetupClient } from "./admin-client-setup.js";
 import { DataLabelAdminClient } from "./admin-data-labels.js";
 import { OffboardingClient, type OffboardingDownloadResponse } from "./admin-offboarding.js";
@@ -13,6 +14,22 @@ import { BackendLifecycleClient } from "./backend-lifecycle.js";
 import { basicAuthorization } from "./oauth.js";
 import { SDK_IDENTITY } from "./version.js";
 
+export {
+  type ApplicationMembershipRevocation,
+  type ApplicationMembershipRevokeRequest,
+  type ApplicationSession,
+  type ApplicationSessionInventory,
+  type ApplicationSessionRevocation,
+  type ApplicationSessionRevokeRequest,
+  type ApplicationSessionsRevokeAllRequest,
+  AuthProjectAdminClient,
+  type AuthProjectCreateRequest,
+  type AuthProjectCreation,
+  type AuthProjectEnvironmentCreateRequest,
+  type AuthProjectIdentityMode,
+  type AuthProjectListResponse,
+  type AuthProjectSummary,
+} from "./admin-auth-projects.js";
 export {
   type ClientSetupApplyAndWaitOptions,
   type ClientSetupApplyAndWaitResult,
@@ -431,6 +448,13 @@ export type RequestOptions = {
   signal?: AbortSignal;
   /** Stable key for retry-safe POST operations supported by the API. */
   idempotencyKey?: string;
+  /**
+   * The platform user a machine credential acts for, sent as
+   * X-Custd-Owning-User-UUID. Required by the /admin/auth-projects surface for a
+   * machine caller; a human administrator's own token subject is the actor and
+   * leaves it unset.
+   */
+  owningUserUuid?: string;
 };
 
 export class AdminWorkflowError extends Error {
@@ -1855,6 +1879,7 @@ export class CustdClient {
           Authorization: `Bearer ${token}`,
           ...this.defaultHeaders,
           ...(options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
+          ...(options?.owningUserUuid ? { "X-Custd-Owning-User-UUID": options.owningUserUuid } : {}),
         },
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: options?.signal,
@@ -2345,6 +2370,7 @@ class AdminNamespace {
   readonly privacyErasures: PrivacyErasureClient;
   readonly timePlans: TimePlanAdminClient;
   readonly usage: UsageAdminClient;
+  readonly authProjects: AuthProjectAdminClient;
 
   constructor(
     request: AdminRequester,
@@ -2372,6 +2398,7 @@ class AdminNamespace {
     this.privacyErasures = new PrivacyErasureClient(request);
     this.timePlans = new TimePlanAdminClient(request);
     this.usage = new UsageAdminClient(request);
+    this.authProjects = new AuthProjectAdminClient(request);
   }
 }
 

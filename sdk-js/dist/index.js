@@ -1,3 +1,4 @@
+import { AuthProjectAdminClient } from "./admin-auth-projects.js";
 import { ClientSetupClient } from "./admin-client-setup.js";
 import { DataLabelAdminClient } from "./admin-data-labels.js";
 import { OffboardingClient } from "./admin-offboarding.js";
@@ -12,6 +13,7 @@ import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
 import { basicAuthorization } from "./oauth.js";
 import { SDK_IDENTITY } from "./version.js";
+export { AuthProjectAdminClient, } from "./admin-auth-projects.js";
 export { ClientSetupClient, validateClientSetupManifest, } from "./admin-client-setup.js";
 export { DataLabelAdminClient, } from "./admin-data-labels.js";
 export { OffboardingClient, } from "./admin-offboarding.js";
@@ -468,6 +470,7 @@ export class CustdClient {
                     Authorization: `Bearer ${token}`,
                     ...this.defaultHeaders,
                     ...(options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
+                    ...(options?.owningUserUuid ? { "X-Custd-Owning-User-UUID": options.owningUserUuid } : {}),
                 },
                 body: body === undefined ? undefined : JSON.stringify(body),
                 signal: options?.signal,
@@ -843,6 +846,7 @@ class AdminNamespace {
         this.privacyErasures = new PrivacyErasureClient(request);
         this.timePlans = new TimePlanAdminClient(request);
         this.usage = new UsageAdminClient(request);
+        this.authProjects = new AuthProjectAdminClient(request);
     }
 }
 class ProvisioningNamespace {

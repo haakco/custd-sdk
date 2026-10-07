@@ -78,6 +78,21 @@ __all__ = [
     "UsageReport",
     "UsageRow",
     "UsageTotal",
+    "AUTH_PROJECT_IDENTITY_MODES",
+    "ApplicationMembershipRevocation",
+    "ApplicationMembershipRevokeRequest",
+    "ApplicationSession",
+    "ApplicationSessionInventory",
+    "ApplicationSessionRevocation",
+    "ApplicationSessionRevokeRequest",
+    "ApplicationSessionsRevokeAllRequest",
+    "AuthProjectAdminClient",
+    "AuthProjectCreateRequest",
+    "AuthProjectCreation",
+    "AuthProjectEnvironmentCreateRequest",
+    "AuthProjectIdentityMode",
+    "AuthProjectListResponse",
+    "AuthProjectSummary",
 ]
 
 from ._lifecycle_fixtures import read_lifecycle_fixture
@@ -95,6 +110,23 @@ from .admin_audit import (
     AuditScope,
     ReportingPackAuditEvent,
     ReportingPackAuditListResponse,
+)
+from .admin_auth_projects import (
+    AUTH_PROJECT_IDENTITY_MODES,
+    ApplicationMembershipRevocation,
+    ApplicationMembershipRevokeRequest,
+    ApplicationSession,
+    ApplicationSessionInventory,
+    ApplicationSessionRevocation,
+    ApplicationSessionRevokeRequest,
+    ApplicationSessionsRevokeAllRequest,
+    AuthProjectAdminClient,
+    AuthProjectCreateRequest,
+    AuthProjectCreation,
+    AuthProjectEnvironmentCreateRequest,
+    AuthProjectIdentityMode,
+    AuthProjectListResponse,
+    AuthProjectSummary,
 )
 from .admin_data_labels import DataLabelAdminClient
 from .admin_offboarding import OffboardingClient
