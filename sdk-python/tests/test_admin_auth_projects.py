@@ -222,7 +222,7 @@ class AuthProjectAdminClientTest(unittest.TestCase):
             "environment-1",
             "directory-1",
             "subject-1",
-            {"organisationId": "organisation-1", "reason": "offboarded"},
+            {"organisationId": "organisation-1"},
             {"owning_user_uuid": OWNING_USER},
         )
 
@@ -232,7 +232,7 @@ class AuthProjectAdminClientTest(unittest.TestCase):
             "/directories/directory-1/principals/subject-1/memberships/revoke",
             call["url"],
         )
-        self.assertEqual({"organisationId": "organisation-1", "reason": "offboarded"}, call["payload"])
+        self.assertEqual({"organisationId": "organisation-1"}, call["payload"])
         self.assertTrue(revocation["removed"])
         self.assertEqual("organisation-1", revocation["organisationId"])
 

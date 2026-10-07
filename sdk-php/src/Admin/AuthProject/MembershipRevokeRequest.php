@@ -14,7 +14,6 @@ final readonly class MembershipRevokeRequest
 {
     public function __construct(
         public string $organisationId,
-        public string $reason = '',
     ) {
         if (trim($organisationId) === "") {
             throw new \InvalidArgumentException("custd: auth-project organisationId is required");
@@ -24,11 +23,6 @@ final readonly class MembershipRevokeRequest
     /** @return array<string, mixed> */
     public function toPayload(): array
     {
-        $payload = ["organisationId" => $this->organisationId];
-        if (trim($this->reason) !== "") {
-            $payload["reason"] = $this->reason;
-        }
-
-        return $payload;
+        return ["organisationId" => $this->organisationId];
     }
 }

@@ -242,7 +242,7 @@ describe("admin auth projects", () => {
       "environment-1",
       "directory-1",
       "subject-1",
-      { organisationId: "organisation-1", reason: "offboarded" },
+      { organisationId: "organisation-1" },
       { owningUserUuid: owningUser },
     );
 
@@ -252,7 +252,7 @@ describe("admin auth projects", () => {
         "/directories/directory-1/principals/subject-1/memberships/revoke",
     );
     expect(init.method).toBe("POST");
-    expect(JSON.parse(String(init.body))).toEqual({ organisationId: "organisation-1", reason: "offboarded" });
+    expect(JSON.parse(String(init.body))).toEqual({ organisationId: "organisation-1" });
     expect(revocation.removed).toBe(true);
     expect(revocation.organisationId).toBe("organisation-1");
   });

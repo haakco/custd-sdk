@@ -229,7 +229,7 @@ final class AuthProjectClientTest extends TestCase
             "environment-1",
             "directory-1",
             "subject-1",
-            new MembershipRevokeRequest(organisationId: "organisation-1", reason: "offboarded"),
+            new MembershipRevokeRequest(organisationId: "organisation-1"),
             new RequestOptions(owningUserUuid: self::OWNING_USER),
         );
 
@@ -238,7 +238,7 @@ final class AuthProjectClientTest extends TestCase
                 . "/directories/directory-1/principals/subject-1/memberships/revoke"],
             array_column($calls, "url")
         );
-        self::assertSame(["organisationId" => "organisation-1", "reason" => "offboarded"], $calls[0]["body"]);
+        self::assertSame(["organisationId" => "organisation-1"], $calls[0]["body"]);
         self::assertInstanceOf(MembershipRevocation::class, $revocation);
         self::assertTrue($revocation->removed);
         self::assertSame("organisation-1", $revocation->organisationId);

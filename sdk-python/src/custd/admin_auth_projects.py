@@ -122,7 +122,6 @@ class ApplicationMembershipRevokeRequest(TypedDict):
     """Body of POST .../principals/{providerSubject}/memberships/revoke."""
 
     organisationId: str
-    reason: NotRequired[str]
 
 
 class ApplicationMembershipRevocation(TypedDict):

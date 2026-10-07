@@ -99,7 +99,6 @@ export type ApplicationSessionsRevokeAllRequest = {
 /** Body of POST .../principals/{providerSubject}/memberships/revoke. */
 export type ApplicationMembershipRevokeRequest = {
   organisationId: string;
-  reason?: string;
 };
 
 /** Response to ending a membership. The row is kept with removedAt stamped. */
