@@ -19,6 +19,24 @@ SUMMARY: dict[str, Any] = {
     "identityMode": "isolated",
 }
 
+DESIRED_STATE: dict[str, Any] = {
+    "identityMode": "isolated",
+    "registrationPolicy": "invite_only",
+    "loginPaused": False,
+    "audiences": [
+        {
+            "audience": "hosting-edge",
+            "publicClient": True,
+            "redirectUris": ["https://app.example.com/callback"],
+            "postLogoutRedirectUris": ["https://app.example.com/logout"],
+            "allowedOrigins": ["https://app.example.com"],
+        }
+    ],
+    "profileFields": [
+        {"key": "contact_email", "required": True, "visibleToApplication": True, "editableBy": "user"}
+    ],
+}
+
 
 class RecordingTransport:
     def __init__(self, body: Any):
@@ -237,6 +255,129 @@ class AuthProjectAdminClientTest(unittest.TestCase):
         call = transport.calls[0]
         self.assertEqual("http://localhost:8080/api/v1/admin/auth-projects", call["url"])
         self.assertNotIn(OWNING_USER_HEADER, call["headers"])
+
+    def test_applies_the_environment_desired_state(self) -> None:
+        client, transport = client_with(
+            {
+                "id": "op-1",
+                "kind": "project_auth_config_update",
+                "status": "applied",
+                "revision": 7,
+                "idempotencyKey": "idem-apply",
+                "appliedAt": "2026-10-07T00:00:00Z",
+                "replayed": False,
+            }
+        )
+
+        operation = client.admin.auth_projects.apply_environment_desired_state(
+            "project-1",
+            "environment-1",
+            {"desiredState": DESIRED_STATE, "expectedRevision": 6},
+            {"owning_user_uuid": OWNING_USER, "idempotency_key": "idem-apply"},
+        )
+
+        call = transport.calls[0]
+        self.assertEqual("POST", call["method"])
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/apply",
+            call["url"],
+        )
+        self.assertEqual(OWNING_USER, call["headers"][OWNING_USER_HEADER])
+        self.assertEqual("idem-apply", call["headers"]["Idempotency-Key"])
+        self.assertEqual(
+            {"desiredState": DESIRED_STATE, "expectedRevision": 6},
+            call["payload"],
+        )
+        self.assertEqual("op-1", operation["id"])
+        self.assertEqual(7, operation["revision"])
+        self.assertFalse(operation["replayed"])
+
+    def test_previews_the_environment_desired_state(self) -> None:
+        client, transport = client_with(
+            {
+                "projectId": "project-1",
+                "environmentId": "environment-1",
+                "revision": 7,
+                "changes": [
+                    {"field": "desired.audiences", "before": "[]", "after": "[hosting-edge]"}
+                ],
+                "sideEffects": ["client_registration"],
+                "noOp": False,
+            }
+        )
+
+        preview = client.admin.auth_projects.preview_environment_desired_state(
+            "project-1",
+            "environment-1",
+            {"desiredState": DESIRED_STATE, "expectedRevision": 6},
+            {"owning_user_uuid": OWNING_USER},
+        )
+
+        call = transport.calls[0]
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/preview",
+            call["url"],
+        )
+        self.assertEqual("desired.audiences", preview["changes"][0]["field"])
+        self.assertEqual(["client_registration"], preview["sideEffects"])
+        self.assertFalse(preview["noOp"])
+
+    def test_reads_the_audience_binding_back_from_environment_status(self) -> None:
+        client, transport = client_with(
+            {
+                "projectId": "project-1",
+                "environmentId": "environment-1",
+                "revision": 7,
+                "desired": DESIRED_STATE,
+                "reconciled": True,
+                "reconcileNote": "",
+                "loginReady": False,
+                "loginNote": "",
+                "clientSync": {
+                    "clientIds": ["custd-app-environment-1-hosting-edge"],
+                    "revision": 7,
+                    "checkedAt": "2026-10-07T00:00:00Z",
+                    "current": True,
+                    "registrations": [
+                        {
+                            "audience": "hosting-edge",
+                            "clientId": "custd-app-environment-1-hosting-edge",
+                            "observed": True,
+                        }
+                    ],
+                },
+            }
+        )
+
+        status = client.admin.auth_projects.get_environment_status(
+            "project-1", "environment-1", {"owning_user_uuid": OWNING_USER}
+        )
+
+        call = transport.calls[0]
+        self.assertEqual("GET", call["method"])
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/status",
+            call["url"],
+        )
+        self.assertEqual("environment-1", status["environmentId"])
+        self.assertEqual("hosting-edge", status["desired"]["audiences"][0]["audience"])
+        self.assertEqual(
+            "custd-app-environment-1-hosting-edge",
+            status["clientSync"]["registrations"][0]["clientId"],
+        )
+
+    def test_rejects_a_missing_idempotency_key_on_apply_before_sending(self) -> None:
+        client, transport = client_with({})
+
+        with self.assertRaises(ValueError):
+            client.admin.auth_projects.apply_environment_desired_state(
+                "project-1",
+                "environment-1",
+                {"desiredState": DESIRED_STATE, "expectedRevision": 6},
+                {"owning_user_uuid": OWNING_USER},
+            )
+
+        self.assertEqual([], transport.calls)
 
 
 if __name__ == "__main__":

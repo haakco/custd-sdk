@@ -131,6 +131,76 @@ final class Fields
     }
 
     /**
+     * optionalObject returns an optional nested JSON object: null when the field
+     * is absent or null, otherwise the same validation as {@see object}.
+     *
+     * @param \stdClass $payload
+     */
+    public static function optionalObject(\stdClass $payload, string $key): ?\stdClass
+    {
+        $value = self::optional($payload, $key);
+        if ($value === null) {
+            return null;
+        }
+        if (!$value instanceof \stdClass) {
+            throw new \UnexpectedValueException("custd: response field {$key} must be an object");
+        }
+
+        return $value;
+    }
+
+    /**
+     * optionalObjects returns an optional JSON array of JSON objects: null when
+     * the field is absent or null, otherwise the same validation as
+     * {@see objects}.
+     *
+     * @param \stdClass $payload
+     * @return list<\stdClass>|null
+     */
+    public static function optionalObjects(\stdClass $payload, string $key): ?array
+    {
+        $value = self::optional($payload, $key);
+        if ($value === null) {
+            return null;
+        }
+        if (!is_array($value) || !array_is_list($value)) {
+            throw new \UnexpectedValueException("custd: response field {$key} must be a list");
+        }
+        foreach ($value as $item) {
+            if (!$item instanceof \stdClass) {
+                throw new \UnexpectedValueException("custd: response field {$key} must contain objects");
+            }
+        }
+        /** @var list<\stdClass> $value */
+        return $value;
+    }
+
+    /**
+     * optionalStrings returns an optional JSON array of strings: null when the
+     * field is absent or null, otherwise a validated list of strings.
+     *
+     * @param \stdClass $payload
+     * @return list<string>|null
+     */
+    public static function optionalStrings(\stdClass $payload, string $key): ?array
+    {
+        $value = self::optional($payload, $key);
+        if ($value === null) {
+            return null;
+        }
+        if (!is_array($value) || !array_is_list($value)) {
+            throw new \UnexpectedValueException("custd: response field {$key} must be a list");
+        }
+        foreach ($value as $item) {
+            if (!is_string($item)) {
+                throw new \UnexpectedValueException("custd: response field {$key} must contain strings");
+            }
+        }
+        /** @var list<string> $value */
+        return $value;
+    }
+
+    /**
      * objectList returns the named required list of JSON objects converted to
      * the associative arrays the public column-bag DTO exposes. Object/list
      * shape is still enforced on the shape-preserving decode first.

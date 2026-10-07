@@ -7,14 +7,18 @@ namespace HaakCo\Custd\Admin;
 use HaakCo\Custd\Admin\AuthProject\ApplicationSessionInventory;
 use HaakCo\Custd\Admin\AuthProject\Creation;
 use HaakCo\Custd\Admin\AuthProject\CreateRequest;
+use HaakCo\Custd\Admin\AuthProject\DesiredStateRequest;
 use HaakCo\Custd\Admin\AuthProject\EnvironmentCreateRequest;
 use HaakCo\Custd\Admin\AuthProject\ListResponse;
 use HaakCo\Custd\Admin\AuthProject\MembershipRevocation;
 use HaakCo\Custd\Admin\AuthProject\MembershipRevokeRequest;
+use HaakCo\Custd\Admin\AuthProject\Operation;
+use HaakCo\Custd\Admin\AuthProject\Preview;
 use HaakCo\Custd\Admin\AuthProject\RequestOptions;
 use HaakCo\Custd\Admin\AuthProject\SessionRevocation;
 use HaakCo\Custd\Admin\AuthProject\SessionRevokeRequest;
 use HaakCo\Custd\Admin\AuthProject\SessionsRevokeAllRequest;
+use HaakCo\Custd\Admin\AuthProject\Status;
 use HaakCo\Custd\Admin\AuthProject\Summary;
 
 /**
@@ -142,6 +146,63 @@ final class AuthProjectClient
         $path = self::principalPath($projectId, $environmentId, $directoryId, $providerSubject) . "/memberships/revoke";
 
         return MembershipRevocation::fromPayload($this->call("POST", $path, $body->toPayload(), $options));
+    }
+
+    /**
+     * Write the environment's desired state and return the operation receipt.
+     *
+     * Custd makes it retry-safe per Idempotency-Key, so the key is required. The
+     * audience binding the consumer's edge admits against is written here and
+     * read back through {@see getEnvironmentStatus}.
+     */
+    public function applyEnvironmentDesiredState(
+        string $projectId,
+        string $environmentId,
+        DesiredStateRequest $body,
+        ?RequestOptions $options = null,
+    ): Operation {
+        self::requireIdempotencyKey($options);
+        $path = self::environmentPath($projectId, $environmentId) . "/apply";
+
+        return Operation::fromPayload($this->call("POST", $path, $body->toPayload(), $options));
+    }
+
+    /** Report the field-level changes an apply would make. A preview writes nothing. */
+    public function previewEnvironmentDesiredState(
+        string $projectId,
+        string $environmentId,
+        DesiredStateRequest $body,
+        ?RequestOptions $options = null,
+    ): Preview {
+        $path = self::environmentPath($projectId, $environmentId) . "/preview";
+
+        return Preview::fromPayload($this->call("POST", $path, $body->toPayload(), $options));
+    }
+
+    /**
+     * Read the environment's configured state and applied revision.
+     *
+     * `status->desired->audiences` carries the applied audience binding and
+     * `status->environmentId` the environment binding, so a caller reads the
+     * mapping back here after an apply.
+     */
+    public function getEnvironmentStatus(
+        string $projectId,
+        string $environmentId,
+        ?RequestOptions $options = null,
+    ): Status {
+        $path = self::environmentPath($projectId, $environmentId) . "/status";
+
+        return Status::fromPayload($this->call("GET", $path, null, $options));
+    }
+
+    /**
+     * environmentPath addresses one environment under one project. Every segment
+     * is escaped so a caller-supplied identifier cannot reshape the path.
+     */
+    private static function environmentPath(string $projectId, string $environmentId): string
+    {
+        return "/auth-projects/" . self::segment($projectId) . "/environments/" . self::segment($environmentId);
     }
 
     /**

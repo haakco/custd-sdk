@@ -366,16 +366,36 @@ same typed admin clients:
 
 - create a project and list the projects the named owning user owns or operates
 - add an environment to an existing project
+- apply, preview and read back an environment's desired state
 - list an application principal's sessions, revoke one session, revoke all sessions
 - revoke an application principal's membership of one organisation
+
+The desired-state operations address one environment
+(`/api/v1/admin/auth-projects/{projectId}/environments/{environmentId}`):
+
+- apply writes the desired-state document and returns the operation receipt
+- preview reports the field-level changes an apply would make and writes nothing
+- status reads the environment's configured state and applied revision
+
+The desired-state document is nested and typed end to end (identity mode,
+registration policy, paused flag, audience bindings and profile fields), so a
+consumer can build a valid document from the named types alone with no untyped
+dictionary at the boundary. After an apply, the audience binding is read back
+through status: `status.desired.audiences` is the applied binding and
+`status.environmentId` is the environment binding, which is the
+project/environment/audience mapping a consumer's edge admits against. The
+derived provider values (`custd-app-<environmentId>-<audienceSlug>` client id and
+`custd-group-<environmentId>-<audienceSlug>` group) stay derived by the consumer
+per the identity contract; the SDK surfaces `status.clientSync` rather than
+inventing a field the Admin API does not expose.
 
 The machine caller's owning-user header is explicit: every call takes request
 options whose `owningUserUuid` is sent as `X-Custd-Owning-User-UUID`. Custd
 validates the named user as a live member of the machine caller's own company; a
 human administrator's own token subject is the actor and leaves the option
-unset. The operations Custd makes retry-safe (create project, revoke one
-session, revoke all sessions) require an idempotency key and reject an empty one
-before a request is sent.
+unset. The operations Custd makes retry-safe (create project, apply desired
+state, revoke one session, revoke all sessions) require an idempotency key and
+reject an empty one before a request is sent.
 
 Use the language-specific entry point:
 
@@ -388,6 +408,28 @@ Use the language-specific entry point:
 const creation = await client.admin.authProjects.createProject(
   { slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "isolated" },
   { owningUserUuid, idempotencyKey: "create-hosting-eu" },
+);
+
+const operation = await client.admin.authProjects.applyEnvironmentDesiredState(
+  creation.project.projectId,
+  creation.project.environmentId,
+  {
+    desiredState: {
+      identityMode: "isolated",
+      registrationPolicy: "invite_only",
+      loginPaused: false,
+      audiences: [{ audience: "hosting-edge", publicClient: true, redirectUris: [], postLogoutRedirectUris: [], allowedOrigins: [] }],
+      profileFields: [],
+    },
+    expectedRevision: 0,
+  },
+  { owningUserUuid, idempotencyKey: "apply-hosting-eu-production" },
+);
+
+const status = await client.admin.authProjects.getEnvironmentStatus(
+  creation.project.projectId,
+  creation.project.environmentId,
+  { owningUserUuid },
 );
 
 const inventory = await client.admin.authProjects.listPrincipalSessions(
@@ -448,7 +490,7 @@ cap. Clients must treat export bytes as opaque and must not log audit details.
 | Tenant usage report | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Analytics event range query | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Typed time-plan admin clients | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
-| Auth-project admin clients (projects/environments/principals) | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
+| Auth-project admin clients (projects/environments/principals/desired state) | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Dogfood event helper | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Browser tracker | no, not a browser runtime | yes | no, not a browser runtime | no, not a browser runtime | no, use JS tracker | install/use JS tracker |
 | Awthy audit/redaction DTOs | no, not generic | no, not generic | no, not generic | yes | via PHP SDK | out of scope |

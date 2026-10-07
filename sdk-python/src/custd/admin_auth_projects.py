@@ -137,6 +137,136 @@ class ApplicationMembershipRevocation(TypedDict):
     removed: bool
 
 
+class AuthProjectAudienceBinding(TypedDict):
+    """One application audience the environment admits and its provider settings.
+
+    This is the binding a consumer's edge admits against; the contract derives
+    the audience group ``custd-group-<environmentID>-<audienceSlug>`` from it.
+    """
+
+    audience: str
+    publicClient: bool
+    redirectUris: list[str] | None
+    postLogoutRedirectUris: list[str] | None
+    allowedOrigins: list[str] | None
+
+
+class AuthProjectProfileField(TypedDict):
+    """One profile field's policy inside the environment's desired state."""
+
+    key: str
+    required: bool
+    visibleToApplication: bool
+    editableBy: str
+
+
+class AuthProjectDesiredState(TypedDict):
+    """The environment configuration an apply writes.
+
+    A consumer builds it from these fields alone: ``audiences`` carries the
+    audience binding, and the remaining fields carry the rest. The legal scalar
+    vocabularies are read from the environment's capability operation, not fixed
+    here.
+    """
+
+    identityMode: AuthProjectIdentityMode
+    registrationPolicy: str
+    loginPaused: bool
+    audiences: list[AuthProjectAudienceBinding] | None
+    profileFields: list[AuthProjectProfileField] | None
+
+
+class AuthProjectDesiredStateRequest(TypedDict):
+    """Body of both the apply and preview operations.
+
+    ``expectedRevision`` is the revision the caller read; Custd refuses an apply
+    when the stored revision has moved.
+    """
+
+    desiredState: AuthProjectDesiredState
+    expectedRevision: int
+
+
+class AuthProjectOperation(TypedDict):
+    """The receipt an apply returns.
+
+    ``replayed`` reports that the same body and idempotency key returned the
+    original operation.
+    """
+
+    id: str
+    kind: str
+    status: str
+    revision: int
+    idempotencyKey: str
+    appliedAt: str
+    replayed: bool
+
+
+class AuthProjectChange(TypedDict):
+    """One field-level change a preview reports."""
+
+    field: str
+    before: str
+    after: str
+
+
+class AuthProjectPreview(TypedDict):
+    """The field-level change set an apply would write. A preview writes nothing."""
+
+    projectId: str
+    environmentId: str
+    revision: int
+    changes: list[AuthProjectChange] | None
+    sideEffects: list[str] | None
+    noOp: bool
+
+
+class AuthProjectClientRegistration(TypedDict):
+    """One audience's provider registration read back from status.
+
+    ``clientId`` is the derived ``custd-app-<environmentID>-<audienceSlug>`` the
+    binding resolves to.
+    """
+
+    audience: str
+    clientId: str
+    observed: bool
+
+
+class AuthProjectClientSync(TypedDict):
+    """The registration half of status: the provider clients Custd is known to hold."""
+
+    clientIds: list[str] | None
+    revision: int
+    checkedAt: str
+    current: bool
+    registrations: list[AuthProjectClientRegistration] | None
+    issuer: NotRequired[str]
+    errorCategory: NotRequired[str]
+
+
+class AuthProjectStatus(TypedDict):
+    """The environment's configured state and applied revision.
+
+    ``desired.audiences`` is the audience binding the caller applied, so the
+    project/environment/audience mapping is readable here after an apply.
+    ``reconciled`` describes the configuration and ``loginReady`` describes
+    execution; neither is inferred from the other. ``clientSync`` is absent until
+    registration has run.
+    """
+
+    projectId: str
+    environmentId: str
+    revision: int
+    desired: AuthProjectDesiredState
+    reconciled: bool
+    reconcileNote: str
+    loginReady: bool
+    loginNote: str
+    clientSync: NotRequired[AuthProjectClientSync]
+
+
 class AuthProjectAdminClient:
     """Manages Custd projects, their environments, and application principals."""
 
@@ -238,10 +368,60 @@ class AuthProjectAdminClient:
             self._admin.request("POST", path, dict(body), options),
         )
 
+    def apply_environment_desired_state(
+        self,
+        project_id: str,
+        environment_id: str,
+        body: AuthProjectDesiredStateRequest,
+        options: AdminRequestOptions | None = None,
+    ) -> AuthProjectOperation:
+        """Write the environment's desired state and return the operation receipt.
+
+        Custd makes it retry-safe per idempotency key, so the key is required.
+        The audience binding the consumer's edge admits against is written here
+        and read back through :meth:`get_environment_status`.
+        """
+        path = f"{_environment_path(project_id, environment_id)}/apply"
+        return cast(
+            AuthProjectOperation,
+            self._admin.request("POST", path, dict(body), _require_idempotency_key(options)),
+        )
+
+    def preview_environment_desired_state(
+        self,
+        project_id: str,
+        environment_id: str,
+        body: AuthProjectDesiredStateRequest,
+        options: AdminRequestOptions | None = None,
+    ) -> AuthProjectPreview:
+        """Report the field-level changes an apply would make. A preview writes nothing."""
+        path = f"{_environment_path(project_id, environment_id)}/preview"
+        return cast(AuthProjectPreview, self._admin.request("POST", path, dict(body), options))
+
+    def get_environment_status(
+        self,
+        project_id: str,
+        environment_id: str,
+        options: AdminRequestOptions | None = None,
+    ) -> AuthProjectStatus:
+        """Read the environment's configured state and applied revision.
+
+        ``status["desired"]["audiences"]`` carries the applied audience binding
+        and ``status["environmentId"]`` the environment binding, so a caller
+        reads the mapping back here after an apply.
+        """
+        path = f"{_environment_path(project_id, environment_id)}/status"
+        return cast(AuthProjectStatus, self._admin.request("GET", path, None, options))
+
 
 def _segment(value: str) -> str:
     """Escape one path segment so a caller-supplied identifier cannot reshape the path."""
     return urllib.parse.quote(value, safe="")
+
+
+def _environment_path(project_id: str, environment_id: str) -> str:
+    """Address one environment under one project."""
+    return f"/auth-projects/{_segment(project_id)}/environments/{_segment(environment_id)}"
 
 
 def _application_principal_path(

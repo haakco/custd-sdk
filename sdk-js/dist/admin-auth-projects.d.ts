@@ -88,6 +88,107 @@ export type ApplicationMembershipRevocation = {
     removedAt: string;
     removed: boolean;
 };
+/** One application audience the environment admits and its provider registration settings. */
+export type AuthProjectAudienceBinding = {
+    audience: string;
+    publicClient: boolean;
+    redirectUris: string[] | null;
+    postLogoutRedirectUris: string[] | null;
+    allowedOrigins: string[] | null;
+};
+/** One profile field's policy inside the environment's desired state. */
+export type AuthProjectProfileField = {
+    key: string;
+    required: boolean;
+    visibleToApplication: boolean;
+    editableBy: string;
+};
+/**
+ * The environment configuration an apply writes. A consumer builds it from these
+ * fields alone: `audiences` carries the audience binding, and the remaining
+ * fields carry the rest. The legal scalar vocabularies are read from the
+ * environment's capability operation, not fixed here.
+ */
+export type AuthProjectDesiredState = {
+    identityMode: AuthProjectIdentityMode;
+    registrationPolicy: string;
+    loginPaused: boolean;
+    audiences: AuthProjectAudienceBinding[] | null;
+    profileFields: AuthProjectProfileField[] | null;
+};
+/**
+ * Body of both the apply and preview operations. `expectedRevision` is the
+ * revision the caller read; Custd refuses an apply when the stored revision has
+ * moved.
+ */
+export type AuthProjectDesiredStateRequest = {
+    desiredState: AuthProjectDesiredState;
+    expectedRevision: number;
+};
+/** The receipt an apply returns. */
+export type AuthProjectOperation = {
+    id: string;
+    kind: string;
+    status: string;
+    revision: number;
+    idempotencyKey: string;
+    appliedAt: string;
+    /** The same body and Idempotency-Key returned the original operation. */
+    replayed: boolean;
+};
+/** One field-level change a preview reports. */
+export type AuthProjectChange = {
+    field: string;
+    before: string;
+    after: string;
+};
+/** The field-level change set an apply would write. A preview writes nothing. */
+export type AuthProjectPreview = {
+    projectId: string;
+    environmentId: string;
+    revision: number;
+    changes: AuthProjectChange[] | null;
+    sideEffects: string[] | null;
+    noOp: boolean;
+};
+/**
+ * One audience's provider registration read back from status. `clientId` is the
+ * derived `custd-app-<environmentId>-<audienceSlug>` the binding resolves to.
+ */
+export type AuthProjectClientRegistration = {
+    audience: string;
+    clientId: string;
+    observed: boolean;
+};
+/** The registration half of status: the provider clients Custd is known to hold. */
+export type AuthProjectClientSync = {
+    clientIds: string[] | null;
+    revision: number;
+    checkedAt: string;
+    current: boolean;
+    registrations: AuthProjectClientRegistration[] | null;
+    issuer?: string;
+    errorCategory?: string;
+};
+/**
+ * The environment's configured state and applied revision. `desired.audiences`
+ * is the audience binding the caller applied, so the
+ * project/environment/audience mapping is readable here after an apply.
+ * `reconciled` describes the configuration and `loginReady` describes
+ * execution; neither is inferred from the other. `clientSync` is absent until
+ * registration has run.
+ */
+export type AuthProjectStatus = {
+    projectId: string;
+    environmentId: string;
+    revision: number;
+    desired: AuthProjectDesiredState;
+    reconciled: boolean;
+    reconcileNote: string;
+    loginReady: boolean;
+    loginNote: string;
+    clientSync?: AuthProjectClientSync;
+};
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 export declare class AuthProjectAdminClient {
     private readonly request;
@@ -109,5 +210,20 @@ export declare class AuthProjectAdminClient {
     revokePrincipalSessions(projectId: string, environmentId: string, directoryId: string, providerSubject: string, body: ApplicationSessionsRevokeAllRequest, options?: RequestOptions): Promise<ApplicationSessionRevocation>;
     /** End one application identity's membership of one organisation. */
     revokePrincipalMembership(projectId: string, environmentId: string, directoryId: string, providerSubject: string, body: ApplicationMembershipRevokeRequest, options?: RequestOptions): Promise<ApplicationMembershipRevocation>;
+    /**
+     * Write the environment's desired state and return the operation receipt.
+     * Custd makes it retry-safe per Idempotency-Key, so the key is required. The
+     * audience binding the consumer's edge admits against is written here and read
+     * back through `getEnvironmentStatus`.
+     */
+    applyEnvironmentDesiredState(projectId: string, environmentId: string, body: AuthProjectDesiredStateRequest, options?: RequestOptions): Promise<AuthProjectOperation>;
+    /** Report the field-level changes an apply would make. A preview writes nothing. */
+    previewEnvironmentDesiredState(projectId: string, environmentId: string, body: AuthProjectDesiredStateRequest, options?: RequestOptions): Promise<AuthProjectPreview>;
+    /**
+     * Read the environment's configured state and applied revision. `status.desired.audiences`
+     * carries the applied audience binding and `status.environmentId` the
+     * environment binding, so a caller reads the mapping back here after an apply.
+     */
+    getEnvironmentStatus(projectId: string, environmentId: string, options?: RequestOptions): Promise<AuthProjectStatus>;
 }
 export {};

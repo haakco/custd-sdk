@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"reflect"
 	"testing"
 )
 
@@ -326,5 +327,180 @@ func TestAuthProjectsOmitOwningUserHeaderForHumanAdministrator(t *testing.T) {
 	if _, present := req.Headers[authProjectOwningUserHeader]; present {
 		t.Fatalf("owning user header was sent for a human administrator: %q",
 			req.Headers[authProjectOwningUserHeader])
+	}
+}
+
+// authProjectDesiredState is the nested desired-state document a consumer
+// builds from the named types alone. Apply and preview share it.
+func authProjectDesiredState() AuthProjectDesiredState {
+	return AuthProjectDesiredState{
+		IdentityMode:       AuthProjectIdentityIsolated,
+		RegistrationPolicy: "invite_only",
+		LoginPaused:        false,
+		Audiences: []AuthProjectAudienceBinding{{
+			Audience:               "hosting-edge",
+			PublicClient:           true,
+			RedirectURIs:           []string{"https://app.example.com/callback"},
+			PostLogoutRedirectURIs: []string{"https://app.example.com/logout"},
+			AllowedOrigins:         []string{"https://app.example.com"},
+		}},
+		ProfileFields: []AuthProjectProfileField{{
+			Key:                  "contact_email",
+			Required:             true,
+			VisibleToApplication: true,
+			EditableBy:           "user",
+		}},
+	}
+}
+
+func TestAuthProjectsApplyEnvironmentDesiredStatePinsRequestAndDecodesOperation(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, `{
+		"id": "op-1",
+		"kind": "project_auth_config_update",
+		"status": "applied",
+		"revision": 7,
+		"idempotencyKey": "idem-apply",
+		"appliedAt": "2026-10-07T00:00:00Z",
+		"replayed": false
+	}`)
+	client := newAdminTestClient(t, doer, "http://localhost:8080")
+
+	request := AuthProjectDesiredStateRequest{DesiredState: authProjectDesiredState(), ExpectedRevision: 6}
+	operation, err := client.Admin.AuthProjects.ApplyEnvironmentDesiredState(
+		context.Background(), "project-1", "environment-1", request,
+		AuthProjectRequestOptions{OwningUserUUID: authProjectOwningUser, IdempotencyKey: "idem-apply"},
+	)
+	if err != nil {
+		t.Fatalf("ApplyEnvironmentDesiredState returned error: %v", err)
+	}
+
+	assertAuthProjectRequest(t, doer.requests[0], http.MethodPost,
+		"http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/apply",
+		authProjectOwningUser, "idem-apply")
+	var sent AuthProjectDesiredStateRequest
+	if err := json.Unmarshal(doer.requests[0].Body, &sent); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if !reflect.DeepEqual(sent, request) {
+		t.Fatalf("body = %+v, want %+v", sent, request)
+	}
+	if operation.ID != "op-1" || operation.Kind != "project_auth_config_update" ||
+		operation.Revision != 7 || operation.Replayed {
+		t.Fatalf("operation = %+v", operation)
+	}
+}
+
+func TestAuthProjectsPreviewEnvironmentDesiredStateDecodesChanges(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, `{
+		"projectId": "project-1",
+		"environmentId": "environment-1",
+		"revision": 7,
+		"changes": [{"field": "desired.audiences", "before": "[]", "after": "[hosting-edge]"}],
+		"sideEffects": ["client_registration"],
+		"noOp": false
+	}`)
+	client := newAdminTestClient(t, doer, "http://localhost:8080")
+
+	preview, err := client.Admin.AuthProjects.PreviewEnvironmentDesiredState(
+		context.Background(), "project-1", "environment-1",
+		AuthProjectDesiredStateRequest{DesiredState: authProjectDesiredState(), ExpectedRevision: 6},
+		AuthProjectRequestOptions{OwningUserUUID: authProjectOwningUser},
+	)
+	if err != nil {
+		t.Fatalf("PreviewEnvironmentDesiredState returned error: %v", err)
+	}
+
+	assertAuthProjectRequest(t, doer.requests[0], http.MethodPost,
+		"http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/preview",
+		authProjectOwningUser, "")
+	if body := decodeAuthProjectBody(t, doer.requests[0]); body["expectedRevision"] != float64(6) {
+		t.Fatalf("body = %+v", body)
+	}
+	if preview.ProjectID != "project-1" || preview.EnvironmentID != "environment-1" || preview.NoOp {
+		t.Fatalf("preview = %+v", preview)
+	}
+	if len(preview.Changes) != 1 || preview.Changes[0].Field != "desired.audiences" ||
+		preview.Changes[0].After != "[hosting-edge]" {
+		t.Fatalf("changes = %+v", preview.Changes)
+	}
+	if len(preview.SideEffects) != 1 || preview.SideEffects[0] != "client_registration" {
+		t.Fatalf("side effects = %+v", preview.SideEffects)
+	}
+}
+
+func TestAuthProjectsGetEnvironmentStatusReadsBackAudienceBinding(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, `{
+		"projectId": "project-1",
+		"environmentId": "environment-1",
+		"revision": 7,
+		"desired": {
+			"identityMode": "isolated",
+			"registrationPolicy": "invite_only",
+			"loginPaused": false,
+			"audiences": [{
+				"audience": "hosting-edge",
+				"publicClient": true,
+				"redirectUris": ["https://app.example.com/callback"],
+				"postLogoutRedirectUris": null,
+				"allowedOrigins": null
+			}],
+			"profileFields": null
+		},
+		"reconciled": true,
+		"reconcileNote": "",
+		"loginReady": false,
+		"loginNote": "",
+		"clientSync": {
+			"clientIds": ["custd-app-environment-1-hosting-edge"],
+			"revision": 7,
+			"checkedAt": "2026-10-07T00:00:00Z",
+			"current": true,
+			"registrations": [{
+				"audience": "hosting-edge",
+				"clientId": "custd-app-environment-1-hosting-edge",
+				"observed": true
+			}]
+		}
+	}`)
+	client := newAdminTestClient(t, doer, "http://localhost:8080")
+
+	status, err := client.Admin.AuthProjects.GetEnvironmentStatus(
+		context.Background(), "project-1", "environment-1",
+		AuthProjectRequestOptions{OwningUserUUID: authProjectOwningUser},
+	)
+	if err != nil {
+		t.Fatalf("GetEnvironmentStatus returned error: %v", err)
+	}
+
+	assertAuthProjectRequest(t, doer.requests[0], http.MethodGet,
+		"http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/status",
+		authProjectOwningUser, "")
+	if status.ProjectID != "project-1" || status.EnvironmentID != "environment-1" || !status.Reconciled {
+		t.Fatalf("status = %+v", status)
+	}
+	if len(status.Desired.Audiences) != 1 || status.Desired.Audiences[0].Audience != "hosting-edge" ||
+		!status.Desired.Audiences[0].PublicClient {
+		t.Fatalf("audience binding = %+v", status.Desired.Audiences)
+	}
+	if status.ClientSync == nil || len(status.ClientSync.Registrations) != 1 ||
+		status.ClientSync.Registrations[0].ClientID != "custd-app-environment-1-hosting-edge" {
+		t.Fatalf("client sync = %+v", status.ClientSync)
+	}
+}
+
+func TestAuthProjectsApplyRejectsMissingIdempotencyKeyBeforeSending(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, `{}`)
+	client := newAdminTestClient(t, doer, "http://localhost:8080")
+
+	_, err := client.Admin.AuthProjects.ApplyEnvironmentDesiredState(
+		context.Background(), "project-1", "environment-1",
+		AuthProjectDesiredStateRequest{DesiredState: authProjectDesiredState(), ExpectedRevision: 6},
+		AuthProjectRequestOptions{OwningUserUUID: authProjectOwningUser},
+	)
+	if err == nil {
+		t.Fatal("ApplyEnvironmentDesiredState returned nil error without an idempotency key")
+	}
+	if len(doer.requests) != 0 {
+		t.Fatalf("a request was sent without an idempotency key: %d", len(doer.requests))
 	}
 }

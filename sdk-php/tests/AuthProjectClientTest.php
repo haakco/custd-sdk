@@ -5,16 +5,23 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\AuthProject\ApplicationSessionInventory;
+use HaakCo\Custd\Admin\AuthProject\AudienceBinding;
 use HaakCo\Custd\Admin\AuthProject\Creation;
 use HaakCo\Custd\Admin\AuthProject\CreateRequest;
+use HaakCo\Custd\Admin\AuthProject\DesiredState;
+use HaakCo\Custd\Admin\AuthProject\DesiredStateRequest;
 use HaakCo\Custd\Admin\AuthProject\EnvironmentCreateRequest;
 use HaakCo\Custd\Admin\AuthProject\ListResponse;
 use HaakCo\Custd\Admin\AuthProject\MembershipRevocation;
 use HaakCo\Custd\Admin\AuthProject\MembershipRevokeRequest;
+use HaakCo\Custd\Admin\AuthProject\Operation;
+use HaakCo\Custd\Admin\AuthProject\Preview;
+use HaakCo\Custd\Admin\AuthProject\ProfileField;
 use HaakCo\Custd\Admin\AuthProject\RequestOptions;
 use HaakCo\Custd\Admin\AuthProject\SessionRevocation;
 use HaakCo\Custd\Admin\AuthProject\SessionRevokeRequest;
 use HaakCo\Custd\Admin\AuthProject\SessionsRevokeAllRequest;
+use HaakCo\Custd\Admin\AuthProject\Status;
 use HaakCo\Custd\Admin\AuthProject\Summary;
 use HaakCo\Custd\CustdClient;
 use PHPUnit\Framework\TestCase;
@@ -270,6 +277,178 @@ final class AuthProjectClientTest extends TestCase
 
         self::assertSame(["http://localhost:8080/api/v1/admin/auth-projects"], array_column($calls, "url"));
         self::assertArrayNotHasKey(self::OWNING_USER_HEADER, $calls[0]["headers"]);
+    }
+
+    public function testAppliesTheEnvironmentDesiredState(): void
+    {
+        $calls = [];
+        $client = $this->clientWithResponse([
+            "id" => "op-1",
+            "kind" => "project_auth_config_update",
+            "status" => "applied",
+            "revision" => 7,
+            "idempotencyKey" => "idem-apply",
+            "appliedAt" => "2026-10-07T00:00:00Z",
+            "replayed" => false,
+        ], $calls);
+
+        $operation = $client->adminAuthProjects()->applyEnvironmentDesiredState(
+            "project-1",
+            "environment-1",
+            new DesiredStateRequest(desiredState: $this->desiredState(), expectedRevision: 6),
+            new RequestOptions(owningUserUuid: self::OWNING_USER, idempotencyKey: "idem-apply"),
+        );
+
+        self::assertSame(["POST"], array_column($calls, "method"));
+        self::assertSame(
+            ["http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/apply"],
+            array_column($calls, "url")
+        );
+        self::assertSame(self::OWNING_USER, $calls[0]["headers"][self::OWNING_USER_HEADER]);
+        self::assertSame("idem-apply", $calls[0]["headers"]["Idempotency-Key"]);
+        self::assertSame(6, $calls[0]["body"]["expectedRevision"]);
+        self::assertSame("hosting-edge", $calls[0]["body"]["desiredState"]["audiences"][0]["audience"]);
+        self::assertSame(
+            ["https://app.example.com/callback"],
+            $calls[0]["body"]["desiredState"]["audiences"][0]["redirectUris"]
+        );
+        self::assertInstanceOf(Operation::class, $operation);
+        self::assertSame("op-1", $operation->id);
+        self::assertSame(7, $operation->revision);
+        self::assertFalse($operation->replayed);
+    }
+
+    public function testPreviewsTheEnvironmentDesiredState(): void
+    {
+        $calls = [];
+        $client = $this->clientWithResponse([
+            "projectId" => "project-1",
+            "environmentId" => "environment-1",
+            "revision" => 7,
+            "changes" => [["field" => "desired.audiences", "before" => "[]", "after" => "[hosting-edge]"]],
+            "sideEffects" => ["client_registration"],
+            "noOp" => false,
+        ], $calls);
+
+        $preview = $client->adminAuthProjects()->previewEnvironmentDesiredState(
+            "project-1",
+            "environment-1",
+            new DesiredStateRequest(desiredState: $this->desiredState(), expectedRevision: 6),
+            new RequestOptions(owningUserUuid: self::OWNING_USER),
+        );
+
+        self::assertSame(
+            ["http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/preview"],
+            array_column($calls, "url")
+        );
+        self::assertInstanceOf(Preview::class, $preview);
+        self::assertSame("desired.audiences", $preview->changes[0]->field);
+        self::assertSame(["client_registration"], $preview->sideEffects);
+        self::assertFalse($preview->noOp);
+    }
+
+    public function testReadsTheAudienceBindingBackFromEnvironmentStatus(): void
+    {
+        $calls = [];
+        $client = $this->clientWithResponse([
+            "projectId" => "project-1",
+            "environmentId" => "environment-1",
+            "revision" => 7,
+            "desired" => [
+                "identityMode" => "isolated",
+                "registrationPolicy" => "invite_only",
+                "loginPaused" => false,
+                "audiences" => [[
+                    "audience" => "hosting-edge",
+                    "publicClient" => true,
+                    "redirectUris" => ["https://app.example.com/callback"],
+                    "postLogoutRedirectUris" => null,
+                    "allowedOrigins" => null,
+                ]],
+                "profileFields" => null,
+            ],
+            "reconciled" => true,
+            "reconcileNote" => "",
+            "loginReady" => false,
+            "loginNote" => "",
+            "clientSync" => [
+                "clientIds" => ["custd-app-environment-1-hosting-edge"],
+                "revision" => 7,
+                "checkedAt" => "2026-10-07T00:00:00Z",
+                "current" => true,
+                "registrations" => [[
+                    "audience" => "hosting-edge",
+                    "clientId" => "custd-app-environment-1-hosting-edge",
+                    "observed" => true,
+                ]],
+            ],
+        ], $calls);
+
+        $status = $client->adminAuthProjects()->getEnvironmentStatus(
+            "project-1",
+            "environment-1",
+            new RequestOptions(owningUserUuid: self::OWNING_USER),
+        );
+
+        self::assertSame(["GET"], array_column($calls, "method"));
+        self::assertSame(
+            ["http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/status"],
+            array_column($calls, "url")
+        );
+        self::assertNull($calls[0]["body"]);
+        self::assertInstanceOf(Status::class, $status);
+        self::assertSame("environment-1", $status->environmentId);
+        self::assertSame("hosting-edge", $status->desired->audiences[0]->audience);
+        $clientSync = $status->clientSync;
+        self::assertNotNull($clientSync);
+        $registrations = $clientSync->registrations;
+        self::assertNotNull($registrations);
+        self::assertSame("custd-app-environment-1-hosting-edge", $registrations[0]->clientId);
+    }
+
+    public function testRejectsAMissingIdempotencyKeyOnApply(): void
+    {
+        $calls = [];
+        $client = $this->clientWithResponse([], $calls);
+
+        try {
+            $client->adminAuthProjects()->applyEnvironmentDesiredState(
+                "project-1",
+                "environment-1",
+                new DesiredStateRequest(desiredState: $this->desiredState(), expectedRevision: 6),
+                new RequestOptions(owningUserUuid: self::OWNING_USER),
+            );
+            self::fail("expected a missing idempotency key to be rejected");
+        } catch (\InvalidArgumentException $error) {
+            self::assertStringContainsString("idempotency key is required", $error->getMessage());
+            self::assertSame([], $calls);
+        }
+    }
+
+    private function desiredState(): DesiredState
+    {
+        return new DesiredState(
+            identityMode: "isolated",
+            registrationPolicy: "invite_only",
+            loginPaused: false,
+            audiences: [
+                new AudienceBinding(
+                    audience: "hosting-edge",
+                    publicClient: true,
+                    redirectUris: ["https://app.example.com/callback"],
+                    postLogoutRedirectUris: ["https://app.example.com/logout"],
+                    allowedOrigins: ["https://app.example.com"],
+                ),
+            ],
+            profileFields: [
+                new ProfileField(
+                    key: "contact_email",
+                    required: true,
+                    visibleToApplication: true,
+                    editableBy: "user",
+                ),
+            ],
+        );
     }
 
     /**

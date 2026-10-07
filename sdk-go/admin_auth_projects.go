@@ -154,6 +154,117 @@ type ApplicationMembershipRevocation struct {
 	Removed        bool   `json:"removed"`
 }
 
+// AuthProjectAudienceBinding is one application audience the environment should
+// admit and its provider registration settings. This is the binding a consumer's
+// edge admits against; the contract derives the audience group
+// custd-group-<environmentID>-<audienceSlug> from it.
+type AuthProjectAudienceBinding struct {
+	Audience               string   `json:"audience"`
+	PublicClient           bool     `json:"publicClient"`
+	RedirectURIs           []string `json:"redirectUris"`
+	PostLogoutRedirectURIs []string `json:"postLogoutRedirectUris"`
+	AllowedOrigins         []string `json:"allowedOrigins"`
+}
+
+// AuthProjectProfileField is one profile field's policy inside the environment's
+// desired state.
+type AuthProjectProfileField struct {
+	Key                  string `json:"key"`
+	Required             bool   `json:"required"`
+	VisibleToApplication bool   `json:"visibleToApplication"`
+	EditableBy           string `json:"editableBy"`
+}
+
+// AuthProjectDesiredState is the environment configuration an apply writes. A
+// consumer builds it from these fields alone: Audiences carries the audience
+// binding, and IdentityMode, RegistrationPolicy, LoginPaused and ProfileFields
+// carry the rest. The legal scalar vocabularies are read from the capability
+// operation Custd exposes for the environment, not fixed here.
+type AuthProjectDesiredState struct {
+	IdentityMode       AuthProjectIdentityMode      `json:"identityMode"`
+	RegistrationPolicy string                       `json:"registrationPolicy"`
+	LoginPaused        bool                         `json:"loginPaused"`
+	Audiences          []AuthProjectAudienceBinding `json:"audiences"`
+	ProfileFields      []AuthProjectProfileField    `json:"profileFields"`
+}
+
+// AuthProjectDesiredStateRequest is the body of both the apply and preview
+// operations. ExpectedRevision is the revision the caller read; Custd refuses an
+// apply when the stored revision has moved.
+type AuthProjectDesiredStateRequest struct {
+	DesiredState     AuthProjectDesiredState `json:"desiredState"`
+	ExpectedRevision int64                   `json:"expectedRevision"`
+}
+
+// AuthProjectOperation is the receipt an apply returns. Replayed reports that
+// the same body and Idempotency-Key returned the original operation.
+type AuthProjectOperation struct {
+	ID             string `json:"id"`
+	Kind           string `json:"kind"`
+	Status         string `json:"status"`
+	Revision       int64  `json:"revision"`
+	IdempotencyKey string `json:"idempotencyKey"`
+	AppliedAt      string `json:"appliedAt"`
+	Replayed       bool   `json:"replayed"`
+}
+
+// AuthProjectChange is one field-level change a preview reports.
+type AuthProjectChange struct {
+	Field  string `json:"field"`
+	Before string `json:"before"`
+	After  string `json:"after"`
+}
+
+// AuthProjectPreview is the field-level change set an apply would write. It
+// writes nothing.
+type AuthProjectPreview struct {
+	ProjectID     string              `json:"projectId"`
+	EnvironmentID string              `json:"environmentId"`
+	Revision      int64               `json:"revision"`
+	Changes       []AuthProjectChange `json:"changes"`
+	SideEffects   []string            `json:"sideEffects"`
+	NoOp          bool                `json:"noOp"`
+}
+
+// AuthProjectClientRegistration is one audience's provider registration read
+// back from status. ClientID is the derived custd-app-<environmentID>-<audienceSlug>
+// the audience binding resolves to.
+type AuthProjectClientRegistration struct {
+	Audience string `json:"audience"`
+	ClientID string `json:"clientId"`
+	Observed bool   `json:"observed"`
+}
+
+// AuthProjectClientSync is the registration half of status: which application
+// clients the provider is known to hold and whether they are current.
+type AuthProjectClientSync struct {
+	ClientIDs     []string                        `json:"clientIds"`
+	Revision      int64                           `json:"revision"`
+	CheckedAt     string                          `json:"checkedAt"`
+	Current       bool                            `json:"current"`
+	Registrations []AuthProjectClientRegistration `json:"registrations"`
+	Issuer        string                          `json:"issuer,omitempty"`
+	ErrorCategory string                          `json:"errorCategory,omitempty"`
+}
+
+// AuthProjectStatus is the environment's configured state and applied revision.
+// Desired.Audiences is the audience binding the caller applied, so the
+// project/environment/audience mapping the contract requires is readable here
+// after an apply. Reconciled describes the configuration and LoginReady
+// describes execution; neither is inferred from the other. ClientSync is absent
+// until registration has run.
+type AuthProjectStatus struct {
+	ProjectID     string                  `json:"projectId"`
+	EnvironmentID string                  `json:"environmentId"`
+	Revision      int64                   `json:"revision"`
+	Desired       AuthProjectDesiredState `json:"desired"`
+	Reconciled    bool                    `json:"reconciled"`
+	ReconcileNote string                  `json:"reconcileNote"`
+	LoginReady    bool                    `json:"loginReady"`
+	LoginNote     string                  `json:"loginNote"`
+	ClientSync    *AuthProjectClientSync  `json:"clientSync,omitempty"`
+}
+
 // AuthProjectAdminClient manages Custd projects, their environments, and the
 // application principals that directory holds inside an environment. Every call
 // is an admin control-plane call under /api/v1/admin/auth-projects and carries
@@ -306,6 +417,76 @@ func (c *AuthProjectAdminClient) RevokePrincipalMembership(
 		return nil, err
 	}
 	return &out, nil
+}
+
+// ApplyEnvironmentDesiredState writes the environment's desired state and
+// returns the operation receipt. Custd makes it retry-safe per Idempotency-Key,
+// so the key is required. The audience binding the consumer's edge admits
+// against is written here and read back through GetEnvironmentStatus.
+func (c *AuthProjectAdminClient) ApplyEnvironmentDesiredState(
+	ctx context.Context,
+	projectID string,
+	environmentID string,
+	req AuthProjectDesiredStateRequest,
+	options AuthProjectRequestOptions,
+) (*AuthProjectOperation, error) {
+	if err := requireAuthProjectIdempotencyKey(options); err != nil {
+		return nil, err
+	}
+	var out AuthProjectOperation
+	if err := c.admin.requestWithHeaders(
+		ctx, http.MethodPost, environmentDesiredStatePath(projectID, environmentID)+"/apply",
+		req, &out, authProjectHeaders(options),
+	); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// PreviewEnvironmentDesiredState reports the field-level changes an apply would
+// make and writes nothing.
+func (c *AuthProjectAdminClient) PreviewEnvironmentDesiredState(
+	ctx context.Context,
+	projectID string,
+	environmentID string,
+	req AuthProjectDesiredStateRequest,
+	options AuthProjectRequestOptions,
+) (*AuthProjectPreview, error) {
+	var out AuthProjectPreview
+	if err := c.admin.requestWithHeaders(
+		ctx, http.MethodPost, environmentDesiredStatePath(projectID, environmentID)+"/preview",
+		req, &out, authProjectHeaders(options),
+	); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// GetEnvironmentStatus reads the environment's configured state and its applied
+// revision. Status.Desired.Audiences carries the audience binding and Status
+// carries the environment binding, so a caller that cannot create or read the
+// binding anywhere else reads it here.
+func (c *AuthProjectAdminClient) GetEnvironmentStatus(
+	ctx context.Context,
+	projectID string,
+	environmentID string,
+	options AuthProjectRequestOptions,
+) (*AuthProjectStatus, error) {
+	var out AuthProjectStatus
+	if err := c.admin.requestWithHeaders(
+		ctx, http.MethodGet, environmentDesiredStatePath(projectID, environmentID)+"/status",
+		nil, &out, authProjectHeaders(options),
+	); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// environmentDesiredStatePath addresses one environment under one project. Every
+// segment is escaped so a caller-supplied identifier cannot reshape the path.
+func environmentDesiredStatePath(projectID, environmentID string) string {
+	return "/auth-projects/" + url.PathEscape(projectID) +
+		"/environments/" + url.PathEscape(environmentID)
 }
 
 // applicationPrincipalPath addresses one application principal inside one

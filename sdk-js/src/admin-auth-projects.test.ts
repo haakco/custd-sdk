@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AuthProjectDesiredState } from "./admin-auth-projects";
 import { CustdClient } from "./index";
 
 beforeEach(() => {
@@ -37,6 +38,23 @@ const authProjectSummary = {
   environmentSlug: "production",
   identityMode: "isolated",
 };
+
+// The nested desired-state document a consumer builds from the named types alone.
+const desiredState = {
+  identityMode: "isolated",
+  registrationPolicy: "invite_only",
+  loginPaused: false,
+  audiences: [
+    {
+      audience: "hosting-edge",
+      publicClient: true,
+      redirectUris: ["https://app.example.com/callback"],
+      postLogoutRedirectUris: ["https://app.example.com/logout"],
+      allowedOrigins: ["https://app.example.com"],
+    },
+  ],
+  profileFields: [{ key: "contact_email", required: true, visibleToApplication: true, editableBy: "user" }],
+} satisfies AuthProjectDesiredState;
 
 describe("admin auth projects", () => {
   it("creates a project with the owning user header and idempotency key", async () => {
@@ -261,5 +279,111 @@ describe("admin auth projects", () => {
     const { url, init } = sentRequest(fetchImpl);
     expect(url).toBe("http://localhost:8080/api/v1/admin/auth-projects");
     expect(init.headers).not.toHaveProperty("X-Custd-Owning-User-UUID");
+  });
+
+  it("applies the environment desired state with the owning user header and idempotency key", async () => {
+    const fetchImpl = mockFetch({
+      id: "op-1",
+      kind: "project_auth_config_update",
+      status: "applied",
+      revision: 7,
+      idempotencyKey: "idem-apply",
+      appliedAt: "2026-10-07T00:00:00Z",
+      replayed: false,
+    });
+    const client = newClient(fetchImpl);
+
+    const operation = await client.admin.authProjects.applyEnvironmentDesiredState(
+      "project-1",
+      "environment-1",
+      { desiredState, expectedRevision: 6 },
+      { owningUserUuid: owningUser, idempotencyKey: "idem-apply" },
+    );
+
+    const { url, init } = sentRequest(fetchImpl);
+    expect(url).toBe("http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/apply");
+    expect(init.method).toBe("POST");
+    expect(init.headers).toMatchObject({
+      Authorization: "Bearer admin-token",
+      "Idempotency-Key": "idem-apply",
+      "X-Custd-Owning-User-UUID": owningUser,
+    });
+    expect(JSON.parse(String(init.body))).toEqual({ desiredState, expectedRevision: 6 });
+    expect(operation.id).toBe("op-1");
+    expect(operation.revision).toBe(7);
+    expect(operation.replayed).toBe(false);
+  });
+
+  it("previews the environment desired state", async () => {
+    const fetchImpl = mockFetch({
+      projectId: "project-1",
+      environmentId: "environment-1",
+      revision: 7,
+      changes: [{ field: "desired.audiences", before: "[]", after: "[hosting-edge]" }],
+      sideEffects: ["client_registration"],
+      noOp: false,
+    });
+    const client = newClient(fetchImpl);
+
+    const preview = await client.admin.authProjects.previewEnvironmentDesiredState(
+      "project-1",
+      "environment-1",
+      { desiredState, expectedRevision: 6 },
+      { owningUserUuid: owningUser },
+    );
+
+    const { url, init } = sentRequest(fetchImpl);
+    expect(url).toBe("http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/preview");
+    expect(init.method).toBe("POST");
+    expect(preview.changes?.[0]?.field).toBe("desired.audiences");
+    expect(preview.sideEffects).toEqual(["client_registration"]);
+    expect(preview.noOp).toBe(false);
+  });
+
+  it("reads the audience binding back from environment status", async () => {
+    const fetchImpl = mockFetch({
+      projectId: "project-1",
+      environmentId: "environment-1",
+      revision: 7,
+      desired: desiredState,
+      reconciled: true,
+      reconcileNote: "",
+      loginReady: false,
+      loginNote: "",
+      clientSync: {
+        clientIds: ["custd-app-environment-1-hosting-edge"],
+        revision: 7,
+        checkedAt: "2026-10-07T00:00:00Z",
+        current: true,
+        registrations: [{ audience: "hosting-edge", clientId: "custd-app-environment-1-hosting-edge", observed: true }],
+      },
+    });
+    const client = newClient(fetchImpl);
+
+    const status = await client.admin.authProjects.getEnvironmentStatus("project-1", "environment-1", {
+      owningUserUuid: owningUser,
+    });
+
+    const { url, init } = sentRequest(fetchImpl);
+    expect(url).toBe("http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/status");
+    expect(init.method).toBe("GET");
+    expect(status.environmentId).toBe("environment-1");
+    expect(status.desired.audiences?.[0]?.audience).toBe("hosting-edge");
+    expect(status.clientSync?.registrations?.[0]?.clientId).toBe("custd-app-environment-1-hosting-edge");
+  });
+
+  it("rejects a missing idempotency key on apply before sending", async () => {
+    const fetchImpl = mockFetch({});
+    const client = newClient(fetchImpl);
+
+    await expect(
+      client.admin.authProjects.applyEnvironmentDesiredState(
+        "project-1",
+        "environment-1",
+        { desiredState, expectedRevision: 6 },
+        { owningUserUuid: owningUser },
+      ),
+    ).rejects.toThrow("idempotency key is required");
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

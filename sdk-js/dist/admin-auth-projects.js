@@ -50,6 +50,35 @@ export class AuthProjectAdminClient {
         const path = `${applicationPrincipalPath(projectId, environmentId, directoryId, providerSubject)}/memberships/revoke`;
         return this.request("POST", path, body, options);
     }
+    /**
+     * Write the environment's desired state and return the operation receipt.
+     * Custd makes it retry-safe per Idempotency-Key, so the key is required. The
+     * audience binding the consumer's edge admits against is written here and read
+     * back through `getEnvironmentStatus`.
+     */
+    async applyEnvironmentDesiredState(projectId, environmentId, body, options) {
+        const path = `${environmentDesiredStatePath(projectId, environmentId)}/apply`;
+        return this.request("POST", path, body, requireIdempotencyKey(options));
+    }
+    /** Report the field-level changes an apply would make. A preview writes nothing. */
+    previewEnvironmentDesiredState(projectId, environmentId, body, options) {
+        const path = `${environmentDesiredStatePath(projectId, environmentId)}/preview`;
+        return this.request("POST", path, body, options);
+    }
+    /**
+     * Read the environment's configured state and applied revision. `status.desired.audiences`
+     * carries the applied audience binding and `status.environmentId` the
+     * environment binding, so a caller reads the mapping back here after an apply.
+     */
+    getEnvironmentStatus(projectId, environmentId, options) {
+        const path = `${environmentDesiredStatePath(projectId, environmentId)}/status`;
+        return this.request("GET", path, undefined, options);
+    }
+}
+// environmentDesiredStatePath addresses one environment under one project. Every
+// segment is escaped so a caller-supplied identifier cannot reshape the path.
+function environmentDesiredStatePath(projectId, environmentId) {
+    return `/auth-projects/${encodeURIComponent(projectId)}` + `/environments/${encodeURIComponent(environmentId)}`;
 }
 // applicationPrincipalPath addresses one application principal inside one
 // directory. Every segment is escaped so a caller-supplied identifier cannot
