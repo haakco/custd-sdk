@@ -26,12 +26,12 @@ final class WorkflowTimingClientTest extends TestCase
 
         $result = $client->adminWorkflowTimings()->reconcile(
             'acme',
-            new WorkflowDeclaration(
+            (new WorkflowDeclaration(
                 workflowKey: 'hosting.reconcile',
                 name: 'Hosting reconcile',
                 description: 'Observed hosting provisioning phases.',
                 dimensions: ['cluster'],
-            )->withStep(new StepDeclaration('foundation', 'Foundation', 600000))
+            ))->withStep(new StepDeclaration('foundation', 'Foundation', 600000))
                 ->withStep(new StepDeclaration('database', 'Database', 900000))
                 ->withStep(new StepDeclaration('deploy', 'Deploy', 300000)),
         );
