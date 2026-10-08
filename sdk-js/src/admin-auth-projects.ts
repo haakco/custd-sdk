@@ -112,6 +112,92 @@ export type ApplicationMembershipRevocation = {
   removed: boolean;
 };
 
+/** Server-owned principal address; every identifier is escaped as a path segment. */
+export type ApplicationPrincipalTarget = {
+  projectId: string;
+  environmentId: string;
+  directoryId: string;
+  providerSubject: string;
+};
+
+export type ApplicationPrincipalSuspension = {
+  projectId: string;
+  environmentId: string;
+  directoryId: string;
+  principalId: string;
+  enabled: boolean;
+  sessionsRevoked: number;
+  revision: number;
+  replayed: boolean;
+};
+
+export type ApplicationPrincipalMembershipView = {
+  organisationId: string;
+  organisationSlug: string;
+  organisationName: string;
+  role: string;
+  createdAt: string;
+  removedAt?: string;
+};
+
+export type ApplicationPrincipalProfileValueView = { fieldKey: string; value: string };
+export type ApplicationIdentityTraitValue =
+  | string
+  | number
+  | boolean
+  | null
+  | ApplicationIdentityTraitValue[]
+  | { [name: string]: ApplicationIdentityTraitValue };
+
+export type ApplicationIdentityTrait = { name: string; value: ApplicationIdentityTraitValue };
+export type ApplicationIdentityTraitsStatus =
+  | "included"
+  | "incomplete"
+  | "identity_absent"
+  | "directory_unavailable"
+  | "provider_unreadable";
+
+export type ApplicationPrincipalIdentityExport = {
+  providerIssuer: string;
+  providerSubject: string;
+  traitsStatus: ApplicationIdentityTraitsStatus;
+  traits: ApplicationIdentityTrait[] | null;
+};
+
+/** Every public identity carries its own completeness status; never credential material. */
+export type ApplicationPrincipalExport = {
+  projectId: string;
+  environmentId: string;
+  directoryId: string;
+  principalId: string;
+  enabled: boolean;
+  createdAt: string;
+  identities: ApplicationPrincipalIdentityExport[] | null;
+  memberships: ApplicationPrincipalMembershipView[] | null;
+  profileValues: ApplicationPrincipalProfileValueView[] | null;
+};
+
+/** Explicit confirmation is mandatory; erasure has no default strongest action. */
+export type ApplicationPrincipalErasureRequest = { confirm: true };
+
+export type ApplicationPrincipalErasure = {
+  projectId: string;
+  environmentId: string;
+  directoryId: string;
+  principalId: string;
+  status: string;
+  invitations: number;
+  magicLinks: number;
+  memberships: number;
+  mappings: number;
+  profileValues: number;
+  principals: number;
+  revision: number;
+  replayed: boolean;
+  /** False on a replay whose receipt does not carry the original deletion counts. */
+  countsRecorded: boolean;
+};
+
 /** One application audience the environment admits and its provider registration settings. */
 export type AuthProjectAudienceBinding = {
   audience: string;
@@ -289,6 +375,40 @@ export class AuthProjectAdminClient {
   ): Promise<ApplicationSessionRevocation> {
     const path = `${applicationPrincipalPath(projectId, environmentId, directoryId, providerSubject)}/sessions/revoke-all`;
     return this.request<ApplicationSessionRevocation>("POST", path, body, requireIdempotencyKey(options));
+  }
+
+  /** Withdraw authority and revoke the sessions of every identity owned by this principal. */
+  async suspendPrincipal(
+    target: ApplicationPrincipalTarget,
+    options?: RequestOptions,
+  ): Promise<ApplicationPrincipalSuspension> {
+    const path = `${applicationPrincipalPath(target.projectId, target.environmentId, target.directoryId, target.providerSubject)}/suspend`;
+    return this.request<ApplicationPrincipalSuspension>("POST", path, undefined, requireIdempotencyKey(options));
+  }
+
+  /** Restore authority without changing factors; a pending erasure cannot be restored. */
+  async restorePrincipal(
+    target: ApplicationPrincipalTarget,
+    options?: RequestOptions,
+  ): Promise<ApplicationPrincipalSuspension> {
+    const path = `${applicationPrincipalPath(target.projectId, target.environmentId, target.directoryId, target.providerSubject)}/restore`;
+    return this.request<ApplicationPrincipalSuspension>("POST", path, undefined, requireIdempotencyKey(options));
+  }
+
+  /** Read the portable public record and its provider-trait completeness status. */
+  exportPrincipal(target: ApplicationPrincipalTarget, options?: RequestOptions): Promise<ApplicationPrincipalExport> {
+    const path = `${applicationPrincipalPath(target.projectId, target.environmentId, target.directoryId, target.providerSubject)}/export`;
+    return this.request<ApplicationPrincipalExport>("GET", path, undefined, options);
+  }
+
+  /** Erase the complete principal-owned mapping set through the server's durable operation. */
+  async erasePrincipal(
+    target: ApplicationPrincipalTarget,
+    body: ApplicationPrincipalErasureRequest,
+    options?: RequestOptions,
+  ): Promise<ApplicationPrincipalErasure> {
+    const path = `${applicationPrincipalPath(target.projectId, target.environmentId, target.directoryId, target.providerSubject)}/erase`;
+    return this.request<ApplicationPrincipalErasure>("POST", path, body, requireIdempotencyKey(options));
   }
 
   /** End one application identity's membership of one organisation. */

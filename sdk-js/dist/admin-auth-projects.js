@@ -45,6 +45,26 @@ export class AuthProjectAdminClient {
         const path = `${applicationPrincipalPath(projectId, environmentId, directoryId, providerSubject)}/sessions/revoke-all`;
         return this.request("POST", path, body, requireIdempotencyKey(options));
     }
+    /** Withdraw authority and revoke the sessions of every identity owned by this principal. */
+    async suspendPrincipal(target, options) {
+        const path = `${applicationPrincipalPath(target.projectId, target.environmentId, target.directoryId, target.providerSubject)}/suspend`;
+        return this.request("POST", path, undefined, requireIdempotencyKey(options));
+    }
+    /** Restore authority without changing factors; a pending erasure cannot be restored. */
+    async restorePrincipal(target, options) {
+        const path = `${applicationPrincipalPath(target.projectId, target.environmentId, target.directoryId, target.providerSubject)}/restore`;
+        return this.request("POST", path, undefined, requireIdempotencyKey(options));
+    }
+    /** Read the portable public record and its provider-trait completeness status. */
+    exportPrincipal(target, options) {
+        const path = `${applicationPrincipalPath(target.projectId, target.environmentId, target.directoryId, target.providerSubject)}/export`;
+        return this.request("GET", path, undefined, options);
+    }
+    /** Erase the complete principal-owned mapping set through the server's durable operation. */
+    async erasePrincipal(target, body, options) {
+        const path = `${applicationPrincipalPath(target.projectId, target.environmentId, target.directoryId, target.providerSubject)}/erase`;
+        return this.request("POST", path, body, requireIdempotencyKey(options));
+    }
     /** End one application identity's membership of one organisation. */
     revokePrincipalMembership(projectId, environmentId, directoryId, providerSubject, body, options) {
         const path = `${applicationPrincipalPath(projectId, environmentId, directoryId, providerSubject)}/memberships/revoke`;

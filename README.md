@@ -369,6 +369,10 @@ same typed admin clients:
 - apply, preview and read back an environment's desired state
 - list an application principal's sessions, revoke one session, revoke all sessions
 - revoke an application principal's membership of one organisation
+- suspend a principal's authority and revoke all mapped identities' sessions
+- restore authority without changing factors; pending withdrawals are refused
+- export every public identity with its own trait-completeness status
+- erase the complete principal mapping set with explicit confirmation
 
 The desired-state operations address one environment
 (`/api/v1/admin/auth-projects/{projectId}/environments/{environmentId}`):
@@ -394,8 +398,22 @@ options whose `owningUserUuid` is sent as `X-Custd-Owning-User-UUID`. Custd
 validates the named user as a live member of the machine caller's own company; a
 human administrator's own token subject is the actor and leaves the option
 unset. The operations Custd makes retry-safe (create project, apply desired
-state, revoke one session, revoke all sessions) require an idempotency key and
-reject an empty one before a request is sent.
+state, revoke one session, revoke all sessions, suspend, restore and erase)
+require an idempotency key and reject an empty one before a request is sent.
+
+Lifecycle operations take an `ApplicationPrincipalTarget` naming the project,
+environment, directory and provider subject. Custd validates that boundary;
+the SDK escapes each path segment. Erasure requires `{ confirm: true }` and
+returns actual deletion counts. A replay with `countsRecorded: false` does not
+carry the original counts: do not interpret its zero counts as proof that
+nothing was deleted.
+
+An export contains public traits, memberships and profile values, never
+credential, token, code or session material. Every entry in `identities` has
+its own `traitsStatus`. Only `included` reports a complete trait set; an empty
+or null set with `incomplete`, `identity_absent`, `directory_unavailable` or
+`provider_unreadable` must not be presented as a complete export. Trait values
+retain their JSON types, including nested objects, arrays, booleans and null.
 
 Use the language-specific entry point:
 

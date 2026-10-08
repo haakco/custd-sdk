@@ -255,7 +255,6 @@ export class CustdClient {
         validateEvent(prepared);
         return this.sendWithRetry(prepared);
     }
-    // biome-ignore lint/suspicious/noConfusingVoidType: public return type — track() resolves to nothing when queued, or a Response when sent immediately.
     async track(event) {
         const prepared = prepareEvent(event);
         validateEvent(prepared);

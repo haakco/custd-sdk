@@ -15,8 +15,19 @@ import { basicAuthorization } from "./oauth.js";
 import { SDK_IDENTITY } from "./version.js";
 
 export {
+  type ApplicationIdentityTrait,
+  type ApplicationIdentityTraitsStatus,
+  type ApplicationIdentityTraitValue,
   type ApplicationMembershipRevocation,
   type ApplicationMembershipRevokeRequest,
+  type ApplicationPrincipalErasure,
+  type ApplicationPrincipalErasureRequest,
+  type ApplicationPrincipalExport,
+  type ApplicationPrincipalIdentityExport,
+  type ApplicationPrincipalMembershipView,
+  type ApplicationPrincipalProfileValueView,
+  type ApplicationPrincipalSuspension,
+  type ApplicationPrincipalTarget,
   type ApplicationSession,
   type ApplicationSessionInventory,
   type ApplicationSessionRevocation,
@@ -1653,8 +1664,7 @@ export class CustdClient {
     return this.sendWithRetry(prepared);
   }
 
-  // biome-ignore lint/suspicious/noConfusingVoidType: public return type — track() resolves to nothing when queued, or a Response when sent immediately.
-  async track(event: EventEnvelope): Promise<void | Response> {
+  async track(event: EventEnvelope): Promise<undefined | Response> {
     const prepared = prepareEvent(event);
     validateEvent(prepared);
     applyEnvironmentLabel(prepared, this.config.environment);

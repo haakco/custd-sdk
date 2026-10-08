@@ -11,7 +11,7 @@ actor and leaves the option unset.
 from __future__ import annotations
 
 import urllib.parse
-from typing import NotRequired, TypedDict, cast
+from typing import Literal, NotRequired, TypedDict, cast
 
 from .client import AdminClient, AdminRequestOptions
 
@@ -134,6 +134,103 @@ class ApplicationMembershipRevocation(TypedDict):
     organisationId: str
     removedAt: str
     removed: bool
+
+
+class ApplicationPrincipalTarget(TypedDict):
+    """Address one application identity; the server validates its boundary."""
+
+    projectId: str
+    environmentId: str
+    directoryId: str
+    providerSubject: str
+
+
+class ApplicationPrincipalSuspension(TypedDict):
+    """Server receipt for suspension or restoration, not an echoed request."""
+
+    projectId: str
+    environmentId: str
+    directoryId: str
+    principalId: str
+    enabled: bool
+    sessionsRevoked: int
+    revision: int
+    replayed: bool
+
+
+class ApplicationPrincipalErasureRequest(TypedDict):
+    """Explicit confirmation of terminal erasure; no strongest-action default."""
+
+    confirm: bool
+
+
+class ApplicationPrincipalErasure(TypedDict):
+    """Operation outcome; countsRecorded is false when replay lacks counts."""
+
+    projectId: str
+    environmentId: str
+    directoryId: str
+    principalId: str
+    status: str
+    invitations: int
+    magicLinks: int
+    memberships: int
+    mappings: int
+    profileValues: int
+    principals: int
+    revision: int
+    replayed: bool
+    countsRecorded: bool
+
+
+ApplicationIdentityTraitValue = (
+    str | int | float | bool | None | list["ApplicationIdentityTraitValue"] | dict[str, "ApplicationIdentityTraitValue"]
+)
+ApplicationIdentityTraitsStatus = Literal[
+    "included", "incomplete", "identity_absent", "directory_unavailable", "provider_unreadable"
+]
+
+
+class ApplicationIdentityTrait(TypedDict):
+    """One public trait, preserving its JSON value without text coercion."""
+
+    name: str
+    value: ApplicationIdentityTraitValue
+
+
+class ApplicationPrincipalIdentityExport(TypedDict):
+    providerIssuer: str
+    providerSubject: str
+    traitsStatus: ApplicationIdentityTraitsStatus
+    traits: list[ApplicationIdentityTrait] | None
+
+
+class ApplicationPrincipalMembershipView(TypedDict):
+    organisationId: str
+    organisationSlug: str
+    organisationName: str
+    role: str
+    createdAt: str
+    removedAt: NotRequired[str]
+
+
+class ApplicationPrincipalProfileValueView(TypedDict):
+    fieldKey: str
+    value: str
+
+
+class ApplicationPrincipalExport(TypedDict):
+    """All public identities and application data, with per-identity completeness."""
+
+    projectId: str
+    environmentId: str
+    directoryId: str
+    principalId: str
+    enabled: bool
+    createdAt: str
+    identities: list[ApplicationPrincipalIdentityExport] | None
+    memberships: list[ApplicationPrincipalMembershipView] | None
+    profileValues: list[ApplicationPrincipalProfileValueView] | None
 
 
 class AuthProjectAudienceBinding(TypedDict):
@@ -321,8 +418,7 @@ class AuthProjectAdminClient:
     ) -> ApplicationSessionRevocation:
         """End exactly one of a principal's sessions, leaving its other sessions untouched."""
         path = (
-            _application_principal_path(project_id, environment_id, directory_id, provider_subject)
-            + "/sessions/revoke"
+            _application_principal_path(project_id, environment_id, directory_id, provider_subject) + "/sessions/revoke"
         )
         return cast(
             ApplicationSessionRevocation,
@@ -345,6 +441,44 @@ class AuthProjectAdminClient:
         )
         return cast(
             ApplicationSessionRevocation,
+            self._admin.request("POST", path, dict(body), _require_idempotency_key(options)),
+        )
+
+    def export_principal(
+        self, target: ApplicationPrincipalTarget, options: AdminRequestOptions | None = None
+    ) -> ApplicationPrincipalExport:
+        """Read all public identity traits, never credential/code/session material."""
+        path = _principal_target_path(target) + "/export"
+        return cast(ApplicationPrincipalExport, self._admin.request("GET", path, None, options))
+
+    def suspend_principal(
+        self, target: ApplicationPrincipalTarget, options: AdminRequestOptions | None = None
+    ) -> ApplicationPrincipalSuspension:
+        """Withdraw authority and revoke every principal-owned identity's sessions."""
+        path = _principal_target_path(target) + "/suspend"
+        return cast(
+            ApplicationPrincipalSuspension, self._admin.request("POST", path, None, _require_idempotency_key(options))
+        )
+
+    def restore_principal(
+        self, target: ApplicationPrincipalTarget, options: AdminRequestOptions | None = None
+    ) -> ApplicationPrincipalSuspension:
+        """Restore authority without changing factors; pending withdrawals refuse."""
+        path = _principal_target_path(target) + "/restore"
+        return cast(
+            ApplicationPrincipalSuspension, self._admin.request("POST", path, None, _require_idempotency_key(options))
+        )
+
+    def erase_principal(
+        self,
+        target: ApplicationPrincipalTarget,
+        body: ApplicationPrincipalErasureRequest,
+        options: AdminRequestOptions | None = None,
+    ) -> ApplicationPrincipalErasure:
+        """Invoke the server-owned durable erasure of the complete mapping set."""
+        path = _principal_target_path(target) + "/erase"
+        return cast(
+            ApplicationPrincipalErasure,
             self._admin.request("POST", path, dict(body), _require_idempotency_key(options)),
         )
 
@@ -423,14 +557,18 @@ def _environment_path(project_id: str, environment_id: str) -> str:
     return f"/auth-projects/{_segment(project_id)}/environments/{_segment(environment_id)}"
 
 
-def _application_principal_path(
-    project_id: str, environment_id: str, directory_id: str, provider_subject: str
-) -> str:
+def _application_principal_path(project_id: str, environment_id: str, directory_id: str, provider_subject: str) -> str:
     return (
         f"/auth-projects/{_segment(project_id)}"
         f"/environments/{_segment(environment_id)}"
         f"/directories/{_segment(directory_id)}"
         f"/principals/{_segment(provider_subject)}"
+    )
+
+
+def _principal_target_path(target: ApplicationPrincipalTarget) -> str:
+    return _application_principal_path(
+        target["projectId"], target["environmentId"], target["directoryId"], target["providerSubject"]
     )
 
 

@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalErasure;
+use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalErasureRequest;
+use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalExport;
+use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalSuspension;
+use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalTarget;
 use HaakCo\Custd\Admin\AuthProject\ApplicationSessionInventory;
 use HaakCo\Custd\Admin\AuthProject\Creation;
 use HaakCo\Custd\Admin\AuthProject\CreateRequest;
@@ -89,6 +94,49 @@ final class AuthProjectClient
         $path = "/auth-projects/" . self::segment($projectId) . "/environments";
 
         return Summary::fromPayload($this->call("POST", $path, $body->toPayload(), $options));
+    }
+
+    /** Read all public identities with their own completeness, never credential material. */
+    public function exportPrincipal(ApplicationPrincipalTarget $target, ?RequestOptions $options = null): ApplicationPrincipalExport
+    {
+        $path = self::principalTargetPath($target).'/export';
+
+        return ApplicationPrincipalExport::fromPayload($this->call('GET', $path, null, $options));
+    }
+
+    /** Withdraw authority before Custd revokes all principal-owned provider sessions. */
+    public function suspendPrincipal(ApplicationPrincipalTarget $target, ?RequestOptions $options = null): ApplicationPrincipalSuspension
+    {
+        self::requireIdempotencyKey($options);
+        $path = self::principalTargetPath($target).'/suspend';
+
+        return ApplicationPrincipalSuspension::fromPayload($this->call('POST', $path, null, $options));
+    }
+
+    /** Restore authority without changing enrolled factors; pending withdrawals are refused. */
+    public function restorePrincipal(ApplicationPrincipalTarget $target, ?RequestOptions $options = null): ApplicationPrincipalSuspension
+    {
+        self::requireIdempotencyKey($options);
+        $path = self::principalTargetPath($target).'/restore';
+
+        return ApplicationPrincipalSuspension::fromPayload($this->call('POST', $path, null, $options));
+    }
+
+    /** Explicitly confirm Custd's durable erasure of the complete principal mapping set. */
+    public function erasePrincipal(
+        ApplicationPrincipalTarget $target,
+        ApplicationPrincipalErasureRequest $body,
+        ?RequestOptions $options = null,
+    ): ApplicationPrincipalErasure {
+        self::requireIdempotencyKey($options);
+        $path = self::principalTargetPath($target).'/erase';
+
+        return ApplicationPrincipalErasure::fromPayload($this->call('POST', $path, $body->toPayload(), $options));
+    }
+
+    private static function principalTargetPath(ApplicationPrincipalTarget $target): string
+    {
+        return self::principalPath($target->projectId, $target->environmentId, $target->directoryId, $target->providerSubject);
     }
 
     /** Report the sessions the directory currently holds for one application principal. */
