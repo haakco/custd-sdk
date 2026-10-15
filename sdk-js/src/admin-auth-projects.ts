@@ -309,6 +309,338 @@ export type AuthProjectStatus = {
   clientSync?: AuthProjectClientSync;
 };
 
+/** One directory credential-store action Custd defines. */
+export type AuthProjectDirectoryAction = "enable" | "pause" | "resume" | "release";
+
+/**
+ * The configured modes one environment may use, so a caller can show
+ * unavailable options honestly rather than offering them. The legal
+ * vocabularies are server-owned and surfaced unchanged.
+ */
+export type AuthProjectCapability = {
+  identityModes: string[] | null;
+  registrationPolicies: string[] | null;
+  profileFieldKeys: string[] | null;
+  audienceConstraints: string;
+  subjectUniqueness: string;
+};
+
+/** One directory's credential-store state as reported. */
+export type AuthProjectDirectoryView = {
+  poolId: string;
+  poolSlug: string;
+  state: string;
+  slotRef?: string;
+  runtimePublicUrl?: string;
+  revision: number;
+  attemptCount: number;
+  lastErrorCategory?: string;
+  readyAt?: string;
+};
+
+/**
+ * The deployment's declared credential-store pool. The pool is deployment-wide,
+ * so every environment's report carries the same numbers.
+ */
+export type AuthProjectDirectoryCapacity = { declared: number; inUse: number; free: number };
+
+/**
+ * The environment's identity directories and their credential-store readiness.
+ * `ready` is true only when every directory that has a store row is serving.
+ */
+export type AuthProjectDirectoryStatus = {
+  projectId: string;
+  environmentId: string;
+  revision: number;
+  directories: AuthProjectDirectoryView[] | null;
+  ready: boolean;
+  capacity: AuthProjectDirectoryCapacity;
+};
+
+/** Body of a directory action. It cannot name a store, runtime URL or state. */
+export type AuthProjectDirectoryRequest = { poolId: string; expectedRevision: number };
+
+/** One organisation an environment's directory holds. It carries no member data. */
+export type AuthProjectEnvironmentOrganisation = {
+  organisationId: string;
+  slug: string;
+  name: string;
+  identityPoolId: string;
+};
+
+/** The named list an environment's organisation read answers with. */
+export type AuthProjectEnvironmentOrganisationList = {
+  projectId: string;
+  environmentId: string;
+  organisations: AuthProjectEnvironmentOrganisation[] | null;
+};
+
+/** Body of clients/reconcile: the revision the caller read. */
+export type AuthProjectClientSyncRequest = { expectedRevision: number };
+
+/** One audience's reconcile outcome, reporting what the provider was observed to hold. */
+export type AuthProjectClientSyncRegistration = {
+  audience: string;
+  clientId: string;
+  action: string;
+  reason?: string;
+};
+
+/**
+ * One reconcile's outcome. `superseded` reports that the environment's
+ * configuration moved while this run was writing.
+ */
+export type AuthProjectClientSyncReport = {
+  environmentId: string;
+  revision: number;
+  checkedAt: string;
+  errorCategory?: string;
+  superseded: boolean;
+  clients: AuthProjectClientSyncRegistration[] | null;
+};
+
+/** One invitation as a caller sees it. It never carries the token or its hash. */
+export type AuthProjectInvitation = {
+  invitationId: string;
+  email: string;
+  membershipRole: string;
+  poolId: string;
+  organisationId: string;
+  expiresAt: string;
+  createdAt: string;
+  /** open, accepted, revoked or expired. */
+  state: string;
+  /** Only meaningful on the response to issuing an invitation; absent elsewhere. */
+  delivered?: boolean;
+};
+
+/** Body of POST .../invitations. It cannot name a project, environment, token or state. */
+export type AuthProjectInvitationIssueRequest = {
+  poolId: string;
+  organisationId: string;
+  email: string;
+  membershipRole: string;
+  expiresInSeconds: number;
+};
+
+/** Response to issuing one invitation; `inviteUrl` is returned exactly once. */
+export type AuthProjectInvitationIssued = {
+  invitation: AuthProjectInvitation;
+  inviteUrl: string;
+  replayed: boolean;
+};
+
+/** An environment's invitations, newest first. */
+export type AuthProjectInvitationListResponse = { invitations: AuthProjectInvitation[] | null };
+
+/** Body of POST .../invitations/revoke. */
+export type AuthProjectInvitationRevocationRequest = { invitationId: string };
+
+/** Body of POST .../invitations/redeliver. It cannot carry a link. */
+export type AuthProjectInvitationRedeliveryRequest = { invitationId: string };
+
+/** One field of a principal's profile as the policy discloses it. */
+export type ApplicationProfileField = {
+  fieldKey: string;
+  value?: string;
+  present: boolean;
+  required: boolean;
+  editableBy: string;
+  editable: boolean;
+};
+
+/**
+ * One principal's profile. It carries only the fields the policy marks visible
+ * and names required fields with no stored value as `missingRequired`.
+ */
+export type ApplicationPrincipalProfile = {
+  projectId: string;
+  environmentId: string;
+  directoryId: string;
+  principalId: string;
+  fields: ApplicationProfileField[] | null;
+  missingRequired: string[] | null;
+};
+
+/** One field value a caller asks to store. */
+export type ApplicationProfileValue = { fieldKey: string; value: string };
+
+/** Body of POST .../profile. The boundary comes from the address, not the body. */
+export type ApplicationProfileValuesRequest = { values: ApplicationProfileValue[] };
+
+/** One organisation an application principal may act for, with its role there. */
+export type ApplicationMembershipChoice = {
+  organisationId: string;
+  organisationSlug: string;
+  organisationName: string;
+  role: string;
+};
+
+/** The set of organisations one application principal may act for. */
+export type ApplicationMembershipContext = {
+  projectId: string;
+  environmentId: string;
+  directoryId: string;
+  principalId: string;
+  memberships: ApplicationMembershipChoice[] | null;
+};
+
+/**
+ * Body of POST /auth-projects/{projectId}/delete. `confirmSlug` must equal the
+ * stored project slug exactly.
+ */
+export type AuthProjectDeletionRequest = { confirmSlug: string };
+
+/** What deleting a project released, grouped so the receipt documents the cascade. */
+export type AuthProjectReleasedResources = {
+  environments: number;
+  directories: number;
+  organisations: number;
+  memberships: number;
+  invitations: number;
+  audienceBindings: number;
+  operations: number;
+};
+
+/** The receipt for a deleted project. */
+export type AuthProjectDeletion = {
+  projectId: string;
+  slug: string;
+  name: string;
+  released: AuthProjectReleasedResources;
+};
+
+/**
+ * Body of POST .../environments/{environmentId}/delete. `confirmSlug` must equal
+ * the stored environment slug exactly.
+ */
+export type AuthProjectEnvironmentDeletionRequest = { confirmSlug: string };
+
+/** What deleting one environment released, grouped for the receipt. */
+export type AuthProjectEnvironmentReleasedResources = {
+  directories: number;
+  organisations: number;
+  memberships: number;
+  invitations: number;
+  audienceBindings: number;
+  operations: number;
+  profileValues: number;
+};
+
+/** The receipt for a deleted environment; it names both project and environment. */
+export type AuthProjectEnvironmentDeletion = {
+  projectId: string;
+  projectSlug: string;
+  environmentId: string;
+  slug: string;
+  name: string;
+  released: AuthProjectEnvironmentReleasedResources;
+};
+
+/**
+ * Body of POST .../environments/{environmentId}/offboard. `confirmSlug` must equal
+ * the stored environment slug exactly.
+ */
+export type AuthProjectEnvironmentOffboardRequest = { confirmSlug: string };
+
+/** The provider half of one offboard; `status` is complete, pending or unavailable. */
+export type AuthEnvironmentClientCleanup = {
+  status: string;
+  clientsRemoved: number;
+  errorCategory?: string;
+};
+
+/** What an offboard kept, so the receipt states plainly that nothing was destroyed. */
+export type AuthEnvironmentRetainedResources = {
+  directories: number;
+  organisations: number;
+  memberships: number;
+  invitations: number;
+  profileValues: number;
+  reservedSlots: number;
+};
+
+/**
+ * The receipt for one offboarded environment: its authority is withdrawn and its
+ * owned provider clients reconciled away, while the environment and its identity
+ * data are retained.
+ */
+export type AuthProjectEnvironmentOffboarding = {
+  projectId: string;
+  projectSlug: string;
+  environmentId: string;
+  slug: string;
+  name: string;
+  authorityWithdrawn: boolean;
+  loginPaused: boolean;
+  revision: number;
+  clientCleanup: AuthEnvironmentClientCleanup;
+  retained: AuthEnvironmentRetainedResources;
+};
+
+/**
+ * One step of a realm provision, reported so a caller knows where it stopped.
+ * The names match the service's ordering: the apply's implicit registration is
+ * re-reconciled after the directory enable moves the authority revision.
+ */
+export type AuthProjectRealmStep = "apply" | "directory_enable" | "client_reconcile" | "status";
+
+/**
+ * One environment's realm setup: the state to apply and the directory to enable.
+ * It carries no directory revision: the directory enable must name the revision
+ * the apply produced, which the helper derives rather than trusting a caller.
+ */
+export type AuthProjectRealmProvisionRequest = {
+  desiredStateRequest: AuthProjectDesiredStateRequest;
+  directoryPoolId: string;
+};
+
+/**
+ * What a realm provision wrote and, on failure, which step failed. Completed
+ * steps are always kept so a caller can resume from `failedStep`.
+ */
+export type AuthProjectRealmProvisionReceipt = {
+  projectId: string;
+  environmentId: string;
+  apply?: AuthProjectOperation;
+  directory?: AuthProjectOperation;
+  reconcile?: AuthProjectClientSyncReport;
+  status?: AuthProjectStatus;
+  /** Empty only when every step completed and the realm converged. */
+  failedStep?: AuthProjectRealmStep;
+};
+
+/**
+ * Raised when every step ran but the provider registrations are not known to
+ * describe the environment's current configuration: the honest answer for a
+ * provision that is not finished, rather than a success whose status is
+ * visibly unreconciled.
+ */
+export class AuthProjectRealmNotConvergedError extends Error {
+  constructor(readonly reconcileNote: string) {
+    super(`custd: auth-project realm did not converge${reconcileNote ? `: ${reconcileNote}` : ""}`);
+    this.name = "AuthProjectRealmNotConvergedError";
+  }
+}
+
+/**
+ * Raised when a realm provision stops early. It carries the failed step and the
+ * receipt of every step that completed.
+ */
+export class AuthProjectRealmProvisionError extends Error {
+  readonly cause?: unknown;
+
+  constructor(
+    readonly failedStep: AuthProjectRealmStep,
+    readonly receipt: AuthProjectRealmProvisionReceipt,
+    cause?: unknown,
+  ) {
+    super(`custd: realm provision failed at step ${failedStep}`);
+    this.name = "AuthProjectRealmProvisionError";
+    this.cause = cause;
+  }
+}
+
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 
 export class AuthProjectAdminClient {
@@ -460,7 +792,280 @@ export class AuthProjectAdminClient {
     const path = `${environmentDesiredStatePath(projectId, environmentId)}/status`;
     return this.request<AuthProjectStatus>("GET", path, undefined, options);
   }
+
+  /** Read the environment's supported auth configuration. */
+  getEnvironmentCapability(
+    projectId: string,
+    environmentId: string,
+    options?: RequestOptions,
+  ): Promise<AuthProjectCapability> {
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/capability`;
+    return this.request<AuthProjectCapability>("GET", path, undefined, options);
+  }
+
+  /** Report every directory in the environment and whether it is fully stored. */
+  listDirectories(
+    projectId: string,
+    environmentId: string,
+    options?: RequestOptions,
+  ): Promise<AuthProjectDirectoryStatus> {
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/directories`;
+    return this.request<AuthProjectDirectoryStatus>("GET", path, undefined, options);
+  }
+
+  /** Enable, pause, resume or release one directory credential store. */
+  async actOnDirectory(
+    projectId: string,
+    environmentId: string,
+    action: AuthProjectDirectoryAction,
+    body: AuthProjectDirectoryRequest,
+    options?: RequestOptions,
+  ): Promise<AuthProjectOperation> {
+    if (!directoryActions.includes(action)) {
+      throw new Error(
+        `custd: auth-project directory action ${String(action)} is not one of enable, pause, resume or release`,
+      );
+    }
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/directories/${encodeURIComponent(action)}`;
+    return this.request<AuthProjectOperation>("POST", path, body, requireIdempotencyKey(options));
+  }
+
+  /** Report the organisations one environment's directory holds. */
+  listEnvironmentOrganisations(
+    projectId: string,
+    environmentId: string,
+    options?: RequestOptions,
+  ): Promise<AuthProjectEnvironmentOrganisationList> {
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/organisations`;
+    return this.request<AuthProjectEnvironmentOrganisationList>("GET", path, undefined, options);
+  }
+
+  /** Register the environment's application clients with the provider. */
+  async reconcileEnvironmentClients(
+    projectId: string,
+    environmentId: string,
+    body: AuthProjectClientSyncRequest,
+    options?: RequestOptions,
+  ): Promise<AuthProjectClientSyncReport> {
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/clients/reconcile`;
+    return this.request<AuthProjectClientSyncReport>("POST", path, body, requireIdempotencyKey(options));
+  }
+
+  /** Report the environment's invitations, newest first. */
+  listInvitations(
+    projectId: string,
+    environmentId: string,
+    options?: RequestOptions,
+  ): Promise<AuthProjectInvitationListResponse> {
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/invitations`;
+    return this.request<AuthProjectInvitationListResponse>("GET", path, undefined, options);
+  }
+
+  /** Invite one address into a directory and return the one-time link. */
+  async issueInvitation(
+    projectId: string,
+    environmentId: string,
+    body: AuthProjectInvitationIssueRequest,
+    options?: RequestOptions,
+  ): Promise<AuthProjectInvitationIssued> {
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/invitations`;
+    return this.request<AuthProjectInvitationIssued>("POST", path, body, requireIdempotencyKey(options));
+  }
+
+  /** Withdraw a live invitation before it is used. */
+  async revokeInvitation(
+    projectId: string,
+    environmentId: string,
+    body: AuthProjectInvitationRevocationRequest,
+    options?: RequestOptions,
+  ): Promise<AuthProjectInvitation> {
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/invitations/revoke`;
+    return this.request<AuthProjectInvitation>("POST", path, body, requireIdempotencyKey(options));
+  }
+
+  /** Replace one live invitation's link and return the fresh one-time link. */
+  async redeliverInvitation(
+    projectId: string,
+    environmentId: string,
+    body: AuthProjectInvitationRedeliveryRequest,
+    options?: RequestOptions,
+  ): Promise<AuthProjectInvitationIssued> {
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/invitations/redeliver`;
+    return this.request<AuthProjectInvitationIssued>("POST", path, body, requireIdempotencyKey(options));
+  }
+
+  /** Read one application principal's profile values. */
+  getPrincipalProfile(
+    target: ApplicationPrincipalTarget,
+    options?: RequestOptions,
+  ): Promise<ApplicationPrincipalProfile> {
+    const path = `${applicationPrincipalPath(target.projectId, target.environmentId, target.directoryId, target.providerSubject)}/profile`;
+    return this.request<ApplicationPrincipalProfile>("GET", path, undefined, options);
+  }
+
+  /** Set one application principal's profile values as an upsert. */
+  async setPrincipalProfile(
+    target: ApplicationPrincipalTarget,
+    body: ApplicationProfileValuesRequest,
+    options?: RequestOptions,
+  ): Promise<ApplicationPrincipalProfile> {
+    const path = `${applicationPrincipalPath(target.projectId, target.environmentId, target.directoryId, target.providerSubject)}/profile`;
+    return this.request<ApplicationPrincipalProfile>("POST", path, body, requireIdempotencyKey(options));
+  }
+
+  /** List the organisations one application principal may act for. */
+  listPrincipalMemberships(
+    target: ApplicationPrincipalTarget,
+    options?: RequestOptions,
+  ): Promise<ApplicationMembershipContext> {
+    const path = `${applicationPrincipalPath(target.projectId, target.environmentId, target.directoryId, target.providerSubject)}/memberships`;
+    return this.request<ApplicationMembershipContext>("GET", path, undefined, options);
+  }
+
+  /** Delete a project and everything scoped to it. `confirmSlug` must name the stored project slug. */
+  deleteProject(
+    projectId: string,
+    body: AuthProjectDeletionRequest,
+    options?: RequestOptions,
+  ): Promise<AuthProjectDeletion> {
+    const path = `/auth-projects/${encodeURIComponent(projectId)}/delete`;
+    return this.request<AuthProjectDeletion>("POST", path, body, options);
+  }
+
+  /** Delete one environment without touching its siblings. `confirmSlug` must name the stored environment slug. */
+  deleteEnvironment(
+    projectId: string,
+    environmentId: string,
+    body: AuthProjectEnvironmentDeletionRequest,
+    options?: RequestOptions,
+  ): Promise<AuthProjectEnvironmentDeletion> {
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/delete`;
+    return this.request<AuthProjectEnvironmentDeletion>("POST", path, body, options);
+  }
+
+  /**
+   * Withdraw one environment's authority and reconcile its owned provider clients
+   * away while retaining the environment and its identity data. It is the safe step
+   * for an environment whose directory still holds a credential store, which a
+   * physical delete refuses. `confirmSlug` must name the stored environment slug.
+   * The route has no idempotency key: a retry resumes the provider stage.
+   */
+  offboardEnvironment(
+    projectId: string,
+    environmentId: string,
+    body: AuthProjectEnvironmentOffboardRequest,
+    options?: RequestOptions,
+  ): Promise<AuthProjectEnvironmentOffboarding> {
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/offboard`;
+    return this.request<AuthProjectEnvironmentOffboarding>("POST", path, body, options);
+  }
+
+  /**
+   * Set one environment's identity realm up through the public control plane in
+   * the order the service requires, so a consumer does not have to sequence
+   * separate calls itself. Each write advances the environment's authority
+   * revision, so the order matters:
+   *
+   * 1. Apply the desired state (which also runs the client registration it implies).
+   * 2. Enable the directory credential store, naming the revision the apply produced.
+   *    The service compares that revision against the environment's current revision,
+   *    so a caller-supplied revision would conflict on every fresh setup.
+   * 3. Reconcile the environment's clients at the revision the directory enable
+   *    produced, because the enable moved the revision past the observation the apply
+   *    recorded and status reports a stale observation as unreconciled.
+   * 4. Read status and refuse to report success while the provider is not known to
+   *    hold the configured registrations.
+   *
+   * Each mutating step derives a stable key from the base `idempotencyKey` in
+   * options, so retrying the whole call with the same base key resumes rather
+   * than duplicating. The base must be 8 to 111 characters, so every derived key
+   * stays within the service's 8 to 128 bound. On failure the thrown
+   * {@link AuthProjectRealmProvisionError} carries `failedStep` and the receipt
+   * of every step that completed, with the original error as its `cause`.
+   */
+  async provisionRealm(
+    projectId: string,
+    environmentId: string,
+    request: AuthProjectRealmProvisionRequest,
+    options?: RequestOptions,
+  ): Promise<AuthProjectRealmProvisionReceipt> {
+    const base = requireRealmBaseKey(options);
+    const receipt: AuthProjectRealmProvisionReceipt = { projectId, environmentId };
+
+    let apply: AuthProjectOperation;
+    try {
+      apply = await this.applyEnvironmentDesiredState(projectId, environmentId, request.desiredStateRequest, {
+        ...options,
+        idempotencyKey: `${base}:apply`,
+      });
+    } catch (error) {
+      receipt.failedStep = "apply";
+      throw new AuthProjectRealmProvisionError("apply", receipt, error);
+    }
+    receipt.apply = apply;
+
+    // The enable names the revision the apply committed. The service compares the
+    // expected revision against the environment's current revision, which the apply
+    // just advanced, so the caller's read must not be reused here.
+    let directory: AuthProjectOperation;
+    try {
+      directory = await this.actOnDirectory(
+        projectId,
+        environmentId,
+        "enable",
+        { poolId: request.directoryPoolId, expectedRevision: apply.revision },
+        { ...options, idempotencyKey: `${base}:directory-enable` },
+      );
+    } catch (error) {
+      receipt.failedStep = "directory_enable";
+      throw new AuthProjectRealmProvisionError("directory_enable", receipt, error);
+    }
+    receipt.directory = directory;
+
+    // Enabling advanced the revision again, so the observation the apply recorded is
+    // behind the environment. Reconcile at the directory's revision to record the
+    // provider state that describes the configuration as it is now.
+    let reconcile: AuthProjectClientSyncReport;
+    try {
+      reconcile = await this.reconcileEnvironmentClients(
+        projectId,
+        environmentId,
+        { expectedRevision: directory.revision },
+        { ...options, idempotencyKey: `${base}:client-reconcile` },
+      );
+    } catch (error) {
+      receipt.failedStep = "client_reconcile";
+      throw new AuthProjectRealmProvisionError("client_reconcile", receipt, error);
+    }
+    receipt.reconcile = reconcile;
+
+    // Status is a read, so it does not carry the workflow's write key.
+    let status: AuthProjectStatus;
+    try {
+      status = await this.getEnvironmentStatus(projectId, environmentId, {
+        ...options,
+        idempotencyKey: undefined,
+      });
+    } catch (error) {
+      receipt.failedStep = "status";
+      throw new AuthProjectRealmProvisionError("status", receipt, error);
+    }
+    receipt.status = status;
+    if (!status.reconciled) {
+      receipt.failedStep = "status";
+      throw new AuthProjectRealmProvisionError(
+        "status",
+        receipt,
+        new AuthProjectRealmNotConvergedError(status.reconcileNote),
+      );
+    }
+
+    return receipt;
+  }
 }
+
+/** One directory credential-store action Custd defines. */
+const directoryActions: readonly AuthProjectDirectoryAction[] = ["enable", "pause", "resume", "release"];
 
 // environmentDesiredStatePath addresses one environment under one project. Every
 // segment is escaped so a caller-supplied identifier cannot reshape the path.
@@ -493,4 +1098,32 @@ function requireIdempotencyKey(options: RequestOptions | undefined): RequestOpti
     throw new Error("custd: auth-project idempotency key is required");
   }
   return options ?? {};
+}
+
+// The service bounds an Idempotency-Key at 8 to 128 characters. A realm provision
+// derives one key per mutating step by appending a suffix to the caller's base key,
+// so the base itself is bounded here to keep every derived key legal. The longest
+// suffix is ":directory-enable" (17 characters), matching the Go contract.
+const realmMinKeyLength = 8;
+const realmMaxKeyLength = 128;
+const realmLongestSuffix = ":directory-enable";
+
+// requireRealmBaseKey validates the workflow's base key before any request is sent,
+// so a caller gets one clear error instead of a service rejection on a derived key
+// whose suffix pushed it past the bound.
+function requireRealmBaseKey(options: RequestOptions | undefined): string {
+  const base = options?.idempotencyKey?.trim() ?? "";
+  if (base === "") {
+    throw new Error("custd: auth-project realm provision requires a base idempotency key");
+  }
+  if (base.length < realmMinKeyLength) {
+    throw new Error(`custd: auth-project realm base idempotency key must be at least ${realmMinKeyLength} characters`);
+  }
+  const maxBase = realmMaxKeyLength - realmLongestSuffix.length;
+  if (base.length > maxBase) {
+    throw new Error(
+      `custd: auth-project realm base idempotency key must be at most ${maxBase} characters so every per-step key stays within ${realmMaxKeyLength}`,
+    );
+  }
+  return base;
 }

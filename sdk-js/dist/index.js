@@ -13,7 +13,7 @@ import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
 import { basicAuthorization } from "./oauth.js";
 import { SDK_IDENTITY } from "./version.js";
-export { AuthProjectAdminClient, } from "./admin-auth-projects.js";
+export { AuthProjectAdminClient, AuthProjectRealmNotConvergedError, AuthProjectRealmProvisionError, } from "./admin-auth-projects.js";
 export { ClientSetupClient, validateClientSetupManifest, } from "./admin-client-setup.js";
 export { DataLabelAdminClient, } from "./admin-data-labels.js";
 export { OffboardingClient, } from "./admin-offboarding.js";
