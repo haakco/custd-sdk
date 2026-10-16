@@ -32,9 +32,9 @@ use PHPUnit\Framework\TestCase;
 final class AuthProjectClientTest extends TestCase
 {
     private const OWNING_USER = "01957abc-0000-7000-8000-0000000000aa";
+    private const COMPANY_UUID = "01957abc-0000-7000-8000-0000000000bb";
 
     private const OWNING_USER_HEADER = "X-Custd-Owning-User-UUID";
-
     /** @return array<string, mixed> */
     private function summary(): array
     {
@@ -45,6 +45,7 @@ final class AuthProjectClientTest extends TestCase
             "environmentId" => "01957abc-0000-7000-8000-000000000002",
             "environmentSlug" => "production",
             "identityMode" => "isolated",
+            "companyUuid" => self::COMPANY_UUID,
         ];
     }
 
@@ -57,7 +58,7 @@ final class AuthProjectClientTest extends TestCase
         );
 
         $creation = $client->adminAuthProjects()->createProject(
-            new CreateRequest(slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "isolated"),
+            new CreateRequest(slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "isolated", audienceEntitlementMode: "organisation_membership"),
             new RequestOptions(owningUserUuid: self::OWNING_USER, idempotencyKey: "idem-1"),
         );
 
@@ -67,7 +68,8 @@ final class AuthProjectClientTest extends TestCase
         self::assertSame(self::OWNING_USER, $calls[0]["headers"][self::OWNING_USER_HEADER]);
         self::assertSame("idem-1", $calls[0]["headers"]["Idempotency-Key"]);
         self::assertSame(
-            ["slug" => "hosting-eu", "name" => "Hosting EU", "environmentSlug" => "production", "identityMode" => "isolated"],
+            ["slug" => "hosting-eu", "name" => "Hosting EU", "environmentSlug" => "production", "identityMode" => "isolated",
+                "audienceEntitlementMode" => "organisation_membership"],
             $calls[0]["body"]
         );
         self::assertInstanceOf(Creation::class, $creation);
@@ -76,6 +78,30 @@ final class AuthProjectClientTest extends TestCase
         self::assertTrue($creation->runtimeReady);
         self::assertSame("01957abc-0000-7000-8000-000000000002", $creation->project->environmentId);
         self::assertSame("isolated", $creation->project->identityMode);
+    }
+
+    public function testBindsAnUnboundProjectToTheOwnersCompany(): void
+    {
+        $calls = [];
+        $client = $this->clientWithResponse(
+            ["projectId" => "project-1", "companyUuid" => self::COMPANY_UUID],
+            $calls
+        );
+
+        $binding = $client->adminAuthProjects()->bindCompany(
+            "project-1",
+            new RequestOptions(owningUserUuid: self::OWNING_USER)
+        );
+
+        self::assertSame(["POST"], array_column($calls, "method"));
+        self::assertSame(
+            ["http://localhost:8080/api/v1/admin/auth-projects/project-1/company-binding"],
+            array_column($calls, "url")
+        );
+        self::assertNull($calls[0]["body"], "the service refuses a non-empty binding body");
+        self::assertArrayNotHasKey("Idempotency-Key", $calls[0]["headers"]);
+        self::assertSame("project-1", $binding->projectId);
+        self::assertSame(self::COMPANY_UUID, $binding->companyUuid);
     }
 
     public function testListsProjectsWithThePagingCursor(): void
@@ -94,6 +120,7 @@ final class AuthProjectClientTest extends TestCase
         self::assertSame(self::OWNING_USER, $calls[0]["headers"][self::OWNING_USER_HEADER]);
         self::assertInstanceOf(ListResponse::class, $page);
         self::assertSame("hosting-eu", $page->projects[0]->slug);
+        self::assertSame(self::COMPANY_UUID, $page->projects[0]->companyUuid);
         self::assertSame("cursor-2", $page->nextAfter);
     }
 
@@ -180,14 +207,15 @@ final class AuthProjectClientTest extends TestCase
 
         $environment = $client->adminAuthProjects()->createEnvironment(
             "project-1",
-            new EnvironmentCreateRequest(slug: "staging", name: "Staging", identityMode: "isolated"),
+            new EnvironmentCreateRequest(slug: "staging", name: "Staging", identityMode: "isolated", audienceEntitlementMode: "explicit_grants"),
             new RequestOptions(owningUserUuid: self::OWNING_USER),
         );
 
         self::assertSame(["POST"], array_column($calls, "method"));
         self::assertSame(["http://localhost:8080/api/v1/admin/auth-projects/project-1/environments"], array_column($calls, "url"));
         self::assertSame(
-            ["slug" => "staging", "name" => "Staging", "identityMode" => "isolated"],
+            ["slug" => "staging", "name" => "Staging", "identityMode" => "isolated",
+                "audienceEntitlementMode" => "explicit_grants"],
             $calls[0]["body"]
         );
         self::assertInstanceOf(Summary::class, $environment);
@@ -327,7 +355,7 @@ final class AuthProjectClientTest extends TestCase
 
         try {
             $client->adminAuthProjects()->createProject(
-                new CreateRequest(slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "isolated"),
+                new CreateRequest(slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "isolated", audienceEntitlementMode: "organisation_membership"),
                 new RequestOptions(owningUserUuid: self::OWNING_USER),
             );
             self::fail("expected a missing idempotency key to be rejected");
@@ -341,7 +369,14 @@ final class AuthProjectClientTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        new CreateRequest(slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "shared-across");
+        new CreateRequest(slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "shared-across", audienceEntitlementMode: "organisation_membership");
+    }
+
+    public function testRejectsAnUnknownAudienceEntitlementMode(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new CreateRequest(slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "isolated", audienceEntitlementMode: "optional");
     }
 
     public function testOmitsTheOwningUserHeaderForAHumanAdministrator(): void

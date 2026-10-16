@@ -17,6 +17,7 @@ use HaakCo\Custd\Admin\AuthProject\ApplicationSessionInventory;
 use HaakCo\Custd\Admin\AuthProject\Capability;
 use HaakCo\Custd\Admin\AuthProject\ClientSyncReport;
 use HaakCo\Custd\Admin\AuthProject\ClientSyncRequest;
+use HaakCo\Custd\Admin\AuthProject\CompanyBinding;
 use HaakCo\Custd\Admin\AuthProject\Creation;
 use HaakCo\Custd\Admin\AuthProject\CreateRequest;
 use HaakCo\Custd\Admin\AuthProject\DesiredStateRequest;
@@ -71,6 +72,15 @@ final class AuthProjectClient
 
     public const IDENTITY_SHARED = "shared";
 
+    /**
+     * Organisation membership admits any live member of the environment's organisation for every
+     * registered audience: the behaviour every environment had before explicit grants existed.
+     */
+    public const AUDIENCE_ENTITLEMENT_ORGANISATION_MEMBERSHIP = "organisation_membership";
+
+    /** An audience is admitted only when the principal holds a grant for that exact audience. */
+    public const AUDIENCE_ENTITLEMENT_EXPLICIT_GRANTS = "explicit_grants";
+
     public const DIRECTORY_ENABLE = "enable";
 
     public const DIRECTORY_PAUSE = "pause";
@@ -81,6 +91,12 @@ final class AuthProjectClient
 
     /** @var list<string> */
     private const IDENTITY_MODES = [self::IDENTITY_ISOLATED, self::IDENTITY_SHARED];
+
+    /** @var list<string> */
+    private const AUDIENCE_ENTITLEMENT_MODES = [
+        self::AUDIENCE_ENTITLEMENT_ORGANISATION_MEMBERSHIP,
+        self::AUDIENCE_ENTITLEMENT_EXPLICIT_GRANTS,
+    ];
 
     /** @var list<string> */
     private const DIRECTORY_ACTIONS = [
@@ -121,6 +137,16 @@ final class AuthProjectClient
     {
         if (!in_array($identityMode, self::IDENTITY_MODES, true)) {
             throw new \InvalidArgumentException("custd: auth-project identityMode must be isolated or shared");
+        }
+    }
+
+    /** assertAudienceEntitlementMode rejects a mode the service does not define. */
+    public static function assertAudienceEntitlementMode(string $mode): void
+    {
+        if (!in_array($mode, self::AUDIENCE_ENTITLEMENT_MODES, true)) {
+            throw new \InvalidArgumentException(
+                "custd: auth-project audienceEntitlementMode must be organisation_membership or explicit_grants"
+            );
         }
     }
 
@@ -166,6 +192,21 @@ final class AuthProjectClient
         $path = "/auth-projects/" . self::segment($projectId) . "/environments";
 
         return Summary::fromPayload($this->call("POST", $path, $body->toPayload(), $options));
+    }
+
+    /**
+     * bindCompany records the authenticated human owner's company on an explicitly
+     * unbound historical project.
+     *
+     * It is the actionable step a `company_binding_required` refusal names: the body
+     * is empty, Custd refuses a machine credential and a foreign rebind, and repeating
+     * it for the same company is safe, so it carries no idempotency key.
+     */
+    public function bindCompany(string $projectId, ?RequestOptions $options = null): CompanyBinding
+    {
+        $path = "/auth-projects/" . self::segment($projectId) . "/company-binding";
+
+        return CompanyBinding::fromPayload($this->call("POST", $path, null, $options));
     }
 
     /** Read all public identities with their own completeness, never credential material. */

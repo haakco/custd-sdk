@@ -285,7 +285,10 @@ final class AuthProjectSurfaceTest extends TestCase
     {
         $calls = [];
         $client = $this->clientWithQueue([
-            ["body" => ["invitations" => [$this->invitation()]]],
+            ["body" => ["invitations" => [
+                [...$this->invitation(), "acceptedPrincipalId" => null],
+                [...$this->invitation(), "invitationId" => "inv-accepted", "state" => "accepted", "acceptedPrincipalId" => "017f22e2-79b0-7f4a-8f90-ec7c7c502334"],
+            ]]],
             ["body" => ["invitation" => [...$this->invitation(), "delivered" => true], "inviteUrl" => "https://auth.example.com/invite/abc", "replayed" => false]],
             ["body" => ["invitation" => $this->invitation(), "inviteUrl" => "https://auth.example.com/invite/def", "replayed" => false]],
             ["body" => [...$this->invitation(), "state" => "revoked"]],
@@ -321,6 +324,8 @@ final class AuthProjectSurfaceTest extends TestCase
             array_column($calls, "url"),
         );
         self::assertSame("open", $listed->invitations[0]->state);
+        self::assertNull($listed->invitations[0]->acceptedPrincipalId);
+        self::assertSame("017f22e2-79b0-7f4a-8f90-ec7c7c502334", $listed->invitations[1]->acceptedPrincipalId);
         self::assertTrue($issued->invitation->delivered);
         self::assertSame("https://auth.example.com/invite/def", $redelivered->inviteUrl);
         self::assertSame("revoked", $revoked->state);

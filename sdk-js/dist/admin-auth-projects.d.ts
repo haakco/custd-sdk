@@ -1,18 +1,29 @@
 import type { RequestOptions } from "./index.js";
 /** How an environment's identity boundary is shared. Custd owns both values. */
 export type AuthProjectIdentityMode = "isolated" | "shared";
+/**
+ * How an environment decides which principals an audience admits.
+ *
+ * "organisation_membership" is the pre-existing behaviour: any live member of the environment's
+ * organisation is admitted for every registered audience. "explicit_grants" admits an audience only
+ * when the principal holds a grant for that exact audience. The caller must declare it on creation
+ * and it cannot be changed afterwards.
+ */
+export type AuthProjectAudienceEntitlementMode = "organisation_membership" | "explicit_grants";
 /** Body of POST /api/v1/admin/auth-projects. */
 export type AuthProjectCreateRequest = {
     slug: string;
     name: string;
     environmentSlug: string;
     identityMode: AuthProjectIdentityMode;
+    audienceEntitlementMode: AuthProjectAudienceEntitlementMode;
 };
 /** Body of POST /api/v1/admin/auth-projects/{projectId}/environments. */
 export type AuthProjectEnvironmentCreateRequest = {
     slug: string;
     name: string;
     identityMode: AuthProjectIdentityMode;
+    audienceEntitlementMode: AuthProjectAudienceEntitlementMode;
 };
 /** One project and the environment the call is scoped to. */
 export type AuthProjectSummary = {
@@ -22,6 +33,13 @@ export type AuthProjectSummary = {
     environmentId: string;
     environmentSlug: string;
     identityMode: AuthProjectIdentityMode;
+    /** Persisted company of this project; null means explicitly unbound, never inferred. */
+    companyUuid: string | null;
+};
+/** Result of binding an explicitly unbound project to the authenticated human owner's company. */
+export type AuthProjectCompanyBinding = {
+    projectId: string;
+    companyUuid: string;
 };
 /** Response to creating a project. */
 export type AuthProjectCreation = {
@@ -291,6 +309,8 @@ export type AuthProjectStatus = {
     loginReady: boolean;
     loginNote: string;
     clientSync?: AuthProjectClientSync;
+    /** Persisted company of this environment's project; null means explicitly unbound, never inferred. */
+    companyUuid: string | null;
 };
 /** One directory credential-store action Custd defines. */
 export type AuthProjectDirectoryAction = "enable" | "pause" | "resume" | "release";
@@ -393,6 +413,8 @@ export type AuthProjectInvitation = {
     state: string;
     /** Only meaningful on the response to issuing an invitation; absent elsewhere. */
     delivered?: boolean;
+    /** Server-recorded acceptance linkage. Unavailable when absent/null; never infer from email. */
+    acceptedPrincipalId?: string | null;
 };
 /** Body of POST .../invitations. It cannot name a project, environment, token or state. */
 export type AuthProjectInvitationIssueRequest = {
@@ -614,6 +636,14 @@ export declare class AuthProjectAdminClient {
     listProjects(after?: string, options?: RequestOptions): Promise<AuthProjectListResponse>;
     /** Create the named owning user's project ownership, identity pool and first paused environment. */
     createProject(body: AuthProjectCreateRequest, options?: RequestOptions): Promise<AuthProjectCreation>;
+    /**
+     * Record the authenticated human owner's company on an explicitly unbound historical project.
+     *
+     * It is the actionable step a `company_binding_required` refusal names: the body is empty, Custd
+     * refuses a machine credential and a foreign rebind, and repeating it for the same company is
+     * safe, so it carries no idempotency key.
+     */
+    bindProjectCompany(projectId: string, options?: RequestOptions): Promise<AuthProjectCompanyBinding>;
     /** Add a further environment to an existing project. The new environment starts paused. */
     createEnvironment(projectId: string, body: AuthProjectEnvironmentCreateRequest, options?: RequestOptions): Promise<AuthProjectSummary>;
     /** Report the sessions the directory currently holds for one application principal. */

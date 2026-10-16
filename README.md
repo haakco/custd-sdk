@@ -454,6 +454,34 @@ Use the language-specific entry point:
 - Python: `client.admin.auth_projects` with the `AuthProject*` and `Application*` typed dicts.
 - PHP: `$client->adminAuthProjects()` with `HaakCo\Custd\Admin\AuthProject\*` DTOs.
 
+Invitation management reads expose `acceptedPrincipalId` only from Custd's recorded acceptance
+linkage. Null or absence means unavailable, including historical accepted invitations: never infer
+the principal from the email address. Use the exact principal ID for directory-scoped discovery;
+the application's identity key remains the verified `(issuer, subject)` pair.
+
+The Go and PHP SDKs also expose the application's online authority decision, separately
+from administration:
+
+```go
+decision, err := client.CheckApplicationAuthority(ctx, custd.ApplicationAuthorityRequest{AccessToken: applicationAccessToken})
+// An error or !decision.Authorized denies admission.
+```
+
+```php
+$decision = $client->checkApplicationAuthority(
+    new \HaakCo\Custd\Auth\ApplicationAuthorityRequest($applicationAccessToken),
+);
+if (!$decision->authorized) {
+    // Deny admission; HTTP 200 also carries ordinary authority-withdrawal decisions.
+}
+```
+
+This sends `POST /oauth/authority-check` with the application token only. It never sends
+the client's platform credential or an owning-user header. A malformed response throws;
+an HTTP-success denial remains `authorized: false`. The consumer still verifies signature,
+issuer, the correct carrier audience, environment/group and expiry, and owns its hard
+freshness deadline. This call neither clears an edge cookie nor revokes a directory session.
+
 ```ts
 const creation = await client.admin.authProjects.createProject(
   { slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "isolated" },
@@ -541,6 +569,8 @@ cap. Clients must treat export bytes as opaque and must not log audit details.
 | Analytics event range query | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Typed time-plan admin clients | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Auth-project admin clients (projects/environments/principals/desired state) | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
+| Application authority decision (POST/JSON, parsed HTTP-200 denial) | yes | no | no | yes | via PHP SDK | via PHP SDK |
+| Invitation acceptance → exact principal linkage | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Dogfood event helper | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Browser tracker | no, not a browser runtime | yes | no, not a browser runtime | no, not a browser runtime | no, use JS tracker | install/use JS tracker |
 | Awthy audit/redaction DTOs | no, not generic | no, not generic | no, not generic | yes | via PHP SDK | out of scope |

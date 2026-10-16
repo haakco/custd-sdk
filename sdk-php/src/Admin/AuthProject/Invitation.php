@@ -23,6 +23,7 @@ final readonly class Invitation
         public string $createdAt = '',
         public string $state = '',
         public bool $delivered = false,
+        public ?string $acceptedPrincipalId = null,
     ) {
     }
 
@@ -40,6 +41,7 @@ final readonly class Invitation
             Fields::string($object, 'createdAt'),
             Fields::string($object, 'state'),
             Fields::optionalBoolean($object, 'delivered') ?? false,
+            Fields::optionalString($object, 'acceptedPrincipalId'),
         );
     }
 }

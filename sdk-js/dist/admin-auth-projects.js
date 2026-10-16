@@ -51,6 +51,17 @@ export class AuthProjectAdminClient {
     async createProject(body, options) {
         return this.request("POST", "/auth-projects", body, requireIdempotencyKey(options));
     }
+    /**
+     * Record the authenticated human owner's company on an explicitly unbound historical project.
+     *
+     * It is the actionable step a `company_binding_required` refusal names: the body is empty, Custd
+     * refuses a machine credential and a foreign rebind, and repeating it for the same company is
+     * safe, so it carries no idempotency key.
+     */
+    bindProjectCompany(projectId, options) {
+        const path = `/auth-projects/${encodeURIComponent(projectId)}/company-binding`;
+        return this.request("POST", path, undefined, options);
+    }
     /** Add a further environment to an existing project. The new environment starts paused. */
     createEnvironment(projectId, body, options) {
         const path = `/auth-projects/${encodeURIComponent(projectId)}/environments`;

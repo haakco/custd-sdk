@@ -37,6 +37,7 @@ const authProjectSummary = {
   environmentId: "01957abc-0000-7000-8000-000000000002",
   environmentSlug: "production",
   identityMode: "isolated",
+  companyUuid: "01957abc-0000-7000-8000-0000000000aa",
 };
 
 // The nested desired-state document a consumer builds from the named types alone.
@@ -158,7 +159,13 @@ describe("admin auth projects", () => {
     const client = newClient(fetchImpl);
 
     const creation = await client.admin.authProjects.createProject(
-      { slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "isolated" },
+      {
+        slug: "hosting-eu",
+        name: "Hosting EU",
+        environmentSlug: "production",
+        identityMode: "isolated",
+        audienceEntitlementMode: "organisation_membership",
+      },
       { owningUserUuid: owningUser, idempotencyKey: "idem-1" },
     );
 
@@ -175,12 +182,27 @@ describe("admin auth projects", () => {
       name: "Hosting EU",
       environmentSlug: "production",
       identityMode: "isolated",
+      audienceEntitlementMode: "organisation_membership",
     });
     expect(creation.operationId).toBe("op-1");
     expect(creation.replayed).toBe(false);
     expect(creation.runtimeReady).toBe(true);
     expect(creation.project.environmentId).toBe("01957abc-0000-7000-8000-000000000002");
     expect(creation.project.identityMode).toBe("isolated");
+  });
+
+  it("binds an unbound project to the owner's company without a body", async () => {
+    const fetchImpl = mockFetch({ projectId: "project-1", companyUuid: "01957abc-0000-7000-8000-0000000000bb" });
+    const client = newClient(fetchImpl);
+
+    const binding = await client.admin.authProjects.bindProjectCompany("project-1", { owningUserUuid: owningUser });
+
+    const { url, init } = sentRequest(fetchImpl);
+    expect(url).toBe("http://localhost:8080/api/v1/admin/auth-projects/project-1/company-binding");
+    expect(init.method).toBe("POST");
+    expect(init.body ?? undefined).toBeUndefined();
+    expect(init.headers).not.toHaveProperty("Idempotency-Key");
+    expect(binding.companyUuid).toBe("01957abc-0000-7000-8000-0000000000bb");
   });
 
   it("lists projects with the paging cursor", async () => {
@@ -194,6 +216,7 @@ describe("admin auth projects", () => {
     expect(init.method).toBe("GET");
     expect(init.headers).toMatchObject({ "X-Custd-Owning-User-UUID": owningUser });
     expect(page.projects[0]?.slug).toBe("hosting-eu");
+    expect(page.projects[0]?.companyUuid).toBe("01957abc-0000-7000-8000-0000000000aa");
     expect(page.nextAfter).toBe("cursor-2");
   });
 
@@ -270,7 +293,7 @@ describe("admin auth projects", () => {
 
     const environment = await client.admin.authProjects.createEnvironment(
       "project-1",
-      { slug: "staging", name: "Staging", identityMode: "isolated" },
+      { slug: "staging", name: "Staging", identityMode: "isolated", audienceEntitlementMode: "explicit_grants" },
       { owningUserUuid: owningUser },
     );
 
@@ -281,6 +304,7 @@ describe("admin auth projects", () => {
       slug: "staging",
       name: "Staging",
       identityMode: "isolated",
+      audienceEntitlementMode: "explicit_grants",
     });
     expect(environment.environmentSlug).toBe("staging");
   });
@@ -421,7 +445,13 @@ describe("admin auth projects", () => {
 
     await expect(
       client.admin.authProjects.createProject(
-        { slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "isolated" },
+        {
+          slug: "hosting-eu",
+          name: "Hosting EU",
+          environmentSlug: "production",
+          identityMode: "isolated",
+          audienceEntitlementMode: "organisation_membership",
+        },
         { owningUserUuid: owningUser },
       ),
     ).rejects.toThrow("idempotency key is required");

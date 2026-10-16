@@ -98,8 +98,10 @@ final class WorkflowTimingClient
         return BatchResult::fromPayload(
             $this->requiredResponse('POST', $path, new class ($observations) implements Dto {
                 /** @param list<Observation> $observations */
-                public function __construct(private readonly array $observations)
-                {
+                public function __construct(
+                    /** @var list<Observation> */
+                    private readonly array $observations
+                ) {
                 }
 
                 /** @return array<string, mixed> */

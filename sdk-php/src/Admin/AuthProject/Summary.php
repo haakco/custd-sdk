@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 /**
  * Summary is one project and the environment the call is scoped to.
+ *
+ * `companyUuid` is the company this project is persisted against. Null means the project is
+ * explicitly unbound; it is never inferred from a slug, an email or the caller's own company.
  */
 final readonly class Summary
 {
@@ -18,6 +21,7 @@ final readonly class Summary
         public string $environmentId = '',
         public string $environmentSlug = '',
         public string $identityMode = '',
+        public ?string $companyUuid = null,
     ) {
     }
 
@@ -32,6 +36,7 @@ final readonly class Summary
             Fields::string($object, 'environmentId'),
             Fields::string($object, 'environmentSlug'),
             Fields::string($object, 'identityMode'),
+            Fields::optionalString($object, 'companyUuid'),
         );
     }
 }

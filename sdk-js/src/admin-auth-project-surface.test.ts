@@ -173,6 +173,18 @@ describe("auth-project invitations", () => {
           expiresAt: "2026-10-20T00:00:00Z",
           createdAt: "2026-10-16T00:00:00Z",
           state: "open",
+          acceptedPrincipalId: null,
+        },
+        {
+          invitationId: "inv-accepted",
+          email: "person@example.com",
+          membershipRole: "member",
+          poolId: "pool-1",
+          organisationId: "org-1",
+          expiresAt: "2026-10-20T00:00:00Z",
+          createdAt: "2026-10-16T00:00:00Z",
+          state: "accepted",
+          acceptedPrincipalId: "017f22e2-79b0-7f4a-8f90-ec7c7c502334",
         },
       ],
     });
@@ -180,6 +192,8 @@ describe("auth-project invitations", () => {
     const { url } = sentRequest(fetchImpl);
     expect(url).toBe(`${base}/invitations`);
     expect(list.invitations?.[0]?.state).toBe("open");
+    expect(list.invitations?.[0]?.acceptedPrincipalId).toBeNull();
+    expect(list.invitations?.[1]?.acceptedPrincipalId).toBe("017f22e2-79b0-7f4a-8f90-ec7c7c502334");
   });
 
   it("issues an invitation and returns the one-time link", async () => {
