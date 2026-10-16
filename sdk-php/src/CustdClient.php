@@ -223,6 +223,25 @@ final class CustdClient
         return new Admin\ReportingPackClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    /**
+     * Read current application authority, not merely HTTP success. This operation
+     * needs only the application token; never send the client's platform token,
+     * mint a machine token, or attach an owning-user header to this request.
+     * Consumers still validate signature, issuer, audience, group and freshness.
+     */
+    public function checkApplicationAuthority(Auth\ApplicationAuthorityRequest $request): Auth\ApplicationAuthorityDecision
+    {
+        return Auth\ApplicationAuthorityDecision::fromPayload(Admin\Http::requestStructured(
+            $this->baseUrl,
+            $request->accessToken,
+            $this->adminHttpClient,
+            "POST",
+            "/oauth/authority-check",
+            $request->toPayload(),
+            "",
+        ));
+    }
+
     public function adminTimePlans(): Admin\TimePlanClient
     {
         return new Admin\TimePlanClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
