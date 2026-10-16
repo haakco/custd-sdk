@@ -15,6 +15,12 @@ final readonly class ExecutiveReportDefinition
      * @param list<string>|null $supportingWidgetKeys
      */
     public function __construct(
+        public string $recipe,
+        public string $primaryWidgetKey,
+        public string $primaryMetricKey,
+        public string $primaryLabel,
+        public string $primaryUnit,
+        public string $scopeLabel,
         public string $comparisonBasis,
         public ?string $comparisonLabel = null,
         public ?float $targetValue = null,
@@ -28,6 +34,12 @@ final readonly class ExecutiveReportDefinition
     public static function fromPayload(\stdClass $payload): self
     {
         return new self(
+            Fields::string($payload, 'recipe'),
+            Fields::string($payload, 'primaryWidgetKey'),
+            Fields::string($payload, 'primaryMetricKey'),
+            Fields::string($payload, 'primaryLabel'),
+            Fields::string($payload, 'primaryUnit'),
+            Fields::string($payload, 'scopeLabel'),
             Fields::string($payload, 'comparisonBasis'),
             Fields::optionalString($payload, 'comparisonLabel'),
             Fields::optionalNumber($payload, 'targetValue'),
@@ -41,7 +53,15 @@ final readonly class ExecutiveReportDefinition
     /** @return array<string, mixed> */
     public function serialise(): array
     {
-        $payload = ['comparisonBasis' => $this->comparisonBasis];
+        $payload = [
+            'recipe' => $this->recipe,
+            'primaryWidgetKey' => $this->primaryWidgetKey,
+            'primaryMetricKey' => $this->primaryMetricKey,
+            'primaryLabel' => $this->primaryLabel,
+            'primaryUnit' => $this->primaryUnit,
+            'scopeLabel' => $this->scopeLabel,
+            'comparisonBasis' => $this->comparisonBasis,
+        ];
         if ($this->comparisonLabel !== null) {
             $payload['comparisonLabel'] = $this->comparisonLabel;
         }

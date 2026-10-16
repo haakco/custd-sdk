@@ -1,3 +1,4 @@
+import copy
 import json
 import pathlib
 import sys
@@ -126,6 +127,84 @@ class ReportingPackSetupTemplateTest(unittest.TestCase):
         transport = Transport({"drafts": []})
         make_client(transport).admin.reporting_packs.list_drafts()
         self.assertEqual(transport.calls[0][:2], ("GET", "/api/v1/admin/reporting-packs/drafts"))
+
+    def test_definition_round_trips_recipe_selection_and_rounding_policy(self) -> None:
+        definition = copy.deepcopy(DEFINITION)
+        definition["dashboards"][0]["executive"] = {
+            "recipe": "weekly-performance",
+            "primaryWidgetKey": "volume",
+            "primaryMetricKey": "volume",
+            "primaryLabel": "Log volume",
+            "primaryUnit": "count",
+            "scopeLabel": "All services",
+            "comparisonBasis": "previous-period",
+            "comparisonLabel": "vs previous week",
+            "targetValue": 1000.0,
+            "targetUnit": "count",
+            "findings": ["volume held steady"],
+            "actions": ["review sources"],
+            "supportingWidgetKeys": ["severity"],
+        }
+        definition["accounting"] = {
+            "version": 1,
+            "usageMetric": "volume",
+            "schedules": [
+                {
+                    "key": "metered_volume",
+                    "usageMetric": "volume",
+                    "usageUnit": "count",
+                    "timezone": "UTC",
+                    "billingBoundary": "calendar_month",
+                    "effectiveFrom": "2026-01-01T00:00:00Z",
+                    "currency": "USD",
+                    "tiers": [
+                        {"lowerBound": 0.0, "upperBound": 1000.0, "pricePerUnit": 0.01},
+                        {"lowerBound": 1000.0, "pricePerUnit": 0.005},
+                    ],
+                    "rounding": {"mode": "half_up", "decimalPlaces": 2},
+                }
+            ],
+            "allocations": [
+                {
+                    "key": "split",
+                    "sourceSeriesKey": "volume",
+                    "targets": [{"seriesKey": "volume_a", "weight": 0.5}],
+                    "rounding": {"mode": "half_even", "decimalPlaces": 4},
+                }
+            ],
+        }
+        transport = Transport({"kind": "log_observability", "definition": definition})
+        response = make_client(transport).admin.reporting_packs.bind_setup_template(
+            "log_observability", {"bindings": BINDINGS}
+        )
+
+        executive = response["definition"]["dashboards"][0]["executive"]
+        self.assertEqual(
+            {
+                "recipe",
+                "primaryWidgetKey",
+                "primaryMetricKey",
+                "primaryLabel",
+                "primaryUnit",
+                "scopeLabel",
+                "comparisonBasis",
+                "comparisonLabel",
+                "targetValue",
+                "targetUnit",
+                "findings",
+                "actions",
+                "supportingWidgetKeys",
+            },
+            set(executive),
+        )
+        accounting = response["definition"]["accounting"]
+        self.assertEqual(
+            {"mode": "half_up", "decimalPlaces": 2}, accounting["schedules"][0]["rounding"]
+        )
+        self.assertEqual(
+            {"mode": "half_even", "decimalPlaces": 4}, accounting["allocations"][0]["rounding"]
+        )
+        self.assertEqual(definition, response["definition"])
 
 
 if __name__ == "__main__":

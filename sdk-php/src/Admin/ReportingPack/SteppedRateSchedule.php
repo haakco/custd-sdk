@@ -19,7 +19,7 @@ final readonly class SteppedRateSchedule
         public string $effectiveFrom,
         public string $currency,
         public array $tiers,
-        public string $rounding,
+        public RoundingPolicy $rounding,
         public ?string $effectiveTo = null,
     ) {
     }
@@ -35,7 +35,7 @@ final readonly class SteppedRateSchedule
             Fields::string($payload, 'effectiveFrom'),
             Fields::string($payload, 'currency'),
             array_map(static fn (\stdClass $item): RateTier => RateTier::fromPayload($item), Fields::objects($payload, 'tiers')),
-            Fields::string($payload, 'rounding'),
+            RoundingPolicy::fromPayload(Fields::object($payload, 'rounding')),
             Fields::optionalString($payload, 'effectiveTo'),
         );
     }
@@ -52,7 +52,7 @@ final readonly class SteppedRateSchedule
             'effectiveFrom' => $this->effectiveFrom,
             'currency' => $this->currency,
             'tiers' => array_map(static fn (RateTier $item): array => $item->serialise(), $this->tiers),
-            'rounding' => $this->rounding,
+            'rounding' => $this->rounding->serialise(),
         ];
         if ($this->effectiveTo !== null) {
             $payload['effectiveTo'] = $this->effectiveTo;

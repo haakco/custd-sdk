@@ -14,7 +14,7 @@ final readonly class AllocationRule
         public string $key,
         public string $sourceSeriesKey,
         public array $targets,
-        public string $rounding,
+        public RoundingPolicy $rounding,
     ) {
     }
 
@@ -24,7 +24,7 @@ final readonly class AllocationRule
             Fields::string($payload, 'key'),
             Fields::string($payload, 'sourceSeriesKey'),
             array_map(static fn (\stdClass $item): AllocationTarget => AllocationTarget::fromPayload($item), Fields::objects($payload, 'targets')),
-            Fields::string($payload, 'rounding'),
+            RoundingPolicy::fromPayload(Fields::object($payload, 'rounding')),
         );
     }
 
@@ -35,7 +35,7 @@ final readonly class AllocationRule
             'key' => $this->key,
             'sourceSeriesKey' => $this->sourceSeriesKey,
             'targets' => array_map(static fn (AllocationTarget $item): array => $item->serialise(), $this->targets),
-            'rounding' => $this->rounding,
+            'rounding' => $this->rounding->serialise(),
         ];
     }
 }

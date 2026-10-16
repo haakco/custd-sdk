@@ -8,7 +8,7 @@ decode may drop. Bindings are typed, never a dictionary.
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict, cast
+from typing import Literal, NotRequired, TypedDict, cast
 
 from .client import AdminClient, RenderedMetricValue, RenderedWidgetBucket, quote_path
 
@@ -203,14 +203,23 @@ class ReportSectionDefinition(TypedDict, total=False):
     narrative: list[NarrativeBlock]
 
 
-class ExecutiveReportDefinition(TypedDict, total=False):
+class ExecutiveRecipeSelection(TypedDict):
+    recipe: str
+    primaryWidgetKey: str
+    primaryMetricKey: str
+    primaryLabel: str
+    primaryUnit: str
+    scopeLabel: str
+
+
+class ExecutiveReportDefinition(ExecutiveRecipeSelection):
     comparisonBasis: str
-    comparisonLabel: str
-    targetValue: float
-    targetUnit: str
-    findings: list[str]
-    actions: list[str]
-    supportingWidgetKeys: list[str]
+    comparisonLabel: NotRequired[str]
+    targetValue: NotRequired[float]
+    targetUnit: NotRequired[str]
+    findings: NotRequired[list[str]]
+    actions: NotRequired[list[str]]
+    supportingWidgetKeys: NotRequired[list[str]]
 
 
 class PackDashboardDefinition(TypedDict, total=False):
@@ -368,6 +377,14 @@ class AllocationTarget(TypedDict):
     weight: float
 
 
+RoundingMode = Literal["half_up", "half_even", "down", "up"]
+
+
+class RoundingPolicy(TypedDict):
+    mode: RoundingMode
+    decimalPlaces: int
+
+
 class SteppedRateSchedule(TypedDict, total=False):
     key: str
     usageMetric: str
@@ -378,14 +395,14 @@ class SteppedRateSchedule(TypedDict, total=False):
     effectiveTo: str
     currency: str
     tiers: list[RateTier]
-    rounding: str
+    rounding: RoundingPolicy
 
 
 class AllocationRule(TypedDict, total=False):
     key: str
     sourceSeriesKey: str
     targets: list[AllocationTarget]
-    rounding: str
+    rounding: RoundingPolicy
 
 
 class AccountingContract(TypedDict, total=False):

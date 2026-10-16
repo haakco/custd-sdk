@@ -6,6 +6,7 @@ namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\ReportingPack\LogObservabilityBindings;
 use HaakCo\Custd\Admin\ReportingPack\ReportingPackSetupTemplateBindRequest;
+use HaakCo\Custd\Admin\ReportingPack\RoundingPolicy;
 use HaakCo\Custd\CustdClient;
 use PHPUnit\Framework\TestCase;
 
@@ -78,6 +79,105 @@ final class ReportingPackSetupTest extends TestCase
         $calls = [];
         $this->clientWithResponse(['drafts' => []], $calls)->adminReportingPacks()->listDrafts();
         self::assertSame('/api/v1/admin/reporting-packs/drafts', $calls[0]['url']);
+    }
+
+    public function testExecutiveDefinitionRoundTripsRecipeSelection(): void
+    {
+        $executive = [
+            'recipe' => 'weekly-performance',
+            'primaryWidgetKey' => 'overview',
+            'primaryMetricKey' => 'revenue',
+            'primaryLabel' => 'Net revenue',
+            'primaryUnit' => 'USD',
+            'scopeLabel' => 'All accounts',
+            'comparisonBasis' => 'previous-period',
+            'comparisonLabel' => 'vs previous week',
+            'targetValue' => 100000.0,
+            'targetUnit' => 'USD',
+            'findings' => ['margin held'],
+            'actions' => ['review churn'],
+            'supportingWidgetKeys' => ['pipeline'],
+        ];
+        $definition = $this->definition();
+        $definition['dashboards'][0]['executive'] = $executive;
+        $calls = [];
+        $client = $this->clientWithResponse(['kind' => 'log_observability', 'definition' => $definition], $calls);
+
+        $response = $client->adminReportingPacks()->bindSetupTemplate(
+            'log_observability',
+            new ReportingPackSetupTemplateBindRequest(new LogObservabilityBindings('e', 's', 'r')),
+        );
+
+        $serialised = $response->definition->serialise();
+        self::assertEquals($definition, $serialised);
+        self::assertSame(
+            [
+                'recipe',
+                'primaryWidgetKey',
+                'primaryMetricKey',
+                'primaryLabel',
+                'primaryUnit',
+                'scopeLabel',
+                'comparisonBasis',
+                'comparisonLabel',
+                'targetValue',
+                'targetUnit',
+                'findings',
+                'actions',
+                'supportingWidgetKeys',
+            ],
+            array_keys($serialised['dashboards'][0]['executive']),
+        );
+    }
+
+    public function testAccountingRoundTripsRoundingPolicyObject(): void
+    {
+        $definition = $this->definition();
+        $definition['accounting'] = [
+            'version' => 1,
+            'usageMetric' => 'api_calls',
+            'schedules' => [[
+                'key' => 'metered_usage',
+                'usageMetric' => 'api_calls',
+                'usageUnit' => 'count',
+                'timezone' => 'UTC',
+                'billingBoundary' => 'calendar_month',
+                'effectiveFrom' => '2026-01-01T00:00:00Z',
+                'currency' => 'USD',
+                'tiers' => [
+                    ['lowerBound' => 0.0, 'upperBound' => 1000.0, 'pricePerUnit' => 0.01],
+                    ['lowerBound' => 1000.0, 'pricePerUnit' => 0.005],
+                ],
+                'rounding' => ['mode' => 'half_up', 'decimalPlaces' => 2],
+            ]],
+            'allocations' => [[
+                'key' => 'split',
+                'sourceSeriesKey' => 'api_calls',
+                'targets' => [
+                    ['seriesKey' => 'api_calls_a', 'weight' => 0.5],
+                    ['seriesKey' => 'api_calls_b', 'weight' => 0.5],
+                ],
+                'rounding' => ['mode' => 'half_even', 'decimalPlaces' => 4],
+            ]],
+        ];
+        $calls = [];
+        $client = $this->clientWithResponse(['kind' => 'log_observability', 'definition' => $definition], $calls);
+
+        $response = $client->adminReportingPacks()->bindSetupTemplate(
+            'log_observability',
+            new ReportingPackSetupTemplateBindRequest(new LogObservabilityBindings('e', 's', 'r')),
+        );
+
+        $accounting = $response->definition->serialise()['accounting'];
+        self::assertEquals($definition['accounting'], $accounting);
+        self::assertSame(['mode', 'decimalPlaces'], array_keys($accounting['schedules'][0]['rounding']));
+        self::assertSame(['mode', 'decimalPlaces'], array_keys($accounting['allocations'][0]['rounding']));
+    }
+
+    public function testRoundingPolicyRejectsUnknownModeOnDecode(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        RoundingPolicy::fromPayload((object) ['mode' => 'bankers', 'decimalPlaces' => 2]);
     }
 
     /**
