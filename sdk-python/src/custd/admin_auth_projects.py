@@ -95,6 +95,42 @@ class ApplicationSessionInventory(TypedDict):
     sessions: list[ApplicationSession]
 
 
+class ApplicationPrincipalListQuery(TypedDict, total=False):
+    """Query for GET .../environments/{environmentId}/principals.
+
+    ``cursor`` is the opaque ``nextCursor`` the previous page returned and is left
+    off when empty. ``limit`` bounds the page; Custd applies its own default of 100
+    and maximum of 100, so a positive limit is passed through unchanged.
+    """
+
+    cursor: str
+    limit: int
+
+
+class ApplicationPrincipalListItem(TypedDict):
+    """One application principal admitted to one directory.
+
+    ``providerSubject`` is the opaque management address the principal routes take;
+    ``principalId`` is the application identity UUID it resolves to.
+    """
+
+    principalId: str
+    directoryId: str
+    providerSubject: str
+    enabled: bool
+
+
+class ApplicationPrincipalListResponse(TypedDict):
+    """One page of an environment's application principals.
+
+    ``principals`` is empty, never null, when the environment holds no principals.
+    ``nextCursor`` is absent on the last page.
+    """
+
+    principals: list[ApplicationPrincipalListItem]
+    nextCursor: NotRequired[str]
+
+
 class ApplicationSessionRevokeRequest(TypedDict):
     """Body of POST .../principals/{providerSubject}/sessions/revoke."""
 
@@ -947,6 +983,33 @@ class AuthProjectAdminClient:
         """Report the organisations one environment's directory holds."""
         path = f"{_environment_path(project_id, environment_id)}/organisations"
         return cast(AuthProjectEnvironmentOrganisationList, self._admin.request("GET", path, None, options))
+
+    def list_principals(
+        self,
+        project_id: str,
+        environment_id: str,
+        query: ApplicationPrincipalListQuery | None = None,
+        options: AdminRequestOptions | None = None,
+    ) -> ApplicationPrincipalListResponse:
+        """List the application principals every directory in the environment holds.
+
+        The owning-user header is taken from ``options`` like the other project-auth
+        reads, and paging continues with the opaque ``nextCursor`` the previous page
+        returned.
+        """
+        resolved = query or {}
+        params: list[str] = []
+        # The cursor is opaque: only an absent or genuinely empty value is dropped, and
+        # every other string is url-encoded byte-for-byte without normalization.
+        cursor = resolved.get("cursor")
+        if cursor:
+            params.append("cursor=" + urllib.parse.quote(cursor, safe=""))
+        limit = resolved.get("limit", 0)
+        if limit:
+            params.append("limit=" + str(limit))
+        suffix = "" if not params else "?" + "&".join(params)
+        path = f"{_environment_path(project_id, environment_id)}/principals{suffix}"
+        return cast(ApplicationPrincipalListResponse, self._admin.request("GET", path, None, options))
 
     def reconcile_environment_clients(
         self,

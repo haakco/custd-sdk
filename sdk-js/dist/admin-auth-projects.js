@@ -143,6 +143,26 @@ export class AuthProjectAdminClient {
         const path = `${environmentDesiredStatePath(projectId, environmentId)}/organisations`;
         return this.request("GET", path, undefined, options);
     }
+    /**
+     * List the application principals every directory in the environment holds. The
+     * owning-user header is taken from `options` like the other project-auth reads,
+     * and paging continues with the opaque `nextCursor` the previous page returned.
+     */
+    listPrincipals(projectId, environmentId, query = {}, options) {
+        const parts = [];
+        // The cursor is opaque: only an absent or genuinely empty value is dropped, and
+        // every other string is url-encoded byte-for-byte without normalization.
+        const cursor = query.cursor;
+        if (cursor !== undefined && cursor !== "") {
+            parts.push(`cursor=${encodeURIComponent(cursor)}`);
+        }
+        if (query.limit !== undefined && query.limit > 0) {
+            parts.push(`limit=${encodeURIComponent(String(query.limit))}`);
+        }
+        const suffix = parts.length === 0 ? "" : `?${parts.join("&")}`;
+        const path = `${environmentDesiredStatePath(projectId, environmentId)}/principals${suffix}`;
+        return this.request("GET", path, undefined, options);
+    }
     /** Register the environment's application clients with the provider. */
     async reconcileEnvironmentClients(projectId, environmentId, body, options) {
         const path = `${environmentDesiredStatePath(projectId, environmentId)}/clients/reconcile`;

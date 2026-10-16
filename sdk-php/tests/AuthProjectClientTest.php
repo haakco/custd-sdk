@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Tests;
 
+use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalListItem;
+use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalListQuery;
+use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalListResponse;
 use HaakCo\Custd\Admin\AuthProject\ApplicationSessionInventory;
 use HaakCo\Custd\Admin\AuthProject\AudienceBinding;
 use HaakCo\Custd\Admin\AuthProject\Creation;
@@ -92,6 +95,79 @@ final class AuthProjectClientTest extends TestCase
         self::assertInstanceOf(ListResponse::class, $page);
         self::assertSame("hosting-eu", $page->projects[0]->slug);
         self::assertSame("cursor-2", $page->nextAfter);
+    }
+
+    public function testListsApplicationPrincipalsWithTheOpaqueCursor(): void
+    {
+        $calls = [];
+        $client = $this->clientWithResponse([
+            "principals" => [[
+                "principalId" => "01957abc-0000-7000-8000-0000000000c1",
+                "directoryId" => "01957abc-0000-7000-8000-0000000000d1",
+                "providerSubject" => "subject-1",
+                "enabled" => true,
+            ]],
+            "nextCursor" => "cursor-2",
+        ], $calls);
+
+        $page = $client->adminAuthProjects()->listPrincipals(
+            "project-1",
+            "environment-1",
+            new ApplicationPrincipalListQuery(cursor: "cursor-1", limit: 50),
+            new RequestOptions(owningUserUuid: self::OWNING_USER),
+        );
+
+        self::assertSame(["GET"], array_column($calls, "method"));
+        self::assertSame(
+            ["http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1"
+                . "/principals?cursor=cursor-1&limit=50"],
+            array_column($calls, "url")
+        );
+        self::assertSame(self::OWNING_USER, $calls[0]["headers"][self::OWNING_USER_HEADER]);
+        self::assertInstanceOf(ApplicationPrincipalListResponse::class, $page);
+        self::assertInstanceOf(ApplicationPrincipalListItem::class, $page->principals[0]);
+        self::assertSame("subject-1", $page->principals[0]->providerSubject);
+        self::assertTrue($page->principals[0]->enabled);
+        self::assertSame("cursor-2", $page->nextCursor);
+    }
+
+    public function testListsAnEmptyPrincipalPageWithoutACursor(): void
+    {
+        $calls = [];
+        $client = $this->clientWithResponse(["principals" => []], $calls);
+
+        $page = $client->adminAuthProjects()->listPrincipals("project-1", "environment-1");
+
+        self::assertSame(
+            ["http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/principals"],
+            array_column($calls, "url")
+        );
+        self::assertInstanceOf(ApplicationPrincipalListResponse::class, $page);
+        self::assertSame([], $page->principals);
+        self::assertSame("", $page->nextCursor);
+    }
+
+    public function testRoundTripsAnOpaqueCursorUnchanged(): void
+    {
+        $calls = [];
+        $client = $this->clientWithResponse(["principals" => []], $calls);
+
+        $client->adminAuthProjects()->listPrincipals(
+            "project-1",
+            "environment-1",
+            new ApplicationPrincipalListQuery(cursor: " cursor/2?x=+ "),
+        );
+        $client->adminAuthProjects()->listPrincipals(
+            "project-1",
+            "environment-1",
+            new ApplicationPrincipalListQuery(cursor: "   "),
+        );
+
+        $prefix = "http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/principals";
+        self::assertSame(
+            [$prefix . "?cursor=%20cursor%2F2%3Fx%3D%2B%20", $prefix . "?cursor=%20%20%20"],
+            array_column($calls, "url")
+        );
     }
 
     public function testAddsAnEnvironment(): void

@@ -8,6 +8,8 @@ use HaakCo\Custd\Admin\AuthProject\ApplicationMembershipContext;
 use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalErasure;
 use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalErasureRequest;
 use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalExport;
+use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalListQuery;
+use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalListResponse;
 use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalProfile;
 use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalSuspension;
 use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalTarget;
@@ -360,6 +362,35 @@ final class AuthProjectClient
         $path = self::environmentPath($projectId, $environmentId) . "/organisations";
 
         return EnvironmentOrganisationList::fromPayload($this->call("GET", $path, null, $options));
+    }
+
+    /**
+     * List the application principals every directory in the environment holds.
+     *
+     * The owning-user header is taken from `$options` like the other project-auth
+     * reads, and paging continues with the opaque `nextCursor` the previous page
+     * returned.
+     */
+    public function listPrincipals(
+        string $projectId,
+        string $environmentId,
+        ?ApplicationPrincipalListQuery $query = null,
+        ?RequestOptions $options = null,
+    ): ApplicationPrincipalListResponse {
+        $params = [];
+        // The cursor is opaque: only an absent or genuinely empty value is dropped, and
+        // every other string is url-encoded byte-for-byte without normalization.
+        $cursor = $query?->cursor;
+        if ($cursor !== null && $cursor !== "") {
+            $params[] = "cursor=" . rawurlencode($cursor);
+        }
+        if ($query?->limit !== null && $query->limit > 0) {
+            $params[] = "limit=" . $query->limit;
+        }
+        $suffix = $params === [] ? "" : "?" . implode("&", $params);
+        $path = self::environmentPath($projectId, $environmentId) . "/principals" . $suffix;
+
+        return ApplicationPrincipalListResponse::fromPayload($this->call("GET", $path, null, $options));
     }
 
     /** Register the environment's application clients with the provider. */

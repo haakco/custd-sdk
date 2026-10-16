@@ -55,6 +55,34 @@ export type ApplicationSessionInventory = {
     principalId: string;
     sessions: ApplicationSession[];
 };
+/**
+ * Query for GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/principals.
+ * `cursor` is the opaque `nextCursor` the previous page returned and is left off when
+ * empty. `limit` bounds the page; Custd applies its own default of 100 and maximum of
+ * 100, so a positive limit is passed through unchanged.
+ */
+export type ApplicationPrincipalListQuery = {
+    cursor?: string;
+    limit?: number;
+};
+/**
+ * One application principal admitted to one directory. `providerSubject` is the
+ * opaque management address the principal routes take; `principalId` is the
+ * application identity UUID it resolves to.
+ */
+export type ApplicationPrincipalListItem = {
+    principalId: string;
+    directoryId: string;
+    providerSubject: string;
+    enabled: boolean;
+};
+/** One page of an environment's application principals. */
+export type ApplicationPrincipalListResponse = {
+    /** Empty, never null, when the environment holds no principals. */
+    principals: ApplicationPrincipalListItem[];
+    /** Cursor for the next page; absent on the last page. */
+    nextCursor?: string;
+};
 /** Body of POST .../principals/{providerSubject}/sessions/revoke. */
 export type ApplicationSessionRevokeRequest = {
     sessionId: string;
@@ -627,6 +655,12 @@ export declare class AuthProjectAdminClient {
     actOnDirectory(projectId: string, environmentId: string, action: AuthProjectDirectoryAction, body: AuthProjectDirectoryRequest, options?: RequestOptions): Promise<AuthProjectOperation>;
     /** Report the organisations one environment's directory holds. */
     listEnvironmentOrganisations(projectId: string, environmentId: string, options?: RequestOptions): Promise<AuthProjectEnvironmentOrganisationList>;
+    /**
+     * List the application principals every directory in the environment holds. The
+     * owning-user header is taken from `options` like the other project-auth reads,
+     * and paging continues with the opaque `nextCursor` the previous page returned.
+     */
+    listPrincipals(projectId: string, environmentId: string, query?: ApplicationPrincipalListQuery, options?: RequestOptions): Promise<ApplicationPrincipalListResponse>;
     /** Register the environment's application clients with the provider. */
     reconcileEnvironmentClients(projectId: string, environmentId: string, body: AuthProjectClientSyncRequest, options?: RequestOptions): Promise<AuthProjectClientSyncReport>;
     /** Report the environment's invitations, newest first. */
