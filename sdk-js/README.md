@@ -14,7 +14,7 @@ alias or deprecation window.
 Use the GitHub package path when installing into HaakCo apps:
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v1.4.0&path:/sdk-js'
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.0.0&path:/sdk-js'
 ```
 
 Pin the tag to the SDK version you want. The package is also published to the

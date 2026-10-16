@@ -23,6 +23,7 @@ installs code that cannot express a canonical pack.
 | --- | --- |
 | `haakco/custd-sdk` (PHP) | `^3.0` |
 | `haakco/custd-laravel` | `^3.0` — the workflow-timing job first ships in `v2.2.0` |
+| `haakco/custd-wordpress` | `^3.0` |
 | `github.com/haakco/custd-sdk-go/v3` | `v3.0.0` or later |
 | `@haakco/custd-sdk` (JS) | `github:haakco/custd-sdk#v3.0.0&path:/sdk-js`, installed with pnpm |
 
@@ -554,7 +555,7 @@ Packagist; the GitHub repos are public, so no auth token is needed):
     { "type": "vcs", "url": "https://github.com/haakco/custd-sdk" }
   ],
   "require": {
-    "haakco/custd-wordpress": "^1.3"
+    "haakco/custd-wordpress": "^3.0"
   }
 }
 ```
@@ -599,13 +600,13 @@ so the transitive `haakco/custd-sdk` resolves:
     { "type": "vcs", "url": "https://github.com/haakco/custd-sdk" }
   ],
   "require": {
-    "haakco/custd-laravel": "^2.2"
+    "haakco/custd-laravel": "^3.0"
   }
 }
 ```
 
 ```bash
-composer require haakco/custd-laravel:^2.2
+composer require haakco/custd-laravel:^3.0
 ```
 
 See `laravel-package/README.md` for the full config + usage reference.

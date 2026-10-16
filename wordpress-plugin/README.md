@@ -17,13 +17,13 @@ repos are public). Add the mirror **and** the SDK repo so the transitive
     { "type": "vcs", "url": "https://github.com/haakco/custd-sdk" }
   ],
   "require": {
-    "haakco/custd-wordpress": "^1.3"
+    "haakco/custd-wordpress": "^3.0"
   }
 }
 ```
 
 ```bash
-composer require haakco/custd-wordpress:^1.3
+composer require haakco/custd-wordpress:^3.0
 ```
 
 For WordPress activation, symlink the installed package
