@@ -22,7 +22,7 @@ them any more, and a consumer resolving `^1.x` silently installs code that is tw
 | --- | --- |
 | `haakco/custd-sdk` (PHP) | `^2.3` |
 | `haakco/custd-laravel` | `^2.2` — the workflow-timing job first ships in `v2.2.0` |
-| `github.com/haakco/custd-sdk-go/v2` | `v2.3.0` or later; the old path without `/v2` is removed |
+| `github.com/haakco/custd-sdk-go/v3` | `v2.3.0` or later; the old path without `/v2` is removed |
 | `@haakco/custd-sdk` (JS) | `github:haakco/custd-sdk#v2.3.0&path:/sdk-js`, installed with pnpm |
 
 Deleting a Go tag does not remove the version from `proxy.golang.org`, which keeps serving what it has already
@@ -154,7 +154,7 @@ client := custd.NewClient(&custd.ClientConfig{
 Go module:
 
 ```bash
-go get github.com/haakco/custd-sdk-go/v2@latest
+go get github.com/haakco/custd-sdk-go/v3@latest
 ```
 
 ## Provisioned Producer Quickstart
@@ -197,7 +197,7 @@ print the env vars each consumer needs. The CLI calls Custd admin APIs through
 the Go SDK; it does not maintain a separate HTTP client.
 
 ```bash
-go run github.com/haakco/custd-sdk-go/v2/cmd/custd-sdk-setup@latest \
+go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@latest \
   --base-url=https://custd.com \
   --admin-url=https://custd.com \
   --admin-token="$CUSTD_ADMIN_TOKEN" \
@@ -568,7 +568,7 @@ Create producer credentials with the SDK-owned setup helper and use the
 generated `CUSTD_WP_*` block:
 
 ```bash
-go run github.com/haakco/custd-sdk-go/v2/cmd/custd-sdk-setup@latest \
+go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@latest \
   --base-url=https://custd.com \
   --admin-url=https://custd.com \
   --admin-token="$CUSTD_ADMIN_TOKEN" \
@@ -618,7 +618,7 @@ php artisan vendor:publish --tag=custd-config
 Create producer credentials with the SDK-owned setup helper:
 
 ```bash
-go run github.com/haakco/custd-sdk-go/v2/cmd/custd-sdk-setup@latest \
+go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@latest \
   --base-url=https://custd.com \
   --admin-url=https://custd.com \
   --admin-token="$CUSTD_ADMIN_TOKEN" \

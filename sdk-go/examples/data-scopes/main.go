@@ -24,7 +24,7 @@ import (
 	"os"
 	"time"
 
-	custd "github.com/haakco/custd-sdk-go/v2"
+	custd "github.com/haakco/custd-sdk-go/v3"
 )
 
 // scopeDeclaration is one sub-client the tenant wants to publish. The code is

@@ -1,4 +1,4 @@
-module github.com/haakco/custd-sdk-go/v2
+module github.com/haakco/custd-sdk-go/v3
 
 go 1.27.2
 

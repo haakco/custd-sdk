@@ -11,15 +11,15 @@ alias or deprecation window.
 
 ## Install
 
-Consume the Go module from its dedicated mirror `github.com/haakco/custd-sdk-go/v2`
+Consume the Go module from its dedicated mirror `github.com/haakco/custd-sdk-go/v3`
 (tagged `vX.Y.Z`):
 
 ```bash
-go get github.com/haakco/custd-sdk-go/v2@latest
+go get github.com/haakco/custd-sdk-go/v3@latest
 ```
 
 ```go
-import custd "github.com/haakco/custd-sdk-go/v2"
+import custd "github.com/haakco/custd-sdk-go/v3"
 ```
 
 > This module is developed in the [`custd-sdk`](https://github.com/haakco/custd-sdk)
@@ -140,7 +140,7 @@ mise exec -- just check
 Create the tenant-bound OAuth2 producer client and print env snippets:
 
 ```bash
-go run github.com/haakco/custd-sdk-go/v2/cmd/custd-sdk-setup@latest \
+go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@latest \
   --base-url=https://custd.com \
   --admin-url=https://custd.com \
   --admin-token="$CUSTD_ADMIN_TOKEN" \
