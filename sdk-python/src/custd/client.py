@@ -168,7 +168,7 @@ def _decode_raw_ingest_result(body: object, operation_key: str | None = None) ->
 def _raw_response_object(body: object, operation_key: str | None = None) -> dict[str, Any]:
     if isinstance(body, str):
         decoded: object = json.loads(body) if body != "" else None
-    elif isinstance(body, (bytes, bytearray)):
+    elif isinstance(body, bytes | bytearray):
         decoded = json.loads(bytes(body).decode("utf-8"))
     elif isinstance(body, dict):
         decoded = body
@@ -1820,7 +1820,7 @@ def make_default_transport(compression: dict[str, Any]) -> Transport:
         timeout: float,
     ) -> TransportResult:
         # A raw upload is sent verbatim; only JSON events are compressed.
-        if isinstance(event, (bytes, bytearray)):
+        if isinstance(event, bytes | bytearray):
             body = bytes(event)
         else:
             body = json.dumps(event).encode("utf-8")
