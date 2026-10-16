@@ -110,6 +110,10 @@ __all__ = [
     "ApplicationIdentityTraitValue",
     "ApplicationMembershipChoice",
     "ApplicationMembershipContext",
+    "PrincipalAudience",
+    "PrincipalAudiences",
+    "AudienceGrantRequest",
+    "AudienceGrant",
     "ApplicationPrincipalErasure",
     "ApplicationPrincipalErasureRequest",
     "ApplicationPrincipalExport",
@@ -229,6 +233,8 @@ from .admin_auth_projects import (
     ApplicationSessionRevocation,
     ApplicationSessionRevokeRequest,
     ApplicationSessionsRevokeAllRequest,
+    AudienceGrant,
+    AudienceGrantRequest,
     AuthEnvironmentClientCleanup,
     AuthEnvironmentRetainedResources,
     AuthProjectAdminClient,
@@ -278,6 +284,8 @@ from .admin_auth_projects import (
     AuthProjectReleasedResources,
     AuthProjectStatus,
     AuthProjectSummary,
+    PrincipalAudience,
+    PrincipalAudiences,
 )
 from .admin_data_labels import DataLabelAdminClient
 from .admin_data_scopes import (

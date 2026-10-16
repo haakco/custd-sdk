@@ -199,6 +199,21 @@ export class AuthProjectAdminClient {
         const path = `${environmentDesiredStatePath(projectId, environmentId)}/invitations/redeliver`;
         return this.request("POST", path, body, requireIdempotencyKey(options));
     }
+    /** List admission state for the existing directory/provider-subject address. */
+    listPrincipalAudiences(target, options) {
+        const path = `${principalAudiencesPath(target)}?${new URLSearchParams({ directoryId: target.directoryId })}`;
+        return this.request("GET", path, undefined, options);
+    }
+    /** Grant exactly one audience; idempotent and audited server-side. */
+    async grantPrincipalAudience(target, body, options) {
+        return this.request("POST", `${principalAudiencesPath(target)}/grant`, body, requireIdempotencyKey(options));
+    }
+    /** Revoke only this audience, leaving sibling audiences and organisation membership untouched.
+     * Idempotent and audited server-side; no replacement audience is required.
+     */
+    async revokePrincipalAudience(target, body, options) {
+        return this.request("POST", `${principalAudiencesPath(target)}/revoke`, body, requireIdempotencyKey(options));
+    }
     /** Read one application principal's profile values. */
     getPrincipalProfile(target, options) {
         const path = `${applicationPrincipalPath(target.projectId, target.environmentId, target.directoryId, target.providerSubject)}/profile`;
@@ -365,4 +380,8 @@ function requireRealmBaseKey(options) {
         throw new Error(`custd: auth-project realm base idempotency key must be at most ${maxBase} characters so every per-step key stays within ${realmMaxKeyLength}`);
     }
     return base;
+}
+// Audience routes use the same provider-subject identity, with directoryId outside the path.
+function principalAudiencesPath(target) {
+    return `${environmentDesiredStatePath(target.projectId, target.environmentId)}/principals/${encodeURIComponent(target.providerSubject)}/audiences`;
 }

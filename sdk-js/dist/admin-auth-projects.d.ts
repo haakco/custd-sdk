@@ -442,6 +442,29 @@ export type AuthProjectInvitationRevocationRequest = {
 export type AuthProjectInvitationRedeliveryRequest = {
     invitationId: string;
 };
+/** One audience's admission state; managed means explicit grants are required. */
+export type PrincipalAudience = {
+    audience: string;
+    granted: boolean;
+    managed: boolean;
+};
+export type PrincipalAudiences = {
+    audienceEntitlementMode: AuthProjectAudienceEntitlementMode;
+    audiences: PrincipalAudience[];
+};
+/** Directory, organisation and exact registered audience for a grant or revoke. */
+export type AudienceGrantRequest = {
+    directoryId: string;
+    audience: string;
+    organisationId: string;
+};
+export type AudienceGrant = {
+    principalId: string;
+    organisationId: string;
+    audience: string;
+    granted: boolean;
+    managed: boolean;
+};
 /** One field of a principal's profile as the policy discloses it. */
 export type ApplicationProfileField = {
     fieldKey: string;
@@ -701,6 +724,14 @@ export declare class AuthProjectAdminClient {
     revokeInvitation(projectId: string, environmentId: string, body: AuthProjectInvitationRevocationRequest, options?: RequestOptions): Promise<AuthProjectInvitation>;
     /** Replace one live invitation's link and return the fresh one-time link. */
     redeliverInvitation(projectId: string, environmentId: string, body: AuthProjectInvitationRedeliveryRequest, options?: RequestOptions): Promise<AuthProjectInvitationIssued>;
+    /** List admission state for the existing directory/provider-subject address. */
+    listPrincipalAudiences(target: ApplicationPrincipalTarget, options?: RequestOptions): Promise<PrincipalAudiences>;
+    /** Grant exactly one audience; idempotent and audited server-side. */
+    grantPrincipalAudience(target: ApplicationPrincipalTarget, body: AudienceGrantRequest, options?: RequestOptions): Promise<AudienceGrant>;
+    /** Revoke only this audience, leaving sibling audiences and organisation membership untouched.
+     * Idempotent and audited server-side; no replacement audience is required.
+     */
+    revokePrincipalAudience(target: ApplicationPrincipalTarget, body: AudienceGrantRequest, options?: RequestOptions): Promise<AudienceGrant>;
     /** Read one application principal's profile values. */
     getPrincipalProfile(target: ApplicationPrincipalTarget, options?: RequestOptions): Promise<ApplicationPrincipalProfile>;
     /** Set one application principal's profile values as an upsert. */

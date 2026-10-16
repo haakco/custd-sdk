@@ -580,6 +580,35 @@ class AuthProjectInvitationRedeliveryRequest(TypedDict):
     invitationId: str
 
 
+class PrincipalAudience(TypedDict):
+    """One audience's admission state; managed means explicit grants are required."""
+
+    audience: str
+    granted: bool
+    managed: bool
+
+
+class PrincipalAudiences(TypedDict):
+    audienceEntitlementMode: AuthProjectAudienceEntitlementMode
+    audiences: list[PrincipalAudience]
+
+
+class AudienceGrantRequest(TypedDict):
+    """Directory, organisation and exact registered audience for a grant or revoke."""
+
+    directoryId: str
+    audience: str
+    organisationId: str
+
+
+class AudienceGrant(TypedDict):
+    principalId: str
+    organisationId: str
+    audience: str
+    granted: bool
+    managed: bool
+
+
 class ApplicationProfileField(TypedDict):
     """One field of a principal's profile as the policy discloses it."""
 
@@ -1111,6 +1140,38 @@ class AuthProjectAdminClient:
             self._admin.request("POST", path, dict(body), _require_idempotency_key(options)),
         )
 
+    def list_principal_audiences(
+        self, target: ApplicationPrincipalTarget, options: AdminRequestOptions | None = None
+    ) -> PrincipalAudiences:
+        """List admission state for the existing directory/provider-subject address."""
+        path = _principal_audiences_path(target) + "?" + urllib.parse.urlencode({"directoryId": target["directoryId"]})
+        return cast(PrincipalAudiences, self._admin.request("GET", path, None, options))
+
+    def grant_principal_audience(
+        self, target: ApplicationPrincipalTarget, body: AudienceGrantRequest, options: AdminRequestOptions | None = None
+    ) -> AudienceGrant:
+        """Grant exactly one audience; idempotent and audited server-side."""
+        return cast(
+            AudienceGrant,
+            self._admin.request(
+                "POST", _principal_audiences_path(target) + "/grant", dict(body), _require_idempotency_key(options)
+            ),
+        )
+
+    def revoke_principal_audience(
+        self, target: ApplicationPrincipalTarget, body: AudienceGrantRequest, options: AdminRequestOptions | None = None
+    ) -> AudienceGrant:
+        """Revoke only this audience, leaving sibling audiences and organisation membership untouched.
+
+        Idempotent and audited server-side; no replacement audience is required.
+        """
+        return cast(
+            AudienceGrant,
+            self._admin.request(
+                "POST", _principal_audiences_path(target) + "/revoke", dict(body), _require_idempotency_key(options)
+            ),
+        )
+
     def get_principal_profile(
         self, target: ApplicationPrincipalTarget, options: AdminRequestOptions | None = None
     ) -> ApplicationPrincipalProfile:
@@ -1324,3 +1385,11 @@ def _require_idempotency_key(options: AdminRequestOptions | None) -> AdminReques
     if not isinstance(key, str) or key.strip() == "":
         raise ValueError("custd: auth-project idempotency key is required")
     return options or {}
+
+
+def _principal_audiences_path(target: ApplicationPrincipalTarget) -> str:
+    # Same provider-subject identity; audience routes carry directoryId outside the path.
+    return (
+        _environment_path(target["projectId"], target["environmentId"])
+        + f"/principals/{_segment(target['providerSubject'])}/audiences"
+    )

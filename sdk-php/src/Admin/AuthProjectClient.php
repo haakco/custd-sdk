@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Admin\AuthProject\AudienceGrant;
+use HaakCo\Custd\Admin\AuthProject\AudienceGrantRequest;
+use HaakCo\Custd\Admin\AuthProject\PrincipalAudiences;
 use HaakCo\Custd\Admin\AuthProject\ApplicationMembershipContext;
 use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalErasure;
 use HaakCo\Custd\Admin\AuthProject\ApplicationPrincipalErasureRequest;
@@ -495,6 +498,39 @@ final class AuthProjectClient
         $path = self::environmentPath($projectId, $environmentId) . "/invitations/redeliver";
 
         return InvitationIssued::fromPayload($this->call("POST", $path, $body->toPayload(), $options));
+    }
+
+    /** List admission state using the existing directory/provider-subject address. */
+    public function listPrincipalAudiences(ApplicationPrincipalTarget $target, ?RequestOptions $options = null): PrincipalAudiences
+    {
+        $path = self::principalAudiencesPath($target).'?'.http_build_query(['directoryId' => $target->directoryId], '', '&', PHP_QUERY_RFC3986);
+
+        return PrincipalAudiences::fromPayload($this->call('GET', $path, null, $options));
+    }
+
+    /** Grant exactly one audience; idempotent and audited server-side. */
+    public function grantPrincipalAudience(ApplicationPrincipalTarget $target, AudienceGrantRequest $body, ?RequestOptions $options = null): AudienceGrant
+    {
+        self::requireIdempotencyKey($options);
+
+        return AudienceGrant::fromPayload($this->call('POST', self::principalAudiencesPath($target).'/grant', $body->toPayload(), $options));
+    }
+
+    /**
+     * Revoke only this audience, leaving sibling audiences and organisation membership untouched.
+     * Idempotent and audited server-side; no replacement audience is required.
+     */
+    public function revokePrincipalAudience(ApplicationPrincipalTarget $target, AudienceGrantRequest $body, ?RequestOptions $options = null): AudienceGrant
+    {
+        self::requireIdempotencyKey($options);
+
+        return AudienceGrant::fromPayload($this->call('POST', self::principalAudiencesPath($target).'/revoke', $body->toPayload(), $options));
+    }
+
+    // Same provider-subject identity; audience routes carry directoryId outside the path.
+    private static function principalAudiencesPath(ApplicationPrincipalTarget $target): string
+    {
+        return self::environmentPath($target->projectId, $target->environmentId).'/principals/'.self::segment($target->providerSubject).'/audiences';
     }
 
     /** Read one application principal's profile, restricted to policy-visible fields. */

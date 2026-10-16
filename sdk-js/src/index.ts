@@ -44,6 +44,8 @@ export {
   type ApplicationSessionRevocation,
   type ApplicationSessionRevokeRequest,
   type ApplicationSessionsRevokeAllRequest,
+  type AudienceGrant,
+  type AudienceGrantRequest,
   type AuthEnvironmentClientCleanup,
   type AuthEnvironmentRetainedResources,
   AuthProjectAdminClient,
@@ -93,6 +95,8 @@ export {
   type AuthProjectReleasedResources,
   type AuthProjectStatus,
   type AuthProjectSummary,
+  type PrincipalAudience,
+  type PrincipalAudiences,
 } from "./admin-auth-projects.js";
 export {
   type ClientSetupApplyAndWaitOptions,
