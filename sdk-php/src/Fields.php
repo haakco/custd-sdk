@@ -90,20 +90,6 @@ final class Fields
         return $value;
     }
 
-    /** @param \stdClass $payload */
-    public static function optionalBoolean(\stdClass $payload, string $key): ?bool
-    {
-        $value = self::optional($payload, $key);
-        if ($value === null) {
-            return null;
-        }
-        if (!is_bool($value)) {
-            throw new \UnexpectedValueException("custd: response field {$key} must be a boolean");
-        }
-
-        return $value;
-    }
-
     /**
      * stringMap returns a required JSON object flattened to a string map, the
      * shape parser field mappings use. A scalar value is rejected rather than
