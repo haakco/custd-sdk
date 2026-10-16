@@ -11,7 +11,7 @@ final class CustdClient
      * equals VERSION and scripts/bump-version.sh updates it, so a release cannot
      * leave it behind.
      */
-    public const VERSION = "2.9.0";
+    public const VERSION = "2.10.0";
 
     /** Product named in X-Custd-Sdk. The Laravel and WordPress wrappers override it. */
     public const PRODUCT = "php";
@@ -224,6 +224,25 @@ final class CustdClient
     public function adminAuthProjects(): Admin\AuthProjectClient
     {
         return new Admin\AuthProjectClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
+    /**
+     * Read current application authority, not merely HTTP success. This operation
+     * needs only the application token; never send the client's platform token,
+     * mint a machine token, or attach an owning-user header to this request.
+     * Consumers still validate signature, issuer, audience, group and freshness.
+     */
+    public function checkApplicationAuthority(Auth\ApplicationAuthorityRequest $request): Auth\ApplicationAuthorityDecision
+    {
+        return Auth\ApplicationAuthorityDecision::fromPayload(Admin\Http::requestStructured(
+            $this->baseUrl,
+            $request->accessToken,
+            $this->adminHttpClient,
+            "POST",
+            "/oauth/authority-check",
+            $request->toPayload(),
+            "",
+        ));
     }
 
     public function provisioning(): Provisioning\Client

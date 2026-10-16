@@ -344,7 +344,17 @@ class AuthProjectSurfaceTest(unittest.TestCase):
         }
         client, transport = client_with(
             [
-                {"invitations": [invitation]},
+                {
+                    "invitations": [
+                        {**invitation, "acceptedPrincipalId": None},
+                        {
+                            **invitation,
+                            "invitationId": "inv-accepted",
+                            "state": "accepted",
+                            "acceptedPrincipalId": "017f22e2-79b0-7f4a-8f90-ec7c7c502334",
+                        },
+                    ]
+                },
                 {
                     "invitation": {**invitation, "delivered": True},
                     "inviteUrl": "https://auth.example.com/invite/abc",
@@ -382,6 +392,10 @@ class AuthProjectSurfaceTest(unittest.TestCase):
         self.assertEqual(f"{BASE}/invitations/redeliver", transport.calls[2]["url"])
         self.assertEqual(f"{BASE}/invitations/revoke", transport.calls[3]["url"])
         self.assertEqual("open", listed["invitations"][0]["state"])
+        self.assertIsNone(listed["invitations"][0].get("acceptedPrincipalId"))
+        self.assertEqual(
+            "017f22e2-79b0-7f4a-8f90-ec7c7c502334", listed["invitations"][1].get("acceptedPrincipalId")
+        )
         self.assertEqual("https://auth.example.com/invite/abc", issued["inviteUrl"])
         self.assertEqual("https://auth.example.com/invite/def", redelivered["inviteUrl"])
         self.assertEqual("revoked", revoked["state"])

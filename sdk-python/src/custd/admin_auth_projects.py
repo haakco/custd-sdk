@@ -20,6 +20,13 @@ from .client import AdminClient, AdminRequestOptions
 AuthProjectIdentityMode = str
 AUTH_PROJECT_IDENTITY_MODES = ("isolated", "shared")
 
+# AuthProjectAudienceEntitlementMode declares how an environment decides which principals an
+# audience admits. "organisation_membership" is the pre-existing behaviour; "explicit_grants"
+# admits an audience only when the principal holds a grant for that exact audience. Required on
+# creation and immutable afterwards.
+AuthProjectAudienceEntitlementMode = str
+AUTH_PROJECT_AUDIENCE_ENTITLEMENT_MODES = ("organisation_membership", "explicit_grants")
+
 
 class AuthProjectCreateRequest(TypedDict):
     """Body of POST /api/v1/admin/auth-projects."""
@@ -28,6 +35,7 @@ class AuthProjectCreateRequest(TypedDict):
     name: str
     environmentSlug: str
     identityMode: AuthProjectIdentityMode
+    audienceEntitlementMode: AuthProjectAudienceEntitlementMode
 
 
 class AuthProjectEnvironmentCreateRequest(TypedDict):
@@ -36,10 +44,15 @@ class AuthProjectEnvironmentCreateRequest(TypedDict):
     slug: str
     name: str
     identityMode: AuthProjectIdentityMode
+    audienceEntitlementMode: AuthProjectAudienceEntitlementMode
 
 
 class AuthProjectSummary(TypedDict):
-    """One project and the environment the call is scoped to."""
+    """One project and the environment the call is scoped to.
+
+    ``companyUuid`` is the persisted company of this project; ``None`` means explicitly
+    unbound and must never be inferred from a slug, an email or the caller's company.
+    """
 
     projectId: str
     slug: str
@@ -47,6 +60,14 @@ class AuthProjectSummary(TypedDict):
     environmentId: str
     environmentSlug: str
     identityMode: AuthProjectIdentityMode
+    companyUuid: str | None
+
+
+class AuthProjectCompanyBinding(TypedDict):
+    """Result of binding an explicitly unbound project to the owner's company."""
+
+    projectId: str
+    companyUuid: str
 
 
 class AuthProjectCreation(TypedDict):
@@ -397,6 +418,8 @@ class AuthProjectStatus(TypedDict):
     loginReady: bool
     loginNote: str
     clientSync: NotRequired[AuthProjectClientSync]
+    # Persisted company of this environment's project; None means explicitly unbound.
+    companyUuid: str | None
 
 
 # Custd owns the four legal directory actions and the SDK rejects anything else
@@ -517,6 +540,8 @@ class AuthProjectInvitation(TypedDict):
     state: str
     # Only meaningful on the response to issuing an invitation; absent elsewhere.
     delivered: NotRequired[bool]
+    # Server-recorded acceptance linkage; absent/None means unavailable, not an email match.
+    acceptedPrincipalId: NotRequired[str | None]
 
 
 class AuthProjectInvitationIssueRequest(TypedDict):
@@ -785,6 +810,18 @@ class AuthProjectAdminClient:
             AuthProjectCreation,
             self._admin.request("POST", "/auth-projects", dict(body), _require_idempotency_key(options)),
         )
+
+    def bind_project_company(
+        self, project_id: str, options: AdminRequestOptions | None = None
+    ) -> AuthProjectCompanyBinding:
+        """Bind an explicitly unbound project to the authenticated human owner's company.
+
+        The actionable step a ``company_binding_required`` refusal names: the body is empty, Custd
+        refuses a machine credential and a foreign rebind, and repeating it for the same company is
+        safe, so it carries no idempotency key.
+        """
+        path = f"/auth-projects/{_segment(project_id)}/company-binding"
+        return cast(AuthProjectCompanyBinding, self._admin.request("POST", path, None, options))
 
     def create_environment(
         self, project_id: str, body: AuthProjectEnvironmentCreateRequest, options: AdminRequestOptions | None = None

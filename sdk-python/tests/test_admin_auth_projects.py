@@ -17,6 +17,7 @@ SUMMARY: dict[str, Any] = {
     "environmentId": "01957abc-0000-7000-8000-000000000002",
     "environmentSlug": "production",
     "identityMode": "isolated",
+    "companyUuid": "01957abc-0000-7000-8000-0000000000aa",
 }
 
 DESIRED_STATE: dict[str, Any] = {
@@ -90,6 +91,22 @@ class AuthProjectAdminClientTest(unittest.TestCase):
         self.assertTrue(creation["runtimeReady"])
         self.assertEqual("01957abc-0000-7000-8000-000000000002", creation["project"]["environmentId"])
 
+    def test_binds_an_unbound_project_to_the_owners_company(self) -> None:
+        client, transport = client_with(
+            {"projectId": "project-1", "companyUuid": "01957abc-0000-7000-8000-0000000000bb"}
+        )
+
+        binding = client.admin.auth_projects.bind_project_company("project-1", {"owning_user_uuid": OWNING_USER})
+
+        call = transport.calls[0]
+        self.assertEqual("POST", call["method"])
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/auth-projects/project-1/company-binding", call["url"]
+        )
+        self.assertIsNone(call["payload"], "the service refuses a non-empty binding body")
+        self.assertNotIn("idempotency_key", call["headers"])
+        self.assertEqual("01957abc-0000-7000-8000-0000000000bb", binding["companyUuid"])
+
     def test_lists_projects_with_the_paging_cursor(self) -> None:
         client, transport = client_with({"projects": [SUMMARY], "nextAfter": "cursor-2"})
 
@@ -101,6 +118,7 @@ class AuthProjectAdminClientTest(unittest.TestCase):
         self.assertIsNone(call["payload"])
         self.assertEqual(OWNING_USER, call["headers"][OWNING_USER_HEADER])
         self.assertEqual("hosting-eu", page["projects"][0]["slug"])
+        self.assertEqual("01957abc-0000-7000-8000-0000000000aa", page["projects"][0]["companyUuid"])
         self.assertEqual("cursor-2", page["nextAfter"])
 
     def test_lists_application_principals_with_the_opaque_cursor(self) -> None:

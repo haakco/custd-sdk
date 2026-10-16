@@ -14,7 +14,10 @@ use HaakCo\Custd\Fields;
  * project/environment/audience mapping the contract requires is readable here
  * after an apply. `reconciled` describes the configuration and `loginReady`
  * describes execution; neither is inferred from the other. `clientSync` is null
- * until registration has run.
+ * until registration has run. `companyUuid` is the persisted company this
+ * environment's project belongs to; null means explicitly unbound, and a
+ * consumer must not treat it as verified ownership unless the provider
+ * authorised the read.
  */
 final readonly class Status
 {
@@ -28,6 +31,7 @@ final readonly class Status
         public bool $loginReady = false,
         public string $loginNote = '',
         public ?ClientSyncStatus $clientSync = null,
+        public ?string $companyUuid = null,
     ) {
     }
 
@@ -46,6 +50,7 @@ final readonly class Status
             Fields::boolean($object, "loginReady"),
             Fields::string($object, "loginNote"),
             $clientSync === null ? null : ClientSyncStatus::fromPayload($clientSync),
+            Fields::optionalString($object, 'companyUuid'),
         );
     }
 }
