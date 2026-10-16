@@ -1,6 +1,7 @@
 import { AuthProjectAdminClient } from "./admin-auth-projects.js";
 import { ClientSetupClient } from "./admin-client-setup.js";
 import { DataLabelAdminClient } from "./admin-data-labels.js";
+import { DataScopeAdminClient } from "./admin-data-scopes.js";
 import { OffboardingClient, type OffboardingDownloadResponse } from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
@@ -11,9 +12,11 @@ import { TimePlanAdminClient } from "./admin-timeplans.js";
 import { UsageAdminClient } from "./admin-usage.js";
 import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
+import { ParserClient } from "./parsers.js";
 export { type ApplicationIdentityTrait, type ApplicationIdentityTraitsStatus, type ApplicationIdentityTraitValue, type ApplicationMembershipChoice, type ApplicationMembershipContext, type ApplicationMembershipRevocation, type ApplicationMembershipRevokeRequest, type ApplicationPrincipalErasure, type ApplicationPrincipalErasureRequest, type ApplicationPrincipalExport, type ApplicationPrincipalIdentityExport, type ApplicationPrincipalListItem, type ApplicationPrincipalListQuery, type ApplicationPrincipalListResponse, type ApplicationPrincipalMembershipView, type ApplicationPrincipalProfile, type ApplicationPrincipalProfileValueView, type ApplicationPrincipalSuspension, type ApplicationPrincipalTarget, type ApplicationProfileField, type ApplicationProfileValue, type ApplicationProfileValuesRequest, type ApplicationSession, type ApplicationSessionInventory, type ApplicationSessionRevocation, type ApplicationSessionRevokeRequest, type ApplicationSessionsRevokeAllRequest, type AuthEnvironmentClientCleanup, type AuthEnvironmentRetainedResources, AuthProjectAdminClient, type AuthProjectAudienceBinding, type AuthProjectCapability, type AuthProjectChange, type AuthProjectClientRegistration, type AuthProjectClientSync, type AuthProjectClientSyncRegistration, type AuthProjectClientSyncReport, type AuthProjectClientSyncRequest, type AuthProjectCreateRequest, type AuthProjectCreation, type AuthProjectDeletion, type AuthProjectDeletionRequest, type AuthProjectDesiredState, type AuthProjectDesiredStateRequest, type AuthProjectDirectoryAction, type AuthProjectDirectoryCapacity, type AuthProjectDirectoryRequest, type AuthProjectDirectoryStatus, type AuthProjectDirectoryView, type AuthProjectEnvironmentCreateRequest, type AuthProjectEnvironmentDeletion, type AuthProjectEnvironmentDeletionRequest, type AuthProjectEnvironmentOffboarding, type AuthProjectEnvironmentOffboardRequest, type AuthProjectEnvironmentOrganisation, type AuthProjectEnvironmentOrganisationList, type AuthProjectEnvironmentReleasedResources, type AuthProjectIdentityMode, type AuthProjectInvitation, type AuthProjectInvitationIssued, type AuthProjectInvitationIssueRequest, type AuthProjectInvitationListResponse, type AuthProjectInvitationRedeliveryRequest, type AuthProjectInvitationRevocationRequest, type AuthProjectListResponse, type AuthProjectOperation, type AuthProjectPreview, type AuthProjectProfileField, AuthProjectRealmNotConvergedError, AuthProjectRealmProvisionError, type AuthProjectRealmProvisionReceipt, type AuthProjectRealmProvisionRequest, type AuthProjectRealmStep, type AuthProjectReleasedResources, type AuthProjectStatus, type AuthProjectSummary, } from "./admin-auth-projects.js";
 export { type ClientSetupApplyAndWaitOptions, type ClientSetupApplyAndWaitResult, type ClientSetupApplyOptions, type ClientSetupApplyResponse, ClientSetupClient, type ClientSetupManifest, type ClientSetupOAuthClientDesiredState, type ClientSetupOAuthPurposeProfile, type ClientSetupOperationStatus, type ClientSetupPrivacyDesiredState, type ClientSetupPrivacyRule, type ClientSetupReadinessResponse, type ClientSetupReportingPackDesiredState, type ClientSetupResourceStatus, type ClientSetupRetentionDesiredState, type ClientSetupSchemaDesiredState, validateClientSetupManifest, } from "./admin-client-setup.js";
 export { DataLabelAdminClient, type DataLabelAssignmentListResponse, type DataLabelCatalogue, type DataLabelCatalogueAssignment, type DataLabelCatalogueDataset, type DataLabelCataloguePack, type DataLabelCatalogueResponse, type DataLabelDefinition, type DataLabelDefinitionCreateRequest, type DataLabelDefinitionListResponse, type DataLabelDefinitionUpdateRequest, type DataLabelPropagationPolicy, type DataLabelSensitivity, type DataLabelUsage, type DataLabelUsageListResponse, type DataLabelValue, type DataLabelValueCreateRequest, type DataLabelValueUpdateRequest, type DescriptiveDataLabel, type EventTypeDataLabelDefault, type EventTypeDataLabelDefaultRequest, type SchemaFieldDataLabelAssignment, type SchemaFieldDataLabelAssignmentRequest, } from "./admin-data-labels.js";
+export { type DataScope, type DataScopeAction, DataScopeAdminClient, type DataScopeCreateRequest, type DataScopeGrant, type DataScopeGrantListResponse, type DataScopeGrantTarget, type DataScopeGrantTargetKind, type DataScopeListResponse, type DataScopePrincipalKind, type DataScopePrincipalRef, type DataScopeResource, type DataScopeResourceCreateRequest, type DataScopeResourceListResponse, type DataScopeResourceUpdateRequest, type DataScopeStatus, type DataScopeUpdateRequest, validDataScopeCode, validDataScopeName, } from "./admin-data-scopes.js";
 export { type OffboardingAcknowledgeResponse, type OffboardingCancelRequest, OffboardingClient, type OffboardingDownloadResponse, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPreviewResponse, type OffboardingPreviewStore, type OffboardingReceiptPerStore, type OffboardingReceiptResponse, type OffboardingRequest, type OffboardingRequestCreate, type OffboardingRetryResponse, type OffboardingSchedule, type OffboardingScheduleListResponse, type OffboardingScheduleRequest, type OffboardingWaiver, } from "./admin-offboarding.js";
 export { type PredictionActivateRequest, PredictionAdminClient, type PredictionDefinition, type PredictionDefinitionCreateRequest, type PredictionDefinitionListResponse, type PredictionDefinitionUpdateRequest, type PredictionEvaluationSummary, type PredictionOutcomeSummary, type PredictionPauseRequest, type PredictionRollbackRequest, type PredictionRunNowRequest, type PredictionRunSummary, type PredictionSignalSource, type PredictionSignalSourceCreateRequest, type PredictionThresholdEvent, type PredictionVersion, type PredictionVersionPublishRequest, } from "./admin-predictions.js";
 export { type PrivacyErasure, PrivacyErasureClient, type PrivacyErasureCreateRequest, PrivacyErasureError, type PrivacyErasureListResponse, type PrivacyErasureRetryClassification, type PrivacyErasureSelector, type PrivacyErasureState, type PrivacyErasureStoreProgress, type PrivacyErasureWaitOptions, } from "./admin-privacy-erasures.js";
@@ -24,6 +27,7 @@ export { type TimePlan, TimePlanAdminClient, type TimePlanAllocation, type TimeP
 export { USAGE_DEFAULT_LIMIT, USAGE_MAX_LIMIT, UsageAdminClient, type UsageCompletenessState, type UsageQuery, type UsageReport, type UsageRow, type UsageTotal, } from "./admin-usage.js";
 export { ANALYTICS_MAX_LABEL_FILTERS, ANALYTICS_MAX_RANGE_DAYS, ANALYTICS_RANGE_GROUP_BY, AnalyticsEventClient, type AnalyticsEventQueryRequest, type AnalyticsEventQueryResponse, type AnalyticsEventRangeBucket, type AnalyticsEventRangeQueryRequest, type AnalyticsEventRangeQueryResponse, type AnalyticsEventRow, type AnalyticsEventSourceSummary, type AnalyticsEventTiming, type AnalyticsLabelFilter, type AnalyticsQuerySource, type AnalyticsRangeQuerySource, } from "./analytics-events.js";
 export { BackendLifecycleClient, type BackendLifecycleDownloader, type BackendLifecycleRequester, type CompleteOffboardingOptions, type CompleteOffboardingResult, createVerifiedOffboardingExportReceiver, type OneTimeCredentialSecret, type PersistOffboardingExport, type PersistOneTimeCredentialSecret, type ReceiveAndVerifyOffboardingExport, type RotateCredentialOptions, type RotateCredentialResult, type VerifiedExportReceiverOptions, type VerifyZeroState, type ZeroStateReconciliationOptions, type ZeroStateReconciliationResult, } from "./backend-lifecycle.js";
+export { DEFAULT_PARSER_FRAMING_MAX_LINES, DEFAULT_PARSER_FRAMING_MAX_RECORD_BYTES, MAX_PARSER_FRAMING_LINES, MAX_PARSER_FRAMING_RECORD_BYTES, ParserClient, type ParserDefinition, type ParserDeleteResponse, type ParserFraming, type ParserFramingOutcome, type ParserFramingType, type ParserGeneratedFieldConfig, type ParserListResponse, type ParserPreset, type ParserPresetListResponse, type ParserPreviewDefinition, type ParserPreviewRequest, type ParserPreviewResponse, type ParserPreviewRow, type ParserSaveRequest, type ParserType, } from "./parsers.js";
 export { classifyReportingData, getReportingViewState, type ReportingDataState, type ReportingQueryState, type ReportingViewState, reportingQueryKey, } from "./reporting-state.js";
 export { checkRuntimeReadiness, type RuntimeReadinessCredentialResult, type RuntimeReadinessOAuthConfig, type RuntimeReadinessOptions, type RuntimeReadinessResult, } from "./runtime-readiness.js";
 export type EventContext = {
@@ -99,6 +103,56 @@ type EventResult = {
     success?: boolean;
     status?: number;
     error?: ProblemDetails;
+};
+/**
+ * The declarative default data-scope target for one raw upload. Both fields are
+ * registered immutable codes supplied as a pair, never numeric identities.
+ */
+export type RawSourceTarget = {
+    subClient: string;
+    resource: string;
+};
+/** One raw, line-delimited upload for the bound parser. */
+export type RawIngestRequest = {
+    content: string;
+    /** Binds the parser executed for every line (X-Parser-UUID). */
+    parserUuid: string;
+    target?: RawSourceTarget;
+    /**
+     * Opts the upload into stable admission. Absent means the existing one-shot
+     * unkeyed behavior with no safe replay.
+     */
+    idempotencyKey?: RawRequestIdempotencyKey;
+};
+/** The caller-supplied raw upload intent. */
+export type RawIngestInput = {
+    content: string;
+    parserUuid: string;
+    target?: RawSourceTarget;
+};
+/**
+ * A standard raw-upload idempotency key: `<unix-milliseconds>:<uuid-v4>`. The
+ * same key and the same body/parser/target let the backend return the accepted
+ * receipt again instead of landing a second copy; a changed intent under the
+ * same key is refused with a conflict. It carries no payload or credential.
+ */
+export type RawRequestIdempotencyKey = string;
+/**
+ * Mint a fresh key from the current time and a random UUIDv4. Mint it ONCE per
+ * request object so a resend reuses the key; a genuinely repeated occurrence
+ * needs a new request object and therefore a new key.
+ */
+export declare function createRawRequestIdempotencyKey(): RawRequestIdempotencyKey;
+/** Mint one prepared request with a fresh, retained idempotency key. */
+export declare function createRawIngestRequest(input: RawIngestInput): RawIngestRequest;
+/**
+ * The POST /api/v1/raw acceptance body. The route always answers 202 Accepted,
+ * so the status alone is not per-record success: read `processed` and `failed`.
+ */
+export type RawIngestResult = {
+    success: boolean;
+    processed: number;
+    failed: number;
 };
 export type ProducerOAuthConfig = {
     clientId: string;
@@ -205,6 +259,30 @@ export declare class CustdRequestError extends Error {
         cause?: unknown;
     });
     get unavailable(): boolean;
+}
+/**
+ * CustdRawAcceptanceUnknownError reports that a raw upload's acceptance could
+ * not be determined: the connection failed before a response arrived, the 202
+ * acceptance body was missing or malformed, or the response carried a status
+ * that does not prove rejection. The request may or may not have landed, so
+ * this error carries no retry guidance (`retryability` "none", `nextAction`
+ * "escalate"): there is no verified occurrence identity, and replaying the POST
+ * could double-land accepted records. The cause never carries the request
+ * payload or a token.
+ */
+export declare class CustdRawAcceptanceUnknownError extends Error {
+    readonly name = "CustdRawAcceptanceUnknownError";
+    readonly retryability: "none";
+    readonly nextAction: {
+        action: "escalate";
+    };
+    readonly cause?: unknown;
+    /** The original operation idempotency key, when the request carried one. */
+    readonly operationKey?: RawRequestIdempotencyKey;
+    constructor(options?: {
+        cause?: unknown;
+        operationKey?: RawRequestIdempotencyKey;
+    });
 }
 export type PreparedDataState = "accepted" | "processing" | "ready" | "failed";
 export type PreparedDataAvailability = "complete" | "partial" | "stale" | "unavailable";
@@ -624,6 +702,222 @@ export type ProofProfile = {
     forbiddenFields: string[];
     outputLayout: string;
 };
+export type RollupDimension = {
+    slot: number;
+    dimension: string;
+    selector: string;
+    allowedValuePattern?: string;
+};
+export type RollupRule = {
+    family: string;
+    templates?: string[];
+    metric: string;
+    sourceEventType: string;
+    match?: MatchPredicate[];
+    dimensions?: RollupDimension[];
+    completenessRequired: boolean;
+};
+export type PresentationPresetSelection = {
+    presetId: string;
+    version: number;
+    nonColorEncoding: string;
+    summaryTemplateId: string;
+};
+export type PackWidgetDefinition = {
+    key: string;
+    title: string;
+    kind: string;
+    template: string;
+    metrics: string[];
+    dimensions?: string[];
+    presentation?: PresentationPresetSelection;
+};
+export type DashboardSharePolicy = {
+    relativeRanges?: string[];
+    comparisonPresets?: string[];
+};
+export type DashboardInteractionRule = {
+    key: string;
+    sourceWidget: string;
+    targetWidget: string;
+    dimension: string;
+    action: string;
+    linkedFilterGroup: string;
+    comparisonPreset?: string;
+    resetBehavior: string;
+};
+export type NarrativeValueReference = {
+    widgetKey: string;
+    value: string;
+};
+export type NarrativeBlock = {
+    text: string;
+    references?: NarrativeValueReference[];
+};
+export type ReportSectionDefinition = {
+    key: string;
+    title: string;
+    layout: string;
+    columnSpan: number;
+    widgetKeys?: string[];
+    narrative?: NarrativeBlock[];
+};
+export type ExecutiveReportDefinition = {
+    comparisonBasis: string;
+    comparisonLabel?: string;
+    targetValue?: number;
+    targetUnit?: string;
+    findings?: string[];
+    actions?: string[];
+    supportingWidgetKeys?: string[];
+};
+export type PackDashboardDefinition = {
+    key: string;
+    packKey?: string;
+    exportFormats?: string[];
+    title: string;
+    description?: string;
+    group?: string;
+    defaultRange: string;
+    refreshSeconds: number;
+    requiredScopes: string[];
+    widgets: PackWidgetDefinition[];
+    interactions?: DashboardInteractionRule[];
+    sharePolicy?: DashboardSharePolicy;
+    sections?: ReportSectionDefinition[];
+    executive?: ExecutiveReportDefinition;
+};
+export type RedactionRule = {
+    sourceSystem: string;
+    sourceEventType: string;
+    selectorFields: string[];
+    allowedFields: string[];
+    reasonClasses: string[];
+    resultShape: string;
+};
+export type TransitionRule = {
+    key: string;
+    identity: string;
+    stepSelector: string;
+    steps: string[];
+    maxDurationMs: number;
+    maxEvents: number;
+};
+export type ActivationRule = {
+    key: string;
+    identity: string;
+    predicate: MatchPredicate;
+    cohortWindowDays: number;
+};
+export type RetentionRule = {
+    key: string;
+    activationRule: string;
+    returnWindowDays: number[];
+    returnPredicate: MatchPredicate;
+};
+export type ActivityRule = {
+    key: string;
+    identity: string;
+    bucketDays: number;
+};
+export type ObservationSource = {
+    key: string;
+    label: string;
+};
+export type ObservationAsset = {
+    key: string;
+    label: string;
+};
+export type SourceSeries = {
+    sourceKey: string;
+    sourceSeriesKey: string;
+    priority: number;
+};
+export type SemanticSeries = {
+    key: string;
+    assetKey?: string;
+    assetKeys?: string[];
+    measurementKind: string;
+    canonicalUnit: string;
+    allowedSourceUnits: string[];
+    expectedCadenceSeconds: number;
+    maximumGapSeconds: number;
+    sources: SourceSeries[];
+};
+export type ObservationContract = {
+    version: number;
+    sources: ObservationSource[];
+    assets: ObservationAsset[];
+    series: SemanticSeries[];
+};
+export type SourceReconciliation = {
+    version: number;
+    tenantKey: string;
+    seriesKey: string;
+    canonicalUnit?: string;
+    mode: string;
+    maxAgeSeconds: number;
+    absoluteTolerance?: number;
+    relativeTolerance?: number;
+    sources: SourceSeries[];
+};
+export type AssetNode = {
+    tenantKey: string;
+    key: string;
+    label: string;
+};
+export type AssetHierarchyEdge = {
+    tenantKey: string;
+    parentKey: string;
+    childKey: string;
+    mode: string;
+};
+export type AssetHierarchy = {
+    version: number;
+    tenantKey: string;
+    maxDepth?: number;
+    nodes: AssetNode[];
+    edges?: AssetHierarchyEdge[];
+};
+export type RateTier = {
+    lowerBound: number;
+    upperBound?: number;
+    pricePerUnit: number;
+};
+export type AllocationTarget = {
+    seriesKey: string;
+    weight: number;
+};
+export type SteppedRateSchedule = {
+    key: string;
+    usageMetric: string;
+    usageUnit: string;
+    timezone: string;
+    billingBoundary: string;
+    effectiveFrom: string;
+    effectiveTo?: string;
+    currency: string;
+    tiers: RateTier[];
+    rounding: string;
+};
+export type AllocationRule = {
+    key: string;
+    sourceSeriesKey: string;
+    targets: AllocationTarget[];
+    rounding: string;
+};
+export type AccountingContract = {
+    version: number;
+    usageMetric: string;
+    schedules: SteppedRateSchedule[];
+    allocations?: AllocationRule[];
+};
+/**
+ * The canonical reporting-pack definition, mirroring libs/go/reporting.Pack.
+ * Every contracted field is carried so a definition round-trips losslessly
+ * through create/validate/preview/publish; unknown extension fields are the only
+ * thing a decode may drop.
+ */
 export type PackDefinition = {
     key: string;
     displayName: string;
@@ -635,9 +929,50 @@ export type PackDefinition = {
     dimensions: PackDimension[];
     templates: PackTemplate[];
     flowRules?: FlowRule[];
+    rollupRules?: RollupRule[];
+    dashboards?: PackDashboardDefinition[];
+    exportFormats?: string[];
     trust: TrustDiagnostics;
+    redactionRules?: RedactionRule[];
     proof: ProofProfile;
     identity?: IdentitySelectors;
+    transitionRules?: TransitionRule[];
+    activationRules?: ActivationRule[];
+    retentionRules?: RetentionRule[];
+    activityRules?: ActivityRule[];
+    observation?: ObservationContract;
+    reconciliations?: SourceReconciliation[];
+    assetHierarchy?: AssetHierarchy;
+    accounting?: AccountingContract;
+};
+/** One client-selectable binding descriptor a setup template renders. */
+export type ReportingPackSetupBindingField = {
+    key: string;
+    label: string;
+    required: boolean;
+};
+/** The typed log-observability bindings a client selects. Never a dictionary. */
+export type LogObservabilityBindings = {
+    eventType: string;
+    severityField: string;
+    resourceField: string;
+};
+/** One reviewed setup template: its canonical definition plus selectable bindings. */
+export type ReportingPackSetupTemplate = {
+    kind: string;
+    displayName: string;
+    definition: PackDefinition;
+    bindings: ReportingPackSetupBindingField[];
+};
+export type ReportingPackSetupTemplateListResponse = {
+    templates: ReportingPackSetupTemplate[];
+};
+export type ReportingPackSetupTemplateBindRequest = {
+    bindings: LogObservabilityBindings;
+};
+export type ReportingPackSetupTemplateBindResponse = {
+    kind: string;
+    definition: PackDefinition;
 };
 export type ReportingPackDraft = {
     id: number;
@@ -1023,6 +1358,7 @@ export declare class CustdClient {
     readonly reporting: ReportingNamespace;
     readonly schemas: SchemaNamespace;
     readonly analytics: AnalyticsEventClient;
+    readonly parsers: ParserClient;
     private baseUrl;
     private getToken;
     private fetchImpl;
@@ -1050,6 +1386,24 @@ export declare class CustdClient {
     enqueue(event: EventEnvelope): void;
     flush(): Promise<void>;
     close(): void;
+    /**
+     * Upload raw, line-delimited content for the bound parser.
+     *
+     * X-Parser-UUID binds the parser exactly as direct collectors do. When
+     * `target` is supplied its paired subClient/resource codes are appended as
+     * query parameters: a declarative default the backend applies to records with
+     * no canonical selection and refuses to let override an explicit selection.
+     *
+     * The route answers 202 Accepted, so the status alone is not success. Read
+     * `processed` and `failed` on the returned result.
+     *
+     * A transport failure or an unusable acceptance body cannot prove whether the
+     * upload landed, so it throws {@link CustdRawAcceptanceUnknownError} — which
+     * carries no retry guidance — rather than a retryable transport error.
+     * Replaying the POST could double-land accepted records; the SDK never retries
+     * this operation automatically.
+     */
+    ingestRawLines(request: RawIngestRequest, options?: RequestOptions): Promise<RawIngestResult>;
     private sendWithRetry;
     private sendBatchWithRetry;
     private encodeBatchBody;
@@ -1137,6 +1491,7 @@ declare class SchemaNamespace {
 }
 declare class AdminNamespace {
     readonly dataLabels: DataLabelAdminClient;
+    readonly dataScopes: DataScopeAdminClient;
     readonly tenants: AdminTenantNamespace;
     readonly lifecycle: BackendLifecycleClient;
     readonly clientSetup: ClientSetupClient;
@@ -1264,6 +1619,15 @@ declare class AdminReportingPacksNamespace {
     private readonly request;
     constructor(request: AdminRequester);
     listDrafts(): Promise<ReportingPackDraftListResponse>;
+    /** List the reviewed setup templates (each with its canonical definition). */
+    listSetupTemplates(): Promise<ReportingPackSetupTemplateListResponse>;
+    /**
+     * Apply typed bindings to one reviewed setup template and return the
+     * server-built definition. Pure build: the server creates no data, grants no
+     * scope, and writes no generation; post the result through createDraft/preview
+     * only when the caller intends to.
+     */
+    bindSetupTemplate(kind: string, body: ReportingPackSetupTemplateBindRequest): Promise<ReportingPackSetupTemplateBindResponse>;
     getDraft(draftId: string): Promise<ReportingPackDraft>;
     createDraft(body: ReportingPackDraftCreateRequest): Promise<ReportingPackDraft>;
     updateDraft(draftId: string, body: ReportingPackDraftUpdateRequest): Promise<ReportingPackDraft>;
