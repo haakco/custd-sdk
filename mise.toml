@@ -17,7 +17,13 @@ infisical = "latest"
 # Static analysis — pinned because their output gates CI (a version bump can
 # change findings). Biome is intentionally absent: it is pinned via sdk-js's
 # package.json + pnpm-lock.yaml, the JS-native version source.
-golangci-lint = "2.13.2"
+#
+# 2.14.0 is a floor, not a preference: it links golang.org/x/tools v0.50.0,
+# which understands Go 1.27 export data. 2.13.2 links v0.49.0, which stops one
+# version short and fails on untouched files with "export data version 5 is
+# greater than maximum supported version 4" once this repo's Go is 1.27.2. Keep
+# this in step with the go pin above and with the CI install step.
+golangci-lint = "2.14.0"
 ruff = "0.9.2"
 "pipx:mypy" = "2.1.0"
 shellcheck = "0.11.0"
