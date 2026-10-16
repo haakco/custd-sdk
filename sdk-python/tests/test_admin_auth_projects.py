@@ -103,6 +103,65 @@ class AuthProjectAdminClientTest(unittest.TestCase):
         self.assertEqual("hosting-eu", page["projects"][0]["slug"])
         self.assertEqual("cursor-2", page["nextAfter"])
 
+    def test_lists_application_principals_with_the_opaque_cursor(self) -> None:
+        client, transport = client_with(
+            {
+                "principals": [
+                    {
+                        "principalId": "01957abc-0000-7000-8000-0000000000c1",
+                        "directoryId": "01957abc-0000-7000-8000-0000000000d1",
+                        "providerSubject": "subject-1",
+                        "enabled": True,
+                    }
+                ],
+                "nextCursor": "cursor-2",
+            }
+        )
+
+        page = client.admin.auth_projects.list_principals(
+            "project-1",
+            "environment-1",
+            {"cursor": "cursor-1", "limit": 50},
+            {"owning_user_uuid": OWNING_USER},
+        )
+
+        call = transport.calls[0]
+        self.assertEqual("GET", call["method"])
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1"
+            "/principals?cursor=cursor-1&limit=50",
+            call["url"],
+        )
+        self.assertEqual(OWNING_USER, call["headers"][OWNING_USER_HEADER])
+        self.assertEqual("subject-1", page["principals"][0]["providerSubject"])
+        self.assertTrue(page["principals"][0]["enabled"])
+        self.assertEqual("cursor-2", page["nextCursor"])
+
+    def test_lists_an_empty_principal_page_without_a_cursor(self) -> None:
+        client, transport = client_with({"principals": []})
+
+        page = client.admin.auth_projects.list_principals("project-1", "environment-1")
+
+        call = transport.calls[0]
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/principals",
+            call["url"],
+        )
+        self.assertEqual([], page["principals"])
+        self.assertNotIn("nextCursor", page)
+
+    def test_round_trips_an_opaque_cursor_unchanged(self) -> None:
+        client, transport = client_with({"principals": []})
+
+        client.admin.auth_projects.list_principals("project-1", "environment-1", {"cursor": " cursor/2?x=+ "})
+        client.admin.auth_projects.list_principals("project-1", "environment-1", {"cursor": "   "})
+
+        prefix = (
+            "http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/principals"
+        )
+        self.assertEqual(prefix + "?cursor=%20cursor%2F2%3Fx%3D%2B%20", transport.calls[0]["url"])
+        self.assertEqual(prefix + "?cursor=%20%20%20", transport.calls[1]["url"])
+
     def test_adds_an_environment(self) -> None:
         client, transport = client_with({**SUMMARY, "environmentId": "env-2", "environmentSlug": "staging"})
 

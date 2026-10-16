@@ -367,12 +367,19 @@ same typed admin clients:
 - create a project and list the projects the named owning user owns or operates
 - add an environment to an existing project
 - apply, preview and read back an environment's desired state
+- read the environment's capability, directories and credential-store capacity
+- enable, pause, resume or release one directory credential store
+- read the environment's organisations and register its application clients
+- invite, redeliver, revoke and list directory invitations
+- read and set an application principal's profile values
+- list an application principal's organisations
 - list an application principal's sessions, revoke one session, revoke all sessions
 - revoke an application principal's membership of one organisation
 - suspend a principal's authority and revoke all mapped identities' sessions
 - restore authority without changing factors; pending withdrawals are refused
 - export every public identity with its own trait-completeness status
 - erase the complete principal mapping set with explicit confirmation
+- delete one environment, or the whole project, with the stored slug as confirmation
 
 The desired-state operations address one environment
 (`/api/v1/admin/auth-projects/{projectId}/environments/{environmentId}`):
@@ -398,8 +405,29 @@ options whose `owningUserUuid` is sent as `X-Custd-Owning-User-UUID`. Custd
 validates the named user as a live member of the machine caller's own company; a
 human administrator's own token subject is the actor and leaves the option
 unset. The operations Custd makes retry-safe (create project, apply desired
-state, revoke one session, revoke all sessions, suspend, restore and erase)
-require an idempotency key and reject an empty one before a request is sent.
+state, act on a directory, reconcile clients, issue/redeliver/revoke an
+invitation, set principal profile values, revoke one session, revoke all
+sessions, suspend, restore and erase) require an idempotency key and reject an
+empty one before a request is sent.
+
+A second environment does not need consumer-side sequencing: the public
+`provisionRealm` helper applies the desired state (which already reconciles the
+environment's application clients), enables the addressed directory credential
+store at the apply revision, reconciles clients at the directory operation's new
+revision, and reads status back. It refuses an unreconciled final status. Each
+mutating step derives a stable key from the caller's 8–111-character base key. It returns the steps that completed and an explicit failed
+step (Go `AuthProjectRealmStep`, TypeScript `AuthProjectRealmProvisionError`,
+Python `AuthProjectRealmProvisionError`, PHP `RealmProvisionException`), so a
+retry resumes instead of duplicating.
+
+Directory actions are typed end to end (`enable`, `pause`, `resume`,
+`release`) and the SDK rejects any other value before sending. Deleting a
+project or an environment requires the stored slug as `confirmSlug`, so a
+mistyped identifier cannot remove the wrong boundary. Environment offboarding
+also requires the exact slug, withdraws authority and reconciles owned clients,
+but retains credential-bearing data and reserved slots. Its typed receipt reports
+pending provider cleanup separately; repeat offboarding to retry that cleanup.
+Physical deletion refuses retained reservations or outstanding provider cleanup.
 
 Lifecycle operations take an `ApplicationPrincipalTarget` naming the project,
 environment, directory and provider subject. Custd validates that boundary;

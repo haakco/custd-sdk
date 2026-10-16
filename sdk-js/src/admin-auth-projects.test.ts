@@ -197,6 +197,73 @@ describe("admin auth projects", () => {
     expect(page.nextAfter).toBe("cursor-2");
   });
 
+  it("lists application principals with the opaque cursor and limit", async () => {
+    const fetchImpl = mockFetch({
+      principals: [
+        {
+          principalId: "01957abc-0000-7000-8000-0000000000c1",
+          directoryId: "01957abc-0000-7000-8000-0000000000d1",
+          providerSubject: "subject-1",
+          enabled: true,
+        },
+      ],
+      nextCursor: "cursor-2",
+    });
+    const client = newClient(fetchImpl);
+
+    const page = await client.admin.authProjects.listPrincipals(
+      "project-1",
+      "environment-1",
+      { cursor: "cursor-1", limit: 50 },
+      { owningUserUuid: owningUser },
+    );
+
+    const { url, init } = sentRequest(fetchImpl);
+    expect(url).toBe(
+      "http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1" +
+        "/principals?cursor=cursor-1&limit=50",
+    );
+    expect(init.method).toBe("GET");
+    expect(init.headers).toMatchObject({ "X-Custd-Owning-User-UUID": owningUser });
+    expect(page.principals[0]?.providerSubject).toBe("subject-1");
+    expect(page.principals[0]?.enabled).toBe(true);
+    expect(page.nextCursor).toBe("cursor-2");
+  });
+
+  it("lists an empty principal page without a cursor", async () => {
+    const fetchImpl = mockFetch({ principals: [] });
+    const client = newClient(fetchImpl);
+
+    const page = await client.admin.authProjects.listPrincipals("project-1", "environment-1");
+
+    const { url, init } = sentRequest(fetchImpl);
+    expect(url).toBe(
+      "http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/principals",
+    );
+    expect(init.method).toBe("GET");
+    expect(page.principals).toEqual([]);
+    expect(page.nextCursor).toBeUndefined();
+  });
+
+  it("round-trips an opaque cursor unchanged, including whitespace-only", async () => {
+    const body = JSON.stringify({ principals: [] });
+    const fetchImpl = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "application/json" } })),
+      );
+    const client = newClient(fetchImpl);
+
+    await client.admin.authProjects.listPrincipals("project-1", "environment-1", {
+      cursor: " cursor/2?x=+ ",
+    });
+    await client.admin.authProjects.listPrincipals("project-1", "environment-1", { cursor: "   " });
+
+    const base = "http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/principals";
+    expect(sentRequest(fetchImpl, 0).url).toBe(`${base}?cursor=%20cursor%2F2%3Fx%3D%2B%20`);
+    expect(sentRequest(fetchImpl, 1).url).toBe(`${base}?cursor=%20%20%20`);
+  });
+
   it("adds an environment to a project", async () => {
     const fetchImpl = mockFetch({ ...authProjectSummary, environmentId: "env-2", environmentSlug: "staging" });
     const client = newClient(fetchImpl);

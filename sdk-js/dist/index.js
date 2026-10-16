@@ -15,7 +15,7 @@ import { BackendLifecycleClient } from "./backend-lifecycle.js";
 import { basicAuthorization } from "./oauth.js";
 import { ParserClient } from "./parsers.js";
 import { SDK_IDENTITY } from "./version.js";
-export { AuthProjectAdminClient, } from "./admin-auth-projects.js";
+export { AuthProjectAdminClient, AuthProjectRealmNotConvergedError, AuthProjectRealmProvisionError, } from "./admin-auth-projects.js";
 export { ClientSetupClient, validateClientSetupManifest, } from "./admin-client-setup.js";
 export { DataLabelAdminClient, } from "./admin-data-labels.js";
 export { DataScopeAdminClient, validDataScopeCode, validDataScopeName, } from "./admin-data-scopes.js";

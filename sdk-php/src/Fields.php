@@ -210,6 +210,25 @@ final class Fields
     }
 
     /**
+     * optionalBoolean returns an optional boolean: null when the field is absent
+     * or null, otherwise the value after asserting its type.
+     *
+     * @param \stdClass $payload
+     */
+    public static function optionalBoolean(\stdClass $payload, string $key): ?bool
+    {
+        $value = self::optional($payload, $key);
+        if ($value === null) {
+            return null;
+        }
+        if (!is_bool($value)) {
+            throw new \UnexpectedValueException("custd: response field {$key} must be a boolean");
+        }
+
+        return $value;
+    }
+
+    /**
      * object returns a required nested JSON object. A missing or null field, or
      * a field that is a JSON array or scalar, fails at the boundary.
      *
