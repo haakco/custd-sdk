@@ -15,19 +15,20 @@ Public SDKs for sending events to Custd.
 
 ## Supported versions
 
-Only the 2.x line is supported. The 1.x tags and their releases were removed on 2026-09-23: nothing consumed
-them any more, and a consumer resolving `^1.x` silently installs code that is two majors behind.
+Only the 3.x line is supported. The 1.x tags and their releases were removed on 2026-09-23, and `v3.0.0`
+replaced the reporting-pack shapes with the canonical contract: a consumer resolving an older range silently
+installs code that cannot express a canonical pack.
 
 | Package | Install |
 | --- | --- |
-| `haakco/custd-sdk` (PHP) | `^2.3` |
-| `haakco/custd-laravel` | `^2.2` — the workflow-timing job first ships in `v2.2.0` |
-| `github.com/haakco/custd-sdk-go/v3` | `v2.3.0` or later; the old path without `/v2` is removed |
-| `@haakco/custd-sdk` (JS) | `github:haakco/custd-sdk#v2.3.0&path:/sdk-js`, installed with pnpm |
+| `haakco/custd-sdk` (PHP) | `^3.0` |
+| `haakco/custd-laravel` | `^3.0` — the workflow-timing job first ships in `v2.2.0` |
+| `github.com/haakco/custd-sdk-go/v3` | `v3.0.0` or later |
+| `@haakco/custd-sdk` (JS) | `github:haakco/custd-sdk#v3.0.0&path:/sdk-js`, installed with pnpm |
 
 Deleting a Go tag does not remove the version from `proxy.golang.org`, which keeps serving what it has already
-cached: the old module path still answers for `v1.8.30` there. Treat it as unsupported, and add a `retract`
-directive on that path if it must be actively rejected.
+cached: the earlier module paths still answer for the versions they published. Treat them as unsupported, and
+add a `retract` directive on a path if it must be actively rejected.
 
 ## Rule
 

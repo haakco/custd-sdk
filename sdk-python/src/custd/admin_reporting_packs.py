@@ -385,14 +385,14 @@ class RoundingPolicy(TypedDict):
     decimalPlaces: int
 
 
-class SteppedRateSchedule(TypedDict, total=False):
+class SteppedRateSchedule(TypedDict):
     key: str
     usageMetric: str
     usageUnit: str
     timezone: str
     billingBoundary: str
     effectiveFrom: str
-    effectiveTo: str
+    effectiveTo: NotRequired[str]
     currency: str
     tiers: list[RateTier]
     rounding: RoundingPolicy

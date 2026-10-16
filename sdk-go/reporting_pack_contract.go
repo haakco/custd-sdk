@@ -1007,22 +1007,26 @@ type AccountingContract struct {
 // create/validate/preview/publish; unknown extension fields are the only thing a
 // decode may drop.
 type Pack struct {
-	Key             string                 `json:"key"`
-	DisplayName     string                 `json:"displayName"`
-	Owner           string                 `json:"owner"`
-	Version         int                    `json:"version"`
-	Enabled         bool                   `json:"enabled"`
-	EventTypes      []string               `json:"eventTypes"`
-	Metrics         []PackMetric           `json:"metrics"`
-	Dimensions      []PackDimension        `json:"dimensions"`
-	Templates       []PackTemplate         `json:"templates"`
-	FlowRules       []FlowRule             `json:"flowRules,omitempty"`
-	RollupRules     []RollupRule           `json:"rollupRules,omitempty"`
-	Dashboards      []DashboardDefinition  `json:"dashboards,omitempty"`
-	ExportFormats   []ExportFormat         `json:"exportFormats,omitempty"`
-	Trust           TrustDiagnostics       `json:"trust"`
-	RedactionRules  []RedactionRule        `json:"redactionRules,omitempty"`
-	Proof           ProofProfile           `json:"proof"`
+	Key            string                `json:"key"`
+	DisplayName    string                `json:"displayName"`
+	Owner          string                `json:"owner"`
+	Version        int                   `json:"version"`
+	Enabled        bool                  `json:"enabled"`
+	EventTypes     []string              `json:"eventTypes"`
+	Metrics        []PackMetric          `json:"metrics"`
+	Dimensions     []PackDimension       `json:"dimensions"`
+	Templates      []PackTemplate        `json:"templates"`
+	FlowRules      []FlowRule            `json:"flowRules,omitempty"`
+	RollupRules    []RollupRule          `json:"rollupRules,omitempty"`
+	Dashboards     []DashboardDefinition `json:"dashboards,omitempty"`
+	ExportFormats  []ExportFormat        `json:"exportFormats,omitempty"`
+	Trust          TrustDiagnostics      `json:"trust"`
+	RedactionRules []RedactionRule       `json:"redactionRules,omitempty"`
+	Proof          ProofProfile          `json:"proof"`
+	// Identity is a pointer so an unset identity is genuinely omitted from a
+	// request. Canonical declares it as a value with `omitempty`, which is a
+	// no-op on a struct, so canonical always emits `"identity": {}`. Both forms
+	// decode to the same zero value, so no canonical value is dropped.
 	Identity        *IdentitySelectors     `json:"identity,omitempty"`
 	TransitionRules []TransitionRule       `json:"transitionRules,omitempty"`
 	ActivationRules []ActivationRule       `json:"activationRules,omitempty"`

@@ -763,6 +763,12 @@ export type ReportSectionDefinition = {
     narrative?: NarrativeBlock[];
 };
 export type ExecutiveReportDefinition = {
+    recipe: string;
+    primaryWidgetKey: string;
+    primaryMetricKey: string;
+    primaryLabel: string;
+    primaryUnit: string;
+    scopeLabel: string;
     comparisonBasis: string;
     comparisonLabel?: string;
     targetValue?: number;
@@ -888,6 +894,11 @@ export type AllocationTarget = {
     seriesKey: string;
     weight: number;
 };
+export type RoundingMode = "half_up" | "half_even" | "down" | "up";
+export type RoundingPolicy = {
+    mode: RoundingMode;
+    decimalPlaces: number;
+};
 export type SteppedRateSchedule = {
     key: string;
     usageMetric: string;
@@ -898,13 +909,13 @@ export type SteppedRateSchedule = {
     effectiveTo?: string;
     currency: string;
     tiers: RateTier[];
-    rounding: string;
+    rounding: RoundingPolicy;
 };
 export type AllocationRule = {
     key: string;
     sourceSeriesKey: string;
     targets: AllocationTarget[];
-    rounding: string;
+    rounding: RoundingPolicy;
 };
 export type AccountingContract = {
     version: number;
