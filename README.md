@@ -22,10 +22,12 @@ installs code that cannot express a canonical pack.
 | Package | Install |
 | --- | --- |
 | `haakco/custd-sdk` (PHP) | `^3.0` |
-| `haakco/custd-laravel` | `^3.0` — the workflow-timing job first ships in `v2.2.0` |
+| `haakco/custd-laravel` | `^3.0` |
 | `haakco/custd-wordpress` | `^3.0` |
 | `github.com/haakco/custd-sdk-go/v3` | `v3.0.0` or later |
 | `@haakco/custd-sdk` (JS) | `github:haakco/custd-sdk#v3.0.0&path:/sdk-js`, installed with pnpm |
+| `@haakco/custd-react` (JS) | from the HaakCo Verdaccio registry, alongside `@haakco/custd-sdk` |
+| `custd-sdk` (Python) | `git+https://github.com/haakco/custd-sdk.git@v3.0.0#subdirectory=sdk-python` |
 
 Deleting a Go tag does not remove the version from `proxy.golang.org`, which keeps serving what it has already
 cached: the earlier module paths still answer for the versions they published. Treat them as unsupported, and
