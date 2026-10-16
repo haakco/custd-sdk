@@ -253,3 +253,52 @@ describe("analytics event range query", () => {
     expect(ANALYTICS_MAX_RANGE_DAYS).toBe(120);
   });
 });
+
+describe("analytics log-dimension filters", () => {
+  it("serialises the four promoted filters on the day query", async () => {
+    const fetchImpl = mockFetch(responseBody);
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+
+    await client.analytics.query({
+      date: "2026-09-14",
+      severity: "error",
+      service: "checkout-api",
+      subClient: "acme-store",
+      resource: "srv-1",
+    });
+
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      severity: "error",
+      service: "checkout-api",
+      subClient: "acme-store",
+      resource: "srv-1",
+    });
+  });
+
+  it("omits unset log-dimension filters from the day query", async () => {
+    const fetchImpl = mockFetch(responseBody);
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+
+    await client.analytics.query({ date: "2026-09-14", severity: "" });
+
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
+    expect(body).toEqual({ date: "2026-09-14" });
+  });
+
+  it("serialises the promoted filters on the range query", async () => {
+    const fetchImpl = mockFetch(rangeResponseBody);
+    const client = new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "token", fetch: fetchImpl });
+
+    await client.analytics.queryRange({
+      from: "2026-09-14",
+      to: "2026-09-15",
+      severity: "error",
+      subClient: "acme-store",
+    });
+
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
+    expect(body).toMatchObject({ severity: "error", subClient: "acme-store" });
+    expect(body).not.toHaveProperty("service");
+  });
+});

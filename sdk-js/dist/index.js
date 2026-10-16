@@ -1,6 +1,7 @@
 import { AuthProjectAdminClient } from "./admin-auth-projects.js";
 import { ClientSetupClient } from "./admin-client-setup.js";
 import { DataLabelAdminClient } from "./admin-data-labels.js";
+import { DataScopeAdminClient, validDataScopeCode } from "./admin-data-scopes.js";
 import { OffboardingClient } from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
@@ -12,10 +13,12 @@ import { UsageAdminClient } from "./admin-usage.js";
 import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
 import { basicAuthorization } from "./oauth.js";
+import { ParserClient } from "./parsers.js";
 import { SDK_IDENTITY } from "./version.js";
 export { AuthProjectAdminClient, } from "./admin-auth-projects.js";
 export { ClientSetupClient, validateClientSetupManifest, } from "./admin-client-setup.js";
 export { DataLabelAdminClient, } from "./admin-data-labels.js";
+export { DataScopeAdminClient, validDataScopeCode, validDataScopeName, } from "./admin-data-scopes.js";
 export { OffboardingClient, } from "./admin-offboarding.js";
 export { PredictionAdminClient, } from "./admin-predictions.js";
 export { PrivacyErasureClient, PrivacyErasureError, } from "./admin-privacy-erasures.js";
@@ -26,11 +29,24 @@ export { TimePlanAdminClient, validateTimePlanDefinition, } from "./admin-timepl
 export { USAGE_DEFAULT_LIMIT, USAGE_MAX_LIMIT, UsageAdminClient, } from "./admin-usage.js";
 export { ANALYTICS_MAX_LABEL_FILTERS, ANALYTICS_MAX_RANGE_DAYS, ANALYTICS_RANGE_GROUP_BY, AnalyticsEventClient, } from "./analytics-events.js";
 export { BackendLifecycleClient, createVerifiedOffboardingExportReceiver, } from "./backend-lifecycle.js";
+export { DEFAULT_PARSER_FRAMING_MAX_LINES, DEFAULT_PARSER_FRAMING_MAX_RECORD_BYTES, MAX_PARSER_FRAMING_LINES, MAX_PARSER_FRAMING_RECORD_BYTES, ParserClient, } from "./parsers.js";
 export { classifyReportingData, getReportingViewState, reportingQueryKey, } from "./reporting-state.js";
 export { checkRuntimeReadiness, } from "./runtime-readiness.js";
 export { createMobileAsyncQueueStorage, createMobileFlushTriggers, } from "./mobile-adapter.js";
 export { createMobileEvent, } from "./mobile-context.js";
 export { AsyncEventQueue } from "./mobile-queue.js";
+/**
+ * Mint a fresh key from the current time and a random UUIDv4. Mint it ONCE per
+ * request object so a resend reuses the key; a genuinely repeated occurrence
+ * needs a new request object and therefore a new key.
+ */
+export function createRawRequestIdempotencyKey() {
+    return `${Date.now()}:${randomUUID()}`;
+}
+/** Mint one prepared request with a fresh, retained idempotency key. */
+export function createRawIngestRequest(input) {
+    return { ...input, idempotencyKey: createRawRequestIdempotencyKey() };
+}
 export class AdminWorkflowError extends Error {
     constructor(status, reason, code, safeNextAction) {
         let message = `custd: ${reason || "admin workflow request failed"} (status ${status})`;
@@ -62,6 +78,26 @@ export class CustdRequestError extends Error {
             this.status === null ||
             this.status === 429 ||
             (this.status !== null && this.status >= 500));
+    }
+}
+/**
+ * CustdRawAcceptanceUnknownError reports that a raw upload's acceptance could
+ * not be determined: the connection failed before a response arrived, the 202
+ * acceptance body was missing or malformed, or the response carried a status
+ * that does not prove rejection. The request may or may not have landed, so
+ * this error carries no retry guidance (`retryability` "none", `nextAction`
+ * "escalate"): there is no verified occurrence identity, and replaying the POST
+ * could double-land accepted records. The cause never carries the request
+ * payload or a token.
+ */
+export class CustdRawAcceptanceUnknownError extends Error {
+    constructor(options) {
+        super("custd: raw upload acceptance is unknown; the request may or may not have landed and must not be replayed");
+        this.name = "CustdRawAcceptanceUnknownError";
+        this.retryability = "none";
+        this.nextAction = { action: "escalate" };
+        this.cause = options?.cause;
+        this.operationKey = options?.operationKey;
     }
 }
 function publicAdminSite(site) {
@@ -156,6 +192,7 @@ export class CustdClient {
         this.reporting = new ReportingNamespace((method, path, body, options) => this.apiRequest(method, path, body, options), (path, options) => this.apiDownload(path, options));
         this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
         this.analytics = new AnalyticsEventClient((method, path, body, options) => this.apiRequest(method, path, body, options));
+        this.parsers = new ParserClient((method, path, body, options) => this.apiRequest(method, path, body, options));
         if (this.queueEnabled) {
             this.queue = this.queueStorage.load();
         }
@@ -316,6 +353,71 @@ export class CustdClient {
             remove();
         }
         this.removeFlushTriggers = [];
+    }
+    /**
+     * Upload raw, line-delimited content for the bound parser.
+     *
+     * X-Parser-UUID binds the parser exactly as direct collectors do. When
+     * `target` is supplied its paired subClient/resource codes are appended as
+     * query parameters: a declarative default the backend applies to records with
+     * no canonical selection and refuses to let override an explicit selection.
+     *
+     * The route answers 202 Accepted, so the status alone is not success. Read
+     * `processed` and `failed` on the returned result.
+     *
+     * A transport failure or an unusable acceptance body cannot prove whether the
+     * upload landed, so it throws {@link CustdRawAcceptanceUnknownError} — which
+     * carries no retry guidance — rather than a retryable transport error.
+     * Replaying the POST could double-land accepted records; the SDK never retries
+     * this operation automatically.
+     */
+    async ingestRawLines(request, options) {
+        const parserUuid = assertRawParserUuid(request.parserUuid);
+        const params = new URLSearchParams();
+        if (request.target !== undefined) {
+            assertRawSourceTarget(request.target);
+            params.set("subClient", request.target.subClient);
+            params.set("resource", request.target.resource);
+        }
+        const query = params.size > 0 ? `?${params.toString()}` : "";
+        const token = await this.getToken(options);
+        const headers = {
+            ...this.defaultHeaders,
+            "Content-Type": "text/plain; charset=utf-8",
+            Authorization: `Bearer ${token}`,
+            "X-Parser-UUID": parserUuid,
+        };
+        const operationKey = request.idempotencyKey;
+        if (operationKey !== undefined && operationKey !== "") {
+            headers["Idempotency-Key"] = operationKey;
+        }
+        let response;
+        try {
+            response = await this.fetchImpl(`${this.baseUrl}/api/v1/raw${query}`, {
+                method: "POST",
+                headers,
+                body: request.content,
+                signal: options?.signal,
+            });
+        }
+        catch (error) {
+            // A disconnect cannot prove whether the upload landed; offer no retry.
+            throw new CustdRawAcceptanceUnknownError({ cause: error, operationKey });
+        }
+        if (!response.ok) {
+            if (this.retry.retryOnStatuses.includes(response.status)) {
+                throw new CustdRawAcceptanceUnknownError({ operationKey });
+            }
+            throw await problemError(response, `custd: raw ingest failed with status ${response.status}`);
+        }
+        let value;
+        try {
+            value = await response.json();
+        }
+        catch (error) {
+            throw new CustdRawAcceptanceUnknownError({ cause: error, operationKey });
+        }
+        return validateRawIngestResult(value, operationKey);
     }
     async sendWithRetry(event) {
         return withRetry(this.retry, async () => {
@@ -826,6 +928,7 @@ class SchemaNamespace {
 class AdminNamespace {
     constructor(request, nonAdminRequest, offboardingDownload, auditExportDownload) {
         this.dataLabels = new DataLabelAdminClient(request);
+        this.dataScopes = new DataScopeAdminClient(request);
         this.tenants = new AdminTenantNamespace(request);
         this.lifecycle = new BackendLifecycleClient(request, offboardingDownload);
         this.clientSetup = new ClientSetupClient(request);
@@ -1211,6 +1314,19 @@ class AdminReportingPacksNamespace {
     listDrafts() {
         return this.request("GET", "/reporting-packs/drafts");
     }
+    /** List the reviewed setup templates (each with its canonical definition). */
+    listSetupTemplates() {
+        return this.request("GET", "/reporting-packs/setup-templates");
+    }
+    /**
+     * Apply typed bindings to one reviewed setup template and return the
+     * server-built definition. Pure build: the server creates no data, grants no
+     * scope, and writes no generation; post the result through createDraft/preview
+     * only when the caller intends to.
+     */
+    bindSetupTemplate(kind, body) {
+        return this.request("POST", `/reporting-packs/setup-templates/${encodeURIComponent(kind)}/bind`, body);
+    }
     getDraft(draftId) {
         return this.request("GET", `/reporting-packs/drafts/${encodeURIComponent(draftId)}`);
     }
@@ -1456,6 +1572,51 @@ export function prepareEvent(event, options = {}) {
         sessionId: event.sessionId || randomUUID(),
         anonymousId: event.anonymousId || randomUUID(),
     };
+}
+const RAW_PARSER_UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+// assertRawParserUuid rejects a missing or malformed parser UUID before a
+// request is sent. It is a cheap shape check; the backend still verifies the
+// parser exists and is enabled.
+function assertRawParserUuid(value) {
+    if (typeof value !== "string" || !RAW_PARSER_UUID_PATTERN.test(value)) {
+        throw new RangeError("custd: raw ingest requires a parser UUID");
+    }
+    return value;
+}
+// assertRawSourceTarget rejects a partial or malformed target before a request
+// is sent. Both codes must be present and well-formed; the backend remains the
+// authority on whether they are registered.
+function assertRawSourceTarget(target) {
+    if (typeof target.subClient !== "string" ||
+        typeof target.resource !== "string" ||
+        !validDataScopeCode(target.subClient) ||
+        !validDataScopeCode(target.resource)) {
+        throw new RangeError("custd: raw source target requires subClient and resource as a pair of valid codes");
+    }
+}
+// validateRawIngestResult requires an actual object carrying a boolean success
+// and non-negative integer processed and failed. A missing field, a null, a
+// wrong type, or a negative count is rejected rather than defaulted or coerced.
+// Legitimate partial counts are returned unchanged.
+function validateRawIngestResult(value, operationKey) {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+        throw new CustdRawAcceptanceUnknownError({ operationKey });
+    }
+    const record = value;
+    if (typeof record.success !== "boolean") {
+        throw new CustdRawAcceptanceUnknownError({ operationKey });
+    }
+    return {
+        success: record.success,
+        processed: requireNonNegativeInteger(record.processed, operationKey),
+        failed: requireNonNegativeInteger(record.failed, operationKey),
+    };
+}
+function requireNonNegativeInteger(value, operationKey) {
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+        throw new CustdRawAcceptanceUnknownError({ operationKey });
+    }
+    return value;
 }
 export class RetryableError extends Error {
 }

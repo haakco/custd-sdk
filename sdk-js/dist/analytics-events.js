@@ -41,6 +41,7 @@ export class AnalyticsEventClient {
         if (labelFilters.length > 0) {
             body.labelFilters = labelFilters;
         }
+        appendLogDimensionFilters(body, request);
         return this.request("POST", "/analytics/query", body, options);
     }
     /**
@@ -78,8 +79,26 @@ export class AnalyticsEventClient {
         if (labelFilters.length > 0) {
             body.labelFilters = labelFilters;
         }
+        appendLogDimensionFilters(body, request);
         const value = await this.request("POST", "/analytics/query-range", body, options);
         return assertRangeQueryResponse(value);
+    }
+}
+// appendLogDimensionFilters copies the promoted log-dimension filters onto the
+// body, omitting each unset or empty one so it never narrows the query. It is
+// shared by the day and range queries, which carry the same filter set.
+function appendLogDimensionFilters(body, request) {
+    if (request.severity) {
+        body.severity = request.severity;
+    }
+    if (request.service) {
+        body.service = request.service;
+    }
+    if (request.subClient) {
+        body.subClient = request.subClient;
+    }
+    if (request.resource) {
+        body.resource = request.resource;
     }
 }
 /** Reject locally what the service would reject anyway, so it never costs a round trip. */

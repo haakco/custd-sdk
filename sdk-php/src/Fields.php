@@ -90,6 +90,125 @@ final class Fields
         return $value;
     }
 
+    /** @param \stdClass $payload */
+    public static function optionalBoolean(\stdClass $payload, string $key): ?bool
+    {
+        $value = self::optional($payload, $key);
+        if ($value === null) {
+            return null;
+        }
+        if (!is_bool($value)) {
+            throw new \UnexpectedValueException("custd: response field {$key} must be a boolean");
+        }
+
+        return $value;
+    }
+
+    /**
+     * stringMap returns a required JSON object flattened to a string map, the
+     * shape parser field mappings use. A scalar value is rejected rather than
+     * coerced.
+     *
+     * @param \stdClass $payload
+     * @return array<string, string>
+     */
+    public static function stringMap(\stdClass $payload, string $key): array
+    {
+        $object = self::object($payload, $key);
+        $map = [];
+        foreach (get_object_vars($object) as $name => $value) {
+            if (!is_string($value)) {
+                throw new \UnexpectedValueException("custd: response field {$key}.{$name} must be a string");
+            }
+            $map[$name] = $value;
+        }
+
+        return $map;
+    }
+
+    /**
+     * strings returns a required JSON array of strings.
+     *
+     * @param \stdClass $payload
+     * @return list<string>
+     */
+    public static function strings(\stdClass $payload, string $key): array
+    {
+        $value = self::optionalStrings($payload, $key);
+        if ($value === null) {
+            throw new \UnexpectedValueException("custd: response field {$key} is required");
+        }
+
+        return $value;
+    }
+
+    /** @param \stdClass $payload */
+    public static function number(\stdClass $payload, string $key): float
+    {
+        $value = self::required($payload, $key);
+        if (!is_int($value) && !is_float($value)) {
+            throw new \UnexpectedValueException("custd: response field {$key} must be a number");
+        }
+
+        return (float) $value;
+    }
+
+    /** @param \stdClass $payload */
+    public static function optionalNumber(\stdClass $payload, string $key): ?float
+    {
+        $value = self::optional($payload, $key);
+        if ($value === null) {
+            return null;
+        }
+        if (!is_int($value) && !is_float($value)) {
+            throw new \UnexpectedValueException("custd: response field {$key} must be a number");
+        }
+
+        return (float) $value;
+    }
+
+    /**
+     * numbers returns a required JSON array of numbers.
+     *
+     * @param \stdClass $payload
+     * @return list<float>
+     */
+    public static function numbers(\stdClass $payload, string $key): array
+    {
+        $values = self::required($payload, $key);
+        if (!is_array($values) || !array_is_list($values)) {
+            throw new \UnexpectedValueException("custd: response field {$key} must be a list");
+        }
+        foreach ($values as $value) {
+            if (!is_int($value) && !is_float($value)) {
+                throw new \UnexpectedValueException("custd: response field {$key} must contain numbers");
+            }
+        }
+
+        return array_map(static fn ($value): float => (float) $value, $values);
+    }
+
+    /**
+     * integerList returns a required JSON array of integers.
+     *
+     * @param \stdClass $payload
+     * @return list<int>
+     */
+    public static function integerList(\stdClass $payload, string $key): array
+    {
+        $values = self::required($payload, $key);
+        if (!is_array($values) || !array_is_list($values)) {
+            throw new \UnexpectedValueException("custd: response field {$key} must be a list");
+        }
+        foreach ($values as $value) {
+            if (!is_int($value)) {
+                throw new \UnexpectedValueException("custd: response field {$key} must contain integers");
+            }
+        }
+
+        return $values;
+    }
+
     /**
      * object returns a required nested JSON object. A missing or null field, or
      * a field that is a JSON array or scalar, fails at the boundary.

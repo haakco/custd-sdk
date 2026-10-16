@@ -49,6 +49,15 @@ export type AnalyticsEventQueryRequest = {
   limit?: number;
   source?: AnalyticsQuerySource;
   labelFilters?: AnalyticsLabelFilter[];
+  /**
+   * Optional promoted log-dimension filters. Each is an exact equality match
+   * against the matching typed column (max 256 bytes server-side); an empty
+   * value is omitted so an unset filter never narrows the query.
+   */
+  severity?: string;
+  service?: string;
+  subClient?: string;
+  resource?: string;
 };
 
 /**
@@ -120,6 +129,15 @@ export type AnalyticsEventRangeQueryRequest = {
   /** Bucket granularity. Omit, or set to {@link ANALYTICS_RANGE_GROUP_BY}. */
   groupBy?: typeof ANALYTICS_RANGE_GROUP_BY;
   labelFilters?: AnalyticsLabelFilter[];
+  /**
+   * Optional promoted log-dimension filters, shared with the single-day query.
+   * Each filters exactly like the day query it summarizes; an empty value is
+   * omitted from the wire.
+   */
+  severity?: string;
+  service?: string;
+  subClient?: string;
+  resource?: string;
 };
 
 /**
@@ -186,6 +204,7 @@ export class AnalyticsEventClient {
     if (labelFilters.length > 0) {
       body.labelFilters = labelFilters;
     }
+    appendLogDimensionFilters(body, request);
 
     return this.request("POST", "/analytics/query", body, options);
   }
@@ -233,9 +252,31 @@ export class AnalyticsEventClient {
     if (labelFilters.length > 0) {
       body.labelFilters = labelFilters;
     }
+    appendLogDimensionFilters(body, request);
 
     const value = await this.request<unknown>("POST", "/analytics/query-range", body, options);
     return assertRangeQueryResponse(value);
+  }
+}
+
+// appendLogDimensionFilters copies the promoted log-dimension filters onto the
+// body, omitting each unset or empty one so it never narrows the query. It is
+// shared by the day and range queries, which carry the same filter set.
+function appendLogDimensionFilters(
+  body: Record<string, unknown>,
+  request: { severity?: string; service?: string; subClient?: string; resource?: string },
+): void {
+  if (request.severity) {
+    body.severity = request.severity;
+  }
+  if (request.service) {
+    body.service = request.service;
+  }
+  if (request.subClient) {
+    body.subClient = request.subClient;
+  }
+  if (request.resource) {
+    body.resource = request.resource;
   }
 }
 

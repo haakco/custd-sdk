@@ -1,6 +1,7 @@
 import { AuthProjectAdminClient } from "./admin-auth-projects.js";
 import { ClientSetupClient } from "./admin-client-setup.js";
 import { DataLabelAdminClient } from "./admin-data-labels.js";
+import { DataScopeAdminClient, validDataScopeCode } from "./admin-data-scopes.js";
 import { OffboardingClient, type OffboardingDownloadResponse } from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
@@ -12,6 +13,7 @@ import { UsageAdminClient } from "./admin-usage.js";
 import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
 import { basicAuthorization } from "./oauth.js";
+import { ParserClient } from "./parsers.js";
 import { SDK_IDENTITY } from "./version.js";
 
 export {
@@ -95,6 +97,27 @@ export {
   type SchemaFieldDataLabelAssignment,
   type SchemaFieldDataLabelAssignmentRequest,
 } from "./admin-data-labels.js";
+export {
+  type DataScope,
+  type DataScopeAction,
+  DataScopeAdminClient,
+  type DataScopeCreateRequest,
+  type DataScopeGrant,
+  type DataScopeGrantListResponse,
+  type DataScopeGrantTarget,
+  type DataScopeGrantTargetKind,
+  type DataScopeListResponse,
+  type DataScopePrincipalKind,
+  type DataScopePrincipalRef,
+  type DataScopeResource,
+  type DataScopeResourceCreateRequest,
+  type DataScopeResourceListResponse,
+  type DataScopeResourceUpdateRequest,
+  type DataScopeStatus,
+  type DataScopeUpdateRequest,
+  validDataScopeCode,
+  validDataScopeName,
+} from "./admin-data-scopes.js";
 export {
   type OffboardingAcknowledgeResponse,
   type OffboardingCancelRequest,
@@ -251,6 +274,28 @@ export {
   type ZeroStateReconciliationResult,
 } from "./backend-lifecycle.js";
 export {
+  DEFAULT_PARSER_FRAMING_MAX_LINES,
+  DEFAULT_PARSER_FRAMING_MAX_RECORD_BYTES,
+  MAX_PARSER_FRAMING_LINES,
+  MAX_PARSER_FRAMING_RECORD_BYTES,
+  ParserClient,
+  type ParserDefinition,
+  type ParserDeleteResponse,
+  type ParserFraming,
+  type ParserFramingOutcome,
+  type ParserFramingType,
+  type ParserGeneratedFieldConfig,
+  type ParserListResponse,
+  type ParserPreset,
+  type ParserPresetListResponse,
+  type ParserPreviewDefinition,
+  type ParserPreviewRequest,
+  type ParserPreviewResponse,
+  type ParserPreviewRow,
+  type ParserSaveRequest,
+  type ParserType,
+} from "./parsers.js";
+export {
   classifyReportingData,
   getReportingViewState,
   type ReportingDataState,
@@ -369,6 +414,67 @@ type EventResult = {
 type EventBatchResponse = {
   success?: boolean;
   results?: EventResult[];
+};
+
+/**
+ * The declarative default data-scope target for one raw upload. Both fields are
+ * registered immutable codes supplied as a pair, never numeric identities.
+ */
+export type RawSourceTarget = {
+  subClient: string;
+  resource: string;
+};
+
+/** One raw, line-delimited upload for the bound parser. */
+export type RawIngestRequest = {
+  content: string;
+  /** Binds the parser executed for every line (X-Parser-UUID). */
+  parserUuid: string;
+  target?: RawSourceTarget;
+  /**
+   * Opts the upload into stable admission. Absent means the existing one-shot
+   * unkeyed behavior with no safe replay.
+   */
+  idempotencyKey?: RawRequestIdempotencyKey;
+};
+
+/** The caller-supplied raw upload intent. */
+export type RawIngestInput = {
+  content: string;
+  parserUuid: string;
+  target?: RawSourceTarget;
+};
+
+/**
+ * A standard raw-upload idempotency key: `<unix-milliseconds>:<uuid-v4>`. The
+ * same key and the same body/parser/target let the backend return the accepted
+ * receipt again instead of landing a second copy; a changed intent under the
+ * same key is refused with a conflict. It carries no payload or credential.
+ */
+export type RawRequestIdempotencyKey = string;
+
+/**
+ * Mint a fresh key from the current time and a random UUIDv4. Mint it ONCE per
+ * request object so a resend reuses the key; a genuinely repeated occurrence
+ * needs a new request object and therefore a new key.
+ */
+export function createRawRequestIdempotencyKey(): RawRequestIdempotencyKey {
+  return `${Date.now()}:${randomUUID()}`;
+}
+
+/** Mint one prepared request with a fresh, retained idempotency key. */
+export function createRawIngestRequest(input: RawIngestInput): RawIngestRequest {
+  return { ...input, idempotencyKey: createRawRequestIdempotencyKey() };
+}
+
+/**
+ * The POST /api/v1/raw acceptance body. The route always answers 202 Accepted,
+ * so the status alone is not per-record success: read `processed` and `failed`.
+ */
+export type RawIngestResult = {
+  success: boolean;
+  processed: number;
+  failed: number;
 };
 
 export type ProducerOAuthConfig = {
@@ -517,6 +623,31 @@ export class CustdRequestError extends Error {
       this.status === 429 ||
       (this.status !== null && this.status >= 500)
     );
+  }
+}
+
+/**
+ * CustdRawAcceptanceUnknownError reports that a raw upload's acceptance could
+ * not be determined: the connection failed before a response arrived, the 202
+ * acceptance body was missing or malformed, or the response carried a status
+ * that does not prove rejection. The request may or may not have landed, so
+ * this error carries no retry guidance (`retryability` "none", `nextAction`
+ * "escalate"): there is no verified occurrence identity, and replaying the POST
+ * could double-land accepted records. The cause never carries the request
+ * payload or a token.
+ */
+export class CustdRawAcceptanceUnknownError extends Error {
+  readonly name = "CustdRawAcceptanceUnknownError";
+  readonly retryability = "none" as const;
+  readonly nextAction = { action: "escalate" as const };
+  readonly cause?: unknown;
+  /** The original operation idempotency key, when the request carried one. */
+  readonly operationKey?: RawRequestIdempotencyKey;
+
+  constructor(options?: { cause?: unknown; operationKey?: RawRequestIdempotencyKey }) {
+    super("custd: raw upload acceptance is unknown; the request may or may not have landed and must not be replayed");
+    this.cause = options?.cause;
+    this.operationKey = options?.operationKey;
   }
 }
 
@@ -984,6 +1115,226 @@ export type ProofProfile = {
   outputLayout: string;
 };
 
+export type RollupDimension = {
+  slot: number;
+  dimension: string;
+  selector: string;
+  allowedValuePattern?: string;
+};
+
+export type RollupRule = {
+  family: string;
+  templates?: string[];
+  metric: string;
+  sourceEventType: string;
+  match?: MatchPredicate[];
+  dimensions?: RollupDimension[];
+  completenessRequired: boolean;
+};
+
+export type PresentationPresetSelection = {
+  presetId: string;
+  version: number;
+  nonColorEncoding: string;
+  summaryTemplateId: string;
+};
+
+export type PackWidgetDefinition = {
+  key: string;
+  title: string;
+  kind: string;
+  template: string;
+  metrics: string[];
+  dimensions?: string[];
+  presentation?: PresentationPresetSelection;
+};
+
+export type DashboardSharePolicy = {
+  relativeRanges?: string[];
+  comparisonPresets?: string[];
+};
+
+export type DashboardInteractionRule = {
+  key: string;
+  sourceWidget: string;
+  targetWidget: string;
+  dimension: string;
+  action: string;
+  linkedFilterGroup: string;
+  comparisonPreset?: string;
+  resetBehavior: string;
+};
+
+export type NarrativeValueReference = {
+  widgetKey: string;
+  value: string;
+};
+
+export type NarrativeBlock = {
+  text: string;
+  references?: NarrativeValueReference[];
+};
+
+export type ReportSectionDefinition = {
+  key: string;
+  title: string;
+  layout: string;
+  columnSpan: number;
+  widgetKeys?: string[];
+  narrative?: NarrativeBlock[];
+};
+
+export type ExecutiveReportDefinition = {
+  comparisonBasis: string;
+  comparisonLabel?: string;
+  targetValue?: number;
+  targetUnit?: string;
+  findings?: string[];
+  actions?: string[];
+  supportingWidgetKeys?: string[];
+};
+
+export type PackDashboardDefinition = {
+  key: string;
+  packKey?: string;
+  exportFormats?: string[];
+  title: string;
+  description?: string;
+  group?: string;
+  defaultRange: string;
+  refreshSeconds: number;
+  requiredScopes: string[];
+  widgets: PackWidgetDefinition[];
+  interactions?: DashboardInteractionRule[];
+  sharePolicy?: DashboardSharePolicy;
+  sections?: ReportSectionDefinition[];
+  executive?: ExecutiveReportDefinition;
+};
+
+export type RedactionRule = {
+  sourceSystem: string;
+  sourceEventType: string;
+  selectorFields: string[];
+  allowedFields: string[];
+  reasonClasses: string[];
+  resultShape: string;
+};
+
+export type TransitionRule = {
+  key: string;
+  identity: string;
+  stepSelector: string;
+  steps: string[];
+  maxDurationMs: number;
+  maxEvents: number;
+};
+
+export type ActivationRule = {
+  key: string;
+  identity: string;
+  predicate: MatchPredicate;
+  cohortWindowDays: number;
+};
+
+export type RetentionRule = {
+  key: string;
+  activationRule: string;
+  returnWindowDays: number[];
+  returnPredicate: MatchPredicate;
+};
+
+export type ActivityRule = {
+  key: string;
+  identity: string;
+  bucketDays: number;
+};
+
+export type ObservationSource = { key: string; label: string };
+
+export type ObservationAsset = { key: string; label: string };
+
+export type SourceSeries = { sourceKey: string; sourceSeriesKey: string; priority: number };
+
+export type SemanticSeries = {
+  key: string;
+  assetKey?: string;
+  assetKeys?: string[];
+  measurementKind: string;
+  canonicalUnit: string;
+  allowedSourceUnits: string[];
+  expectedCadenceSeconds: number;
+  maximumGapSeconds: number;
+  sources: SourceSeries[];
+};
+
+export type ObservationContract = {
+  version: number;
+  sources: ObservationSource[];
+  assets: ObservationAsset[];
+  series: SemanticSeries[];
+};
+
+export type SourceReconciliation = {
+  version: number;
+  tenantKey: string;
+  seriesKey: string;
+  canonicalUnit?: string;
+  mode: string;
+  maxAgeSeconds: number;
+  absoluteTolerance?: number;
+  relativeTolerance?: number;
+  sources: SourceSeries[];
+};
+
+export type AssetNode = { tenantKey: string; key: string; label: string };
+
+export type AssetHierarchyEdge = { tenantKey: string; parentKey: string; childKey: string; mode: string };
+
+export type AssetHierarchy = {
+  version: number;
+  tenantKey: string;
+  maxDepth?: number;
+  nodes: AssetNode[];
+  edges?: AssetHierarchyEdge[];
+};
+
+export type RateTier = { lowerBound: number; upperBound?: number; pricePerUnit: number };
+
+export type AllocationTarget = { seriesKey: string; weight: number };
+
+export type SteppedRateSchedule = {
+  key: string;
+  usageMetric: string;
+  usageUnit: string;
+  timezone: string;
+  billingBoundary: string;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  currency: string;
+  tiers: RateTier[];
+  rounding: string;
+};
+
+export type AllocationRule = {
+  key: string;
+  sourceSeriesKey: string;
+  targets: AllocationTarget[];
+  rounding: string;
+};
+
+export type AccountingContract = {
+  version: number;
+  usageMetric: string;
+  schedules: SteppedRateSchedule[];
+  allocations?: AllocationRule[];
+};
+
+/**
+ * The canonical reporting-pack definition, mirroring libs/go/reporting.Pack.
+ * Every contracted field is carried so a definition round-trips losslessly
+ * through create/validate/preview/publish; unknown extension fields are the only
+ * thing a decode may drop.
+ */
 export type PackDefinition = {
   key: string;
   displayName: string;
@@ -995,10 +1346,46 @@ export type PackDefinition = {
   dimensions: PackDimension[];
   templates: PackTemplate[];
   flowRules?: FlowRule[];
+  rollupRules?: RollupRule[];
+  dashboards?: PackDashboardDefinition[];
+  exportFormats?: string[];
   trust: TrustDiagnostics;
+  redactionRules?: RedactionRule[];
   proof: ProofProfile;
   identity?: IdentitySelectors;
+  transitionRules?: TransitionRule[];
+  activationRules?: ActivationRule[];
+  retentionRules?: RetentionRule[];
+  activityRules?: ActivityRule[];
+  observation?: ObservationContract;
+  reconciliations?: SourceReconciliation[];
+  assetHierarchy?: AssetHierarchy;
+  accounting?: AccountingContract;
 };
+
+/** One client-selectable binding descriptor a setup template renders. */
+export type ReportingPackSetupBindingField = { key: string; label: string; required: boolean };
+
+/** The typed log-observability bindings a client selects. Never a dictionary. */
+export type LogObservabilityBindings = {
+  eventType: string;
+  severityField: string;
+  resourceField: string;
+};
+
+/** One reviewed setup template: its canonical definition plus selectable bindings. */
+export type ReportingPackSetupTemplate = {
+  kind: string;
+  displayName: string;
+  definition: PackDefinition;
+  bindings: ReportingPackSetupBindingField[];
+};
+
+export type ReportingPackSetupTemplateListResponse = { templates: ReportingPackSetupTemplate[] };
+
+export type ReportingPackSetupTemplateBindRequest = { bindings: LogObservabilityBindings };
+
+export type ReportingPackSetupTemplateBindResponse = { kind: string; definition: PackDefinition };
 
 export type ReportingPackDraft = {
   id: number;
@@ -1483,6 +1870,7 @@ export class CustdClient {
   public readonly reporting: ReportingNamespace;
   public readonly schemas: SchemaNamespace;
   public readonly analytics: AnalyticsEventClient;
+  public readonly parsers: ParserClient;
   private baseUrl: string;
   private getToken: (options?: RequestOptions) => string | Promise<string>;
   private fetchImpl: typeof fetch;
@@ -1545,6 +1933,7 @@ export class CustdClient {
     this.analytics = new AnalyticsEventClient((method, path, body, options) =>
       this.apiRequest(method, path, body, options),
     );
+    this.parsers = new ParserClient((method, path, body, options) => this.apiRequest(method, path, body, options));
 
     if (this.queueEnabled) {
       this.queue = this.queueStorage.load();
@@ -1733,6 +2122,70 @@ export class CustdClient {
       remove();
     }
     this.removeFlushTriggers = [];
+  }
+
+  /**
+   * Upload raw, line-delimited content for the bound parser.
+   *
+   * X-Parser-UUID binds the parser exactly as direct collectors do. When
+   * `target` is supplied its paired subClient/resource codes are appended as
+   * query parameters: a declarative default the backend applies to records with
+   * no canonical selection and refuses to let override an explicit selection.
+   *
+   * The route answers 202 Accepted, so the status alone is not success. Read
+   * `processed` and `failed` on the returned result.
+   *
+   * A transport failure or an unusable acceptance body cannot prove whether the
+   * upload landed, so it throws {@link CustdRawAcceptanceUnknownError} — which
+   * carries no retry guidance — rather than a retryable transport error.
+   * Replaying the POST could double-land accepted records; the SDK never retries
+   * this operation automatically.
+   */
+  async ingestRawLines(request: RawIngestRequest, options?: RequestOptions): Promise<RawIngestResult> {
+    const parserUuid = assertRawParserUuid(request.parserUuid);
+    const params = new URLSearchParams();
+    if (request.target !== undefined) {
+      assertRawSourceTarget(request.target);
+      params.set("subClient", request.target.subClient);
+      params.set("resource", request.target.resource);
+    }
+    const query = params.size > 0 ? `?${params.toString()}` : "";
+    const token = await this.getToken(options);
+    const headers: Record<string, string> = {
+      ...this.defaultHeaders,
+      "Content-Type": "text/plain; charset=utf-8",
+      Authorization: `Bearer ${token}`,
+      "X-Parser-UUID": parserUuid,
+    };
+    const operationKey = request.idempotencyKey;
+    if (operationKey !== undefined && operationKey !== "") {
+      headers["Idempotency-Key"] = operationKey;
+    }
+    let response: Response;
+    try {
+      response = await this.fetchImpl(`${this.baseUrl}/api/v1/raw${query}`, {
+        method: "POST",
+        headers,
+        body: request.content,
+        signal: options?.signal,
+      });
+    } catch (error) {
+      // A disconnect cannot prove whether the upload landed; offer no retry.
+      throw new CustdRawAcceptanceUnknownError({ cause: error, operationKey });
+    }
+    if (!response.ok) {
+      if (this.retry.retryOnStatuses.includes(response.status)) {
+        throw new CustdRawAcceptanceUnknownError({ operationKey });
+      }
+      throw await problemError(response, `custd: raw ingest failed with status ${response.status}`);
+    }
+    let value: unknown;
+    try {
+      value = await response.json();
+    } catch (error) {
+      throw new CustdRawAcceptanceUnknownError({ cause: error, operationKey });
+    }
+    return validateRawIngestResult(value, operationKey);
   }
 
   private async sendWithRetry(event: EventEnvelope): Promise<Response> {
@@ -2371,6 +2824,7 @@ class SchemaNamespace {
 
 class AdminNamespace {
   readonly dataLabels: DataLabelAdminClient;
+  readonly dataScopes: DataScopeAdminClient;
   readonly tenants: AdminTenantNamespace;
   readonly lifecycle: BackendLifecycleClient;
   readonly clientSetup: ClientSetupClient;
@@ -2399,6 +2853,7 @@ class AdminNamespace {
     auditExportDownload: AdminAuditDownloader,
   ) {
     this.dataLabels = new DataLabelAdminClient(request);
+    this.dataScopes = new DataScopeAdminClient(request);
     this.tenants = new AdminTenantNamespace(request);
     this.lifecycle = new BackendLifecycleClient(request, offboardingDownload);
     this.clientSetup = new ClientSetupClient(request);
@@ -2883,6 +3338,24 @@ class AdminReportingPacksNamespace {
     return this.request("GET", "/reporting-packs/drafts");
   }
 
+  /** List the reviewed setup templates (each with its canonical definition). */
+  listSetupTemplates(): Promise<ReportingPackSetupTemplateListResponse> {
+    return this.request("GET", "/reporting-packs/setup-templates");
+  }
+
+  /**
+   * Apply typed bindings to one reviewed setup template and return the
+   * server-built definition. Pure build: the server creates no data, grants no
+   * scope, and writes no generation; post the result through createDraft/preview
+   * only when the caller intends to.
+   */
+  bindSetupTemplate(
+    kind: string,
+    body: ReportingPackSetupTemplateBindRequest,
+  ): Promise<ReportingPackSetupTemplateBindResponse> {
+    return this.request("POST", `/reporting-packs/setup-templates/${encodeURIComponent(kind)}/bind`, body);
+  }
+
   getDraft(draftId: string): Promise<ReportingPackDraft> {
     return this.request("GET", `/reporting-packs/drafts/${encodeURIComponent(draftId)}`);
   }
@@ -3165,6 +3638,58 @@ export function prepareEvent(event: EventEnvelope, options: PrepareEventOptions 
     sessionId: event.sessionId || randomUUID(),
     anonymousId: event.anonymousId || randomUUID(),
   };
+}
+
+const RAW_PARSER_UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+// assertRawParserUuid rejects a missing or malformed parser UUID before a
+// request is sent. It is a cheap shape check; the backend still verifies the
+// parser exists and is enabled.
+function assertRawParserUuid(value: string): string {
+  if (typeof value !== "string" || !RAW_PARSER_UUID_PATTERN.test(value)) {
+    throw new RangeError("custd: raw ingest requires a parser UUID");
+  }
+  return value;
+}
+
+// assertRawSourceTarget rejects a partial or malformed target before a request
+// is sent. Both codes must be present and well-formed; the backend remains the
+// authority on whether they are registered.
+function assertRawSourceTarget(target: RawSourceTarget): void {
+  if (
+    typeof target.subClient !== "string" ||
+    typeof target.resource !== "string" ||
+    !validDataScopeCode(target.subClient) ||
+    !validDataScopeCode(target.resource)
+  ) {
+    throw new RangeError("custd: raw source target requires subClient and resource as a pair of valid codes");
+  }
+}
+
+// validateRawIngestResult requires an actual object carrying a boolean success
+// and non-negative integer processed and failed. A missing field, a null, a
+// wrong type, or a negative count is rejected rather than defaulted or coerced.
+// Legitimate partial counts are returned unchanged.
+function validateRawIngestResult(value: unknown, operationKey?: RawRequestIdempotencyKey): RawIngestResult {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new CustdRawAcceptanceUnknownError({ operationKey });
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record.success !== "boolean") {
+    throw new CustdRawAcceptanceUnknownError({ operationKey });
+  }
+  return {
+    success: record.success,
+    processed: requireNonNegativeInteger(record.processed, operationKey),
+    failed: requireNonNegativeInteger(record.failed, operationKey),
+  };
+}
+
+function requireNonNegativeInteger(value: unknown, operationKey?: RawRequestIdempotencyKey): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw new CustdRawAcceptanceUnknownError({ operationKey });
+  }
+  return value;
 }
 
 export class RetryableError extends Error {}

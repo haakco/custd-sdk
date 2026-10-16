@@ -19,14 +19,179 @@ from .version import IDENTITY
 
 INGEST_ENDPOINT = "/api/v1/events"
 INGEST_BATCH_ENDPOINT = "/api/v1/events/batch"
+RAW_INGEST_ENDPOINT = "/api/v1/raw"
 DEFAULT_RETRY_STATUSES = (408, 429, 500, 502, 503, 504)
 DEFAULT_COMPRESSION_THRESHOLD_BYTES = 1024
 EVENT_LABEL_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$")
+RAW_PARSER_UUID_PATTERN = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
 
 EventEnvelope = dict[str, Any]
+# TransportBody is what a transport may be asked to send: a JSON event, or the
+# verbatim bytes of one raw, line-delimited upload.
+TransportBody = EventEnvelope | bytes
 TransportResult = dict[str, Any]
-Transport = Callable[[str, EventEnvelope, dict[str, str], float], TransportResult]
+Transport = Callable[[str, TransportBody, dict[str, str], float], TransportResult]
 AdminTransport = Callable[[str, str, dict[str, Any] | None, dict[str, str], float], TransportResult]
+
+
+class RawSourceTarget(TypedDict):
+    """The declarative default data-scope target for one raw upload.
+
+    Both fields are registered immutable CODES supplied as a pair, never numeric
+    platform identities. They are a default the backend applies to a record with
+    no canonical selection and refuses to let override an explicit selection.
+    """
+
+    subClient: str
+    resource: str
+
+
+# A standard raw-upload idempotency key: ``<unix-milliseconds>:<uuid-v4>``. The
+# same key and the same body/parser/target let the backend return the accepted
+# receipt again instead of landing a second copy; a changed intent under the
+# same key is refused with a conflict. It carries no payload or credential.
+RawRequestIdempotencyKey = str
+
+
+class RawIngestRequest(TypedDict):
+    """One raw, line-delimited upload for the bound parser.
+
+    ``idempotencyKey`` opts the upload into stable admission. Absent means the
+    existing one-shot unkeyed behavior with no safe replay.
+    """
+
+    content: str
+    # parserUuid binds the parser executed for every line (X-Parser-UUID).
+    parserUuid: str
+    target: NotRequired[RawSourceTarget]
+    idempotencyKey: NotRequired[RawRequestIdempotencyKey]
+
+
+def create_raw_request_idempotency_key() -> RawRequestIdempotencyKey:
+    """Mint a fresh key from the current time and a random UUIDv4.
+
+    Mint it ONCE per request object so a resend reuses the key; a genuinely
+    repeated occurrence needs a new request object and therefore a new key.
+    """
+    return f"{int(time.time() * 1000)}:{uuid.uuid4()}"
+
+
+def create_raw_ingest_request(
+    content: str,
+    parser_uuid: str,
+    target: RawSourceTarget | None = None,
+) -> RawIngestRequest:
+    """Build one raw request with a fresh, retained idempotency key."""
+    request = RawIngestRequest(
+        content=content,
+        parserUuid=parser_uuid,
+        idempotencyKey=create_raw_request_idempotency_key(),
+    )
+    if target is not None:
+        request["target"] = target
+    return request
+
+
+class RawIngestResult(TypedDict):
+    """The POST /api/v1/raw acceptance body.
+
+    The route always answers 202 Accepted, so the status alone is not per-record
+    success: read ``processed`` and ``failed``. A 202 with ``failed > 0`` is a
+    partial failure.
+    """
+
+    success: bool
+    processed: int
+    failed: int
+
+
+def _raw_ingest_url_and_body(base_url: str, request: RawIngestRequest) -> tuple[str, bytes]:
+    """Validate the client inputs and build the raw upload URL and body.
+
+    A missing/malformed parser UUID and a partial or malformed target are
+    rejected locally before a round trip; both codes reuse the shared data-scope
+    code rule rather than a second spelling. No backend parsing is shadowed.
+    """
+    from .admin_data_scopes import valid_data_scope_code
+
+    parser_uuid = request.get("parserUuid")
+    if not isinstance(parser_uuid, str) or RAW_PARSER_UUID_PATTERN.match(parser_uuid) is None:
+        raise ValueError("custd: raw ingest requires a parser UUID")
+    content = request.get("content")
+    if not isinstance(content, str):
+        raise ValueError("custd: raw ingest content must be a string")
+
+    params: dict[str, str] = {}
+    target = request.get("target")
+    if target is not None:
+        sub_client = target.get("subClient")
+        resource = target.get("resource")
+        if (
+            not isinstance(sub_client, str)
+            or not isinstance(resource, str)
+            or not valid_data_scope_code(sub_client)
+            or not valid_data_scope_code(resource)
+        ):
+            raise ValueError("custd: raw source target requires subClient and resource as a pair of valid codes")
+        params = {"subClient": sub_client, "resource": resource}
+
+    url = base_url.rstrip("/") + RAW_INGEST_ENDPOINT
+    if params:
+        url += "?" + urllib.parse.urlencode(params)
+    return url, content.encode("utf-8")
+
+
+def _decode_raw_ingest_result(body: object, operation_key: str | None = None) -> RawIngestResult:
+    """Decode the acceptance body strictly.
+
+    A successful response must be an object carrying a boolean ``success`` and
+    non-negative integer ``processed`` and ``failed``. An empty, null,
+    non-object, or incomplete body, a wrong type, and a negative or fractional
+    count all raise :class:`RawAcceptanceUnknownError` rather than defaulting or
+    coercing a missing count; legitimate partial counts are returned unchanged.
+    """
+    try:
+        decoded = _raw_response_object(body, operation_key)
+        return RawIngestResult(
+            success=_raw_response_bool(decoded, "success", operation_key),
+            processed=_raw_response_non_negative_int(decoded, "processed", operation_key),
+            failed=_raw_response_non_negative_int(decoded, "failed", operation_key),
+        )
+    except RawAcceptanceUnknownError:
+        raise
+    except (ValueError, TypeError) as error:
+        raise RawAcceptanceUnknownError(operation_key) from error
+
+
+def _raw_response_object(body: object, operation_key: str | None = None) -> dict[str, Any]:
+    if isinstance(body, str):
+        decoded: object = json.loads(body) if body != "" else None
+    elif isinstance(body, (bytes, bytearray)):
+        decoded = json.loads(bytes(body).decode("utf-8"))
+    elif isinstance(body, dict):
+        decoded = body
+    else:
+        decoded = None
+    if not isinstance(decoded, dict):
+        raise RawAcceptanceUnknownError(operation_key)
+    return decoded
+
+
+def _raw_response_bool(payload: dict[str, Any], key: str, operation_key: str | None = None) -> bool:
+    value = payload.get(key)
+    if not isinstance(value, bool):
+        raise RawAcceptanceUnknownError(operation_key)
+    return value
+
+
+def _raw_response_non_negative_int(payload: dict[str, Any], key: str, operation_key: str | None = None) -> int:
+    value = payload.get(key)
+    # bool is an int subclass; exclude it so a boolean is not read as a count.
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise RawAcceptanceUnknownError(operation_key)
+    return value
 
 
 class AdminRequestOptions(TypedDict, total=False):
@@ -207,6 +372,35 @@ class RequestError(RuntimeError):
     @property
     def unavailable(self) -> bool:
         return self.status is None or self.status == 429 or self.status >= 500
+
+
+class RawAcceptanceUnknownError(RequestError):
+    """A raw upload's acceptance could not be determined.
+
+    Raised when the connection failed before a response arrived, the 202 body
+    was missing or malformed, or the response carried a status that does not
+    prove rejection. The request may or may not have landed, so this error is
+    non-retryable and recommends no replay: there is no verified occurrence
+    identity, and resubmitting could double-land accepted records. Its cause
+    carries no request payload or token.
+    """
+
+    def __init__(self, operation_key: str | None = None) -> None:
+        super().__init__(
+            "custd: raw upload acceptance is unknown; the request may or may not have landed "
+            "and must not be replayed",
+            code="raw_acceptance_unknown",
+            retryability="none",
+            next_action={"action": "escalate"},
+        )
+        # The original operation key, when the request carried one, so a caller
+        # can retry with the SAME key once the backend dedup protocol is proven.
+        self.operation_key = operation_key
+
+    @property
+    def unavailable(self) -> bool:
+        # Not a retryable unavailability: acceptance is unknown, not absent.
+        return False
 
 
 def admin_request_error(status: int, body: object) -> RequestError:
@@ -405,6 +599,9 @@ class CustdClient:
         from .analytics_events import AnalyticsEventClient
 
         self.analytics = AnalyticsEventClient(self, admin_transport or default_admin_transport)
+        from .parsers import ParserClient
+
+        self.parsers = ParserClient(self, admin_transport or default_admin_transport)
         self.timeout = timeout
 
     @classmethod
@@ -428,6 +625,44 @@ class CustdClient:
         validate_event(prepared)
         apply_environment_label(prepared, self.environment)
         return self._send_with_retry(prepared)
+
+    def ingest_raw_lines(self, request: RawIngestRequest) -> RawIngestResult:
+        """Upload raw, line-delimited content for the bound parser.
+
+        X-Parser-UUID binds the parser exactly as direct collectors do. When a
+        ``target`` is supplied its paired subClient/resource codes are appended
+        as query parameters. A non-empty ``idempotencyKey`` is sent as the
+        standard ``Idempotency-Key`` header, so a resend of the same request is
+        deduplicated by the backend rather than landing twice. The route answers
+        202 Accepted, so read ``processed``/``failed`` on the result rather than
+        the status.
+
+        A transport failure or an unusable 202 body cannot prove whether the
+        upload landed, so it raises :class:`RawAcceptanceUnknownError` (which
+        carries no retry guidance) rather than a retryable error: replaying the
+        POST could double-land accepted records, and this method never retries
+        automatically.
+        """
+        url, body = _raw_ingest_url_and_body(self.base_url, request)
+        operation_key: str | None = request.get("idempotencyKey") or None
+        headers = self._headers()
+        headers["Content-Type"] = "text/plain; charset=utf-8"
+        headers["X-Parser-UUID"] = request["parserUuid"]
+        if operation_key:
+            headers["Idempotency-Key"] = operation_key
+        try:
+            result = self.transport(url, body, headers, self.timeout)
+        except RawAcceptanceUnknownError:
+            raise
+        except Exception as error:
+            # A disconnect cannot prove whether the upload landed; offer no retry.
+            raise RawAcceptanceUnknownError(operation_key) from error
+        status = int(result["status"])
+        if status in self.retry["retry_statuses"]:
+            raise RawAcceptanceUnknownError(operation_key)
+        if status >= 400:
+            raise RequestError(problem_error_message(status, result.get("body")))
+        return _decode_raw_ingest_result(result.get("body"), operation_key)
 
     def track(self, event: EventEnvelope) -> TransportResult | None:
         prepared = prepare_event(event)
@@ -586,9 +821,11 @@ class AdminClient:
         from .admin_audit import AuditAdminClient
         from .admin_auth_projects import AuthProjectAdminClient
         from .admin_data_labels import DataLabelAdminClient
+        from .admin_data_scopes import DataScopeAdminClient
         from .admin_offboarding import OffboardingClient
         from .admin_predictions import PredictionAdminClient
         from .admin_privacy_erasures import PrivacyErasureClient
+        from .admin_reporting_packs import ReportingPacksAdminClient
         from .admin_retention import RetentionClient
         from .admin_subject_exports import SubjectExportClient
         from .admin_tenant_storage import TenantStorageClient
@@ -602,6 +839,8 @@ class AdminClient:
         self.offboarding = OffboardingClient(self)
         self.predictions = PredictionAdminClient(self)
         self.data_labels = DataLabelAdminClient(self)
+        self.data_scopes = DataScopeAdminClient(self)
+        self.reporting_packs = ReportingPacksAdminClient(self)
         self.time_plans = TimePlanAdminClient(self)
         self.audit = AuditAdminClient(self)
         self.usage = UsageAdminClient(self)
@@ -1576,14 +1815,18 @@ def normalize_compression(compression: dict[str, Any] | None) -> dict[str, Any]:
 def make_default_transport(compression: dict[str, Any]) -> Transport:
     def transport(
         url: str,
-        event: EventEnvelope,
+        event: TransportBody,
         headers: dict[str, str],
         timeout: float,
     ) -> TransportResult:
-        body = json.dumps(event).encode("utf-8")
-        if compression["enabled"] and len(body) >= compression["threshold_bytes"]:
-            body = gzip.compress(body)
-            headers = {**headers, "Content-Encoding": "gzip"}
+        # A raw upload is sent verbatim; only JSON events are compressed.
+        if isinstance(event, (bytes, bytearray)):
+            body = bytes(event)
+        else:
+            body = json.dumps(event).encode("utf-8")
+            if compression["enabled"] and len(body) >= compression["threshold_bytes"]:
+                body = gzip.compress(body)
+                headers = {**headers, "Content-Encoding": "gzip"}
         request = urllib.request.Request(url, data=body, headers=headers, method="POST")
         try:
             with urllib.request.urlopen(request, timeout=timeout) as response:

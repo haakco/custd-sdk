@@ -32,6 +32,10 @@ final readonly class RangeQueryRequest
         public ?string $source = null,
         public ?string $groupBy = null,
         public array $labelFilters = [],
+        public ?string $severity = null,
+        public ?string $service = null,
+        public ?string $subClient = null,
+        public ?string $resource = null,
     ) {
         $startDay = self::parseUtcDay($this->from, "from");
         $endDay = self::parseUtcDay($this->to, "to");
@@ -84,7 +88,12 @@ final readonly class RangeQueryRequest
             $payload["labelFilters"] = array_values($this->labelFilters);
         }
 
-        return $payload;
+        return Client::appendLogDimensionFilters($payload, [
+            "severity" => $this->severity,
+            "service" => $this->service,
+            "subClient" => $this->subClient,
+            "resource" => $this->resource,
+        ]);
     }
 
     private static function parseUtcDay(string $value, string $field): \DateTimeImmutable

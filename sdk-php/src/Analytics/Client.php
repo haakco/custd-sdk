@@ -49,7 +49,11 @@ final class Client
      *     eventType?: string,
      *     limit?: int,
      *     source?: string,
-     *     labelFilters?: list<array{key: string, value: string}>
+     *     labelFilters?: list<array{key: string, value: string}>,
+     *     severity?: string,
+     *     service?: string,
+     *     subClient?: string,
+     *     resource?: string
      * } $request
      * @return array<string, mixed>
      */
@@ -125,6 +129,27 @@ final class Client
         }
         if ($filters !== []) {
             $payload["labelFilters"] = array_values($filters);
+        }
+
+        return self::appendLogDimensionFilters($payload, $request);
+    }
+
+    /**
+     * appendLogDimensionFilters copies the promoted log-dimension filters onto
+     * the body, omitting each unset or empty one so it never narrows the query.
+     * It is shared by the day and range payloads, which carry the same set.
+     *
+     * @param array<string, mixed> $payload
+     * @param array<string, mixed> $request
+     * @return array<string, mixed>
+     */
+    public static function appendLogDimensionFilters(array $payload, array $request): array
+    {
+        foreach (["severity", "service", "subClient", "resource"] as $field) {
+            $value = $request[$field] ?? null;
+            if (is_string($value) && $value !== "") {
+                $payload[$field] = $value;
+            }
         }
 
         return $payload;

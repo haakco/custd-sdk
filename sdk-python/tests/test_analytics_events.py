@@ -256,5 +256,50 @@ class AnalyticsEventClientTest(unittest.TestCase):
                 self.assertEqual([], transport.calls)
 
 
+class AnalyticsLogDimensionFilterTest(unittest.TestCase):
+    def test_query_serialises_the_four_promoted_filters(self) -> None:
+        transport = FakeTransport(RESPONSE)
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+
+        client.analytics.query(
+            {
+                "date": "2026-09-14",
+                "severity": "error",
+                "service": "checkout-api",
+                "subClient": "acme-store",
+                "resource": "srv-1",
+            }
+        )
+
+        body = transport.calls[0][2]
+        assert body is not None
+        self.assertEqual(body["severity"], "error")
+        self.assertEqual(body["service"], "checkout-api")
+        self.assertEqual(body["subClient"], "acme-store")
+        self.assertEqual(body["resource"], "srv-1")
+
+    def test_query_omits_an_empty_filter(self) -> None:
+        transport = FakeTransport(RESPONSE)
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+
+        client.analytics.query({"date": "2026-09-14", "severity": ""})
+
+        self.assertEqual(transport.calls[0][2], {"date": "2026-09-14"})
+
+    def test_range_query_serialises_the_promoted_filters(self) -> None:
+        transport = FakeTransport(RANGE_RESPONSE)
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+
+        client.analytics.query_range(
+            {"from": "2026-09-14", "to": "2026-09-15", "severity": "error", "subClient": "acme-store"}
+        )
+
+        body = transport.calls[0][2]
+        assert body is not None
+        self.assertEqual(body["severity"], "error")
+        self.assertEqual(body["subClient"], "acme-store")
+        self.assertNotIn("service", body)
+
+
 if __name__ == "__main__":
     unittest.main()

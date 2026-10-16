@@ -78,13 +78,20 @@ final class CustdClient
      *       follow-up and is intentionally not implemented here.
      *     - `queue`: array{enabled?:bool, store?:QueueStore, max_size?:int}
      *     - `http_client`: callable|null Custom HTTP transport. When provided,
-     *       it receives `(string $url, array $payload, string $token)` and MUST
-     *       return `array{status:int, body:string}`. The status is translated
-     *       the same way as the built-in curl path: a status in
+     *       it receives `(string $url, array|string $payload, string $token)`
+     *       and MAY accept a fourth `array<string, string> $headers` argument.
+     *       It MUST return `array{status:int, body:string}`. The status is
+     *       translated the same way as the built-in curl path: a status in
      *       `retry["retry_statuses"]` raises {@see RetryableException}, any
      *       other `>= 400` raises a `\RuntimeException`. The callable MAY
      *       throw `RetryableException` directly to force a retry without a
-     *       status code (e.g. transport error).
+     *       status code (e.g. transport error). On a raw line upload
+     *       ({@see ingestRawLines}) a thrown `RetryableException` is surfaced
+     *       as {@see RawAcceptanceUnknownException} (no replay); the non-raw
+     *       paths keep the retry semantics. Raw line uploads send a raw string
+     *       payload and pass the request headers (including `X-Parser-UUID`
+     *       and the raw content type) as that fourth argument; a callback that
+     *       declares only three parameters cannot observe the parser binding.
      *     - `admin_http_client`: callable|null Custom admin HTTP transport.
      *       When provided, it receives
      *       `(string $method, string $url, ?array $body, string $token, array<string, string> $headers)`
@@ -206,6 +213,16 @@ final class CustdClient
         return new Admin\DataLabelClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    public function adminDataScopes(): Admin\DataScopeClient
+    {
+        return new Admin\DataScopeClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminReportingPacks(): Admin\ReportingPackClient
+    {
+        return new Admin\ReportingPackClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
     public function adminTimePlans(): Admin\TimePlanClient
     {
         return new Admin\TimePlanClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
@@ -241,6 +258,11 @@ final class CustdClient
         return new Analytics\Client($this->baseUrl, $this->authToken(), $this->adminHttpClient);
     }
 
+    public function parsers(): Parsers\Client
+    {
+        return new Parsers\Client($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+    }
+
     /**
      * @param array<string, mixed> $event
      * @return array<string, mixed>
@@ -252,6 +274,146 @@ final class CustdClient
         $event = self::applyEnvironmentLabel($event, $this->environment);
 
         return $this->sendWithRetry($event);
+    }
+
+    /**
+     * Upload raw, line-delimited content for the bound parser.
+     *
+     * X-Parser-UUID binds the parser exactly as direct collectors do. When the
+     * request carries a target, its paired subClient/resource codes are appended
+     * as query parameters. The route answers 202 Accepted, so read `processed`
+     * and `failed` on the result rather than the status.
+     *
+     * A local validation failure (a malformed parser UUID, or a partial or
+     * malformed target) throws before any request is sent, so nothing landed. A
+     * transport failure, an unusable 202 body, or a retryable status raises
+     * {@see RawAcceptanceUnknownException}: whether the upload landed is unknown,
+     * so it is non-retryable and must not be replayed.
+     */
+    public function ingestRawLines(RawIngest\RawIngestRequest $request): RawIngest\RawIngestResult
+    {
+        $url = $this->baseUrl . "/api/v1/raw" . $request->queryString();
+        $operationKey = $request->idempotencyKey?->value;
+        $result = $this->sendRawRequest($url, $request->content, $request->parserUuid, $operationKey);
+        try {
+            if ($result["body"] === "") {
+                throw new \UnexpectedValueException("custd: raw ingest response body is empty");
+            }
+
+            return RawIngest\RawIngestResult::fromPayload(
+                json_decode($result["body"], false, flags: JSON_THROW_ON_ERROR)
+            );
+        } catch (\UnexpectedValueException | \JsonException $error) {
+            // The 202 arrived but its body cannot be read, so acceptance is unknown.
+            throw new RawAcceptanceUnknownException(
+                "custd: raw upload acceptance is unknown; the request may or may not have landed "
+                . "and must not be replayed",
+                0,
+                $error,
+                $operationKey,
+            );
+        }
+    }
+
+    /**
+     * Send one raw text upload. The parser binding, idempotency key and content
+     * type differ from the JSON event path; the transport and status translation
+     * are shared.
+     *
+     * @return array{status:int, body:string}
+     */
+    private function sendRawRequest(
+        string $url,
+        string $content,
+        string $parserUuid,
+        ?string $operationKey = null,
+    ): array {
+        $headers = [
+            "Content-Type" => "text/plain; charset=utf-8",
+            "Authorization" => "Bearer " . $this->authToken(),
+            "X-Custd-Sdk" => $this->product . "/" . self::VERSION,
+            "X-Parser-UUID" => $parserUuid,
+        ];
+        if ($operationKey !== null && $operationKey !== "") {
+            $headers["Idempotency-Key"] = $operationKey;
+        }
+
+        if (is_callable($this->httpClient)) {
+            $client = $this->httpClient;
+            // The documented callback MAY declare a fourth parameter to receive
+            // the request headers (name => value). The parser binding, the raw
+            // content type and the idempotency key are only transmittable
+            // through it.
+            try {
+                // The callback's documented transport-failure signal is
+                // RetryableException, thrown after a submit that may already
+                // have landed. A raw upload must not be replayed, so map that
+                // one documented signal to the no-replay unknown-acceptance
+                // error (preserving the cause); any other exception, including
+                // a programming error, propagates unchanged.
+                $result = $this->normalizeHttpClientResult($client($url, $content, $this->authToken(), $headers));
+            } catch (RetryableException $error) {
+                throw new RawAcceptanceUnknownException(
+                    "custd: raw upload acceptance is unknown; the request may or may not have landed "
+                    . "and must not be replayed",
+                    0,
+                    $error,
+                    $operationKey,
+                );
+            }
+            $this->translateRawStatus($result["status"], $result["body"], $operationKey);
+
+            return $result;
+        }
+
+        $curlHeaders = [];
+        foreach ($headers as $name => $value) {
+            $curlHeaders[] = $name . ": " . $value;
+        }
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_CUSTOMREQUEST => "POST",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => $curlHeaders,
+            CURLOPT_POSTFIELDS => $content,
+            CURLOPT_TIMEOUT => 15,
+        ]);
+        $response = curl_exec($ch);
+        if ($response === false) {
+            // A transport failure cannot prove whether the upload landed.
+            throw new RawAcceptanceUnknownException(
+                "custd: raw upload acceptance is unknown; the request may or may not have landed "
+                . "and must not be replayed",
+                0,
+                new \RuntimeException(curl_error($ch)),
+                $operationKey,
+            );
+        }
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $responseBody = is_string($response) ? $response : "";
+        $this->translateRawStatus($status, $responseBody, $operationKey);
+
+        return ["status" => $status, "body" => $responseBody];
+    }
+
+    /**
+     * translateRawStatus classifies a raw response status. A retryable status
+     * does not prove the upload was rejected, so it surfaces as an unknown
+     * acceptance rather than a retryable error; a non-retryable status keeps the
+     * shared problem error.
+     */
+    private function translateRawStatus(int $status, string $body, ?string $operationKey = null): void
+    {
+        if (in_array($status, $this->retryOptions["retry_statuses"], true)) {
+            throw new RawAcceptanceUnknownException(
+                "custd: raw upload acceptance is unknown; the request may or may not have landed "
+                . "and must not be replayed",
+                0,
+                null,
+                $operationKey,
+            );
+        }
+        $this->translateStatus($status, $body);
     }
 
     /**

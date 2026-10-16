@@ -27,6 +27,15 @@ export type AnalyticsEventQueryRequest = {
     limit?: number;
     source?: AnalyticsQuerySource;
     labelFilters?: AnalyticsLabelFilter[];
+    /**
+     * Optional promoted log-dimension filters. Each is an exact equality match
+     * against the matching typed column (max 256 bytes server-side); an empty
+     * value is omitted so an unset filter never narrows the query.
+     */
+    severity?: string;
+    service?: string;
+    subClient?: string;
+    resource?: string;
 };
 /**
  * One tenant event.
@@ -91,6 +100,15 @@ export type AnalyticsEventRangeQueryRequest = {
     /** Bucket granularity. Omit, or set to {@link ANALYTICS_RANGE_GROUP_BY}. */
     groupBy?: typeof ANALYTICS_RANGE_GROUP_BY;
     labelFilters?: AnalyticsLabelFilter[];
+    /**
+     * Optional promoted log-dimension filters, shared with the single-day query.
+     * Each filters exactly like the day query it summarizes; an empty value is
+     * omitted from the wire.
+     */
+    severity?: string;
+    service?: string;
+    subClient?: string;
+    resource?: string;
 };
 /**
  * One day's coverage inside a range query.

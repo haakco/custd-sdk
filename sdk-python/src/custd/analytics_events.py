@@ -51,6 +51,12 @@ class AnalyticsEventQueryRequest(TypedDict):
     limit: NotRequired[int]
     source: NotRequired[str]
     labelFilters: NotRequired[list[AnalyticsLabelFilter]]
+    # Promoted log-dimension equality filters. An empty value is omitted so an
+    # unset filter never narrows the query.
+    severity: NotRequired[str]
+    service: NotRequired[str]
+    subClient: NotRequired[str]
+    resource: NotRequired[str]
 
 
 class AnalyticsEventSourceSummary(TypedDict, total=False):
@@ -110,6 +116,10 @@ AnalyticsEventRangeQueryRequest = TypedDict(
         "source": NotRequired[str],
         "groupBy": NotRequired[str],
         "labelFilters": NotRequired[list[AnalyticsLabelFilter]],
+        "severity": NotRequired[str],
+        "service": NotRequired[str],
+        "subClient": NotRequired[str],
+        "resource": NotRequired[str],
     },
 )
 
@@ -255,7 +265,21 @@ def _public_query_payload(request: AnalyticsEventQueryRequest) -> dict[str, Any]
         payload["source"] = source
     if filters:
         payload["labelFilters"] = filters
+    _append_log_dimension_filters(payload, request)
     return payload
+
+
+def _append_log_dimension_filters(payload: dict[str, Any], request: Mapping[str, Any]) -> None:
+    """Copy the promoted log-dimension filters onto the body.
+
+    Each field is an exact equality match against the matching typed column. An
+    unset or empty value is omitted so it never narrows the query; this is shared
+    by the day and range payloads, which carry the same filter set.
+    """
+    for key in ("severity", "service", "subClient", "resource"):
+        value = request.get(key)
+        if value:
+            payload[key] = value
 
 
 def _public_range_query_payload(request: AnalyticsEventRangeQueryRequest) -> dict[str, Any]:
@@ -306,6 +330,7 @@ def _public_range_query_payload(request: AnalyticsEventRangeQueryRequest) -> dic
         payload["groupBy"] = group_by
     if filters:
         payload["labelFilters"] = filters
+    _append_log_dimension_filters(payload, request)
     return payload
 
 
