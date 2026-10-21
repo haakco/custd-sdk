@@ -103,13 +103,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: ["8.3", "8.4", "8.5"]
+        php-version: ["8.3", "8.4", "8.5.12"]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2
         with:
           php-version: "${{ matrix.php-version }}"
           tools: composer
+      - name: Verify PHP 8.5.12
+        if: matrix.php-version == '8.5.12'
+        run: php -r 'if (PHP_VERSION_ID !== 80512) { fwrite(STDERR, "Expected PHP_VERSION_ID 80512, got " . PHP_VERSION_ID . PHP_EOL); exit(1); }'
       - name: Install PHP dependencies
         run: composer install
       - name: Test PHP SDK

@@ -251,27 +251,27 @@ checksum = "sha256:158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e
 url = "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip"
 
 [[tools.php]]
-version = "8.5.11"
+version = "8.5.12"
 backend = "vfox:php"
-specifiers = ["8.5.11"]
+specifiers = ["8.5.12"]
 
 [tools.php."platforms.linux-arm64"]
-url = "https://github.com/php/php-src/archive/php-8.5.11.tar.gz"
+url = "https://github.com/php/php-src/archive/php-8.5.12.tar.gz"
 
 [tools.php."platforms.linux-arm64-musl"]
-url = "https://github.com/php/php-src/archive/php-8.5.11.tar.gz"
+url = "https://github.com/php/php-src/archive/php-8.5.12.tar.gz"
 
 [tools.php."platforms.linux-x64"]
-url = "https://github.com/php/php-src/archive/php-8.5.11.tar.gz"
+url = "https://github.com/php/php-src/archive/php-8.5.12.tar.gz"
 
 [tools.php."platforms.linux-x64-musl"]
-url = "https://github.com/php/php-src/archive/php-8.5.11.tar.gz"
+url = "https://github.com/php/php-src/archive/php-8.5.12.tar.gz"
 
 [tools.php."platforms.macos-arm64"]
-url = "https://github.com/php/php-src/archive/php-8.5.11.tar.gz"
+url = "https://github.com/php/php-src/archive/php-8.5.12.tar.gz"
 
 [tools.php."platforms.macos-x64"]
-url = "https://github.com/php/php-src/archive/php-8.5.11.tar.gz"
+url = "https://github.com/php/php-src/archive/php-8.5.12.tar.gz"
 
 [[tools."pipx:mypy"]]
 version = "2.1.0"
