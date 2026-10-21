@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Custd
  * Description: Sends redacted WordPress product and activity events to Custd through the shared PHP SDK.
- * Version: 3.33.0
+ * Version: 3.34.0
  * Author: HaakCo
  * License: MIT
  */
