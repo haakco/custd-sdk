@@ -18,10 +18,12 @@
   },
   "pnpm": {
     "overrides": {
-      "vite": "8.1.2",
-      "markdown-it": "14.2.0",
-      "js-yaml": "4.3.0",
-      "linkify-it": "5.0.2"
+      "vite": "8.1.6",
+      "markdown-it": "14.3.3",
+      "js-yaml": "4.3.2",
+      "linkify-it": "5.0.2",
+      "katex": "0.18.2",
+      "smol-toml": "1.9.0"
     }
   }
 }
