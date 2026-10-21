@@ -28,3 +28,7 @@ __pycache__/
 tmp/
 *.log
 .pi
+
+# Compiler probe left by a build running in this directory (PHP/configure
+# writes a.out when it tests the toolchain).
+a.out
