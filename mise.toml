@@ -29,6 +29,9 @@ ruff = "0.9.2"
 shellcheck = "0.11.0"
 rumdl = "latest"
 
+[plugins]
+php = "https://github.com/haakco/mise-php#096907cce61149ccb0dc6a061a3efcd8d1ee9d14"
+
 [env]
 GOPATH = "{{ env.HOME }}/.go"
 GOCACHE = "{{ env.HOME }}/.cache/go-build"

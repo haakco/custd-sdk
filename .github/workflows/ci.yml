@@ -103,16 +103,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: ["8.3", "8.4", "8.5.12"]
+        php-version: ["8.3.36", "8.4.27", "8.5.12"]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2
         with:
           php-version: "${{ matrix.php-version }}"
           tools: composer
-      - name: Verify PHP 8.5.12
-        if: matrix.php-version == '8.5.12'
-        run: php -r 'if (PHP_VERSION_ID !== 80512) { fwrite(STDERR, "Expected PHP_VERSION_ID 80512, got " . PHP_VERSION_ID . PHP_EOL); exit(1); }'
+      - name: Verify PHP ${{ matrix.php-version }}
+        env:
+          EXPECTED_PHP_VERSION: ${{ matrix.php-version }}
+        run: |
+          case "$EXPECTED_PHP_VERSION" in
+            8.3.36) expected=80336 ;;
+            8.4.27) expected=80427 ;;
+            8.5.12) expected=80512 ;;
+            *) echo "::error::Unexpected PHP matrix value: $EXPECTED_PHP_VERSION"; exit 1 ;;
+          esac
+          actual=$(php -r 'echo PHP_VERSION_ID;')
+          if [ "$actual" -ne "$expected" ]; then
+            actual_version=$(php -r 'echo PHP_VERSION;')
+            printf 'Expected PHP %s (PHP_VERSION_ID %s); got %s (PHP_VERSION_ID %s)\n' "$EXPECTED_PHP_VERSION" "$expected" "$actual_version" "$actual" >&2
+            exit 1
+          fi
       - name: Install PHP dependencies
         run: composer install
       - name: Test PHP SDK
@@ -130,8 +143,10 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2
         with:
-          php-version: "8.4"
+          php-version: "8.4.27"
           tools: composer
+      - name: Verify PHP 8.4.27
+        run: php -r 'if (PHP_VERSION_ID !== 80427) { fwrite(STDERR, "Expected PHP 8.4.27 (PHP_VERSION_ID 80427); got " . PHP_VERSION . " (PHP_VERSION_ID " . PHP_VERSION_ID . ")" . PHP_EOL); exit(1); }'
       - name: Install sdk-php dependencies
         run: cd sdk-php && composer install
       - name: Analyse PHP SDK (PHPStan)
@@ -151,8 +166,10 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2
         with:
-          php-version: "8.4"
+          php-version: "8.4.27"
           tools: composer
+      - name: Verify PHP 8.4.27
+        run: php -r 'if (PHP_VERSION_ID !== 80427) { fwrite(STDERR, "Expected PHP 8.4.27 (PHP_VERSION_ID 80427); got " . PHP_VERSION . " (PHP_VERSION_ID " . PHP_VERSION_ID . ")" . PHP_EOL); exit(1); }'
       - name: Install Laravel package dependencies
         run: cd laravel-package && composer install
       - name: Test Laravel package
@@ -170,8 +187,10 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2
         with:
-          php-version: "8.4"
+          php-version: "8.4.27"
           tools: composer
+      - name: Verify PHP 8.4.27
+        run: php -r 'if (PHP_VERSION_ID !== 80427) { fwrite(STDERR, "Expected PHP 8.4.27 (PHP_VERSION_ID 80427); got " . PHP_VERSION . " (PHP_VERSION_ID " . PHP_VERSION_ID . ")" . PHP_EOL); exit(1); }'
       - name: Install WordPress package dependencies
         run: cd wordpress-plugin && composer install
       - name: Test WordPress package
