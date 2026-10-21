@@ -3,11 +3,16 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ["**"]
   pull_request:
 
 permissions:
   contents: read
+
+# A newer branch/PR revision replaces obsolete validation work. Tagged
+# publication stays independent in release-mirrors.yml.
+concurrency:
+  group: sdk-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   go:

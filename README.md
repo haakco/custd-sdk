@@ -92,6 +92,11 @@ is sent.
 
 ## Validation
 
+CI runs on `main` pushes and pull requests. A newer revision cancels older
+validation runs for the same branch or pull request. Version tags do not start
+a duplicate full test suite. Tagged publication stays independent in
+`release-mirrors.yml`, so canceling CI does not interrupt a partially published release.
+
 Install the pinned local toolchain:
 
 ```bash
