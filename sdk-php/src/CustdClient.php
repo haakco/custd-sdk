@@ -11,7 +11,7 @@ final class CustdClient
      * equals VERSION and scripts/bump-version.sh updates it, so a release cannot
      * leave it behind.
      */
-    public const VERSION = "3.23.3";
+    public const VERSION = "3.24.0";
 
     /** Product named in X-Custd-Sdk. The Laravel and WordPress wrappers override it. */
     public const PRODUCT = "php";
