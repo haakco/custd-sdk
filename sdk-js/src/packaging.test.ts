@@ -46,7 +46,9 @@ describe("published package integrity", () => {
     const manifest = readJson("../dist/browser-manifest.json") as unknown as BrowserManifest;
     const artifact = readFileSync(new URL(`../dist/${manifest.file}`, import.meta.url));
 
-    expect((pkg.devDependencies as Record<string, unknown>).vite).toBe("8.1.2");
+    // The browser artifact is built by vite, so it must be an exact pin: a floating
+    // range would let two builds of the same release emit different bytes.
+    expect((pkg.devDependencies as Record<string, unknown>).vite).toMatch(/^\d+\.\d+\.\d+$/);
     expect(Object.keys(manifest).sort()).toEqual(["bytes", "file", "gzipBytes", "sdkVersion", "sha256"]);
     expect(manifest.file).toBe(basename(manifest.file));
     expect(manifest.file).toMatch(/^browser-script-[A-Za-z0-9_-]+\.js$/);

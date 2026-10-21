@@ -1,4 +1,3 @@
-//#endregion
 //#region src/index.ts
 var e = class {
 	constructor() {
@@ -30,10 +29,10 @@ var e = class {
 		return [];
 	}
 	save(e) {
-		typeof localStorage > "u" || localStorage.setItem(this.key, JSON.stringify(e));
+		typeof localStorage < "u" && localStorage.setItem(this.key, JSON.stringify(e));
 	}
 	clear() {
-		typeof localStorage > "u" || localStorage.removeItem(this.key);
+		typeof localStorage < "u" && localStorage.removeItem(this.key);
 	}
 }, n = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/, r = "custd.environment", i = /^[a-z][a-z0-9-]{0,31}$/;
 function a(e) {
@@ -130,11 +129,7 @@ var T = class {
 	async track(e, t = {}) {
 		if (this.trackingDisabled()) return;
 		let n = this.buildEvent(e, t);
-		if ((this.config.batchSize ?? 0) > 1) {
-			this.enqueue(n), this.queue.length >= (this.config.batchSize ?? 0) && await this.flush();
-			return;
-		}
-		await this.sendEvent(n);
+		(this.config.batchSize ?? 0) > 1 ? (this.enqueue(n), this.queue.length >= (this.config.batchSize ?? 0) && await this.flush()) : await this.sendEvent(n);
 	}
 	trackPageView() {
 		return this.track("page-view", M());
@@ -423,7 +418,5 @@ function Q(e) {
 function $() {
 	return typeof crypto < "u" && typeof crypto.randomUUID == "function" ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (e) => (Number(e) ^ Math.random() * 16 >> Number(e) / 4).toString(16));
 }
-//#endregion
-//#region src/browser-script.ts
 k(Array.from(document.scripts).find((e) => e.src === import.meta.url)).then((e) => e.installSpaTracking()).catch(() => void 0);
 //#endregion
