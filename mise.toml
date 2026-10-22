@@ -3,6 +3,7 @@ go = "1.27.2"
 node = "24"
 pnpm = "10.33.2"
 python = "3.12.9"
+uv = "latest"
 php = "8.5.12"
 just = "latest"
 actionlint = "latest"
@@ -25,17 +26,21 @@ infisical = "latest"
 # this in step with the go pin above and with the CI install step.
 golangci-lint = "2.14.0"
 ruff = "0.9.2"
-"pipx:mypy" = "2.1.0"
+"pipx:mypy" = { version = "2.1.0", uvx = true }
 shellcheck = "0.11.0"
 rumdl = "latest"
 
 [plugins]
 php = "https://github.com/haakco/mise-php#096907cce61149ccb0dc6a061a3efcd8d1ee9d14"
 
+[vars]
+# Native PowerShell does not export HOME.
+user_home = "{% if os() == 'windows' %}{{ env.USERPROFILE }}{% else %}{{ env.HOME }}{% endif %}"
+
 [env]
-GOPATH = "{{ env.HOME }}/.go"
-GOCACHE = "{{ env.HOME }}/.cache/go-build"
-GOMODCACHE = "{{ env.HOME }}/go/pkg/mod"
+GOPATH = "{{ vars.user_home }}/.go"
+GOCACHE = "{{ vars.user_home }}/.cache/go-build"
+GOMODCACHE = "{{ vars.user_home }}/go/pkg/mod"
 _.path = ["{{ env.GOPATH }}/bin"]
 # Static project configuration only; secret commands use the isolated
 # Docker profile: just infisical-login / just infisical-status.

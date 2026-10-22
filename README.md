@@ -704,6 +704,12 @@ request-end durability.
 
 ## Developer secrets and mise
 
+Windows/macOS tool setup (verified on Windows 2026-10-22): run `mise trust`,
+then `mise install`. Go paths use `USERPROFILE` on Windows and `HOME` on Unix;
+mypy uses uv on both platforms. If mise warns that the installed PHP plugin
+source differs from `[plugins]`, run `mise plugins install --force php`, then
+`mise install` again. The pinned HaakCo plugin installs native Windows PHP.
+
 Verified 2026-09-18: mise loads static `.env` configuration only; it never
 runs an Infisical startup loader or reads a cached Infisical export.
 With Docker running, use `just infisical-login`, `just infisical-status`, and
