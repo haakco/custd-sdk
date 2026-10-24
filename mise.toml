@@ -1,6 +1,6 @@
 [tools]
 go = "1.27.2"
-node = "24"
+node = "24.22.1"
 pnpm = "10.33.2"
 python = "3.12.9"
 uv = "latest"
