@@ -1,13 +1,12 @@
 [tools]
-go = "1.27.2"
-node = "24.22.1"
-pnpm = "10.33.2"
-python = "3.12.9"
+go = "1.27.3"
+node = "26.12.1"
+pnpm = "latest"
+python = "3.15.2"
 uv = "latest"
 php = "8.5.12"
 just = "latest"
 actionlint = "latest"
-markdownlint-cli2 = "latest"
 ripgrep = "latest"
 # Declared because the release-mirror job resolves it as `mise which infisical`
 # before invoking it by path. Undeclared, mise installs the bin but reports
@@ -24,10 +23,10 @@ infisical = "latest"
 # version short and fails on untouched files with "export data version 5 is
 # greater than maximum supported version 4" once this repo's Go is 1.27.2. Keep
 # this in step with the go pin above and with the CI install step.
-golangci-lint = "2.14.0"
-ruff = "0.9.2"
-"pipx:mypy" = { version = "2.1.0", uvx = true }
-shellcheck = "0.11.0"
+golangci-lint = "2.15.0"
+ruff = "0.17.3"
+"pipx:mypy" = { version = "2.4.0", uvx = "true" }
+shellcheck = "latest"
 rumdl = "latest"
 
 [plugins]
@@ -70,6 +69,3 @@ run = "just test-php"
 description = "Lint GitHub Actions workflows"
 run = "actionlint"
 
-[tasks.lint-markdown]
-description = "Lint Markdown docs"
-run = "markdownlint-cli2 '**/*.md' '#node_modules' '#sdk-js/node_modules' '#sdk-php/vendor' '#laravel-package/vendor' '#wordpress-plugin/vendor'"
