@@ -15,9 +15,9 @@ class DefaultBrowserTracker {
         this.installedSpaTracking = false;
         this.originalPushState = null;
         this.originalReplaceState = null;
-        this.onlineHandler = () => void this.flush();
+        this.onlineHandler = () => this.detach(this.flush());
         this.pagehideHandler = () => this.flushWithKeepalive();
-        this.popstateHandler = () => void this.trackPageView();
+        this.popstateHandler = () => this.detach(this.trackPageView());
         this.config = config;
         this.baseUrl = config.baseUrl.replace(/\/$/, "");
         this.queueStorage = config.queueStorage ?? browserQueueStorage(config.siteUuid, config.persistentQueue === true);
@@ -62,7 +62,7 @@ class DefaultBrowserTracker {
         window.history.replaceState = this.wrapHistoryMethod(this.originalReplaceState);
         window.addEventListener("popstate", this.popstateHandler);
         if (this.config.trackInitialPageView !== false) {
-            void this.trackPageView();
+            this.detach(this.trackPageView());
         }
     }
     setConsent(state) {
@@ -108,7 +108,7 @@ class DefaultBrowserTracker {
     wrapHistoryMethod(original) {
         return ((...args) => {
             const result = original.apply(window.history, args);
-            void this.trackPageView();
+            this.detach(this.trackPageView());
             return result;
         });
     }
@@ -192,6 +192,16 @@ class DefaultBrowserTracker {
             });
             assertAccepted(response);
         });
+    }
+    /**
+     * Run a fire-and-forget tracker call whose rejection has nowhere to go.
+     *
+     * SPA and lifecycle call sites cannot return a promise to the host page, so an unhandled rejection there would
+     * surface as a page-level error in the consumer's console while the queue already retains undelivered events for
+     * the next retry. The failure is absorbed here instead of escaping into the page.
+     */
+    detach(promise) {
+        void promise.catch(() => undefined);
     }
     flushWithKeepalive() {
         if (this.trackingDisabled()) {

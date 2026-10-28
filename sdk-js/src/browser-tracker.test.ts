@@ -605,6 +605,27 @@ describe("createBrowserTracker", () => {
     expect(queued).toHaveLength(2);
   });
 
+  it("absorbs a failed SPA page view instead of raising an unhandled rejection", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const fetchMock = mockFetch();
+      fetchMock.mockRejectedValue(new Error("collector unavailable"));
+      const tracker = createBrowserTracker({ ...baseConfig, retry: { maxAttempts: 1 } });
+
+      // Three detached call sites: the initial page view, the wrapped history method and the popstate handler.
+      tracker.installSpaTracking();
+      window.history.pushState({}, "", "/detached-push");
+      window.dispatchEvent(new Event("popstate"));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
   it("can reinstall SPA tracking after close", async () => {
     const fetchMock = mockFetch();
     const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });

@@ -124,7 +124,7 @@ function w(e) {
 }
 var T = class {
 	constructor(e) {
-		this.queue = [], this.installedSpaTracking = !1, this.originalPushState = null, this.originalReplaceState = null, this.onlineHandler = () => void this.flush(), this.pagehideHandler = () => this.flushWithKeepalive(), this.popstateHandler = () => void this.trackPageView(), this.config = e, this.baseUrl = e.baseUrl.replace(/\/$/, ""), this.queueStorage = e.queueStorage ?? W(e.siteUuid, e.persistentQueue === !0), this.retry = f(e.retry), this.maxQueueSize = e.maxQueueSize ?? 1e3, this.queue = this.queueStorage.load(), this.trimQueue(), this.consent = e.consent === "required" ? "denied" : "granted", this.trackingDisabled() && this.clearStoredState(), Z(this.baseUrl, "baseUrl"), ee(e), window.addEventListener("online", this.onlineHandler), window.addEventListener("pagehide", this.pagehideHandler);
+		this.queue = [], this.installedSpaTracking = !1, this.originalPushState = null, this.originalReplaceState = null, this.onlineHandler = () => this.detach(this.flush()), this.pagehideHandler = () => this.flushWithKeepalive(), this.popstateHandler = () => this.detach(this.trackPageView()), this.config = e, this.baseUrl = e.baseUrl.replace(/\/$/, ""), this.queueStorage = e.queueStorage ?? W(e.siteUuid, e.persistentQueue === !0), this.retry = f(e.retry), this.maxQueueSize = e.maxQueueSize ?? 1e3, this.queue = this.queueStorage.load(), this.trimQueue(), this.consent = e.consent === "required" ? "denied" : "granted", this.trackingDisabled() && this.clearStoredState(), Z(this.baseUrl, "baseUrl"), ee(e), window.addEventListener("online", this.onlineHandler), window.addEventListener("pagehide", this.pagehideHandler);
 	}
 	async track(e, t = {}) {
 		if (this.trackingDisabled()) return;
@@ -135,7 +135,7 @@ var T = class {
 		return this.track("page-view", M());
 	}
 	installSpaTracking() {
-		this.installedSpaTracking || (this.installedSpaTracking = !0, this.originalPushState = window.history.pushState, this.originalReplaceState = window.history.replaceState, window.history.pushState = this.wrapHistoryMethod(this.originalPushState), window.history.replaceState = this.wrapHistoryMethod(this.originalReplaceState), window.addEventListener("popstate", this.popstateHandler), this.config.trackInitialPageView !== !1 && this.trackPageView());
+		this.installedSpaTracking || (this.installedSpaTracking = !0, this.originalPushState = window.history.pushState, this.originalReplaceState = window.history.replaceState, window.history.pushState = this.wrapHistoryMethod(this.originalPushState), window.history.replaceState = this.wrapHistoryMethod(this.originalReplaceState), window.addEventListener("popstate", this.popstateHandler), this.config.trackInitialPageView !== !1 && this.detach(this.trackPageView()));
 	}
 	setConsent(e) {
 		this.consent = e, e === "denied" && this.clearStoredState();
@@ -160,7 +160,7 @@ var T = class {
 	wrapHistoryMethod(e) {
 		return ((...t) => {
 			let n = e.apply(window.history, t);
-			return this.trackPageView(), n;
+			return this.detach(this.trackPageView()), n;
 		});
 	}
 	trackingDisabled() {
@@ -218,6 +218,9 @@ var T = class {
 				keepalive: t
 			}));
 		});
+	}
+	detach(e) {
+		e.catch(() => void 0);
 	}
 	flushWithKeepalive() {
 		if (this.trackingDisabled()) {

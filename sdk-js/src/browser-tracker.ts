@@ -74,9 +74,9 @@ class DefaultBrowserTracker implements BrowserTracker {
   private installedSpaTracking = false;
   private originalPushState: History["pushState"] | null = null;
   private originalReplaceState: History["replaceState"] | null = null;
-  private readonly onlineHandler = () => void this.flush();
+  private readonly onlineHandler = () => this.detach(this.flush());
   private readonly pagehideHandler = () => this.flushWithKeepalive();
-  private readonly popstateHandler = () => void this.trackPageView();
+  private readonly popstateHandler = () => this.detach(this.trackPageView());
 
   constructor(config: BrowserTrackerConfig) {
     this.config = config;
@@ -126,7 +126,7 @@ class DefaultBrowserTracker implements BrowserTracker {
     window.history.replaceState = this.wrapHistoryMethod(this.originalReplaceState);
     window.addEventListener("popstate", this.popstateHandler);
     if (this.config.trackInitialPageView !== false) {
-      void this.trackPageView();
+      this.detach(this.trackPageView());
     }
   }
 
@@ -175,7 +175,7 @@ class DefaultBrowserTracker implements BrowserTracker {
   private wrapHistoryMethod(original: History["pushState"]): History["pushState"] {
     return ((...args: Parameters<History["pushState"]>) => {
       const result = original.apply(window.history, args);
-      void this.trackPageView();
+      this.detach(this.trackPageView());
       return result;
     }) as History["pushState"];
   }
@@ -267,6 +267,17 @@ class DefaultBrowserTracker implements BrowserTracker {
       });
       assertAccepted(response);
     });
+  }
+
+  /**
+   * Run a fire-and-forget tracker call whose rejection has nowhere to go.
+   *
+   * SPA and lifecycle call sites cannot return a promise to the host page, so an unhandled rejection there would
+   * surface as a page-level error in the consumer's console while the queue already retains undelivered events for
+   * the next retry. The failure is absorbed here instead of escaping into the page.
+   */
+  private detach(promise: Promise<void>): void {
+    void promise.catch(() => undefined);
   }
 
   private flushWithKeepalive(): void {
