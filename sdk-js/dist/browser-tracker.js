@@ -6,6 +6,10 @@ const safePathSegment = /^[A-Za-z][A-Za-z0-9._~-]{0,63}$/u;
 const uuidPathSegment = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const opaquePathSegment = /^[A-Za-z0-9_-]{24,}$/u;
 const poweredByProjectSlug = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
+const safeRoutePathSegment = /^[A-Za-z0-9._~:{}*[\]-]*$/u;
+const maxRoutePathLength = 1024;
+const maxPageTitleLength = 200;
+const retryableCollectorStatuses = new Set([408, 429, 500, 502, 503, 504]);
 export function createBrowserTracker(config) {
     return new DefaultBrowserTracker(config);
 }
@@ -13,11 +17,12 @@ class DefaultBrowserTracker {
     constructor(config) {
         this.queue = [];
         this.installedSpaTracking = false;
+        this.lastTrackedPath = null;
         this.originalPushState = null;
         this.originalReplaceState = null;
-        this.onlineHandler = () => this.detach(this.flush());
+        this.onlineHandler = () => this.detach("flush", () => this.flush());
         this.pagehideHandler = () => this.flushWithKeepalive();
-        this.popstateHandler = () => this.detach(this.trackPageView());
+        this.popstateHandler = () => this.detachPathChange(() => this.trackPageView());
         this.config = config;
         this.baseUrl = config.baseUrl.replace(/\/$/, "");
         this.queueStorage = config.queueStorage ?? browserQueueStorage(config.siteUuid, config.persistentQueue === true);
@@ -49,6 +54,7 @@ class DefaultBrowserTracker {
         await this.sendEvent(event);
     }
     trackPageView() {
+        this.lastTrackedPath = window.location.pathname;
         return this.track("page-view", poweredByAttribution());
     }
     installSpaTracking() {
@@ -62,7 +68,7 @@ class DefaultBrowserTracker {
         window.history.replaceState = this.wrapHistoryMethod(this.originalReplaceState);
         window.addEventListener("popstate", this.popstateHandler);
         if (this.config.trackInitialPageView !== false) {
-            this.detach(this.trackPageView());
+            this.detach("page-view", () => this.trackPageView());
         }
     }
     setConsent(state) {
@@ -80,8 +86,9 @@ class DefaultBrowserTracker {
             return;
         }
         const events = this.queue.splice(0, this.queue.length);
+        let outcome;
         try {
-            await this.sendBatch(events);
+            outcome = await this.sendBatch(events);
         }
         catch (error) {
             this.queue.unshift(...events);
@@ -89,7 +96,10 @@ class DefaultBrowserTracker {
             this.queueStorage.save(this.queue);
             throw error;
         }
-        this.queueStorage.save(this.queue);
+        this.applyBatchOutcome("flush", outcome);
+        if (outcome.retryable.length > 0) {
+            throw new RetryableCollectorStatusError(outcome.retryableStatus ?? 503);
+        }
     }
     close() {
         window.removeEventListener("online", this.onlineHandler);
@@ -107,8 +117,11 @@ class DefaultBrowserTracker {
     }
     wrapHistoryMethod(original) {
         return ((...args) => {
+            const previousPath = window.location.pathname;
             const result = original.apply(window.history, args);
-            this.detach(this.trackPageView());
+            if (window.location.pathname !== previousPath) {
+                this.detach("page-view", () => this.trackPageView());
+            }
             return result;
         });
     }
@@ -149,7 +162,7 @@ class DefaultBrowserTracker {
             schemaVersion: defaultSchemaVersion,
             timestamp: new Date().toISOString(),
             ...identity,
-            context: browserContext(),
+            context: browserContext(this.pageContext()),
             payload: {
                 siteUuid: this.config.siteUuid,
                 ...payload,
@@ -182,7 +195,7 @@ class DefaultBrowserTracker {
         });
     }
     async sendBatch(events, keepalive = false) {
-        await withRetry(this.retry, async () => {
+        const results = await withRetry(this.retry, async () => {
             const response = await fetch(`${this.baseUrl}/api/v1/collect/events/batch`, {
                 method: "POST",
                 headers: collectorHeaders(this.config.writeKey),
@@ -191,17 +204,70 @@ class DefaultBrowserTracker {
                 keepalive,
             });
             assertAccepted(response);
+            return readCollectorBatchResults(response, events.length);
         });
+        return classifyBatchResults(events, results);
+    }
+    /** Settle the queue and report permanent rejections for an answered batch. */
+    applyBatchOutcome(source, outcome) {
+        if (outcome.retryable.length > 0) {
+            this.queue.unshift(...outcome.retryable);
+            this.trimQueue();
+        }
+        this.queueStorage.save(this.queue);
+        if (outcome.rejected.length > 0) {
+            this.notifyFailure({ source, rejectedEvents: outcome.rejected.length });
+        }
+    }
+    pageContext() {
+        const defaults = {
+            path: sanitizeBrowserPath(window.location.pathname),
+            title: document.title,
+        };
+        const provider = this.config.pageContext;
+        if (!provider) {
+            return defaults;
+        }
+        let provided;
+        try {
+            provided = provider(defaults);
+        }
+        catch {
+            // A provider that cannot describe the page must not fall back to page content.
+            return {};
+        }
+        return safePageContext(provided, defaults.path);
     }
     /**
      * Run a fire-and-forget tracker call whose rejection has nowhere to go.
      *
      * SPA and lifecycle call sites cannot return a promise to the host page, so an unhandled rejection there would
      * surface as a page-level error in the consumer's console while the queue already retains undelivered events for
-     * the next retry. The failure is absorbed here instead of escaping into the page.
+     * the next retry. The failure is absorbed here and reported as a sanitized `onFailure` description instead.
      */
-    detach(promise) {
-        void promise.catch(() => undefined);
+    detach(source, operation) {
+        void operation().catch((error) => this.notifyFailure({ source, status: collectorStatus(error) }));
+    }
+    /** Track a popstate only when it lands on a different route path. */
+    detachPathChange(operation) {
+        if (window.location.pathname === this.lastTrackedPath) {
+            return;
+        }
+        this.detach("page-view", operation);
+    }
+    notifyFailure(failure) {
+        const onFailure = this.config.onFailure;
+        if (!onFailure) {
+            return;
+        }
+        try {
+            // An async callback is valid for a void signature. Absorb its rejection
+            // without awaiting, so queue settlement never depends on the observer.
+            void Promise.resolve(onFailure(failure)).catch(() => undefined);
+        }
+        catch {
+            // A consumer callback must never break tracking or mask the original failure.
+        }
     }
     flushWithKeepalive() {
         if (this.trackingDisabled()) {
@@ -212,12 +278,16 @@ class DefaultBrowserTracker {
             return;
         }
         const events = this.queue.splice(0, this.queue.length);
-        void this.sendBatch(events, true).then(() => {
-            this.queueStorage.save(this.queue);
-        }, () => {
+        void this.sendBatch(events, true).then((outcome) => {
+            this.applyBatchOutcome("flush", outcome);
+            if (outcome.retryable.length > 0) {
+                this.notifyFailure({ source: "flush", status: outcome.retryableStatus ?? 503 });
+            }
+        }, (error) => {
             this.queue.unshift(...events);
             this.trimQueue();
             this.queueStorage.save(this.queue);
+            this.notifyFailure({ source: "flush", status: collectorStatus(error) });
         });
     }
 }
@@ -275,16 +345,46 @@ async function fetchSiteConfig(baseUrl, siteUuid) {
     }
     return (await response.json());
 }
-function browserContext() {
-    return {
-        page: {
-            path: sanitizeBrowserPath(window.location.pathname),
-            title: document.title,
-        },
+function browserContext(page) {
+    const context = {
         device: { type: deviceType() },
         locale: navigator.language,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
+    if (page.path !== undefined || page.title !== undefined) {
+        context.page = page;
+    }
+    return context;
+}
+/** Apply a supplied page context, never forwarding a value the collector must not receive. */
+function safePageContext(provided, fallbackPath) {
+    const page = {};
+    if (typeof provided?.path === "string") {
+        page.path = isSafeRoutePath(provided.path) ? provided.path : fallbackPath;
+    }
+    const title = sanitizePageTitle(provided?.title);
+    if (title !== undefined) {
+        page.title = title;
+    }
+    return page;
+}
+/**
+ * A route path or template: absolute, without scheme, query, fragment, or
+ * encoded bytes. Colon, brace, bracket, and star placeholders are allowed so a
+ * router can name the dynamic segment instead of sending its value.
+ */
+function isSafeRoutePath(path) {
+    if (path.length === 0 || path.length > maxRoutePathLength || !path.startsWith("/") || path.startsWith("//")) {
+        return false;
+    }
+    return path.split("/").every((segment) => safeRoutePathSegment.test(segment));
+}
+function sanitizePageTitle(title) {
+    if (typeof title !== "string") {
+        return undefined;
+    }
+    const cleaned = title.replace(/[\p{Cc}]/gu, "").trim();
+    return cleaned === "" ? undefined : cleaned.slice(0, maxPageTitleLength);
 }
 function poweredByAttribution() {
     const query = new URL(window.location.href).searchParams;
@@ -325,12 +425,72 @@ function collectorHeaders(writeKey) {
     };
 }
 function assertAccepted(response) {
-    if (!response.ok) {
-        if ([408, 429, 500, 502, 503, 504].includes(response.status)) {
-            throw new RetryableError(`custd: retryable collector status ${response.status}`);
-        }
-        throw new Error(`custd: collector request failed with status ${response.status}`);
+    if (response.ok) {
+        return;
     }
+    if (retryableCollectorStatuses.has(response.status)) {
+        throw new RetryableCollectorStatusError(response.status);
+    }
+    throw new CollectorStatusError(response.status);
+}
+class CollectorStatusError extends Error {
+    constructor(status) {
+        super(`custd: collector request failed with status ${status}`);
+        this.status = status;
+    }
+}
+class RetryableCollectorStatusError extends RetryableError {
+    constructor(status) {
+        super(`custd: retryable collector status ${status}`);
+        this.status = status;
+    }
+}
+/** A 2xx answer whose body does not match the collector batch contract. */
+class MalformedCollectorResponseError extends RetryableError {
+    constructor() {
+        super("custd: collector response did not match the batch contract");
+    }
+}
+function collectorStatus(error) {
+    if (error instanceof RetryableCollectorStatusError || error instanceof CollectorStatusError) {
+        return error.status;
+    }
+    return undefined;
+}
+async function readCollectorBatchResults(response, expectedCount) {
+    let body;
+    try {
+        body = await response.json();
+    }
+    catch {
+        throw new MalformedCollectorResponseError();
+    }
+    const results = typeof body === "object" && body !== null ? body.results : undefined;
+    if (!Array.isArray(results) || results.length !== expectedCount) {
+        throw new MalformedCollectorResponseError();
+    }
+    return results.map((item) => {
+        const result = typeof item === "object" && item !== null ? item : {};
+        if (typeof result.success !== "boolean" || typeof result.status !== "number") {
+            throw new MalformedCollectorResponseError();
+        }
+        return { success: result.success, status: result.status };
+    });
+}
+function classifyBatchResults(events, results) {
+    const outcome = { rejected: [], retryable: [] };
+    results.forEach((result, index) => {
+        if (result.success) {
+            return;
+        }
+        if (retryableCollectorStatuses.has(result.status)) {
+            outcome.retryable.push(events[index]);
+            outcome.retryableStatus ?? (outcome.retryableStatus = result.status);
+            return;
+        }
+        outcome.rejected.push(events[index]);
+    });
+    return outcome;
 }
 function assertAllowedOrigin(config) {
     const allowedOrigins = config.allowedOrigins ?? [];

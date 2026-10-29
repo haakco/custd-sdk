@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createBrowserTracker, installBrowserTrackerFromScript } from "./browser-tracker";
+import { type BrowserTrackerFailure, createBrowserTracker, installBrowserTrackerFromScript } from "./browser-tracker";
 import { validateBrowserEvent } from "./index";
 
 const baseConfig = {
@@ -186,13 +186,27 @@ describe("createBrowserTracker", () => {
     tracker.installSpaTracking();
     await Promise.resolve();
     window.history.pushState({}, "", "/next");
+    window.location.pathname = "/start";
     window.dispatchEvent(new Event("popstate"));
     await Promise.resolve();
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(eventFromFetchCall(fetchMock, 0).context.page?.path).toBe("/start");
     expect(eventFromFetchCall(fetchMock, 1).context.page?.path).toBe("/next");
-    expect(eventFromFetchCall(fetchMock, 2).context.page?.path).toBe("/next");
+    expect(eventFromFetchCall(fetchMock, 2).context.page?.path).toBe("/start");
+  });
+
+  it("does not track a history change that keeps the same route path", async () => {
+    const fetchMock = mockFetch();
+    const tracker = createBrowserTracker(baseConfig);
+
+    tracker.installSpaTracking();
+    await Promise.resolve();
+    window.history.replaceState({}, "", "/start?filter=open");
+    window.history.pushState({}, "", "/start?sort=name");
+    await Promise.resolve();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("can opt out of the initial SPA page view", async () => {
@@ -605,25 +619,156 @@ describe("createBrowserTracker", () => {
     expect(queued).toHaveLength(2);
   });
 
+  it("sends a normalized route template and omits the title through a page-context provider", async () => {
+    const fetchMock = mockFetch();
+    document.title = "Acme Corp — Private board";
+    window.history.replaceState({}, "", "https://example.com/companies/acme/board");
+    const pageContext = vi.fn(() => ({ path: "/companies/:companySlug/board" }));
+
+    const tracker = createBrowserTracker({ ...baseConfig, pageContext, trackInitialPageView: false });
+    await tracker.trackPageView();
+
+    const page = eventFromFetch(fetchMock).context.page;
+    expect(pageContext).toHaveBeenCalledWith({ path: "/companies/acme/board", title: "Acme Corp — Private board" });
+    expect(page).toEqual({ path: "/companies/:companySlug/board" });
+    expect(JSON.stringify(page)).not.toContain("acme");
+    expect(JSON.stringify(page)).not.toContain("Private board");
+  });
+
+  it("never sends a provider path that carries a URL or query", async () => {
+    const fetchMock = mockFetch();
+    document.title = "Board";
+    window.history.replaceState({}, "", "https://example.com/companies/acme?token=url-secret");
+
+    const tracker = createBrowserTracker({
+      ...baseConfig,
+      pageContext: () => ({ path: window.location.href, title: "Board" }),
+      trackInitialPageView: false,
+    });
+    await tracker.trackPageView();
+
+    const page = eventFromFetch(fetchMock).context.page;
+    expect(page).toEqual({ path: "/companies/acme", title: "Board" });
+    expect(JSON.stringify(page)).not.toContain("url-secret");
+  });
+
   it("absorbs a failed SPA page view instead of raising an unhandled rejection", async () => {
     const unhandled: unknown[] = [];
     const onUnhandled = (reason: unknown) => unhandled.push(reason);
-    process.on("unhandledRejection", onUnhandled);
+    nodeProcess.on("unhandledRejection", onUnhandled);
     try {
       const fetchMock = mockFetch();
       fetchMock.mockRejectedValue(new Error("collector unavailable"));
-      const tracker = createBrowserTracker({ ...baseConfig, retry: { maxAttempts: 1 } });
+      const onFailure = vi.fn();
+      const tracker = createBrowserTracker({
+        ...baseConfig,
+        retry: { maxAttempts: 1 },
+        onFailure,
+        trackInitialPageView: false,
+      });
 
-      // Three detached call sites: the initial page view, the wrapped history method and the popstate handler.
       tracker.installSpaTracking();
       window.history.pushState({}, "", "/detached-push");
       window.dispatchEvent(new Event("popstate"));
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       expect(unhandled).toEqual([]);
+      expect(onFailure).toHaveBeenCalledTimes(1);
+      expect(onFailure.mock.calls[0][0]).toEqual({ source: "page-view" });
+      expect(JSON.stringify(onFailure.mock.calls)).not.toContain("collector unavailable");
     } finally {
-      process.off("unhandledRejection", onUnhandled);
+      nodeProcess.off("unhandledRejection", onUnhandled);
     }
+  });
+
+  it("absorbs a rejecting async onFailure callback without changing queue settlement", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    nodeProcess.on("unhandledRejection", onUnhandled);
+    try {
+      Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
+      const fetchMock = mockFetch();
+      const onFailure = vi.fn<(failure: BrowserTrackerFailure) => Promise<void>>(async () => {
+        throw new Error("observer failed");
+      });
+      const tracker = createBrowserTracker({
+        ...baseConfig,
+        batchSize: 10,
+        retry: { maxAttempts: 1 },
+        onFailure,
+      });
+      await tracker.track("first", {});
+      await tracker.track("second", {});
+
+      Object.defineProperty(navigator, "onLine", { value: true, configurable: true });
+      fetchMock.mockRejectedValueOnce(new Error("collector unavailable"));
+      window.dispatchEvent(new Event("online"));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(unhandled).toEqual([]);
+      expect(onFailure).toHaveBeenCalledTimes(1);
+      expect(onFailure.mock.calls[0][0]).toEqual({ source: "flush" });
+
+      await tracker.flush();
+      expect(
+        batchFromFetchCall(fetchMock, 1).events.map((event: { eventTypeSlug: string }) => event.eventTypeSlug),
+      ).toEqual(["first", "second"]);
+    } finally {
+      nodeProcess.off("unhandledRejection", onUnhandled);
+    }
+  });
+
+  it("does not treat a 202 batch with a rejected event as delivered", async () => {
+    const onFailure = vi.fn();
+    const fetchMock = mockFetch([
+      collectorBatchResponse([
+        { success: true, status: 202 },
+        { success: false, status: 400 },
+      ]),
+    ]);
+    const tracker = createBrowserTracker({ ...baseConfig, batchSize: 2, onFailure });
+
+    await tracker.track("accepted", {});
+    await tracker.track("rejected", {});
+
+    expect(onFailure).toHaveBeenCalledWith({ source: "flush", rejectedEvents: 1 });
+    const callsAfterRejection = fetchMock.mock.calls.length;
+    await tracker.flush();
+    expect(fetchMock.mock.calls.length).toBe(callsAfterRejection);
+  });
+
+  it("keeps only retryable batch items queued when the collector rejects the rest", async () => {
+    const onFailure = vi.fn();
+    const fetchMock = mockFetch([
+      collectorBatchResponse([
+        { success: true, status: 202 },
+        { success: false, status: 400 },
+        { success: false, status: 503 },
+      ]),
+    ]);
+    const tracker = createBrowserTracker({ ...baseConfig, batchSize: 3, onFailure });
+
+    await tracker.track("accepted", {});
+    await tracker.track("rejected", {});
+    await expect(tracker.track("retryable", {})).rejects.toThrow(/retryable collector status 503/);
+
+    expect(onFailure).toHaveBeenCalledWith({ source: "flush", rejectedEvents: 1 });
+
+    await tracker.flush();
+    expect(
+      batchFromFetchCall(fetchMock, 1).events.map((event: { eventTypeSlug: string }) => event.eventTypeSlug),
+    ).toEqual(["retryable"]);
+  });
+
+  it("does not treat a malformed 202 batch response as success", async () => {
+    const fetchMock = mockFetch([new Response("not the collector contract", { status: 202 })]);
+    const tracker = createBrowserTracker({ ...baseConfig, batchSize: 2, retry: { maxAttempts: 1 } });
+
+    await tracker.track("first", {});
+    await expect(tracker.track("second", {})).rejects.toThrow(/batch contract/);
+
+    await tracker.flush();
+    expect(batchFromFetchCall(fetchMock, 1).events).toHaveLength(2);
   });
 
   it("can reinstall SPA tracking after close", async () => {
@@ -685,10 +830,30 @@ function mockFetch(responses?: Response[]) {
   for (const response of responses ?? []) {
     fetchMock.mockResolvedValueOnce(response);
   }
-  fetchMock.mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 202 }));
+  fetchMock.mockImplementation(async (_url: string, init?: RequestInit) => {
+    const request = JSON.parse(String(init?.body ?? "{}"));
+    if (Array.isArray(request.events)) {
+      return collectorBatchResponse(request.events.map(() => ({ success: true, status: 202 })));
+    }
+    return new Response(JSON.stringify({ success: true, eventUuid: request.eventUuid }), { status: 202 });
+  });
   globalThis.fetch = fetchMock as unknown as typeof fetch;
   return fetchMock;
 }
+
+function collectorBatchResponse(results: Array<{ success: boolean; status: number }>): Response {
+  const success = results.every((result) => result.success);
+  return new Response(JSON.stringify({ success, results }), { status: 202 });
+}
+
+const nodeProcess = (
+  globalThis as unknown as {
+    process: {
+      on: (event: "unhandledRejection", listener: (reason: unknown) => void) => void;
+      off: (event: "unhandledRejection", listener: (reason: unknown) => void) => void;
+    };
+  }
+).process;
 
 function eventFromFetch(fetchMock: ReturnType<typeof vi.fn>) {
   return eventFromFetchCall(fetchMock, 0);
@@ -699,7 +864,11 @@ function eventFromFetchCall(fetchMock: ReturnType<typeof vi.fn>, callIndex: numb
 }
 
 function batchFromFetch(fetchMock: ReturnType<typeof vi.fn>) {
-  return JSON.parse(fetchMock.mock.calls[0][1].body as string);
+  return batchFromFetchCall(fetchMock, 0);
+}
+
+function batchFromFetchCall(fetchMock: ReturnType<typeof vi.fn>, callIndex: number) {
+  return JSON.parse(fetchMock.mock.calls[callIndex][1].body as string);
 }
 
 function installBrowserGlobals(): void {

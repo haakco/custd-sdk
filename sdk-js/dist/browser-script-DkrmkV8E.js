@@ -118,13 +118,20 @@ function g() {
 }
 //#endregion
 //#region src/browser-tracker.ts
-var _ = "1.0.0", v = 1e3, y = "[redacted]", b = /^[A-Za-z][A-Za-z0-9._~-]{0,63}$/u, x = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu, S = /^[A-Za-z0-9_-]{24,}$/u, C = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
+var _ = "1.0.0", v = 1e3, y = "[redacted]", ee = /^[A-Za-z][A-Za-z0-9._~-]{0,63}$/u, b = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu, x = /^[A-Za-z0-9_-]{24,}$/u, te = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u, ne = /^[A-Za-z0-9._~:{}*[\]-]*$/u, re = 1024, S = 200, C = /* @__PURE__ */ new Set([
+	408,
+	429,
+	500,
+	502,
+	503,
+	504
+]);
 function w(e) {
 	return new T(e);
 }
 var T = class {
 	constructor(e) {
-		this.queue = [], this.installedSpaTracking = !1, this.originalPushState = null, this.originalReplaceState = null, this.onlineHandler = () => this.detach(this.flush()), this.pagehideHandler = () => this.flushWithKeepalive(), this.popstateHandler = () => this.detach(this.trackPageView()), this.config = e, this.baseUrl = e.baseUrl.replace(/\/$/, ""), this.queueStorage = e.queueStorage ?? W(e.siteUuid, e.persistentQueue === !0), this.retry = f(e.retry), this.maxQueueSize = e.maxQueueSize ?? 1e3, this.queue = this.queueStorage.load(), this.trimQueue(), this.consent = e.consent === "required" ? "denied" : "granted", this.trackingDisabled() && this.clearStoredState(), Z(this.baseUrl, "baseUrl"), ee(e), window.addEventListener("online", this.onlineHandler), window.addEventListener("pagehide", this.pagehideHandler);
+		this.queue = [], this.installedSpaTracking = !1, this.lastTrackedPath = null, this.originalPushState = null, this.originalReplaceState = null, this.onlineHandler = () => this.detach("flush", () => this.flush()), this.pagehideHandler = () => this.flushWithKeepalive(), this.popstateHandler = () => this.detachPathChange(() => this.trackPageView()), this.config = e, this.baseUrl = e.baseUrl.replace(/\/$/, ""), this.queueStorage = e.queueStorage ?? oe(e.siteUuid, e.persistentQueue === !0), this.retry = f(e.retry), this.maxQueueSize = e.maxQueueSize ?? 1e3, this.queue = this.queueStorage.load(), this.trimQueue(), this.consent = e.consent === "required" ? "denied" : "granted", this.trackingDisabled() && this.clearStoredState(), $(this.baseUrl, "baseUrl"), K(e), window.addEventListener("online", this.onlineHandler), window.addEventListener("pagehide", this.pagehideHandler);
 	}
 	async track(e, t = {}) {
 		if (this.trackingDisabled()) return;
@@ -132,10 +139,10 @@ var T = class {
 		(this.config.batchSize ?? 0) > 1 ? (this.enqueue(n), this.queue.length >= (this.config.batchSize ?? 0) && await this.flush()) : await this.sendEvent(n);
 	}
 	trackPageView() {
-		return this.track("page-view", M());
+		return this.lastTrackedPath = window.location.pathname, this.track("page-view", F());
 	}
 	installSpaTracking() {
-		this.installedSpaTracking || (this.installedSpaTracking = !0, this.originalPushState = window.history.pushState, this.originalReplaceState = window.history.replaceState, window.history.pushState = this.wrapHistoryMethod(this.originalPushState), window.history.replaceState = this.wrapHistoryMethod(this.originalReplaceState), window.addEventListener("popstate", this.popstateHandler), this.config.trackInitialPageView !== !1 && this.detach(this.trackPageView()));
+		this.installedSpaTracking || (this.installedSpaTracking = !0, this.originalPushState = window.history.pushState, this.originalReplaceState = window.history.replaceState, window.history.pushState = this.wrapHistoryMethod(this.originalPushState), window.history.replaceState = this.wrapHistoryMethod(this.originalReplaceState), window.addEventListener("popstate", this.popstateHandler), this.config.trackInitialPageView !== !1 && this.detach("page-view", () => this.trackPageView()));
 	}
 	setConsent(e) {
 		this.consent = e, e === "denied" && this.clearStoredState();
@@ -145,26 +152,26 @@ var T = class {
 			this.clearStoredState();
 			return;
 		}
-		if (this.queue.length === 0 || !Y()) return;
-		let e = this.queue.splice(0, this.queue.length);
+		if (this.queue.length === 0 || !ue()) return;
+		let e = this.queue.splice(0, this.queue.length), t;
 		try {
-			await this.sendBatch(e);
+			t = await this.sendBatch(e);
 		} catch (t) {
 			throw this.queue.unshift(...e), this.trimQueue(), this.queueStorage.save(this.queue), t;
 		}
-		this.queueStorage.save(this.queue);
+		if (this.applyBatchOutcome("flush", t), t.retryable.length > 0) throw new V(t.retryableStatus ?? 503);
 	}
 	close() {
 		window.removeEventListener("online", this.onlineHandler), window.removeEventListener("pagehide", this.pagehideHandler), window.removeEventListener("popstate", this.popstateHandler), this.originalPushState && (window.history.pushState = this.originalPushState), this.originalReplaceState && (window.history.replaceState = this.originalReplaceState), this.installedSpaTracking = !1, this.originalPushState = null, this.originalReplaceState = null;
 	}
 	wrapHistoryMethod(e) {
 		return ((...t) => {
-			let n = e.apply(window.history, t);
-			return this.detach(this.trackPageView()), n;
+			let n = window.location.pathname, r = e.apply(window.history, t);
+			return window.location.pathname !== n && this.detach("page-view", () => this.trackPageView()), r;
 		});
 	}
 	trackingDisabled() {
-		return !!(this.consent !== "granted" || J());
+		return !!(this.consent !== "granted" || le());
 	}
 	enqueue(e) {
 		this.queue.push(e), this.trimQueue(), this.queueStorage.save(this.queue);
@@ -181,7 +188,7 @@ var T = class {
 			schemaVersion: _,
 			timestamp: (/* @__PURE__ */ new Date()).toISOString(),
 			...n,
-			context: j(),
+			context: j(this.pageContext()),
 			payload: {
 				siteUuid: this.config.siteUuid,
 				...t
@@ -191,8 +198,8 @@ var T = class {
 	}
 	identityFields() {
 		return this.config.identityMode === "extended" ? {
-			anonymousId: U(E(this.config.siteUuid), localStorage),
-			sessionId: U(D(this.config.siteUuid), sessionStorage)
+			anonymousId: Z(E(this.config.siteUuid), localStorage),
+			sessionId: Z(D(this.config.siteUuid), sessionStorage)
 		} : {
 			anonymousId: "",
 			sessionId: ""
@@ -200,27 +207,60 @@ var T = class {
 	}
 	async sendEvent(e) {
 		await p(this.retry, async () => {
-			I(await fetch(`${this.baseUrl}/api/v1/collect/events`, {
+			z(await fetch(`${this.baseUrl}/api/v1/collect/events`, {
 				method: "POST",
-				headers: F(this.config.writeKey),
+				headers: R(this.config.writeKey),
 				body: JSON.stringify(e),
 				credentials: "omit"
 			}));
 		});
 	}
 	async sendBatch(e, t = !1) {
-		await p(this.retry, async () => {
-			I(await fetch(`${this.baseUrl}/api/v1/collect/events/batch`, {
+		return G(e, await p(this.retry, async () => {
+			let n = await fetch(`${this.baseUrl}/api/v1/collect/events/batch`, {
 				method: "POST",
-				headers: F(this.config.writeKey),
+				headers: R(this.config.writeKey),
 				body: JSON.stringify({ events: e }),
 				credentials: "omit",
 				keepalive: t
-			}));
+			});
+			return z(n), W(n, e.length);
+		}));
+	}
+	applyBatchOutcome(e, t) {
+		t.retryable.length > 0 && (this.queue.unshift(...t.retryable), this.trimQueue()), this.queueStorage.save(this.queue), t.rejected.length > 0 && this.notifyFailure({
+			source: e,
+			rejectedEvents: t.rejected.length
 		});
 	}
-	detach(e) {
-		e.catch(() => void 0);
+	pageContext() {
+		let e = {
+			path: I(window.location.pathname),
+			title: document.title
+		}, t = this.config.pageContext;
+		if (!t) return e;
+		let n;
+		try {
+			n = t(e);
+		} catch {
+			return {};
+		}
+		return M(n, e.path);
+	}
+	detach(e, t) {
+		t().catch((t) => this.notifyFailure({
+			source: e,
+			status: U(t)
+		}));
+	}
+	detachPathChange(e) {
+		window.location.pathname !== this.lastTrackedPath && this.detach("page-view", e);
+	}
+	notifyFailure(e) {
+		let t = this.config.onFailure;
+		if (t) try {
+			Promise.resolve(t(e)).catch(() => void 0);
+		} catch {}
 	}
 	flushWithKeepalive() {
 		if (this.trackingDisabled()) {
@@ -229,10 +269,16 @@ var T = class {
 		}
 		if (this.queue.length === 0) return;
 		let e = this.queue.splice(0, this.queue.length);
-		this.sendBatch(e, !0).then(() => {
-			this.queueStorage.save(this.queue);
-		}, () => {
-			this.queue.unshift(...e), this.trimQueue(), this.queueStorage.save(this.queue);
+		this.sendBatch(e, !0).then((e) => {
+			this.applyBatchOutcome("flush", e), e.retryable.length > 0 && this.notifyFailure({
+				source: "flush",
+				status: e.retryableStatus ?? 503
+			});
+		}, (t) => {
+			this.queue.unshift(...e), this.trimQueue(), this.queueStorage.save(this.queue), this.notifyFailure({
+				source: "flush",
+				status: U(t)
+			});
 		});
 	}
 };
@@ -246,29 +292,29 @@ function O(e) {
 	return `custd:${e}:event_queue`;
 }
 async function k(e) {
-	let t = e ?? G(), n = L();
+	let t = e ?? se(), n = q();
 	try {
 		let e = t.dataset.siteUuid, r = t.dataset.writeKey;
 		if (!e || !r) throw Error("custd: browser script requires data-site-uuid and data-write-key");
 		let i = t.dataset.baseUrl ?? new URL(t.src).origin;
-		Z(i, "baseUrl");
+		$(i, "baseUrl");
 		let a = await A(i, e), o = w({
 			baseUrl: i,
 			siteUuid: e,
 			writeKey: r,
 			identityMode: a.identityMode,
 			allowedOrigins: a.allowedOrigins,
-			batchSize: Number(t.dataset.batchSize || q(a)),
-			consent: K(t, a),
+			batchSize: Number(t.dataset.batchSize || ce(a)),
+			consent: Q(t, a),
 			persistentQueue: t.dataset.persistentQueue === "true"
 		});
 		return window.custd = {
 			track: (e, t) => o.track(e, t),
 			trackPageView: () => o.trackPageView(),
 			setConsent: (e) => o.setConsent(e)
-		}, await B(o, n), o;
+		}, await X(o, n), o;
 	} catch (e) {
-		throw V(n, e), H(e), e;
+		throw ie(n, e), ae(e), e;
 	}
 }
 async function A(e, t) {
@@ -276,28 +322,39 @@ async function A(e, t) {
 	if (!n.ok) throw Error(`custd: site config request failed with status ${n.status}`);
 	return await n.json();
 }
-function j() {
-	return {
-		page: {
-			path: N(window.location.pathname),
-			title: document.title
-		},
-		device: { type: X() },
+function j(e) {
+	let t = {
+		device: { type: de() },
 		locale: navigator.language,
 		timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
 	};
+	return (e.path !== void 0 || e.title !== void 0) && (t.page = e), t;
 }
-function M() {
+function M(e, t) {
+	let n = {};
+	typeof e?.path == "string" && (n.path = N(e.path) ? e.path : t);
+	let r = P(e?.title);
+	return r !== void 0 && (n.title = r), n;
+}
+function N(e) {
+	return e.length === 0 || e.length > re || !e.startsWith("/") || e.startsWith("//") ? !1 : e.split("/").every((e) => ne.test(e));
+}
+function P(e) {
+	if (typeof e != "string") return;
+	let t = e.replace(/[\p{Cc}]/gu, "").trim();
+	return t === "" ? void 0 : t.slice(0, S);
+}
+function F() {
 	let e = new URL(window.location.href).searchParams, t = e.get("ref") ?? "";
-	return e.get("source") !== "powered-by" || !C.test(t) ? {} : {
+	return e.get("source") !== "powered-by" || !te.test(t) ? {} : {
 		utmSource: t,
 		utmMedium: "powered-by"
 	};
 }
-function N(e) {
-	return (e.startsWith("/") ? e : `/${e}`).split("/").map(P).join("/") || "/";
+function I(e) {
+	return (e.startsWith("/") ? e : `/${e}`).split("/").map(L).join("/") || "/";
 }
-function P(e) {
+function L(e) {
 	if (e === "") return "";
 	let t;
 	try {
@@ -305,50 +362,86 @@ function P(e) {
 	} catch {
 		return y;
 	}
-	return !b.test(t) || x.test(t) || /^\d+$/u.test(t) || S.test(t) ? y : t;
+	return !ee.test(t) || b.test(t) || /^\d+$/u.test(t) || x.test(t) ? y : t;
 }
-function F(e) {
+function R(e) {
 	return {
 		"Content-Type": "application/json",
 		Authorization: `Bearer ${e}`
 	};
 }
-function I(e) {
-	if (!e.ok) throw [
-		408,
-		429,
-		500,
-		502,
-		503,
-		504
-	].includes(e.status) ? new d(`custd: retryable collector status ${e.status}`) : Error(`custd: collector request failed with status ${e.status}`);
+function z(e) {
+	if (!e.ok) throw C.has(e.status) ? new V(e.status) : new B(e.status);
 }
-function ee(e) {
+var B = class extends Error {
+	constructor(e) {
+		super(`custd: collector request failed with status ${e}`), this.status = e;
+	}
+}, V = class extends d {
+	constructor(e) {
+		super(`custd: retryable collector status ${e}`), this.status = e;
+	}
+}, H = class extends d {
+	constructor() {
+		super("custd: collector response did not match the batch contract");
+	}
+};
+function U(e) {
+	if (e instanceof V || e instanceof B) return e.status;
+}
+async function W(e, t) {
+	let n;
+	try {
+		n = await e.json();
+	} catch {
+		throw new H();
+	}
+	let r = typeof n == "object" && n ? n.results : void 0;
+	if (!Array.isArray(r) || r.length !== t) throw new H();
+	return r.map((e) => {
+		let t = typeof e == "object" && e ? e : {};
+		if (typeof t.success != "boolean" || typeof t.status != "number") throw new H();
+		return {
+			success: t.success,
+			status: t.status
+		};
+	});
+}
+function G(e, t) {
+	let n = {
+		rejected: [],
+		retryable: []
+	};
+	return t.forEach((t, r) => {
+		t.success || (C.has(t.status) ? (n.retryable.push(e[r]), n.retryableStatus ??= t.status) : n.rejected.push(e[r]));
+	}), n;
+}
+function K(e) {
 	let t = e.allowedOrigins ?? [];
 	if (t.length === 0) throw Error("custd: site config must include allowed origins for this site");
 	if (!t.includes(window.location.origin)) throw Error("custd: origin is not allowed for this site");
 }
-function L() {
+function q() {
 	let e = {
 		calls: [],
 		promises: []
 	};
 	return window.custd = {
-		track: (t, n) => R(e, {
+		track: (t, n) => J(e, {
 			type: "track",
 			eventTypeSlug: t,
 			payload: n
 		}),
-		trackPageView: () => R(e, { type: "trackPageView" }),
+		trackPageView: () => J(e, { type: "trackPageView" }),
 		setConsent: (t) => {
-			z(e, {
+			Y(e, {
 				type: "setConsent",
 				state: t
 			});
 		}
 	}, e;
 }
-function R(e, t) {
+function J(e, t) {
 	return e.calls.length >= v ? Promise.reject(/* @__PURE__ */ Error("custd: queued global call limit exceeded")) : new Promise((n, r) => {
 		e.calls.push(t), e.promises.push({
 			resolve: n,
@@ -356,10 +449,10 @@ function R(e, t) {
 		});
 	});
 }
-function z(e, t) {
+function Y(e, t) {
 	e.calls.length >= v || e.calls.push(t);
 }
-async function B(e, t) {
+async function X(e, t) {
 	for (let n of t.calls) {
 		let r = n.type === "setConsent" ? void 0 : t.promises.shift();
 		try {
@@ -369,10 +462,10 @@ async function B(e, t) {
 		}
 	}
 }
-function V(e, t) {
+function ie(e, t) {
 	for (let n of e.promises.splice(0, e.promises.length)) n.reject(t);
 }
-function H(e) {
+function ae(e) {
 	window.custd = {
 		track: () => Promise.reject(e),
 		trackPageView: () => Promise.reject(e),
@@ -381,44 +474,44 @@ function H(e) {
 		}
 	};
 }
-function U(e, t) {
+function Z(e, t) {
 	let n = t.getItem(e);
 	if (n) return n;
-	let r = $();
+	let r = pe();
 	return t.setItem(e, r), r;
 }
-function W(n, r) {
+function oe(n, r) {
 	return !r || typeof localStorage > "u" ? new e() : new t(`custd:${n}:event_queue`);
 }
-function G() {
+function se() {
 	let e = document.currentScript;
 	if (!e) throw Error("custd: browser script could not find document.currentScript");
 	return e;
 }
-function K(e, t) {
+function Q(e, t) {
 	return e.dataset.consent === "granted" ? "granted" : t.identityMode === "extended" ? "required" : void 0;
 }
-function q(e) {
+function ce(e) {
 	return e.identityMode === "extended" ? 25 : 1;
 }
-function J() {
+function le() {
 	let e = navigator.doNotTrack;
 	return e === "1" || e === "yes";
 }
-function Y() {
+function ue() {
 	return typeof navigator.onLine != "boolean" || navigator.onLine;
 }
-function X() {
+function de() {
 	return /Mobi|Android/i.test(navigator.userAgent) ? "mobile" : "desktop";
 }
-function Z(e, t) {
+function $(e, t) {
 	let n = new URL(e);
-	if (n.protocol !== "https:" && !(n.protocol === "http:" && Q(n.hostname))) throw Error(`custd: ${t} must use https unless it targets localhost`);
+	if (n.protocol !== "https:" && !(n.protocol === "http:" && fe(n.hostname))) throw Error(`custd: ${t} must use https unless it targets localhost`);
 }
-function Q(e) {
+function fe(e) {
 	return e === "localhost" || e === "127.0.0.1" || e === "::1" || e === "host.docker.internal";
 }
-function $() {
+function pe() {
 	return typeof crypto < "u" && typeof crypto.randomUUID == "function" ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (e) => (Number(e) ^ Math.random() * 16 >> Number(e) / 4).toString(16));
 }
 k(Array.from(document.scripts).find((e) => e.src === import.meta.url)).then((e) => e.installSpaTracking()).catch(() => void 0);
