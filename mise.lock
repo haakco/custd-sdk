@@ -139,43 +139,36 @@ asset_pattern = "cli_{{ version }}_{{ os(macos='darwin') }}_{{ arch(x64='amd64')
 
 [tools.infisical."platforms.linux-arm64"]
 checksum = "sha256:97d49c74b16eb9d7d492e4825a941b0386d00de0bcdf0e4e023687cc754bd5b2"
-checksum_source = "mise-versions"
 url = "https://github.com/Infisical/cli/releases/download/v0.44.10/cli_0.44.10_linux_arm64.tar.gz"
 url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/683122907"
 
 [tools.infisical."platforms.linux-arm64-musl"]
 checksum = "sha256:97d49c74b16eb9d7d492e4825a941b0386d00de0bcdf0e4e023687cc754bd5b2"
-checksum_source = "mise-versions"
 url = "https://github.com/Infisical/cli/releases/download/v0.44.10/cli_0.44.10_linux_arm64.tar.gz"
 url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/683122907"
 
 [tools.infisical."platforms.linux-x64"]
 checksum = "sha256:3800bded850e00ce1c402a48f081c4b210cfbdf4f9a4a794cf159a2fef0a8efa"
-checksum_source = "mise-versions"
 url = "https://github.com/Infisical/cli/releases/download/v0.44.10/cli_0.44.10_linux_amd64.tar.gz"
 url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/683122916"
 
 [tools.infisical."platforms.linux-x64-musl"]
 checksum = "sha256:3800bded850e00ce1c402a48f081c4b210cfbdf4f9a4a794cf159a2fef0a8efa"
-checksum_source = "mise-versions"
 url = "https://github.com/Infisical/cli/releases/download/v0.44.10/cli_0.44.10_linux_amd64.tar.gz"
 url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/683122916"
 
 [tools.infisical."platforms.macos-arm64"]
 checksum = "sha256:e7317e711ed899b20c828574166438b953c37dafe611fcda47233bb7d749b46e"
-checksum_source = "mise-versions"
 url = "https://github.com/Infisical/cli/releases/download/v0.44.10/cli_0.44.10_darwin_arm64.tar.gz"
 url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/683108814"
 
 [tools.infisical."platforms.macos-x64"]
 checksum = "sha256:ee5ee786f3e28a752bc1bd5c566afe2d962bbd83c2c7300b76e99f06302b63a4"
-checksum_source = "mise-versions"
 url = "https://github.com/Infisical/cli/releases/download/v0.44.10/cli_0.44.10_darwin_amd64.tar.gz"
 url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/683108816"
 
 [tools.infisical."platforms.windows-x64"]
 checksum = "sha256:7d2e48217a4e500fcbef2a8d20091fb1c0488fe0ea22106f45678131c6949201"
-checksum_source = "mise-versions"
 url = "https://github.com/Infisical/cli/releases/download/v0.44.10/cli_0.44.10_windows_amd64.tar.gz"
 url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/683124358"
 
@@ -186,43 +179,36 @@ specifiers = ["latest"]
 
 [tools.just."platforms.linux-arm64"]
 checksum = "sha256:23871b1702bfd550fb5f901778fd4290ecf2ee034a45a889fbe96d89b188086d"
-checksum_source = "mise-versions"
 url = "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-aarch64-unknown-linux-musl.tar.gz"
 url_api = "https://api.github.com/repos/casey/just/releases/assets/642950086"
 
 [tools.just."platforms.linux-arm64-musl"]
 checksum = "sha256:23871b1702bfd550fb5f901778fd4290ecf2ee034a45a889fbe96d89b188086d"
-checksum_source = "mise-versions"
 url = "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-aarch64-unknown-linux-musl.tar.gz"
 url_api = "https://api.github.com/repos/casey/just/releases/assets/642950086"
 
 [tools.just."platforms.linux-x64"]
 checksum = "sha256:409044617b6f06517c1035e55ca38c8c856ff8b650e41bc2aa1ef82d5903a23e"
-checksum_source = "mise-versions"
 url = "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-x86_64-unknown-linux-musl.tar.gz"
 url_api = "https://api.github.com/repos/casey/just/releases/assets/642949555"
 
 [tools.just."platforms.linux-x64-musl"]
 checksum = "sha256:409044617b6f06517c1035e55ca38c8c856ff8b650e41bc2aa1ef82d5903a23e"
-checksum_source = "mise-versions"
 url = "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-x86_64-unknown-linux-musl.tar.gz"
 url_api = "https://api.github.com/repos/casey/just/releases/assets/642949555"
 
 [tools.just."platforms.macos-arm64"]
 checksum = "sha256:6574cea774ed4cae12e24b6aa11857de33e80dab4667cf628fd5840df96a2a9d"
-checksum_source = "mise-versions"
 url = "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-aarch64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/casey/just/releases/assets/643129724"
 
 [tools.just."platforms.macos-x64"]
 checksum = "sha256:036ead9df9bc31dbae9934ae3b4236ed124d0bafcffd33439460ae084d5c9cb7"
-checksum_source = "mise-versions"
 url = "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-x86_64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/casey/just/releases/assets/643131819"
 
 [tools.just."platforms.windows-x64"]
 checksum = "sha256:9c5463e2d0974e31bee71346aa5cbf19167de1585a4abc1bae7b3b04604ea9c0"
-checksum_source = "mise-versions"
 url = "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-x86_64-pc-windows-msvc.zip"
 url_api = "https://api.github.com/repos/casey/just/releases/assets/643131303"
 
@@ -350,13 +336,11 @@ specifiers = ["latest"]
 
 [tools.powershell."platforms.linux-arm64"]
 checksum = "sha256:02eb9991af447c7e7fe881acde195961afd397c40b8eb1c2b3856b84ec2d85f2"
-checksum_source = "mise-versions"
 url = "https://github.com/PowerShell/PowerShell/releases/download/v7.6.9/powershell-7.6.9-linux-arm64.tar.gz"
 url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/675637777"
 
 [tools.powershell."platforms.linux-arm64-musl"]
 checksum = "sha256:02eb9991af447c7e7fe881acde195961afd397c40b8eb1c2b3856b84ec2d85f2"
-checksum_source = "mise-versions"
 url = "https://github.com/PowerShell/PowerShell/releases/download/v7.6.9/powershell-7.6.9-linux-arm64.tar.gz"
 url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/675637777"
 
@@ -367,25 +351,61 @@ url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/67
 
 [tools.powershell."platforms.linux-x64-musl"]
 checksum = "sha256:1da6d6d6035d651f20e70ddee7c4c15ac6ab8b9fb40ee92240d91263f28a884b"
-checksum_source = "mise-versions"
 url = "https://github.com/PowerShell/PowerShell/releases/download/v7.6.9/powershell-7.6.9-linux-x64.tar.gz"
 url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/675638183"
 
 [tools.powershell."platforms.macos-arm64"]
 checksum = "sha256:a1c7e98ac403da4be5ba75c1c5855af272de7787a91d478c4267466fe58fc1af"
-checksum_source = "mise-versions"
 url = "https://github.com/PowerShell/PowerShell/releases/download/v7.6.9/powershell-7.6.9-osx-arm64.tar.gz"
 url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/675638480"
 
 [tools.powershell."platforms.macos-x64"]
 checksum = "sha256:a5aa2308a7e9664510a5c93d5b337fd524ff7dc14b8a637fb6144a2bbaa298ae"
-checksum_source = "mise-versions"
 url = "https://github.com/PowerShell/PowerShell/releases/download/v7.6.9/powershell-7.6.9-osx-x64.tar.gz"
 url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/675638726"
 
 [tools.powershell."platforms.windows-x64"]
 checksum = "sha256:ce7484804c0f0ad4dda10c958e71acdaf7eebfb22505c1b480f89e0e9f1da94d"
-checksum_source = "mise-versions"
+url = "https://github.com/PowerShell/PowerShell/releases/download/v7.6.9/PowerShell-7.6.9-win-x64.zip"
+url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/675639558"
+
+[[tools.powershell-core]]
+version = "7.6.9"
+backend = "aqua:PowerShell/PowerShell"
+specifiers = ["latest"]
+
+[tools.powershell-core."platforms.linux-arm64"]
+checksum = "sha256:02eb9991af447c7e7fe881acde195961afd397c40b8eb1c2b3856b84ec2d85f2"
+url = "https://github.com/PowerShell/PowerShell/releases/download/v7.6.9/powershell-7.6.9-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/675637777"
+
+[tools.powershell-core."platforms.linux-arm64-musl"]
+checksum = "sha256:02eb9991af447c7e7fe881acde195961afd397c40b8eb1c2b3856b84ec2d85f2"
+url = "https://github.com/PowerShell/PowerShell/releases/download/v7.6.9/powershell-7.6.9-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/675637777"
+
+[tools.powershell-core."platforms.linux-x64"]
+checksum = "sha256:1da6d6d6035d651f20e70ddee7c4c15ac6ab8b9fb40ee92240d91263f28a884b"
+url = "https://github.com/PowerShell/PowerShell/releases/download/v7.6.9/powershell-7.6.9-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/675638183"
+
+[tools.powershell-core."platforms.linux-x64-musl"]
+checksum = "sha256:1da6d6d6035d651f20e70ddee7c4c15ac6ab8b9fb40ee92240d91263f28a884b"
+url = "https://github.com/PowerShell/PowerShell/releases/download/v7.6.9/powershell-7.6.9-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/675638183"
+
+[tools.powershell-core."platforms.macos-arm64"]
+checksum = "sha256:a1c7e98ac403da4be5ba75c1c5855af272de7787a91d478c4267466fe58fc1af"
+url = "https://github.com/PowerShell/PowerShell/releases/download/v7.6.9/powershell-7.6.9-osx-arm64.tar.gz"
+url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/675638480"
+
+[tools.powershell-core."platforms.macos-x64"]
+checksum = "sha256:a5aa2308a7e9664510a5c93d5b337fd524ff7dc14b8a637fb6144a2bbaa298ae"
+url = "https://github.com/PowerShell/PowerShell/releases/download/v7.6.9/powershell-7.6.9-osx-x64.tar.gz"
+url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/675638726"
+
+[tools.powershell-core."platforms.windows-x64"]
+checksum = "sha256:ce7484804c0f0ad4dda10c958e71acdaf7eebfb22505c1b480f89e0e9f1da94d"
 url = "https://github.com/PowerShell/PowerShell/releases/download/v7.6.9/PowerShell-7.6.9-win-x64.zip"
 url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/675639558"
 
