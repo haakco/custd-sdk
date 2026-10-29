@@ -1,6 +1,6 @@
 [tools]
 go = "1.27.3"
-node = "26.12.1"
+node = "26.13.0"
 pnpm = "latest"
 python = "3.15.2"
 uv = "latest"
@@ -28,6 +28,8 @@ ruff = "0.17.3"
 "pipx:mypy" = { version = "2.4.0", uvx = "true" }
 shellcheck = "latest"
 rumdl = "latest"
+powershell = "latest"
+powershell-core = "latest"
 
 [plugins]
 php = "https://github.com/haakco/mise-php#096907cce61149ccb0dc6a061a3efcd8d1ee9d14"
