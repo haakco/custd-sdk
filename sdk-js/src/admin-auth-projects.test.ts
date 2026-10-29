@@ -66,38 +66,36 @@ describe("principal lifecycle", () => {
   };
   const options = { owningUserUuid: owningUser, idempotencyKey: "principal-operation" };
 
-  it.each([
-    "suspend",
-    "restore",
-    "erase",
-    "export",
-  ] as const)("routes %s within the escaped principal boundary", async (action) => {
-    const receipt = { principalId: "principal-1", status: "applied", countsRecorded: false };
-    const fetchImpl = mockFetch(receipt);
-    const client = newClient(fetchImpl);
-    const result =
-      action === "suspend"
-        ? await client.admin.authProjects.suspendPrincipal(target, options)
-        : action === "restore"
-          ? await client.admin.authProjects.restorePrincipal(target, options)
-          : action === "erase"
-            ? await client.admin.authProjects.erasePrincipal(target, { confirm: true }, options)
-            : await client.admin.authProjects.exportPrincipal(target, options);
-    const { url, init } = sentRequest(fetchImpl);
-    expect(url).toBe(
-      "http://localhost:8080/api/v1/admin/auth-projects/project%2F1/environments/environment%2F1" +
-        "/directories/directory%2F1/principals/subject%2F1/" +
-        action,
-    );
-    expect(init.method).toBe(action === "export" ? "GET" : "POST");
-    expect(init.headers).toMatchObject({ "X-Custd-Owning-User-UUID": owningUser });
-    expect(result.principalId).toBe(receipt.principalId);
-    if (action === "erase") {
-      expect(JSON.parse(String(init.body))).toEqual({ confirm: true });
-    } else {
-      expect(init.body).toBeUndefined();
-    }
-  });
+  it.each(["suspend", "restore", "erase", "export"] as const)(
+    "routes %s within the escaped principal boundary",
+    async (action) => {
+      const receipt = { principalId: "principal-1", status: "applied", countsRecorded: false };
+      const fetchImpl = mockFetch(receipt);
+      const client = newClient(fetchImpl);
+      const result =
+        action === "suspend"
+          ? await client.admin.authProjects.suspendPrincipal(target, options)
+          : action === "restore"
+            ? await client.admin.authProjects.restorePrincipal(target, options)
+            : action === "erase"
+              ? await client.admin.authProjects.erasePrincipal(target, { confirm: true }, options)
+              : await client.admin.authProjects.exportPrincipal(target, options);
+      const { url, init } = sentRequest(fetchImpl);
+      expect(url).toBe(
+        "http://localhost:8080/api/v1/admin/auth-projects/project%2F1/environments/environment%2F1" +
+          "/directories/directory%2F1/principals/subject%2F1/" +
+          action,
+      );
+      expect(init.method).toBe(action === "export" ? "GET" : "POST");
+      expect(init.headers).toMatchObject({ "X-Custd-Owning-User-UUID": owningUser });
+      expect(result.principalId).toBe(receipt.principalId);
+      if (action === "erase") {
+        expect(JSON.parse(String(init.body))).toEqual({ confirm: true });
+      } else {
+        expect(init.body).toBeUndefined();
+      }
+    },
+  );
 
   it("exports every identity with typed JSON traits and explicit completeness", async () => {
     const exported = {
@@ -130,22 +128,21 @@ describe("principal lifecycle", () => {
     expect(result.identities?.[1]?.traitsStatus).toBe("incomplete");
   });
 
-  it.each([
-    "suspend",
-    "restore",
-    "erase",
-  ] as const)("refuses %s without an idempotency key before transport", async (action) => {
-    const fetchImpl = mockFetch({});
-    const client = newClient(fetchImpl);
-    const invoke = () =>
-      action === "suspend"
-        ? client.admin.authProjects.suspendPrincipal(target)
-        : action === "restore"
-          ? client.admin.authProjects.restorePrincipal(target)
-          : client.admin.authProjects.erasePrincipal(target, { confirm: true });
-    await expect(invoke()).rejects.toThrow("idempotency key");
-    expect(fetchImpl).not.toHaveBeenCalled();
-  });
+  it.each(["suspend", "restore", "erase"] as const)(
+    "refuses %s without an idempotency key before transport",
+    async (action) => {
+      const fetchImpl = mockFetch({});
+      const client = newClient(fetchImpl);
+      const invoke = () =>
+        action === "suspend"
+          ? client.admin.authProjects.suspendPrincipal(target)
+          : action === "restore"
+            ? client.admin.authProjects.restorePrincipal(target)
+            : client.admin.authProjects.erasePrincipal(target, { confirm: true });
+      await expect(invoke()).rejects.toThrow("idempotency key");
+      expect(fetchImpl).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("admin auth projects", () => {

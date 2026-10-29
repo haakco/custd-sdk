@@ -279,28 +279,27 @@ describe("auth-project invitations", () => {
     expect(view.state).toBe("revoked");
   });
 
-  it.each([
-    "issueInvitation",
-    "redeliverInvitation",
-    "revokeInvitation",
-  ] as const)("refuses %s without an idempotency key before transport", async (method) => {
-    const fetchImpl = mockFetch({});
-    const client = newClient(fetchImpl).admin.authProjects;
-    const invoke = () =>
-      method === "issueInvitation"
-        ? client.issueInvitation("project-1", "environment-1", {
-            poolId: "pool-1",
-            organisationId: "org-1",
-            email: "e",
-            membershipRole: "member",
-            expiresInSeconds: 1,
-          })
-        : method === "redeliverInvitation"
-          ? client.redeliverInvitation("project-1", "environment-1", { invitationId: "inv-1" })
-          : client.revokeInvitation("project-1", "environment-1", { invitationId: "inv-1" });
-    await expect(invoke()).rejects.toThrow("idempotency key is required");
-    expect(fetchImpl).not.toHaveBeenCalled();
-  });
+  it.each(["issueInvitation", "redeliverInvitation", "revokeInvitation"] as const)(
+    "refuses %s without an idempotency key before transport",
+    async (method) => {
+      const fetchImpl = mockFetch({});
+      const client = newClient(fetchImpl).admin.authProjects;
+      const invoke = () =>
+        method === "issueInvitation"
+          ? client.issueInvitation("project-1", "environment-1", {
+              poolId: "pool-1",
+              organisationId: "org-1",
+              email: "e",
+              membershipRole: "member",
+              expiresInSeconds: 1,
+            })
+          : method === "redeliverInvitation"
+            ? client.redeliverInvitation("project-1", "environment-1", { invitationId: "inv-1" })
+            : client.revokeInvitation("project-1", "environment-1", { invitationId: "inv-1" });
+      await expect(invoke()).rejects.toThrow("idempotency key is required");
+      expect(fetchImpl).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("auth-project principal profile and memberships", () => {

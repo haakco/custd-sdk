@@ -138,8 +138,8 @@ describe("raw idempotency key", () => {
     await target.ingestRawLines(keyRequest);
     await target.ingestRawLines(keyRequest);
 
-    const first = (fetchImpl.mock.calls[0]?.[1]?.headers as Record<string, string>)["Idempotency-Key"];
-    const second = (fetchImpl.mock.calls[1]?.[1]?.headers as Record<string, string>)["Idempotency-Key"];
+    const first = (fetchImpl.mock.calls[0]?.[1]?.headers as Record<string, string> | undefined)?.["Idempotency-Key"];
+    const second = (fetchImpl.mock.calls[1]?.[1]?.headers as Record<string, string> | undefined)?.["Idempotency-Key"];
     expect(first).toBe(keyRequest.idempotencyKey);
     expect(first).toBe(second);
     expect(first).toMatch(/^\d+:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
