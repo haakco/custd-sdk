@@ -131,7 +131,7 @@ function T(e) {
 }
 var E = class {
 	constructor(e) {
-		this.queue = [], this.installedSpaTracking = !1, this.lastTrackedPath = null, this.originalPushState = null, this.originalReplaceState = null, this.onlineHandler = () => this.detach("flush", () => this.flush()), this.pagehideHandler = () => this.flushWithKeepalive(), this.popstateHandler = () => this.detachPathChange(() => this.trackPageView()), this.config = e, this.baseUrl = e.baseUrl.replace(/\/$/, ""), this.schemaVersion = q(e.schemaVersion), this.queueStorage = e.queueStorage ?? Q(e.siteUuid, e.persistentQueue === !0), this.retry = d(e.retry), this.maxQueueSize = e.maxQueueSize ?? 1e3, this.queue = this.queueStorage.load(), this.trimQueue(), this.consent = e.consent === "required" ? "denied" : "granted", this.trackingDisabled() && this.clearStoredState(), $(this.baseUrl, "baseUrl"), J(e), window.addEventListener("online", this.onlineHandler), window.addEventListener("pagehide", this.pagehideHandler);
+		this.queue = [], this.installedSpaTracking = !1, this.lastTrackedPath = null, this.originalPushState = null, this.originalReplaceState = null, this.onlineHandler = () => this.detach("flush", () => this.flush()), this.pagehideHandler = () => this.flushWithKeepalive(), this.popstateHandler = () => this.detachPathChange(() => this.trackPageView()), this.config = e, this.baseUrl = e.baseUrl.replace(/\/$/, ""), this.schemaVersion = q(e.schemaVersion), this.labels = { ...e.labels ?? {} }, this.queueStorage = e.queueStorage ?? Q(e.siteUuid, e.persistentQueue === !0), this.retry = d(e.retry), this.maxQueueSize = e.maxQueueSize ?? 1e3, this.queue = this.queueStorage.load(), this.trimQueue(), this.consent = e.consent === "required" ? "denied" : "granted", this.trackingDisabled() && this.clearStoredState(), $(this.baseUrl, "baseUrl"), J(e), window.addEventListener("online", this.onlineHandler), window.addEventListener("pagehide", this.pagehideHandler);
 	}
 	async track(e, t = {}) {
 		if (this.trackingDisabled()) return;
@@ -183,7 +183,7 @@ var E = class {
 		this.queue = [], this.queueStorage.clear(), typeof localStorage < "u" && (localStorage.removeItem(D(this.config.siteUuid)), localStorage.removeItem(k(this.config.siteUuid))), typeof sessionStorage < "u" && sessionStorage.removeItem(O(this.config.siteUuid));
 	}
 	buildEvent(e, t) {
-		let n = this.identityFields(), r = l({
+		let n = this.identityFields(), r = {
 			eventTypeSlug: e,
 			schemaVersion: this.schemaVersion,
 			timestamp: (/* @__PURE__ */ new Date()).toISOString(),
@@ -193,8 +193,10 @@ var E = class {
 				siteUuid: this.config.siteUuid,
 				...t
 			}
-		}, { mode: this.config.identityMode === "extended" ? "producer" : "browser-cookieless" });
-		return c(r), o(r, this.config.environment), r;
+		};
+		Object.keys(this.labels).length > 0 && (r.labels = { ...this.labels });
+		let i = l(r, { mode: this.config.identityMode === "extended" ? "producer" : "browser-cookieless" });
+		return c(i), o(i, this.config.environment), i;
 	}
 	identityFields() {
 		return this.config.identityMode === "extended" ? {

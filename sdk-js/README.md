@@ -204,6 +204,29 @@ type, so the configured value and the collector's enabled schema version must
 match. A value that is not a dotted numeric version such as `1.0.1` is refused
 at construction instead of being sent.
 
+Pass `labels` to stamp every tracked event, including the automatic page views,
+with controlled deployment metadata such as the cluster and region this build
+runs in:
+
+```ts
+const tracker = createBrowserTracker({
+  baseUrl: "https://custd.example.com",
+  siteUuid: "site-uuid",
+  writeKey: "site_pk_public_write_key",
+  allowedOrigins: ["https://www.example.com"],
+  environment: "production",
+  labels: { cluster: "eu-central", region: "eu" },
+});
+```
+
+These are deployment labels, not visitor data: use build-time configuration
+rather than anything derived from the person browsing. Every key and value must
+already exist in the tenant's label catalogue, and the reserved `custd.`
+namespace stays with the SDK, so `custd.environment` still comes only from
+`environment` and a configured label that tries to set it is rejected. The
+tracker copies the object at construction, so mutating it afterwards changes
+nothing. Without `labels` the envelope carries no labels of its own.
+
 Automatic tracking calls, namely the initial page view, the history hooks,
 `popstate`, and background flushes, absorb their own failures so they never
 surface as unhandled rejections in the host page. Pass `onFailure` to observe

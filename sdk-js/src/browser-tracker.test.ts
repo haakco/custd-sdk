@@ -43,6 +43,61 @@ describe("createBrowserTracker", () => {
     expect(eventFromFetch(fetchMock).labels).toBeUndefined();
   });
 
+  it("carries configured deployment labels on the automatic page view and track", async () => {
+    const fetchMock = mockFetch();
+
+    const tracker = createBrowserTracker({
+      ...baseConfig,
+      environment: "production",
+      labels: { cluster: "eu-central", region: "eu" },
+    });
+    tracker.installSpaTracking();
+    await Promise.resolve();
+    await tracker.track("purchase", { amount: 12.99 });
+
+    const pageView = eventFromFetchCall(fetchMock, 0);
+    const tracked = eventFromFetchCall(fetchMock, 1);
+    expect(pageView.eventTypeSlug).toBe("page-view");
+    expect(pageView.labels).toEqual({ cluster: "eu-central", region: "eu", "custd.environment": "production" });
+    expect(tracked.eventTypeSlug).toBe("purchase");
+    expect(tracked.labels).toEqual({ cluster: "eu-central", region: "eu", "custd.environment": "production" });
+  });
+
+  it("keeps configured labels out of the envelope when none are configured", async () => {
+    const fetchMock = mockFetch();
+
+    const tracker = createBrowserTracker({ ...baseConfig, labels: {}, trackInitialPageView: false });
+    await tracker.track("purchase");
+
+    expect(eventFromFetch(fetchMock).labels).toBeUndefined();
+  });
+
+  it("rejects a configured label in the reserved namespace instead of spoofing the environment", async () => {
+    const fetchMock = mockFetch();
+
+    const tracker = createBrowserTracker({
+      ...baseConfig,
+      environment: "production",
+      labels: { "custd.environment": "development" },
+      trackInitialPageView: false,
+    });
+
+    await expect(tracker.track("purchase")).rejects.toThrow(/labels\.custd\.environment has an invalid key/u);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("snapshots configured labels so a later caller mutation does not reach the event", async () => {
+    const fetchMock = mockFetch();
+    const labels: Record<string, string> = { cluster: "eu-central" };
+
+    const tracker = createBrowserTracker({ ...baseConfig, labels, trackInitialPageView: false });
+    labels.cluster = "us-east";
+    labels.region = "us";
+    await tracker.trackPageView();
+
+    expect(eventFromFetch(fetchMock).labels).toEqual({ cluster: "eu-central" });
+  });
+
   it("sends cookieless page views with empty browser identity fields", async () => {
     const fetchMock = mockFetch();
     document.title = "Start";

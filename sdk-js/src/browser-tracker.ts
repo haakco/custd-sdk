@@ -63,6 +63,14 @@ export type BrowserTrackerConfig = {
    * type, so a Site whose `page-view` schema is not `1.0.0` sets it here.
    */
   schemaVersion?: string;
+  /**
+   * Deployment labels sent with every tracked event, such as the cluster and
+   * region this build runs in. They are controlled deployment metadata, not
+   * visitor data: every key and value must already exist in the tenant's label
+   * catalogue, and the reserved `custd.` namespace stays with the SDK, so
+   * `custd.environment` still comes only from `environment`.
+   */
+  labels?: Record<string, string>;
   identityMode?: BrowserIdentityMode;
   consent?: "granted" | "required";
   batchSize?: number;
@@ -122,6 +130,8 @@ export function createBrowserTracker(config: BrowserTrackerConfig): BrowserTrack
 class DefaultBrowserTracker implements BrowserTracker {
   private readonly baseUrl: string;
   private readonly schemaVersion: string;
+  /** Configured deployment labels, copied so a later caller mutation cannot reach the queue. */
+  private readonly labels: Record<string, string>;
   private readonly config: BrowserTrackerConfig;
   private readonly queueStorage: QueueStorage;
   private readonly retry: Required<RetryOptions>;
@@ -140,6 +150,7 @@ class DefaultBrowserTracker implements BrowserTracker {
     this.config = config;
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
     this.schemaVersion = resolveSchemaVersion(config.schemaVersion);
+    this.labels = { ...(config.labels ?? {}) };
     this.queueStorage = config.queueStorage ?? browserQueueStorage(config.siteUuid, config.persistentQueue === true);
     this.retry = normalizeRetryOptions(config.retry);
     this.maxQueueSize = config.maxQueueSize ?? 1000;
@@ -283,7 +294,7 @@ class DefaultBrowserTracker implements BrowserTracker {
 
   private buildEvent(eventTypeSlug: string, payload: Record<string, unknown>): EventEnvelope {
     const identity = this.identityFields();
-    const event = {
+    const event: EventEnvelope = {
       eventTypeSlug,
       schemaVersion: this.schemaVersion,
       timestamp: new Date().toISOString(),
@@ -294,6 +305,9 @@ class DefaultBrowserTracker implements BrowserTracker {
         ...payload,
       },
     };
+    if (Object.keys(this.labels).length > 0) {
+      event.labels = { ...this.labels };
+    }
     const mode = this.config.identityMode === "extended" ? "producer" : "browser-cookieless";
     const prepared = prepareEvent(event, { mode });
     validateBrowserEvent(prepared);
