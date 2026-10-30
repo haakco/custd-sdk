@@ -258,7 +258,7 @@ final class AdminClientTest extends TestCase
         $responses = [
             [
                 "status" => 201,
-                "body" => '{"siteUuid":"site-123","companySlug":"acme","name":"Docs","identityMode":"cookieless","allowedOrigins":["https://example.com"],"rateLimitPerMinute":600,"retentionDays":365,"writeKey":"site_pk_test"}',
+                "body" => '{"siteUuid":"site-123","companySlug":"acme","name":"Docs","identityMode":"cookieless","allowedOrigins":["https://example.com"],"rateLimitPerMinute":600,"retentionDays":365,"ingestTarget":{"scopeUuid":"11111111-1111-4111-8111-111111111111","resourceUuid":"22222222-2222-4222-8222-222222222222","scopeCode":"acme-store","resourceCode":"srv-01"},"writeKey":"site_pk_test"}',
             ],
             ["status" => 200, "body" => '{"writeKey":"site_pk_next"}'],
         ];
@@ -275,10 +275,16 @@ final class AdminClientTest extends TestCase
             "name" => "Docs",
             "identityMode" => "cookieless",
             "allowedOrigins" => ["https://example.com"],
+            "ingestTarget" => [
+                "scopeUuid" => "11111111-1111-4111-8111-111111111111",
+                "resourceUuid" => "22222222-2222-4222-8222-222222222222",
+            ],
         ]);
         $rotated = $client->adminSites()->rotateWriteKey("site-123");
 
         $this->assertSame("site_pk_test", $created["writeKey"]);
+        $this->assertSame("srv-01", $created["ingestTarget"]["resourceCode"]);
+        $this->assertSame("22222222-2222-4222-8222-222222222222", $calls[0]["body"]["ingestTarget"]["resourceUuid"]);
         $this->assertSame("site_pk_next", $rotated["writeKey"]);
         $this->assertSame("http://localhost:8080/api/v1/admin/sites", $calls[0]["url"]);
     }
@@ -294,6 +300,12 @@ final class AdminClientTest extends TestCase
             "rateLimitPerMinute" => 600,
             "retentionDays" => 365,
             "enabled" => true,
+            "ingestTarget" => [
+                "scopeUuid" => "11111111-1111-4111-8111-111111111111",
+                "resourceUuid" => "22222222-2222-4222-8222-222222222222",
+                "scopeCode" => "acme-store",
+                "resourceCode" => "srv-01",
+            ],
             "writeKey" => "site_pk_should_not_leak",
         ];
         $responses = [
@@ -315,6 +327,7 @@ final class AdminClientTest extends TestCase
 
         $this->assertArrayNotHasKey("writeKey", $listed["sites"][0]);
         $this->assertArrayNotHasKey("writeKey", $got);
+        $this->assertSame("acme-store", $got["ingestTarget"]["scopeCode"]);
         $this->assertSame([
             ["GET", "http://localhost:8080/api/v1/admin/sites"],
             ["GET", "http://localhost:8080/api/v1/admin/sites/site-123"],

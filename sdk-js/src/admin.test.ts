@@ -132,6 +132,12 @@ describe("CustdClient admin", () => {
             rateLimitPerMinute: 600,
             retentionDays: 365,
             enabled: true,
+            ingestTarget: {
+              scopeUuid: "11111111-1111-4111-8111-111111111111",
+              resourceUuid: "22222222-2222-4222-8222-222222222222",
+              scopeCode: "acme-store",
+              resourceCode: "srv-01",
+            },
             writeKey: "site_pk_test",
           }),
           { status: 201, headers: { "Content-Type": "application/json" } },
@@ -151,12 +157,21 @@ describe("CustdClient admin", () => {
       name: "Docs",
       identityMode: "cookieless",
       allowedOrigins: ["https://example.com"],
+      ingestTarget: {
+        scopeUuid: "11111111-1111-4111-8111-111111111111",
+        resourceUuid: "22222222-2222-4222-8222-222222222222",
+      },
     });
     const rotated = await client.admin.sites.rotateWriteKey("site-123");
 
     expect(created.writeKey).toBe("site_pk_test");
+    expect(created.ingestTarget?.resourceCode).toBe("srv-01");
     expect(rotated.writeKey).toBe("site_pk_next");
     expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:8080/api/v1/admin/sites");
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).ingestTarget).toEqual({
+      scopeUuid: "11111111-1111-4111-8111-111111111111",
+      resourceUuid: "22222222-2222-4222-8222-222222222222",
+    });
     expect(fetchMock.mock.calls[1][0]).toBe("http://localhost:8080/api/v1/admin/sites/site-123/rotate-write-key");
   });
 
@@ -170,6 +185,12 @@ describe("CustdClient admin", () => {
       rateLimitPerMinute: 600,
       retentionDays: 365,
       enabled: true,
+      ingestTarget: {
+        scopeUuid: "11111111-1111-4111-8111-111111111111",
+        resourceUuid: "22222222-2222-4222-8222-222222222222",
+        scopeCode: "acme-store",
+        resourceCode: "srv-01",
+      },
       writeKey: "site_pk_should_not_leak",
     };
     const fetchMock = vi
@@ -196,6 +217,7 @@ describe("CustdClient admin", () => {
 
     expect(listed.sites[0]).not.toHaveProperty("writeKey");
     expect(got).not.toHaveProperty("writeKey");
+    expect(got.ingestTarget?.scopeCode).toBe("acme-store");
     expect(fetchMock.mock.calls.map((call) => [call[0], call[1]?.method])).toEqual([
       ["http://localhost:8080/api/v1/admin/sites", "GET"],
       ["http://localhost:8080/api/v1/admin/sites/site-123", "GET"],

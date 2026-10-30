@@ -397,6 +397,17 @@ export type AdminOAuthClientListResponse = {
 export type AdminOAuthClientSecretResponse = {
     clientSecret: string;
 };
+/**
+ * The one data destination a browser site writes to. `scopeCode` and
+ * `resourceCode` are resolved by the server and read back for display; they are
+ * ignored on input.
+ */
+export type AdminSiteIngestTarget = {
+    scopeUuid: string;
+    resourceUuid: string;
+    scopeCode?: string;
+    resourceCode?: string;
+};
 export type AdminSiteCreate = {
     companySlug: string;
     name: string;
@@ -404,6 +415,8 @@ export type AdminSiteCreate = {
     allowedOrigins: string[];
     rateLimitPerMinute?: number;
     retentionDays?: number;
+    /** Required: a site whose write key cannot write anywhere is not a usable setup. */
+    ingestTarget: AdminSiteIngestTarget;
 };
 export type AdminSite = {
     siteUuid: string;
@@ -414,6 +427,8 @@ export type AdminSite = {
     rateLimitPerMinute: number;
     retentionDays: number;
     enabled: boolean;
+    /** Absent for a site created before destinations existed. */
+    ingestTarget?: AdminSiteIngestTarget;
 };
 export type AdminSiteCreateResponse = AdminSite & {
     writeKey: string;

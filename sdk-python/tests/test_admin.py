@@ -241,6 +241,12 @@ class AdminClientTest(unittest.TestCase):
                     "allowedOrigins": ["https://example.com"],
                     "rateLimitPerMinute": 600,
                     "retentionDays": 365,
+                    "ingestTarget": {
+                        "scopeUuid": "11111111-1111-4111-8111-111111111111",
+                        "resourceUuid": "22222222-2222-4222-8222-222222222222",
+                        "scopeCode": "acme-store",
+                        "resourceCode": "srv-01",
+                    },
                     "writeKey": "site_pk_test",
                 },
             },
@@ -253,10 +259,19 @@ class AdminClientTest(unittest.TestCase):
             "name": "Docs",
             "identityMode": "cookieless",
             "allowedOrigins": ["https://example.com"],
+            "ingestTarget": {
+                "scopeUuid": "11111111-1111-4111-8111-111111111111",
+                "resourceUuid": "22222222-2222-4222-8222-222222222222",
+            },
         })
         rotated = client.admin.sites.rotate_write_key("site-123")
 
         self.assertEqual("site_pk_test", created["writeKey"])
+        self.assertEqual("srv-01", created["ingestTarget"]["resourceCode"])
+        self.assertEqual(
+            "22222222-2222-4222-8222-222222222222",
+            transport.calls[0]["payload"]["ingestTarget"]["resourceUuid"],
+        )
         self.assertEqual("site_pk_next", rotated["writeKey"])
         self.assertEqual("http://localhost:8080/api/v1/admin/sites", transport.calls[0]["url"])
 
@@ -270,6 +285,12 @@ class AdminClientTest(unittest.TestCase):
             "rateLimitPerMinute": 600,
             "retentionDays": 365,
             "enabled": True,
+            "ingestTarget": {
+                "scopeUuid": "11111111-1111-4111-8111-111111111111",
+                "resourceUuid": "22222222-2222-4222-8222-222222222222",
+                "scopeCode": "acme-store",
+                "resourceCode": "srv-01",
+            },
             "writeKey": "site_pk_should_not_leak",
         }
         transport = CapturingAdminTransport([
@@ -285,6 +306,7 @@ class AdminClientTest(unittest.TestCase):
 
         self.assertNotIn("writeKey", listed["sites"][0])
         self.assertNotIn("writeKey", got)
+        self.assertEqual("acme-store", got["ingestTarget"]["scopeCode"])
         self.assertEqual([
             ("GET", "http://localhost:8080/api/v1/admin/sites"),
             ("GET", "http://localhost:8080/api/v1/admin/sites/site-123"),
