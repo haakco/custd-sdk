@@ -1,5 +1,6 @@
 import { applyEnvironmentLabel, LocalStorageQueueStorage, MemoryQueueStorage, normalizeRetryOptions, prepareEvent, RetryableError, validateBrowserEvent, withRetry, } from "./index.js";
 const defaultSchemaVersion = "1.0.0";
+const schemaVersionPattern = /^[0-9]+\.[0-9]+\.[0-9]+$/u;
 const maxQueuedGlobalCalls = 1000;
 const redactedPathSegment = "[redacted]";
 const safePathSegment = /^[A-Za-z][A-Za-z0-9._~-]{0,63}$/u;
@@ -25,6 +26,7 @@ class DefaultBrowserTracker {
         this.popstateHandler = () => this.detachPathChange(() => this.trackPageView());
         this.config = config;
         this.baseUrl = config.baseUrl.replace(/\/$/, "");
+        this.schemaVersion = resolveSchemaVersion(config.schemaVersion);
         this.queueStorage = config.queueStorage ?? browserQueueStorage(config.siteUuid, config.persistentQueue === true);
         this.retry = normalizeRetryOptions(config.retry);
         this.maxQueueSize = config.maxQueueSize ?? 1000;
@@ -159,7 +161,7 @@ class DefaultBrowserTracker {
         const identity = this.identityFields();
         const event = {
             eventTypeSlug,
-            schemaVersion: defaultSchemaVersion,
+            schemaVersion: this.schemaVersion,
             timestamp: new Date().toISOString(),
             ...identity,
             context: browserContext(this.pageContext()),
@@ -491,6 +493,19 @@ function classifyBatchResults(events, results) {
         outcome.rejected.push(events[index]);
     });
     return outcome;
+}
+/**
+ * Resolve the declared schema version, refusing a malformed value at
+ * construction so it is never sent as an event the collector cannot match.
+ */
+function resolveSchemaVersion(value) {
+    if (value === undefined) {
+        return defaultSchemaVersion;
+    }
+    if (!schemaVersionPattern.test(value)) {
+        throw new Error(`custd: schemaVersion ${JSON.stringify(value)} must be a dotted numeric version such as "1.0.0"`);
+    }
+    return value;
 }
 function assertAllowedOrigin(config) {
     const allowedOrigins = config.allowedOrigins ?? [];

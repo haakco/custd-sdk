@@ -40,6 +40,12 @@ export type BrowserTrackerConfig = {
      */
     environment?: string;
     allowedOrigins?: string[];
+    /**
+     * The event schema version every tracked event declares, as the collector
+     * knows it. It must name a version the collector has enabled for the event
+     * type, so a Site whose `page-view` schema is not `1.0.0` sets it here.
+     */
+    schemaVersion?: string;
     identityMode?: BrowserIdentityMode;
     consent?: "granted" | "required";
     batchSize?: number;

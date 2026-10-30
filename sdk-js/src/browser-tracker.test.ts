@@ -61,6 +61,41 @@ describe("createBrowserTracker", () => {
     expect(sent.context.page?.title).toBe("Start");
   });
 
+  it("sends the default schema version for the automatic page view and track", async () => {
+    const fetchMock = mockFetch();
+
+    const tracker = createBrowserTracker(baseConfig);
+    tracker.installSpaTracking();
+    await Promise.resolve();
+    await tracker.track("purchase", { amount: 12.99 });
+
+    expect(eventFromFetchCall(fetchMock, 0).eventTypeSlug).toBe("page-view");
+    expect(eventFromFetchCall(fetchMock, 0).schemaVersion).toBe("1.0.0");
+    expect(eventFromFetchCall(fetchMock, 1).eventTypeSlug).toBe("purchase");
+    expect(eventFromFetchCall(fetchMock, 1).schemaVersion).toBe("1.0.0");
+  });
+
+  it("sends a configured schema version for the automatic page view and track", async () => {
+    const fetchMock = mockFetch();
+
+    const tracker = createBrowserTracker({ ...baseConfig, schemaVersion: "1.0.1" });
+    tracker.installSpaTracking();
+    await Promise.resolve();
+    await tracker.track("purchase", { amount: 12.99 });
+
+    expect(eventFromFetchCall(fetchMock, 0).eventTypeSlug).toBe("page-view");
+    expect(eventFromFetchCall(fetchMock, 0).schemaVersion).toBe("1.0.1");
+    expect(eventFromFetchCall(fetchMock, 1).eventTypeSlug).toBe("purchase");
+    expect(eventFromFetchCall(fetchMock, 1).schemaVersion).toBe("1.0.1");
+  });
+
+  it.each(["", "1.0", "v1.0.0", "1.0.0-beta", " 1.0.0", "1.0.0.0"])(
+    "refuses to construct with the malformed schema version %j",
+    (schemaVersion) => {
+      expect(() => createBrowserTracker({ ...baseConfig, schemaVersion })).toThrow(/schemaVersion/);
+    },
+  );
+
   it("keeps browser page context free of full URLs, referrers, queries, and identifiers", async () => {
     const fetchMock = mockFetch();
     document.title = "Course dashboard";

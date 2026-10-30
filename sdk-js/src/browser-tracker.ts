@@ -57,6 +57,12 @@ export type BrowserTrackerConfig = {
    */
   environment?: string;
   allowedOrigins?: string[];
+  /**
+   * The event schema version every tracked event declares, as the collector
+   * knows it. It must name a version the collector has enabled for the event
+   * type, so a Site whose `page-view` schema is not `1.0.0` sets it here.
+   */
+  schemaVersion?: string;
   identityMode?: BrowserIdentityMode;
   consent?: "granted" | "required";
   batchSize?: number;
@@ -97,6 +103,7 @@ export type BrowserSiteConfig = {
 };
 
 const defaultSchemaVersion = "1.0.0";
+const schemaVersionPattern = /^[0-9]+\.[0-9]+\.[0-9]+$/u;
 const maxQueuedGlobalCalls = 1000;
 const redactedPathSegment = "[redacted]";
 const safePathSegment = /^[A-Za-z][A-Za-z0-9._~-]{0,63}$/u;
@@ -114,6 +121,7 @@ export function createBrowserTracker(config: BrowserTrackerConfig): BrowserTrack
 
 class DefaultBrowserTracker implements BrowserTracker {
   private readonly baseUrl: string;
+  private readonly schemaVersion: string;
   private readonly config: BrowserTrackerConfig;
   private readonly queueStorage: QueueStorage;
   private readonly retry: Required<RetryOptions>;
@@ -131,6 +139,7 @@ class DefaultBrowserTracker implements BrowserTracker {
   constructor(config: BrowserTrackerConfig) {
     this.config = config;
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
+    this.schemaVersion = resolveSchemaVersion(config.schemaVersion);
     this.queueStorage = config.queueStorage ?? browserQueueStorage(config.siteUuid, config.persistentQueue === true);
     this.retry = normalizeRetryOptions(config.retry);
     this.maxQueueSize = config.maxQueueSize ?? 1000;
@@ -276,7 +285,7 @@ class DefaultBrowserTracker implements BrowserTracker {
     const identity = this.identityFields();
     const event = {
       eventTypeSlug,
-      schemaVersion: defaultSchemaVersion,
+      schemaVersion: this.schemaVersion,
       timestamp: new Date().toISOString(),
       ...identity,
       context: browserContext(this.pageContext()),
@@ -651,6 +660,20 @@ function classifyBatchResults(events: EventEnvelope[], results: CollectorBatchRe
     outcome.rejected.push(events[index]);
   });
   return outcome;
+}
+
+/**
+ * Resolve the declared schema version, refusing a malformed value at
+ * construction so it is never sent as an event the collector cannot match.
+ */
+function resolveSchemaVersion(value: string | undefined): string {
+  if (value === undefined) {
+    return defaultSchemaVersion;
+  }
+  if (!schemaVersionPattern.test(value)) {
+    throw new Error(`custd: schemaVersion ${JSON.stringify(value)} must be a dotted numeric version such as "1.0.0"`);
+  }
+  return value;
 }
 
 function assertAllowedOrigin(config: BrowserTrackerConfig): void {

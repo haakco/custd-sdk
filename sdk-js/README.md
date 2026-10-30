@@ -197,6 +197,13 @@ carrying a query or fragment, is replaced with the default sanitized path, and a
 provider that throws sends no page context rather than falling back to page
 content.
 
+Every tracked event declares a schema version, `1.0.0` by default. Pass
+`schemaVersion` when this Site's collector has a different version enabled: the
+collector accepts an event only under a version it has enabled for that event
+type, so the configured value and the collector's enabled schema version must
+match. A value that is not a dotted numeric version such as `1.0.1` is refused
+at construction instead of being sent.
+
 Automatic tracking calls, namely the initial page view, the history hooks,
 `popstate`, and background flushes, absorb their own failures so they never
 surface as unhandled rejections in the host page. Pass `onFailure` to observe
