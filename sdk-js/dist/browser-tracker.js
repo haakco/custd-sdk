@@ -27,6 +27,7 @@ class DefaultBrowserTracker {
         this.config = config;
         this.baseUrl = config.baseUrl.replace(/\/$/, "");
         this.schemaVersion = resolveSchemaVersion(config.schemaVersion);
+        this.labels = { ...(config.labels ?? {}) };
         this.queueStorage = config.queueStorage ?? browserQueueStorage(config.siteUuid, config.persistentQueue === true);
         this.retry = normalizeRetryOptions(config.retry);
         this.maxQueueSize = config.maxQueueSize ?? 1000;
@@ -170,6 +171,9 @@ class DefaultBrowserTracker {
                 ...payload,
             },
         };
+        if (Object.keys(this.labels).length > 0) {
+            event.labels = { ...this.labels };
+        }
         const mode = this.config.identityMode === "extended" ? "producer" : "browser-cookieless";
         const prepared = prepareEvent(event, { mode });
         validateBrowserEvent(prepared);
