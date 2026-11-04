@@ -61,6 +61,52 @@ final class EnvironmentDeclarationTest extends TestCase
         $client->ingestEvent($event);
 
         $this->assertSame(["custd.environment" => "preview-pr-9"], $sent()[0]["labels"]);
+        $this->assertArrayNotHasKey("environment", $sent()[0]);
+    }
+
+    /**
+     * Ingest rejects an envelope carrying `environment` as server-owned, so the
+     * batch path must strip the key it just turned into a label.
+     */
+    public function testBatchEnvelopeDropsTheRawEnvironmentKey(): void
+    {
+        $sent = [];
+        $client = new CustdClient("http://localhost:8080", "token", [
+            "batch" => ["max_batch_size" => 10],
+            "http_client" => function (string $url, array $payload, string $token) use (&$sent): array {
+                $sent[] = ["url" => $url, "payload" => $payload];
+                return ["status" => 202, "body" => '{"success":true}'];
+            },
+        ]);
+
+        $event = $this->event();
+        $event["environment"] = "preview-pr-9";
+        $client->track($event);
+        $client->flush();
+
+        $this->assertCount(1, $sent);
+        $this->assertSame("http://localhost:8080/api/v1/events/batch", $sent[0]["url"]);
+        $envelope = $sent[0]["payload"]["events"][0];
+        $this->assertSame(["custd.environment" => "preview-pr-9"], $envelope["labels"]);
+        $this->assertArrayNotHasKey("environment", $envelope);
+    }
+
+    public function testInvalidEventEnvironmentIsStillRefusedLocally(): void
+    {
+        [$client, $sent] = $this->client("development");
+        $event = $this->event();
+        $event["environment"] = "Production";
+
+        try {
+            $client->track($event);
+            $this->fail("invalid environment was accepted");
+        } catch (\InvalidArgumentException $error) {
+            $this->assertSame(
+                "custd: environment must be lowercase letters, digits and hyphens, at most 32 characters",
+                $error->getMessage()
+            );
+        }
+        $this->assertSame([], $sent());
     }
 
     public function testNoEnvironmentLabelWhenNothingDeclaresOne(): void

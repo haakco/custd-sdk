@@ -57,16 +57,12 @@ describe("createMobileEvent", () => {
     expect(() => createMobileEvent(input as never)).toThrow(error);
   });
 
-  it.each([
-    "token",
-    "authToken",
-    "idToken",
-    "oauthToken",
-    "refreshToken",
-    "refresh_token",
-  ])("rejects credential-shaped payload field %s", (field) => {
-    expect(() => createMobileEvent({ ...event, payload: { nested: { [field]: "must-not-persist" } } })).toThrow(
-      /sensitive field/i,
-    );
-  });
+  it.each(["token", "authToken", "idToken", "oauthToken", "refreshToken", "refresh_token"])(
+    "rejects credential-shaped payload field %s",
+    (field) => {
+      expect(() => createMobileEvent({ ...event, payload: { nested: { [field]: "must-not-persist" } } })).toThrow(
+        /sensitive field/i,
+      );
+    },
+  );
 });

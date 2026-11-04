@@ -170,9 +170,80 @@ tracker.installSpaTracking();
 ```
 
 `installSpaTracking()` sends an initial page view by default, tracks
-`pushState`, `replaceState`, and `popstate`, and is idempotent. Pass
+`pushState`, `replaceState`, and `popstate`, and is idempotent. It sends a page
+view only when the route path changes, so a history update that rewrites the
+query string alone does not count as a new page. Pass
 `trackInitialPageView: false` when the application already sends the first page
 view during hydration.
+
+By default a page view carries the sanitized `location.pathname` and
+`document.title`. Pass `pageContext` to send a route template instead of the
+address bar path and to omit the title, for example when a path segment or the
+title names a private tenant page:
+
+```ts
+const tracker = createBrowserTracker({
+  baseUrl: "https://custd.example.com",
+  siteUuid: "site-uuid",
+  writeKey: "site_pk_public_write_key",
+  allowedOrigins: ["https://www.example.com"],
+  pageContext: () => ({ path: "/companies/:companySlug/board" }),
+});
+```
+
+The provider receives the default `{ path, title }` and a field it leaves out is
+not sent. A `path` that is not a safe route path, such as a full URL or one
+carrying a query or fragment, is replaced with the default sanitized path, and a
+provider that throws sends no page context rather than falling back to page
+content.
+
+Every tracked event declares a schema version, `1.0.0` by default. Pass
+`schemaVersion` when this Site's collector has a different version enabled: the
+collector accepts an event only under a version it has enabled for that event
+type, so the configured value and the collector's enabled schema version must
+match. A value that is not a dotted numeric version such as `1.0.1` is refused
+at construction instead of being sent.
+
+Pass `labels` to stamp every tracked event, including the automatic page views,
+with controlled deployment metadata such as the cluster and region this build
+runs in:
+
+```ts
+const tracker = createBrowserTracker({
+  baseUrl: "https://custd.example.com",
+  siteUuid: "site-uuid",
+  writeKey: "site_pk_public_write_key",
+  allowedOrigins: ["https://www.example.com"],
+  environment: "production",
+  labels: { cluster: "eu-central", region: "eu" },
+});
+```
+
+These are deployment labels, not visitor data: use build-time configuration
+rather than anything derived from the person browsing. Every key and value must
+already exist in the tenant's label catalogue, and the reserved `custd.`
+namespace stays with the SDK, so `custd.environment` still comes only from
+`environment` and a configured label that tries to set it is rejected. The
+tracker copies the object at construction, so mutating it afterwards changes
+nothing. Without `labels` the envelope carries no labels of its own.
+
+Automatic tracking calls, namely the initial page view, the history hooks,
+`popstate`, and background flushes, absorb their own failures so they never
+surface as unhandled rejections in the host page. Pass `onFailure` to observe
+them as sanitized descriptions:
+
+```ts
+onFailure: (failure) => {
+  // { source: "page-view" | "flush", status?, rejectedEvents? }
+  report(failure);
+},
+```
+
+The collector answers a batch with one result per event. Events it rejects
+permanently are dropped instead of retried and are reported through `onFailure`
+as `rejectedEvents`; events that failed with a retryable status stay queued for
+the next flush. A batch answer that does not match the collector contract is not
+treated as delivered, so the queue keeps its events.
 
 Script-tag installs read `data-site-uuid` and `data-write-key`, then load site
 identity/origin config from `/api/v1/sites/{siteUuid}/config`. That platform

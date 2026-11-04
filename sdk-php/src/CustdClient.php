@@ -11,7 +11,7 @@ final class CustdClient
      * equals VERSION and scripts/bump-version.sh updates it, so a release cannot
      * leave it behind.
      */
-    public const VERSION = "3.34.0";
+    public const VERSION = "3.34.5";
 
     /** Product named in X-Custd-Sdk. The Laravel and WordPress wrappers override it. */
     public const PRODUCT = "php";
@@ -680,12 +680,18 @@ final class CustdClient
      * set is never overwritten. Runs after label validation because the label
      * key is reserved.
      *
+     * The `environment` key is dropped from the envelope on the way out: ingest
+     * treats the envelope field as server-owned and rejects the whole event
+     * with `environment is server-owned`, so the reserved label is the only way
+     * the declaration reaches Custd.
+     *
      * @param array<string, mixed> $event
      * @return array<string, mixed>
      */
     private static function applyEnvironmentLabel(array $event, string $clientEnvironment): array
     {
         $effective = (string) ($event["environment"] ?? "");
+        unset($event["environment"]);
         if ($effective === "") {
             $effective = $clientEnvironment;
         }
