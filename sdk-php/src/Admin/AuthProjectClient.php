@@ -128,11 +128,15 @@ final class AuthProjectClient
 
     private const REALM_MAX_KEY_LENGTH = 128;
 
+    /** @var string|callable():string Bearer token, or a provider run per request. */
+    private readonly mixed $token;
+
     public function __construct(
         private readonly string $baseUrl,
-        private readonly string $token,
+        string|callable $token,
         private readonly mixed $transport,
     ) {
+        $this->token = $token;
     }
 
     /** assertIdentityMode rejects an identity mode the service does not define. */

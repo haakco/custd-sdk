@@ -11,7 +11,7 @@ final class CustdClient
      * equals VERSION and scripts/bump-version.sh updates it, so a release cannot
      * leave it behind.
      */
-    public const VERSION = "3.35.0";
+    public const VERSION = "3.35.1";
 
     /** Product named in X-Custd-Sdk. The Laravel and WordPress wrappers override it. */
     public const PRODUCT = "php";
@@ -150,77 +150,77 @@ final class CustdClient
 
     public function adminTenants(): Admin\TenantClient
     {
-        return new Admin\TenantClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\TenantClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminOAuthClients(): Admin\OAuthClient
     {
-        return new Admin\OAuthClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\OAuthClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminSites(): Admin\SiteClient
     {
-        return new Admin\SiteClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\SiteClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminSchemas(): Admin\SchemaClient
     {
-        return new Admin\SchemaClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\SchemaClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminMeasurementProjects(): Admin\MeasurementProjectClient
     {
-        return new Admin\MeasurementProjectClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\MeasurementProjectClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminWorkflowTimings(): Admin\WorkflowTimingClient
     {
-        return new Admin\WorkflowTimingClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\WorkflowTimingClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminMeasurementPredictions(): Admin\PredictionClient
     {
-        return new Admin\PredictionClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\PredictionClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminTenantStorage(): Admin\TenantStorageClient
     {
-        return new Admin\TenantStorageClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\TenantStorageClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminSubjectExports(): Admin\SubjectExportClient
     {
-        return new Admin\SubjectExportClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\SubjectExportClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminPrivacyErasures(): Admin\PrivacyErasureClient
     {
-        return new Admin\PrivacyErasureClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\PrivacyErasureClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminRetention(): Admin\RetentionClient
     {
-        return new Admin\RetentionClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\RetentionClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminOffboarding(): Admin\OffboardingClient
     {
-        return new Admin\OffboardingClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\OffboardingClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminDataLabels(): Admin\DataLabelClient
     {
-        return new Admin\DataLabelClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\DataLabelClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminDataScopes(): Admin\DataScopeClient
     {
-        return new Admin\DataScopeClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\DataScopeClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminReportingPacks(): Admin\ReportingPackClient
     {
-        return new Admin\ReportingPackClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\ReportingPackClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     /**
@@ -244,22 +244,22 @@ final class CustdClient
 
     public function adminTimePlans(): Admin\TimePlanClient
     {
-        return new Admin\TimePlanClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\TimePlanClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminAudit(): Admin\AuditClient
     {
-        return new Admin\AuditClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\AuditClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminUsage(): Admin\UsageClient
     {
-        return new Admin\UsageClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\UsageClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminAuthProjects(): Admin\AuthProjectClient
     {
-        return new Admin\AuthProjectClient($this->baseUrl, $this->authToken(), $this->adminHttpClient);
+        return new Admin\AuthProjectClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function provisioning(): Provisioning\Client

@@ -30,11 +30,15 @@ final class ReportingPackClient
     /** @var callable|null */
     private $transport;
 
+    /** @var string|callable():string Bearer token, or a provider run per request. */
+    private readonly mixed $token;
+
     public function __construct(
         private readonly string $baseUrl,
-        private readonly string $token,
+        string|callable $token,
         ?callable $transport = null
     ) {
+        $this->token = $token;
         $this->transport = $transport;
     }
 

@@ -31,11 +31,15 @@ final class WorkflowTimingClient
     private const MAX_BATCH_FACTS = 10000;
     private const MAX_BATCH_BYTES = 1 << 20;
 
+    /** @var string|callable():string Bearer token, or a provider run per request. */
+    private readonly mixed $token;
+
     public function __construct(
         private readonly string $baseUrl,
-        private readonly string $token,
+        string|callable $token,
         private readonly mixed $transport,
     ) {
+        $this->token = $token;
     }
 
     /**
