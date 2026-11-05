@@ -11,11 +11,15 @@ namespace HaakCo\Custd\Admin;
  */
 final class SubjectExportClient
 {
+    /** @var string|callable():string Bearer token, or a provider run per request. */
+    private readonly mixed $token;
+
     public function __construct(
         private readonly string $baseUrl,
-        private readonly string $token,
+        string|callable $token,
         private readonly mixed $transport,
     ) {
+        $this->token = $token;
     }
 
     /**

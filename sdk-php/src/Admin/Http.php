@@ -12,6 +12,11 @@ final class Http
     private const MAX_BINARY_RESPONSE_BYTES = 64 * 1024 * 1024;
 
     /**
+     * @param string|callable():string $token A bearer token, or a provider that
+     *     returns one. A provider runs immediately before each request, so a
+     *     client held longer than the token lifespan sends a fresh token
+     *     instead of the one captured when it was constructed. A plain string
+     *     keeps its previous meaning.
      * @param callable|null $transport Receives method, URL, body, token and
      *     an optional array of extra request headers. Existing four-argument
      *     transports remain valid because PHP ignores extra callback
@@ -21,7 +26,7 @@ final class Http
      */
     public static function request(
         string $baseUrl,
-        string $token,
+        string|callable $token,
         ?callable $transport,
         string $method,
         string $path,
@@ -55,12 +60,14 @@ final class Http
      * DTOs use it so validation can still tell an empty `{}` collection from an
      * empty `[]` collection.
      *
+     * @param string|callable():string $token A bearer token or a token provider;
+     *     see {@see request}.
      * @param callable|null $transport
      * @param array<string, mixed>|null $body
      */
     public static function requestStructured(
         string $baseUrl,
-        string $token,
+        string|callable $token,
         ?callable $transport,
         string $method,
         string $path,
@@ -91,11 +98,12 @@ final class Http
      * and shape-preserving decoders. It returns the raw success body, or null for
      * an empty or 204 response.
      *
+     * @param string|callable():string $token
      * @param array<string, mixed>|null $body
      */
     private static function readBody(
         string $baseUrl,
-        string $token,
+        string|callable $token,
         ?callable $transport,
         string $method,
         string $path,
@@ -112,6 +120,7 @@ final class Http
         if ($owningUserUuid !== null && trim($owningUserUuid) !== "") {
             $headers["X-Custd-Owning-User-UUID"] = trim($owningUserUuid);
         }
+        $token = self::resolveToken($token);
         $result = $transport
             ? $transport($method, $url, $body, $token, $headers)
             : self::curlRequest($method, $url, $body, $token, $headers);
@@ -150,13 +159,15 @@ final class Http
     /**
      * Fetch an authenticated binary response without attempting JSON decoding.
      *
+     * @param string|callable():string $token A bearer token or a token provider;
+     *     see {@see request}.
      * @param callable|null $transport
      * @param array<string, mixed>|null $body
      * @return array{body:string, headers:array<string, string>}
      */
     public static function binaryRequest(
         string $baseUrl,
-        string $token,
+        string|callable $token,
         ?callable $transport,
         string $method,
         string $path,
@@ -164,6 +175,7 @@ final class Http
         string $prefix = "/api/v1/admin"
     ): array {
         $url = rtrim($baseUrl, "/") . $prefix . $path;
+        $token = self::resolveToken($token);
         $result = $transport
             ? $transport($method, $url, $body, $token)
             : self::curlBinaryRequest($method, $url, $body, $token);
@@ -218,6 +230,18 @@ final class Http
             return $problem->message();
         }
         return "admin request failed with status {$status}";
+    }
+
+    /**
+     * resolveToken reads a token provider immediately before a request is sent.
+     * The string check comes first so a plain-string token is never mistaken for
+     * a callable just because it matches a function name.
+     *
+     * @param string|callable():string $token
+     */
+    private static function resolveToken(string|callable $token): string
+    {
+        return is_string($token) ? $token : $token();
     }
 
     /**
