@@ -98,7 +98,10 @@ final class WorkflowTimingClientTest extends TestCase
     {
         $calls = [];
         $client = $this->client($calls, fn (): array => ['status' => 200, 'body' => json_encode(
-            ['results' => [], 'accepted' => 0, 'rejected' => 0, 'duplicates' => 0],
+            ['results' => array_map(static fn (int $index): array => [
+                'index' => $index, 'accepted' => true, 'duplicate' => false,
+                'workflowKey' => 'hosting.reconcile', 'externalRunId' => 'op-1', 'idempotencyKey' => 'k' . $index,
+            ], range(0, 3)), 'accepted' => 4, 'rejected' => 0, 'duplicates' => 0],
             JSON_THROW_ON_ERROR,
         )]);
 
@@ -140,7 +143,9 @@ final class WorkflowTimingClientTest extends TestCase
         $calls = [];
         $client = $this->client($calls, fn (): array => $this->ok('workflow-timing-batch-result-partial.json'));
 
-        $result = $client->adminWorkflowTimings()->appendBatch('acme', [
+        $result = $client->adminWorkflowTimings()->appendBatch('acme', array_fill(
+            0,
+            3,
             Observation::runStarted(
                 'hosting.reconcile',
                 'op-20260922-42',
@@ -148,7 +153,7 @@ final class WorkflowTimingClientTest extends TestCase
                 'k0',
                 'hosting-worker-7',
             ),
-        ]);
+        ));
 
         $this->assertSame(2, $result->accepted);
         $this->assertSame(1, $result->rejected);
@@ -161,6 +166,64 @@ final class WorkflowTimingClientTest extends TestCase
         $this->expectException(AdminWorkflowException::class);
         $this->expectExceptionMessageMatches('/1 of 3/');
         $result->requireAccepted();
+    }
+
+    public function testBatchSplitsByBytesAndKeepsGlobalResults(): void
+    {
+        $calls = [];
+        $client = $this->client($calls, function (array $payload): array {
+            $this->assertLessThanOrEqual(1 << 20, strlen(json_encode($payload, JSON_THROW_ON_ERROR)));
+            $results = array_map(static fn (int $index): array => [
+                'index' => $index, 'accepted' => $payload['observations'][$index]['idempotencyKey'] !== 'reject', 'duplicate' => false,
+                'workflowKey' => 'workflow', 'externalRunId' => 'run', 'idempotencyKey' => $payload['observations'][$index]['idempotencyKey'],
+            ], array_keys($payload['observations']));
+            $rejected = count(array_filter($results, static fn (array $item): bool => !$item['accepted']));
+            return ['status' => 200, 'body' => json_encode([
+                'results' => $results, 'accepted' => count($results) - $rejected, 'rejected' => $rejected, 'duplicates' => 0,
+            ], JSON_THROW_ON_ERROR)];
+        });
+        $observations = array_fill(0, 10001, Observation::runStarted(
+            'workflow',
+            str_repeat('r', 200),
+            '2026-09-22T10:00:00Z',
+            'key',
+            'collector',
+        ));
+        $observations[10000] = Observation::runStarted('workflow', 'run', '2026-09-22T10:00:00Z', 'reject', 'collector');
+        $result = $client->adminWorkflowTimings()->appendBatch('acme', $observations);
+        $this->assertGreaterThan(1, count($calls));
+        $this->assertSame(10000, $result->accepted);
+        $this->assertSame(1, $result->rejected);
+        $this->assertCount(10001, $result->results);
+        $this->assertSame(range(0, 10000), array_map(static fn ($item): int => $item->index, $result->results));
+        $this->expectException(AdminWorkflowException::class);
+        $result->requireAccepted();
+    }
+
+    public function testMissingBatchResultsDoNotReportSuccess(): void
+    {
+        $calls = [];
+        $client = $this->client($calls, fn (): array => ['status' => 200, 'body' => '{"results":[],"accepted":0,"rejected":0,"duplicates":0}']);
+        $this->expectException(\UnexpectedValueException::class);
+        $client->adminWorkflowTimings()->appendBatch('acme', [
+            Observation::runStarted('workflow', 'run', '2026-09-22T10:00:00Z', 'key', 'collector'),
+        ]);
+    }
+
+    public function testOversizedFactIsRejectedBeforeSendingAnyChunk(): void
+    {
+        $calls = [];
+        $client = $this->client($calls, fn (): array => ['status' => 200, 'body' => '{}']);
+        try {
+            $client->adminWorkflowTimings()->appendBatch('acme', [
+                Observation::runStarted('workflow', 'run', '2026-09-22T10:00:00Z', 'small', 'collector'),
+                Observation::runStarted('workflow', 'run', '2026-09-22T10:00:00Z', str_repeat('k', 1 << 20), 'collector'),
+            ]);
+            $this->fail('oversized fact was accepted');
+        } catch (\InvalidArgumentException $error) {
+            $this->assertStringContainsString('1 MiB', $error->getMessage());
+            $this->assertCount(0, $calls);
+        }
     }
 
     public function testConformanceReadsARunWithPendingFacts(): void
@@ -320,7 +383,7 @@ final class WorkflowTimingClientTest extends TestCase
         return new CustdClient('http://localhost:8080', 'admin-token', [
             'admin_http_client' => static function (string $method, string $url, ?array $payload) use (&$calls, $respond): array {
                 $calls[] = ['method' => $method, 'url' => $url, 'body' => $payload ?? []];
-                return $respond();
+                return $respond($payload);
             },
         ]);
     }

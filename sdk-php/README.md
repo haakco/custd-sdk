@@ -262,6 +262,21 @@ $client->adminSchemas()->createVersion("courib.delivery.created", [
 ]);
 ```
 
+## Workflow timing imports
+
+With a client configured for the Admin API and an authorized tenant credential:
+
+```php
+$result = $client->adminWorkflowTimings()->appendBatch('acme', $observations);
+$result->requireAccepted();
+```
+
+Pass the complete import, including histories larger than 512 facts. The SDK
+splits requests at 10,000 observations or 1 MiB of encoded JSON, whichever comes
+first, and keeps result indexes relative to the original input. Each chunk
+commits independently. If a request fails, replay with the same idempotency keys;
+do not regenerate keys or discard already-observed history.
+
 ## Declaring an environment
 
 One credential serves every environment, so sending from `dev`, a preview build,

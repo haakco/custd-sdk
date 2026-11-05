@@ -11,6 +11,7 @@ use HaakCo\Custd\Admin\WorkflowTiming\Definition;
 use HaakCo\Custd\Admin\WorkflowTiming\DurationHistory;
 use HaakCo\Custd\Admin\WorkflowTiming\Evaluation;
 use HaakCo\Custd\Admin\WorkflowTiming\Observation;
+use HaakCo\Custd\Admin\WorkflowTiming\ObservationResult;
 use HaakCo\Custd\Admin\WorkflowTiming\ObservedRun;
 use HaakCo\Custd\Admin\WorkflowTiming\ReconcileResult;
 use HaakCo\Custd\Admin\WorkflowTiming\RunPrediction;
@@ -27,6 +28,9 @@ use HaakCo\Custd\Admin\WorkflowTiming\WorkflowDeclaration;
  */
 final class WorkflowTimingClient
 {
+    private const MAX_BATCH_FACTS = 10000;
+    private const MAX_BATCH_BYTES = 1 << 20;
+
     /** @var string|callable():string Bearer token, or a provider run per request. */
     private readonly mixed $token;
 
@@ -90,13 +94,95 @@ final class WorkflowTimingClient
     }
 
     /**
-     * appendBatch records a bounded batch of facts. The server returns one result
-     * per input, so a partially applied batch is visible rather than mistaken for
-     * success.
+     * appendBatch splits imports into requests of at most 10,000 facts and 1 MiB
+     * of JSON. Results retain their original input indexes. Each request commits
+     * independently; after a transport error, replay the same idempotency keys.
+     * Call requireAccepted() to detect item rejections in every chunk.
      *
      * @param list<Observation> $observations
      */
     public function appendBatch(string $companySlug, array $observations): BatchResult
+    {
+        $chunks = $this->observationChunks($observations);
+        $results = [];
+        $accepted = $rejected = $duplicates = $offset = 0;
+        foreach ($chunks as $chunk) {
+            $batch = $this->appendChunk($companySlug, $chunk);
+            $this->validateBatchResult($batch, count($chunk));
+            foreach ($batch->results as $item) {
+                $results[] = new ObservationResult(
+                    $item->index + $offset,
+                    $item->accepted,
+                    $item->duplicate,
+                    $item->workflowKey,
+                    $item->externalRunId,
+                    $item->idempotencyKey,
+                    $item->runUuid,
+                    $item->factUuid,
+                    $item->errorCode,
+                    $item->errorMessage,
+                );
+            }
+            $accepted += $batch->accepted;
+            $rejected += $batch->rejected;
+            $duplicates += $batch->duplicates;
+            $offset += count($chunk);
+        }
+        return new BatchResult($results, $accepted, $rejected, $duplicates);
+    }
+
+    /** @param list<Observation> $observations
+     *  @return list<list<Observation>>
+     */
+    private function observationChunks(array $observations): array
+    {
+        if ($observations === []) {
+            throw new \InvalidArgumentException('custd: at least one workflow timing observation is required');
+        }
+        $envelopeBytes = strlen('{"observations":[]}');
+        $chunks = [];
+        $start = 0;
+        $size = $envelopeBytes;
+        foreach ($observations as $index => $observation) {
+            $itemBytes = strlen(json_encode($observation->toPayload(), JSON_THROW_ON_ERROR)) + 1;
+            if ($envelopeBytes + $itemBytes > self::MAX_BATCH_BYTES) {
+                throw new \InvalidArgumentException("custd: workflow timing observation {$index} exceeds the 1 MiB request limit");
+            }
+            if ($size + $itemBytes > self::MAX_BATCH_BYTES || $index - $start === self::MAX_BATCH_FACTS) {
+                $chunks[] = array_slice($observations, $start, $index - $start);
+                $start = $index;
+                $size = $envelopeBytes;
+            }
+            $size += $itemBytes;
+        }
+        $chunks[] = array_slice($observations, $start);
+        return $chunks;
+    }
+
+    private function validateBatchResult(BatchResult $batch, int $count): void
+    {
+        $accepted = $rejected = $duplicates = 0;
+        foreach ($batch->results as $index => $item) {
+            if ($item->index !== $index) {
+                throw new \UnexpectedValueException('custd: workflow timing response has invalid item indexes');
+            }
+            if ($item->accepted) {
+                $accepted++;
+            } else {
+                $rejected++;
+            }
+            if ($item->duplicate) {
+                $duplicates++;
+            }
+        }
+        if (count($batch->results) !== $count || $batch->accepted !== $accepted
+            || $batch->rejected !== $rejected || $batch->duplicates !== $duplicates) {
+            throw new \UnexpectedValueException('custd: workflow timing response does not account for every input; replay with the same idempotency keys');
+        }
+    }
+
+    /** @param list<Observation> $observations */
+    private function appendChunk(string $companySlug, array $observations): BatchResult
     {
         $path = $this->collection('/observations:batch', $companySlug);
         return BatchResult::fromPayload(
