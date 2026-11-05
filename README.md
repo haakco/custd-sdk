@@ -90,6 +90,22 @@ unchanged; the SDK never substitutes its own confidence heuristic.
 An over-long, reversed, or malformed range is rejected locally before a request
 is sent.
 
+## External application admission (Go)
+
+The Go SDK exposes tenant-scoped external application review through
+`client.Admin.OAuthClientAdmissions.List`, `Review`, `Approve`, and `Revoke`.
+These methods use the existing authenticated admin transport and named
+`AdminOAuthClientAdmission*` request/response types. A current human tenant
+administrator reviews the application metadata, redirects and requested grants;
+public metadata alone never grants access.
+
+Approval must use the client ID, admission revision, security revision and grants
+from the snapshot the administrator reviewed. The SDK sends that snapshot without
+fetching or approving a changed request behind the caller's back. A conflict is
+returned as the existing typed SDK error: review again before approving. Revocation
+blocks new grants and refreshes; an access token already issued remains valid
+until its expiry. The API enforces current company membership and tenant scope.
+
 ## Validation
 
 CI runs on `main` pushes and pull requests. A newer revision cancels older
