@@ -6,7 +6,9 @@ namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\AdminProblemException;
 use HaakCo\Custd\Admin\SiteDomain\CreateSiteDomainRequest;
+use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingState;
+use HaakCo\Custd\Admin\SiteDomain\SiteUptimeStatus;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use HaakCo\Custd\CustdClient;
 use PHPUnit\Framework\TestCase;
@@ -62,6 +64,27 @@ final class SiteDomainClientTest extends TestCase
         self::assertNull($finding->history->fixedAt);
     }
 
+    public function testCheckModeAndIncidentsSendTheirRoutesAndDecode(): void
+    {
+        $calls = [];
+        $domains = $this->client($calls)->adminSiteDomains();
+
+        $domain = $domains->setCheckMode("d-1", SiteCheckMode::Paused, "acme");
+        self::assertSame(["mode" => "paused"], $calls[0]["body"]);
+        self::assertSame(SiteCheckMode::Warm, $domain->checks->mode);
+        self::assertSame(SiteUptimeStatus::Down, $domain->checks->uptime->status);
+        self::assertSame(820, $domain->checks->warming->unwarmedResponseMs);
+        self::assertNull($domain->checks->warming->warmedResponseMs);
+        self::assertSame(2, $domain->checks->openIncident?->failedChecks);
+
+        $incident = $domains->listIncidents("d-1")->incidents[0];
+        self::assertSame("2026-11-12T10:20:00Z", $incident->resolvedAt);
+        self::assertSame(
+            ["PUT " . self::BASE . "/d-1/checks?companySlug=acme", "GET " . self::BASE . "/d-1/incidents"],
+            array_map(fn (array $call): string => $call["method"] . " " . $call["url"], $calls),
+        );
+    }
+
     public function testAuditOfUnverifiedDomainThrowsTypedProblem(): void
     {
         $transport = fn (): array => ["status" => 409, "body" => json_encode([
@@ -108,8 +131,34 @@ final class SiteDomainClientTest extends TestCase
                     "pagesChecked" => 4, "requests" => 9, "truncated" => false,
                 ],
             ],
+            "checks" => [
+                "mode" => "warm",
+                "uptime" => [
+                    "status" => "down", "statusCode" => 503, "responseMs" => 120,
+                    "lastFailure" => "HTTP 503", "consecutiveFailures" => 2,
+                ],
+                "tls" => ["validTo" => "2027-01-30T00:00:00Z", "issuer" => "R11"],
+                "warming" => ["unwarmedResponseMs" => 820],
+                "openIncident" => $this->incident(null),
+            ],
             "createdAt" => "2026-11-09T08:00:00Z",
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function incident(?string $resolvedAt): array
+    {
+        $incident = [
+            "incidentUuid" => "i-1",
+            "startedAt" => "2026-11-12T10:00:00Z",
+            "openedAt" => "2026-11-12T10:05:00Z",
+            "cause" => "HTTP 503",
+            "failedChecks" => 2,
+        ];
+
+        return $resolvedAt === null ? $incident : $incident + ["resolvedAt" => $resolvedAt];
     }
 
     /**
@@ -143,7 +192,8 @@ final class SiteDomainClientTest extends TestCase
     {
         $domain = $this->domain();
         $finding = $this->finding();
-        $transport = function (string $method, string $url, ?array $body) use (&$calls, $domain, $finding): array {
+        $incident = $this->incident("2026-11-12T10:20:00Z");
+        $transport = function (string $method, string $url, ?array $body) use (&$calls, $domain, $finding, $incident): array {
             $calls[] = compact("method", "url", "body");
             $path = (string) parse_url($url, PHP_URL_PATH);
             if ($method === "DELETE") {
@@ -151,6 +201,7 @@ final class SiteDomainClientTest extends TestCase
             }
             $payload = match (true) {
                 str_ends_with($path, "/findings") => ["findings" => [$finding]],
+                str_ends_with($path, "/incidents") => ["incidents" => [$incident]],
                 $method === "GET" && str_ends_with($path, "/site-domains") => ["domains" => [$domain]],
                 default => $domain,
             };

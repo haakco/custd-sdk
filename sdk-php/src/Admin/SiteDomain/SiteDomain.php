@@ -8,7 +8,8 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteDomain is a host a site has claimed, whether its tenant has proven
- * control, and its latest audit. Only a verified domain is audited.
+ * control, its latest audit and its uptime, certificate and warming checks. Only
+ * a verified domain is audited or checked.
  */
 final readonly class SiteDomain
 {
@@ -18,6 +19,7 @@ final readonly class SiteDomain
         public string $host,
         public SiteDomainOwnership $ownership,
         public SiteDomainAudit $audit,
+        public SiteDomainChecks $checks,
         public string $createdAt,
     ) {
     }
@@ -30,6 +32,7 @@ final readonly class SiteDomain
             Fields::string($payload, 'host'),
             SiteDomainOwnership::fromPayload(Fields::object($payload, 'ownership')),
             SiteDomainAudit::fromPayload(Fields::object($payload, 'audit')),
+            SiteDomainChecks::fromPayload(Fields::object($payload, 'checks')),
             Fields::string($payload, 'createdAt'),
         );
     }

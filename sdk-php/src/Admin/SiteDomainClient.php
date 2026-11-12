@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin;
 
 use HaakCo\Custd\Admin\SiteDomain\CreateSiteDomainRequest;
+use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
 use HaakCo\Custd\Admin\SiteDomain\SiteDomain;
 use HaakCo\Custd\Admin\SiteDomain\SiteDomainList;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingList;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingState;
+use HaakCo\Custd\Admin\SiteDomain\SiteIncidentList;
 use HaakCo\Custd\Fields;
 
 /**
@@ -92,6 +94,25 @@ final class SiteDomainClient
 
         return SiteFindingList::fromPayload(
             $this->send('GET', self::item($domainUuid) . '/findings', $query, $companySlug)
+        );
+    }
+
+    /**
+     * Choose how a domain is checked. It works before verification too, so a
+     * consumer can pause a domain before its first check.
+     */
+    public function setCheckMode(string $domainUuid, SiteCheckMode $mode, ?string $companySlug = null): SiteDomain
+    {
+        return SiteDomain::fromPayload(
+            $this->send('PUT', self::item($domainUuid) . '/checks', [], $companySlug, ['mode' => $mode->value])
+        );
+    }
+
+    /** List a domain's recent outages, newest first (at most twenty). */
+    public function listIncidents(string $domainUuid, ?string $companySlug = null): SiteIncidentList
+    {
+        return SiteIncidentList::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/incidents', [], $companySlug)
         );
     }
 

@@ -252,6 +252,13 @@ throws `AdminProblemException` whose `problem->code` is
 `SiteDomainClient::NOT_VERIFIED_CODE`. A system administrator passes the tenant
 as the optional `$companySlug` argument.
 
+Each domain also carries `checks`: its uptime status, last check, certificate
+expiry and warming measurements, and any open outage. `setCheckMode()` takes
+`SiteCheckMode::Uptime` (the default), `SiteCheckMode::Warm` (adds one home page
+GET a minute) or `SiteCheckMode::Paused` (no requests at all; set it when you
+stop a site, so nothing wakes it). `listIncidents()` returns the domain's recent
+outages.
+
 ## Schema Admin Helpers
 
 Use `$client->adminSchemas()` from setup code:
