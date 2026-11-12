@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin;
 
 use HaakCo\Custd\Admin\SiteDomain\CreateSiteDomainRequest;
+use HaakCo\Custd\Admin\SiteDomain\SiteAlertDestination;
 use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
 use HaakCo\Custd\Admin\SiteDomain\SiteDomain;
 use HaakCo\Custd\Admin\SiteDomain\SiteDomainList;
@@ -58,9 +59,9 @@ final class SiteDomainClient
      */
     public function list(?string $siteUuid = null, ?string $companySlug = null): SiteDomainList
     {
-        $query = $siteUuid === null || $siteUuid === '' ? [] : ['siteUuid' => $siteUuid];
-
-        return SiteDomainList::fromPayload($this->send('GET', self::COLLECTION, $query, $companySlug));
+        return SiteDomainList::fromPayload(
+            $this->send('GET', self::COLLECTION, self::siteQuery($siteUuid), $companySlug)
+        );
     }
 
     public function get(string $domainUuid, ?string $companySlug = null): SiteDomain
@@ -109,6 +110,41 @@ final class SiteDomainClient
         return SiteDomain::fromPayload(
             $this->send('PUT', self::item($domainUuid) . '/checks', [], $companySlug, ['mode' => $mode->value])
         );
+    }
+
+    /**
+     * Read where a Site's finding and outage alerts go. A site-bound credential may pass null for
+     * its own Site.
+     */
+    public function getAlertDestination(?string $siteUuid = null, ?string $companySlug = null): SiteAlertDestination
+    {
+        return SiteAlertDestination::fromPayload(
+            $this->send('GET', self::COLLECTION . '/alert-destination', self::siteQuery($siteUuid), $companySlug)
+        );
+    }
+
+    /**
+     * Email a Site's finding and outage alerts to $emailRecipient instead of the tenant's
+     * destinations, so a reseller can alert its customer; null sends them back to the tenant's.
+     */
+    public function setAlertDestination(
+        ?string $siteUuid,
+        ?string $emailRecipient,
+        ?string $companySlug = null
+    ): SiteAlertDestination {
+        return SiteAlertDestination::fromPayload($this->send(
+            'PUT',
+            self::COLLECTION . '/alert-destination',
+            self::siteQuery($siteUuid),
+            $companySlug,
+            ['emailRecipient' => $emailRecipient ?? '']
+        ));
+    }
+
+    /** @return array<string, string> */
+    private static function siteQuery(?string $siteUuid): array
+    {
+        return $siteUuid === null || $siteUuid === '' ? [] : ['siteUuid' => $siteUuid];
     }
 
     /** List a domain's recent outages, newest first (at most twenty). */

@@ -282,6 +282,12 @@ its domains. A tenant administrator can instead bind a credential to an existing
 Site with `adminOAuthClients()->create([... 'purposeProfile' =>
 OAuthClient::PURPOSE_SITE_INSIGHTS, 'siteUuid' => $siteUuid])`.
 
+A reseller that keeps its customers' Sites in its own tenant sends one Site's
+finding and outage alerts to the customer with
+`setAlertDestination($siteUuid, 'owner@customer.example')` (a site-bound
+credential passes `null` for its own Site); `setAlertDestination($siteUuid, null)`
+sends them back to the tenant's destinations, and `getAlertDestination()` reads it.
+
 ## Schema Admin Helpers
 
 Use `$client->adminSchemas()` from setup code:

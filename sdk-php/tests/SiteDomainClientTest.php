@@ -58,6 +58,28 @@ final class SiteDomainClientTest extends TestCase
         self::assertSame("GET " . self::BASE, $calls[1]["method"] . " " . $calls[1]["url"]);
     }
 
+    /** A reseller emails one Site's alerts to its customer, and clears it again. */
+    public function testSiteAlertDestinationRoutes(): void
+    {
+        $calls = [];
+        $domains = $this->client($calls)->adminSiteDomains();
+
+        $domains->setAlertDestination("s-1", "owner@customer.example");
+        $domains->setAlertDestination(null, null);
+        $domains->getAlertDestination();
+
+        self::assertSame(["emailRecipient" => "owner@customer.example"], $calls[0]["body"]);
+        self::assertSame(["emailRecipient" => ""], $calls[1]["body"]);
+        self::assertSame(
+            [
+                "PUT " . self::BASE . "/alert-destination?siteUuid=s-1",
+                "PUT " . self::BASE . "/alert-destination",
+                "GET " . self::BASE . "/alert-destination",
+            ],
+            array_map(fn (array $call): string => $call["method"] . " " . $call["url"], $calls),
+        );
+    }
+
     public function testResponsesDecodeIntoTypedDtos(): void
     {
         $calls = [];
@@ -213,6 +235,7 @@ final class SiteDomainClientTest extends TestCase
                 return ["status" => 204, "body" => ""];
             }
             $payload = match (true) {
+                str_ends_with($path, "/alert-destination") => ["siteUuid" => "s-1"],
                 str_ends_with($path, "/findings") => ["findings" => [$finding]],
                 str_ends_with($path, "/incidents") => ["incidents" => [$incident]],
                 $method === "GET" && str_ends_with($path, "/site-domains") => ["domains" => [$domain]],
