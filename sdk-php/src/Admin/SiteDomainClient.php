@@ -12,6 +12,10 @@ use HaakCo\Custd\Admin\SiteDomain\SiteDomainList;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingList;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingState;
 use HaakCo\Custd\Admin\SiteDomain\SiteIncidentList;
+use HaakCo\Custd\Admin\SiteDomain\SiteSearchAccount;
+use HaakCo\Custd\Admin\SiteDomain\SiteSearchConnection;
+use HaakCo\Custd\Admin\SiteDomain\SiteSearchPerformance;
+use HaakCo\Custd\Admin\SiteDomain\SiteSearchProvider;
 use HaakCo\Custd\Fields;
 
 /**
@@ -26,6 +30,12 @@ final class SiteDomainClient
 {
     /** The problem code of the 409 returned when an unverified domain is asked for an audit. */
     public const NOT_VERIFIED_CODE = 'site_domain_not_verified';
+
+    /** The problem code of the 409 returned when this deployment has no account or key for a search provider. */
+    public const SEARCH_NOT_CONFIGURED_CODE = 'site_search_not_configured';
+
+    /** The problem code of the 404 returned when disconnecting a provider the domain is not connected to. */
+    public const SEARCH_CONNECTION_NOT_FOUND_CODE = 'site_search_connection_not_found';
 
     private const PREFIX = '/api/v1';
     private const COLLECTION = '/site-domains';
@@ -155,6 +165,70 @@ final class SiteDomainClient
         );
     }
 
+    /** Read which search providers this deployment can import from, and the Google service account to add. */
+    public function getSearchAccount(?string $companySlug = null): SiteSearchAccount
+    {
+        return SiteSearchAccount::fromPayload(
+            $this->send('GET', self::COLLECTION . '/search-account', [], $companySlug)
+        );
+    }
+
+    /** Read a domain's imported search numbers over the last $days days (1..90); null lets the server default to 28. */
+    public function getSearchPerformance(
+        string $domainUuid,
+        ?int $days = null,
+        ?string $companySlug = null,
+    ): SiteSearchPerformance {
+        $query = $days === null ? [] : ['days' => (string) $days];
+
+        return SiteSearchPerformance::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/search', $query, $companySlug)
+        );
+    }
+
+    /**
+     * Connect a domain to a search provider, or replace its property or key. $property is
+     * "sc-domain:example.com" or a URL prefix for Google, and a URL prefix ending in "/" for Bing.
+     * $apiKey is Bing only, write-only and never returned. A deployment without an account or key
+     * for the provider throws AdminProblemException with {@see self::SEARCH_NOT_CONFIGURED_CODE}.
+     */
+    public function connectSearch(
+        string $domainUuid,
+        SiteSearchProvider $provider,
+        string $property,
+        #[\SensitiveParameter] ?string $apiKey = null,
+        ?string $companySlug = null,
+    ): SiteSearchConnection {
+        $body = ['property' => $property];
+        if ($apiKey !== null && $apiKey !== '') {
+            $body['apiKey'] = $apiKey;
+        }
+
+        return SiteSearchConnection::fromPayload(
+            $this->send('PUT', self::searchConnection($domainUuid, $provider), [], $companySlug, $body)
+        );
+    }
+
+    /**
+     * Remove a provider connection and the numbers imported through it. A provider that is not
+     * connected throws AdminProblemException with {@see self::SEARCH_CONNECTION_NOT_FOUND_CODE}.
+     */
+    public function disconnectSearch(
+        string $domainUuid,
+        SiteSearchProvider $provider,
+        ?string $companySlug = null,
+    ): void {
+        Http::request(
+            $this->baseUrl,
+            $this->token,
+            $this->transport,
+            'DELETE',
+            self::withQuery(self::searchConnection($domainUuid, $provider), [], $companySlug),
+            null,
+            self::PREFIX
+        );
+    }
+
     /** Remove a domain and its findings. The route returns 204 No Content. */
     public function delete(string $domainUuid, ?string $companySlug = null): void
     {
@@ -172,6 +246,11 @@ final class SiteDomainClient
     private static function item(string $domainUuid): string
     {
         return self::COLLECTION . '/' . rawurlencode($domainUuid);
+    }
+
+    private static function searchConnection(string $domainUuid, SiteSearchProvider $provider): string
+    {
+        return self::item($domainUuid) . '/search/' . $provider->value;
     }
 
     /** @param array<string, string> $query */

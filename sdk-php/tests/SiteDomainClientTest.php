@@ -8,6 +8,8 @@ use HaakCo\Custd\Admin\AdminProblemException;
 use HaakCo\Custd\Admin\SiteDomain\CreateSiteDomainRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingState;
+use HaakCo\Custd\Admin\SiteDomain\SiteSearchConnectionStatus;
+use HaakCo\Custd\Admin\SiteDomain\SiteSearchProvider;
 use HaakCo\Custd\Admin\SiteDomain\SiteUptimeStatus;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use HaakCo\Custd\CustdClient;
@@ -75,6 +77,49 @@ final class SiteDomainClientTest extends TestCase
                 "PUT " . self::BASE . "/alert-destination?siteUuid=s-1",
                 "PUT " . self::BASE . "/alert-destination",
                 "GET " . self::BASE . "/alert-destination",
+            ],
+            array_map(fn (array $call): string => $call["method"] . " " . $call["url"], $calls),
+        );
+    }
+
+    /** A client reads the search account, connects Bing with its key, reads numbers and disconnects Google. */
+    public function testSiteSearchRoutesAndDecode(): void
+    {
+        $calls = [];
+        $domains = $this->client($calls)->adminSiteDomains();
+
+        $account = $domains->getSearchAccount();
+        $performance = $domains->getSearchPerformance("d-1", 7, "acme");
+        $connection = $domains->connectSearch(
+            "d-1",
+            SiteSearchProvider::Bing,
+            "https://www.example.com/",
+            "bing-api-key-0123456789",
+        );
+        $domains->connectSearch("d-1", SiteSearchProvider::Google, "sc-domain:example.com");
+        $domains->disconnectSearch("d-1", SiteSearchProvider::Google);
+
+        self::assertTrue($account->googleConfigured);
+        self::assertFalse($account->bingConfigured);
+        self::assertSame("custd@project.iam.gserviceaccount.com", $account->googleServiceAccountEmail);
+        self::assertSame(SiteSearchConnectionStatus::Active, $performance->connections[0]->status);
+        self::assertSame(42, $performance->sources[0]->totals->clicks);
+        self::assertSame(8.4, $performance->sources[0]->totals->position);
+        self::assertNull($performance->topPages[0]->totals->position);
+        self::assertSame("example shop", $performance->topQueries[0]->key);
+        self::assertSame(SiteSearchConnectionStatus::Pending, $connection->status);
+        self::assertSame(
+            ["property" => "https://www.example.com/", "apiKey" => "bing-api-key-0123456789"],
+            $calls[2]["body"],
+        );
+        self::assertSame(["property" => "sc-domain:example.com"], $calls[3]["body"]);
+        self::assertSame(
+            [
+                "GET " . self::BASE . "/search-account",
+                "GET " . self::BASE . "/d-1/search?days=7&companySlug=acme",
+                "PUT " . self::BASE . "/d-1/search/bing",
+                "PUT " . self::BASE . "/d-1/search/google",
+                "DELETE " . self::BASE . "/d-1/search/google",
             ],
             array_map(fn (array $call): string => $call["method"] . " " . $call["url"], $calls),
         );
@@ -218,6 +263,25 @@ final class SiteDomainClientTest extends TestCase
         ];
     }
 
+    /** @return array<string, mixed> */
+    private function searchPerformance(): array
+    {
+        $connection = ["provider" => "google", "property" => "sc-domain:example.com", "status" => "active"];
+        $totals = ["clicks" => 42, "impressions" => 1200, "ctr" => 0.035, "position" => 8.4];
+        $source = ["provider" => "google", "source" => "Google Search Console", "granularity" => "daily",
+            "from" => "2026-11-04", "to" => "2026-11-10", "days" => 7, "totals" => $totals];
+
+        return [
+            "domainUuid" => "d-1",
+            "days" => 7,
+            "connections" => [$connection],
+            "sources" => [$source],
+            "topPages" => [["provider" => "google", "key" => "https://www.example.com/",
+                "totals" => ["clicks" => 30, "impressions" => 800, "ctr" => 0.0375]]],
+            "topQueries" => [["provider" => "google", "key" => "example shop", "totals" => $totals]],
+        ];
+    }
+
     /**
      * client answers each route with the shape that route returns.
      *
@@ -236,6 +300,13 @@ final class SiteDomainClientTest extends TestCase
             }
             $payload = match (true) {
                 str_ends_with($path, "/alert-destination") => ["siteUuid" => "s-1"],
+                str_ends_with($path, "/search-account") => [
+                    "googleConfigured" => true,
+                    "googleServiceAccountEmail" => "custd@project.iam.gserviceaccount.com",
+                    "bingConfigured" => false,
+                ],
+                str_ends_with($path, "/search") => $this->searchPerformance(),
+                str_contains($path, "/search/") => ["provider" => "bing", "property" => "https://www.example.com/", "status" => "pending"],
                 str_ends_with($path, "/findings") => ["findings" => [$finding]],
                 str_ends_with($path, "/incidents") => ["incidents" => [$incident]],
                 $method === "GET" && str_ends_with($path, "/site-domains") => ["domains" => [$domain]],

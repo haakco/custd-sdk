@@ -288,6 +288,18 @@ finding and outage alerts to the customer with
 credential passes `null` for its own Site); `setAlertDestination($siteUuid, null)`
 sends them back to the tenant's destinations, and `getAlertDestination()` reads it.
 
+Search performance comes from the client's own Google Search Console and Bing
+Webmaster Tools properties. `getSearchAccount()` says which providers this
+deployment can import from and the Google service account email to add as a
+(Restricted) user on the property. `connectSearch($domainUuid,
+SiteSearchProvider::Bing, 'https://www.example.com/', $bingApiKey)` connects a
+domain (Google takes no key; the key is never returned), and a provider the
+deployment cannot import from throws `AdminProblemException` with
+`SiteDomainClient::SEARCH_NOT_CONFIGURED_CODE`. `getSearchPerformance($domainUuid,
+$days)` returns each connection's import state, per-provider totals and the top
+pages and queries (28 days by default); `disconnectSearch()` removes a connection
+and its imported numbers.
+
 ## Schema Admin Helpers
 
 Use `$client->adminSchemas()` from setup code:
