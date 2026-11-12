@@ -52,12 +52,15 @@ final class SiteDomainClient
         );
     }
 
-    /** List one site's domains. */
-    public function list(string $siteUuid, ?string $companySlug = null): SiteDomainList
+    /**
+     * List one site's domains. A site-bound credential (site_domains.manage) may pass null and
+     * gets its own Site's domains; naming another Site is refused as not found.
+     */
+    public function list(?string $siteUuid = null, ?string $companySlug = null): SiteDomainList
     {
-        return SiteDomainList::fromPayload(
-            $this->send('GET', self::COLLECTION, ['siteUuid' => $siteUuid], $companySlug)
-        );
+        $query = $siteUuid === null || $siteUuid === '' ? [] : ['siteUuid' => $siteUuid];
+
+        return SiteDomainList::fromPayload($this->send('GET', self::COLLECTION, $query, $companySlug));
     }
 
     public function get(string $domainUuid, ?string $companySlug = null): SiteDomain

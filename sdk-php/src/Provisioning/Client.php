@@ -8,6 +8,13 @@ use HaakCo\Custd\Admin\Http;
 
 final class Client
 {
+    /**
+     * The producer scope template of a site-bound Site Insights credential. Custd creates a Site
+     * for the credential, which then manages only that Site's domains through
+     * CustdClient::adminSiteDomains(); revoking the producer removes the Site and its domains.
+     */
+    public const SCOPE_TEMPLATE_SITE_INSIGHTS = 'site-insights';
+
     public function __construct(
         private readonly string $baseUrl,
         private readonly string $token,

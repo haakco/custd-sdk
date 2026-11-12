@@ -585,7 +585,8 @@ export type ProducerProvisionCreate = {
     | "managed-audit"
     | "managed-audit-reporting-read"
     | "managed-audit-reporting-subject-insight"
-    | "managed-audit-event-read";
+    | "managed-audit-event-read"
+    | "site-insights";
   metadata?: Record<string, string>;
 };
 

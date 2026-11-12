@@ -6,6 +6,12 @@ namespace HaakCo\Custd\Admin;
 
 final class OAuthClient
 {
+    /**
+     * The purpose of a credential that manages one existing Site's Site Insights domains. Pass it
+     * as purposeProfile together with siteUuid to create().
+     */
+    public const PURPOSE_SITE_INSIGHTS = 'site_insights';
+
     /** @var string|callable():string Bearer token, or a provider run per request. */
     private readonly mixed $token;
 

@@ -259,6 +259,29 @@ GET a minute) or `SiteCheckMode::Paused` (no requests at all; set it when you
 stop a site, so nothing wakes it). `listIncidents()` returns the domain's recent
 outages.
 
+### A credential for one site (WordPress plugin, hosting environment)
+
+A server that already holds a producer-provisioning credential (a broker) mints
+one credential per site, and Custd creates the Site for it:
+
+```php
+$issued = $broker->provisioning()->provisionProducer([
+    'companySlug' => 'acme',
+    'producerSlug' => 'store-123-site',
+    'displayName' => 'Store 123',
+    'scopeTemplate' => \HaakCo\Custd\Provisioning\Client::SCOPE_TEMPLATE_SITE_INSIGHTS,
+]);
+```
+
+The returned client id and secret get a token with `site_domains.manage`. With
+it, `create(CreateSiteDomainRequest::forOwnSite('www.example.com'))` and
+`list()` work on that Site without naming it; every other domain operation works
+as above, and another Site's domain answers as not found. Repeating the
+provisioning call keeps the same Site; revoking the producer removes the Site and
+its domains. A tenant administrator can instead bind a credential to an existing
+Site with `adminOAuthClients()->create([... 'purposeProfile' =>
+OAuthClient::PURPOSE_SITE_INSIGHTS, 'siteUuid' => $siteUuid])`.
+
 ## Schema Admin Helpers
 
 Use `$client->adminSchemas()` from setup code:

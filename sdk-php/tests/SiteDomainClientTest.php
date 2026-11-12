@@ -45,6 +45,19 @@ final class SiteDomainClientTest extends TestCase
         );
     }
 
+    /** A site-bound credential names no Site: the request carries none and Custd uses its own. */
+    public function testSiteBoundCredentialOmitsItsSite(): void
+    {
+        $calls = [];
+        $domains = $this->client($calls)->adminSiteDomains();
+
+        $domains->create(CreateSiteDomainRequest::forOwnSite("shop.example.com"));
+        $domains->list();
+
+        self::assertSame(["host" => "shop.example.com"], $calls[0]["body"]);
+        self::assertSame("GET " . self::BASE, $calls[1]["method"] . " " . $calls[1]["url"]);
+    }
+
     public function testResponsesDecodeIntoTypedDtos(): void
     {
         $calls = [];
