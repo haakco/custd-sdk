@@ -586,6 +586,7 @@ cap. Clients must treat export bytes as opaque and must not log audit details.
 | Retry + gzip batch compression | yes | yes | yes | yes | via PHP SDK | via PHP SDK defaults |
 | RFC 9457 problem parsing | yes | yes | message rendering | yes | via PHP SDK | via PHP SDK |
 | Admin tenants/OAuth/sites/schemas | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
+| Site domain ownership and audit findings | yes | no | no | yes | via PHP SDK | via PHP SDK |
 | Tenant usage report | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Analytics event range query | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Typed time-plan admin clients | yes | yes | yes | yes | via PHP SDK | via PHP SDK |

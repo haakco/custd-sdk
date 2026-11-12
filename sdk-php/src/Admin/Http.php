@@ -130,6 +130,10 @@ final class Http
             if ($workflowError !== null) {
                 throw $workflowError;
             }
+            $problemError = self::problemError($result["body"], $status);
+            if ($problemError !== null) {
+                throw $problemError;
+            }
             $message = self::errorMessage($result["body"], $status);
             throw new \RuntimeException("custd: {$message}");
         }
@@ -154,6 +158,20 @@ final class Http
             return null;
         }
         return new AdminWorkflowException($status, $reason, $code, $safeNextAction);
+    }
+
+    /**
+     * problemError types an RFC 9457 refusal so a caller can branch on its code.
+     * A body carrying the flat `error` reason keeps the message path below.
+     */
+    private static function problemError(string $body, int $status): ?AdminProblemException
+    {
+        $decoded = json_decode(trim($body), true);
+        if (!is_array($decoded) || (is_string($decoded["error"] ?? null) && $decoded["error"] !== "")) {
+            return null;
+        }
+        $problem = Problem::fromArray($decoded);
+        return $problem === null ? null : new AdminProblemException($status, $problem);
     }
 
     /**

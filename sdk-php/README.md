@@ -242,6 +242,16 @@ key once. `list()` and `get()` return Site metadata without the write key.
 `rotateWriteKey()` returns the replacement write key once; update tracker config
 and stop using the old key after rotation.
 
+## Site Domain Admin Helpers
+
+Use `$client->adminSiteDomains()` to claim a host for a Site (`create()`),
+prove control of it (`verify()`), ask for an audit (`requestAudit()`), read its
+findings (`listFindings()`), and remove it (`delete()`). Every result is a typed
+DTO under `HaakCo\Custd\Admin\SiteDomain`. Auditing an unverified domain
+throws `AdminProblemException` whose `problem->code` is
+`SiteDomainClient::NOT_VERIFIED_CODE`. A system administrator passes the tenant
+as the optional `$companySlug` argument.
+
 ## Schema Admin Helpers
 
 Use `$client->adminSchemas()` from setup code:
