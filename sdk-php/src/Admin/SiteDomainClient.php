@@ -89,6 +89,23 @@ final class SiteDomainClient
     }
 
     /**
+     * Attest that this credential has proven the tenant controls the domain, which verifies it
+     * (ownership->verifiedBy "attested") and its subdomains; a repeat refreshes the time. Only a
+     * site-bound credential holding site_domains.attest may attest, and only its own Site's
+     * domains: any other caller gets 403, another Site's domain 404.
+     */
+    public function attest(string $domainUuid): SiteDomain
+    {
+        return SiteDomain::fromPayload($this->send('POST', self::item($domainUuid) . '/attestation', [], null));
+    }
+
+    /** Withdraw this credential's attestation; the domain stays verified only by its own proof or a verified parent. */
+    public function unattest(string $domainUuid): SiteDomain
+    {
+        return SiteDomain::fromPayload($this->send('DELETE', self::item($domainUuid) . '/attestation', [], null));
+    }
+
+    /**
      * Ask for the domain to be audited on the scheduler's next tick. An
      * unverified domain throws AdminProblemException whose problem code is
      * {@see self::NOT_VERIFIED_CODE}.

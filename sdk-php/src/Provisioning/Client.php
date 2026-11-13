@@ -15,6 +15,13 @@ final class Client
      */
     public const SCOPE_TEMPLATE_SITE_INSIGHTS = 'site-insights';
 
+    /**
+     * The same site-bound credential, also able to attest its Site's domains as verified with
+     * SiteDomainClient::attest(). Custd mints it only for a broker that itself holds
+     * site_domains.attest, which a Custd system administrator grants.
+     */
+    public const SCOPE_TEMPLATE_SITE_INSIGHTS_ATTESTING = 'site-insights-attesting';
+
     public function __construct(
         private readonly string $baseUrl,
         private readonly string $token,

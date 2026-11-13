@@ -125,6 +125,24 @@ final class SiteDomainClientTest extends TestCase
         );
     }
 
+    /** Attestation is a site-bound call: it names neither a Site nor a company and returns the domain. */
+    public function testAttestationRoutesAndDecode(): void
+    {
+        $calls = [];
+        $domains = $this->client($calls)->adminSiteDomains();
+
+        $attested = $domains->attest("d-1");
+        $domains->unattest("d-1");
+
+        self::assertSame(
+            ["POST " . self::BASE . "/d-1/attestation", "DELETE " . self::BASE . "/d-1/attestation"],
+            array_map(fn (array $call): string => $call["method"] . " " . $call["url"], $calls),
+        );
+        self::assertSame("attested", $attested->ownership->verifiedBy);
+        self::assertSame("hosting-site-1", $attested->ownership->attestation?->clientId);
+        self::assertSame("2026-11-12T09:00:00Z", $attested->ownership->attestation->attestedAt);
+    }
+
     public function testResponsesDecodeIntoTypedDtos(): void
     {
         $calls = [];
@@ -228,6 +246,18 @@ final class SiteDomainClientTest extends TestCase
     /**
      * @return array<string, mixed>
      */
+    private function attestedDomain(): array
+    {
+        $domain = $this->domain();
+        $domain["ownership"]["verifiedBy"] = "attested";
+        $domain["ownership"]["attestation"] = ["clientId" => "hosting-site-1", "attestedAt" => "2026-11-12T09:00:00Z"];
+
+        return $domain;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function incident(?string $resolvedAt): array
     {
         $incident = [
@@ -295,10 +325,11 @@ final class SiteDomainClientTest extends TestCase
         $transport = function (string $method, string $url, ?array $body) use (&$calls, $domain, $finding, $incident): array {
             $calls[] = compact("method", "url", "body");
             $path = (string) parse_url($url, PHP_URL_PATH);
-            if ($method === "DELETE") {
+            if ($method === "DELETE" && ! str_ends_with($path, "/attestation")) {
                 return ["status" => 204, "body" => ""];
             }
             $payload = match (true) {
+                str_ends_with($path, "/attestation") => $this->attestedDomain(),
                 str_ends_with($path, "/alert-destination") => ["siteUuid" => "s-1"],
                 str_ends_with($path, "/search-account") => [
                     "googleConfigured" => true,

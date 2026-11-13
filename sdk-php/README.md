@@ -282,6 +282,14 @@ its domains. A tenant administrator can instead bind a credential to an existing
 Site with `adminOAuthClients()->create([... 'purposeProfile' =>
 OAuthClient::PURPOSE_SITE_INSIGHTS, 'siteUuid' => $siteUuid])`.
 
+A host that proves domain ownership itself (a TXT challenge, registrar control or
+managed DNS) mints with `Client::SCOPE_TEMPLATE_SITE_INSIGHTS_ATTESTING` instead,
+once a Custd system administrator has granted its broker `site_domains.attest`.
+That credential calls `attest($domainUuid)` to mark a domain of its Site, and its
+subdomains, as verified without the Custd record (`ownership->verifiedBy` is
+`attested` and `ownership->attestation` names the credential and time), and
+`unattest($domainUuid)` to withdraw it.
+
 A reseller that keeps its customers' Sites in its own tenant sends one Site's
 finding and outage alerts to the customer with
 `setAlertDestination($siteUuid, 'owner@customer.example')` (a site-bound

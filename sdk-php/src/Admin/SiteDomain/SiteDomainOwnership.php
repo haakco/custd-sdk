@@ -16,6 +16,8 @@ final readonly class SiteDomainOwnership
         public ?string $verifiedBy = null,
         public ?string $lastCheckedAt = null,
         public ?string $lastCheckFailure = null,
+        public ?string $verifiedViaDomainUuid = null,
+        public ?SiteDomainAttestation $attestation = null,
     ) {
     }
 
@@ -28,6 +30,13 @@ final readonly class SiteDomainOwnership
             Fields::optionalString($payload, 'verifiedBy'),
             Fields::optionalString($payload, 'lastCheckedAt'),
             Fields::optionalString($payload, 'lastCheckFailure'),
+            Fields::optionalString($payload, 'verifiedViaDomainUuid'),
+            self::attestation(Fields::optionalObject($payload, 'attestation')),
         );
+    }
+
+    private static function attestation(?\stdClass $payload): ?SiteDomainAttestation
+    {
+        return $payload === null ? null : SiteDomainAttestation::fromPayload($payload);
     }
 }
