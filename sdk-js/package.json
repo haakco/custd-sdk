@@ -26,9 +26,6 @@
   "files": [
     "dist"
   ],
-  "publishConfig": {
-    "registry": "https://verdaccio.k8.haak.co/"
-  },
   "scripts": {
     "build": "pnpm run build:ts && pnpm run build:browser",
     "build:browser": "node scripts/build-browser.mjs",

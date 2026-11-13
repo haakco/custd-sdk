@@ -17,21 +17,9 @@ Use the GitHub package path when installing into HaakCo apps:
 pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.0.0&path:/sdk-js'
 ```
 
-Pin the tag to the SDK version you want. The package is also published to the
-HaakCo Verdaccio registry during the transition. To install from Verdaccio,
-point the project at that registry, then install:
-
-```ini
-# .npmrc
-registry=https://verdaccio.k8.haak.co/
-```
-
-```bash
-pnpm add @haakco/custd-sdk
-# or: npm install @haakco/custd-sdk --registry=https://verdaccio.k8.haak.co/
-```
-
-Reads are anonymous; no token is required to install.
+Pin the tag to the SDK version you want. The package is no longer published to
+HaakCo's Verdaccio registry; the last version there is 3.35.2, kept for installs
+that already pin it.
 
 ## Usage
 

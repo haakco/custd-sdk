@@ -136,12 +136,6 @@ describe("published package integrity", () => {
     }
   });
 
-  it("keeps Verdaccio publishing configured during the GitHub install transition", () => {
-    const pkg = readJson("../package.json");
-
-    expect(pkg.publishConfig).toEqual({ registry: "https://verdaccio.k8.haak.co/" });
-  });
-
   it("does not require GitHub install consumers to allow package build scripts", () => {
     const pkg = readJson("../package.json");
     const scripts = pkg.scripts as Record<string, string>;

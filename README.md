@@ -26,7 +26,7 @@ installs code that cannot express a canonical pack.
 | `haakco/custd-wordpress` | `^3.0` |
 | `github.com/haakco/custd-sdk-go/v3` | `v3.0.0` or later |
 | `@haakco/custd-sdk` (JS) | `github:haakco/custd-sdk#v3.0.0&path:/sdk-js`, installed with pnpm |
-| `@haakco/custd-react` (JS) | from the HaakCo Verdaccio registry, alongside `@haakco/custd-sdk` |
+| `@haakco/custd-react` (JS) | `github:haakco/custd-sdk#v3.0.0&path:/sdk-react`, installed with pnpm |
 | `custd-sdk` (Python) | `git+https://github.com/haakco/custd-sdk.git@v3.0.0#subdirectory=sdk-python` |
 
 Deleting a Go tag does not remove the version from `proxy.golang.org`, which keeps serving what it has already

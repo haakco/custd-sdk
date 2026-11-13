@@ -280,6 +280,6 @@ jobs:
 
 # Release publishing is not here on purpose. The publish jobs used to need these
 # test jobs, so a runner failure in any of them silently withheld a tagged
-# release: v2.4.0 reached the mirrors and production but never Verdaccio. A tag
+# release. A tag
 # is published by .github/workflows/release-mirrors.yml, which does not depend on
 # this workflow at all.
