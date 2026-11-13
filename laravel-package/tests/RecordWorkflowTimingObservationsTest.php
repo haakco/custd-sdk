@@ -69,7 +69,7 @@ final class RecordWorkflowTimingObservationsTest extends TestCase
             $sent,
         );
 
-        $job = $this->attachedJob([$this->runStarted()]);
+        $job = $this->attachedJob($this->threeFacts());
         $job->handle($client);
 
         // Failing rather than throwing is what stops a permanent rejection from
@@ -85,7 +85,7 @@ final class RecordWorkflowTimingObservationsTest extends TestCase
             $sent,
         );
 
-        $job = new RecordWorkflowTimingObservations('acme', [$this->runStarted()]);
+        $job = new RecordWorkflowTimingObservations('acme', $this->threeFacts());
 
         $this->expectException(AdminWorkflowException::class);
         $this->expectExceptionMessageMatches('/1 of 3/');
@@ -123,6 +123,17 @@ final class RecordWorkflowTimingObservationsTest extends TestCase
     protected function getPackageProviders($app): array
     {
         return [CustdServiceProvider::class];
+    }
+
+    /**
+     * The partial-result fixture answers three facts, so a test using it sends three: the SDK refuses a
+     * response that does not account for every input.
+     *
+     * @return list<Observation>
+     */
+    private function threeFacts(): array
+    {
+        return [$this->runStarted(), $this->runStarted(), $this->runStarted()];
     }
 
     private function runStarted(): Observation
