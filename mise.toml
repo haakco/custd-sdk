@@ -70,4 +70,3 @@ run = "just test-php"
 [tasks.lint-workflows]
 description = "Lint GitHub Actions workflows"
 run = "actionlint"
-
