@@ -4,24 +4,29 @@ Ingestion client with retry, batching, and optional offline queueing.
 
 ## Compatibility
 
-Version `1.0.0` targets the canonical ingest endpoint
-`POST /api/v1/events`. The legacy `POST /v1/events` path is not supported.
-This SDK was not released against the legacy path, so there is no compatibility
-alias or deprecation window.
+The supported 3.x SDK sends events to `POST /api/v1/events` and batches to
+`POST /api/v1/events/batch`. Installation examples below were verified against
+release **3.43.0** on 2026-11-15, including Node 26, pnpm 12 and Expo 58 consumers.
 
 ## Install
 
 Use the GitHub package path when installing into HaakCo apps:
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.0.0&path:/sdk-js'
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.43.0&path:/sdk-js'
 ```
 
 Pin the tag to the SDK version you want. The package is no longer published to
 HaakCo's Verdaccio registry; the last version there is 3.35.2, kept for installs
 that already pin it.
 
-## Usage
+## Server-side producer usage
+
+Producer OAuth credentials belong only in trusted backend processes. Browser
+applications use the [Browser Tracker](#browser-tracker) or native error client;
+Expo/React Native applications use their own authenticated application relay.
+Keep the existing company and provision project-owned resources; an application
+is not a new tenant. See the root [onboarding/setup guidance](../README.md#producer-setup-helper).
 
 ```ts
 import { createDogfoodEvent, CustdClient, LocalStorageQueueStorage } from "@haakco/custd-sdk";

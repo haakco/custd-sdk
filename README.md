@@ -15,19 +15,21 @@ Public SDKs for sending events to Custd.
 
 ## Supported versions
 
+Installation examples reviewed: 2026-11-15 against released **3.43.0**.
+
 Only the 3.x line is supported. The 1.x tags and their releases were removed on 2026-09-23, and `v3.0.0`
 replaced the reporting-pack shapes with the canonical contract: a consumer resolving an older range silently
 installs code that cannot express a canonical pack.
 
 | Package | Install |
 | --- | --- |
-| `haakco/custd-sdk` (PHP) | `^3.0` |
-| `haakco/custd-laravel` | `^3.0` |
-| `haakco/custd-wordpress` | `^3.0` |
-| `github.com/haakco/custd-sdk-go/v3` | `v3.0.0` or later |
-| `@haakco/custd-sdk` (JS) | `github:haakco/custd-sdk#v3.0.0&path:/sdk-js`, installed with pnpm |
-| `@haakco/custd-react` (JS) | `github:haakco/custd-sdk#v3.0.0&path:/sdk-react`, installed with pnpm |
-| `custd-sdk` (Python) | `git+https://github.com/haakco/custd-sdk.git@v3.0.0#subdirectory=sdk-python` |
+| `haakco/custd-sdk` (PHP) | `3.43.0` |
+| `haakco/custd-laravel` | `3.43.0` |
+| `haakco/custd-wordpress` | `3.43.0` |
+| `github.com/haakco/custd-sdk-go/v3` | `v3.43.0` |
+| `@haakco/custd-sdk` (JS) | `github:haakco/custd-sdk#v3.43.0&path:/sdk-js`, installed with pnpm |
+| `@haakco/custd-react` (JS) | `github:haakco/custd-sdk#v3.43.0&path:/sdk-react`, installed with pnpm |
+| `custd-sdk` (Python) | `git+https://github.com/haakco/custd-sdk.git@v3.43.0#subdirectory=sdk-python` |
 
 Deleting a Go tag does not remove the version from `proxy.golang.org`, which keeps serving what it has already
 cached: the earlier module paths still answer for the versions they published. Treat them as unsupported, and
@@ -133,10 +135,12 @@ mise exec -- just test-php
 ```
 
 The React helpers are a separate optional package. Install it alongside the
-core TypeScript SDK and your app's existing React Query version:
+core TypeScript SDK at the same released tag, keeping your app's supported
+React and React Query versions (React 18/19 and TanStack Query 5):
 
 ```bash
-pnpm add @haakco/custd-sdk @haakco/custd-react @tanstack/react-query react
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.43.0&path:/sdk-js' \
+  '@haakco/custd-react@github:haakco/custd-sdk#v3.43.0&path:/sdk-react'
 ```
 
 `@haakco/custd-react` does not create a Custd client or hold browser
@@ -217,18 +221,42 @@ see the Custd guide: `docs/how-to/provision-a-producer.md`.
 
 ## Producer Setup Helper
 
-Use the SDK-owned setup CLI to create a tenant-bound OAuth2 producer client and
-print the env vars each consumer needs. The CLI calls Custd admin APIs through
-the Go SDK; it does not maintain a separate HTTP client.
+A tenant is a company, not an application or environment. HaakCo projects belong
+in the existing `haakco` tenant with project-owned data scopes/resources, Sites
+and producers. Confirm the authenticated account before any provisioning:
 
 ```bash
-go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@latest \
+custdctl config current
+custdctl auth status --profile prod
+custdctl account --profile prod
+```
+
+Use the normal producer-provisioning bundle and `fromProvisionedProducer` for
+ordinary integrations. A broker's `producers.provision` authority does not let
+it create companies or arbitrary OAuth clients. A human tenant administrator's
+explicitly authorized login is a different principal, not a credential to borrow
+silently after a broker refusal. Genuinely new external companies require the
+separate platform registration/first-admin workflow; never create one per
+internal project.
+
+The SDK-owned setup helper directly calls the tenant/OAuth admin owners. It is
+for an operator already authorized for those operations, not a substitute for
+producer provisioning or project-scope grants. For an internal HaakCo producer,
+**use the existing company and disable tenant creation**. The helper defaults
+`--ensure-tenant` to true, so pass false explicitly.
+
+The following invocation emits one-time secret environment blocks. Execute it
+only inside the approved secret-delivery flow that captures stdout privately;
+do not run it into a terminal, CI log, proof log or rendered environment file.
+The bearer token is supplied privately as `CUSTD_ADMIN_TOKEN`, never an argument:
+
+```bash
+go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@v3.43.0 \
   --base-url=https://custd.com \
   --admin-url=https://custd.com \
-  --admin-token="$CUSTD_ADMIN_TOKEN" \
   --token-url=https://auth.custd.com/oauth2/token \
-  --tenant=vorrent \
-  --company-name="Vorrent" \
+  --tenant=haakco \
+  --ensure-tenant=false \
   --client-id=vorrent-media-cache \
   --scope=events.write \
   --environment=production \
@@ -244,12 +272,21 @@ Output includes env blocks for:
 
 Required admin input:
 
-- `--admin-token` or `CUSTD_ADMIN_TOKEN`: bearer token with permission to create
-  tenants and OAuth clients.
+- `CUSTD_ADMIN_TOKEN`: privately supplied bearer token with permission for the
+  requested OAuth operation. Tenant creation additionally requires platform
+  authority and is not part of onboarding another internal application.
 - `--base-url`: Custd API base URL used by producers.
 - `--token-url`: OAuth2 token endpoint producers use for `client_credentials`.
 - `--tenant`: tenant/company slug.
 - `--client-id`: producer OAuth client ID.
+- `--ensure-tenant=false`: reuse the existing company without calling tenant creation.
+
+HaakCo repositories obtain credentials with `just infisical-login` and the
+repository-isolated Docker reader. Do not copy a host login, print the returned
+bundle or commit it. Provisioning a credential, setting its project resource
+grant and observing an accepted event are separate outcomes. Use one controlled
+event, inspect its per-event acceptance, then verify the prepared result; HTTP
+acceptance or local queue admission alone is insufficient.
 
 ## Declaring an environment
 
@@ -621,17 +658,17 @@ the project `vendor/autoload.php`. Raw GitHub source ZIPs are not standalone
 plugin artifacts; ZIP installs need a built release artifact with Composer
 dependencies included. See `wordpress-plugin/README.md` for details.
 
-Create producer credentials with the SDK-owned setup helper and use the
-generated `CUSTD_WP_*` block:
+Provision credentials for the existing company. If the authorized setup-helper
+path is appropriate, capture its generated `CUSTD_WP_*` block through the private
+secret-delivery flow described above:
 
 ```bash
-go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@latest \
+go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@v3.43.0 \
   --base-url=https://custd.com \
   --admin-url=https://custd.com \
-  --admin-token="$CUSTD_ADMIN_TOKEN" \
   --token-url=https://auth.custd.com/oauth2/token \
-  --tenant=my-wordpress-site \
-  --company-name="My WordPress Site" \
+  --tenant=existing-company \
+  --ensure-tenant=false \
   --client-id=my-wordpress-site \
   --scope=events.write \
   --environment=production
@@ -672,16 +709,16 @@ Publish the Laravel config:
 php artisan vendor:publish --tag=custd-config
 ```
 
-Create producer credentials with the SDK-owned setup helper:
+For an authorized setup-helper operation, reuse the existing company and
+capture its output through the private secret-delivery flow described above:
 
 ```bash
-go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@latest \
+go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@v3.43.0 \
   --base-url=https://custd.com \
   --admin-url=https://custd.com \
-  --admin-token="$CUSTD_ADMIN_TOKEN" \
   --token-url=https://auth.custd.com/oauth2/token \
-  --tenant=my-app \
-  --company-name="My App" \
+  --tenant=existing-company \
+  --ensure-tenant=false \
   --client-id=my-app-producer \
   --scope=events.write \
   --environment=production \
