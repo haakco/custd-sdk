@@ -428,3 +428,33 @@ the mobile client. It shares the same four-send ceiling as asynchronous reports
 and returns `limited` immediately when busy. Never acknowledge a queued/admitted
 report as delivered. The separate diagnostic HTTP request may wait up to the
 two-second send limit; the mobile UI operation must not wait for diagnostics.
+
+## Confirmed event batches for application relays
+
+An authenticated mobile analytics relay needs confirmed **per-event** acceptance,
+not a successful enqueue or an HTTP 202 alone:
+
+```go
+result, err := client.SendEvents(ctx, custd.SendEventsRequest{Events: events})
+if err != nil {
+    // Acknowledge nothing: the outcome may be unknown.
+    return err
+}
+acceptedIDs := result.AcceptedEventIDs
+```
+
+`SendEvents` sends once through the SDK's existing OAuth/authentication and gzip
+transport, without the local queue or automatic retry. It accepts 1–1,000 events
+with caller-supplied stable event UUIDs and the normal producer envelope fields.
+The application relay supplies its authorized tenant and validates/allowlists
+mobile data before sending. Do not regenerate a mobile queue's event UUIDs.
+
+A partial batch response is returned with `Results` (typed `EventIngestResult`
+values including each rejection's problem) and `AcceptedEventIDs`, in submission
+order. Only explicitly successful 2xx results are acknowledged. Missing,
+duplicate, unknown or inconsistent result IDs/statuses produce an error and no
+acknowledgements. A transport failure can mean acceptance is unknown; keep the
+original IDs for caller-controlled retry. A collector-supplied
+`acceptedEventIds` field is never trusted. `Track` and `Flush` retain their
+existing asynchronous queue contract and should not be used to acknowledge
+mobile queue entries.
