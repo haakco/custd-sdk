@@ -368,3 +368,63 @@ response, err := client.Analytics.QueryRange(ctx, custd.AnalyticsEventRangeQuery
 
 SDKs never log signed URLs, raw personal data, export bytes, or
 subject identifiers outside opaque IDs.
+
+## Native error capture
+
+Error capture sends only exception types and bounded code filenames/line numbers
+straight to Custd. Messages, arguments, absolute paths, users, request bodies and
+headers are excluded before transport. Keep local operational logs; optional
+capture is never the only copy of an operational failure.
+
+```go
+reporter, err := custd.NewErrorReporter(custd.ErrorCaptureConfig{
+    BaseURL:     "https://custd.example.com",
+    WriteKey:    os.Getenv("CUSTD_ERROR_WRITE_KEY"),
+    Environment: "production",
+    Release:     "vorrent@1.0.0",
+})
+if err == nil {
+    // Admission is nonblocking. True means admitted, not delivered.
+    reporter.Report(ctx, custd.CaptureExceptionRequest{
+        Error: operationErr, Mode: custd.ErrorCaptureHandled,
+    })
+    // At shutdown use a bounded context; Close refuses new reports and drains sends.
+    _ = reporter.Close(shutdownCtx)
+}
+// Invalid/missing configuration leaves capture off; record a safe warning locally.
+```
+
+Own one reporter per process and Site. It snapshots the calling stack before its
+asynchronous handoff, admits at most four in-flight sends and has no pending queue,
+persistence or retries. Each admitted action uses a fresh request-scoped capture
+client, so a long-running process does not stop reporting after twenty errors.
+`Stats()` returns accepted, rejected, unavailable, limited and in-flight counts;
+these are delivery outcomes, not raw event data. Shutdown cancellation and a
+two-second transport timeout bound sends. The supplied HTTP client is cloned,
+with redirects and cookie jars disabled, so the caller's client is not changed.
+
+For request-scoped synchronous capture use `NewErrorCaptureClient(config)` and
+`CaptureException(ctx, request)`. Its typed result distinguishes `accepted`,
+`rejected`, `unavailable` and `limited`; each client permits twenty captures and
+four concurrent sends. Envelopes are capped at 16 KiB and 24 frames. Capture never
+reads `Error.Error()` or panic string content. `SnapshotError(request)` freezes a
+safe Go event at the call site when another component owns the handoff; set its
+environment/release before `CaptureEvent`.
+
+Mobile apps must send the SDK's `ErrorCaptureEvent` DTO to their own authenticated
+application relay, never contain a server Site key. `CaptureEvent` and
+`ReportEvent` revalidate that DTO and construct a new envelope with the relay's
+Site key. Reject unknown JSON fields at the application HTTP boundary and enforce
+its authentication and request-size limits. The DTO contains only optional
+32-hex `eventId`, required `platform` (`javascript` or `go`), `exceptionType`,
+`frames` (`filename`, `lineno`, optional `colno`), `mode` (`handled` or `unhandled`),
+`environment`, optional `release` and optional application ULID `correlationId`.
+The client generates an event ID when absent. Server and browser Sites use
+different keys; never publish an originless server key in browser/mobile config.
+
+For an authenticated application error relay, use
+`reporter.CaptureEvent(ctx, event)` to return a **confirmed** collector result to
+the mobile client. It shares the same four-send ceiling as asynchronous reports
+and returns `limited` immediately when busy. Never acknowledge a queued/admitted
+report as delivered. The separate diagnostic HTTP request may wait up to the
+two-second send limit; the mobile UI operation must not wait for diagnostics.
