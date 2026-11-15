@@ -1,4 +1,22 @@
 import { SDK_VERSION } from "./version.js";
+/** Pure formatter for authenticated application relays, including Expo without browser globals. */
+export function createErrorCaptureEvent(request, config) {
+    if (!/^[a-zA-Z0-9._-]{1,64}$/u.test(config.environment) ||
+        (config.release !== undefined && !/^[a-zA-Z0-9@._+-]{1,200}$/u.test(config.release)) ||
+        (config.eventId !== undefined && !/^[a-f0-9]{32}$/u.test(config.eventId))) {
+        throw new Error("custd: invalid error event configuration");
+    }
+    return {
+        ...(config.eventId === undefined ? {} : { eventId: config.eventId }),
+        platform: "javascript",
+        exceptionType: safeExceptionType(request.error),
+        frames: exceptionFrames(request.error),
+        mode: request.mode === "unhandled" ? "unhandled" : "handled",
+        environment: config.environment,
+        ...(config.release === undefined ? {} : { release: config.release }),
+        ...(request.correlationId && ulid.test(request.correlationId) ? { correlationId: request.correlationId } : {}),
+    };
+}
 const maxCaptures = 20;
 const maxConcurrent = 4;
 const maxFrames = 24;
@@ -34,6 +52,7 @@ export class ErrorCaptureClient {
         this.concurrent += 1;
         try {
             const id = crypto.randomUUID().replace(/-/gu, "");
+            const capture = createErrorCaptureEvent(request, { ...this.config, eventId: id });
             const header = {
                 event_id: id,
                 dsn: `${this.origin.replace("://", `://${this.config.writeKey}@`)}/api/v1/errors/1`,
@@ -43,18 +62,16 @@ export class ErrorCaptureClient {
                 timestamp: new Date().toISOString(),
                 platform: "javascript",
                 level: "error",
-                environment: this.config.environment,
-                release: this.config.release,
+                environment: capture.environment,
+                release: capture.release,
                 sdk: { name: "custd.javascript", version: SDK_VERSION },
-                tags: request.correlationId && ulid.test(request.correlationId)
-                    ? { correlation_id: request.correlationId }
-                    : undefined,
+                tags: capture.correlationId ? { correlation_id: capture.correlationId } : undefined,
                 exception: {
                     values: [
                         {
-                            type: safeExceptionType(request.error),
-                            mechanism: { handled: request.mode !== "unhandled" },
-                            stacktrace: { frames: exceptionFrames(request.error) },
+                            type: capture.exceptionType,
+                            mechanism: { handled: capture.mode !== "unhandled" },
+                            stacktrace: { frames: capture.frames },
                         },
                     ],
                 },
@@ -93,12 +110,12 @@ function exceptionFrames(error) {
         .split("\n")
         .slice(1, maxFrames + 1)
         .flatMap((line) => {
-        const location = line.match(/(?:\(|@|\s)((?:https?:\/\/|file:\/\/|\/)[^\s()]+):(\d+):(\d+)\)?$/u);
+        const location = line.match(/(?:\(|@|\s)((?:https?:\/\/|file:\/\/|\/)?[^\s()]+):(\d+):(\d+)\)?$/u);
         if (!location)
             return [];
         const path = location[1].replace(/[?#].*$/u, "");
         const filename = path.split(/[\\/]/u).pop();
-        if (!filename || !/^[A-Za-z0-9_.-]{1,128}\.(?:[cm]?js|jsx|tsx?)$/u.test(filename))
+        if (!filename || !/^[A-Za-z0-9_.-]{1,128}\.(?:[cm]?js|jsx|tsx?|bundle)$/u.test(filename))
             return [];
         return [
             { filename, lineno: Math.min(Number(location[2]), 1000000), colno: Math.min(Number(location[3]), 1000000) },
@@ -119,5 +136,23 @@ export function installBrowserErrorCapture(client) {
     return () => {
         window.removeEventListener("error", onError);
         window.removeEventListener("unhandledrejection", onRejection);
+    };
+}
+/** Capture delivery remains bounded by the caller; native error handling always runs. */
+export function installNativeErrorCapture(source, capture) {
+    const original = source.getGlobalHandler();
+    const handler = (error, fatal) => {
+        try {
+            void Promise.resolve(capture({ error, mode: "unhandled" })).catch(() => undefined);
+        }
+        catch {
+            // Optional capture cannot prevent the native handler from reporting the failure.
+        }
+        original(error, fatal);
+    };
+    source.setGlobalHandler(handler);
+    return () => {
+        if (source.getGlobalHandler() === handler)
+            source.setGlobalHandler(original);
     };
 }

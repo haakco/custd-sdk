@@ -4067,8 +4067,15 @@ function randomUUID(): string {
 
 export {
   type CaptureExceptionRequest,
+  createErrorCaptureEvent,
   ErrorCaptureClient,
   type ErrorCaptureConfig,
+  type ErrorCaptureEvent,
+  type ErrorCaptureEventConfig,
   type ErrorCaptureResult,
+  type ErrorFrame,
   installBrowserErrorCapture,
+  installNativeErrorCapture,
+  type NativeErrorHandler,
+  type NativeErrorSource,
 } from "./error-capture.js";

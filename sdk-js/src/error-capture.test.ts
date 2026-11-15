@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { ErrorCaptureClient, installBrowserErrorCapture } from "./error-capture.js";
+import {
+  createErrorCaptureEvent,
+  ErrorCaptureClient,
+  installBrowserErrorCapture,
+  installNativeErrorCapture,
+} from "./error-capture.js";
 
 const config = {
   baseUrl: "https://errors.example.test",
@@ -9,6 +14,56 @@ const config = {
 };
 
 describe("native error capture", () => {
+  it("formats a mobile relay event without crypto or browser globals", () => {
+    vi.stubGlobal("crypto", undefined);
+    try {
+      const error = new TypeError("private title");
+      error.stack = "TypeError: private title\n    at render (address at index.android.bundle:1:12345)";
+      expect(
+        createErrorCaptureEvent({ error, mode: "unhandled" }, { environment: "production", release: "1.0.0" }),
+      ).toEqual({
+        platform: "javascript",
+        exceptionType: "TypeError",
+        frames: [{ filename: "index.android.bundle", lineno: 1, colno: 12345 }],
+        mode: "unhandled",
+        environment: "production",
+        release: "1.0.0",
+      });
+      expect(() => createErrorCaptureEvent({ error }, { environment: "invalid environment" })).toThrow();
+      expect(() => createErrorCaptureEvent({ error }, { environment: "test", eventId: "unsafe" })).toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("chains the native handler despite capture failure and restores only its own handler", async () => {
+    const original = vi.fn();
+    let handler: (error: unknown, fatal?: boolean) => void = original;
+    const errors = {
+      getGlobalHandler: () => handler,
+      setGlobalHandler: (next: typeof handler) => {
+        handler = next;
+      },
+    };
+    const capture = vi.fn().mockRejectedValue(new Error("collector unavailable"));
+    const close = installNativeErrorCapture(errors, capture);
+    const error = new Error("private");
+    handler(error, true);
+    expect(capture).toHaveBeenCalledWith({ error, mode: "unhandled" });
+    expect(original).toHaveBeenCalledWith(error, true);
+    await Promise.resolve();
+    close();
+    expect(handler).toBe(original);
+    const closeAgain = installNativeErrorCapture(errors, () => {
+      throw new Error("unavailable");
+    });
+    expect(() => handler(error)).not.toThrow();
+    const replacement = vi.fn();
+    handler = replacement;
+    closeAgain();
+    expect(handler).toBe(replacement);
+  });
+
   it("sends only exception types and bounded code locations to Custd's error intake", async () => {
     const send = vi.fn<typeof fetch>().mockResolvedValue(new Response('{"id":"accepted"}'));
     const error = new TypeError("password=do-not-send");
@@ -45,6 +100,25 @@ describe("native error capture", () => {
     ])
       expect(body).not.toContain(forbidden);
     expect(request).toMatchObject({ credentials: "omit", redirect: "error", referrerPolicy: "no-referrer" });
+  });
+
+  it("retains Hermes and Metro code locations without private paths or messages", async () => {
+    const send = vi.fn<typeof fetch>().mockResolvedValue(new Response());
+    const error = new Error("private media title");
+    error.stack = [
+      "Error: private media title",
+      "    at render (address at index.android.bundle:1:12345)",
+      "render@http://localhost:8081/node_modules/expo-router/entry.bundle?platform=android&token=private:40:8",
+      "    at render (/private/account/screens/Player.tsx:20:4)",
+    ].join("\n");
+    await new ErrorCaptureClient({ ...config, fetch: send }).captureException({ error });
+    const event = JSON.parse(String(send.mock.calls[0][1]?.body).split("\n")[2]);
+    expect(event.exception.values[0].stacktrace.frames).toEqual([
+      { filename: "Player.tsx", lineno: 20, colno: 4 },
+      { filename: "entry.bundle", lineno: 40, colno: 8 },
+      { filename: "index.android.bundle", lineno: 1, colno: 12345 },
+    ]);
+    expect(String(send.mock.calls[0][1]?.body)).not.toContain("private");
   });
 
   it("isolates transport failures and caps repeated captures without retrying", async () => {

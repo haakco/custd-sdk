@@ -1711,4 +1711,4 @@ export declare class CustdProblemError extends Error {
 }
 export declare function normalizeRetryOptions(options?: RetryOptions): Required<RetryOptions>;
 export declare function withRetry<T>(options: Required<RetryOptions>, op: () => Promise<T>): Promise<T>;
-export { type CaptureExceptionRequest, ErrorCaptureClient, type ErrorCaptureConfig, type ErrorCaptureResult, installBrowserErrorCapture, } from "./error-capture.js";
+export { type CaptureExceptionRequest, createErrorCaptureEvent, ErrorCaptureClient, type ErrorCaptureConfig, type ErrorCaptureEvent, type ErrorCaptureEventConfig, type ErrorCaptureResult, type ErrorFrame, installBrowserErrorCapture, installNativeErrorCapture, type NativeErrorHandler, type NativeErrorSource, } from "./error-capture.js";

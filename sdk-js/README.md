@@ -542,3 +542,22 @@ const range = await client.analytics.queryRange({
 
 SDKs never log signed URLs, raw personal data, export bytes, or
 subject identifiers outside opaque IDs.
+
+## Error capture in Expo and React Native
+
+Use `createErrorCaptureEvent({ error, mode }, { environment, release })` to
+format a sanitized `ErrorCaptureEvent` for an application-authenticated relay.
+It keeps only the exception type and bounded code basenames/line/column locations,
+including Hermes and Metro bundle locations. Messages, full paths, request data,
+and user context are excluded. Without `eventId`, it needs no `crypto`, DOM,
+`TextEncoder`, or fetch globals; the relay's Go `CaptureEvent` generates the ID
+and supplies its own server-only Site credential. Never put that credential in
+the app or construct a collector envelope in application code.
+
+`installNativeErrorCapture(errorUtils, capture)` accepts an injected React Native
+`ErrorUtils`-shaped object and a capture callback. It chains the original handler
+even if capture fails and returns cleanup that restores only its own handler.
+The callback owns authenticated relay delivery and its session/concurrency bounds;
+the installer does not create a queue, retry, persist, or modify native globals.
+Caught React errors still belong in the application's error boundary. Native OS
+crash capture is not provided by this JavaScript handler.
