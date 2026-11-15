@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
   createErrorCaptureEvent,
@@ -5,6 +6,7 @@ import {
   installBrowserErrorCapture,
   installNativeErrorCapture,
 } from "./error-capture.js";
+import { createEventId } from "./index.js";
 
 const config = {
   baseUrl: "https://errors.example.test",
@@ -14,6 +16,17 @@ const config = {
 };
 
 describe("native error capture", () => {
+  it("creates opaque event IDs without native Web Crypto", () => {
+    vi.stubGlobal("crypto", undefined);
+    try {
+      const first = createEventId();
+      expect(first).toMatch(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u);
+      expect(createEventId()).not.toBe(first);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("formats a mobile relay event without crypto or browser globals", () => {
     vi.stubGlobal("crypto", undefined);
     try {
@@ -21,14 +34,9 @@ describe("native error capture", () => {
       error.stack = "TypeError: private title\n    at render (address at index.android.bundle:1:12345)";
       expect(
         createErrorCaptureEvent({ error, mode: "unhandled" }, { environment: "production", release: "1.0.0" }),
-      ).toEqual({
-        platform: "javascript",
-        exceptionType: "TypeError",
-        frames: [{ filename: "index.android.bundle", lineno: 1, colno: 12345 }],
-        mode: "unhandled",
-        environment: "production",
-        release: "1.0.0",
-      });
+      ).toEqual(
+        JSON.parse(readFileSync(new URL("../../contract-fixtures/error-capture-relay.json", import.meta.url), "utf8")),
+      );
       expect(() => createErrorCaptureEvent({ error }, { environment: "invalid environment" })).toThrow();
       expect(() => createErrorCaptureEvent({ error }, { environment: "test", eventId: "unsafe" })).toThrow();
     } finally {
@@ -131,6 +139,25 @@ describe("native error capture", () => {
     expect(() => new ErrorCaptureClient({ ...config, baseUrl: "http://remote.example.test" })).toThrow(
       "invalid error capture configuration",
     );
+  });
+
+  it("installs an authenticated relay capture adapter without collector credentials", async () => {
+    const browser = new EventTarget();
+    vi.stubGlobal("window", browser);
+    try {
+      const captureException = vi
+        .fn<ErrorCaptureClient["captureException"]>()
+        .mockResolvedValue({ outcome: "unavailable" });
+      const close = installBrowserErrorCapture({ captureException });
+      const event = Object.assign(new Event("error"), { error: new Error("private") });
+      browser.dispatchEvent(event);
+      expect(captureException).toHaveBeenCalledWith({ error: event.error, mode: "unhandled" });
+      close();
+      browser.dispatchEvent(event);
+      expect(captureException).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("captures unhandled browser failures without taking over the browser outcome, and detaches", async () => {

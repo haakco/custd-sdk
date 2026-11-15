@@ -51,7 +51,7 @@ export declare class ErrorCaptureClient {
     captureException(request: CaptureExceptionRequest): Promise<ErrorCaptureResult>;
 }
 /** Install once at the application boundary; close it when that application unmounts. */
-export declare function installBrowserErrorCapture(client: ErrorCaptureClient): () => void;
+export declare function installBrowserErrorCapture(client: Pick<ErrorCaptureClient, "captureException">): () => void;
 export type NativeErrorHandler = (error: unknown, fatal?: boolean) => void;
 /** React Native ErrorUtils-shaped seam; no native dependencies or global patching. */
 export interface NativeErrorSource {

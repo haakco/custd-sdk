@@ -4056,6 +4056,11 @@ function uuidv7(): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
+/** Opaque per-event identity, including runtimes without Web Crypto. Not an authentication token. */
+export function createEventId(): string {
+  return randomUUID();
+}
+
 function randomUUID(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();

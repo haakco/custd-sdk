@@ -578,7 +578,7 @@ cap. Clients must treat export bytes as opaque and must not log audit details.
 
 | Feature | Go | TypeScript | Python | PHP | Laravel | WordPress |
 | --- | --- | --- | --- | --- | --- | --- |
-| Native exception capture | no | yes | no | yes | via PHP SDK | via PHP SDK |
+| Native exception capture | yes | yes | no | yes | via PHP SDK | via PHP SDK |
 | Event ingest | yes | yes | yes | yes | PHP wrapper | PHP wrapper |
 | Batch queue/flush | yes | yes | yes | yes | PHP wrapper | server hook events |
 | Durable file-backed queue (intentional asymmetry in v1.8.9) | no, in-memory | no, in-memory | yes (`FileQueueStorage` + selective ack) | yes (own `FileQueueStore`) | via PHP SDK | via PHP SDK defaults |
@@ -739,7 +739,7 @@ For already-installed tools during GitHub rate limiting, use
 `MISE_OFFLINE=1 mise exec -- <command>`. Missing tools still require upstream
 access; this option blocks mise HTTP requests, not the child command's network.
 
-## Native error capture (JavaScript and PHP)
+## Native error capture (Go, JavaScript and PHP)
 
 These SDKs capture directly to Custd without a Sentry package. Use a registered Site's write key: a browser Site
 allowlists the application's exact origins; a server-only Site has no allowed origins. Never expose a server key
@@ -769,4 +769,14 @@ at 16 KiB, sends time out after two seconds and are never retried. Own one clien
 not a global server singleton. Browser listeners have an explicit detach function and never cancel browser events.
 
 The native client uses Custd's existing envelope intake contract; this preserves backend grouping, issue state and
-alerts without shipping any third-party collector. Go and Python native capture are not implemented in this release.
+alerts without shipping any third-party collector. Go exposes `NewErrorCaptureClient` for request-scoped capture
+and `NewErrorReporter` for bounded, nonblocking process reporting. The reporter validates JavaScript relay events
+and offers confirmed delivery for authenticated application relays. JavaScript exports `createErrorCaptureEvent`
+and `installNativeErrorCapture` for Expo/React Native integration without exposing server write keys. Python native
+capture is not implemented.
+
+For authenticated analytics relays, Go `SendEvents` returns confirmed `AcceptedEventIDs`, including partial
+acceptance, without queueing or retrying. JavaScript `createEventId` provides opaque per-event UUIDs in native
+runtimes without Web Crypto. Keep those IDs stable for acknowledgement; they are not authentication tokens.
+Browser error listeners accept a structural capture callback, so an authenticated application relay uses the
+same listener lifecycle as direct Site capture.

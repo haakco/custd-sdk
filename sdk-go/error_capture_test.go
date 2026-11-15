@@ -2,10 +2,12 @@ package custd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -44,7 +46,14 @@ func TestErrorCaptureSanitizesAndValidatesRelay(t *testing.T) {
 	if !strings.Contains(body, "error_capture_test.go") || !strings.Contains(body, `"platform":"go"`) {
 		t.Error("missing origin stack/platform")
 	}
-	event := ErrorCaptureEvent{Platform: ErrorPlatformJavaScript, ExceptionType: "TypeError", Frames: []ErrorCaptureFrame{{Filename: "screen.js", Lineno: 12}}, Mode: ErrorCaptureUnhandled, Environment: "production", Release: "mobile@1.0.0"}
+	fixture, err := os.ReadFile("../contract-fixtures/error-capture-relay.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var event ErrorCaptureEvent
+	if err := json.Unmarshal(fixture, &event); err != nil {
+		t.Fatal(err)
+	}
 	if result = client.CaptureEvent(context.Background(), event); result.Outcome != ErrorCaptureAccepted {
 		t.Fatalf("%+v", result)
 	}

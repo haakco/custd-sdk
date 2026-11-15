@@ -178,7 +178,7 @@ function exceptionFrames(error: unknown): ErrorFrame[] {
 }
 
 /** Install once at the application boundary; close it when that application unmounts. */
-export function installBrowserErrorCapture(client: ErrorCaptureClient): () => void {
+export function installBrowserErrorCapture(client: Pick<ErrorCaptureClient, "captureException">): () => void {
   const onError = (event: ErrorEvent) => {
     void client.captureException({ error: event.error, mode: "unhandled" });
   };
