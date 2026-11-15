@@ -92,7 +92,7 @@ export class ErrorCaptureClient {
       url.search ||
       url.hash ||
       url.pathname !== "/" ||
-      !/^site_pk_[a-f0-9]{32,128}$/u.test(config.writeKey) ||
+      !/^site_pk_[A-Za-z0-9_-]{32,128}$/u.test(config.writeKey) ||
       !/^[a-zA-Z0-9._-]{1,64}$/u.test(config.environment) ||
       (config.release !== undefined && !/^[a-zA-Z0-9@._+-]{1,200}$/u.test(config.release))
     ) {

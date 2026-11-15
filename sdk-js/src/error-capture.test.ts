@@ -72,43 +72,46 @@ describe("native error capture", () => {
     expect(handler).toBe(replacement);
   });
 
-  it("sends only exception types and bounded code locations to Custd's error intake", async () => {
-    const send = vi.fn<typeof fetch>().mockResolvedValue(new Response('{"id":"accepted"}'));
-    const error = new TypeError("password=do-not-send");
-    error.stack =
-      "TypeError: password=do-not-send\n    at work (https://private.example.test/accounts/secret/worker.js?token=do-not-send:12:4)";
-    Object.assign(error, { request: { cookie: "do-not-send" }, user: { email: "private@example.test" } });
-    const client = new ErrorCaptureClient({ ...config, fetch: send });
-    expect(await client.captureException({ error, correlationId: "01ARZ3NDEKTSV4RRFFQ69G5FAV" })).toEqual({
-      outcome: "accepted",
-      status: 200,
-    });
-    const [endpoint, request] = send.mock.calls[0];
-    expect(endpoint).toBe("https://errors.example.test/api/v1/errors/api/1/envelope/");
-    const body = String(request?.body);
-    const [header, item, event] = body.split("\n").map((line) => JSON.parse(line));
-    expect(header.dsn).toBe(`https://${config.writeKey}@errors.example.test/api/v1/errors/1`);
-    expect(item).toEqual({ type: "event" });
-    expect(event.exception.values).toEqual([
-      {
-        type: "TypeError",
-        mechanism: { handled: true },
-        stacktrace: { frames: [{ filename: "worker.js", lineno: 12, colno: 4 }] },
-      },
-    ]);
-    expect(event.tags).toEqual({ correlation_id: "01ARZ3NDEKTSV4RRFFQ69G5FAV" });
-    expect(event.sdk.name).toBe("custd.javascript");
-    for (const forbidden of [
-      "do-not-send",
-      "private.example.test",
-      "/accounts/",
-      "private@example.test",
-      "password",
-      '"request"',
-    ])
-      expect(body).not.toContain(forbidden);
-    expect(request).toMatchObject({ credentials: "omit", redirect: "error", referrerPolicy: "no-referrer" });
-  });
+  it.each([`site_pk_${"a".repeat(48)}`, `site_pk_${"Az_-".repeat(12)}`])(
+    "sends only exception types and bounded code locations to Custd's error intake (%s)",
+    async (writeKey) => {
+      const send = vi.fn<typeof fetch>().mockResolvedValue(new Response('{"id":"accepted"}'));
+      const error = new TypeError("password=do-not-send");
+      error.stack =
+        "TypeError: password=do-not-send\n    at work (https://private.example.test/accounts/secret/worker.js?token=do-not-send:12:4)";
+      Object.assign(error, { request: { cookie: "do-not-send" }, user: { email: "private@example.test" } });
+      const client = new ErrorCaptureClient({ ...config, writeKey, fetch: send });
+      expect(await client.captureException({ error, correlationId: "01ARZ3NDEKTSV4RRFFQ69G5FAV" })).toEqual({
+        outcome: "accepted",
+        status: 200,
+      });
+      const [endpoint, request] = send.mock.calls[0];
+      expect(endpoint).toBe("https://errors.example.test/api/v1/errors/api/1/envelope/");
+      const body = String(request?.body);
+      const [header, item, event] = body.split("\n").map((line) => JSON.parse(line));
+      expect(header.dsn).toBe(`https://${writeKey}@errors.example.test/api/v1/errors/1`);
+      expect(item).toEqual({ type: "event" });
+      expect(event.exception.values).toEqual([
+        {
+          type: "TypeError",
+          mechanism: { handled: true },
+          stacktrace: { frames: [{ filename: "worker.js", lineno: 12, colno: 4 }] },
+        },
+      ]);
+      expect(event.tags).toEqual({ correlation_id: "01ARZ3NDEKTSV4RRFFQ69G5FAV" });
+      expect(event.sdk.name).toBe("custd.javascript");
+      for (const forbidden of [
+        "do-not-send",
+        "private.example.test",
+        "/accounts/",
+        "private@example.test",
+        "password",
+        '"request"',
+      ])
+        expect(body).not.toContain(forbidden);
+      expect(request).toMatchObject({ credentials: "omit", redirect: "error", referrerPolicy: "no-referrer" });
+    },
+  );
 
   it("retains Hermes and Metro code locations without private paths or messages", async () => {
     const send = vi.fn<typeof fetch>().mockResolvedValue(new Response());

@@ -22,7 +22,7 @@ final readonly class Config
             || (($url['scheme'] ?? '') !== 'https' && ! (($url['scheme'] ?? '') === 'http' && $local))
             || isset($url['user']) || isset($url['pass']) || isset($url['query']) || isset($url['fragment'])
             || ! in_array($url['path'] ?? '', ['', '/'], true)
-            || preg_match('/^site_pk_[a-f0-9]{32,128}$/D', $writeKey) !== 1
+            || preg_match('/^site_pk_[A-Za-z0-9_-]{32,128}$/D', $writeKey) !== 1
             || preg_match('/^[a-zA-Z0-9._-]{1,64}$/D', $environment) !== 1
             || ($release !== null && preg_match('/^[a-zA-Z0-9@._+-]{1,200}$/D', $release) !== 1)
         ) {
