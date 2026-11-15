@@ -31,7 +31,7 @@ describe("native error capture", () => {
     vi.stubGlobal("crypto", undefined);
     try {
       const error = new TypeError("private title");
-      error.stack = "TypeError: private title\n    at render (address at index.android.bundle:1:12345)";
+      error.stack = "TypeError: private title\n    at render (address at index.android.bundle:1:6301494)";
       expect(
         createErrorCaptureEvent({ error, mode: "unhandled" }, { environment: "production", release: "1.0.0" }),
       ).toEqual(
@@ -42,6 +42,14 @@ describe("native error capture", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it("keeps signed-32-bit column locations while retaining the line bound", () => {
+    const error = new Error("private");
+    error.stack = "Error: private\n    at render (address at index.android.bundle:1000001:2147483648)";
+    expect(createErrorCaptureEvent({ error }, { environment: "test" }).frames).toEqual([
+      { filename: "index.android.bundle", lineno: 1000000, colno: 2147483647 },
+    ]);
   });
 
   it("chains the native handler despite capture failure and restores only its own handler", async () => {

@@ -171,7 +171,11 @@ function exceptionFrames(error: unknown): ErrorFrame[] {
       const filename = path.split(/[\\/]/u).pop();
       if (!filename || !/^[A-Za-z0-9_.-]{1,128}\.(?:[cm]?js|jsx|tsx?|bundle)$/u.test(filename)) return [];
       return [
-        { filename, lineno: Math.min(Number(location[2]), 1_000_000), colno: Math.min(Number(location[3]), 1_000_000) },
+        {
+          filename,
+          lineno: Math.min(Number(location[2]), 1_000_000),
+          colno: Math.min(Number(location[3]), 2_147_483_647),
+        },
       ];
     })
     .reverse();
