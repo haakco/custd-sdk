@@ -17,7 +17,7 @@ final class ErrorCaptureTest extends TestCase
     {
         $delivery = null;
         $client = new Client(
-            new Config('https://errors.example.test', 'site_pk_'.str_repeat('a', 48), 'test', 'awthy@1.0.14'),
+            new Config('https://errors.example.test', 'site_pk_'.str_repeat('Az_-', 12), 'test', 'awthy@1.0.14'),
             function (DeliveryRequest $request) use (&$delivery): int {
                 $delivery = $request;
 
