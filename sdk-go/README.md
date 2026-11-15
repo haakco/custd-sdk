@@ -458,3 +458,7 @@ original IDs for caller-controlled retry. A collector-supplied
 `acceptedEventIds` field is never trusted. `Track` and `Flush` retain their
 existing asynchronous queue contract and should not be used to acknowledge
 mobile queue entries.
+
+Caller deadlines also bound OAuth token acquisition and refresh. Valid producer
+tokens are reused, and a slow refresh never holds another request behind a cache
+mutex. Token endpoint redirects are refused.

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSendEventsReturnsConfirmedPartialAcceptance(t *testing.T) {
@@ -65,5 +66,30 @@ func TestSendEventsRejectsUnprovenAcceptance(t *testing.T) {
 	invalid.EventUUID = ""
 	if _, err := client.SendEvents(context.Background(), SendEventsRequest{Events: []EventEnvelope{invalid}}); err == nil || !strings.Contains(err.Error(), "eventUuid") {
 		t.Fatal("missing supplied retry identity accepted")
+	}
+}
+
+func TestSendEventsDeadlineIncludesOAuthTokenExchange(t *testing.T) {
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-time.After(time.Second):
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"synthetic-token","token_type":"Bearer","expires_in":3600}`))
+	}))
+	defer tokenServer.Close()
+	client := NewClient(&ClientConfig{BaseURL: tokenServer.URL, ClientID: "synthetic-client", ClientSecret: "synthetic-secret", TokenURL: tokenServer.URL})
+	defer func() { _ = client.Close(context.Background()) }()
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	result, err := client.SendEvents(ctx, SendEventsRequest{Events: []EventEnvelope{*validEvent()}})
+	if err == nil || result != nil {
+		t.Fatal("expired token exchange acknowledged events")
+	}
+	if time.Since(started) > 500*time.Millisecond {
+		t.Fatal("token exchange ignored caller deadline")
 	}
 }

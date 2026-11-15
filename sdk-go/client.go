@@ -441,9 +441,7 @@ func buildHTTPClient(cfg *ClientConfig) *http.Client {
 	if cfg.Audience != "" {
 		oauthCfg.EndpointParams = url.Values{"audience": {cfg.Audience}}
 	}
-	client := oauthCfg.Client(context.Background())
-	client.Timeout = defaultHTTPTimeout
-	return client
+	return &http.Client{Timeout: defaultHTTPTimeout, Transport: &clientCredentialsTransport{config: oauthCfg}}
 }
 
 func isSecureOrLocalHTTP(raw string) bool {
