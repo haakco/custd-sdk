@@ -110,12 +110,18 @@ function exceptionFrames(error) {
         .split("\n")
         .slice(1, maxFrames + 1)
         .flatMap((line) => {
-        const location = line.match(/(?:\(|@|\s)((?:https?:\/\/|file:\/\/|\/)?[^\s()]+):(\d+):(\d+)\)?$/u);
+        const location = line.match(/(?:\(|@|\s)((?:https?:\/\/|file:\/\/|\/)?[^\s]+):(\d+):(\d+)\)?$/u);
         if (!location)
             return [];
         const path = location[1].replace(/[?#].*$/u, "");
-        const filename = path.split(/[\\/]/u).pop();
-        if (!filename || !/^[A-Za-z0-9_.-]{1,128}\.(?:[cm]?js|jsx|tsx?|bundle)$/u.test(filename))
+        let filename;
+        try {
+            filename = decodeURIComponent(path.split(/[\\/]/u).pop() ?? "");
+        }
+        catch {
+            return [];
+        }
+        if (!filename || !/^[A-Za-z0-9_.+[\]-]{1,128}\.(?:[cm]?js|jsx|tsx?|bundle)$/u.test(filename))
             return [];
         return [
             {

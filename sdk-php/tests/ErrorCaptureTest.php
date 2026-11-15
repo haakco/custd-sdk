@@ -38,6 +38,28 @@ final class ErrorCaptureTest extends TestCase
         }
     }
 
+    public function test_code_basenames_are_decoded_after_private_path_and_query_are_removed(): void
+    {
+        $body = '';
+        $client = new Client(
+            new Config('https://errors.example.test', 'site_pk_'.str_repeat('Az_-', 12), 'test'),
+            function (DeliveryRequest $request) use (&$body): int {
+                $body = $request->body;
+
+                return 200;
+            },
+        );
+        $error = new \ErrorException('private message', 0, E_ERROR, 'https://private.example/account/%5Bid%5D+Page.php?token=do-not-send', 12);
+        self::assertSame(CaptureOutcome::Accepted, $client->captureException(new CaptureRequest($error))->outcome);
+        self::assertStringContainsString('[id]+Page.php', $body);
+        foreach (['private.example', '/account/', 'do-not-send', 'private message'] as $forbidden) {
+            self::assertStringNotContainsString($forbidden, $body);
+        }
+        $unsafe = new \ErrorException('', 0, E_ERROR, 'https://private.example/%2Fsecret.php', 12);
+        $client->captureException(new CaptureRequest($unsafe));
+        self::assertStringNotContainsString('secret.php', $body);
+    }
+
     public function test_transport_failure_is_isolated_and_capture_count_is_bounded(): void
     {
         $attempts = 0;

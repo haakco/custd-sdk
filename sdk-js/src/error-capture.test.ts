@@ -31,7 +31,12 @@ describe("native error capture", () => {
     vi.stubGlobal("crypto", undefined);
     try {
       const error = new TypeError("private title");
-      error.stack = "TypeError: private title\n    at render (address at index.android.bundle:1:6301494)";
+      error.stack = [
+        "TypeError: private title",
+        "    at render (address at index.android.bundle:1:6301494)",
+        "    at render (https://private.example/app/(tabs)/%5Bid%5D.tsx?token=do-not-send:1:6301494)",
+        "    at render (https://private.example/private/+Page.tsx:12:4)",
+      ].join("\n");
       expect(
         createErrorCaptureEvent({ error, mode: "unhandled" }, { environment: "production", release: "1.0.0" }),
       ).toEqual(
@@ -42,6 +47,17 @@ describe("native error capture", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it("rejects unsafe decoded basenames instead of retaining URL or credential content", () => {
+    const error = new Error("private");
+    error.stack = [
+      "Error: private",
+      ...["%2Fsecret.tsx", "%5Csecret.tsx", "%3Ftoken.tsx", "%40account.tsx", "%E0%A4%A.tsx"].map(
+        (name) => `    at render (https://private.example/private/${name}:1:4)`,
+      ),
+    ].join("\n");
+    expect(createErrorCaptureEvent({ error }, { environment: "test" }).frames).toEqual([]);
   });
 
   it("keeps signed-32-bit column locations while retaining the line bound", () => {

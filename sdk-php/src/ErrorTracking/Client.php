@@ -63,8 +63,8 @@ final class Client
             $frames = [];
             $locations = [['file' => $error->getFile(), 'line' => $error->getLine()], ...array_slice($error->getTrace(), 0, 23)];
             foreach ($locations as $location) {
-                $filename = basename(str_replace('\\', '/', preg_replace('/[?#].*$/', '', $location['file'] ?? '') ?? ''));
-                if (preg_match('/^[A-Za-z0-9_.-]{1,128}\.php$/D', $filename) === 1) {
+                $filename = rawurldecode(basename(str_replace('\\', '/', preg_replace('/[?#].*$/', '', $location['file'] ?? '') ?? '')));
+                if (preg_match('/^[A-Za-z0-9_.+\[\]-]{1,128}\.php$/D', $filename) === 1) {
                     $frames[] = ['filename' => $filename, 'lineno' => max(0, min((int) ($location['line'] ?? 0), 1_000_000))];
                 }
             }
