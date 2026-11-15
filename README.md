@@ -239,6 +239,11 @@ silently after a broker refusal. Genuinely new external companies require the
 separate platform registration/first-admin workflow; never create one per
 internal project.
 
+`TenantAdminClient.Finalize` is permanent deletion of an already soft-deleted
+tenant after its readiness checks pass; it is never a step that completes
+registration or provisioning. A conflict means deletion is not ready, not that
+an onboarding override is needed.
+
 The SDK-owned setup helper directly calls the tenant/OAuth admin owners. It is
 for an operator already authorized for those operations, not a substitute for
 producer provisioning or project-scope grants. For an internal HaakCo producer,
