@@ -4064,3 +4064,11 @@ function randomUUID(): string {
     (Number(c) ^ ((Math.random() * 16) >> (Number(c) / 4))).toString(16),
   );
 }
+
+export {
+  type CaptureExceptionRequest,
+  ErrorCaptureClient,
+  type ErrorCaptureConfig,
+  type ErrorCaptureResult,
+  installBrowserErrorCapture,
+} from "./error-capture.js";

@@ -1871,3 +1871,4 @@ function randomUUID() {
     }
     return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => (Number(c) ^ ((Math.random() * 16) >> (Number(c) / 4))).toString(16));
 }
+export { ErrorCaptureClient, installBrowserErrorCapture, } from "./error-capture.js";

@@ -578,6 +578,7 @@ cap. Clients must treat export bytes as opaque and must not log audit details.
 
 | Feature | Go | TypeScript | Python | PHP | Laravel | WordPress |
 | --- | --- | --- | --- | --- | --- | --- |
+| Native exception capture | no | yes | no | yes | via PHP SDK | via PHP SDK |
 | Event ingest | yes | yes | yes | yes | PHP wrapper | PHP wrapper |
 | Batch queue/flush | yes | yes | yes | yes | PHP wrapper | server hook events |
 | Durable file-backed queue (intentional asymmetry in v1.8.9) | no, in-memory | no, in-memory | yes (`FileQueueStorage` + selective ack) | yes (own `FileQueueStore`) | via PHP SDK | via PHP SDK defaults |
@@ -737,3 +738,35 @@ CI machine identities remain separate from these developer login volumes.
 For already-installed tools during GitHub rate limiting, use
 `MISE_OFFLINE=1 mise exec -- <command>`. Missing tools still require upstream
 access; this option blocks mise HTTP requests, not the child command's network.
+
+## Native error capture (JavaScript and PHP)
+
+These SDKs capture directly to Custd without a Sentry package. Use a registered Site's write key: a browser Site
+allowlists the application's exact origins; a server-only Site has no allowed origins. Never expose a server key
+in browser configuration. Error capture is optional and does not replace local operational logs.
+
+```ts
+import { ErrorCaptureClient, installBrowserErrorCapture } from "@haakco/custd-sdk";
+
+const errors = new ErrorCaptureClient({ baseUrl, writeKey, environment: "production", release: "app@1.0.0" });
+const close = installBrowserErrorCapture(errors);
+await errors.captureException({ error, mode: "handled" });
+// Call close() when this application unmounts.
+```
+
+```php
+$errors = new \HaakCo\Custd\ErrorTracking\Client(
+    new \HaakCo\Custd\ErrorTracking\Config($baseUrl, $writeKey, 'production', 'app@1.0.0'),
+);
+$result = $errors->captureException(new \HaakCo\Custd\ErrorTracking\CaptureRequest($error));
+```
+
+Only exception types, bounded code filenames/line numbers, release/environment and an optional application ULID are
+sent. Messages, absolute paths, query strings, request/response bodies, users, cookies, arguments and source content
+are excluded before transport. Capture never throws: the result distinguishes accepted, rejected, unavailable and
+limited. Each client captures at most 20 errors; JavaScript allows at most four concurrent sends. Payloads are capped
+at 16 KiB, sends time out after two seconds and are never retried. Own one client per server request or browser page,
+not a global server singleton. Browser listeners have an explicit detach function and never cancel browser events.
+
+The native client uses Custd's existing envelope intake contract; this preserves backend grouping, issue state and
+alerts without shipping any third-party collector. Go and Python native capture are not implemented in this release.
