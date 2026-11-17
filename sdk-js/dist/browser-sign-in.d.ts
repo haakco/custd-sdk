@@ -91,12 +91,10 @@ export declare const SIGN_IN_ERROR_CODES: {
 export type SignInErrorCode = (typeof SIGN_IN_ERROR_CODES)[keyof typeof SIGN_IN_ERROR_CODES];
 export declare class SignInError extends Error {
     readonly code: SignInErrorCode;
-    /** OAuth `error` value from the authorization server, when it sent one. */
     readonly oauthError?: string | undefined;
     readonly status?: number | undefined;
-    constructor(code: SignInErrorCode, message: string, 
-    /** OAuth `error` value from the authorization server, when it sent one. */
-    oauthError?: string | undefined, status?: number | undefined);
+    /** @param oauthError OAuth `error` value from the authorization server, when it sent one. */
+    constructor(code: SignInErrorCode, message: string, oauthError?: string | undefined, status?: number | undefined);
 }
 export declare const DEFAULT_SIGN_IN_SCOPES: readonly string[];
 /** Reads and validates the sign-in endpoints from a discovery document. */

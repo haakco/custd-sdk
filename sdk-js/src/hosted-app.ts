@@ -60,10 +60,10 @@ export const HOSTED_APP_ERROR_CODES = {
 export type HostedAppErrorCode = (typeof HOSTED_APP_ERROR_CODES)[keyof typeof HOSTED_APP_ERROR_CODES];
 
 export class HostedAppError extends Error {
+  /** @param capability The capability that failed to start; absent when discovery itself failed. */
   constructor(
     readonly code: HostedAppErrorCode,
     message: string,
-    /** The capability that failed to start; absent when discovery itself failed. */
     readonly capability?: HostedAppCapability,
     readonly status?: number,
   ) {

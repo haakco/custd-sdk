@@ -18,9 +18,8 @@ export const HOSTED_APP_ERROR_CODES = {
     capabilityFailed: "capability_failed",
 };
 export class HostedAppError extends Error {
-    constructor(code, message, 
-    /** The capability that failed to start; absent when discovery itself failed. */
-    capability, status) {
+    /** @param capability The capability that failed to start; absent when discovery itself failed. */
+    constructor(code, message, capability, status) {
         super(`custd: ${message}`);
         this.code = code;
         this.capability = capability;
