@@ -186,7 +186,7 @@ final class SiteDomainClientTest extends TestCase
 
     public function testSiteRuleNamesEveryCatalogueRuleAndTheFixtureFindings(): void
     {
-        self::assertCount(71, SiteRule::cases());
+        self::assertCount(74, SiteRule::cases());
         $fixture = json_decode(
             (string) file_get_contents(__DIR__ . "/../../contract-fixtures/site-insights.json"),
             true,

@@ -340,6 +340,29 @@ SiteReportShareRequest(30))` returns the share and its token once;
 `listReportShares()` lists live shares without tokens and
 `revokeReportShare($domainUuid, $shareUuid)` ends one.
 
+`getReport($domainUuid, template: SiteReport::TEMPLATE_EXECUTIVE, days: 14)` picks
+the report layout and search window. `saveReport($domainUuid, new
+SavedSiteReportRequest('November', SiteReport::TEMPLATE_EXECUTIVE, 14))` keeps a
+built report under a name (`listSavedReports()`, `getSavedReport()`,
+`replaceSavedReport()`, `deleteSavedReport()`; at most 20 per domain), and
+`new SiteReportShareRequest(30, $reportUuid)` shares a saved report instead of the
+live one. `listAuditPages($domainUuid, $offset, $limit)` pages through the crawled
+URLs, `getAuditDelta()` returns the findings the latest audit raised, raised again
+and found fixed, and `setLighthousePages($domainUuid, $urls)` /
+`getLighthousePages()` choose up to five extra pages for Lighthouse;
+`getLighthouseHistory($domainUuid, url: $pageUrl)` reads one of them.
+
+Three focused clients hang off the same client. `rankings()` tracks keyword
+positions from Search Console (`getRankings()`, `trackKeyword()`,
+`updateTrackedKeyword()`, `untrackKeyword()`); a day the domain did not rank has a
+`null` position. `accessLogs()` reads `getTraffic()` and `getAIVisibility()` over
+UTC days, and a system administrator can `replayAccessLogHour($hourStart)`.
+`webData()` reads a Site's `getWebDomains()`, `listWebPages()`,
+`getTopicTrends()` and `getContentGap()` and keeps its keyword lists
+(`listKeywordLists()`, `saveKeywordList()`, `deleteKeywordList()`,
+`getKeywordClusters()`). Refusals carry the `*_CODE` constants on the client that
+made the call.
+
 ## Schema Admin Helpers
 
 Use `$client->adminSchemas()` from setup code:

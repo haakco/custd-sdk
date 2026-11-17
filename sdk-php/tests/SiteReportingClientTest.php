@@ -7,6 +7,7 @@ namespace HaakCo\Custd\Tests;
 use HaakCo\Custd\Admin\AdminProblemException;
 use HaakCo\Custd\Admin\SiteDomain\SiteLighthouseOutcome;
 use HaakCo\Custd\Admin\SiteDomain\SiteLighthouseProfile;
+use HaakCo\Custd\Admin\SiteDomain\SiteReport;
 use HaakCo\Custd\Admin\SiteDomain\SiteReportShareRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteUptimeStatus;
 use HaakCo\Custd\Admin\SiteDomainClient;
@@ -23,6 +24,7 @@ final class SiteReportingClientTest extends TestCase
         $report = $this->client($calls)->getReport('domain-1', 'acme');
 
         self::assertSame('example.com', $report->host);
+        self::assertSame(SiteReport::TEMPLATE_FULL, $report->template);
         self::assertSame(SiteUptimeStatus::Unknown, $report->uptime->status);
         self::assertNull($report->uptime->responseMs);
         self::assertNull($report->uptime->windows->last24h->upPercent);
@@ -53,6 +55,8 @@ final class SiteReportingClientTest extends TestCase
         self::assertNull($uptime->monitoredSince);
         self::assertNull($uptime->hours[0]->avgMs);
         self::assertNull($uptime->hours[0]->maxMs);
+        self::assertSame('https://example.com/', $lighthouse->url);
+        self::assertSame([], $lighthouse->pages);
         self::assertSame(SiteLighthouseOutcome::Failed, $lighthouse->runs[1]->outcome);
         self::assertSame('timeout', $lighthouse->runs[1]->failure);
         self::assertNull($lighthouse->runs[1]->scores->performance);

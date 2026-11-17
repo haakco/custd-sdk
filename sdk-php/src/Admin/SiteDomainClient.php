@@ -5,6 +5,12 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin;
 
 use HaakCo\Custd\Admin\SiteDomain\CreateSiteDomainRequest;
+use HaakCo\Custd\Admin\SiteDomain\SavedSiteReport;
+use HaakCo\Custd\Admin\SiteDomain\SavedSiteReportList;
+use HaakCo\Custd\Admin\SiteDomain\SavedSiteReportRequest;
+use HaakCo\Custd\Admin\SiteDomain\SiteAuditDelta;
+use HaakCo\Custd\Admin\SiteDomain\SiteAuditPageList;
+use HaakCo\Custd\Admin\SiteDomain\SiteLighthousePages;
 use HaakCo\Custd\Admin\SiteDomain\SiteAlertDestination;
 use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
 use HaakCo\Custd\Admin\SiteDomain\SiteDomain;
@@ -36,7 +42,6 @@ use HaakCo\Custd\Admin\SiteDomain\SiteSearchDimension;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspection;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspectionList;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchRowPage;
-use HaakCo\Custd\Fields;
 
 /**
  * SiteDomainClient claims the hosts a site serves, proves the tenant controls
@@ -87,22 +92,40 @@ final class SiteDomainClient
     /** The problem code of the 429 returned once the tenant's daily IndexNow URLs are used up. */
     public const INDEXNOW_LIMIT_CODE = 'site_indexnow_limit';
 
-    private const PREFIX = '/api/v1';
-    private const COLLECTION = '/site-domains';
+    /** The problem code of the 400 returned when a Lighthouse page is off the domain's host or is its home page. */
+    public const LIGHTHOUSE_PAGE_NOT_EXTRA_CODE = 'site_lighthouse_page_not_extra';
 
-    /** @var callable|null */
-    private $transport;
+    /** The problem code of the 409 returned when the domain already has a saved report with that name. */
+    public const SAVED_REPORT_NAME_TAKEN_CODE = 'saved_site_report_name_taken';
 
-    /** @var string|callable():string Bearer token, or a provider run per request. */
-    private readonly mixed $token;
+    /** The problem code of the 409 returned once the domain keeps SavedSiteReportList::MAX_REPORTS saved reports. */
+    public const SAVED_REPORT_LIMIT_CODE = 'saved_site_report_limit';
 
-    public function __construct(
-        private readonly string $baseUrl,
-        string|callable $token,
-        ?callable $transport = null
-    ) {
-        $this->token = $token;
-        $this->transport = $transport;
+    private const COLLECTION = SiteDomainHttp::COLLECTION;
+
+    private readonly SiteDomainHttp $http;
+
+    public function __construct(string $baseUrl, string|callable $token, ?callable $transport = null)
+    {
+        $this->http = new SiteDomainHttp($baseUrl, $token, $transport);
+    }
+
+    /** Track the domain's own keyword positions from Search Console. */
+    public function rankings(): SiteRankingClient
+    {
+        return new SiteRankingClient($this->http);
+    }
+
+    /** Read the domain's traffic and AI visibility from its access logs. */
+    public function accessLogs(): SiteAccessLogClient
+    {
+        return new SiteAccessLogClient($this->http);
+    }
+
+    /** Read a Site's public web data and keep its keyword lists. */
+    public function webData(): SiteWebDataClient
+    {
+        return new SiteWebDataClient($this->http);
     }
 
     /** Claim a host for a site. The result carries the verification instructions. */
@@ -120,7 +143,7 @@ final class SiteDomainClient
     public function list(?string $siteUuid = null, ?string $companySlug = null): SiteDomainList
     {
         return SiteDomainList::fromPayload(
-            $this->send('GET', self::COLLECTION, self::siteQuery($siteUuid), $companySlug)
+            $this->send('GET', self::COLLECTION, SiteDomainHttp::siteQuery($siteUuid), $companySlug)
         );
     }
 
@@ -196,7 +219,7 @@ final class SiteDomainClient
     public function getAlertDestination(?string $siteUuid = null, ?string $companySlug = null): SiteAlertDestination
     {
         return SiteAlertDestination::fromPayload(
-            $this->send('GET', self::COLLECTION . '/alert-destination', self::siteQuery($siteUuid), $companySlug)
+            $this->send('GET', self::COLLECTION . '/alert-destination', SiteDomainHttp::siteQuery($siteUuid), $companySlug)
         );
     }
 
@@ -212,16 +235,10 @@ final class SiteDomainClient
         return SiteAlertDestination::fromPayload($this->send(
             'PUT',
             self::COLLECTION . '/alert-destination',
-            self::siteQuery($siteUuid),
+            SiteDomainHttp::siteQuery($siteUuid),
             $companySlug,
             ['emailRecipient' => $emailRecipient ?? '']
         ));
-    }
-
-    /** @return array<string, string> */
-    private static function siteQuery(?string $siteUuid): array
-    {
-        return $siteUuid === null || $siteUuid === '' ? [] : ['siteUuid' => $siteUuid];
     }
 
     /** List a domain's recent outages, newest first (at most twenty). */
@@ -285,15 +302,7 @@ final class SiteDomainClient
         SiteSearchProvider $provider,
         ?string $companySlug = null,
     ): void {
-        Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            'DELETE',
-            self::withQuery(self::searchConnection($domainUuid, $provider), [], $companySlug),
-            null,
-            self::PREFIX
-        );
+        $this->http->sendNoContent('DELETE', self::searchConnection($domainUuid, $provider), [], $companySlug);
     }
 
     /**
@@ -399,7 +408,7 @@ final class SiteDomainClient
     public function getProjectContext(?string $siteUuid = null, ?string $companySlug = null): SiteProjectContext
     {
         return SiteProjectContext::fromPayload(
-            $this->send('GET', self::COLLECTION . '/project-context', self::siteQuery($siteUuid), $companySlug)
+            $this->send('GET', self::COLLECTION . '/project-context', SiteDomainHttp::siteQuery($siteUuid), $companySlug)
         );
     }
 
@@ -412,7 +421,7 @@ final class SiteDomainClient
         return SiteProjectContext::fromPayload($this->send(
             'PUT',
             self::COLLECTION . '/project-context',
-            self::siteQuery($siteUuid),
+            SiteDomainHttp::siteQuery($siteUuid),
             $companySlug,
             $request->serialise()
         ));
@@ -436,15 +445,7 @@ final class SiteDomainClient
     /** Disable IndexNow and forget the key. The route returns 204 No Content. */
     public function disableIndexNow(string $domainUuid, ?string $companySlug = null): void
     {
-        Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            'DELETE',
-            self::withQuery(self::indexNow($domainUuid), [], $companySlug),
-            null,
-            self::PREFIX
-        );
+        $this->http->sendNoContent('DELETE', self::indexNow($domainUuid), [], $companySlug);
     }
 
     /** Check the key file now. A failed check is not an error: it comes back in lastCheckFailure. */
@@ -472,10 +473,88 @@ final class SiteDomainClient
         ));
     }
 
-    /** Read the complete client report without exposing private verification or connection details. */
-    public function getReport(string $domainUuid, ?string $companySlug = null): SiteReport
+    /**
+     * Read the client report without exposing private verification or connection details. $template
+     * is a SiteReport::TEMPLATE_* value and $days the search window (1..90); null leaves the server's
+     * full report over 28 days.
+     */
+    public function getReport(
+        string $domainUuid,
+        ?string $companySlug = null,
+        ?string $template = null,
+        ?int $days = null,
+    ): SiteReport {
+        $query = SiteDomainHttp::query(['template' => $template, 'days' => $days]);
+
+        return SiteReport::fromPayload($this->send('GET', self::item($domainUuid) . '/report', $query, $companySlug));
+    }
+
+    /** List a domain's saved reports, without their content. */
+    public function listSavedReports(string $domainUuid, ?string $companySlug = null): SavedSiteReportList
     {
-        return SiteReport::fromPayload($this->send('GET', self::item($domainUuid) . '/report', [], $companySlug));
+        return SavedSiteReportList::fromPayload($this->send('GET', self::savedReports($domainUuid), [], $companySlug));
+    }
+
+    /**
+     * Build a report now and keep it under a name. A taken name throws {@see self::SAVED_REPORT_NAME_TAKEN_CODE}
+     * and a full domain {@see self::SAVED_REPORT_LIMIT_CODE}.
+     */
+    public function saveReport(
+        string $domainUuid,
+        SavedSiteReportRequest $request,
+        ?string $companySlug = null,
+    ): SavedSiteReport {
+        return SavedSiteReport::fromPayload(
+            $this->send('POST', self::savedReports($domainUuid), [], $companySlug, $request->serialise())
+        );
+    }
+
+    public function getSavedReport(string $domainUuid, string $reportUuid, ?string $companySlug = null): SavedSiteReport
+    {
+        return SavedSiteReport::fromPayload(
+            $this->send('GET', self::savedReport($domainUuid, $reportUuid), [], $companySlug)
+        );
+    }
+
+    /** Rename a saved report or change its template or days; its content is built again. */
+    public function replaceSavedReport(
+        string $domainUuid,
+        string $reportUuid,
+        SavedSiteReportRequest $request,
+        ?string $companySlug = null,
+    ): SavedSiteReport {
+        return SavedSiteReport::fromPayload(
+            $this->send('PUT', self::savedReport($domainUuid, $reportUuid), [], $companySlug, $request->serialise())
+        );
+    }
+
+    /** Delete a saved report. The route returns 204 No Content. */
+    public function deleteSavedReport(string $domainUuid, string $reportUuid, ?string $companySlug = null): void
+    {
+        $this->http->sendNoContent('DELETE', self::savedReport($domainUuid, $reportUuid), [], $companySlug);
+    }
+
+    /**
+     * Page through the URLs the latest audit crawled. Null lets the server start at offset 0 with
+     * SiteAuditPageList::DEFAULT_LIMIT rows (at most SiteAuditPageList::MAX_LIMIT).
+     */
+    public function listAuditPages(
+        string $domainUuid,
+        ?int $offset = null,
+        ?int $limit = null,
+        ?string $companySlug = null,
+    ): SiteAuditPageList {
+        $query = SiteDomainHttp::query(['offset' => $offset, 'limit' => $limit]);
+
+        return SiteAuditPageList::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/audit-pages', $query, $companySlug)
+        );
+    }
+
+    /** Read which findings the latest audit raised, raised again and found fixed. */
+    public function getAuditDelta(string $domainUuid, ?string $companySlug = null): SiteAuditDelta
+    {
+        return SiteAuditDelta::fromPayload($this->send('GET', self::item($domainUuid) . '/audit-delta', [], $companySlug));
     }
 
     /** Read uptime windows, ninety daily bars and hourly response times (responseDays: 1..90). */
@@ -488,13 +567,39 @@ final class SiteDomainClient
         );
     }
 
-    /** Read scheduled desktop/mobile lab runs over 1..30 days; null uses the server's seven days. */
-    public function getLighthouseHistory(string $domainUuid, ?int $days = null, ?string $companySlug = null): SiteLighthouseHistory
-    {
-        $query = $days === null ? [] : ['days' => (string) $days];
+    /**
+     * Read scheduled desktop/mobile lab runs over 1..30 days; null uses the server's seven days. $url
+     * names one of the domain's extra Lighthouse pages; null reads the home page.
+     */
+    public function getLighthouseHistory(
+        string $domainUuid,
+        ?int $days = null,
+        ?string $companySlug = null,
+        ?string $url = null,
+    ): SiteLighthouseHistory {
+        $query = SiteDomainHttp::query(['days' => $days, 'url' => $url]);
 
         return SiteLighthouseHistory::fromPayload(
             $this->send('GET', self::item($domainUuid) . '/lighthouse', $query, $companySlug)
+        );
+    }
+
+    /** Read the extra pages Lighthouse measures besides the home page. */
+    public function getLighthousePages(string $domainUuid, ?string $companySlug = null): SiteLighthousePages
+    {
+        return SiteLighthousePages::fromPayload($this->send('GET', self::lighthousePages($domainUuid), [], $companySlug));
+    }
+
+    /**
+     * Replace the extra Lighthouse pages (at most SiteLighthousePages::MAX_EXTRA_PAGES); an empty list
+     * clears them. A page off the host, or the home page, throws {@see self::LIGHTHOUSE_PAGE_NOT_EXTRA_CODE}.
+     *
+     * @param list<string> $urls
+     */
+    public function setLighthousePages(string $domainUuid, array $urls, ?string $companySlug = null): SiteLighthousePages
+    {
+        return SiteLighthousePages::fromPayload(
+            $this->send('PUT', self::lighthousePages($domainUuid), [], $companySlug, ['urls' => array_values($urls)])
         );
     }
 
@@ -506,7 +611,10 @@ final class SiteDomainClient
         );
     }
 
-    /** Create an explicit public share. Copy the token once; creation is never automatically retried. */
+    /**
+     * Create an explicit public share of the live report, or of the saved report the request names.
+     * Copy the token once; creation is never automatically retried.
+     */
     public function createReportShare(
         string $domainUuid,
         SiteReportShareRequest $request,
@@ -520,34 +628,33 @@ final class SiteDomainClient
     /** Revoke a share; subsequent public reads fail. */
     public function revokeReportShare(string $domainUuid, string $shareUuid, ?string $companySlug = null): void
     {
-        Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            'DELETE',
-            self::withQuery(self::item($domainUuid) . '/report-shares/' . rawurlencode($shareUuid), [], $companySlug),
-            null,
-            self::PREFIX
-        );
+        $this->http->sendNoContent('DELETE', self::item($domainUuid) . '/report-shares/' . rawurlencode($shareUuid), [], $companySlug);
     }
 
     /** Remove a domain and its findings. The route returns 204 No Content. */
     public function delete(string $domainUuid, ?string $companySlug = null): void
     {
-        Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            'DELETE',
-            self::withQuery(self::item($domainUuid), [], $companySlug),
-            null,
-            self::PREFIX
-        );
+        $this->http->sendNoContent('DELETE', self::item($domainUuid), [], $companySlug);
     }
 
     private static function item(string $domainUuid): string
     {
-        return self::COLLECTION . '/' . rawurlencode($domainUuid);
+        return SiteDomainHttp::item($domainUuid);
+    }
+
+    private static function savedReports(string $domainUuid): string
+    {
+        return self::item($domainUuid) . '/saved-reports';
+    }
+
+    private static function savedReport(string $domainUuid, string $reportUuid): string
+    {
+        return self::savedReports($domainUuid) . '/' . rawurlencode($reportUuid);
+    }
+
+    private static function lighthousePages(string $domainUuid): string
+    {
+        return self::item($domainUuid) . '/lighthouse/pages';
     }
 
     private static function indexNow(string $domainUuid): string
@@ -560,33 +667,12 @@ final class SiteDomainClient
         return self::item($domainUuid) . '/search/' . $provider->value;
     }
 
-    /** @param array<string, string> $query */
-    private static function withQuery(string $path, array $query, ?string $companySlug): string
-    {
-        if ($companySlug !== null && $companySlug !== '') {
-            $query['companySlug'] = $companySlug;
-        }
-
-        return $query === [] ? $path : $path . '?' . http_build_query($query);
-    }
-
     /**
      * @param array<string, string> $query
      * @param array<string, mixed>|null $body
      */
     private function send(string $method, string $path, array $query, ?string $companySlug, ?array $body = null): \stdClass
     {
-        return Fields::jsonObject(
-            Http::requestStructured(
-                $this->baseUrl,
-                $this->token,
-                $this->transport,
-                $method,
-                self::withQuery($path, $query, $companySlug),
-                $body,
-                self::PREFIX
-            ),
-            'site domain response'
-        );
+        return $this->http->send($method, $path, $query, $companySlug, $body);
     }
 }

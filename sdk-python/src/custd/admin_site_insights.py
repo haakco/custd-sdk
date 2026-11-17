@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     # shapes are referenced only in (postponed) annotations.
     from .admin_site_domains import (
         SiteAuditSummary,
+        SiteFinding,
         SiteSearchProvider,
         SiteSearchRow,
         SiteSearchSource,
@@ -65,6 +66,36 @@ SITE_INDEXNOW_FAILED: SiteIndexNowStatus = "failed"
 
 SiteLighthouseProfile = Literal["desktop", "mobile"]
 SiteLighthouseOutcome = Literal["success", "failed"]
+
+# How many extra pages beyond the home page a domain may run Lighthouse on.
+SITE_LIGHTHOUSE_MAX_EXTRA_PAGES = 5
+
+# An audited page's indexability. The server may add values: compare, never reject.
+SITE_INDEXABILITY_INDEXABLE = "indexable"
+SITE_INDEXABILITY_NOINDEX = "noindex"
+SITE_INDEXABILITY_CANONICALIZED = "canonicalized"
+SITE_INDEXABILITY_REDIRECTED = "redirected"
+SITE_INDEXABILITY_ERROR = "error"
+SITE_INDEXABILITY_NOT_HTML = "not_html"
+
+# list_audit_pages paging: the server returns 50 pages by default and at most 200.
+SITE_AUDIT_PAGES_DEFAULT_LIMIT = 50
+SITE_AUDIT_PAGES_MAX_LIMIT = 200
+
+# How the audit the delta compares stood: never run, failed, stopped at its bound, or whole.
+SITE_AUDIT_RUN_NOT_AUDITED = "not_audited"
+SITE_AUDIT_RUN_FAILED = "failed"
+SITE_AUDIT_RUN_TRUNCATED = "truncated"
+SITE_AUDIT_RUN_COMPLETE = "complete"
+
+# SiteReportTemplate picks a report's contents: executive is the short client summary, full
+# (the default) is every section.
+SiteReportTemplate = Literal["executive", "full"]
+SITE_REPORT_TEMPLATE_EXECUTIVE: SiteReportTemplate = "executive"
+SITE_REPORT_TEMPLATE_FULL: SiteReportTemplate = "full"
+
+# How many saved reports a domain keeps.
+SITE_MAX_SAVED_REPORTS = 20
 
 
 class SiteGeneratedFix(TypedDict):
@@ -360,10 +391,78 @@ class SiteLighthouseRun(TypedDict):
     toolVersion: NotRequired[str]
 
 
+class SiteLighthousePageComparison(TypedDict):
+    """One page and profile's latest performance score against the run before it.
+
+    ``previousAt`` and ``previousScore`` are absent until a second run.
+    """
+
+    url: str
+    profile: SiteLighthouseProfile
+    latestAt: str
+    latestScore: int
+    regressionOpen: bool
+    previousAt: NotRequired[str]
+    previousScore: NotRequired[int]
+
+
 class SiteLighthouseHistory(TypedDict):
+    """The runs of ``url`` (the home page unless an extra page was asked for) and every page's latest score."""
+
     domainUuid: str
     days: int
+    url: str
     runs: list[SiteLighthouseRun]
+    pages: list[SiteLighthousePageComparison]
+
+
+class SiteLighthousePages(TypedDict):
+    """The extra pages Lighthouse runs on beyond ``homePage``, at most ``maxPages``."""
+
+    domainUuid: str
+    homePage: str
+    urls: list[str]
+    maxPages: int
+
+
+class SiteAuditPage(TypedDict):
+    """One crawled URL of the latest audit.
+
+    ``status`` is 0 when the request failed. ``depth`` is absent when not known and
+    ``inboundLinks`` on a truncated crawl; a present 0 is a real 0.
+    """
+
+    url: str
+    status: int
+    indexability: str
+    openFindings: int
+    finalUrl: NotRequired[str]
+    depth: NotRequired[int]
+    inboundLinks: NotRequired[int]
+
+
+class SiteAuditPageList(TypedDict):
+    """One page of the latest audit's URLs; ``auditedAt`` is absent before the first audit."""
+
+    domainUuid: str
+    truncated: bool
+    offset: int
+    limit: int
+    total: int
+    pages: list[SiteAuditPage]
+    auditedAt: NotRequired[str]
+
+
+class SiteAuditDelta(TypedDict):
+    """What the latest audit opened, reopened and fixed; ``failure`` says why a failed run failed."""
+
+    domainUuid: str
+    run: str
+    new: list[SiteFinding]
+    reopened: list[SiteFinding]
+    fixed: list[SiteFinding]
+    auditedAt: NotRequired[str]
+    failure: NotRequired[str]
 
 
 class SiteReportUptime(TypedDict):
@@ -420,6 +519,7 @@ class SiteReport(TypedDict):
 
     host: str
     generatedAt: str
+    template: str
     uptime: SiteReportUptime
     certificate: SiteReportCertificate
     speed: list[SiteReportSpeed]
@@ -428,9 +528,12 @@ class SiteReport(TypedDict):
 
 
 class SiteReportShare(TypedDict):
+    """A public report link; ``reportUuid`` names the saved report it opens, absent for the live report."""
+
     shareUuid: str
     createdAt: str
     expiresAt: str
+    reportUuid: NotRequired[str]
 
 
 class SiteReportShareList(TypedDict):
@@ -444,6 +547,39 @@ class SiteReportShareCreated(TypedDict):
 
     share: SiteReportShare
     token: str
+
+
+class SavedSiteReportRequest(TypedDict):
+    """Saves a report: a name unique on the domain, a template (default full) and 1..90 days (default 28)."""
+
+    name: str
+    template: NotRequired[SiteReportTemplate]
+    days: NotRequired[int]
+
+
+class SavedSiteReportSummary(TypedDict):
+    """A saved report without its content; ``liveShares`` counts unexpired links that open it."""
+
+    reportUuid: str
+    name: str
+    template: str
+    days: int
+    generatedAt: str
+    createdAt: str
+    liveShares: int
+
+
+class SavedSiteReport(SavedSiteReportSummary):
+    """A saved report and the content stored when it was built."""
+
+    report: SiteReport
+
+
+class SavedSiteReportList(TypedDict):
+    """A domain's saved reports and how many it may keep."""
+
+    reports: list[SavedSiteReportSummary]
+    maxReports: int
 
 
 

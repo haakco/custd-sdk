@@ -86,8 +86,12 @@ export const SiteRule = {
     LighthouseMobileDrop: "lighthouse.mobile-score-drop",
     SearchLowCTR: "search.low-ctr",
     SearchPositionDrop: "search.position-drop",
+    BrokenFragment: "crawl.broken-fragment",
+    SitemapBlockedURL: "sitemap.blocked-url",
+    LogsCrawlerNotFound: "logs.crawler-not-found",
 };
 const siteDomainsPath = "/site-domains";
+const keywordListsPath = `${siteDomainsPath}/keyword-lists`;
 export class SiteDomainAdminClient {
     constructor(request) {
         this.request = request;
@@ -228,18 +232,61 @@ export class SiteDomainAdminClient {
         };
         return this.send("PUT", `${siteDomainsPath}/project-context`, { siteUuid: body.siteUuid }, request, options);
     }
-    /** Reads the client report without private verification or connection details. */
+    /** Reads the client report without private verification or connection details, in options.template over options.days. */
     getReport(domainUuid, options) {
-        return this.send("GET", `${domainPath(domainUuid)}/report`, {}, undefined, options);
+        const { template, days, ...requestOptions } = options ?? {};
+        const query = { template, days: days?.toString() };
+        return this.send("GET", `${domainPath(domainUuid)}/report`, query, undefined, requestOptions);
     }
     /** Reads uptime windows, ninety daily bars and hourly response times over `responseDays` (1..90). */
     getUptimeHistory(domainUuid, responseDays, options) {
         const query = { responseDays: responseDays?.toString() };
         return this.send("GET", `${domainPath(domainUuid)}/uptime-history`, query, undefined, options);
     }
-    /** Reads scheduled desktop and mobile lab runs over `days` (1..30); omitted, the server uses seven. */
+    /**
+     * Reads scheduled desktop and mobile lab runs over `days` (1..30); omitted, the server uses seven.
+     * options.url reads one extra page's runs instead of the home page's.
+     */
     getLighthouseHistory(domainUuid, days, options) {
-        return this.send("GET", `${domainPath(domainUuid)}/lighthouse`, { days: days?.toString() }, undefined, options);
+        const { url, ...requestOptions } = options ?? {};
+        const query = { days: days?.toString(), url };
+        return this.send("GET", `${domainPath(domainUuid)}/lighthouse`, query, undefined, requestOptions);
+    }
+    /** Reads the extra pages Lighthouse measures beside the home page. */
+    getLighthousePages(domainUuid, options) {
+        return this.send("GET", `${domainPath(domainUuid)}/lighthouse/pages`, {}, undefined, options);
+    }
+    /** Replaces the extra pages (at most five); an empty list clears them. Refused with SITE_LIGHTHOUSE_PAGE_NOT_EXTRA_CODE. */
+    setLighthousePages(domainUuid, urls, options) {
+        return this.send("PUT", `${domainPath(domainUuid)}/lighthouse/pages`, {}, { urls: [...urls] }, options);
+    }
+    /** Pages through the URLs the latest audit crawled; the server defaults limit to 50 (at most 200). */
+    listAuditPages(domainUuid, offset, limit, options) {
+        const query = { offset: offset?.toString(), limit: limit?.toString() };
+        return this.send("GET", `${domainPath(domainUuid)}/audit-pages`, query, undefined, options);
+    }
+    /** Reads the findings the latest audit opened, reopened and fixed. */
+    getAuditDelta(domainUuid, options) {
+        return this.send("GET", `${domainPath(domainUuid)}/audit-delta`, {}, undefined, options);
+    }
+    /** Lists the domain's saved reports, newest content first. */
+    listSavedReports(domainUuid, options) {
+        return this.send("GET", savedReportsPath(domainUuid), {}, undefined, options);
+    }
+    /** Generates and saves a report. Refused with SAVED_SITE_REPORT_NAME_TAKEN_CODE or SAVED_SITE_REPORT_LIMIT_CODE. */
+    saveReport(domainUuid, body, options) {
+        return this.send("POST", savedReportsPath(domainUuid), {}, savedReportBody(body), options);
+    }
+    getSavedReport(domainUuid, reportUuid, options) {
+        return this.send("GET", savedReportPath(domainUuid, reportUuid), {}, undefined, options);
+    }
+    /** Renames or regenerates a saved report; its shares open the new content. */
+    replaceSavedReport(domainUuid, reportUuid, body, options) {
+        return this.send("PUT", savedReportPath(domainUuid, reportUuid), {}, savedReportBody(body), options);
+    }
+    /** Deletes a saved report. */
+    deleteSavedReport(domainUuid, reportUuid, options) {
+        return this.send("DELETE", savedReportPath(domainUuid, reportUuid), {}, undefined, options);
     }
     /** Lists live report shares. Tokens are returned only on creation. */
     listReportShares(domainUuid, options) {
@@ -248,6 +295,8 @@ export class SiteDomainAdminClient {
     /** Creates a public report share. Copy the token once; creation is never retried automatically. */
     createReportShare(domainUuid, body = {}, options) {
         const request = { expiresInDays: body.expiresInDays ?? 30 };
+        if (body.reportUuid)
+            request.reportUuid = body.reportUuid;
         return this.send("POST", `${domainPath(domainUuid)}/report-shares`, {}, request, options);
     }
     /** Revokes a share; later public reads fail. */
@@ -278,6 +327,84 @@ export class SiteDomainAdminClient {
     submitIndexNow(domainUuid, body, options) {
         return this.send("POST", `${indexNowPath(domainUuid)}/submissions`, {}, { urls: body.urls }, options);
     }
+    /** Reads the Site's own and competitor domains and their inventory state. */
+    getWebDomains(siteUuid, options) {
+        return this.send("GET", `${siteDomainsPath}/web-domains`, { siteUuid }, undefined, options);
+    }
+    /** Pages through one inventoried domain's URLs; pass the previous page's `next` as `after`. */
+    listWebPages(domain, query = {}, options) {
+        const values = { siteUuid: query.siteUuid, domain, after: query.after, limit: query.limit?.toString() };
+        return this.send("GET", `${siteDomainsPath}/web-pages`, values, undefined, options);
+    }
+    /** Reads monthly Wikipedia interest in the Site's brands and seed term. */
+    getTopicTrends(siteUuid, options) {
+        return this.send("GET", `${siteDomainsPath}/topic-trends`, { siteUuid }, undefined, options);
+    }
+    /** Reads the topics competitors cover and the Site does not, optionally around a seed term. */
+    getContentGap(siteUuid, seed, options) {
+        return this.send("GET", `${siteDomainsPath}/content-gap`, { siteUuid, seed }, undefined, options);
+    }
+    listKeywordLists(siteUuid, options) {
+        return this.send("GET", keywordListsPath, { siteUuid }, undefined, options);
+    }
+    /** Creates or replaces the named list. A new list past the limit is refused with SITE_KEYWORD_LIST_LIMIT_CODE. */
+    saveKeywordList(body, siteUuid, options) {
+        const request = { name: body.name, keywords: [...body.keywords] };
+        if (body.seedTerm)
+            request.seedTerm = body.seedTerm;
+        return this.send("PUT", keywordListsPath, { siteUuid }, request, options);
+    }
+    /** Deletes the named list. An unknown name is refused with SITE_KEYWORD_LIST_NOT_FOUND_CODE. */
+    deleteKeywordList(name, siteUuid, options) {
+        return this.send("DELETE", keywordListsPath, { siteUuid, name }, undefined, options);
+    }
+    /** Groups the named list's keywords by shared stem with the Site's own search numbers. */
+    getKeywordClusters(name, siteUuid, options) {
+        return this.send("GET", `${siteDomainsPath}/keyword-clusters`, { siteUuid, name }, undefined, options);
+    }
+    /** Reads the domain's access-log traffic over UTC days `from`..`to` (YYYY-MM-DD); omitted, the server picks them. */
+    getTraffic(domainUuid, from, to, options) {
+        return this.send("GET", `${domainPath(domainUuid)}/traffic`, { from, to }, undefined, options);
+    }
+    /** Reads AI crawler requests and AI-assistant referrals over UTC days `from`..`to`. */
+    getAIVisibility(domainUuid, from, to, options) {
+        return this.send("GET", `${domainPath(domainUuid)}/ai-visibility`, { from, to }, undefined, options);
+    }
+    /**
+     * Has the access-log task read one UTC hour again (202). System administrators only; the route is
+     * platform-wide. A bad hour is refused with ACCESS_LOG_HOUR_INVALID_CODE.
+     */
+    replayAccessLogHour(hourStart, options) {
+        const body = { hourStart: typeof hourStart === "string" ? hourStart : utcSeconds(hourStart) };
+        return this.send("POST", "/admin/access-log-hours/replay", {}, body, options);
+    }
+    /** Reads tracked keywords and each day's rank over `days` (1..90); omitted, the server uses 28. */
+    getRankings(domainUuid, days, options) {
+        return this.send("GET", `${domainPath(domainUuid)}/rankings`, { days: days?.toString() }, undefined, options);
+    }
+    /**
+     * Starts tracking a keyword (201). Refusals carry SITE_TRACKED_KEYWORD_INVALID_CODE,
+     * SITE_TRACKED_KEYWORD_LIMIT_CODE or SITE_TRACKED_KEYWORD_DUPLICATE_CODE.
+     */
+    trackKeyword(domainUuid, body, options) {
+        const request = { keyword: body.keyword };
+        if (body.country)
+            request.country = body.country;
+        if (body.device)
+            request.device = body.device;
+        if (body.notifyPosition !== undefined)
+            request.notifyPosition = body.notifyPosition;
+        return this.send("POST", rankingKeywordsPath(domainUuid), {}, request, options);
+    }
+    /** Pauses or resumes a keyword and sets its alert position. */
+    updateTrackedKeyword(domainUuid, keywordUuid, body, options) {
+        const request = { paused: body.paused, notifyPosition: body.notifyPosition };
+        return this.send("PUT", rankingKeywordPath(domainUuid, keywordUuid), {}, request, options);
+    }
+    /** Stops tracking a keyword and removes its observations. */
+    untrackKeyword(domainUuid, keywordUuid, options) {
+        return this.send("DELETE", rankingKeywordPath(domainUuid, keywordUuid), {}, undefined, options);
+    }
     send(method, path, query, body, options) {
         const { companySlug, ...requestOptions } = options ?? {};
         const params = new URLSearchParams();
@@ -291,6 +418,30 @@ export class SiteDomainAdminClient {
 }
 function domainPath(domainUuid) {
     return `${siteDomainsPath}/${encodeURIComponent(domainUuid)}`;
+}
+function savedReportsPath(domainUuid) {
+    return `${domainPath(domainUuid)}/saved-reports`;
+}
+function savedReportPath(domainUuid, reportUuid) {
+    return `${savedReportsPath(domainUuid)}/${encodeURIComponent(reportUuid)}`;
+}
+function savedReportBody(body) {
+    const request = { name: body.name };
+    if (body.template)
+        request.template = body.template;
+    if (body.days !== undefined)
+        request.days = body.days;
+    return request;
+}
+function rankingKeywordsPath(domainUuid) {
+    return `${domainPath(domainUuid)}/rankings/keywords`;
+}
+function rankingKeywordPath(domainUuid, keywordUuid) {
+    return `${rankingKeywordsPath(domainUuid)}/${encodeURIComponent(keywordUuid)}`;
+}
+/** RFC 3339 UTC to the second, as the server documents hour starts. */
+function utcSeconds(value) {
+    return value.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 function indexNowPath(domainUuid) {
     return `${domainPath(domainUuid)}/indexnow`;

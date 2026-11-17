@@ -20,7 +20,7 @@ func TestSiteReportDecodesAbsentMeasurementsAsNil(t *testing.T) {
 		t.Fatal(err)
 	}
 	windows := report.Uptime.Windows
-	if report.Host != "example.com" || report.Uptime.Status != AdminSiteUptimeUnknown || report.Uptime.ResponseMs != nil ||
+	if report.Host != "example.com" || report.Template != AdminSiteReportTemplateFull || report.Uptime.Status != AdminSiteUptimeUnknown || report.Uptime.ResponseMs != nil ||
 		windows.Last24h.UpPercent != nil || windows.Last7d.UpPercent == nil || *windows.Last7d.UpPercent != 90 {
 		t.Fatalf("uptime = %+v", report.Uptime)
 	}
@@ -48,7 +48,7 @@ func TestSiteUptimeAndLighthouseHistoryRoutes(t *testing.T) {
 	}
 	doer.body = siteReportingFixture(t, "lighthouse")
 	lighthouse, err := domains.GetLighthouseHistory(ctx, "d-1", 0)
-	if err != nil || len(lighthouse.Runs) != 2 {
+	if err != nil || len(lighthouse.Runs) != 2 || lighthouse.URL != "https://example.com/" || lighthouse.Pages == nil {
 		t.Fatalf("lighthouse = %+v, %v", lighthouse, err)
 	}
 	ok, failed := lighthouse.Runs[0], lighthouse.Runs[1]

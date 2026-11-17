@@ -191,6 +191,21 @@ brands, competitors and markets are `get_project_context` /
 `get_indexnow` / `disable_indexnow` read or turn it off. An unmeasured value (a score, `position`,
 `upPercent`, `fleschReadingEase`) is absent from the dict, never 0.
 
+Audit pages: `list_audit_pages` (offset/limit paging), `get_audit_delta`
+(new, reopened and fixed findings), `get_lighthouse_history(domain, days, url)`
+for an extra page, and `get_lighthouse_pages` / `set_lighthouse_pages`.
+Saved reports: `get_report(domain, template=..., days=...)`,
+`list_saved_reports`, `save_report`, `get_saved_report`,
+`replace_saved_report`, `delete_saved_report`, and
+`create_report_share(domain, days, report_uuid=...)` to share one. Public web
+data (Site-scoped; a site-bound credential may omit `site_uuid`):
+`get_web_domains`, `list_web_pages`, `get_topic_trends`, `get_content_gap`,
+`list_keyword_lists`, `save_keyword_list`, `delete_keyword_list` and
+`get_keyword_clusters`. Access logs: `get_traffic`, `get_ai_visibility` and,
+for system administrators, `replay_access_log_hour(hour_start)`. Rank tracking:
+`get_rankings`, `track_keyword`, `update_tracked_keyword` and
+`untrack_keyword`; a day the keyword did not rank has no `position`.
+
 ## Dev smoke test
 
 Requires the dev stack running with Hydra using JWT access tokens and ingest-api

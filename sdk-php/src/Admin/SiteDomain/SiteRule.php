@@ -82,4 +82,7 @@ enum SiteRule: string
     case LighthouseMobileDrop = 'lighthouse.mobile-score-drop';
     case SearchLowCTR = 'search.low-ctr';
     case SearchPositionDrop = 'search.position-drop';
+    case BrokenFragment = 'crawl.broken-fragment';
+    case SitemapBlockedURL = 'sitemap.blocked-url';
+    case LogsCrawlerNotFound = 'logs.crawler-not-found';
 }

@@ -11,12 +11,20 @@ from __future__ import annotations
 import json
 import urllib.parse
 from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime
 from typing import Any, Literal, NotRequired, TypedDict, cast
 
+from .admin_site_access_logs import SiteAccessLogHourReplay, SiteAIVisibility, SiteTraffic
 from .admin_site_insights import (
+    SavedSiteReport,
+    SavedSiteReportList,
+    SavedSiteReportRequest,
+    SiteAuditDelta,
+    SiteAuditPageList,
     SiteIndexNowState,
     SiteIndexNowSubmission,
     SiteLighthouseHistory,
+    SiteLighthousePages,
     SitePageCheckResponse,
     SitePageFacts,
     SitePageRecheck,
@@ -26,6 +34,7 @@ from .admin_site_insights import (
     SiteReport,
     SiteReportShareCreated,
     SiteReportShareList,
+    SiteReportTemplate,
     SiteRobotsTestResponse,
     SiteSearchDimension,
     SiteSearchInspection,
@@ -33,11 +42,30 @@ from .admin_site_insights import (
     SiteSearchRowPage,
     SiteUptimeHistory,
 )
+from .admin_site_rankings import SiteRankings, SiteTrackedKeyword, SiteTrackKeywordRequest
+from .admin_site_web_data import (
+    SiteContentGap,
+    SiteKeywordClusters,
+    SiteKeywordList,
+    SiteKeywordListRequest,
+    SiteKeywordLists,
+    SiteTopicTrends,
+    SiteWebDomains,
+    SiteWebPages,
+)
 from .client import AdminClient, problem_request_error, quote_path
 
 SITE_DOMAINS_PATH = "/site-domains"
 SITE_ALERT_DESTINATION_PATH = SITE_DOMAINS_PATH + "/alert-destination"
 SITE_PROJECT_CONTEXT_PATH = SITE_DOMAINS_PATH + "/project-context"
+SITE_WEB_DOMAINS_PATH = SITE_DOMAINS_PATH + "/web-domains"
+SITE_WEB_PAGES_PATH = SITE_DOMAINS_PATH + "/web-pages"
+SITE_TOPIC_TRENDS_PATH = SITE_DOMAINS_PATH + "/topic-trends"
+SITE_CONTENT_GAP_PATH = SITE_DOMAINS_PATH + "/content-gap"
+SITE_KEYWORD_LISTS_PATH = SITE_DOMAINS_PATH + "/keyword-lists"
+SITE_KEYWORD_CLUSTERS_PATH = SITE_DOMAINS_PATH + "/keyword-clusters"
+# Platform-wide, not under site-domains: only a system administrator may replay an hour.
+ACCESS_LOG_HOUR_REPLAY_PATH = "/admin/access-log-hours/replay"
 
 # Problem codes a caller branches on through RequestError.code.
 # A 409 on request_audit: the tenant has not yet proven control of the domain.
@@ -66,6 +94,28 @@ SITE_INDEXNOW_KEY_UNVERIFIED_CODE = "site_indexnow_key_unverified"
 SITE_INDEXNOW_URLS_INVALID_CODE = "site_indexnow_urls_invalid"
 # A 429 on submit_indexnow: the tenant has used its daily IndexNow URLs.
 SITE_INDEXNOW_LIMIT_CODE = "site_indexnow_limit"
+# A 400 on set_lighthouse_pages: a page is not on the domain's host, or is its home page.
+SITE_LIGHTHOUSE_PAGE_NOT_EXTRA_CODE = "site_lighthouse_page_not_extra"
+# A 409 on save_report or replace_saved_report: the domain already has a report with this name.
+SAVED_SITE_REPORT_NAME_TAKEN_CODE = "saved_site_report_name_taken"
+# A 409 on save_report: the domain already keeps its maximum of saved reports.
+SAVED_SITE_REPORT_LIMIT_CODE = "saved_site_report_limit"
+# A 404 on delete_keyword_list or get_keyword_clusters: the Site has no list of that name.
+SITE_KEYWORD_LIST_NOT_FOUND_CODE = "site_keyword_list_not_found"
+# A 409 on save_keyword_list: the Site already keeps its maximum of keyword lists.
+SITE_KEYWORD_LIST_LIMIT_CODE = "site_keyword_list_limit"
+# A 400 on replay_access_log_hour: not the start of a finished UTC hour within the last 28 days.
+ACCESS_LOG_HOUR_INVALID_CODE = "access_log_hour_invalid"
+# A 400 on track_keyword or update_tracked_keyword: the keyword, country, device or position is invalid.
+SITE_TRACKED_KEYWORD_INVALID_CODE = "site_tracked_keyword_invalid"
+# A 409 on track_keyword: the Site already tracks its maximum of keywords.
+SITE_TRACKED_KEYWORD_LIMIT_CODE = "site_tracked_keyword_limit"
+# A 409 on track_keyword: the domain already tracks this keyword in this country and device.
+SITE_TRACKED_KEYWORD_DUPLICATE_CODE = "site_tracked_keyword_duplicate"
+# A 404 on update_tracked_keyword or untrack_keyword: the domain does not track this keyword.
+SITE_TRACKED_KEYWORD_NOT_FOUND_CODE = "site_tracked_keyword_not_found"
+# A 400 on get_rankings: days must be 1 to 90.
+SITE_RANKINGS_DAYS_INVALID_CODE = "site_rankings_days_invalid"
 
 # SiteFindingState selects which findings list_findings returns; the server defaults to open.
 SiteFindingState = Literal["open", "fixed", "all"]
@@ -175,6 +225,9 @@ SITE_RULE_SEARCH_LOW_CTR = "search.low-ctr"
 SITE_RULE_SEARCH_POSITION_DROP = "search.position-drop"
 SITE_RULE_LIGHTHOUSE_DESKTOP_DROP = "lighthouse.desktop-score-drop"
 SITE_RULE_LIGHTHOUSE_MOBILE_DROP = "lighthouse.mobile-score-drop"
+SITE_RULE_BROKEN_FRAGMENT = "crawl.broken-fragment"
+SITE_RULE_SITEMAP_BLOCKED_URL = "sitemap.blocked-url"
+SITE_RULE_LOGS_CRAWLER_NOT_FOUND = "logs.crawler-not-found"
 
 SITE_RULE_IDS: tuple[str, ...] = (
     SITE_RULE_PAGE_STATUS,
@@ -248,6 +301,9 @@ SITE_RULE_IDS: tuple[str, ...] = (
     SITE_RULE_SEARCH_POSITION_DROP,
     SITE_RULE_LIGHTHOUSE_DESKTOP_DROP,
     SITE_RULE_LIGHTHOUSE_MOBILE_DROP,
+    SITE_RULE_BROKEN_FRAGMENT,
+    SITE_RULE_SITEMAP_BLOCKED_URL,
+    SITE_RULE_LOGS_CRAWLER_NOT_FOUND,
 )
 
 # The rules the scheduled uptime and TLS checks own; an audit leaves their findings alone.
@@ -778,9 +834,73 @@ class SiteDomainAdminClient:
         result = self._request("PUT", SITE_PROJECT_CONTEXT_PATH, query, company_slug, payload)
         return cast(SiteProjectContext, result)
 
-    def get_report(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteReport:
-        """Return the client report, without private verification or connection details."""
-        return cast(SiteReport, self._request("GET", _domain_path(domain_uuid) + "/report", {}, company_slug))
+    def get_report(
+        self,
+        domain_uuid: str,
+        *,
+        template: SiteReportTemplate | None = None,
+        days: int | None = None,
+        company_slug: str | None = None,
+    ) -> SiteReport:
+        """Return the client report, without private verification or connection details.
+
+        The server defaults to the full template and 28 days of search numbers (1..90).
+        """
+        query: dict[str, str] = {}
+        if template:
+            query["template"] = template
+        if days is not None:
+            query["days"] = str(days)
+        return cast(SiteReport, self._request("GET", _domain_path(domain_uuid) + "/report", query, company_slug))
+
+    def list_saved_reports(self, domain_uuid: str, *, company_slug: str | None = None) -> SavedSiteReportList:
+        """Return the domain's saved reports, without their content."""
+        return cast(SavedSiteReportList, self._request("GET", _saved_reports_path(domain_uuid), {}, company_slug))
+
+    def save_report(
+        self, domain_uuid: str, request: SavedSiteReportRequest, *, company_slug: str | None = None
+    ) -> SavedSiteReport:
+        """Build and keep a report under a name (201).
+
+        A taken name answers SAVED_SITE_REPORT_NAME_TAKEN_CODE; a full domain, SAVED_SITE_REPORT_LIMIT_CODE.
+        """
+        path = _saved_reports_path(domain_uuid)
+        return cast(SavedSiteReport, self._request("POST", path, {}, company_slug, _saved_report_payload(request)))
+
+    def get_saved_report(
+        self, domain_uuid: str, report_uuid: str, *, company_slug: str | None = None
+    ) -> SavedSiteReport:
+        path = _saved_reports_path(domain_uuid) + "/" + quote_path(report_uuid)
+        return cast(SavedSiteReport, self._request("GET", path, {}, company_slug))
+
+    def replace_saved_report(
+        self, domain_uuid: str, report_uuid: str, request: SavedSiteReportRequest, *, company_slug: str | None = None
+    ) -> SavedSiteReport:
+        """Rename a saved report or change its template or days; its content is built again."""
+        path = _saved_reports_path(domain_uuid) + "/" + quote_path(report_uuid)
+        return cast(SavedSiteReport, self._request("PUT", path, {}, company_slug, _saved_report_payload(request)))
+
+    def delete_saved_report(self, domain_uuid: str, report_uuid: str, *, company_slug: str | None = None) -> None:
+        path = _saved_reports_path(domain_uuid) + "/" + quote_path(report_uuid)
+        self._request("DELETE", path, {}, company_slug)
+
+    def list_audit_pages(
+        self,
+        domain_uuid: str,
+        offset: int | None = None,
+        limit: int | None = None,
+        *,
+        company_slug: str | None = None,
+    ) -> SiteAuditPageList:
+        """Page through the latest audit's URLs; the server defaults to 50 (at most 200)."""
+        query = {name: str(value) for name, value in (("offset", offset), ("limit", limit)) if value is not None}
+        path = _domain_path(domain_uuid) + "/audit-pages"
+        return cast(SiteAuditPageList, self._request("GET", path, query, company_slug))
+
+    def get_audit_delta(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteAuditDelta:
+        """Return the findings the latest audit opened, reopened and fixed."""
+        path = _domain_path(domain_uuid) + "/audit-delta"
+        return cast(SiteAuditDelta, self._request("GET", path, {}, company_slug))
 
     def get_uptime_history(
         self, domain_uuid: str, response_days: int | None = None, *, company_slug: str | None = None
@@ -791,12 +911,34 @@ class SiteDomainAdminClient:
         return cast(SiteUptimeHistory, self._request("GET", path, query, company_slug))
 
     def get_lighthouse_history(
-        self, domain_uuid: str, days: int | None = None, *, company_slug: str | None = None
+        self, domain_uuid: str, days: int | None = None, url: str | None = None, *, company_slug: str | None = None
     ) -> SiteLighthouseHistory:
-        """Return scheduled desktop and mobile lab runs over 1..30 days; omitted, seven."""
-        query = {"days": str(days)} if days is not None else {}
+        """Return scheduled desktop and mobile lab runs over 1..30 days; omitted, seven.
+
+        The runs are the home page's unless ``url`` names one of the domain's extra pages.
+        """
+        query: dict[str, str] = {}
+        if days is not None:
+            query["days"] = str(days)
+        if url:
+            query["url"] = url
         path = _domain_path(domain_uuid) + "/lighthouse"
         return cast(SiteLighthouseHistory, self._request("GET", path, query, company_slug))
+
+    def get_lighthouse_pages(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteLighthousePages:
+        """Return the extra pages Lighthouse runs on beyond the home page."""
+        path = _domain_path(domain_uuid) + "/lighthouse/pages"
+        return cast(SiteLighthousePages, self._request("GET", path, {}, company_slug))
+
+    def set_lighthouse_pages(
+        self, domain_uuid: str, urls: Sequence[str], *, company_slug: str | None = None
+    ) -> SiteLighthousePages:
+        """Replace the extra pages (at most five); an empty list clears them.
+
+        A page off the domain's host, or its home page, answers SITE_LIGHTHOUSE_PAGE_NOT_EXTRA_CODE.
+        """
+        path = _domain_path(domain_uuid) + "/lighthouse/pages"
+        return cast(SiteLighthousePages, self._request("PUT", path, {}, company_slug, {"urls": list(urls)}))
 
     def list_report_shares(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteReportShareList:
         """Return the live report shares; tokens are returned only on creation."""
@@ -804,11 +946,21 @@ class SiteDomainAdminClient:
         return cast(SiteReportShareList, self._request("GET", path, {}, company_slug))
 
     def create_report_share(
-        self, domain_uuid: str, expires_in_days: int = 30, *, company_slug: str | None = None
+        self,
+        domain_uuid: str,
+        expires_in_days: int = 30,
+        *,
+        report_uuid: str | None = None,
+        company_slug: str | None = None,
     ) -> SiteReportShareCreated:
-        """Create a public report share lasting 1..90 days. Copy the token once; never retried."""
+        """Create a public report share lasting 1..90 days. Copy the token once; never retried.
+
+        With ``report_uuid`` the link opens that saved report instead of the live one.
+        """
         path = _domain_path(domain_uuid) + "/report-shares"
-        payload = {"expiresInDays": expires_in_days}
+        payload: dict[str, Any] = {"expiresInDays": expires_in_days}
+        if report_uuid:
+            payload["reportUuid"] = report_uuid
         return cast(SiteReportShareCreated, self._request("POST", path, {}, company_slug, payload))
 
     def revoke_report_share(self, domain_uuid: str, share_uuid: str, *, company_slug: str | None = None) -> None:
@@ -839,6 +991,145 @@ class SiteDomainAdminClient:
         """Queue 1 to 100 URLs on the domain's host for IndexNow (202)."""
         path = _indexnow_path(domain_uuid) + "/submissions"
         return cast(SiteIndexNowSubmission, self._request("POST", path, {}, company_slug, {"urls": list(urls)}))
+
+    def get_web_domains(self, site_uuid: str | None = None, *, company_slug: str | None = None) -> SiteWebDomains:
+        """Return the page inventory of the Site's own and competitor domains."""
+        return cast(SiteWebDomains, self._request("GET", SITE_WEB_DOMAINS_PATH, _site_query(site_uuid), company_slug))
+
+    def list_web_pages(
+        self,
+        domain: str,
+        site_uuid: str | None = None,
+        *,
+        after: str | None = None,
+        limit: int | None = None,
+        company_slug: str | None = None,
+    ) -> SiteWebPages:
+        """Page through one inventoried domain's URLs; pass the result's ``next`` as ``after``."""
+        query = {**_site_query(site_uuid), "domain": domain}
+        if after:
+            query["after"] = after
+        if limit is not None:
+            query["limit"] = str(limit)
+        return cast(SiteWebPages, self._request("GET", SITE_WEB_PAGES_PATH, query, company_slug))
+
+    def get_topic_trends(self, site_uuid: str | None = None, *, company_slug: str | None = None) -> SiteTopicTrends:
+        """Return monthly Wikipedia page views for the Site's brand names and keyword-list seeds."""
+        query = _site_query(site_uuid)
+        return cast(SiteTopicTrends, self._request("GET", SITE_TOPIC_TRENDS_PATH, query, company_slug))
+
+    def get_content_gap(
+        self, site_uuid: str | None = None, seed: str | None = None, *, company_slug: str | None = None
+    ) -> SiteContentGap:
+        """Return the topics competitors have pages on and the Site does not, optionally around ``seed``."""
+        query = _site_query(site_uuid)
+        if seed:
+            query["seed"] = seed
+        return cast(SiteContentGap, self._request("GET", SITE_CONTENT_GAP_PATH, query, company_slug))
+
+    def list_keyword_lists(
+        self, site_uuid: str | None = None, *, company_slug: str | None = None
+    ) -> SiteKeywordLists:
+        query = _site_query(site_uuid)
+        return cast(SiteKeywordLists, self._request("GET", SITE_KEYWORD_LISTS_PATH, query, company_slug))
+
+    def save_keyword_list(
+        self, request: SiteKeywordListRequest, site_uuid: str | None = None, *, company_slug: str | None = None
+    ) -> SiteKeywordList:
+        """Create or replace the Site's keyword list of ``request["name"]``.
+
+        A Site at its list limit answers SITE_KEYWORD_LIST_LIMIT_CODE.
+        """
+        payload: dict[str, Any] = {"name": request["name"]}
+        if request.get("seedTerm"):
+            payload["seedTerm"] = request["seedTerm"]
+        payload["keywords"] = list(request["keywords"])
+        result = self._request("PUT", SITE_KEYWORD_LISTS_PATH, _site_query(site_uuid), company_slug, payload)
+        return cast(SiteKeywordList, result)
+
+    def delete_keyword_list(
+        self, name: str, site_uuid: str | None = None, *, company_slug: str | None = None
+    ) -> None:
+        """Delete a keyword list; an unknown name answers SITE_KEYWORD_LIST_NOT_FOUND_CODE."""
+        query = {**_site_query(site_uuid), "name": name}
+        self._request("DELETE", SITE_KEYWORD_LISTS_PATH, query, company_slug)
+
+    def get_keyword_clusters(
+        self, name: str, site_uuid: str | None = None, *, company_slug: str | None = None
+    ) -> SiteKeywordClusters:
+        """Group a keyword list by word stem with the Site's own search numbers."""
+        query = {**_site_query(site_uuid), "name": name}
+        return cast(SiteKeywordClusters, self._request("GET", SITE_KEYWORD_CLUSTERS_PATH, query, company_slug))
+
+    def get_traffic(
+        self,
+        domain_uuid: str,
+        from_day: str | None = None,
+        to_day: str | None = None,
+        *,
+        company_slug: str | None = None,
+    ) -> SiteTraffic:
+        """Return the domain's access-log traffic over UTC days (YYYY-MM-DD); the server picks the default range."""
+        path = _domain_path(domain_uuid) + "/traffic"
+        return cast(SiteTraffic, self._request("GET", path, _day_range_query(from_day, to_day), company_slug))
+
+    def get_ai_visibility(
+        self,
+        domain_uuid: str,
+        from_day: str | None = None,
+        to_day: str | None = None,
+        *,
+        company_slug: str | None = None,
+    ) -> SiteAIVisibility:
+        """Return AI-crawler requests, AI-assistant referrals and the pages they reach."""
+        path = _domain_path(domain_uuid) + "/ai-visibility"
+        return cast(SiteAIVisibility, self._request("GET", path, _day_range_query(from_day, to_day), company_slug))
+
+    def replay_access_log_hour(self, hour_start: datetime | str) -> SiteAccessLogHourReplay:
+        """Queue one finished UTC hour of access logs to be read again (202). System administrators only.
+
+        ``hour_start`` is a timezone-aware datetime or an RFC 3339 string; a bad hour answers
+        ACCESS_LOG_HOUR_INVALID_CODE.
+        """
+        payload = {"hourStart": _rfc3339_utc(hour_start)}
+        return cast(SiteAccessLogHourReplay, self._request("POST", ACCESS_LOG_HOUR_REPLAY_PATH, {}, None, payload))
+
+    def get_rankings(
+        self, domain_uuid: str, days: int | None = None, *, company_slug: str | None = None
+    ) -> SiteRankings:
+        """Return the tracked keywords over the last ``days`` days (1..90); omitted, 28."""
+        query = {"days": str(days)} if days is not None else {}
+        return cast(SiteRankings, self._request("GET", _rankings_path(domain_uuid), query, company_slug))
+
+    def track_keyword(
+        self, domain_uuid: str, request: SiteTrackKeywordRequest, *, company_slug: str | None = None
+    ) -> SiteTrackedKeyword:
+        """Start tracking a keyword (201); country and device default to all."""
+        payload: dict[str, Any] = {"keyword": request["keyword"]}
+        for name in ("country", "device", "notifyPosition"):
+            if request.get(name):
+                payload[name] = request.get(name)
+        path = _rankings_path(domain_uuid) + "/keywords"
+        return cast(SiteTrackedKeyword, self._request("POST", path, {}, company_slug, payload))
+
+    def update_tracked_keyword(
+        self,
+        domain_uuid: str,
+        keyword_uuid: str,
+        *,
+        paused: bool,
+        notify_position: int,
+        company_slug: str | None = None,
+    ) -> SiteTrackedKeyword:
+        """Pause or resume a tracked keyword and set its alert position (1..100)."""
+        path = _rankings_path(domain_uuid) + "/keywords/" + quote_path(keyword_uuid)
+        payload = {"paused": paused, "notifyPosition": notify_position}
+        return cast(SiteTrackedKeyword, self._request("PUT", path, {}, company_slug, payload))
+
+    def untrack_keyword(self, domain_uuid: str, keyword_uuid: str, *, company_slug: str | None = None) -> None:
+        """Stop tracking a keyword and drop its observations."""
+        path = _rankings_path(domain_uuid) + "/keywords/" + quote_path(keyword_uuid)
+        self._request("DELETE", path, {}, company_slug)
 
     def _request(
         self,
@@ -877,3 +1168,41 @@ def _search_connection_path(domain_uuid: str, provider: SiteSearchProvider) -> s
 
 def _indexnow_path(domain_uuid: str) -> str:
     return _domain_path(domain_uuid) + "/indexnow"
+
+
+def _saved_reports_path(domain_uuid: str) -> str:
+    return _domain_path(domain_uuid) + "/saved-reports"
+
+
+def _rankings_path(domain_uuid: str) -> str:
+    return _domain_path(domain_uuid) + "/rankings"
+
+
+def _site_query(site_uuid: str | None) -> dict[str, str]:
+    return {"siteUuid": site_uuid} if site_uuid else {}
+
+
+def _day_range_query(from_day: str | None, to_day: str | None) -> dict[str, str]:
+    query: dict[str, str] = {}
+    if from_day:
+        query["from"] = from_day
+    if to_day:
+        query["to"] = to_day
+    return query
+
+
+def _saved_report_payload(request: SavedSiteReportRequest) -> dict[str, Any]:
+    payload: dict[str, Any] = {"name": request["name"]}
+    if request.get("template"):
+        payload["template"] = request["template"]
+    if request.get("days"):
+        payload["days"] = request["days"]
+    return payload
+
+
+def _rfc3339_utc(hour_start: datetime | str) -> str:
+    if isinstance(hour_start, str):
+        return hour_start
+    if hour_start.tzinfo is None:
+        raise ValueError("custd: hour_start must be a timezone-aware datetime")
+    return hour_start.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")

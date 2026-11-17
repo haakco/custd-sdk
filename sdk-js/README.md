@@ -431,6 +431,31 @@ report reads are `getReport`, `getUptimeHistory`, `getLighthouseHistory` and
 `disableIndexNow`, with `SITE_INDEXNOW_*_CODE` refusals. A measurement
 Custd did not take is absent, never `0`.
 
+More reads and controls on the same client:
+
+- Audit pages: `listAuditPages(domainUuid, offset?, limit?)` and `getAuditDelta`
+  (new, reopened and fixed findings).
+- Lighthouse pages: `getLighthousePages` / `setLighthousePages(domainUuid, urls)`
+  (at most five extra pages; `[]` clears them). `getLighthouseHistory(domainUuid, days, { url })`
+  reads one extra page.
+- Reports: `getReport(domainUuid, { template, days })` (`SiteReportTemplate.Executive`
+  or `Full`), and saved reports with `listSavedReports`, `saveReport`, `getSavedReport`,
+  `replaceSavedReport`, `deleteSavedReport`. `createReportShare(domainUuid, { reportUuid })`
+  shares a saved report.
+- Public web data per Site (`siteUuid` optional for a site-bound credential):
+  `getWebDomains`, `listWebPages(domain, { after })`, `getTopicTrends`, `getContentGap`,
+  and keyword lists with `listKeywordLists`, `saveKeywordList`, `deleteKeywordList`,
+  `getKeywordClusters`.
+- Access logs: `getTraffic(domainUuid, from?, to?)`, `getAIVisibility`, and
+  `replayAccessLogHour(hourStart)` for system administrators.
+- Rank tracking: `getRankings(domainUuid, days?)`, `trackKeyword`,
+  `updateTrackedKeyword` (sends both `paused` and `notifyPosition`), `untrackKeyword`.
+  A day that did not rank has no `position`.
+
+Each refusal code is a named constant, such as `SAVED_SITE_REPORT_NAME_TAKEN_CODE`,
+`SITE_KEYWORD_LIST_LIMIT_CODE`, `ACCESS_LOG_HOUR_INVALID_CODE` or
+`SITE_TRACKED_KEYWORD_DUPLICATE_CODE`.
+
 ## Schema Admin Helpers
 
 Server-side setup code can use `client.admin.schemas`:

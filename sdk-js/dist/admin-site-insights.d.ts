@@ -290,10 +290,25 @@ export type SiteLighthouseRun = {
     scores: SiteLighthouseScores;
     metrics: SiteLighthouseMetrics;
 };
+/** The latest two successful runs of one measured page in one profile; previous* is absent after one run. */
+export type SiteLighthousePageComparison = {
+    url: string;
+    profile: SiteLighthouseProfile;
+    latestAt: string;
+    latestScore: number;
+    previousAt?: string;
+    previousScore?: number;
+    /** A lighthouse.* regression finding is open on this page and profile. */
+    regressionOpen: boolean;
+};
 export type SiteLighthouseHistory = {
     domainUuid: string;
     days: number;
+    /** The page the runs measured: the home page unless the read named an extra page. */
+    url: string;
     runs: SiteLighthouseRun[];
+    /** Every measured page compared per profile. */
+    pages: SiteLighthousePageComparison[];
 };
 export type SiteReportUptime = {
     status: SiteUptimeStatus;
@@ -341,6 +356,8 @@ export type SiteReportAudit = {
 export type SiteReport = {
     host: string;
     generatedAt: string;
+    /** A SiteReportTemplate value; executive leaves out the technical appendix. */
+    template: string;
     uptime: SiteReportUptime;
     certificate: SiteReportCertificate;
     speed: SiteReportSpeed[];
@@ -349,6 +366,8 @@ export type SiteReport = {
 };
 export type SiteReportShare = {
     shareUuid: string;
+    /** The saved report the share opens; absent for a share of the live report. */
+    reportUuid?: string;
     createdAt: string;
     expiresAt: string;
 };
@@ -358,6 +377,8 @@ export type SiteReportShareList = {
 /** The server defaults to 30 days and accepts 1..90. */
 export type SiteReportShareRequest = {
     expiresInDays?: number;
+    /** Shares a saved report instead of the live one. */
+    reportUuid?: string;
 };
 /** The token opens the report at /shared-report#<token> and is shown only once. */
 export type SiteReportShareCreated = {
