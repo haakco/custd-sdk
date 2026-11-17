@@ -6,14 +6,14 @@ Ingestion client with retry, batching, and optional offline queueing.
 
 The supported 3.x SDK sends events to `POST /api/v1/events` and batches to
 `POST /api/v1/events/batch`. Installation examples below were verified against
-release **3.43.3** on 2026-11-15, including Node 26, pnpm 12 and Expo 58 consumers.
+release **3.45.0** on 2026-11-17, including Node 26, pnpm 12 and Expo 58 consumers.
 
 ## Install
 
 Use the GitHub package path when installing into HaakCo apps:
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.43.3&path:/sdk-js'
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.45.0&path:/sdk-js'
 ```
 
 Pin the tag to the SDK version you want. The package is no longer published to
@@ -302,6 +302,73 @@ The browser-side origin check is a guardrail, not the security boundary.
 Collectors must enforce `allowedOrigins`, write-key validity, and rate limits
 server-side.
 
+## Hosted apps
+
+An app Custd hosts starts tracking, error capture and sign-in with one call and
+no copied configuration. `startHostedApp` reads `/.well-known/custd.json` from
+the page's own origin and starts each capability the file enables:
+
+```ts
+import { startHostedApp } from "@haakco/custd-sdk/browser";
+
+type AppEvents = {
+  "item-created": { kind: string };
+  "measurement-added": { value: number };
+};
+
+const started = await startHostedApp<AppEvents>({ release: import.meta.env.VITE_COMMIT });
+if (started.status === "ready") {
+  const { app } = started;
+  await app.signIn?.restore(); // only when sign_in is enabled
+  await app.trackAppEvent("item-created", { kind: "counter" }); // "tracked" | "tracking_off" | "failed"
+  // app.tracker, app.errorCapture, app.problems, app.stop()
+} else {
+  console.warn(started.error.code); // HOSTED_APP_ERROR_CODES; the app keeps working without Custd
+}
+```
+
+- `tracking` starts the browser tracker with SPA page views for the app's Site.
+  Consent follows the Site's identity mode: a cookieless Site tracks at once, an
+  extended Site waits for `app.tracker.setConsent("granted")`. Pass `consent` to
+  override that default.
+- `error_capture` installs browser error capture with the app's key.
+- `sign_in` creates a `BrowserSignIn` for the environment's directory using the
+  discovery `redirectUri`.
+
+`startHostedApp` never rejects. A missing or malformed discovery file returns
+`{ status: "error", error }`; an enabled capability that cannot start is listed
+in `app.problems` while the others keep running. App events must be registered
+event types with flat scalar properties; `trackAppEvent` never rejects either.
+
+## Browser app user sign-in
+
+`BrowserSignIn` signs a hosted app's users in through the environment's Custd
+directory with OAuth 2.0 authorization code and PKCE (S256). The app is a
+public client: no client secret is involved. Pending sign-in state and the
+token set live in `sessionStorage`; tokens never appear in errors.
+
+```ts
+import { BrowserSignIn, signInConfigFromDiscovery } from "@haakco/custd-sdk";
+
+const discovery = await (await fetch("/.well-known/custd.json")).json();
+const signIn = new BrowserSignIn(
+  signInConfigFromDiscovery(discovery, { redirectUri: `${location.origin}/callback` }),
+);
+
+await signIn.restore(); // completes a /callback redirect or refreshes an expired session
+await signIn.signIn({ returnTo: "/items" }); // sends the browser to the authorize URL
+const session = signIn.currentSession(); // { accessToken, tokenType, expiresAtMs, refreshToken?, idToken?, scopes }
+signIn.signOut({ postLogoutRedirectUri: location.origin }); // clears state, then visits end-session
+```
+
+The discovery `signIn` block holds `issuer`, `authorizationEndpoint`,
+`tokenEndpoint`, `endSessionEndpoint` (optional) and `clientId`. Scopes
+default to `openid profile offline_access`. `startSignIn`, `completeSignIn`
+and `refreshSession` are the lower-level steps when the app owns navigation.
+A redirect whose `state` does not match is refused, and each pending sign-in
+is single-use. Failures throw `SignInError` with a `code` from
+`SIGN_IN_ERROR_CODES`.
+
 ## Browser Site Admin Helpers
 
 Server-side admin code can use `client.admin.sites` to create, list, get,
@@ -506,6 +573,14 @@ application principals a directory holds, through `/api/v1/admin/auth-projects`:
 - `createEnvironment`
 - `listPrincipalSessions`, `revokePrincipalSession`, `revokePrincipalSessions`
 - `revokePrincipalMembership`
+- Hosted app releases: `createAppRelease` (manifest files and routing),
+  `uploadAppReleaseFile` (one file's raw bytes, sent as `application/octet-stream`),
+  `verifyAppRelease`, `promoteAppRelease` and `listAppReleases`
+
+An environment is served as a hosted app by the optional `hosting` section of
+its desired state (`mode`, `capabilities`, `ingestTarget`); leaving it out keeps
+the stored section. `getEnvironmentStatus` reports the derived `hosting.host`,
+`hosting.origin` and, with `sign_in`, the `hosting.signIn` client.
 
 Every call takes `RequestOptions`. A machine credential must name the platform
 user it acts for in `owningUserUuid`, sent as `X-Custd-Owning-User-UUID`; Custd

@@ -92,6 +92,12 @@ export type BrowserSiteConfig = {
 };
 export declare function createBrowserTracker(config: BrowserTrackerConfig): BrowserTracker;
 export declare function installBrowserTrackerFromScript(scriptElement?: HTMLScriptElement): Promise<BrowserTracker>;
+/** Reads a registered browser Site's public identity mode and allowed origins. */
+export declare function fetchBrowserSiteConfig(baseUrl: string, siteUuid: string, fetchImpl?: typeof fetch): Promise<BrowserSiteConfig>;
+/** An extended-identity Site waits for consent; a cookieless Site tracks without it. */
+export declare function defaultSiteConsent(siteConfig: BrowserSiteConfig): BrowserTrackerConfig["consent"];
+/** Extended-identity Sites batch; cookieless Sites send each event as it happens. */
+export declare function defaultSiteBatchSize(siteConfig: BrowserSiteConfig): number;
 declare global {
     interface Window {
         custd: {

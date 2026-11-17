@@ -29,6 +29,7 @@ export { TimePlanAdminClient, validateTimePlanDefinition, } from "./admin-timepl
 export { USAGE_DEFAULT_LIMIT, USAGE_MAX_LIMIT, UsageAdminClient, } from "./admin-usage.js";
 export { ANALYTICS_MAX_LABEL_FILTERS, ANALYTICS_MAX_RANGE_DAYS, ANALYTICS_RANGE_GROUP_BY, AnalyticsEventClient, } from "./analytics-events.js";
 export { BackendLifecycleClient, createVerifiedOffboardingExportReceiver, } from "./backend-lifecycle.js";
+export { BrowserSignIn, createSignInCodeChallenge, DEFAULT_SIGN_IN_SCOPES, SIGN_IN_ERROR_CODES, SIGN_IN_STATUSES, SignInError, signInConfigFromDiscovery, } from "./browser-sign-in.js";
 export { DEFAULT_PARSER_FRAMING_MAX_LINES, DEFAULT_PARSER_FRAMING_MAX_RECORD_BYTES, MAX_PARSER_FRAMING_LINES, MAX_PARSER_FRAMING_RECORD_BYTES, ParserClient, } from "./parsers.js";
 export { classifyReportingData, getReportingViewState, reportingQueryKey, } from "./reporting-state.js";
 export { checkRuntimeReadiness, } from "./runtime-readiness.js";
@@ -564,16 +565,18 @@ export class CustdClient {
         const token = await this.getToken(options);
         let response;
         try {
+            // A byte body is a file upload and is sent as raw bytes; every other body is JSON.
+            const rawBody = body instanceof Uint8Array;
             response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
                 method,
                 headers: {
-                    "Content-Type": "application/json",
+                    "Content-Type": rawBody ? "application/octet-stream" : "application/json",
                     Authorization: `Bearer ${token}`,
                     ...this.defaultHeaders,
                     ...(options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
                     ...(options?.owningUserUuid ? { "X-Custd-Owning-User-UUID": options.owningUserUuid } : {}),
                 },
-                body: body === undefined ? undefined : JSON.stringify(body),
+                body: body === undefined ? undefined : rawBody ? Uint8Array.from(body) : JSON.stringify(body),
                 signal: options?.signal,
             });
         }

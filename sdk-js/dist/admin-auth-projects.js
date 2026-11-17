@@ -131,6 +131,33 @@ export class AuthProjectAdminClient {
         const path = `${environmentDesiredStatePath(projectId, environmentId)}/status`;
         return this.request("GET", path, undefined, options);
     }
+    /** Read the environment's most recent releases. Omit `limit` for the server default (20, capped at 100). */
+    listAppReleases(projectId, environmentId, limit, options) {
+        const path = appReleasesPath(projectId, environmentId);
+        return this.request("GET", limit ? `${path}?limit=${limit}` : path, undefined, options);
+    }
+    /** Record a new, pending release from its manifest. */
+    createAppRelease(projectId, environmentId, body, options) {
+        return this.request("POST", appReleasesPath(projectId, environmentId), body, options);
+    }
+    /**
+     * Store one manifest file of a pending release as its raw bytes. The server
+     * refuses bytes whose size or sha256 differ from the manifest.
+     */
+    uploadAppReleaseFile(projectId, environmentId, releaseId, filePath, bytes, options) {
+        const path = `${appReleasePath(projectId, environmentId, releaseId)}/files?path=${encodeURIComponent(filePath)}`;
+        return this.request("POST", path, bytes, options);
+    }
+    /** Read every file back and mark the release verified when all of them match the manifest. */
+    verifyAppRelease(projectId, environmentId, releaseId, options) {
+        const path = `${appReleasePath(projectId, environmentId, releaseId)}/verify`;
+        return this.request("POST", path, undefined, options);
+    }
+    /** Make a verified release the one the environment's host serves. */
+    promoteAppRelease(projectId, environmentId, releaseId, options) {
+        const path = `${appReleasePath(projectId, environmentId, releaseId)}/promote`;
+        return this.request("POST", path, undefined, options);
+    }
     /** Read the environment's supported auth configuration. */
     getEnvironmentCapability(projectId, environmentId, options) {
         const path = `${environmentDesiredStatePath(projectId, environmentId)}/capability`;
@@ -338,6 +365,12 @@ const directoryActions = ["enable", "pause", "resume", "release"];
 // segment is escaped so a caller-supplied identifier cannot reshape the path.
 function environmentDesiredStatePath(projectId, environmentId) {
     return `/auth-projects/${encodeURIComponent(projectId)}` + `/environments/${encodeURIComponent(environmentId)}`;
+}
+function appReleasesPath(projectId, environmentId) {
+    return `${environmentDesiredStatePath(projectId, environmentId)}/releases`;
+}
+function appReleasePath(projectId, environmentId, releaseId) {
+    return `${appReleasesPath(projectId, environmentId)}/${encodeURIComponent(releaseId)}`;
 }
 // applicationPrincipalPath addresses one application principal inside one
 // directory. Every segment is escaped so a caller-supplied identifier cannot

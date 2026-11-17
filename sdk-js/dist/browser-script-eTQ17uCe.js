@@ -152,7 +152,7 @@ var E = class {
 			this.clearStoredState();
 			return;
 		}
-		if (this.queue.length === 0 || !fe()) return;
+		if (this.queue.length === 0 || !pe()) return;
 		let e = this.queue.splice(0, this.queue.length), t;
 		try {
 			t = await this.sendBatch(e);
@@ -171,7 +171,7 @@ var E = class {
 		});
 	}
 	trackingDisabled() {
-		return !!(this.consent !== "granted" || de());
+		return !!(this.consent !== "granted" || fe());
 	}
 	enqueue(e) {
 		this.queue.push(e), this.trimQueue(), this.queueStorage.save(this.queue);
@@ -306,7 +306,7 @@ async function A(e) {
 			writeKey: r,
 			identityMode: a.identityMode,
 			allowedOrigins: a.allowedOrigins,
-			batchSize: Number(t.dataset.batchSize || ue(a)),
+			batchSize: Number(t.dataset.batchSize || de(a)),
 			consent: le(t, a),
 			persistentQueue: t.dataset.persistentQueue === "true"
 		});
@@ -319,14 +319,14 @@ async function A(e) {
 		throw oe(n, e), se(e), e;
 	}
 }
-async function j(e, t) {
-	let n = await fetch(`${e.replace(/\/$/, "")}/api/v1/sites/${encodeURIComponent(t)}/config`, { credentials: "omit" });
-	if (!n.ok) throw Error(`custd: site config request failed with status ${n.status}`);
-	return await n.json();
+async function j(e, t, n = (e, t) => globalThis.fetch(e, t)) {
+	let r = await n(`${e.replace(/\/$/, "")}/api/v1/sites/${encodeURIComponent(t)}/config`, { credentials: "omit" });
+	if (!r.ok) throw Error(`custd: site config request failed with status ${r.status}`);
+	return await r.json();
 }
 function M(e) {
 	let t = {
-		device: { type: pe() },
+		device: { type: me() },
 		locale: navigator.language,
 		timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
 	};
@@ -484,7 +484,7 @@ function se(e) {
 function Z(e, t) {
 	let n = t.getItem(e);
 	if (n) return n;
-	let r = he();
+	let r = ge();
 	return t.setItem(e, r), r;
 }
 function Q(n, r) {
@@ -496,29 +496,32 @@ function ce() {
 	return e;
 }
 function le(e, t) {
-	return e.dataset.consent === "granted" ? "granted" : t.identityMode === "extended" ? "required" : void 0;
+	return e.dataset.consent === "granted" ? "granted" : ue(t);
 }
 function ue(e) {
+	return e.identityMode === "extended" ? "required" : void 0;
+}
+function de(e) {
 	return e.identityMode === "extended" ? 25 : 1;
 }
-function de() {
+function fe() {
 	let e = navigator.doNotTrack;
 	return e === "1" || e === "yes";
 }
-function fe() {
+function pe() {
 	return typeof navigator.onLine != "boolean" || navigator.onLine;
 }
-function pe() {
+function me() {
 	return /Mobi|Android/i.test(navigator.userAgent) ? "mobile" : "desktop";
 }
 function $(e, t) {
 	let n = new URL(e);
-	if (n.protocol !== "https:" && !(n.protocol === "http:" && me(n.hostname))) throw Error(`custd: ${t} must use https unless it targets localhost`);
+	if (n.protocol !== "https:" && !(n.protocol === "http:" && he(n.hostname))) throw Error(`custd: ${t} must use https unless it targets localhost`);
 }
-function me(e) {
+function he(e) {
 	return e === "localhost" || e === "127.0.0.1" || e === "::1" || e === "host.docker.internal";
 }
-function he() {
+function ge() {
 	return typeof crypto < "u" && typeof crypto.randomUUID == "function" ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (e) => (Number(e) ^ Math.random() * 16 >> Number(e) / 4).toString(16));
 }
 A(Array.from(document.scripts).find((e) => e.src === import.meta.url)).then((e) => e.installSpaTracking()).catch(() => void 0);

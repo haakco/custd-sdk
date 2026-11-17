@@ -1,3 +1,4 @@
+import type { AppRelease, AppReleaseCreateRequest, AppReleaseList, AppReleasePromotion, AppReleaseUploadedFile } from "./admin-app-releases.js";
 import type { RequestOptions } from "./index.js";
 /** How an environment's identity boundary is shared. Custd owns both values. */
 export type AuthProjectIdentityMode = "isolated" | "shared";
@@ -236,6 +237,42 @@ export type AuthProjectDesiredState = {
     loginPaused: boolean;
     audiences: AuthProjectAudienceBinding[] | null;
     profileFields: AuthProjectProfileField[] | null;
+    /**
+     * Serves the environment as a hosted application. Leaving it out keeps the
+     * stored section, so an apply cannot switch an app off by omission.
+     */
+    hosting?: AuthProjectHosting;
+};
+/** Whether an environment is served as a hosted application. */
+export type AuthProjectHostingMode = "disabled" | "enabled";
+/** One capability a hosted application turns on; the discovery document lists the enabled ones. */
+export type AuthProjectHostingCapability = "tracking" | "error_capture" | "app_data" | "sign_in";
+/** The tenant data scope and resource the hosted Site writes to. */
+export type AuthProjectHostingIngestTarget = {
+    scopeUuid: string;
+    resourceUuid: string;
+};
+/**
+ * The environment's application hosting section. The host is not part of it:
+ * the server derives it from the project and environment slugs and reports it
+ * on `AuthProjectStatus.hosting`. `ingestTarget` is required while enabled.
+ */
+export type AuthProjectHosting = {
+    mode: AuthProjectHostingMode;
+    capabilities: AuthProjectHostingCapability[];
+    ingestTarget?: AuthProjectHostingIngestTarget;
+};
+/** The public client a hosted app signs people in with. */
+export type AuthProjectHostedSignIn = {
+    clientId: string;
+    audience: string;
+    redirectUri: string;
+};
+/** A hosted environment's derived serving identity. `signIn` is absent unless `sign_in` is on. */
+export type AuthProjectHostingStatus = {
+    host: string;
+    origin: string;
+    signIn?: AuthProjectHostedSignIn;
 };
 /**
  * Body of both the apply and preview operations. `expectedRevision` is the
@@ -311,6 +348,8 @@ export type AuthProjectStatus = {
     clientSync?: AuthProjectClientSync;
     /** Persisted company of this environment's project; null means explicitly unbound, never inferred. */
     companyUuid: string | null;
+    /** The derived serving identity of a hosted environment, absent when it is not served. */
+    hosting?: AuthProjectHostingStatus;
 };
 /** One directory credential-store action Custd defines. */
 export type AuthProjectDirectoryAction = "enable" | "pause" | "resume" | "release";
@@ -700,6 +739,19 @@ export declare class AuthProjectAdminClient {
      * environment binding, so a caller reads the mapping back here after an apply.
      */
     getEnvironmentStatus(projectId: string, environmentId: string, options?: RequestOptions): Promise<AuthProjectStatus>;
+    /** Read the environment's most recent releases. Omit `limit` for the server default (20, capped at 100). */
+    listAppReleases(projectId: string, environmentId: string, limit?: number, options?: RequestOptions): Promise<AppReleaseList>;
+    /** Record a new, pending release from its manifest. */
+    createAppRelease(projectId: string, environmentId: string, body: AppReleaseCreateRequest, options?: RequestOptions): Promise<AppRelease>;
+    /**
+     * Store one manifest file of a pending release as its raw bytes. The server
+     * refuses bytes whose size or sha256 differ from the manifest.
+     */
+    uploadAppReleaseFile(projectId: string, environmentId: string, releaseId: string, filePath: string, bytes: Uint8Array, options?: RequestOptions): Promise<AppReleaseUploadedFile>;
+    /** Read every file back and mark the release verified when all of them match the manifest. */
+    verifyAppRelease(projectId: string, environmentId: string, releaseId: string, options?: RequestOptions): Promise<AppRelease>;
+    /** Make a verified release the one the environment's host serves. */
+    promoteAppRelease(projectId: string, environmentId: string, releaseId: string, options?: RequestOptions): Promise<AppReleasePromotion>;
     /** Read the environment's supported auth configuration. */
     getEnvironmentCapability(projectId: string, environmentId: string, options?: RequestOptions): Promise<AuthProjectCapability>;
     /** Report every directory in the environment and whether it is fully stored. */

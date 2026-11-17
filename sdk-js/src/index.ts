@@ -16,6 +16,25 @@ import { basicAuthorization } from "./oauth.js";
 import { ParserClient } from "./parsers.js";
 import { SDK_IDENTITY } from "./version.js";
 
+export type {
+  AppRelease,
+  AppReleaseCacheMode,
+  AppReleaseCacheRule,
+  AppReleaseCreateRequest,
+  AppReleaseFile,
+  AppReleaseFramingMode,
+  AppReleaseHeaderRule,
+  AppReleaseList,
+  AppReleaseManifest,
+  AppReleasePromotion,
+  AppReleaseResponseHeader,
+  AppReleaseRouting,
+  AppReleaseShareableRoute,
+  AppReleaseSpaFallback,
+  AppReleaseState,
+  AppReleaseSummary,
+  AppReleaseUploadedFile,
+} from "./admin-app-releases.js";
 export {
   type ApplicationIdentityTrait,
   type ApplicationIdentityTraitsStatus,
@@ -76,6 +95,12 @@ export {
   type AuthProjectEnvironmentOrganisation,
   type AuthProjectEnvironmentOrganisationList,
   type AuthProjectEnvironmentReleasedResources,
+  type AuthProjectHostedSignIn,
+  type AuthProjectHosting,
+  type AuthProjectHostingCapability,
+  type AuthProjectHostingIngestTarget,
+  type AuthProjectHostingMode,
+  type AuthProjectHostingStatus,
   type AuthProjectIdentityMode,
   type AuthProjectInvitation,
   type AuthProjectInvitationIssued,
@@ -318,6 +343,31 @@ export {
   type ZeroStateReconciliationOptions,
   type ZeroStateReconciliationResult,
 } from "./backend-lifecycle.js";
+export {
+  BrowserSignIn,
+  type BrowserSignInConfig,
+  type BrowserSignInEndpoints,
+  type CustdDiscoveryDocument,
+  type CustdDiscoverySignIn,
+  createSignInCodeChallenge,
+  DEFAULT_SIGN_IN_SCOPES,
+  SIGN_IN_ERROR_CODES,
+  SIGN_IN_STATUSES,
+  type SignInCompletion,
+  type SignInDiscoveryOptions,
+  SignInError,
+  type SignInErrorCode,
+  type SignInRestoreResult,
+  type SignInSession,
+  type SignInStart,
+  type SignInStartOptions,
+  type SignInState,
+  type SignInStatus,
+  type SignInStorage,
+  type SignOutOptions,
+  type SignOutResult,
+  signInConfigFromDiscovery,
+} from "./browser-sign-in.js";
 export {
   DEFAULT_PARSER_FRAMING_MAX_LINES,
   DEFAULT_PARSER_FRAMING_MAX_RECORD_BYTES,
@@ -2417,16 +2467,18 @@ export class CustdClient {
     const token = await this.getToken(options);
     let response: Response;
     try {
+      // A byte body is a file upload and is sent as raw bytes; every other body is JSON.
+      const rawBody = body instanceof Uint8Array;
       response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
         method,
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": rawBody ? "application/octet-stream" : "application/json",
           Authorization: `Bearer ${token}`,
           ...this.defaultHeaders,
           ...(options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
           ...(options?.owningUserUuid ? { "X-Custd-Owning-User-UUID": options.owningUserUuid } : {}),
         },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: body === undefined ? undefined : rawBody ? Uint8Array.from(body) : JSON.stringify(body),
         signal: options?.signal,
       });
     } catch (error) {

@@ -299,6 +299,28 @@ describe("createBrowserTracker", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("never records the URL fragment, where hosted apps carry owner tokens", async () => {
+    window.history.replaceState({}, "", "/start#owner=SECRET-ONE");
+    const fetchMock = mockFetch();
+    const tracker = createBrowserTracker({
+      ...baseConfig,
+      pageContext: (defaults) => ({ ...defaults, path: `${defaults.path}#owner=SECRET-THREE` }),
+    });
+
+    tracker.installSpaTracking();
+    await Promise.resolve();
+    window.history.pushState({}, "", "/next#token=SECRET-TWO");
+    window.history.pushState({}, "", "/next#token=SECRET-FOUR");
+    await Promise.resolve();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(eventFromFetchCall(fetchMock, 0).context.page?.path).toBe("/start");
+    expect(eventFromFetchCall(fetchMock, 1).context.page?.path).toBe("/next");
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(String(init.body)).not.toMatch(/SECRET|#/u);
+    }
+  });
+
   it("can opt out of the initial SPA page view", async () => {
     const fetchMock = mockFetch();
     const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });

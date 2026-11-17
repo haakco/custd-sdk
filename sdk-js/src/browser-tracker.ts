@@ -465,14 +465,14 @@ export async function installBrowserTrackerFromScript(scriptElement?: HTMLScript
     }
     const baseUrl = script.dataset.baseUrl ?? new URL(script.src).origin;
     assertSecureOrLocalHTTP(baseUrl, "baseUrl");
-    const siteConfig = await fetchSiteConfig(baseUrl, siteUuid);
+    const siteConfig = await fetchBrowserSiteConfig(baseUrl, siteUuid);
     const tracker = createBrowserTracker({
       baseUrl,
       siteUuid,
       writeKey,
       identityMode: siteConfig.identityMode,
       allowedOrigins: siteConfig.allowedOrigins,
-      batchSize: Number(script.dataset.batchSize || defaultScriptBatchSize(siteConfig)),
+      batchSize: Number(script.dataset.batchSize || defaultSiteBatchSize(siteConfig)),
       consent: scriptConsent(script, siteConfig),
       persistentQueue: script.dataset.persistentQueue === "true",
     });
@@ -490,10 +490,18 @@ export async function installBrowserTrackerFromScript(scriptElement?: HTMLScript
   }
 }
 
-async function fetchSiteConfig(baseUrl: string, siteUuid: string): Promise<BrowserSiteConfig> {
-  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/v1/sites/${encodeURIComponent(siteUuid)}/config`, {
-    credentials: "omit",
-  });
+/** Reads a registered browser Site's public identity mode and allowed origins. */
+export async function fetchBrowserSiteConfig(
+  baseUrl: string,
+  siteUuid: string,
+  fetchImpl: typeof fetch = (input, init) => globalThis.fetch(input, init),
+): Promise<BrowserSiteConfig> {
+  const response = await fetchImpl(
+    `${baseUrl.replace(/\/$/, "")}/api/v1/sites/${encodeURIComponent(siteUuid)}/config`,
+    {
+      credentials: "omit",
+    },
+  );
   if (!response.ok) {
     throw new Error(`custd: site config request failed with status ${response.status}`);
   }
@@ -803,10 +811,16 @@ function scriptConsent(script: HTMLScriptElement, siteConfig: BrowserSiteConfig)
   if (script.dataset.consent === "granted") {
     return "granted";
   }
+  return defaultSiteConsent(siteConfig);
+}
+
+/** An extended-identity Site waits for consent; a cookieless Site tracks without it. */
+export function defaultSiteConsent(siteConfig: BrowserSiteConfig): BrowserTrackerConfig["consent"] {
   return siteConfig.identityMode === "extended" ? "required" : undefined;
 }
 
-function defaultScriptBatchSize(siteConfig: BrowserSiteConfig): number {
+/** Extended-identity Sites batch; cookieless Sites send each event as it happens. */
+export function defaultSiteBatchSize(siteConfig: BrowserSiteConfig): number {
   return siteConfig.identityMode === "extended" ? 25 : 1;
 }
 

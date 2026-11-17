@@ -4,20 +4,22 @@
 adapts TanStack Query results to the core SDK's server-owned reporting state
 model and provides a small accessible state display.
 
-The core `@haakco/custd-sdk` remains framework-neutral. This package does not
-create a Custd client, make requests, or receive browser credentials. The
-consumer owns authentication and supplies a query function or existing
-`UseQueryResult`.
+It also shares an app user's browser sign-in session (see below).
+
+The core `@haakco/custd-sdk` remains framework-neutral. The reporting helpers
+do not create a Custd client or make requests: the consumer supplies a query
+function or existing `UseQueryResult`. The session helpers wrap a core
+`BrowserSignIn`, which holds the signed-in user's tokens in `sessionStorage`.
 
 ## Install
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.43.3&path:/sdk-js' \
-  '@haakco/custd-react@github:haakco/custd-sdk#v3.43.3&path:/sdk-react'
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.45.0&path:/sdk-js' \
+  '@haakco/custd-react@github:haakco/custd-sdk#v3.45.0&path:/sdk-react'
 ```
 
 Use the same released tag for both packages. These examples were verified on
-2026-11-15 against **3.43.3**. Keep the application's installed React 18/19 and
+2026-11-15 against **3.45.0**. Keep the application's installed React 18/19 and
 TanStack Query 5 peers; do not install a different React copy for this helper.
 GitHub tags with checked-in distributions are the publication owner, not a
 private registry. The state-display component renders DOM elements and is for
@@ -51,3 +53,98 @@ content renderer, renders semantic `status` or `alert` feedback, and only
 shows the retry button when Custd marks the result retryable. Consumers own
 placement, wording, and styling through `labels`, `renderState`, and
 `className`.
+
+## App user sign-in
+
+```tsx
+import { BrowserSignIn } from "@haakco/custd-sdk";
+import { CustdSessionProvider, useCustdSession } from "@haakco/custd-react";
+
+const signIn = new BrowserSignIn(config); // see the core SDK README
+
+<CustdSessionProvider client={signIn}>
+  <App />
+</CustdSessionProvider>;
+
+function Account() {
+  const { status, session, error, signIn, signOut } = useCustdSession();
+  if (status === "signing_in") return <p role="status">Signing in…</p>;
+  if (status === "error") return <p role="alert">Sign-in failed ({error?.code}). <button onClick={() => signIn()}>Try again</button></p>;
+  if (status === "signed_in") return <button onClick={() => signOut()}>Sign out</button>;
+  return <button onClick={() => signIn()}>Sign in</button>;
+}
+```
+
+The provider calls `restore()` on mount, which completes a sign-in redirect
+and then replaces the URL with the saved `returnTo` path (override with
+`onSignInComplete`), or refreshes an expired session. `status` is one of
+`signed_out`, `signing_in`, `signed_in` or `error`; `session` is set only when
+signed in. The consumer owns placement, wording and styling.
+
+## Hosted apps
+
+An app Custd hosts wraps its root once. The provider calls the core
+`startHostedApp` on mount, which reads `/.well-known/custd.json` and starts
+tracking, error capture and sign-in as the file enables them, and stops them on
+unmount.
+
+```tsx
+import { CustdHostedAppProvider, useCustdHostedApp, useCustdSession } from "@haakco/custd-react";
+
+<CustdHostedAppProvider options={{ release: import.meta.env.VITE_COMMIT }}>
+  <App />
+</CustdHostedAppProvider>;
+
+function Header() {
+  const hosted = useCustdHostedApp();
+  if (hosted.status !== "ready") return null; // "loading", or "error" with a typed `error.code`
+  return hosted.app.signIn ? <Account /> : null; // Account calls useCustdSession()
+}
+```
+
+Children render while discovery loads and when it fails, so the app never
+waits on Custd. When `sign_in` is enabled the children are wrapped in
+`CustdSessionProvider` once ready; call `useCustdSession` only below a ready
+app with `app.signIn`. Send typed app events with
+`hosted.app.trackAppEvent(name, properties)`.
+
+## Forecast charts
+
+`ForecastChart`, `ConvergenceStory` and `ArrivalHistogram` draw Custd
+measurement forecasts as plain SVG with no chart library. Their props use the
+analytics API's forecast field names, so a response passes straight through:
+
+```tsx
+import { ArrivalHistogram, ConvergenceStory, ForecastChart } from "@haakco/custd-react";
+
+<ForecastChart
+  title="Signups"
+  data={{
+    observations,                                   // [{ at, value }]
+    target: project.targetValue,
+    deadline: project.deadline,
+    completionMedian: run.percentiles.p50,
+    completionInterval: run.counter?.completionInterval,
+    forecastFrom: run.forecastFrom,
+    posteriorLines: run.counter?.detail.posteriorLines,
+  }}
+/>
+<ArrivalHistogram title="Arrival" histogram={run.counter.detail.arrivalHistogram} deadline={project.deadline} />
+<ConvergenceStory title="Delivery" estimates={story.delivery.estimates} targetDate={story.delivery.targetDate} staleAfterDays={7} />
+```
+
+- `ForecastChart` has zoom, pan, reset, zoom-to-data and full-screen buttons,
+  plus drag-to-pan. Escape leaves full screen. The visible range
+  is announced politely, and zoom animates only when the user has not asked for
+  reduced motion. The median line and the band run from the latest
+  measurement to the target at the median date and at the interval ends.
+- Clients own the wording and the theme. Wording comes through `labels`,
+  `formatDate` and `formatValue`. The theme comes through `className`, `style`
+  and these CSS variables, which fall back to `currentColor`:
+  `--custd-chart-observed`, `--custd-chart-forecast`, `--custd-chart-band`,
+  `--custd-chart-target`, `--custd-chart-deadline`, `--custd-chart-trail`,
+  `--custd-chart-grid`, `--custd-chart-late`, `--custd-chart-stale` and
+  `--custd-chart-surface` (the full-screen background).
+- Each chart has an empty state, and `ForecastChart` also shows a
+  measurements-only state. Each has a `role="img"` text alternative that can be
+  overridden with `summary`.
