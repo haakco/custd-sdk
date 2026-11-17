@@ -22,6 +22,18 @@ use HaakCo\Custd\Admin\SiteDomain\SiteReportShareCreated;
 use HaakCo\Custd\Admin\SiteDomain\SiteReportShareList;
 use HaakCo\Custd\Admin\SiteDomain\SiteUptimeHistory;
 use HaakCo\Custd\Admin\SiteDomain\SiteLighthouseHistory;
+use HaakCo\Custd\Admin\SiteDomain\SitePageCheckRequest;
+use HaakCo\Custd\Admin\SiteDomain\SitePageCheckResponse;
+use HaakCo\Custd\Admin\SiteDomain\SitePageFacts;
+use HaakCo\Custd\Admin\SiteDomain\SitePageRecheck;
+use HaakCo\Custd\Admin\SiteDomain\SiteProjectContext;
+use HaakCo\Custd\Admin\SiteDomain\SiteProjectContextRequest;
+use HaakCo\Custd\Admin\SiteDomain\SiteRobotsTestRequest;
+use HaakCo\Custd\Admin\SiteDomain\SiteRobotsTestResult;
+use HaakCo\Custd\Admin\SiteDomain\SiteSearchDimension;
+use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspection;
+use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspectionList;
+use HaakCo\Custd\Admin\SiteDomain\SiteSearchRowPage;
 use HaakCo\Custd\Fields;
 
 /**
@@ -42,6 +54,21 @@ final class SiteDomainClient
 
     /** The problem code of the 404 returned when disconnecting a provider the domain is not connected to. */
     public const SEARCH_CONNECTION_NOT_FOUND_CODE = 'site_search_connection_not_found';
+
+    /** The problem code of the 400 returned when a page tool names a URL off the domain's own host. */
+    public const PAGE_NOT_ON_DOMAIN_CODE = 'site_page_not_on_domain';
+
+    /** The problem code of the 429 returned once the domain's hourly page rechecks are used up. */
+    public const PAGE_RECHECK_LIMIT_CODE = 'site_page_recheck_limit';
+
+    /** The problem code of the 400 returned when a URL to inspect is not an http(s) URL on the domain's host. */
+    public const SEARCH_INSPECTION_URL_INVALID_CODE = 'site_search_inspection_url_invalid';
+
+    /** The problem code of the 409 returned when the domain is unverified or not connected to Google. */
+    public const SEARCH_INSPECTION_NOT_CONNECTED_CODE = 'site_search_inspection_not_connected';
+
+    /** The problem code of the 429 returned once the tenant's daily URL inspections are used up. */
+    public const SEARCH_INSPECTION_LIMIT_CODE = 'site_search_inspection_limit';
 
     private const PREFIX = '/api/v1';
     private const COLLECTION = '/site-domains';
@@ -250,6 +277,128 @@ final class SiteDomainClient
             null,
             self::PREFIX
         );
+    }
+
+    /**
+     * Page through one dimension of a domain's imported search rows. Null arguments let the server
+     * default to the query dimension, every provider, 28 days, offset 0 and 100 rows (limit 1..1000).
+     */
+    public function listSearchRows(
+        string $domainUuid,
+        ?SiteSearchDimension $dimension = null,
+        ?SiteSearchProvider $provider = null,
+        ?int $days = null,
+        ?int $offset = null,
+        ?int $limit = null,
+        ?string $companySlug = null,
+    ): SiteSearchRowPage {
+        $query = array_filter([
+            'dimension' => $dimension?->value,
+            'provider' => $provider?->value,
+            'days' => $days === null ? null : (string) $days,
+            'offset' => $offset === null ? null : (string) $offset,
+            'limit' => $limit === null ? null : (string) $limit,
+        ], static fn (?string $value): bool => $value !== null);
+
+        return SiteSearchRowPage::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/search/rows', $query, $companySlug)
+        );
+    }
+
+    /** List a domain's latest Google URL inspections and the tenant's use of its daily limit. */
+    public function listSearchInspections(string $domainUuid, ?string $companySlug = null): SiteSearchInspectionList
+    {
+        return SiteSearchInspectionList::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/search/inspections', [], $companySlug)
+        );
+    }
+
+    /**
+     * Queue a Google URL Inspection of $url (on the domain's host); the route answers 202 and the
+     * scheduler asks Google on its next tick. Refusals carry {@see self::SEARCH_INSPECTION_URL_INVALID_CODE},
+     * {@see self::SEARCH_INSPECTION_NOT_CONNECTED_CODE} or {@see self::SEARCH_INSPECTION_LIMIT_CODE}.
+     */
+    public function requestSearchInspection(string $domainUuid, string $url, ?string $companySlug = null): SiteSearchInspection
+    {
+        return SiteSearchInspection::fromPayload(
+            $this->send('POST', self::item($domainUuid) . '/search/inspections', [], $companySlug, ['url' => $url])
+        );
+    }
+
+    /** Read what the latest audit or recheck read from one page of the domain. */
+    public function getPageFacts(string $domainUuid, string $url, ?string $companySlug = null): SitePageFacts
+    {
+        return SitePageFacts::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/page-facts', ['url' => $url], $companySlug)
+        );
+    }
+
+    /**
+     * Queue one page of a verified domain to be checked again (202). A page already waiting comes
+     * back as it is; a URL off the domain throws {@see self::PAGE_NOT_ON_DOMAIN_CODE} and the
+     * hourly allowance {@see self::PAGE_RECHECK_LIMIT_CODE}.
+     */
+    public function requestPageRecheck(string $domainUuid, string $url, ?string $companySlug = null): SitePageRecheck
+    {
+        return SitePageRecheck::fromPayload(
+            $this->send('POST', self::item($domainUuid) . '/page-rechecks', [], $companySlug, ['url' => $url])
+        );
+    }
+
+    /** Read one page recheck; poll it until its state is checked or failed. */
+    public function getPageRecheck(string $domainUuid, string $recheckUuid, ?string $companySlug = null): SitePageRecheck
+    {
+        return SitePageRecheck::fromPayload($this->send(
+            'GET',
+            self::item($domainUuid) . '/page-rechecks/' . rawurlencode($recheckUuid),
+            [],
+            $companySlug
+        ));
+    }
+
+    /** Run the one-page checks on draft HTML before it is published. Nothing is fetched or stored. */
+    public function checkPage(
+        string $domainUuid,
+        SitePageCheckRequest $request,
+        ?string $companySlug = null,
+    ): SitePageCheckResponse {
+        return SitePageCheckResponse::fromPayload(
+            $this->send('POST', self::item($domainUuid) . '/page-check', [], $companySlug, $request->serialise())
+        );
+    }
+
+    /** Test a URL against a pasted robots.txt, or the domain's live file, by RFC 9309. */
+    public function testRobots(
+        string $domainUuid,
+        SiteRobotsTestRequest $request,
+        ?string $companySlug = null,
+    ): SiteRobotsTestResult {
+        return SiteRobotsTestResult::fromPayload(
+            $this->send('POST', self::item($domainUuid) . '/robots-test', [], $companySlug, $request->serialise())
+        );
+    }
+
+    /** Read a Site's brand names, competitors and markets. A site-bound credential may pass null for its own Site. */
+    public function getProjectContext(?string $siteUuid = null, ?string $companySlug = null): SiteProjectContext
+    {
+        return SiteProjectContext::fromPayload(
+            $this->send('GET', self::COLLECTION . '/project-context', self::siteQuery($siteUuid), $companySlug)
+        );
+    }
+
+    /** Replace a Site's project context; empty lists clear it. A site-bound credential may pass null for its own Site. */
+    public function setProjectContext(
+        ?string $siteUuid,
+        SiteProjectContextRequest $request,
+        ?string $companySlug = null,
+    ): SiteProjectContext {
+        return SiteProjectContext::fromPayload($this->send(
+            'PUT',
+            self::COLLECTION . '/project-context',
+            self::siteQuery($siteUuid),
+            $companySlug,
+            $request->serialise()
+        ));
     }
 
     /** Read the complete client report without exposing private verification or connection details. */

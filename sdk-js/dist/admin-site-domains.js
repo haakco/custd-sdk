@@ -166,6 +166,95 @@ export class SiteDomainAdminClient {
     disconnectSearch(domainUuid, provider, options) {
         return this.send("DELETE", searchConnectionPath(domainUuid, provider), {}, undefined, options);
     }
+    /** Reads what the latest audit or recheck read from one page of the domain. */
+    getPageFacts(domainUuid, url, options) {
+        return this.send("GET", `${domainPath(domainUuid)}/page-facts`, { url }, undefined, options);
+    }
+    /**
+     * Queues one page of a verified domain for recheck (202). A page already queued comes back as it is;
+     * past the hourly allowance the server refuses with SITE_PAGE_RECHECK_LIMIT_CODE, and a page of
+     * another host with SITE_PAGE_NOT_ON_DOMAIN_CODE.
+     */
+    requestPageRecheck(domainUuid, url, options) {
+        return this.send("POST", `${domainPath(domainUuid)}/page-rechecks`, {}, { url }, options);
+    }
+    getPageRecheck(domainUuid, recheckUuid, options) {
+        const path = `${domainPath(domainUuid)}/page-rechecks/${encodeURIComponent(recheckUuid)}`;
+        return this.send("GET", path, {}, undefined, options);
+    }
+    /** Runs the one-page checks on draft HTML; nothing is fetched or stored. */
+    checkPage(domainUuid, body, options) {
+        return this.send("POST", `${domainPath(domainUuid)}/page-check`, {}, { url: body.url, html: body.html }, options);
+    }
+    /** Tests a URL against a pasted robots.txt, or the domain's live file when robotsTxt is omitted. */
+    testRobots(domainUuid, body, options) {
+        const request = { url: body.url, userAgent: body.userAgent };
+        if (body.robotsTxt !== undefined)
+            request.robotsTxt = body.robotsTxt;
+        return this.send("POST", `${domainPath(domainUuid)}/robots-test`, {}, request, options);
+    }
+    /** Pages through one dimension of the domain's imported search rows; `unavailable` names providers without it. */
+    listSearchRows(domainUuid, query = {}, options) {
+        const values = {
+            dimension: query.dimension,
+            provider: query.provider,
+            days: query.days?.toString(),
+            offset: query.offset?.toString(),
+            limit: query.limit?.toString(),
+        };
+        return this.send("GET", `${domainPath(domainUuid)}/search/rows`, values, undefined, options);
+    }
+    /** Lists the domain's latest URL inspections and the tenant's daily use. */
+    listSearchInspections(domainUuid, options) {
+        return this.send("GET", `${domainPath(domainUuid)}/search/inspections`, {}, undefined, options);
+    }
+    /**
+     * Queues a Search Console URL Inspection (202). Refusals carry SITE_SEARCH_INSPECTION_URL_INVALID_CODE,
+     * SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE or SITE_SEARCH_INSPECTION_LIMIT_CODE.
+     */
+    requestSearchInspection(domainUuid, url, options) {
+        return this.send("POST", `${domainPath(domainUuid)}/search/inspections`, {}, { url }, options);
+    }
+    /** Reads a Site's brands, competitors and markets. A site-bound credential may omit siteUuid. */
+    getProjectContext(siteUuid, options) {
+        return this.send("GET", `${siteDomainsPath}/project-context`, { siteUuid }, undefined, options);
+    }
+    /** Replaces a Site's project context; an omitted list is sent empty and clears it. */
+    setProjectContext(body, options) {
+        const request = {
+            brandNames: body.brandNames ?? [],
+            competitorDomains: body.competitorDomains ?? [],
+            markets: body.markets ?? [],
+        };
+        return this.send("PUT", `${siteDomainsPath}/project-context`, { siteUuid: body.siteUuid }, request, options);
+    }
+    /** Reads the client report without private verification or connection details. */
+    getReport(domainUuid, options) {
+        return this.send("GET", `${domainPath(domainUuid)}/report`, {}, undefined, options);
+    }
+    /** Reads uptime windows, ninety daily bars and hourly response times over `responseDays` (1..90). */
+    getUptimeHistory(domainUuid, responseDays, options) {
+        const query = { responseDays: responseDays?.toString() };
+        return this.send("GET", `${domainPath(domainUuid)}/uptime-history`, query, undefined, options);
+    }
+    /** Reads scheduled desktop and mobile lab runs over `days` (1..30); omitted, the server uses seven. */
+    getLighthouseHistory(domainUuid, days, options) {
+        return this.send("GET", `${domainPath(domainUuid)}/lighthouse`, { days: days?.toString() }, undefined, options);
+    }
+    /** Lists live report shares. Tokens are returned only on creation. */
+    listReportShares(domainUuid, options) {
+        return this.send("GET", `${domainPath(domainUuid)}/report-shares`, {}, undefined, options);
+    }
+    /** Creates a public report share. Copy the token once; creation is never retried automatically. */
+    createReportShare(domainUuid, body = {}, options) {
+        const request = { expiresInDays: body.expiresInDays ?? 30 };
+        return this.send("POST", `${domainPath(domainUuid)}/report-shares`, {}, request, options);
+    }
+    /** Revokes a share; later public reads fail. */
+    revokeReportShare(domainUuid, shareUuid, options) {
+        const path = `${domainPath(domainUuid)}/report-shares/${encodeURIComponent(shareUuid)}`;
+        return this.send("DELETE", path, {}, undefined, options);
+    }
     send(method, path, query, body, options) {
         const { companySlug, ...requestOptions } = options ?? {};
         const params = new URLSearchParams();

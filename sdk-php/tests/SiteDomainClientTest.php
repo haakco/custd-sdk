@@ -299,6 +299,7 @@ final class SiteDomainClientTest extends TestCase
             "evidence" => "9 days",
             "fix" => "Renew it",
             "source" => "tls",
+            "remedy" => ["kind" => "server", "element" => "the TLS certificate"],
             "history" => [
                 "firstSeenAt" => "2026-11-10T08:00:00Z",
                 "lastSeenAt" => "2026-11-11T08:00:00Z",

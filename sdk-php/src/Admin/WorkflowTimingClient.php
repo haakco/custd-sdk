@@ -11,6 +11,7 @@ use HaakCo\Custd\Admin\WorkflowTiming\Definition;
 use HaakCo\Custd\Admin\WorkflowTiming\DurationHistory;
 use HaakCo\Custd\Admin\WorkflowTiming\Evaluation;
 use HaakCo\Custd\Admin\WorkflowTiming\Observation;
+use HaakCo\Custd\Admin\WorkflowTiming\ObservationBatch;
 use HaakCo\Custd\Admin\WorkflowTiming\ObservationResult;
 use HaakCo\Custd\Admin\WorkflowTiming\ObservedRun;
 use HaakCo\Custd\Admin\WorkflowTiming\ReconcileResult;
@@ -186,25 +187,7 @@ final class WorkflowTimingClient
     {
         $path = $this->collection('/observations:batch', $companySlug);
         return BatchResult::fromPayload(
-            $this->requiredResponse('POST', $path, new class ($observations) implements Dto {
-                /** @param list<Observation> $observations */
-                public function __construct(
-                    /** @var list<Observation> */
-                    private readonly array $observations
-                ) {
-                }
-
-                /** @return array<string, mixed> */
-                public function toPayload(): array
-                {
-                    return [
-                        'observations' => array_map(
-                            static fn (Observation $item): array => $item->toPayload(),
-                            $this->observations,
-                        ),
-                    ];
-                }
-            }),
+            $this->requiredResponse('POST', $path, new ObservationBatch($observations)),
         );
     }
 

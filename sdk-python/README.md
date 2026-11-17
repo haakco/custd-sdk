@@ -173,7 +173,21 @@ missing_titles = [f for f in findings if f["rule"] == SITE_RULE_TITLE_MISSING]
 ```
 
 `SITE_RULE_*` constants (all of them in `SITE_RULE_IDS`) are the stable rule
-IDs a finding carries in `rule`; key any client-side fix on them.
+IDs a finding carries in `rule`; key any client-side fix on them. Each finding's
+`remedy` says what the fix changes (`kind`, `element`) and, for some rules,
+carries ready-to-copy `generated` code.
+
+Page tools: `get_page_facts`, `request_page_recheck` / `get_page_recheck`
+(one-page rechecks, `SITE_PAGE_RECHECK_LIMIT_CODE` past the hourly allowance),
+`check_page` (draft HTML, never stored) and `test_robots` (pasted or live
+robots.txt). Search: `list_search_rows` pages one dimension and names
+providers that cannot report it in `unavailable`; `request_search_inspection`
+and `list_search_inspections` run Search Console URL Inspection. A Site's
+brands, competitors and markets are `get_project_context` /
+`set_project_context`. Client reporting: `get_report`, `get_uptime_history`,
+`get_lighthouse_history` and `list_report_shares` / `create_report_share` /
+`revoke_report_share`. An unmeasured value (a score, `position`,
+`upPercent`, `fleschReadingEase`) is absent from the dict, never 0.
 
 ## Dev smoke test
 

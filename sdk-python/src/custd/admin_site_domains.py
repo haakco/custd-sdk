@@ -13,10 +13,29 @@ import urllib.parse
 from collections.abc import Mapping
 from typing import Any, Literal, NotRequired, TypedDict, cast
 
+from .admin_site_insights import (
+    SiteLighthouseHistory,
+    SitePageCheckResponse,
+    SitePageFacts,
+    SitePageRecheck,
+    SiteProjectContext,
+    SiteProjectContextRequest,
+    SiteRemedy,
+    SiteReport,
+    SiteReportShareCreated,
+    SiteReportShareList,
+    SiteRobotsTestResponse,
+    SiteSearchDimension,
+    SiteSearchInspection,
+    SiteSearchInspectionList,
+    SiteSearchRowPage,
+    SiteUptimeHistory,
+)
 from .client import AdminClient, problem_request_error, quote_path
 
 SITE_DOMAINS_PATH = "/site-domains"
 SITE_ALERT_DESTINATION_PATH = SITE_DOMAINS_PATH + "/alert-destination"
+SITE_PROJECT_CONTEXT_PATH = SITE_DOMAINS_PATH + "/project-context"
 
 # Problem codes a caller branches on through RequestError.code.
 # A 409 on request_audit: the tenant has not yet proven control of the domain.
@@ -25,6 +44,16 @@ SITE_DOMAIN_NOT_VERIFIED_CODE = "site_domain_not_verified"
 SITE_SEARCH_NOT_CONFIGURED_CODE = "site_search_not_configured"
 # A 404 on disconnect_search: the domain is not connected to that provider.
 SITE_SEARCH_CONNECTION_NOT_FOUND_CODE = "site_search_connection_not_found"
+# A 400 on get_page_facts, request_page_recheck or check_page: the URL is not on the domain's host.
+SITE_PAGE_NOT_ON_DOMAIN_CODE = "site_page_not_on_domain"
+# A 429 on request_page_recheck: the domain has used its hourly page rechecks.
+SITE_PAGE_RECHECK_LIMIT_CODE = "site_page_recheck_limit"
+# A 400 on request_search_inspection: the URL is not an http(s) URL on the domain's host.
+SITE_SEARCH_INSPECTION_URL_INVALID_CODE = "site_search_inspection_url_invalid"
+# A 409 on request_search_inspection: the domain is unverified or not connected to Google.
+SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE = "site_search_inspection_not_connected"
+# A 429 on request_search_inspection: the tenant has used its daily URL inspections.
+SITE_SEARCH_INSPECTION_LIMIT_CODE = "site_search_inspection_limit"
 
 # SiteFindingState selects which findings list_findings returns; the server defaults to open.
 SiteFindingState = Literal["open", "fixed", "all"]
@@ -366,7 +395,10 @@ class SiteFindingHistory(TypedDict):
 
 
 class SiteFinding(TypedDict):
-    """One problem an audit or check found, with the advice to fix it and a source to read."""
+    """One problem an audit or check found, with the advice to fix it and a source to read.
+
+    ``remedy`` says what the fix changes and, for some rules, carries code to copy.
+    """
 
     findingUuid: str
     rule: str
@@ -376,6 +408,7 @@ class SiteFinding(TypedDict):
     evidence: str
     fix: str
     source: str
+    remedy: SiteRemedy
     history: SiteFindingHistory
 
 
@@ -608,6 +641,168 @@ class SiteDomainAdminClient:
         A provider that is not connected answers 404 with SITE_SEARCH_CONNECTION_NOT_FOUND_CODE.
         """
         self._request("DELETE", _search_connection_path(domain_uuid, provider), {}, company_slug)
+
+    def get_page_facts(self, domain_uuid: str, url: str, *, company_slug: str | None = None) -> SitePageFacts:
+        """Return what the latest audit or recheck read from one page of the domain."""
+        path = _domain_path(domain_uuid) + "/page-facts"
+        return cast(SitePageFacts, self._request("GET", path, {"url": url}, company_slug))
+
+    def request_page_recheck(
+        self, domain_uuid: str, url: str, *, company_slug: str | None = None
+    ) -> SitePageRecheck:
+        """Queue one page of a verified domain for the scheduler's next tick (202).
+
+        A page already queued is returned as it is. Over the hourly allowance the server answers
+        429 with SITE_PAGE_RECHECK_LIMIT_CODE; a URL on another host, SITE_PAGE_NOT_ON_DOMAIN_CODE.
+        """
+        path = _domain_path(domain_uuid) + "/page-rechecks"
+        return cast(SitePageRecheck, self._request("POST", path, {}, company_slug, {"url": url}))
+
+    def get_page_recheck(
+        self, domain_uuid: str, recheck_uuid: str, *, company_slug: str | None = None
+    ) -> SitePageRecheck:
+        path = _domain_path(domain_uuid) + "/page-rechecks/" + quote_path(recheck_uuid)
+        return cast(SitePageRecheck, self._request("GET", path, {}, company_slug))
+
+    def check_page(
+        self, domain_uuid: str, url: str, html: str, *, company_slug: str | None = None
+    ) -> SitePageCheckResponse:
+        """Run the one-page checks on draft HTML (at most 512 KiB) as if ``url`` served it.
+
+        The draft is never fetched, stored or logged.
+        """
+        path = _domain_path(domain_uuid) + "/page-check"
+        payload = {"url": url, "html": html}
+        return cast(SitePageCheckResponse, self._request("POST", path, {}, company_slug, payload))
+
+    def test_robots(
+        self,
+        domain_uuid: str,
+        url: str,
+        user_agent: str,
+        robots_txt: str | None = None,
+        *,
+        company_slug: str | None = None,
+    ) -> SiteRobotsTestResponse:
+        """Decide whether ``user_agent`` may fetch ``url`` (a path or http(s) URL).
+
+        Without ``robots_txt`` the domain's live robots.txt is read.
+        """
+        payload: dict[str, Any] = {"url": url, "userAgent": user_agent}
+        if robots_txt is not None:
+            payload["robotsTxt"] = robots_txt
+        path = _domain_path(domain_uuid) + "/robots-test"
+        return cast(SiteRobotsTestResponse, self._request("POST", path, {}, company_slug, payload))
+
+    def list_search_rows(
+        self,
+        domain_uuid: str,
+        dimension: SiteSearchDimension | None = None,
+        *,
+        provider: SiteSearchProvider | None = None,
+        days: int | None = None,
+        offset: int | None = None,
+        limit: int | None = None,
+        company_slug: str | None = None,
+    ) -> SiteSearchRowPage:
+        """Page through one dimension of the domain's search rows.
+
+        The server defaults to the query dimension, every provider, 28 days, offset 0 and 100
+        rows (at most 1000). ``unavailable`` names providers that cannot report the dimension.
+        """
+        query: dict[str, str] = {}
+        if dimension:
+            query["dimension"] = dimension
+        if provider:
+            query["provider"] = provider
+        for name, value in (("days", days), ("offset", offset), ("limit", limit)):
+            if value is not None:
+                query[name] = str(value)
+        path = _domain_path(domain_uuid) + "/search/rows"
+        return cast(SiteSearchRowPage, self._request("GET", path, query, company_slug))
+
+    def list_search_inspections(
+        self, domain_uuid: str, *, company_slug: str | None = None
+    ) -> SiteSearchInspectionList:
+        """Return the domain's latest URL inspections and the tenant's daily use."""
+        path = _domain_path(domain_uuid) + "/search/inspections"
+        return cast(SiteSearchInspectionList, self._request("GET", path, {}, company_slug))
+
+    def request_search_inspection(
+        self, domain_uuid: str, url: str, *, company_slug: str | None = None
+    ) -> SiteSearchInspection:
+        """Queue a Search Console URL Inspection of one URL on the domain (202).
+
+        The server answers SITE_SEARCH_INSPECTION_URL_INVALID_CODE, _NOT_CONNECTED_CODE or
+        _LIMIT_CODE when it refuses.
+        """
+        path = _domain_path(domain_uuid) + "/search/inspections"
+        return cast(SiteSearchInspection, self._request("POST", path, {}, company_slug, {"url": url}))
+
+    def get_project_context(
+        self, site_uuid: str | None = None, *, company_slug: str | None = None
+    ) -> SiteProjectContext:
+        """Return a Site's brands, competitors and markets. A site-bound credential may omit site_uuid."""
+        query = {"siteUuid": site_uuid} if site_uuid else {}
+        return cast(SiteProjectContext, self._request("GET", SITE_PROJECT_CONTEXT_PATH, query, company_slug))
+
+    def set_project_context(
+        self,
+        request: SiteProjectContextRequest,
+        site_uuid: str | None = None,
+        *,
+        company_slug: str | None = None,
+    ) -> SiteProjectContext:
+        """Replace a Site's project context; every list is sent, so an omitted one is cleared."""
+        query = {"siteUuid": site_uuid} if site_uuid else {}
+        payload: dict[str, Any] = {
+            "brandNames": list(request.get("brandNames", [])),
+            "competitorDomains": list(request.get("competitorDomains", [])),
+            "markets": [
+                {"country": market["country"], "language": market["language"]}
+                for market in request.get("markets", [])
+            ],
+        }
+        result = self._request("PUT", SITE_PROJECT_CONTEXT_PATH, query, company_slug, payload)
+        return cast(SiteProjectContext, result)
+
+    def get_report(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteReport:
+        """Return the client report, without private verification or connection details."""
+        return cast(SiteReport, self._request("GET", _domain_path(domain_uuid) + "/report", {}, company_slug))
+
+    def get_uptime_history(
+        self, domain_uuid: str, response_days: int | None = None, *, company_slug: str | None = None
+    ) -> SiteUptimeHistory:
+        """Return uptime windows, ninety daily bars and hourly response times (response_days 1..90)."""
+        query = {"responseDays": str(response_days)} if response_days is not None else {}
+        path = _domain_path(domain_uuid) + "/uptime-history"
+        return cast(SiteUptimeHistory, self._request("GET", path, query, company_slug))
+
+    def get_lighthouse_history(
+        self, domain_uuid: str, days: int | None = None, *, company_slug: str | None = None
+    ) -> SiteLighthouseHistory:
+        """Return scheduled desktop and mobile lab runs over 1..30 days; omitted, seven."""
+        query = {"days": str(days)} if days is not None else {}
+        path = _domain_path(domain_uuid) + "/lighthouse"
+        return cast(SiteLighthouseHistory, self._request("GET", path, query, company_slug))
+
+    def list_report_shares(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteReportShareList:
+        """Return the live report shares; tokens are returned only on creation."""
+        path = _domain_path(domain_uuid) + "/report-shares"
+        return cast(SiteReportShareList, self._request("GET", path, {}, company_slug))
+
+    def create_report_share(
+        self, domain_uuid: str, expires_in_days: int = 30, *, company_slug: str | None = None
+    ) -> SiteReportShareCreated:
+        """Create a public report share lasting 1..90 days. Copy the token once; never retried."""
+        path = _domain_path(domain_uuid) + "/report-shares"
+        payload = {"expiresInDays": expires_in_days}
+        return cast(SiteReportShareCreated, self._request("POST", path, {}, company_slug, payload))
+
+    def revoke_report_share(self, domain_uuid: str, share_uuid: str, *, company_slug: str | None = None) -> None:
+        """Revoke a share; later public reads of it fail."""
+        path = _domain_path(domain_uuid) + "/report-shares/" + quote_path(share_uuid)
+        self._request("DELETE", path, {}, company_slug)
 
     def _request(
         self,

@@ -392,6 +392,43 @@ once. `list` and `get` return Site metadata without the write key.
 `rotateWriteKey` returns the replacement write key once; update tracker config
 and stop using the old key after rotation.
 
+## Site Insights (site domains)
+
+Server-side code can use `client.admin.siteDomains` to claim a host for a Site,
+prove control (`verify`, or `attest` from a site-bound broker credential), queue
+an audit, read findings and outages, choose the check mode, set the alert
+address and connect Google or Bing search numbers. The routes are under
+`/api/v1/site-domains`; a system administrator names the tenant with
+`{ companySlug }` in the last argument.
+
+```ts
+import { SITE_DOMAIN_NOT_VERIFIED_CODE, SiteRule } from "@haakco/custd-sdk";
+
+const domain = await client.admin.siteDomains.create({ siteUuid, host: "example.com" });
+// Publish domain.ownership.instructions (DNS TXT or well-known file), then:
+await client.admin.siteDomains.verify(domain.domainUuid);
+await client.admin.siteDomains.requestAudit(domain.domainUuid);
+
+const { findings } = await client.admin.siteDomains.listFindings(domain.domainUuid, "open");
+const missingTitles = findings.filter((finding) => finding.rule === SiteRule.TitleMissing);
+```
+
+`SiteRule` holds the stable rule IDs a finding carries in `rule`; key any
+client-side fix on them. A refused audit of an unverified domain is a
+`CustdRequestError` whose `code` is `SITE_DOMAIN_NOT_VERIFIED_CODE`.
+
+Each finding carries a `remedy` (`kind`, `element`, and ready-to-copy
+`generated` code for some rules). The page tools are `getPageFacts`,
+`requestPageRecheck` / `getPageRecheck` (refusals: `SITE_PAGE_NOT_ON_DOMAIN_CODE`,
+`SITE_PAGE_RECHECK_LIMIT_CODE`), `checkPage` for draft HTML and `testRobots`.
+Search adds `listSearchRows` (its `unavailable` list names providers that cannot
+report a dimension) and Search Console URL inspection
+(`requestSearchInspection`, `listSearchInspections`). `getProjectContext` /
+`setProjectContext` keep a Site's brands, competitors and markets. The client
+report reads are `getReport`, `getUptimeHistory`, `getLighthouseHistory` and
+`listReportShares` / `createReportShare` / `revokeReportShare`. A measurement
+Custd did not take is absent, never `0`.
+
 ## Schema Admin Helpers
 
 Server-side setup code can use `client.admin.schemas`:

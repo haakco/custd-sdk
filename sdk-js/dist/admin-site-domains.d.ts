@@ -1,3 +1,4 @@
+import type { SiteLighthouseHistory, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory } from "./admin-site-insights.js";
 import type { RequestOptions } from "./index.js";
 /** A 409 on requestAudit: the tenant has not proven control of the domain yet. */
 export declare const SITE_DOMAIN_NOT_VERIFIED_CODE = "site_domain_not_verified";
@@ -211,6 +212,7 @@ export type SiteFinding = {
     evidence: string;
     fix: string;
     source: string;
+    remedy: SiteRemedy;
     history: SiteFindingHistory;
 };
 /** A domain's findings, most severe first. */
@@ -339,6 +341,44 @@ export declare class SiteDomainAdminClient {
     connectSearch(domainUuid: string, provider: SiteSearchProvider, body: SiteSearchConnectionRequest, options?: SiteDomainRequestOptions): Promise<SiteSearchConnection>;
     /** Removes a provider connection and the numbers imported through it. */
     disconnectSearch(domainUuid: string, provider: SiteSearchProvider, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Reads what the latest audit or recheck read from one page of the domain. */
+    getPageFacts(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageFacts>;
+    /**
+     * Queues one page of a verified domain for recheck (202). A page already queued comes back as it is;
+     * past the hourly allowance the server refuses with SITE_PAGE_RECHECK_LIMIT_CODE, and a page of
+     * another host with SITE_PAGE_NOT_ON_DOMAIN_CODE.
+     */
+    requestPageRecheck(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageRecheck>;
+    getPageRecheck(domainUuid: string, recheckUuid: string, options?: SiteDomainRequestOptions): Promise<SitePageRecheck>;
+    /** Runs the one-page checks on draft HTML; nothing is fetched or stored. */
+    checkPage(domainUuid: string, body: SitePageCheckRequest, options?: SiteDomainRequestOptions): Promise<SitePageCheckResponse>;
+    /** Tests a URL against a pasted robots.txt, or the domain's live file when robotsTxt is omitted. */
+    testRobots(domainUuid: string, body: SiteRobotsTestRequest, options?: SiteDomainRequestOptions): Promise<SiteRobotsTestResponse>;
+    /** Pages through one dimension of the domain's imported search rows; `unavailable` names providers without it. */
+    listSearchRows(domainUuid: string, query?: SiteSearchRowsQuery, options?: SiteDomainRequestOptions): Promise<SiteSearchRowPage>;
+    /** Lists the domain's latest URL inspections and the tenant's daily use. */
+    listSearchInspections(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteSearchInspectionList>;
+    /**
+     * Queues a Search Console URL Inspection (202). Refusals carry SITE_SEARCH_INSPECTION_URL_INVALID_CODE,
+     * SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE or SITE_SEARCH_INSPECTION_LIMIT_CODE.
+     */
+    requestSearchInspection(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SiteSearchInspection>;
+    /** Reads a Site's brands, competitors and markets. A site-bound credential may omit siteUuid. */
+    getProjectContext(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteProjectContext>;
+    /** Replaces a Site's project context; an omitted list is sent empty and clears it. */
+    setProjectContext(body: SiteProjectContextRequest, options?: SiteDomainRequestOptions): Promise<SiteProjectContext>;
+    /** Reads the client report without private verification or connection details. */
+    getReport(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteReport>;
+    /** Reads uptime windows, ninety daily bars and hourly response times over `responseDays` (1..90). */
+    getUptimeHistory(domainUuid: string, responseDays?: number, options?: SiteDomainRequestOptions): Promise<SiteUptimeHistory>;
+    /** Reads scheduled desktop and mobile lab runs over `days` (1..30); omitted, the server uses seven. */
+    getLighthouseHistory(domainUuid: string, days?: number, options?: SiteDomainRequestOptions): Promise<SiteLighthouseHistory>;
+    /** Lists live report shares. Tokens are returned only on creation. */
+    listReportShares(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteReportShareList>;
+    /** Creates a public report share. Copy the token once; creation is never retried automatically. */
+    createReportShare(domainUuid: string, body?: SiteReportShareRequest, options?: SiteDomainRequestOptions): Promise<SiteReportShareCreated>;
+    /** Revokes a share; later public reads fail. */
+    revokeReportShare(domainUuid: string, shareUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
     private send;
 }
 export {};

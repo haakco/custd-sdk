@@ -4,6 +4,27 @@
 // /api/v1/admin. A system administrator names the tenant with `companySlug`;
 // a site-bound credential (site_domains.manage) reaches its own Site only.
 
+import type {
+  SiteLighthouseHistory,
+  SitePageCheckRequest,
+  SitePageCheckResponse,
+  SitePageFacts,
+  SitePageRecheck,
+  SiteProjectContext,
+  SiteProjectContextRequest,
+  SiteRemedy,
+  SiteReport,
+  SiteReportShareCreated,
+  SiteReportShareList,
+  SiteReportShareRequest,
+  SiteRobotsTestRequest,
+  SiteRobotsTestResponse,
+  SiteSearchInspection,
+  SiteSearchInspectionList,
+  SiteSearchRowPage,
+  SiteSearchRowsQuery,
+  SiteUptimeHistory,
+} from "./admin-site-insights.js";
 import type { RequestOptions } from "./index.js";
 
 /** A 409 on requestAudit: the tenant has not proven control of the domain yet. */
@@ -240,6 +261,7 @@ export type SiteFinding = {
   evidence: string;
   fix: string;
   source: string;
+  remedy: SiteRemedy;
   history: SiteFindingHistory;
 };
 
@@ -462,6 +484,142 @@ export class SiteDomainAdminClient {
     options?: SiteDomainRequestOptions,
   ): Promise<void> {
     return this.send("DELETE", searchConnectionPath(domainUuid, provider), {}, undefined, options);
+  }
+
+  /** Reads what the latest audit or recheck read from one page of the domain. */
+  getPageFacts(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageFacts> {
+    return this.send("GET", `${domainPath(domainUuid)}/page-facts`, { url }, undefined, options);
+  }
+
+  /**
+   * Queues one page of a verified domain for recheck (202). A page already queued comes back as it is;
+   * past the hourly allowance the server refuses with SITE_PAGE_RECHECK_LIMIT_CODE, and a page of
+   * another host with SITE_PAGE_NOT_ON_DOMAIN_CODE.
+   */
+  requestPageRecheck(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageRecheck> {
+    return this.send("POST", `${domainPath(domainUuid)}/page-rechecks`, {}, { url }, options);
+  }
+
+  getPageRecheck(
+    domainUuid: string,
+    recheckUuid: string,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SitePageRecheck> {
+    const path = `${domainPath(domainUuid)}/page-rechecks/${encodeURIComponent(recheckUuid)}`;
+    return this.send("GET", path, {}, undefined, options);
+  }
+
+  /** Runs the one-page checks on draft HTML; nothing is fetched or stored. */
+  checkPage(
+    domainUuid: string,
+    body: SitePageCheckRequest,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SitePageCheckResponse> {
+    return this.send("POST", `${domainPath(domainUuid)}/page-check`, {}, { url: body.url, html: body.html }, options);
+  }
+
+  /** Tests a URL against a pasted robots.txt, or the domain's live file when robotsTxt is omitted. */
+  testRobots(
+    domainUuid: string,
+    body: SiteRobotsTestRequest,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteRobotsTestResponse> {
+    const request: SiteRobotsTestRequest = { url: body.url, userAgent: body.userAgent };
+    if (body.robotsTxt !== undefined) request.robotsTxt = body.robotsTxt;
+    return this.send("POST", `${domainPath(domainUuid)}/robots-test`, {}, request, options);
+  }
+
+  /** Pages through one dimension of the domain's imported search rows; `unavailable` names providers without it. */
+  listSearchRows(
+    domainUuid: string,
+    query: SiteSearchRowsQuery = {},
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteSearchRowPage> {
+    const values = {
+      dimension: query.dimension,
+      provider: query.provider,
+      days: query.days?.toString(),
+      offset: query.offset?.toString(),
+      limit: query.limit?.toString(),
+    };
+    return this.send("GET", `${domainPath(domainUuid)}/search/rows`, values, undefined, options);
+  }
+
+  /** Lists the domain's latest URL inspections and the tenant's daily use. */
+  listSearchInspections(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteSearchInspectionList> {
+    return this.send("GET", `${domainPath(domainUuid)}/search/inspections`, {}, undefined, options);
+  }
+
+  /**
+   * Queues a Search Console URL Inspection (202). Refusals carry SITE_SEARCH_INSPECTION_URL_INVALID_CODE,
+   * SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE or SITE_SEARCH_INSPECTION_LIMIT_CODE.
+   */
+  requestSearchInspection(
+    domainUuid: string,
+    url: string,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteSearchInspection> {
+    return this.send("POST", `${domainPath(domainUuid)}/search/inspections`, {}, { url }, options);
+  }
+
+  /** Reads a Site's brands, competitors and markets. A site-bound credential may omit siteUuid. */
+  getProjectContext(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteProjectContext> {
+    return this.send("GET", `${siteDomainsPath}/project-context`, { siteUuid }, undefined, options);
+  }
+
+  /** Replaces a Site's project context; an omitted list is sent empty and clears it. */
+  setProjectContext(body: SiteProjectContextRequest, options?: SiteDomainRequestOptions): Promise<SiteProjectContext> {
+    const request = {
+      brandNames: body.brandNames ?? [],
+      competitorDomains: body.competitorDomains ?? [],
+      markets: body.markets ?? [],
+    };
+    return this.send("PUT", `${siteDomainsPath}/project-context`, { siteUuid: body.siteUuid }, request, options);
+  }
+
+  /** Reads the client report without private verification or connection details. */
+  getReport(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteReport> {
+    return this.send("GET", `${domainPath(domainUuid)}/report`, {}, undefined, options);
+  }
+
+  /** Reads uptime windows, ninety daily bars and hourly response times over `responseDays` (1..90). */
+  getUptimeHistory(
+    domainUuid: string,
+    responseDays?: number,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteUptimeHistory> {
+    const query = { responseDays: responseDays?.toString() };
+    return this.send("GET", `${domainPath(domainUuid)}/uptime-history`, query, undefined, options);
+  }
+
+  /** Reads scheduled desktop and mobile lab runs over `days` (1..30); omitted, the server uses seven. */
+  getLighthouseHistory(
+    domainUuid: string,
+    days?: number,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteLighthouseHistory> {
+    return this.send("GET", `${domainPath(domainUuid)}/lighthouse`, { days: days?.toString() }, undefined, options);
+  }
+
+  /** Lists live report shares. Tokens are returned only on creation. */
+  listReportShares(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteReportShareList> {
+    return this.send("GET", `${domainPath(domainUuid)}/report-shares`, {}, undefined, options);
+  }
+
+  /** Creates a public report share. Copy the token once; creation is never retried automatically. */
+  createReportShare(
+    domainUuid: string,
+    body: SiteReportShareRequest = {},
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteReportShareCreated> {
+    const request = { expiresInDays: body.expiresInDays ?? 30 };
+    return this.send("POST", `${domainPath(domainUuid)}/report-shares`, {}, request, options);
+  }
+
+  /** Revokes a share; later public reads fail. */
+  revokeReportShare(domainUuid: string, shareUuid: string, options?: SiteDomainRequestOptions): Promise<void> {
+    const path = `${domainPath(domainUuid)}/report-shares/${encodeURIComponent(shareUuid)}`;
+    return this.send("DELETE", path, {}, undefined, options);
   }
 
   private send<T>(

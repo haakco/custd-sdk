@@ -18,6 +18,7 @@ final readonly class SiteFinding
         public string $evidence,
         public string $fix,
         public string $source,
+        public SiteRemedy $remedy,
         public SiteFindingHistory $history,
     ) {
     }
@@ -33,6 +34,7 @@ final readonly class SiteFinding
             Fields::string($payload, 'evidence'),
             Fields::string($payload, 'fix'),
             Fields::string($payload, 'source'),
+            SiteRemedy::fromPayload(Fields::object($payload, 'remedy')),
             SiteFindingHistory::fromPayload(Fields::object($payload, 'history')),
         );
     }
