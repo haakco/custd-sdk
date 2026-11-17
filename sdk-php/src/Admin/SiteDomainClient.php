@@ -16,6 +16,12 @@ use HaakCo\Custd\Admin\SiteDomain\SiteSearchAccount;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchConnection;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchPerformance;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchProvider;
+use HaakCo\Custd\Admin\SiteDomain\SiteReport;
+use HaakCo\Custd\Admin\SiteDomain\SiteReportShareRequest;
+use HaakCo\Custd\Admin\SiteDomain\SiteReportShareCreated;
+use HaakCo\Custd\Admin\SiteDomain\SiteReportShareList;
+use HaakCo\Custd\Admin\SiteDomain\SiteUptimeHistory;
+use HaakCo\Custd\Admin\SiteDomain\SiteLighthouseHistory;
 use HaakCo\Custd\Fields;
 
 /**
@@ -241,6 +247,65 @@ final class SiteDomainClient
             $this->transport,
             'DELETE',
             self::withQuery(self::searchConnection($domainUuid, $provider), [], $companySlug),
+            null,
+            self::PREFIX
+        );
+    }
+
+    /** Read the complete client report without exposing private verification or connection details. */
+    public function getReport(string $domainUuid, ?string $companySlug = null): SiteReport
+    {
+        return SiteReport::fromPayload($this->send('GET', self::item($domainUuid) . '/report', [], $companySlug));
+    }
+
+    /** Read uptime windows, ninety daily bars and hourly response times (responseDays: 1..90). */
+    public function getUptimeHistory(string $domainUuid, ?int $responseDays = null, ?string $companySlug = null): SiteUptimeHistory
+    {
+        $query = $responseDays === null ? [] : ['responseDays' => (string) $responseDays];
+
+        return SiteUptimeHistory::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/uptime-history', $query, $companySlug)
+        );
+    }
+
+    /** Read scheduled desktop/mobile lab runs over 1..30 days; null uses the server's seven days. */
+    public function getLighthouseHistory(string $domainUuid, ?int $days = null, ?string $companySlug = null): SiteLighthouseHistory
+    {
+        $query = $days === null ? [] : ['days' => (string) $days];
+
+        return SiteLighthouseHistory::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/lighthouse', $query, $companySlug)
+        );
+    }
+
+    /** List safe metadata for live report shares. Tokens are returned only on creation. */
+    public function listReportShares(string $domainUuid, ?string $companySlug = null): SiteReportShareList
+    {
+        return SiteReportShareList::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/report-shares', [], $companySlug)
+        );
+    }
+
+    /** Create an explicit public share. Copy the token once; creation is never automatically retried. */
+    public function createReportShare(
+        string $domainUuid,
+        SiteReportShareRequest $request,
+        ?string $companySlug = null,
+    ): SiteReportShareCreated {
+        return SiteReportShareCreated::fromPayload(
+            $this->send('POST', self::item($domainUuid) . '/report-shares', [], $companySlug, $request->serialise())
+        );
+    }
+
+    /** Revoke a share; subsequent public reads fail. */
+    public function revokeReportShare(string $domainUuid, string $shareUuid, ?string $companySlug = null): void
+    {
+        Http::request(
+            $this->baseUrl,
+            $this->token,
+            $this->transport,
+            'DELETE',
+            self::withQuery(self::item($domainUuid) . '/report-shares/' . rawurlencode($shareUuid), [], $companySlug),
             null,
             self::PREFIX
         );

@@ -13,6 +13,7 @@ final readonly class SiteSearchPerformance
      * @param list<SiteSearchConnection> $connections
      * @param list<SiteSearchSource> $sources
      * @param list<SiteSearchRow> $topPages
+     * @param list<SiteSearchRow> $strikingDistance
      * @param list<SiteSearchRow> $topQueries
      */
     public function __construct(
@@ -22,6 +23,7 @@ final readonly class SiteSearchPerformance
         public array $sources = [],
         public array $topPages = [],
         public array $topQueries = [],
+        public array $strikingDistance = [],
     ) {
     }
 
@@ -34,6 +36,7 @@ final readonly class SiteSearchPerformance
             array_map(SiteSearchSource::fromPayload(...), Fields::objects($payload, 'sources')),
             self::rows($payload, 'topPages'),
             self::rows($payload, 'topQueries'),
+            array_map(SiteSearchRow::fromPayload(...), Fields::optionalObjects($payload, 'strikingDistance') ?? []),
         );
     }
 

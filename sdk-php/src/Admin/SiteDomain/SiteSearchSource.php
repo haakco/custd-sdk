@@ -12,6 +12,7 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteSearchSource
 {
+    /** @param list<SiteSearchDay> $daily */
     public function __construct(
         public SiteSearchProvider $provider,
         public string $source,
@@ -21,11 +22,15 @@ final readonly class SiteSearchSource
         public ?string $from = null,
         public ?string $to = null,
         public ?string $importedAt = null,
+        public ?SiteSearchTotals $previous = null,
+        public array $daily = [],
     ) {
     }
 
     public static function fromPayload(\stdClass $payload): self
     {
+        $previous = Fields::optionalObject($payload, 'previous');
+
         return new self(
             SiteSearchProvider::from(Fields::string($payload, 'provider')),
             Fields::string($payload, 'source'),
@@ -35,6 +40,8 @@ final readonly class SiteSearchSource
             Fields::optionalString($payload, 'from'),
             Fields::optionalString($payload, 'to'),
             Fields::optionalString($payload, 'importedAt'),
+            $previous === null ? null : SiteSearchTotals::fromPayload($previous),
+            array_map(SiteSearchDay::fromPayload(...), Fields::optionalObjects($payload, 'daily') ?? []),
         );
     }
 }
