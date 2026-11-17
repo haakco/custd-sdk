@@ -56,7 +56,7 @@ final class SiteRankingClient
         );
     }
 
-    /** Pause or resume a tracked keyword and set its alert position. */
+    /** Pause or resume a tracked keyword and, when the request names one, set its alert position. */
     public function updateTrackedKeyword(
         string $domainUuid,
         string $keywordUuid,

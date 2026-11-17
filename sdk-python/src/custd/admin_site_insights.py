@@ -407,13 +407,17 @@ class SiteLighthousePageComparison(TypedDict):
 
 
 class SiteLighthouseHistory(TypedDict):
-    """The runs of ``url`` (the home page unless an extra page was asked for) and every page's latest score."""
+    """The runs of ``url`` (the home page unless an extra page was asked for) and every page's latest score.
+
+    ``url`` and ``pages`` are absent on servers before extra Lighthouse pages; an absent ``pages``
+    means no page comparisons.
+    """
 
     domainUuid: str
     days: int
-    url: str
     runs: list[SiteLighthouseRun]
-    pages: list[SiteLighthousePageComparison]
+    url: NotRequired[str]
+    pages: NotRequired[list[SiteLighthousePageComparison]]
 
 
 class SiteLighthousePages(TypedDict):
@@ -515,11 +519,14 @@ class SiteReportAudit(TypedDict):
 
 
 class SiteReport(TypedDict):
-    """One domain's client report, without verification tokens or connection details."""
+    """One domain's client report, without verification tokens or connection details.
+
+    ``template`` is absent on servers before the template field; the server's default template is full.
+    """
 
     host: str
     generatedAt: str
-    template: str
+    template: NotRequired[str]
     uptime: SiteReportUptime
     certificate: SiteReportCertificate
     speed: list[SiteReportSpeed]

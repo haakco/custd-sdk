@@ -351,10 +351,17 @@ URLs, `getAuditDelta()` returns the findings the latest audit raised, raised aga
 and found fixed, and `setLighthousePages($domainUuid, $urls)` /
 `getLighthousePages()` choose up to five extra pages for Lighthouse;
 `getLighthouseHistory($domainUuid, url: $pageUrl)` reads one of them.
+`getFindingSearchImpact($domainUuid, $findingUuid, $days)` compares a fixed
+finding's page clicks and impressions before and after the fix (an insufficient
+window has `null` numbers), and `getSearchValue($domainUuid, ['signup'], $days)`
+joins search pages to the analytics goals credited to their landings. A report or
+Lighthouse history from a 3.46.0-era server has a `null` `template` or `url` and
+no `pages`.
 
 Three focused clients hang off the same client. `rankings()` tracks keyword
 positions from Search Console (`getRankings()`, `trackKeyword()`,
-`updateTrackedKeyword()`, `untrackKeyword()`); a day the domain did not rank has a
+`updateTrackedKeyword()`, whose request keeps the stored alert position when
+`notifyPosition` is null, `untrackKeyword()`); a day the domain did not rank has a
 `null` position. `accessLogs()` reads `getTraffic()` and `getAIVisibility()` over
 UTC days, and a system administrator can `replayAccessLogHour($hourStart)`.
 `webData()` reads a Site's `getWebDomains()`, `listWebPages()`,

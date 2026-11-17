@@ -405,6 +405,23 @@ export {
   SiteReportTemplate,
 } from "./admin-site-saved-reports.js";
 export {
+  SITE_FINDING_IMPACT_DEFAULT_DAYS,
+  SITE_FINDING_IMPACT_MAX_DAYS,
+  SITE_FINDING_IMPACT_MIN_DAYS,
+  SITE_SEARCH_VALUE_DEFAULT_DAYS,
+  SITE_SEARCH_VALUE_MAX_DAYS,
+  SITE_SEARCH_VALUE_MAX_GOALS,
+  SITE_SEARCH_VALUE_MAX_PAGES,
+  type SiteFindingImpact,
+  type SiteFindingImpactPeriod,
+  type SiteFindingImpactSource,
+  SiteFindingImpactStatus,
+  type SiteFindingImpactWindow,
+  SiteSearchGoalStatus,
+  type SiteSearchValue,
+  type SiteSearchValuePage,
+} from "./admin-site-search-value.js";
+export {
   ACCESS_LOG_HOUR_INVALID_CODE,
   type AccessLogHourReplay,
   AccessLogHourStatus,

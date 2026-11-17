@@ -95,13 +95,14 @@ type AdminSiteLighthouseRun struct {
 }
 
 // AdminSiteLighthouseHistory is a domain's lab runs of URL over the last Days days, with the
-// latest score of every measured page and profile in Pages.
+// latest score of every measured page and profile in Pages. Servers before per-page Lighthouse
+// leave URL empty and Pages nil, meaning only the home page is measured.
 type AdminSiteLighthouseHistory struct {
 	DomainUUID string                              `json:"domainUuid"`
 	Days       int                                 `json:"days"`
-	URL        string                              `json:"url"`
+	URL        string                              `json:"url,omitempty"`
 	Runs       []AdminSiteLighthouseRun            `json:"runs"`
-	Pages      []AdminSiteLighthousePageComparison `json:"pages"`
+	Pages      []AdminSiteLighthousePageComparison `json:"pages,omitempty"`
 }
 
 // AdminSiteReportUptime is the report's uptime: status, windows and ninety daily bars.
@@ -159,9 +160,11 @@ type AdminSiteReportAudit struct {
 
 // AdminSiteReport is a domain's client report, without verification or search connection details.
 type AdminSiteReport struct {
-	Host        string                     `json:"host"`
-	GeneratedAt time.Time                  `json:"generatedAt"`
-	Template    string                     `json:"template"`
+	Host        string    `json:"host"`
+	GeneratedAt time.Time `json:"generatedAt"`
+	// Template is an AdminSiteReportTemplate*; it is empty from servers before the template field,
+	// whose reports are the full template.
+	Template    string                     `json:"template,omitempty"`
 	Uptime      AdminSiteReportUptime      `json:"uptime"`
 	Certificate AdminSiteReportCertificate `json:"certificate"`
 	Speed       []AdminSiteReportSpeed     `json:"speed"`

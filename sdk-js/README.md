@@ -449,8 +449,13 @@ More reads and controls on the same client:
 - Access logs: `getTraffic(domainUuid, from?, to?)`, `getAIVisibility`, and
   `replayAccessLogHour(hourStart)` for system administrators.
 - Rank tracking: `getRankings(domainUuid, days?)`, `trackKeyword`,
-  `updateTrackedKeyword` (sends both `paused` and `notifyPosition`), `untrackKeyword`.
-  A day that did not rank has no `position`.
+  `updateTrackedKeyword` (always sends `paused`; an omitted `notifyPosition` keeps the
+  stored one), `untrackKeyword`. A day that did not rank has no `position`.
+- Search value: `getFindingSearchImpact(domainUuid, findingUuid, days?)` compares a fixed
+  finding's page in search before and after the fix, and `getSearchValue(domainUuid, goals, days?)`
+  credits up to five goal event types to search landing pages. Unmeasured numbers are absent.
+- Older servers (3.46.0) send no report `template` or Lighthouse `url` / `pages`; those fields
+  are then absent (no pages).
 
 Each refusal code is a named constant, such as `SAVED_SITE_REPORT_NAME_TAKEN_CODE`,
 `SITE_KEYWORD_LIST_LIMIT_CODE`, `ACCESS_LOG_HOUR_INVALID_CODE` or

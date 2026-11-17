@@ -105,11 +105,11 @@ type AdminSiteTrackKeywordRequest struct {
 	NotifyPosition int    `json:"notifyPosition,omitempty"`
 }
 
-// AdminSiteTrackedKeywordUpdate pauses or resumes a keyword and sets the position that notifies.
-// Both fields are always sent.
+// AdminSiteTrackedKeywordUpdate pauses or resumes a keyword. Paused is always sent; a
+// NotifyPosition of 0 is omitted and keeps the stored alert position.
 type AdminSiteTrackedKeywordUpdate struct {
 	Paused         bool `json:"paused"`
-	NotifyPosition int  `json:"notifyPosition"`
+	NotifyPosition int  `json:"notifyPosition,omitempty"`
 }
 
 // GetRankings returns the domain's tracked keywords over days days (1..90); 0 uses the server's 28.

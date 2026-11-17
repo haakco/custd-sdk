@@ -79,6 +79,14 @@ final class SiteRankingClientTest extends TestCase
         );
     }
 
+    public function testPausingWithoutAPositionKeepsTheStoredOne(): void
+    {
+        $this->replay($calls, 'updatedTrackedKeyword')->rankings()
+            ->updateTrackedKeyword('d-1', self::KEYWORD, new SiteUpdateTrackedKeywordRequest(true));
+
+        self::assertSame(self::fixtureArray('updateTrackedKeywordPauseRequest'), $calls[0]['body']);
+    }
+
     public function testRankingRefusalsCarryNamedCodes(): void
     {
         $this->assertRefusals(

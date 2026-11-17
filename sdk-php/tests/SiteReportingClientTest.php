@@ -66,6 +66,25 @@ final class SiteReportingClientTest extends TestCase
         ], array_column($calls, 'route'));
     }
 
+    public function testReportAndLighthouseFrom346ServerDecodeWithoutNewerFields(): void
+    {
+        $fixture = json_decode((string) file_get_contents(__DIR__ . '/../../contract-fixtures/site-insights-reporting-3.46.json'), false, 512, JSON_THROW_ON_ERROR);
+        $transport = static fn (string $method, string $url): array => [
+            'status' => 200,
+            'body' => json_encode($fixture->{str_contains($url, '/lighthouse') ? 'lighthouse' : 'report'}, JSON_THROW_ON_ERROR),
+        ];
+        $client = (new CustdClient('http://localhost:8080', 'token', ['admin_http_client' => $transport]))->adminSiteDomains();
+
+        $report = $client->getReport('domain-1');
+        $lighthouse = $client->getLighthouseHistory('domain-1');
+
+        self::assertSame('example.com', $report->host);
+        self::assertNull($report->template);
+        self::assertNull($lighthouse->url);
+        self::assertSame([], $lighthouse->pages);
+        self::assertCount(2, $lighthouse->runs);
+    }
+
     public function testSharesListCreateAndRevokeWithoutRetainingTheTokenInMetadata(): void
     {
         $calls = [];

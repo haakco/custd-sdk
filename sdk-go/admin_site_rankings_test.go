@@ -58,14 +58,20 @@ func TestSiteTrackedKeywordRoutesAndProblems(t *testing.T) {
 	if err != nil || updated.NotifyPosition != 5 {
 		t.Fatalf("updated = %+v, %v", updated, err)
 	}
+	if _, err := domains.UpdateTrackedKeyword(ctx, "d-1", "k-1", AdminSiteTrackedKeywordUpdate{Paused: true}); err != nil {
+		t.Fatal(err)
+	}
 	doer.status, doer.body = http.StatusNoContent, ""
 	if err := domains.UntrackKeyword(ctx, "d-1", "k-1"); err != nil {
 		t.Fatal(err)
 	}
 	keywords := siteTestBase + "/rankings/keywords"
-	assertSiteRequests(t, doer.requests, []string{"POST " + keywords, "PUT " + keywords + "/k-1", "DELETE " + keywords + "/k-1"})
+	assertSiteRequests(t, doer.requests, []string{
+		"POST " + keywords, "PUT " + keywords + "/k-1", "PUT " + keywords + "/k-1", "DELETE " + keywords + "/k-1",
+	})
 	assertSiteBody(t, doer.requests[0], siteRankingsFixture(t, "trackKeywordRequest"))
 	assertSiteBody(t, doer.requests[1], siteRankingsFixture(t, "updateTrackedKeywordRequest"))
+	assertSiteBody(t, doer.requests[2], siteRankingsFixture(t, "updateTrackedKeywordPauseRequest"))
 	for _, tc := range []struct {
 		key, code string
 		status    int

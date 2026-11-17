@@ -85,8 +85,8 @@ export type SiteTrackKeywordRequest = {
     device?: string;
     notifyPosition?: number;
 };
-/** Both fields are sent: paused true stops tracking until resumed. */
+/** paused is always sent (true stops tracking until resumed); an omitted notifyPosition keeps the stored one. */
 export type SiteTrackedKeywordUpdate = {
     paused: boolean;
-    notifyPosition: number;
+    notifyPosition?: number;
 };

@@ -97,10 +97,10 @@ describe("site Lighthouse pages", () => {
 
     const history = await domains.getLighthouseHistory(domainUuid, 7, { url: "https://example.com/pricing" });
     expect(history).toEqual(audit.lighthousePageHistory);
-    expect(history.pages[0]?.previousScore).toBe(95);
-    expect(history.pages[1]?.previousAt).toBeUndefined();
-    expect(history.pages[1]?.previousScore).toBeUndefined();
-    expect(history.pages[1]?.regressionOpen).toBe(true);
+    expect(history.pages?.[0]?.previousScore).toBe(95);
+    expect(history.pages?.[1]?.previousAt).toBeUndefined();
+    expect(history.pages?.[1]?.previousScore).toBeUndefined();
+    expect(history.pages?.[1]?.regressionOpen).toBe(true);
     expect((await domains.getLighthousePages(domainUuid)).urls).toEqual([]);
     const set = await domains.setLighthousePages(domainUuid, audit.lighthousePagesRequest.urls);
     expect(set.maxPages).toBe(5);

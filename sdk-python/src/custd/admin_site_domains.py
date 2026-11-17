@@ -43,6 +43,7 @@ from .admin_site_insights import (
     SiteUptimeHistory,
 )
 from .admin_site_rankings import SiteRankings, SiteTrackedKeyword, SiteTrackKeywordRequest
+from .admin_site_search_value import SiteFindingImpact, SiteSearchValue
 from .admin_site_web_data import (
     SiteContentGap,
     SiteKeywordClusters,
@@ -1118,12 +1119,14 @@ class SiteDomainAdminClient:
         keyword_uuid: str,
         *,
         paused: bool,
-        notify_position: int,
+        notify_position: int | None = None,
         company_slug: str | None = None,
     ) -> SiteTrackedKeyword:
-        """Pause or resume a tracked keyword and set its alert position (1..100)."""
+        """Pause or resume a tracked keyword; ``notify_position`` (1..100) omitted keeps the stored one."""
         path = _rankings_path(domain_uuid) + "/keywords/" + quote_path(keyword_uuid)
-        payload = {"paused": paused, "notifyPosition": notify_position}
+        payload: dict[str, Any] = {"paused": paused}
+        if notify_position:
+            payload["notifyPosition"] = notify_position
         return cast(SiteTrackedKeyword, self._request("PUT", path, {}, company_slug, payload))
 
     def untrack_keyword(self, domain_uuid: str, keyword_uuid: str, *, company_slug: str | None = None) -> None:
@@ -1131,11 +1134,32 @@ class SiteDomainAdminClient:
         path = _rankings_path(domain_uuid) + "/keywords/" + quote_path(keyword_uuid)
         self._request("DELETE", path, {}, company_slug)
 
+    def get_finding_search_impact(
+        self, domain_uuid: str, finding_uuid: str, days: int | None = None, *, company_slug: str | None = None
+    ) -> SiteFindingImpact:
+        """Return the finding's page search numbers over ``days`` (7..90, default 28) before and after its fix."""
+        query = {"days": str(days)} if days is not None else {}
+        path = _domain_path(domain_uuid) + "/findings/" + quote_path(finding_uuid) + "/search-impact"
+        return cast(SiteFindingImpact, self._request("GET", path, query, company_slug))
+
+    def get_search_value(
+        self, domain_uuid: str, goals: Sequence[str], days: int | None = None, *, company_slug: str | None = None
+    ) -> SiteSearchValue:
+        """Return the top search pages and the goal conversions (1..5 event types) of their visitors.
+
+        ``days`` is 1..90, default 28.
+        """
+        query: dict[str, str | Sequence[str]] = {"goal": list(goals)}
+        if days is not None:
+            query["days"] = str(days)
+        path = _domain_path(domain_uuid) + "/search-value"
+        return cast(SiteSearchValue, self._request("GET", path, query, company_slug))
+
     def _request(
         self,
         method: str,
         path: str,
-        query: Mapping[str, str],
+        query: Mapping[str, str | Sequence[str]],
         company_slug: str | None,
         payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
@@ -1143,7 +1167,7 @@ class SiteDomainAdminClient:
             query = {**query, "companySlug": company_slug}
         url = self._admin._client.base_url + "/api/v1" + path
         if query:
-            url += "?" + urllib.parse.urlencode(query)
+            url += "?" + urllib.parse.urlencode(query, doseq=True)
         client = self._admin._client
         result = self._admin._transport(method, url, payload, client._headers(), client.timeout)
         status = int(result["status"])

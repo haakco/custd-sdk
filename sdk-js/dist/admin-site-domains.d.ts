@@ -2,6 +2,7 @@ import type { SiteAuditDelta, SiteAuditPageList, SiteLighthousePages, SiteLighth
 import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory } from "./admin-site-insights.js";
 import type { SiteRankings, SiteTrackedKeyword, SiteTrackedKeywordUpdate, SiteTrackKeywordRequest } from "./admin-site-rankings.js";
 import type { SavedSiteReport, SavedSiteReportList, SavedSiteReportRequest, SiteReportRequestOptions } from "./admin-site-saved-reports.js";
+import type { SiteFindingImpact, SiteSearchValue } from "./admin-site-search-value.js";
 import type { AccessLogHourReplay, SiteAIVisibility, SiteTraffic } from "./admin-site-traffic.js";
 import type { SiteContentGap, SiteKeywordClusters, SiteKeywordList, SiteKeywordListRequest, SiteKeywordLists, SiteTopicTrends, SiteWebDomains, SiteWebPages, SiteWebPagesQuery } from "./admin-site-web-data.js";
 import type { RequestOptions } from "./index.js";
@@ -435,6 +436,10 @@ export declare class SiteDomainAdminClient {
     deleteKeywordList(name: string, siteUuid?: string, options?: SiteDomainRequestOptions): Promise<void>;
     /** Groups the named list's keywords by shared stem with the Site's own search numbers. */
     getKeywordClusters(name: string, siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteKeywordClusters>;
+    /** Compares search for a finding's page over `days` (7..90) before and after it was fixed; omitted, 28. */
+    getFindingSearchImpact(domainUuid: string, findingUuid: string, days?: number, options?: SiteDomainRequestOptions): Promise<SiteFindingImpact>;
+    /** Reads search landing pages with the goal events (1..5 event types) credited to them over `days` (1..90). */
+    getSearchValue(domainUuid: string, goals: string[], days?: number, options?: SiteDomainRequestOptions): Promise<SiteSearchValue>;
     /** Reads the domain's access-log traffic over UTC days `from`..`to` (YYYY-MM-DD); omitted, the server picks them. */
     getTraffic(domainUuid: string, from?: string, to?: string, options?: SiteDomainRequestOptions): Promise<SiteTraffic>;
     /** Reads AI crawler requests and AI-assistant referrals over UTC days `from`..`to`. */
@@ -451,7 +456,7 @@ export declare class SiteDomainAdminClient {
      * SITE_TRACKED_KEYWORD_LIMIT_CODE or SITE_TRACKED_KEYWORD_DUPLICATE_CODE.
      */
     trackKeyword(domainUuid: string, body: SiteTrackKeywordRequest, options?: SiteDomainRequestOptions): Promise<SiteTrackedKeyword>;
-    /** Pauses or resumes a keyword and sets its alert position. */
+    /** Pauses or resumes a keyword and, when notifyPosition is set, changes its alert position. */
     updateTrackedKeyword(domainUuid: string, keywordUuid: string, body: SiteTrackedKeywordUpdate, options?: SiteDomainRequestOptions): Promise<SiteTrackedKeyword>;
     /** Stops tracking a keyword and removes its observations. */
     untrackKeyword(domainUuid: string, keywordUuid: string, options?: SiteDomainRequestOptions): Promise<void>;

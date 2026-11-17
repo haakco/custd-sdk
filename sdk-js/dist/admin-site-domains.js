@@ -362,6 +362,16 @@ export class SiteDomainAdminClient {
     getKeywordClusters(name, siteUuid, options) {
         return this.send("GET", `${siteDomainsPath}/keyword-clusters`, { siteUuid, name }, undefined, options);
     }
+    /** Compares search for a finding's page over `days` (7..90) before and after it was fixed; omitted, 28. */
+    getFindingSearchImpact(domainUuid, findingUuid, days, options) {
+        const path = `${domainPath(domainUuid)}/findings/${encodeURIComponent(findingUuid)}/search-impact`;
+        return this.send("GET", path, { days: days?.toString() }, undefined, options);
+    }
+    /** Reads search landing pages with the goal events (1..5 event types) credited to them over `days` (1..90). */
+    getSearchValue(domainUuid, goals, days, options) {
+        const query = { goal: [...goals], days: days?.toString() };
+        return this.send("GET", `${domainPath(domainUuid)}/search-value`, query, undefined, options);
+    }
     /** Reads the domain's access-log traffic over UTC days `from`..`to` (YYYY-MM-DD); omitted, the server picks them. */
     getTraffic(domainUuid, from, to, options) {
         return this.send("GET", `${domainPath(domainUuid)}/traffic`, { from, to }, undefined, options);
@@ -396,9 +406,11 @@ export class SiteDomainAdminClient {
             request.notifyPosition = body.notifyPosition;
         return this.send("POST", rankingKeywordsPath(domainUuid), {}, request, options);
     }
-    /** Pauses or resumes a keyword and sets its alert position. */
+    /** Pauses or resumes a keyword and, when notifyPosition is set, changes its alert position. */
     updateTrackedKeyword(domainUuid, keywordUuid, body, options) {
-        const request = { paused: body.paused, notifyPosition: body.notifyPosition };
+        const request = { paused: body.paused };
+        if (body.notifyPosition)
+            request.notifyPosition = body.notifyPosition;
         return this.send("PUT", rankingKeywordPath(domainUuid, keywordUuid), {}, request, options);
     }
     /** Stops tracking a keyword and removes its observations. */
@@ -409,8 +421,13 @@ export class SiteDomainAdminClient {
         const { companySlug, ...requestOptions } = options ?? {};
         const params = new URLSearchParams();
         for (const [key, value] of Object.entries({ ...query, companySlug })) {
-            if (value)
+            if (Array.isArray(value)) {
+                for (const item of value)
+                    params.append(key, item);
+            }
+            else if (value) {
                 params.set(key, value);
+            }
         }
         const search = params.toString();
         return this.request(method, search ? `${path}?${search}` : path, body, requestOptions);

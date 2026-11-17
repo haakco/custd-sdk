@@ -69,7 +69,7 @@ final class SiteDomainHttp
     /**
      * Send a request whose response is a JSON object.
      *
-     * @param array<string, string> $query
+     * @param array<string, string|list<string>> $query
      * @param array<string, mixed>|null $body
      */
     public function send(string $method, string $path, array $query, ?string $companySlug, ?array $body = null): \stdClass
@@ -91,7 +91,7 @@ final class SiteDomainHttp
     /**
      * Send a request the route answers with 204 No Content.
      *
-     * @param array<string, string> $query
+     * @param array<string, string|list<string>> $query
      */
     public function sendNoContent(string $method, string $path, array $query, ?string $companySlug): void
     {
@@ -106,13 +106,23 @@ final class SiteDomainHttp
         );
     }
 
-    /** @param array<string, string> $query */
+    /**
+     * withQuery encodes the query in order; a list value repeats its name (goal=a&goal=b).
+     *
+     * @param array<string, string|list<string>> $query
+     */
     private static function withQuery(string $path, array $query, ?string $companySlug): string
     {
         if ($companySlug !== null && $companySlug !== '') {
             $query['companySlug'] = $companySlug;
         }
+        $pairs = [];
+        foreach ($query as $name => $values) {
+            foreach ((array) $values as $value) {
+                $pairs[] = http_build_query([$name => $value]);
+            }
+        }
 
-        return $query === [] ? $path : $path . '?' . http_build_query($query);
+        return $pairs === [] ? $path : $path . '?' . implode('&', $pairs);
     }
 }

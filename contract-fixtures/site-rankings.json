@@ -179,6 +179,9 @@
       "action": "none"
     }
   },
+  "updateTrackedKeywordPauseRequest": {
+    "paused": true
+  },
   "updateTrackedKeywordRequest": {
     "paused": false,
     "notifyPosition": 5

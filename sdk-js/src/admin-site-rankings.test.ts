@@ -84,6 +84,12 @@ describe("site rank tracking", () => {
     expect(sent[4]?.body).toEqual(ranks.updateTrackedKeywordRequest);
   });
 
+  it("pauses a keyword without sending an alert position", async () => {
+    const { domains, calls } = newDomains(respond(200, ranks.updatedTrackedKeyword));
+    await domains.updateTrackedKeyword(domainUuid, keywordUuid, { paused: true });
+    expect(calls()[0]?.body).toEqual(ranks.updateTrackedKeywordPauseRequest);
+  });
+
   it.each([
     [ranks.trackedKeywordInvalidProblem, SITE_TRACKED_KEYWORD_INVALID_CODE],
     [ranks.trackedKeywordLimitProblem, SITE_TRACKED_KEYWORD_LIMIT_CODE],

@@ -46,6 +46,7 @@ import type {
   SavedSiteReportRequest,
   SiteReportRequestOptions,
 } from "./admin-site-saved-reports.js";
+import type { SiteFindingImpact, SiteSearchValue } from "./admin-site-search-value.js";
 import type { AccessLogHourReplay, SiteAIVisibility, SiteTraffic } from "./admin-site-traffic.js";
 import type {
   SiteContentGap,
@@ -398,7 +399,8 @@ export type SiteSearchPerformance = {
 
 type NonAdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 
-type QueryValues = Record<string, string | undefined>;
+/** An array value repeats the parameter once per item. */
+type QueryValues = Record<string, string | string[] | undefined>;
 
 const siteDomainsPath = "/site-domains";
 const keywordListsPath = `${siteDomainsPath}/keyword-lists`;
@@ -816,6 +818,28 @@ export class SiteDomainAdminClient {
     return this.send("GET", `${siteDomainsPath}/keyword-clusters`, { siteUuid, name }, undefined, options);
   }
 
+  /** Compares search for a finding's page over `days` (7..90) before and after it was fixed; omitted, 28. */
+  getFindingSearchImpact(
+    domainUuid: string,
+    findingUuid: string,
+    days?: number,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteFindingImpact> {
+    const path = `${domainPath(domainUuid)}/findings/${encodeURIComponent(findingUuid)}/search-impact`;
+    return this.send("GET", path, { days: days?.toString() }, undefined, options);
+  }
+
+  /** Reads search landing pages with the goal events (1..5 event types) credited to them over `days` (1..90). */
+  getSearchValue(
+    domainUuid: string,
+    goals: string[],
+    days?: number,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteSearchValue> {
+    const query = { goal: [...goals], days: days?.toString() };
+    return this.send("GET", `${domainPath(domainUuid)}/search-value`, query, undefined, options);
+  }
+
   /** Reads the domain's access-log traffic over UTC days `from`..`to` (YYYY-MM-DD); omitted, the server picks them. */
   getTraffic(domainUuid: string, from?: string, to?: string, options?: SiteDomainRequestOptions): Promise<SiteTraffic> {
     return this.send("GET", `${domainPath(domainUuid)}/traffic`, { from, to }, undefined, options);
@@ -861,14 +885,15 @@ export class SiteDomainAdminClient {
     return this.send("POST", rankingKeywordsPath(domainUuid), {}, request, options);
   }
 
-  /** Pauses or resumes a keyword and sets its alert position. */
+  /** Pauses or resumes a keyword and, when notifyPosition is set, changes its alert position. */
   updateTrackedKeyword(
     domainUuid: string,
     keywordUuid: string,
     body: SiteTrackedKeywordUpdate,
     options?: SiteDomainRequestOptions,
   ): Promise<SiteTrackedKeyword> {
-    const request = { paused: body.paused, notifyPosition: body.notifyPosition };
+    const request: SiteTrackedKeywordUpdate = { paused: body.paused };
+    if (body.notifyPosition) request.notifyPosition = body.notifyPosition;
     return this.send("PUT", rankingKeywordPath(domainUuid, keywordUuid), {}, request, options);
   }
 
@@ -887,7 +912,11 @@ export class SiteDomainAdminClient {
     const { companySlug, ...requestOptions } = options ?? {};
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries({ ...query, companySlug })) {
-      if (value) params.set(key, value);
+      if (Array.isArray(value)) {
+        for (const item of value) params.append(key, item);
+      } else if (value) {
+        params.set(key, value);
+      }
     }
     const search = params.toString();
     return this.request(method, search ? `${path}?${search}` : path, body, requestOptions);

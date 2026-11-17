@@ -304,11 +304,14 @@ export type SiteLighthousePageComparison = {
 export type SiteLighthouseHistory = {
     domainUuid: string;
     days: number;
-    /** The page the runs measured: the home page unless the read named an extra page. */
-    url: string;
+    /**
+     * The page the runs measured: the home page unless the read named an extra page.
+     * Absent on servers before per-page Lighthouse.
+     */
+    url?: string;
     runs: SiteLighthouseRun[];
-    /** Every measured page compared per profile. */
-    pages: SiteLighthousePageComparison[];
+    /** Every measured page compared per profile. Absent on servers before per-page Lighthouse, which means none. */
+    pages?: SiteLighthousePageComparison[];
 };
 export type SiteReportUptime = {
     status: SiteUptimeStatus;
@@ -356,8 +359,11 @@ export type SiteReportAudit = {
 export type SiteReport = {
     host: string;
     generatedAt: string;
-    /** A SiteReportTemplate value; executive leaves out the technical appendix. */
-    template: string;
+    /**
+     * A SiteReportTemplate value; executive leaves out the technical appendix. Absent on servers
+     * before the template field; the server's default template is full.
+     */
+    template?: string;
     uptime: SiteReportUptime;
     certificate: SiteReportCertificate;
     speed: SiteReportSpeed[];

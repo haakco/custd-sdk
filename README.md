@@ -639,6 +639,7 @@ cap. Clients must treat export bytes as opaque and must not log audit details.
 | Site web data: web domains and pages, topic trends, content gap, keyword lists and clusters | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Site access-log traffic, AI visibility and access-log hour replay (system admin) | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Site keyword rank tracking from Search Console | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
+| Site search value: a fixed finding's search impact and the goals each search page lands | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Tenant usage report | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Analytics event range query | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Typed time-plan admin clients | yes | yes | yes | yes | via PHP SDK | via PHP SDK |

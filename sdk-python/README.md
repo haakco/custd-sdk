@@ -204,7 +204,13 @@ data (Site-scoped; a site-bound credential may omit `site_uuid`):
 `get_keyword_clusters`. Access logs: `get_traffic`, `get_ai_visibility` and,
 for system administrators, `replay_access_log_hour(hour_start)`. Rank tracking:
 `get_rankings`, `track_keyword`, `update_tracked_keyword` and
-`untrack_keyword`; a day the keyword did not rank has no `position`.
+`untrack_keyword` (`update_tracked_keyword(..., paused=True)` without
+`notify_position` keeps the stored alert position); a day the keyword did not
+rank has no `position`. Search value: `get_finding_search_impact(domain,
+finding, days)` compares a fixed finding's page before and after the fix, and
+`get_search_value(domain, goals, days)` credits goal events to search landing
+pages. Older servers (the Custd that SDK 3.46.0 targeted) send no report `template` (the default is full) and
+no Lighthouse `url` / `pages`; those keys are then absent.
 
 ## Dev smoke test
 

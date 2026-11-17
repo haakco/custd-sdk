@@ -40,6 +40,11 @@ from custd import (
     SITE_REPORT_TEMPLATE_FULL,
     SITE_RULE_BROKEN_FRAGMENT,
     SITE_RULE_SITEMAP_BLOCKED_URL,
+    SITE_SEARCH_IMPACT_INSUFFICIENT,
+    SITE_SEARCH_IMPACT_MEASURED,
+    SITE_SEARCH_IMPACT_OPEN,
+    SITE_SEARCH_VALUE_GOALS_PARTIAL,
+    SITE_SEARCH_VALUE_GOALS_UNAVAILABLE,
     SITE_TRACKED_KEYWORD_DUPLICATE_CODE,
     SITE_TRACKED_KEYWORD_INVALID_CODE,
     SITE_TRACKED_KEYWORD_LIMIT_CODE,
@@ -63,6 +68,8 @@ def fixture(name: str) -> dict[str, Any]:
 AUDIT = fixture("site-audit-pages.json")
 SAVED = fixture("site-saved-reports.json")
 REPORTING = fixture("site-insights-reporting.json")
+REPORTING_346 = fixture("site-insights-reporting-3.46.json")
+SEARCH_VALUE = fixture("site-search-value.json")
 WEB = fixture("site-web-data.json")
 LOGS = fixture("site-access-logs.json")
 RANKINGS = fixture("site-rankings.json")
@@ -188,6 +195,18 @@ class AuditPagesTest(unittest.TestCase):
 
         domains, _ = site_domains(200, REPORTING["lighthouse"])
         self.assertEqual([], domains.get_lighthouse_history(DOMAIN)["pages"])
+
+    def test_decodes_a_3_46_server_without_template_or_lighthouse_pages(self) -> None:
+        domains, _ = site_domains(200, REPORTING_346["report"])
+        report = domains.get_report(DOMAIN)
+        self.assertEqual("example.com", report["host"])
+        self.assertIsNone(report.get("template"))
+
+        domains, _ = site_domains(200, REPORTING_346["lighthouse"])
+        history = domains.get_lighthouse_history(DOMAIN)
+        self.assertEqual(2, len(history["runs"]))
+        self.assertIsNone(history.get("url"))
+        self.assertEqual([], history.get("pages", []))
 
         domains, _ = site_domains(200, AUDIT["lighthousePagesEmpty"])
         pages = domains.get_lighthouse_pages(DOMAIN)
@@ -393,6 +412,7 @@ class RankingsTest(unittest.TestCase):
         domains.track_keyword(DOMAIN, RANKINGS["trackKeywordRequest"])
         domains.track_keyword(DOMAIN, {"keyword": "seo audit", "notifyPosition": 20})
         domains.update_tracked_keyword(DOMAIN, keyword_uuid, paused=False, notify_position=5)
+        domains.update_tracked_keyword(DOMAIN, keyword_uuid, paused=True)
 
         self.assertEqual(
             [
@@ -401,6 +421,7 @@ class RankingsTest(unittest.TestCase):
                 ("POST", f"{D}/rankings/keywords", RANKINGS["trackKeywordRequest"]),
                 ("POST", f"{D}/rankings/keywords", {"keyword": "seo audit", "notifyPosition": 20}),
                 ("PUT", f"{D}/rankings/keywords/{keyword_uuid}", RANKINGS["updateTrackedKeywordRequest"]),
+                ("PUT", f"{D}/rankings/keywords/{keyword_uuid}", RANKINGS["updateTrackedKeywordPauseRequest"]),
             ],
             transport.calls,
         )
@@ -430,6 +451,59 @@ class RankingsTest(unittest.TestCase):
         created = domains.track_keyword(DOMAIN, RANKINGS["trackKeywordRequest"])
         self.assertEqual(("pricing tool", 10), (created["keyword"], created["notifyPosition"]))
         self.assertNotIn("position", created["latest"])
+
+
+class SearchValueTest(unittest.TestCase):
+    def test_search_value_reads_send_their_routes(self) -> None:
+        domains, transport = site_domains(200, SEARCH_VALUE["searchValue"])
+
+        domains.get_finding_search_impact(DOMAIN, "f-fixed")
+        domains.get_finding_search_impact(DOMAIN, "f-fixed", 14, company_slug="acme")
+        domains.get_search_value(DOMAIN, ["signup", "purchase"])
+        domains.get_search_value(DOMAIN, ("signup",), 7)
+
+        self.assertEqual(
+            [
+                ("GET", f"{D}/findings/f-fixed/search-impact", None),
+                ("GET", f"{D}/findings/f-fixed/search-impact?days=14&companySlug=acme", None),
+                ("GET", f"{D}/search-value?goal=signup&goal=purchase", None),
+                ("GET", f"{D}/search-value?goal=signup&days=7", None),
+            ],
+            transport.calls,
+        )
+
+    def test_decodes_search_impact_keeping_real_zeros(self) -> None:
+        domains, _ = site_domains(200, SEARCH_VALUE["findingImpact"])
+        impact = domains.get_finding_search_impact(DOMAIN, "f-fixed")
+        self.assertEqual(SITE_SEARCH_IMPACT_MEASURED, impact["status"])
+        self.assertEqual("2026-10-16", impact["after"]["from"])
+        google, bing = impact["sources"]
+        self.assertEqual((0, 2100), (google["after"]["clicks"], google["after"]["impressions"]))
+        self.assertEqual(SITE_SEARCH_IMPACT_INSUFFICIENT, bing["after"]["status"])
+        for absent in ("clicks", "impressions", "ctr"):
+            self.assertNotIn(absent, bing["after"])
+
+        domains, _ = site_domains(200, SEARCH_VALUE["findingImpactOpen"])
+        still_open = domains.get_finding_search_impact(DOMAIN, "f-open")
+        self.assertEqual((SITE_SEARCH_IMPACT_OPEN, []), (still_open["status"], still_open["sources"]))
+        for absent in ("fixedAt", "before", "after"):
+            self.assertNotIn(absent, still_open)
+
+    def test_decodes_search_value_with_unread_goals_absent(self) -> None:
+        domains, _ = site_domains(200, SEARCH_VALUE["searchValue"])
+        value = domains.get_search_value(DOMAIN, ["signup", "purchase"])
+        self.assertEqual(SITE_SEARCH_VALUE_GOALS_PARTIAL, value["goalStatus"])
+        pricing, blog, old = value["pages"]
+        self.assertEqual((9, 4.2), (pricing["goalConversions"], pricing["search"]["position"]))
+        self.assertEqual(0, blog["goalConversions"])
+        self.assertNotIn("landings", old)
+        self.assertNotIn("goalConversions", old)
+        self.assertNotIn("position", old["search"])
+
+        domains, _ = site_domains(200, SEARCH_VALUE["searchValueUnavailable"])
+        unavailable = domains.get_search_value(DOMAIN, ["signup"], 7)
+        self.assertEqual(SITE_SEARCH_VALUE_GOALS_UNAVAILABLE, unavailable["goalStatus"])
+        self.assertNotIn("goalConversions", unavailable["pages"][0])
 
 
 if __name__ == "__main__":

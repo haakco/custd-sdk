@@ -15,6 +15,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteAlertDestination;
 use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
 use HaakCo\Custd\Admin\SiteDomain\SiteDomain;
 use HaakCo\Custd\Admin\SiteDomain\SiteDomainList;
+use HaakCo\Custd\Admin\SiteDomain\SiteFindingImpact;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingList;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingState;
 use HaakCo\Custd\Admin\SiteDomain\SiteIncidentList;
@@ -42,6 +43,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteSearchDimension;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspection;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspectionList;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchRowPage;
+use HaakCo\Custd\Admin\SiteDomain\SiteSearchValue;
 
 /**
  * SiteDomainClient claims the hosts a site serves, proves the tenant controls
@@ -551,6 +553,44 @@ final class SiteDomainClient
         );
     }
 
+    /**
+     * Compare the search numbers of a finding's page in the $days before and after it was fixed
+     * (SiteFindingImpact::MIN_DAYS..MAX_DAYS; null uses DEFAULT_DAYS). An open finding comes back
+     * with status open and no windows.
+     */
+    public function getFindingSearchImpact(
+        string $domainUuid,
+        string $findingUuid,
+        ?int $days = null,
+        ?string $companySlug = null,
+    ): SiteFindingImpact {
+        return SiteFindingImpact::fromPayload($this->send(
+            'GET',
+            self::item($domainUuid) . '/findings/' . rawurlencode($findingUuid) . '/search-impact',
+            SiteDomainHttp::query(['days' => $days]),
+            $companySlug
+        ));
+    }
+
+    /**
+     * Join the domain's search pages to 1 to SiteSearchValue::MAX_GOALS named analytics events over
+     * the last $days days (null uses SiteSearchValue::DEFAULT_DAYS).
+     *
+     * @param list<string> $goals
+     */
+    public function getSearchValue(
+        string $domainUuid,
+        array $goals,
+        ?int $days = null,
+        ?string $companySlug = null,
+    ): SiteSearchValue {
+        $query = ['goal' => array_values($goals)] + SiteDomainHttp::query(['days' => $days]);
+
+        return SiteSearchValue::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/search-value', $query, $companySlug)
+        );
+    }
+
     /** Read which findings the latest audit raised, raised again and found fixed. */
     public function getAuditDelta(string $domainUuid, ?string $companySlug = null): SiteAuditDelta
     {
@@ -668,7 +708,7 @@ final class SiteDomainClient
     }
 
     /**
-     * @param array<string, string> $query
+     * @param array<string, string|list<string>> $query
      * @param array<string, mixed>|null $body
      */
     private function send(string $method, string $path, array $query, ?string $companySlug, ?array $body = null): \stdClass
