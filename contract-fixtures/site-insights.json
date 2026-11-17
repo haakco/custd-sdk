@@ -326,5 +326,16 @@
         }
       }
     ]
+  },
+  "notVerifiedProblem": {
+    "type": "conflict",
+    "title": "Conflict",
+    "status": 409,
+    "detail": "site domain: verify the domain before asking for an audit",
+    "code": "site_domain_not_verified",
+    "retryability": "none",
+    "nextAction": {
+      "action": "none"
+    }
   }
 }

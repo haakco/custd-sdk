@@ -146,6 +146,35 @@ once. `list` and `get` return Site metadata without the write key.
 `rotate_write_key` returns the replacement write key once; update tracker config
 and stop using the old key after rotation.
 
+## Site Insights (site domains)
+
+Server-side code can use `client.admin.site_domains` to claim a host for a
+Site, prove control (`verify`, or `attest` from a site-bound broker
+credential), queue an audit, read findings and outages, choose the check mode,
+set the alert address and connect Google or Bing search numbers. The routes are
+under `/api/v1/site-domains`; a system administrator names the tenant with the
+`company_slug=` keyword.
+
+```python
+from custd import SITE_DOMAIN_NOT_VERIFIED_CODE, SITE_RULE_TITLE_MISSING, RequestError
+
+domains = client.admin.site_domains
+domain = domains.create({"siteUuid": site_uuid, "host": "example.com"})
+# Publish domain["ownership"]["instructions"] (DNS TXT or well-known file), then:
+domains.verify(domain["domainUuid"])
+try:
+    domains.request_audit(domain["domainUuid"])
+except RequestError as error:
+    if error.code != SITE_DOMAIN_NOT_VERIFIED_CODE:
+        raise
+
+findings = domains.list_findings(domain["domainUuid"], "open")["findings"]
+missing_titles = [f for f in findings if f["rule"] == SITE_RULE_TITLE_MISSING]
+```
+
+`SITE_RULE_*` constants (all of them in `SITE_RULE_IDS`) are the stable rule
+IDs a finding carries in `rule`; key any client-side fix on them.
+
 ## Dev smoke test
 
 Requires the dev stack running with Hydra using JWT access tokens and ingest-api

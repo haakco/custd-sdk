@@ -11,8 +11,7 @@ from __future__ import annotations
 import json
 from typing import Any, NotRequired, TypedDict, cast
 
-from .analytics_events import _analytics_request_error
-from .client import AdminTransport, CustdClient, RequestError, quote_path
+from .client import AdminTransport, CustdClient, RequestError, problem_request_error, quote_path
 
 PARSER_PATH = "/parsers"
 PARSER_PRESETS_PATH = "/parsers/presets"
@@ -256,7 +255,7 @@ class ParserClient:
         status = int(result["status"])
         body = result.get("body")
         if status >= 400:
-            raise _analytics_request_error(status, body)
+            raise problem_request_error(status, body, "parser")
         if status == 204 or body in (None, ""):
             return {}
         if isinstance(body, str):
