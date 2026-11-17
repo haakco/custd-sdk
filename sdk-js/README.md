@@ -298,6 +298,21 @@ to lower the default limit of 1000 queued events. Script-tag installs can opt
 into persistent queueing with `data-persistent-queue="true"`. Calling
 `setConsent("denied")` clears extended-mode identifiers and queued events.
 
+A page view also carries its sanitized path in the payload, so reporting can
+group page views by page. When the first page view of a document arrives from
+an AI assistant (the hostnames in `aiAssistantReferrers`, such as `chatgpt.com`,
+`perplexity.ai`, `claude.ai`, `gemini.google.com` and `copilot.microsoft.com`),
+it carries `referrerClass: "ai-assistant"` and the assistant name as
+`aiAssistant`. The referrer URL itself is never sent.
+
+Pass `webVitals: true` (script tag: `data-web-vitals="true"`) to capture
+real-user Core Web Vitals with the browser's `PerformanceObserver`. When the page
+is first hidden, the tracker sends one `web-vitals` event for the landing path
+with `lcp`, `inp`, `fcp` and `ttfb` in milliseconds and `cls` as a score. A
+metric the browser does not report, such as INP on a visit with no interaction,
+is omitted rather than sent as zero. Single-page route changes do not send
+further vitals events, because LCP, FCP and TTFB describe the document load.
+
 The browser-side origin check is a guardrail, not the security boundary.
 Collectors must enforce `allowedOrigins`, write-key validity, and rate limits
 server-side.

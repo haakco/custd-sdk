@@ -1,3 +1,4 @@
+import { startWebVitals, type WebVitalsCollector } from "./browser-web-vitals.js";
 import {
   applyEnvironmentLabel,
   type EventEnvelope,
@@ -87,6 +88,13 @@ export type BrowserTrackerConfig = {
   retry?: RetryOptions;
   trackInitialPageView?: boolean;
   /**
+   * Captures real-user Core Web Vitals (LCP, INP, CLS, FCP and TTFB) for the
+   * page the visitor landed on, and sends them as one `web-vitals` event when
+   * the page is first hidden. Off unless set; the script tag turns it on with
+   * `data-web-vitals="true"`. A metric the browser does not report is omitted.
+   */
+  webVitals?: boolean;
+  /**
    * Replaces the page context derived from `location.pathname` and
    * `document.title`. Return a normalized route template such as
    * `/companies/:companySlug/dashboard`, omit `title` so page content is never
@@ -121,6 +129,29 @@ export type BrowserSiteConfig = {
 
 const defaultSchemaVersion = "1.0.0";
 const pageViewEventType = "page-view";
+const webVitalsEventType = "web-vitals";
+const aiAssistantReferrerClass = "ai-assistant";
+
+/**
+ * AI assistants whose links bring visitors, by referrer hostname, mapped to the
+ * assistant name sent as `aiAssistant`. A page view only ever carries this class
+ * and name, never the referrer URL itself.
+ */
+export const aiAssistantReferrers: ReadonlyMap<string, string> = new Map([
+  ["chatgpt.com", "chatgpt"],
+  ["chat.openai.com", "chatgpt"],
+  ["perplexity.ai", "perplexity"],
+  ["claude.ai", "claude"],
+  ["gemini.google.com", "gemini"],
+  ["bard.google.com", "gemini"],
+  ["copilot.microsoft.com", "copilot"],
+  ["chat.deepseek.com", "deepseek"],
+  ["chat.mistral.ai", "mistral"],
+  ["grok.com", "grok"],
+  ["meta.ai", "meta-ai"],
+  ["you.com", "you"],
+  ["phind.com", "phind"],
+]);
 const schemaVersionPattern = /^[0-9]+\.[0-9]+\.[0-9]+$/u;
 const maxQueuedGlobalCalls = 1000;
 const redactedPathSegment = "[redacted]";
@@ -151,10 +182,23 @@ class DefaultBrowserTracker implements BrowserTracker {
   private consent: BrowserConsentState;
   private installedSpaTracking = false;
   private lastTrackedPath: string | null = null;
+  /** The landing page's referral class is sent once; later SPA routes keep the same document referrer. */
+  private referrerClassified = false;
+  private webVitals: WebVitalsCollector | null = null;
+  /** The landing path the vitals describe, read when collection starts. */
+  private webVitalsPath: string | undefined;
   private originalPushState: History["pushState"] | null = null;
   private originalReplaceState: History["replaceState"] | null = null;
   private readonly onlineHandler = () => this.detach("flush", () => this.flush());
-  private readonly pagehideHandler = () => this.flushWithKeepalive();
+  private readonly pagehideHandler = () => {
+    this.enqueueWebVitals();
+    this.flushWithKeepalive();
+  };
+  private readonly visibilityHandler = () => {
+    if (document.visibilityState === "hidden" && this.enqueueWebVitals()) {
+      this.flushWithKeepalive();
+    }
+  };
   private readonly popstateHandler = () => this.detachPathChange(() => this.trackPageView());
 
   constructor(config: BrowserTrackerConfig) {
@@ -179,6 +223,11 @@ class DefaultBrowserTracker implements BrowserTracker {
     assertAllowedOrigin(config);
     window.addEventListener("online", this.onlineHandler);
     window.addEventListener("pagehide", this.pagehideHandler);
+    if (config.webVitals === true) {
+      this.webVitalsPath = this.pageContext().path;
+      this.webVitals = startWebVitals();
+      window.addEventListener("visibilitychange", this.visibilityHandler);
+    }
   }
 
   async track(eventTypeSlug: string, payload: Record<string, unknown> = {}): Promise<void> {
@@ -198,7 +247,8 @@ class DefaultBrowserTracker implements BrowserTracker {
 
   trackPageView(): Promise<void> {
     this.lastTrackedPath = window.location.pathname;
-    return this.track("page-view", poweredByAttribution());
+    const referral = this.trackingDisabled() ? {} : this.landingReferral();
+    return this.track("page-view", { ...poweredByAttribution(), ...referral });
   }
 
   installSpaTracking(): void {
@@ -251,6 +301,9 @@ class DefaultBrowserTracker implements BrowserTracker {
     window.removeEventListener("online", this.onlineHandler);
     window.removeEventListener("pagehide", this.pagehideHandler);
     window.removeEventListener("popstate", this.popstateHandler);
+    window.removeEventListener("visibilitychange", this.visibilityHandler);
+    this.webVitals?.stop();
+    this.webVitals = null;
     if (this.originalPushState) {
       window.history.pushState = this.originalPushState;
     }
@@ -309,14 +362,17 @@ class DefaultBrowserTracker implements BrowserTracker {
 
   private buildEvent(eventTypeSlug: string, payload: Record<string, unknown>): EventEnvelope {
     const identity = this.identityFields();
+    const page = this.pageContext();
     const event: EventEnvelope = {
       eventTypeSlug,
       schemaVersion: eventTypeSlug === pageViewEventType ? this.pageViewSchemaVersion : this.schemaVersion,
       timestamp: new Date().toISOString(),
       ...identity,
-      context: browserContext(this.pageContext()),
+      context: browserContext(page),
       payload: {
         siteUuid: this.config.siteUuid,
+        // Reporting groups page views by payload path, so it mirrors the page context's path.
+        ...(eventTypeSlug === pageViewEventType && page.path !== undefined ? { path: page.path } : {}),
         ...payload,
       },
     };
@@ -328,6 +384,38 @@ class DefaultBrowserTracker implements BrowserTracker {
     validateBrowserEvent(prepared);
     applyEnvironmentLabel(prepared, this.config.environment);
     return prepared;
+  }
+
+  /** The first page view's AI-assistant referral, as a class and name only. */
+  private landingReferral(): Record<string, string> {
+    if (this.referrerClassified) {
+      return {};
+    }
+    this.referrerClassified = true;
+    const assistant = aiAssistantReferrer(document.referrer);
+    return assistant ? { referrerClass: aiAssistantReferrerClass, aiAssistant: assistant } : {};
+  }
+
+  /** Queue this document's one `web-vitals` event; true when one was queued. */
+  private enqueueWebVitals(): boolean {
+    const collector = this.webVitals;
+    if (!collector || this.trackingDisabled()) {
+      return false;
+    }
+    this.webVitals = null;
+    collector.stop();
+    const vitals = collector.snapshot();
+    if (Object.keys(vitals).length === 0) {
+      return false;
+    }
+    const path = this.webVitalsPath === undefined ? {} : { path: this.webVitalsPath };
+    try {
+      this.enqueue(this.buildEvent(webVitalsEventType, { ...path, ...vitals }));
+    } catch {
+      // A page that is going away has nowhere to raise this; the page view itself is unaffected.
+      return false;
+    }
+    return true;
   }
 
   private identityFields(): Pick<EventEnvelope, "anonymousId" | "sessionId"> {
@@ -491,6 +579,7 @@ export async function installBrowserTrackerFromScript(scriptElement?: HTMLScript
       batchSize: Number(script.dataset.batchSize || defaultSiteBatchSize(siteConfig)),
       consent: scriptConsent(script, siteConfig),
       persistentQueue: script.dataset.persistentQueue === "true",
+      webVitals: script.dataset.webVitals === "true",
     });
     window.custd = {
       track: (eventTypeSlug: string, payload?: Record<string, unknown>) => tracker.track(eventTypeSlug, payload),
@@ -567,6 +656,20 @@ function sanitizePageTitle(title: unknown): string | undefined {
   }
   const cleaned = title.replace(/[\p{Cc}]/gu, "").trim();
   return cleaned === "" ? undefined : cleaned.slice(0, maxPageTitleLength);
+}
+
+/** The AI assistant a referrer URL names, or undefined for any other or unreadable referrer. */
+export function aiAssistantReferrer(referrer: string): string | undefined {
+  if (!referrer) {
+    return undefined;
+  }
+  let hostname: string;
+  try {
+    hostname = new URL(referrer).hostname.toLowerCase();
+  } catch {
+    return undefined;
+  }
+  return aiAssistantReferrers.get(hostname.replace(/^www\./u, ""));
 }
 
 function poweredByAttribution(): Record<string, string> {

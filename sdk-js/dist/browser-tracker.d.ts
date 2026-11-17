@@ -70,6 +70,13 @@ export type BrowserTrackerConfig = {
     retry?: RetryOptions;
     trackInitialPageView?: boolean;
     /**
+     * Captures real-user Core Web Vitals (LCP, INP, CLS, FCP and TTFB) for the
+     * page the visitor landed on, and sends them as one `web-vitals` event when
+     * the page is first hidden. Off unless set; the script tag turns it on with
+     * `data-web-vitals="true"`. A metric the browser does not report is omitted.
+     */
+    webVitals?: boolean;
+    /**
      * Replaces the page context derived from `location.pathname` and
      * `document.title`. Return a normalized route template such as
      * `/companies/:companySlug/dashboard`, omit `title` so page content is never
@@ -99,10 +106,18 @@ export type BrowserSiteConfig = {
     /** The page-view schema version the Site's tenant accepts; absent when it has none. */
     pageViewSchemaVersion?: string;
 };
+/**
+ * AI assistants whose links bring visitors, by referrer hostname, mapped to the
+ * assistant name sent as `aiAssistant`. A page view only ever carries this class
+ * and name, never the referrer URL itself.
+ */
+export declare const aiAssistantReferrers: ReadonlyMap<string, string>;
 export declare function createBrowserTracker(config: BrowserTrackerConfig): BrowserTracker;
 export declare function installBrowserTrackerFromScript(scriptElement?: HTMLScriptElement): Promise<BrowserTracker>;
 /** Reads a registered browser Site's public identity mode and allowed origins. */
 export declare function fetchBrowserSiteConfig(baseUrl: string, siteUuid: string, fetchImpl?: typeof fetch): Promise<BrowserSiteConfig>;
+/** The AI assistant a referrer URL names, or undefined for any other or unreadable referrer. */
+export declare function aiAssistantReferrer(referrer: string): string | undefined;
 /** An extended-identity Site waits for consent; a cookieless Site tracks without it. */
 export declare function defaultSiteConsent(siteConfig: BrowserSiteConfig): BrowserTrackerConfig["consent"];
 /** Extended-identity Sites batch; cookieless Sites send each event as it happens. */

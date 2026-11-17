@@ -1,6 +1,29 @@
+import { startWebVitals } from "./browser-web-vitals.js";
 import { applyEnvironmentLabel, LocalStorageQueueStorage, MemoryQueueStorage, normalizeRetryOptions, prepareEvent, RetryableError, validateBrowserEvent, withRetry, } from "./index.js";
 const defaultSchemaVersion = "1.0.0";
 const pageViewEventType = "page-view";
+const webVitalsEventType = "web-vitals";
+const aiAssistantReferrerClass = "ai-assistant";
+/**
+ * AI assistants whose links bring visitors, by referrer hostname, mapped to the
+ * assistant name sent as `aiAssistant`. A page view only ever carries this class
+ * and name, never the referrer URL itself.
+ */
+export const aiAssistantReferrers = new Map([
+    ["chatgpt.com", "chatgpt"],
+    ["chat.openai.com", "chatgpt"],
+    ["perplexity.ai", "perplexity"],
+    ["claude.ai", "claude"],
+    ["gemini.google.com", "gemini"],
+    ["bard.google.com", "gemini"],
+    ["copilot.microsoft.com", "copilot"],
+    ["chat.deepseek.com", "deepseek"],
+    ["chat.mistral.ai", "mistral"],
+    ["grok.com", "grok"],
+    ["meta.ai", "meta-ai"],
+    ["you.com", "you"],
+    ["phind.com", "phind"],
+]);
 const schemaVersionPattern = /^[0-9]+\.[0-9]+\.[0-9]+$/u;
 const maxQueuedGlobalCalls = 1000;
 const redactedPathSegment = "[redacted]";
@@ -20,10 +43,21 @@ class DefaultBrowserTracker {
         this.queue = [];
         this.installedSpaTracking = false;
         this.lastTrackedPath = null;
+        /** The landing page's referral class is sent once; later SPA routes keep the same document referrer. */
+        this.referrerClassified = false;
+        this.webVitals = null;
         this.originalPushState = null;
         this.originalReplaceState = null;
         this.onlineHandler = () => this.detach("flush", () => this.flush());
-        this.pagehideHandler = () => this.flushWithKeepalive();
+        this.pagehideHandler = () => {
+            this.enqueueWebVitals();
+            this.flushWithKeepalive();
+        };
+        this.visibilityHandler = () => {
+            if (document.visibilityState === "hidden" && this.enqueueWebVitals()) {
+                this.flushWithKeepalive();
+            }
+        };
         this.popstateHandler = () => this.detachPathChange(() => this.trackPageView());
         this.config = config;
         this.baseUrl = config.baseUrl.replace(/\/$/, "");
@@ -46,6 +80,11 @@ class DefaultBrowserTracker {
         assertAllowedOrigin(config);
         window.addEventListener("online", this.onlineHandler);
         window.addEventListener("pagehide", this.pagehideHandler);
+        if (config.webVitals === true) {
+            this.webVitalsPath = this.pageContext().path;
+            this.webVitals = startWebVitals();
+            window.addEventListener("visibilitychange", this.visibilityHandler);
+        }
     }
     async track(eventTypeSlug, payload = {}) {
         if (this.trackingDisabled()) {
@@ -63,7 +102,8 @@ class DefaultBrowserTracker {
     }
     trackPageView() {
         this.lastTrackedPath = window.location.pathname;
-        return this.track("page-view", poweredByAttribution());
+        const referral = this.trackingDisabled() ? {} : this.landingReferral();
+        return this.track("page-view", { ...poweredByAttribution(), ...referral });
     }
     installSpaTracking() {
         if (this.installedSpaTracking) {
@@ -113,6 +153,9 @@ class DefaultBrowserTracker {
         window.removeEventListener("online", this.onlineHandler);
         window.removeEventListener("pagehide", this.pagehideHandler);
         window.removeEventListener("popstate", this.popstateHandler);
+        window.removeEventListener("visibilitychange", this.visibilityHandler);
+        this.webVitals?.stop();
+        this.webVitals = null;
         if (this.originalPushState) {
             window.history.pushState = this.originalPushState;
         }
@@ -165,14 +208,17 @@ class DefaultBrowserTracker {
     }
     buildEvent(eventTypeSlug, payload) {
         const identity = this.identityFields();
+        const page = this.pageContext();
         const event = {
             eventTypeSlug,
             schemaVersion: eventTypeSlug === pageViewEventType ? this.pageViewSchemaVersion : this.schemaVersion,
             timestamp: new Date().toISOString(),
             ...identity,
-            context: browserContext(this.pageContext()),
+            context: browserContext(page),
             payload: {
                 siteUuid: this.config.siteUuid,
+                // Reporting groups page views by payload path, so it mirrors the page context's path.
+                ...(eventTypeSlug === pageViewEventType && page.path !== undefined ? { path: page.path } : {}),
                 ...payload,
             },
         };
@@ -184,6 +230,37 @@ class DefaultBrowserTracker {
         validateBrowserEvent(prepared);
         applyEnvironmentLabel(prepared, this.config.environment);
         return prepared;
+    }
+    /** The first page view's AI-assistant referral, as a class and name only. */
+    landingReferral() {
+        if (this.referrerClassified) {
+            return {};
+        }
+        this.referrerClassified = true;
+        const assistant = aiAssistantReferrer(document.referrer);
+        return assistant ? { referrerClass: aiAssistantReferrerClass, aiAssistant: assistant } : {};
+    }
+    /** Queue this document's one `web-vitals` event; true when one was queued. */
+    enqueueWebVitals() {
+        const collector = this.webVitals;
+        if (!collector || this.trackingDisabled()) {
+            return false;
+        }
+        this.webVitals = null;
+        collector.stop();
+        const vitals = collector.snapshot();
+        if (Object.keys(vitals).length === 0) {
+            return false;
+        }
+        const path = this.webVitalsPath === undefined ? {} : { path: this.webVitalsPath };
+        try {
+            this.enqueue(this.buildEvent(webVitalsEventType, { ...path, ...vitals }));
+        }
+        catch {
+            // A page that is going away has nowhere to raise this; the page view itself is unaffected.
+            return false;
+        }
+        return true;
     }
     identityFields() {
         if (this.config.identityMode !== "extended") {
@@ -333,6 +410,7 @@ export async function installBrowserTrackerFromScript(scriptElement) {
             batchSize: Number(script.dataset.batchSize || defaultSiteBatchSize(siteConfig)),
             consent: scriptConsent(script, siteConfig),
             persistentQueue: script.dataset.persistentQueue === "true",
+            webVitals: script.dataset.webVitals === "true",
         });
         window.custd = {
             track: (eventTypeSlug, payload) => tracker.track(eventTypeSlug, payload),
@@ -398,6 +476,20 @@ function sanitizePageTitle(title) {
     }
     const cleaned = title.replace(/[\p{Cc}]/gu, "").trim();
     return cleaned === "" ? undefined : cleaned.slice(0, maxPageTitleLength);
+}
+/** The AI assistant a referrer URL names, or undefined for any other or unreadable referrer. */
+export function aiAssistantReferrer(referrer) {
+    if (!referrer) {
+        return undefined;
+    }
+    let hostname;
+    try {
+        hostname = new URL(referrer).hostname.toLowerCase();
+    }
+    catch {
+        return undefined;
+    }
+    return aiAssistantReferrers.get(hostname.replace(/^www\./u, ""));
 }
 function poweredByAttribution() {
     const query = new URL(window.location.href).searchParams;

@@ -184,6 +184,7 @@ describe("createBrowserTracker", () => {
     const sent = eventFromFetch(fetchMock);
     expect(sent.payload).toEqual({
       siteUuid: "site-123",
+      path: "/",
       utmSource: "awthy",
       utmMedium: "powered-by",
     });
@@ -203,7 +204,7 @@ describe("createBrowserTracker", () => {
     const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });
     await tracker.trackPageView();
 
-    expect(eventFromFetch(fetchMock).payload).toEqual({ siteUuid: "site-123" });
+    expect(eventFromFetch(fetchMock).payload).toEqual({ siteUuid: "site-123", path: "/" });
   });
 
   it("stores extended identity only after consent is granted", async () => {
@@ -964,6 +965,82 @@ describe("createBrowserTracker", () => {
     expect(result).toBe("rejected");
   });
 });
+
+describe("landing-page signals", () => {
+  it("classifies an AI-assistant landing once, without sending the referrer", async () => {
+    const fetchMock = mockFetch();
+    vi.stubGlobal("document", { ...document, referrer: "https://www.chatgpt.com/c/abc?q=private" });
+
+    const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });
+    await tracker.trackPageView();
+    window.history.pushState({}, "", "https://example.com/pricing");
+    await tracker.trackPageView();
+
+    expect(eventFromFetchCall(fetchMock, 0).payload).toEqual({
+      siteUuid: "site-123",
+      path: "/start",
+      referrerClass: "ai-assistant",
+      aiAssistant: "chatgpt",
+    });
+    expect(eventFromFetchCall(fetchMock, 1).payload).toEqual({ siteUuid: "site-123", path: "/pricing" });
+    expect(JSON.stringify(fetchMock.mock.calls)).not.toContain("chatgpt.com");
+  });
+
+  it("sends one web-vitals event for the landing path through keepalive when the page is first hidden", async () => {
+    const fetchMock = mockFetch();
+    const observers = installFakePerformanceObserver();
+    const page = { ...document, visibilityState: "visible" };
+    vi.stubGlobal("document", page);
+
+    const tracker = createBrowserTracker({ ...baseConfig, webVitals: true, trackInitialPageView: false });
+    observers.emit("largest-contentful-paint", [{ startTime: 1234.4 }]);
+    window.history.pushState({}, "", "https://example.com/pricing");
+    page.visibilityState = "hidden";
+    window.dispatchEvent(new Event("visibilitychange"));
+    window.dispatchEvent(new Event("pagehide"));
+    await Promise.resolve();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1].keepalive).toBe(true);
+    const [event] = batchFromFetch(fetchMock).events;
+    expect(event.eventTypeSlug).toBe("web-vitals");
+    expect(event.schemaVersion).toBe("1.0.0");
+    expect(event.payload).toEqual({ siteUuid: "site-123", path: "/start", lcp: 1234 });
+    tracker.close();
+  });
+
+  it("observes no vitals unless the Site opts in", () => {
+    mockFetch();
+    const observers = installFakePerformanceObserver();
+
+    createBrowserTracker({ ...baseConfig, trackInitialPageView: false });
+
+    expect(observers.created).toBe(0);
+  });
+});
+
+function installFakePerformanceObserver() {
+  const callbacks = new Map<string, (list: { getEntries: () => unknown[] }) => void>();
+  const state = {
+    created: 0,
+    emit: (type: string, entries: unknown[]) => callbacks.get(type)?.({ getEntries: () => entries }),
+  };
+  class FakePerformanceObserver {
+    static supportedEntryTypes = ["largest-contentful-paint"];
+    constructor(private readonly callback: (list: { getEntries: () => unknown[] }) => void) {
+      state.created++;
+    }
+    observe(options: { type: string }) {
+      callbacks.set(options.type, this.callback);
+    }
+    disconnect() {
+      callbacks.clear();
+    }
+  }
+  vi.stubGlobal("PerformanceObserver", FakePerformanceObserver);
+  vi.stubGlobal("performance", { getEntriesByType: () => [] });
+  return state;
+}
 
 function mockFetch(responses?: Response[]) {
   const fetchMock = vi.fn();
