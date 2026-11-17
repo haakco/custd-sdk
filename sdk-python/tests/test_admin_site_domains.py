@@ -222,7 +222,7 @@ class SiteDomainResponsesTest(unittest.TestCase):
 
 class SiteRuleIdsTest(unittest.TestCase):
     def test_rule_ids_are_unique_and_cover_check_rules(self) -> None:
-        self.assertEqual(63, len(SITE_RULE_IDS))
+        self.assertEqual(71, len(SITE_RULE_IDS))
         self.assertEqual(len(SITE_RULE_IDS), len(set(SITE_RULE_IDS)))
         self.assertIn("tls.expiring-soon", SITE_RULE_IDS)
         self.assertIn("lighthouse.mobile-score-drop", SITE_RULE_IDS)
