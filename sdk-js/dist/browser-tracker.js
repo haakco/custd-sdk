@@ -1,5 +1,6 @@
 import { applyEnvironmentLabel, LocalStorageQueueStorage, MemoryQueueStorage, normalizeRetryOptions, prepareEvent, RetryableError, validateBrowserEvent, withRetry, } from "./index.js";
 const defaultSchemaVersion = "1.0.0";
+const pageViewEventType = "page-view";
 const schemaVersionPattern = /^[0-9]+\.[0-9]+\.[0-9]+$/u;
 const maxQueuedGlobalCalls = 1000;
 const redactedPathSegment = "[redacted]";
@@ -27,6 +28,10 @@ class DefaultBrowserTracker {
         this.config = config;
         this.baseUrl = config.baseUrl.replace(/\/$/, "");
         this.schemaVersion = resolveSchemaVersion(config.schemaVersion);
+        this.pageViewSchemaVersion =
+            config.pageViewSchemaVersion === undefined
+                ? this.schemaVersion
+                : resolveSchemaVersion(config.pageViewSchemaVersion);
         this.labels = { ...(config.labels ?? {}) };
         this.queueStorage = config.queueStorage ?? browserQueueStorage(config.siteUuid, config.persistentQueue === true);
         this.retry = normalizeRetryOptions(config.retry);
@@ -162,7 +167,7 @@ class DefaultBrowserTracker {
         const identity = this.identityFields();
         const event = {
             eventTypeSlug,
-            schemaVersion: this.schemaVersion,
+            schemaVersion: eventTypeSlug === pageViewEventType ? this.pageViewSchemaVersion : this.schemaVersion,
             timestamp: new Date().toISOString(),
             ...identity,
             context: browserContext(this.pageContext()),
@@ -324,6 +329,7 @@ export async function installBrowserTrackerFromScript(scriptElement) {
             writeKey,
             identityMode: siteConfig.identityMode,
             allowedOrigins: siteConfig.allowedOrigins,
+            pageViewSchemaVersion: siteConfigSchemaVersion(siteConfig.pageViewSchemaVersion),
             batchSize: Number(script.dataset.batchSize || defaultSiteBatchSize(siteConfig)),
             consent: scriptConsent(script, siteConfig),
             persistentQueue: script.dataset.persistentQueue === "true",
@@ -645,4 +651,12 @@ function randomUUID() {
         return crypto.randomUUID();
     }
     return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => (Number(c) ^ ((Math.random() * 16) >> (Number(c) / 4))).toString(16));
+}
+/**
+ * The Site configuration's page-view version, or undefined when it is absent or
+ * malformed, so an unexpected configuration falls back to the default rather
+ * than stopping the tracker.
+ */
+export function siteConfigSchemaVersion(value) {
+    return typeof value === "string" && schemaVersionPattern.test(value) ? value : undefined;
 }

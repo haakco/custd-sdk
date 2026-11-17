@@ -16,6 +16,7 @@ import {
   defaultSiteBatchSize,
   defaultSiteConsent,
   fetchBrowserSiteConfig,
+  siteConfigSchemaVersion,
 } from "./browser-tracker.js";
 import { ErrorCaptureClient, installBrowserErrorCapture } from "./error-capture.js";
 
@@ -270,6 +271,7 @@ async function startTracking(
     environment: discovery.environment,
     identityMode: siteConfig.identityMode,
     allowedOrigins: siteConfig.allowedOrigins,
+    pageViewSchemaVersion: siteConfigSchemaVersion(siteConfig.pageViewSchemaVersion),
     batchSize: defaultSiteBatchSize(siteConfig),
     consent: options.consent ?? defaultSiteConsent(siteConfig),
     pageContext: options.pageContext,

@@ -64,6 +64,13 @@ export type BrowserTrackerConfig = {
    */
   schemaVersion?: string;
   /**
+   * The schema version `page-view` events declare, when it differs from
+   * `schemaVersion`. The script tag sets it from the Site's configuration, so a
+   * tenant that moves its page-view schema to a new version keeps receiving page
+   * views without changing the embed. Other event types keep `schemaVersion`.
+   */
+  pageViewSchemaVersion?: string;
+  /**
    * Deployment labels sent with every tracked event, such as the cluster and
    * region this build runs in. They are controlled deployment metadata, not
    * visitor data: every key and value must already exist in the tenant's label
@@ -108,9 +115,12 @@ export type BrowserTracker = {
 export type BrowserSiteConfig = {
   identityMode?: BrowserIdentityMode;
   allowedOrigins?: string[];
+  /** The page-view schema version the Site's tenant accepts; absent when it has none. */
+  pageViewSchemaVersion?: string;
 };
 
 const defaultSchemaVersion = "1.0.0";
+const pageViewEventType = "page-view";
 const schemaVersionPattern = /^[0-9]+\.[0-9]+\.[0-9]+$/u;
 const maxQueuedGlobalCalls = 1000;
 const redactedPathSegment = "[redacted]";
@@ -130,6 +140,7 @@ export function createBrowserTracker(config: BrowserTrackerConfig): BrowserTrack
 class DefaultBrowserTracker implements BrowserTracker {
   private readonly baseUrl: string;
   private readonly schemaVersion: string;
+  private readonly pageViewSchemaVersion: string;
   /** Configured deployment labels, copied so a later caller mutation cannot reach the queue. */
   private readonly labels: Record<string, string>;
   private readonly config: BrowserTrackerConfig;
@@ -150,6 +161,10 @@ class DefaultBrowserTracker implements BrowserTracker {
     this.config = config;
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
     this.schemaVersion = resolveSchemaVersion(config.schemaVersion);
+    this.pageViewSchemaVersion =
+      config.pageViewSchemaVersion === undefined
+        ? this.schemaVersion
+        : resolveSchemaVersion(config.pageViewSchemaVersion);
     this.labels = { ...(config.labels ?? {}) };
     this.queueStorage = config.queueStorage ?? browserQueueStorage(config.siteUuid, config.persistentQueue === true);
     this.retry = normalizeRetryOptions(config.retry);
@@ -296,7 +311,7 @@ class DefaultBrowserTracker implements BrowserTracker {
     const identity = this.identityFields();
     const event: EventEnvelope = {
       eventTypeSlug,
-      schemaVersion: this.schemaVersion,
+      schemaVersion: eventTypeSlug === pageViewEventType ? this.pageViewSchemaVersion : this.schemaVersion,
       timestamp: new Date().toISOString(),
       ...identity,
       context: browserContext(this.pageContext()),
@@ -472,6 +487,7 @@ export async function installBrowserTrackerFromScript(scriptElement?: HTMLScript
       writeKey,
       identityMode: siteConfig.identityMode,
       allowedOrigins: siteConfig.allowedOrigins,
+      pageViewSchemaVersion: siteConfigSchemaVersion(siteConfig.pageViewSchemaVersion),
       batchSize: Number(script.dataset.batchSize || defaultSiteBatchSize(siteConfig)),
       consent: scriptConsent(script, siteConfig),
       persistentQueue: script.dataset.persistentQueue === "true",
@@ -871,4 +887,13 @@ declare global {
       setConsent: (state: BrowserConsentState) => void;
     };
   }
+}
+
+/**
+ * The Site configuration's page-view version, or undefined when it is absent or
+ * malformed, so an unexpected configuration falls back to the default rather
+ * than stopping the tracker.
+ */
+export function siteConfigSchemaVersion(value: unknown): string | undefined {
+  return typeof value === "string" && schemaVersionPattern.test(value) ? value : undefined;
 }

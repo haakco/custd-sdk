@@ -435,6 +435,34 @@ describe("createBrowserTracker", () => {
     expect(fetchMock.mock.calls[1][0]).toBe("http://localhost:8087/api/v1/collect/events");
   });
 
+  it("sends page views with the Site's page-view schema version and keeps custom events on theirs", async () => {
+    const fetchMock = mockFetch([
+      new Response(
+        JSON.stringify({
+          identityMode: "cookieless",
+          allowedOrigins: ["https://example.com"],
+          pageViewSchemaVersion: "1.0.1",
+        }),
+        { status: 200 },
+      ),
+      new Response(JSON.stringify({ success: true }), { status: 202 }),
+      new Response(JSON.stringify({ success: true }), { status: 202 }),
+    ]);
+    Object.defineProperty(document, "currentScript", { value: null, configurable: true });
+    const script = {
+      src: "http://localhost:8087/custd-sdk/browser-script.js",
+      dataset: { siteUuid: "site-123", writeKey: "site_pk_test", batchSize: "1" },
+    } as unknown as HTMLScriptElement;
+
+    await installBrowserTrackerFromScript(script);
+    await window.custd.trackPageView();
+    await window.custd.track("purchase", { amount: 1 });
+
+    expect(eventFromFetchCall(fetchMock, 1).schemaVersion).toBe("1.0.1");
+    expect(eventFromFetchCall(fetchMock, 2).eventTypeSlug).toBe("purchase");
+    expect(eventFromFetchCall(fetchMock, 2).schemaVersion).toBe("1.0.0");
+  });
+
   it("allows cookieless browser envelopes without company or identity IDs", () => {
     expect(() =>
       validateBrowserEvent({

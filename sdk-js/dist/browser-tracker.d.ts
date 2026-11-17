@@ -47,6 +47,13 @@ export type BrowserTrackerConfig = {
      */
     schemaVersion?: string;
     /**
+     * The schema version `page-view` events declare, when it differs from
+     * `schemaVersion`. The script tag sets it from the Site's configuration, so a
+     * tenant that moves its page-view schema to a new version keeps receiving page
+     * views without changing the embed. Other event types keep `schemaVersion`.
+     */
+    pageViewSchemaVersion?: string;
+    /**
      * Deployment labels sent with every tracked event, such as the cluster and
      * region this build runs in. They are controlled deployment metadata, not
      * visitor data: every key and value must already exist in the tenant's label
@@ -89,6 +96,8 @@ export type BrowserTracker = {
 export type BrowserSiteConfig = {
     identityMode?: BrowserIdentityMode;
     allowedOrigins?: string[];
+    /** The page-view schema version the Site's tenant accepts; absent when it has none. */
+    pageViewSchemaVersion?: string;
 };
 export declare function createBrowserTracker(config: BrowserTrackerConfig): BrowserTracker;
 export declare function installBrowserTrackerFromScript(scriptElement?: HTMLScriptElement): Promise<BrowserTracker>;
@@ -107,3 +116,9 @@ declare global {
         };
     }
 }
+/**
+ * The Site configuration's page-view version, or undefined when it is absent or
+ * malformed, so an unexpected configuration falls back to the default rather
+ * than stopping the tracker.
+ */
+export declare function siteConfigSchemaVersion(value: unknown): string | undefined;

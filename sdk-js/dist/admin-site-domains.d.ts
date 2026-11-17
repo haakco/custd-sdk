@@ -1,0 +1,344 @@
+import type { RequestOptions } from "./index.js";
+/** A 409 on requestAudit: the tenant has not proven control of the domain yet. */
+export declare const SITE_DOMAIN_NOT_VERIFIED_CODE = "site_domain_not_verified";
+/** A 409 on connectSearch: this Custd deployment has no account or key for the provider. */
+export declare const SITE_SEARCH_NOT_CONFIGURED_CODE = "site_search_not_configured";
+/** A 404 on disconnectSearch: the domain is not connected to that provider. */
+export declare const SITE_SEARCH_CONNECTION_NOT_FOUND_CODE = "site_search_connection_not_found";
+/**
+ * The stable rule IDs a SiteFinding carries in `rule`, from Custd's siteaudit
+ * rule catalogue. Key a client-side fix or display on these, never on the title.
+ * New rules can appear in findings before an SDK release names them.
+ */
+export declare const SiteRule: {
+    readonly PageStatus: "crawl.page-status";
+    readonly RedirectChain: "crawl.redirect-chain";
+    readonly Soft404: "crawl.soft-404";
+    readonly HTTPSRedirect: "host.https-redirect";
+    readonly CanonicalHost: "host.canonical-host";
+    readonly RobotsMissing: "robots.missing";
+    readonly RobotsInvalid: "robots.invalid";
+    readonly RobotsNoSitemap: "robots.no-sitemap";
+    readonly SitemapMissing: "sitemap.missing";
+    readonly SitemapInvalid: "sitemap.invalid";
+    readonly SitemapURLStatus: "sitemap.url-not-ok";
+    readonly SitemapNoindex: "sitemap.noindex-url";
+    readonly SitemapLastmod: "sitemap.lastmod-missing";
+    readonly CanonicalMissing: "canonical.missing";
+    readonly CanonicalInvalid: "canonical.invalid";
+    readonly CanonicalNotOK: "canonical.not-ok";
+    readonly TitleMissing: "title.missing";
+    readonly TitleLength: "title.length";
+    readonly TitleDuplicate: "title.duplicate";
+    readonly DescMissing: "description.missing";
+    readonly DescLength: "description.length";
+    readonly DescDuplicate: "description.duplicate";
+    readonly HeadingH1: "heading.h1";
+    readonly LangMissing: "html.lang-missing";
+    readonly HTMLTooLarge: "html.too-large";
+    readonly OpenGraphMissing: "og.missing";
+    readonly OpenGraphImageMissing: "og.image-missing";
+    readonly TwitterCardMissing: "twitter.card-missing";
+    readonly ImageAltMissing: "image.alt-missing";
+    readonly ImageTooLarge: "image.too-large";
+    readonly ImageLegacyFormat: "image.legacy-format";
+    readonly ImageDimensions: "image.missing-dimensions";
+    readonly ImageNotLazy: "image.not-lazy";
+    readonly NoCompression: "http.no-compression";
+    readonly StaticCache: "cache.static-assets";
+    readonly JSRequired: "ai.js-required";
+    readonly AnswerBotBlocked: "ai.answer-bot-blocked";
+    readonly TrainingBlocked: "ai.training-bot-blocked";
+    readonly BotRefused: "ai.bot-refused";
+    readonly JSONLDMissing: "jsonld.missing";
+    readonly JSONLDInvalid: "jsonld.invalid";
+    readonly JSONLDNoEntity: "jsonld.no-entity";
+    readonly LLMSMissing: "llms.missing";
+    readonly LLMSInvalid: "llms.invalid";
+    readonly RedirectLoop: "crawl.redirect-loop";
+    readonly OrphanPage: "crawl.orphan-page";
+    readonly DeepPage: "crawl.deep-page";
+    readonly NoInternalLinks: "crawl.no-internal-links";
+    readonly NoindexPage: "crawl.noindex-page";
+    readonly HomeNoindex: "crawl.home-noindex";
+    readonly NofollowPage: "robots.nofollow";
+    readonly CanonicalElsewhere: "canonical.points-elsewhere";
+    readonly CanonicalConflict: "canonical.conflict";
+    readonly HeadingSkip: "heading.order-skip";
+    readonly ThinContent: "content.thin";
+    readonly DuplicateContent: "content.duplicate";
+    readonly HreflangInvalidCode: "hreflang.invalid-code";
+    readonly HreflangMissingSelf: "hreflang.missing-self-reference";
+    readonly HreflangMissingReturn: "hreflang.missing-return-link";
+    readonly HreflangMissingXDefault: "hreflang.missing-x-default";
+    readonly HreflangTargetNotIndexable: "hreflang.target-not-indexable";
+    readonly SlowResponse: "http.slow-response";
+    readonly UptimeDown: "uptime.down";
+    readonly UptimeSlow: "uptime.slow";
+    readonly TLSInvalid: "tls.invalid";
+    readonly TLSExpiring: "tls.expiring";
+    readonly TLSExpiringSoon: "tls.expiring-soon";
+    readonly LighthouseDesktopDrop: "lighthouse.desktop-score-drop";
+    readonly LighthouseMobileDrop: "lighthouse.mobile-score-drop";
+    readonly SearchLowCTR: "search.low-ctr";
+    readonly SearchPositionDrop: "search.position-drop";
+};
+export type SiteRuleId = (typeof SiteRule)[keyof typeof SiteRule];
+/** Per-call options. `companySlug` names the tenant when a system administrator acts for one. */
+export type SiteDomainRequestOptions = RequestOptions & {
+    companySlug?: string;
+};
+export type SiteDomainCreateRequest = {
+    /** The Site the host belongs to; a site-bound credential may omit it. */
+    siteUuid?: string;
+    host: string;
+};
+/** How to prove control: publish either the DNS TXT record or the well-known file. */
+export type SiteDomainVerification = {
+    dnsRecordName: string;
+    dnsRecordValue: string;
+    fileUrl: string;
+    fileContent: string;
+};
+export type SiteDomainVerifiedBy = "dns" | "file" | "attested" | "parent" | "operator";
+/** The credential that vouched for a domain, and when. */
+export type SiteDomainAttestation = {
+    clientId: string;
+    attestedAt: string;
+};
+export type SiteDomainOwnership = {
+    verified: boolean;
+    verifiedAt?: string;
+    verifiedBy?: SiteDomainVerifiedBy;
+    lastCheckedAt?: string;
+    lastCheckFailure?: string;
+    instructions: SiteDomainVerification;
+    /** The parent domain whose verification covers this one; set only when verifiedBy is "parent". */
+    verifiedViaDomainUuid?: string;
+    attestation?: SiteDomainAttestation;
+};
+/** One audit run's findings counted by severity. */
+export type SiteAuditSummary = {
+    high: number;
+    medium: number;
+    low: number;
+    info: number;
+    pagesChecked: number;
+    requests: number;
+    truncated: boolean;
+};
+export type SiteDomainAudit = {
+    requestedAt?: string;
+    lastAuditedAt?: string;
+    lastSummary?: SiteAuditSummary;
+    lastFailure?: string;
+};
+/**
+ * paused sends no requests; uptime (the default) checks the home page every
+ * five minutes and the certificate every six hours; warm adds one anonymous
+ * home page GET every minute.
+ */
+export type SiteCheckMode = "paused" | "uptime" | "warm";
+/** failing is one failed check; down is an open incident (two or more in a row). */
+export type SiteUptimeStatus = "unknown" | "up" | "failing" | "down" | "paused";
+export type SiteUptime = {
+    status: SiteUptimeStatus;
+    lastCheckedAt?: string;
+    statusCode?: number;
+    responseMs?: number;
+    lastFailure?: string;
+    consecutiveFailures: number;
+};
+export type SiteTLS = {
+    lastCheckedAt?: string;
+    validTo?: string;
+    issuer?: string;
+    lastFailure?: string;
+};
+/** Average home page response time with warming off and on; each is absent until measured. */
+export type SiteWarming = {
+    lastWarmedAt?: string;
+    unwarmedResponseMs?: number;
+    warmedResponseMs?: number;
+};
+/** One outage, from the first failed check to the first passing one. resolvedAt is absent while open. */
+export type SiteIncident = {
+    incidentUuid: string;
+    startedAt: string;
+    openedAt: string;
+    resolvedAt?: string;
+    cause: string;
+    failedChecks: number;
+};
+export type SiteIncidentList = {
+    incidents: SiteIncident[];
+};
+export type SiteDomainChecks = {
+    mode: SiteCheckMode;
+    uptime: SiteUptime;
+    tls: SiteTLS;
+    warming: SiteWarming;
+    openIncident?: SiteIncident;
+};
+/** A host a Site has claimed. Only a verified domain is audited or checked. */
+export type SiteDomain = {
+    domainUuid: string;
+    siteUuid: string;
+    host: string;
+    ownership: SiteDomainOwnership;
+    audit: SiteDomainAudit;
+    checks: SiteDomainChecks;
+    createdAt: string;
+};
+export type SiteDomainList = {
+    domains: SiteDomain[];
+};
+export type SiteFindingState = "open" | "fixed" | "all";
+export type SiteFindingSeverity = "high" | "medium" | "low" | "info";
+export type SiteFindingHistory = {
+    firstSeenAt: string;
+    lastSeenAt: string;
+    fixed: boolean;
+    fixedAt?: string;
+};
+/** One problem found on a verified domain, with the advice to fix it. `rule` is a SiteRule ID. */
+export type SiteFinding = {
+    findingUuid: string;
+    rule: string;
+    severity: SiteFindingSeverity;
+    title: string;
+    url: string;
+    evidence: string;
+    fix: string;
+    source: string;
+    history: SiteFindingHistory;
+};
+/** A domain's findings, most severe first. */
+export type SiteFindingList = {
+    findings: SiteFinding[];
+};
+/** Where one Site's alerts go. An absent emailRecipient means the tenant's own alert destinations. */
+export type SiteAlertDestination = {
+    siteUuid: string;
+    emailRecipient?: string;
+};
+export type SiteAlertDestinationRequest = {
+    /** A site-bound credential may omit it for its own Site. */
+    siteUuid?: string;
+    /** An empty string sends the Site's alerts to the tenant's destinations again. */
+    emailRecipient: string;
+};
+export type SiteSearchProvider = "google" | "bing";
+export type SiteSearchConnectionStatus = "pending" | "active" | "failing" | "revoked";
+/** Which providers this deployment imports from, and the Google account to add to a property. */
+export type SiteSearchAccount = {
+    googleConfigured: boolean;
+    googleServiceAccountEmail?: string;
+    bingConfigured: boolean;
+};
+/**
+ * property is "sc-domain:example.com" or a URL prefix ending in "/" for Google,
+ * and a URL prefix ending in "/" for Bing. apiKey is Bing only and write-only.
+ */
+export type SiteSearchConnectionRequest = {
+    property: string;
+    apiKey?: string;
+};
+export type SiteSearchConnection = {
+    provider: SiteSearchProvider;
+    property: string;
+    status: SiteSearchConnectionStatus;
+    /** The last day imported, YYYY-MM-DD. */
+    importedThrough?: string;
+    lastImportedAt?: string;
+    lastFailure?: string;
+};
+/** Summed search numbers. ctr is 0..1; position is absent when unknown. */
+export type SiteSearchTotals = {
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position?: number;
+};
+export type SiteSearchDay = {
+    day: string;
+    clicks: number;
+    impressions: number;
+};
+export type SiteSearchSource = {
+    provider: SiteSearchProvider;
+    source: string;
+    granularity: "daily" | "weekly";
+    from?: string;
+    to?: string;
+    /** Days with data inside the window. */
+    days: number;
+    importedAt?: string;
+    totals: SiteSearchTotals;
+    /** Totals for the same number of days before the window, if any. */
+    previous?: SiteSearchTotals;
+    /** Each imported day's totals, oldest first; Bing's are week buckets. */
+    daily: SiteSearchDay[];
+};
+/** One page URL or query text and its totals. */
+export type SiteSearchRow = {
+    provider: SiteSearchProvider;
+    key: string;
+    totals: SiteSearchTotals;
+};
+export type SiteSearchPerformance = {
+    domainUuid: string;
+    days: number;
+    connections: SiteSearchConnection[];
+    sources: SiteSearchSource[];
+    topPages: SiteSearchRow[];
+    topQueries: SiteSearchRow[];
+    strikingDistance: SiteSearchRow[];
+};
+type NonAdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
+export declare class SiteDomainAdminClient {
+    private readonly request;
+    constructor(request: NonAdminRequester);
+    /** Claims a host for a Site and returns the verification instructions. */
+    create(body: SiteDomainCreateRequest, options?: SiteDomainRequestOptions): Promise<SiteDomain>;
+    /** Lists one Site's domains. A site-bound credential may omit siteUuid for its own Site. */
+    list(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteDomainList>;
+    get(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteDomain>;
+    /**
+     * Checks the DNS record or well-known file now. An unproven domain comes back
+     * with ownership.verified false and the reason in ownership.lastCheckFailure.
+     */
+    verify(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteDomain>;
+    /**
+     * Attests that this credential has proven the tenant controls the domain,
+     * which verifies it (verifiedBy "attested") and its subdomains. Only a
+     * site-bound credential holding site_domains.attest may attest its own Site's domains.
+     */
+    attest(domainUuid: string, options?: RequestOptions): Promise<SiteDomain>;
+    /** Withdraws this credential's attestation; the domain stays verified only by its own proof or a verified parent. */
+    unattest(domainUuid: string, options?: RequestOptions): Promise<SiteDomain>;
+    /** Queues an audit for the scheduler's next tick. An unverified domain is refused with SITE_DOMAIN_NOT_VERIFIED_CODE. */
+    requestAudit(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteDomain>;
+    /** Lists a domain's findings, most severe first. An omitted state lets the server default to open. */
+    listFindings(domainUuid: string, state?: SiteFindingState, options?: SiteDomainRequestOptions): Promise<SiteFindingList>;
+    /** Removes a domain and its findings. */
+    delete(domainUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Chooses how a domain is checked. It works before verification, so a domain can be paused before its first check. */
+    setCheckMode(domainUuid: string, mode: SiteCheckMode, options?: SiteDomainRequestOptions): Promise<SiteDomain>;
+    /** Lists a domain's recent outages, newest first (at most twenty). */
+    listIncidents(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteIncidentList>;
+    /** Reads a Site's alert address. A site-bound credential may omit siteUuid. */
+    getAlertDestination(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteAlertDestination>;
+    /** Emails a Site's alerts to emailRecipient, or back to the tenant's destinations when it is empty. */
+    setAlertDestination(body: SiteAlertDestinationRequest, options?: SiteDomainRequestOptions): Promise<SiteAlertDestination>;
+    /** Reads which search providers this Custd deployment can import from. */
+    getSearchAccount(options?: SiteDomainRequestOptions): Promise<SiteSearchAccount>;
+    /** Reads a domain's search numbers over the last `days` days (1..90); omitted, the server uses 28. */
+    getSearchPerformance(domainUuid: string, days?: number, options?: SiteDomainRequestOptions): Promise<SiteSearchPerformance>;
+    /** Connects a domain to a provider, or replaces its property or key. Refused with SITE_SEARCH_NOT_CONFIGURED_CODE when the deployment lacks the provider. */
+    connectSearch(domainUuid: string, provider: SiteSearchProvider, body: SiteSearchConnectionRequest, options?: SiteDomainRequestOptions): Promise<SiteSearchConnection>;
+    /** Removes a provider connection and the numbers imported through it. */
+    disconnectSearch(domainUuid: string, provider: SiteSearchProvider, options?: SiteDomainRequestOptions): Promise<void>;
+    private send;
+}
+export {};

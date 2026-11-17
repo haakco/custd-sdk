@@ -2,7 +2,7 @@
 // start tracking, error capture and sign-in as the file enables them. Starting
 // never throws; every failure comes back as a typed state the app can show.
 import { BrowserSignIn, signInConfigFromDiscovery, } from "./browser-sign-in.js";
-import { createBrowserTracker, defaultSiteBatchSize, defaultSiteConsent, fetchBrowserSiteConfig, } from "./browser-tracker.js";
+import { createBrowserTracker, defaultSiteBatchSize, defaultSiteConsent, fetchBrowserSiteConfig, siteConfigSchemaVersion, } from "./browser-tracker.js";
 import { ErrorCaptureClient, installBrowserErrorCapture } from "./error-capture.js";
 export const HOSTED_APP_DISCOVERY_PATH = "/.well-known/custd.json";
 export const HOSTED_APP_CAPABILITIES = {
@@ -166,6 +166,7 @@ async function startTracking(discovery, options, fetchImpl) {
         environment: discovery.environment,
         identityMode: siteConfig.identityMode,
         allowedOrigins: siteConfig.allowedOrigins,
+        pageViewSchemaVersion: siteConfigSchemaVersion(siteConfig.pageViewSchemaVersion),
         batchSize: defaultSiteBatchSize(siteConfig),
         consent: options.consent ?? defaultSiteConsent(siteConfig),
         pageContext: options.pageContext,

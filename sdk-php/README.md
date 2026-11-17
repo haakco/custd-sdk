@@ -305,8 +305,22 @@ domain (Google takes no key; the key is never returned), and a provider the
 deployment cannot import from throws `AdminProblemException` with
 `SiteDomainClient::SEARCH_NOT_CONFIGURED_CODE`. `getSearchPerformance($domainUuid,
 $days)` returns each connection's import state, per-provider totals and the top
-pages and queries (28 days by default); `disconnectSearch()` removes a connection
-and its imported numbers.
+pages and queries (28 days by default), each source's `previous` window totals
+(`null` when nothing was imported before the window) and `daily` totals, and the
+`strikingDistance` queries averaging position 5 to 20; `disconnectSearch()` removes
+a connection and its imported numbers.
+
+`getReport($domainUuid)` returns the client report (uptime, certificate, latest
+speed per profile, search and open findings) without verification or connection
+details. `getUptimeHistory($domainUuid, $responseDays)` returns the 24-hour, 7-day
+and 30-day windows, ninety daily bars and hourly response times (1 to 90 days, 7
+by default); `getLighthouseHistory($domainUuid, $days)` returns the scheduled
+desktop and mobile runs (1 to 30 days, 7 by default), failed runs included. A
+measurement Custd does not have, such as a day without checks or an unscored
+category, is `null`, never zero. `createReportShare($domainUuid, new
+SiteReportShareRequest(30))` returns the share and its token once;
+`listReportShares()` lists live shares without tokens and
+`revokeReportShare($domainUuid, $shareUuid)` ends one.
 
 ## Schema Admin Helpers
 

@@ -6,6 +6,7 @@ import { OffboardingClient, type OffboardingDownloadResponse } from "./admin-off
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
+import { SiteDomainAdminClient } from "./admin-site-domains.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 import { TimePlanAdminClient } from "./admin-timeplans.js";
@@ -22,6 +23,7 @@ export { type OffboardingAcknowledgeResponse, type OffboardingCancelRequest, Off
 export { type PredictionActivateRequest, PredictionAdminClient, type PredictionDefinition, type PredictionDefinitionCreateRequest, type PredictionDefinitionListResponse, type PredictionDefinitionUpdateRequest, type PredictionEvaluationSummary, type PredictionOutcomeSummary, type PredictionPauseRequest, type PredictionRollbackRequest, type PredictionRunNowRequest, type PredictionRunSummary, type PredictionSignalSource, type PredictionSignalSourceCreateRequest, type PredictionThresholdEvent, type PredictionVersion, type PredictionVersionPublishRequest, } from "./admin-predictions.js";
 export { type PrivacyErasure, PrivacyErasureClient, type PrivacyErasureCreateRequest, PrivacyErasureError, type PrivacyErasureListResponse, type PrivacyErasureRetryClassification, type PrivacyErasureSelector, type PrivacyErasureState, type PrivacyErasureStoreProgress, type PrivacyErasureWaitOptions, } from "./admin-privacy-erasures.js";
 export { RetentionClient, type RetentionPolicy, type RetentionPolicyListResponse, type RetentionPolicyUpsertRequest, type RetentionRun, type RetentionRunDeletion, type RetentionRunPreview, type RetentionRunsListResponse, } from "./admin-retention.js";
+export { SITE_DOMAIN_NOT_VERIFIED_CODE, SITE_SEARCH_CONNECTION_NOT_FOUND_CODE, SITE_SEARCH_NOT_CONFIGURED_CODE, type SiteAlertDestination, type SiteAlertDestinationRequest, type SiteAuditSummary, type SiteCheckMode, type SiteDomain, SiteDomainAdminClient, type SiteDomainAttestation, type SiteDomainAudit, type SiteDomainChecks, type SiteDomainCreateRequest, type SiteDomainList, type SiteDomainOwnership, type SiteDomainRequestOptions, type SiteDomainVerification, type SiteDomainVerifiedBy, type SiteFinding, type SiteFindingHistory, type SiteFindingList, type SiteFindingSeverity, type SiteFindingState, type SiteIncident, type SiteIncidentList, SiteRule, type SiteRuleId, type SiteSearchAccount, type SiteSearchConnection, type SiteSearchConnectionRequest, type SiteSearchConnectionStatus, type SiteSearchDay, type SiteSearchPerformance, type SiteSearchProvider, type SiteSearchRow, type SiteSearchSource, type SiteSearchTotals, type SiteTLS, type SiteUptime, type SiteUptimeStatus, type SiteWarming, } from "./admin-site-domains.js";
 export { type SubjectExport, SubjectExportClient, type SubjectExportCreateRequest, type SubjectExportDownloadResponse, type SubjectExportListResponse, type SubjectExportState, type SubjectExportSubject, } from "./admin-subject-exports.js";
 export { TenantStorageClient, type TenantStorageCreateRequest, type TenantStorageListResponse, type TenantStorageLocation, } from "./admin-tenant-storage.js";
 export { type TimePlan, TimePlanAdminClient, type TimePlanAllocation, type TimePlanAllocationBasis, type TimePlanAllocationPreview, type TimePlanAnnotation, type TimePlanAnnotationField, type TimePlanAnnotationInput, type TimePlanAnnotationListResponse, type TimePlanAnnotationSchema, type TimePlanAnnotationType, type TimePlanCalculationChange, type TimePlanCalculationReceipt, type TimePlanCommandRequest, type TimePlanCommandResult, type TimePlanCorrectedCommand, type TimePlanCreatedRun, type TimePlanDefinition, type TimePlanDefinitionBlock, type TimePlanDraftRequest, type TimePlanDraftRevisionRequest, type TimePlanHistoryResponse, type TimePlanListResponse, type TimePlanRedactionRequest, type TimePlanRevisionRequest, type TimePlanRun, type TimePlanRunBlock, type TimePlanRunRequest, type TimePlanThresholdCue, type TimePlanThresholdCueSeverity, type TimePlanTransition, type TimePlanVersion, validateTimePlanDefinition, } from "./admin-timeplans.js";
@@ -1525,6 +1527,7 @@ declare class AdminNamespace {
     readonly clientSetup: ClientSetupClient;
     readonly oauthClients: AdminOAuthClientNamespace;
     readonly sites: AdminSiteNamespace;
+    readonly siteDomains: SiteDomainAdminClient;
     readonly schemas: AdminSchemaNamespace;
     readonly measurement: AdminMeasurementNamespace;
     readonly predictions: PredictionAdminClient;

@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from datetime import date
 from typing import Any, NotRequired, TypedDict, cast
 
-from .client import AdminTransport, CustdClient, RequestError
+from .client import AdminTransport, CustdClient, RequestError, problem_request_error
 
 ANALYTICS_QUERY_PATH = "/analytics/query"
 ANALYTICS_QUERY_RANGE_PATH = "/analytics/query-range"
@@ -193,7 +193,7 @@ class AnalyticsEventClient:
         status = int(result["status"])
         body = result.get("body")
         if status >= 400:
-            raise _analytics_request_error(status, body)
+            raise problem_request_error(status, body, "analytics")
         if status == 204 or body in (None, ""):
             return {}
         if isinstance(body, str):
@@ -204,35 +204,6 @@ class AnalyticsEventClient:
         if isinstance(body, dict):
             return body
         raise ValueError("custd: analytics response must be an object")
-
-
-def _analytics_request_error(status: int, body: object) -> RequestError:
-    """Translate an RFC 9457 problem+json body into a RequestError.
-
-    The tenant API reports `detail`, `code`, `retryability`, and `nextAction`, which is a
-    different problem shape from the admin API's `error`/`safe_next_action`, so this does
-    not share admin_request_error.
-    """
-    try:
-        problem = json.loads(body) if isinstance(body, str) else body
-    except json.JSONDecodeError:
-        problem = None
-    payload = problem if isinstance(problem, dict) else {}
-    retryability = payload.get("retryability")
-    detail = payload.get("detail")
-    code = payload.get("code")
-    next_action = payload.get("nextAction")
-    return RequestError(
-        detail if isinstance(detail, str) and detail else f"custd: analytics request failed with status {status}",
-        status=status,
-        code=code if isinstance(code, str) and code else None,
-        retryability=(
-            retryability
-            if isinstance(retryability, str) and retryability in ("none", "bounded")
-            else ("bounded" if status == 429 or status >= 500 else "none")
-        ),
-        next_action=next_action if isinstance(next_action, dict) else None,
-    )
 
 
 def _public_query_payload(request: AnalyticsEventQueryRequest) -> dict[str, Any]:

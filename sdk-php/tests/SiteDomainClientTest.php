@@ -8,6 +8,7 @@ use HaakCo\Custd\Admin\AdminProblemException;
 use HaakCo\Custd\Admin\SiteDomain\CreateSiteDomainRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingState;
+use HaakCo\Custd\Admin\SiteDomain\SiteRule;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchConnectionStatus;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchProvider;
 use HaakCo\Custd\Admin\SiteDomain\SiteUptimeStatus;
@@ -181,6 +182,19 @@ final class SiteDomainClientTest extends TestCase
             ["PUT " . self::BASE . "/d-1/checks?companySlug=acme", "GET " . self::BASE . "/d-1/incidents"],
             array_map(fn (array $call): string => $call["method"] . " " . $call["url"], $calls),
         );
+    }
+
+    public function testSiteRuleNamesEveryCatalogueRuleAndTheFixtureFindings(): void
+    {
+        self::assertCount(71, SiteRule::cases());
+        $fixture = json_decode(
+            (string) file_get_contents(__DIR__ . "/../../contract-fixtures/site-insights.json"),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        foreach ($fixture["findingList"]["findings"] as $finding) {
+            self::assertNotNull(SiteRule::tryFrom($finding["rule"]), $finding["rule"]);
+        }
     }
 
     public function testAuditOfUnverifiedDomainThrowsTypedProblem(): void

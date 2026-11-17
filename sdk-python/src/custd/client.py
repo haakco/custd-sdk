@@ -427,6 +427,35 @@ def admin_request_error(status: int, body: object) -> RequestError:
     )
 
 
+def problem_request_error(status: int, body: object, operation: str) -> RequestError:
+    """Translate an RFC 9457 problem+json body into a RequestError.
+
+    The /api/v1 tenant routes report `detail`, `code`, `retryability` and `nextAction`,
+    a different problem shape from the admin API's `error`/`safe_next_action`, so this
+    does not share admin_request_error.
+    """
+    try:
+        decoded = json.loads(body) if isinstance(body, str) else body
+    except json.JSONDecodeError:
+        decoded = None
+    problem = decoded if isinstance(decoded, dict) else {}
+    retryability = problem.get("retryability")
+    detail = problem.get("detail")
+    code = problem.get("code")
+    next_action = problem.get("nextAction")
+    return RequestError(
+        detail if isinstance(detail, str) and detail else f"custd: {operation} request failed with status {status}",
+        status=status,
+        code=code if isinstance(code, str) and code else None,
+        retryability=(
+            retryability
+            if isinstance(retryability, str) and retryability in ("none", "bounded")
+            else ("bounded" if status == 429 or status >= 500 else "none")
+        ),
+        next_action=next_action if isinstance(next_action, dict) else None,
+    )
+
+
 class QueueStorageError(RuntimeError):
     pass
 
@@ -827,6 +856,7 @@ class AdminClient:
         from .admin_privacy_erasures import PrivacyErasureClient
         from .admin_reporting_packs import ReportingPacksAdminClient
         from .admin_retention import RetentionClient
+        from .admin_site_domains import SiteDomainAdminClient
         from .admin_subject_exports import SubjectExportClient
         from .admin_tenant_storage import TenantStorageClient
         from .admin_timeplans import TimePlanAdminClient
@@ -844,6 +874,7 @@ class AdminClient:
         self.time_plans = TimePlanAdminClient(self)
         self.audit = AuditAdminClient(self)
         self.usage = UsageAdminClient(self)
+        self.site_domains = SiteDomainAdminClient(self)
         self.auth_projects = AuthProjectAdminClient(self)
 
     def request(
@@ -1055,28 +1086,7 @@ class ReportingClient:
             ) from error
         status = int(result["status"])
         if status >= 400:
-            body = result.get("body")
-            try:
-                problem = json.loads(body) if isinstance(body, str) else body
-            except json.JSONDecodeError:
-                problem = None
-            problem = problem if isinstance(problem, dict) else {}
-            problem_retryability = problem.get("retryability")
-            retryability = (
-                problem_retryability
-                if isinstance(problem_retryability, str) and problem_retryability in ("none", "bounded")
-                else ("bounded" if status == 429 or status >= 500 else "none")
-            )
-            next_action = problem.get("nextAction") if isinstance(problem.get("nextAction"), dict) else None
-            code = problem.get("code") if isinstance(problem.get("code"), str) else None
-            detail = problem.get("detail") if isinstance(problem.get("detail"), str) else None
-            raise RequestError(
-                detail or f"custd: reporting request failed with status {status}",
-                status=status,
-                code=code,
-                retryability=retryability,
-                next_action=next_action,
-            )
+            raise problem_request_error(status, result.get("body"), "reporting")
         body = result.get("body")
         if status == 204 or body in (None, ""):
             return {}
