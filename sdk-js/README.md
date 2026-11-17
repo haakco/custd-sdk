@@ -6,14 +6,14 @@ Ingestion client with retry, batching, and optional offline queueing.
 
 The supported 3.x SDK sends events to `POST /api/v1/events` and batches to
 `POST /api/v1/events/batch`. Installation examples below were verified against
-release **3.43.3** on 2026-11-15, including Node 26, pnpm 12 and Expo 58 consumers.
+release **3.43.4** on 2026-11-17, including Node 26, pnpm 12 and Expo 58 consumers.
 
 ## Install
 
 Use the GitHub package path when installing into HaakCo apps:
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.43.3&path:/sdk-js'
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.43.4&path:/sdk-js'
 ```
 
 Pin the tag to the SDK version you want. The package is no longer published to

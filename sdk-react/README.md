@@ -12,12 +12,12 @@ consumer owns authentication and supplies a query function or existing
 ## Install
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.43.3&path:/sdk-js' \
-  '@haakco/custd-react@github:haakco/custd-sdk#v3.43.3&path:/sdk-react'
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.43.4&path:/sdk-js' \
+  '@haakco/custd-react@github:haakco/custd-sdk#v3.43.4&path:/sdk-react'
 ```
 
 Use the same released tag for both packages. These examples were verified on
-2026-11-15 against **3.43.3**. Keep the application's installed React 18/19 and
+2026-11-17 against **3.43.4**. Keep the application's installed React 18/19 and
 TanStack Query 5 peers; do not install a different React copy for this helper.
 GitHub tags with checked-in distributions are the publication owner, not a
 private registry. The state-display component renders DOM elements and is for
