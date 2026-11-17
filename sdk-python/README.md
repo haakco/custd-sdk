@@ -186,7 +186,9 @@ and `list_search_inspections` run Search Console URL Inspection. A Site's
 brands, competitors and markets are `get_project_context` /
 `set_project_context`. Client reporting: `get_report`, `get_uptime_history`,
 `get_lighthouse_history` and `list_report_shares` / `create_report_share` /
-`revoke_report_share`. An unmeasured value (a score, `position`,
+`revoke_report_share`. IndexNow: `enable_indexnow` names the key file to host,
+`verify_indexnow` checks it, `submit_indexnow` queues URLs, and
+`get_indexnow` / `disable_indexnow` read or turn it off. An unmeasured value (a score, `position`,
 `upPercent`, `fleschReadingEase`) is absent from the dict, never 0.
 
 ## Dev smoke test

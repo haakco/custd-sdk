@@ -5,6 +5,9 @@
 // a site-bound credential (site_domains.manage) reaches its own Site only.
 
 import type {
+  IndexNowState,
+  IndexNowSubmission,
+  IndexNowSubmissionRequest,
   SiteLighthouseHistory,
   SitePageCheckRequest,
   SitePageCheckResponse,
@@ -622,6 +625,38 @@ export class SiteDomainAdminClient {
     return this.send("DELETE", path, {}, undefined, options);
   }
 
+  /** Reads the domain's IndexNow setup, today's use and its recent submissions. */
+  getIndexNow(domainUuid: string, options?: SiteDomainRequestOptions): Promise<IndexNowState> {
+    return this.send("GET", indexNowPath(domainUuid), {}, undefined, options);
+  }
+
+  /** Enables IndexNow and returns the key to host at keyLocation. An unverified domain is refused with SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE. */
+  enableIndexNow(domainUuid: string, options?: SiteDomainRequestOptions): Promise<IndexNowState> {
+    return this.send("PUT", indexNowPath(domainUuid), {}, undefined, options);
+  }
+
+  /** Disables IndexNow for the domain. */
+  disableIndexNow(domainUuid: string, options?: SiteDomainRequestOptions): Promise<void> {
+    return this.send("DELETE", indexNowPath(domainUuid), {}, undefined, options);
+  }
+
+  /** Checks the hosted key file now. A failed check is not an error: it comes back in lastCheckFailure. */
+  verifyIndexNowKey(domainUuid: string, options?: SiteDomainRequestOptions): Promise<IndexNowState> {
+    return this.send("POST", `${indexNowPath(domainUuid)}/verify`, {}, undefined, options);
+  }
+
+  /**
+   * Queues URLs for IndexNow (202). Refusals carry SITE_INDEXNOW_NOT_ENABLED_CODE,
+   * SITE_INDEXNOW_KEY_UNVERIFIED_CODE, SITE_INDEXNOW_URLS_INVALID_CODE or SITE_INDEXNOW_LIMIT_CODE.
+   */
+  submitIndexNow(
+    domainUuid: string,
+    body: IndexNowSubmissionRequest,
+    options?: SiteDomainRequestOptions,
+  ): Promise<IndexNowSubmission> {
+    return this.send("POST", `${indexNowPath(domainUuid)}/submissions`, {}, { urls: body.urls }, options);
+  }
+
   private send<T>(
     method: string,
     path: string,
@@ -641,6 +676,10 @@ export class SiteDomainAdminClient {
 
 function domainPath(domainUuid: string): string {
   return `${siteDomainsPath}/${encodeURIComponent(domainUuid)}`;
+}
+
+function indexNowPath(domainUuid: string): string {
+  return `${domainPath(domainUuid)}/indexnow`;
 }
 
 function searchConnectionPath(domainUuid: string, provider: SiteSearchProvider): string {

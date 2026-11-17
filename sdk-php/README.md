@@ -271,6 +271,12 @@ a Site's brands, competitors and markets. Missing measurements decode as
 `null`, never `0`. Refusals carry `SiteDomainClient::PAGE_NOT_ON_DOMAIN_CODE`,
 `PAGE_RECHECK_LIMIT_CODE` and the `SEARCH_INSPECTION_*_CODE` constants.
 
+`enableIndexNow()` returns the key file to serve; `verifyIndexNow()` checks it
+(a failed check is `lastCheckFailure`, not an error), `submitIndexNow()` queues
+changed URLs, `getIndexNow()` shows daily use and submissions, and
+`disableIndexNow()` turns it off. Refusals carry the `INDEXNOW_*_CODE`
+constants.
+
 ### A credential for one site (WordPress plugin, hosting environment)
 
 A server that already holds a producer-provisioning credential (a broker) mints

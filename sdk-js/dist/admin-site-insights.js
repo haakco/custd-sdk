@@ -29,3 +29,20 @@ export const SitePageRecheckState = {
     Checked: "checked",
     Failed: "failed",
 };
+/** A 409 on enableIndexNow: verify the domain first. */
+export const SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE = "site_indexnow_domain_unverified";
+/** A 409 on verifyIndexNowKey or submitIndexNow: enable IndexNow for the domain first. */
+export const SITE_INDEXNOW_NOT_ENABLED_CODE = "site_indexnow_not_enabled";
+/** A 409 on submitIndexNow: host the key file and verify it first. */
+export const SITE_INDEXNOW_KEY_UNVERIFIED_CODE = "site_indexnow_key_unverified";
+/** A 400 on submitIndexNow: urls must be 1 to 100 distinct http(s) URLs on the domain's host. */
+export const SITE_INDEXNOW_URLS_INVALID_CODE = "site_indexnow_urls_invalid";
+/** A 429 on submitIndexNow: the tenant's daily IndexNow URLs are used up. */
+export const SITE_INDEXNOW_LIMIT_CODE = "site_indexnow_limit";
+/** An IndexNow submission's status; newer statuses may appear. */
+export const IndexNowSubmissionStatus = {
+    Queued: "queued",
+    Accepted: "accepted",
+    Rejected: "rejected",
+    Failed: "failed",
+};

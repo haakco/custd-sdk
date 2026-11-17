@@ -25,7 +25,7 @@ export { PredictionAdminClient, } from "./admin-predictions.js";
 export { PrivacyErasureClient, PrivacyErasureError, } from "./admin-privacy-erasures.js";
 export { RetentionClient, } from "./admin-retention.js";
 export { SITE_DOMAIN_NOT_VERIFIED_CODE, SITE_SEARCH_CONNECTION_NOT_FOUND_CODE, SITE_SEARCH_NOT_CONFIGURED_CODE, SiteDomainAdminClient, SiteRule, } from "./admin-site-domains.js";
-export { SITE_PAGE_NOT_ON_DOMAIN_CODE, SITE_PAGE_RECHECK_LIMIT_CODE, SITE_SEARCH_INSPECTION_LIMIT_CODE, SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE, SITE_SEARCH_INSPECTION_URL_INVALID_CODE, SiteGeneratedFormat, SitePageRecheckState, SiteRemedyKind, } from "./admin-site-insights.js";
+export { IndexNowSubmissionStatus, SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE, SITE_INDEXNOW_KEY_UNVERIFIED_CODE, SITE_INDEXNOW_LIMIT_CODE, SITE_INDEXNOW_NOT_ENABLED_CODE, SITE_INDEXNOW_URLS_INVALID_CODE, SITE_PAGE_NOT_ON_DOMAIN_CODE, SITE_PAGE_RECHECK_LIMIT_CODE, SITE_SEARCH_INSPECTION_LIMIT_CODE, SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE, SITE_SEARCH_INSPECTION_URL_INVALID_CODE, SiteGeneratedFormat, SitePageRecheckState, SiteRemedyKind, } from "./admin-site-insights.js";
 export { SubjectExportClient, } from "./admin-subject-exports.js";
 export { TenantStorageClient, } from "./admin-tenant-storage.js";
 export { TimePlanAdminClient, validateTimePlanDefinition, } from "./admin-timeplans.js";

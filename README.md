@@ -633,6 +633,7 @@ cap. Clients must treat export bytes as opaque and must not log audit details.
 | Site client report, uptime/Lighthouse history and report shares | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Site page tools: finding remedies, page facts, page rechecks, draft checks, robots tester | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Site search rows, URL Inspection and project context (brands, competitors, markets) | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
+| Site IndexNow key, verification and URL submissions | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Tenant usage report | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Analytics event range query | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Typed time-plan admin clients | yes | yes | yes | yes | via PHP SDK | via PHP SDK |

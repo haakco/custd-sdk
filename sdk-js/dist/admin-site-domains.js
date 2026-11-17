@@ -255,6 +255,29 @@ export class SiteDomainAdminClient {
         const path = `${domainPath(domainUuid)}/report-shares/${encodeURIComponent(shareUuid)}`;
         return this.send("DELETE", path, {}, undefined, options);
     }
+    /** Reads the domain's IndexNow setup, today's use and its recent submissions. */
+    getIndexNow(domainUuid, options) {
+        return this.send("GET", indexNowPath(domainUuid), {}, undefined, options);
+    }
+    /** Enables IndexNow and returns the key to host at keyLocation. An unverified domain is refused with SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE. */
+    enableIndexNow(domainUuid, options) {
+        return this.send("PUT", indexNowPath(domainUuid), {}, undefined, options);
+    }
+    /** Disables IndexNow for the domain. */
+    disableIndexNow(domainUuid, options) {
+        return this.send("DELETE", indexNowPath(domainUuid), {}, undefined, options);
+    }
+    /** Checks the hosted key file now. A failed check is not an error: it comes back in lastCheckFailure. */
+    verifyIndexNowKey(domainUuid, options) {
+        return this.send("POST", `${indexNowPath(domainUuid)}/verify`, {}, undefined, options);
+    }
+    /**
+     * Queues URLs for IndexNow (202). Refusals carry SITE_INDEXNOW_NOT_ENABLED_CODE,
+     * SITE_INDEXNOW_KEY_UNVERIFIED_CODE, SITE_INDEXNOW_URLS_INVALID_CODE or SITE_INDEXNOW_LIMIT_CODE.
+     */
+    submitIndexNow(domainUuid, body, options) {
+        return this.send("POST", `${indexNowPath(domainUuid)}/submissions`, {}, { urls: body.urls }, options);
+    }
     send(method, path, query, body, options) {
         const { companySlug, ...requestOptions } = options ?? {};
         const params = new URLSearchParams();
@@ -268,6 +291,9 @@ export class SiteDomainAdminClient {
 }
 function domainPath(domainUuid) {
     return `${siteDomainsPath}/${encodeURIComponent(domainUuid)}`;
+}
+function indexNowPath(domainUuid) {
+    return `${domainPath(domainUuid)}/indexnow`;
 }
 function searchConnectionPath(domainUuid, provider) {
     return `${domainPath(domainUuid)}/search/${encodeURIComponent(provider)}`;

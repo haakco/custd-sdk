@@ -55,6 +55,14 @@ SITE_SEARCH_INSPECTION_QUEUED: SiteSearchInspectionStatus = "queued"
 SITE_SEARCH_INSPECTION_DONE: SiteSearchInspectionStatus = "done"
 SITE_SEARCH_INSPECTION_FAILED: SiteSearchInspectionStatus = "failed"
 
+# SiteIndexNowStatus: queued until the scheduler submits it; then IndexNow accepted or rejected
+# it, or it failed after its retries.
+SiteIndexNowStatus = Literal["queued", "accepted", "rejected", "failed"]
+SITE_INDEXNOW_QUEUED: SiteIndexNowStatus = "queued"
+SITE_INDEXNOW_ACCEPTED: SiteIndexNowStatus = "accepted"
+SITE_INDEXNOW_REJECTED: SiteIndexNowStatus = "rejected"
+SITE_INDEXNOW_FAILED: SiteIndexNowStatus = "failed"
+
 SiteLighthouseProfile = Literal["desktop", "mobile"]
 SiteLighthouseOutcome = Literal["success", "failed"]
 
@@ -437,3 +445,37 @@ class SiteReportShareCreated(TypedDict):
     share: SiteReportShare
     token: str
 
+
+
+class SiteIndexNowSubmission(TypedDict):
+    """One batch of URLs sent to IndexNow.
+
+    ``providerStatus`` is IndexNow's HTTP status (202 means received while the key is validated)
+    and ``submittedAt`` when it was sent; both are absent while queued.
+    """
+
+    submissionUuid: str
+    status: SiteIndexNowStatus
+    urls: list[str]
+    requestedAt: str
+    providerStatus: NotRequired[int]
+    failure: NotRequired[str]
+    submittedAt: NotRequired[str]
+
+
+class SiteIndexNowState(TypedDict):
+    """A domain's IndexNow key, its verification and recent submissions.
+
+    Serve a text file at ``keyLocation`` that holds only ``key``; both are absent while disabled.
+    ``urlsToday`` counts the tenant's URLs in the last 24 hours against ``dailyUrlLimit``.
+    """
+
+    enabled: bool
+    verified: bool
+    dailyUrlLimit: int
+    urlsToday: int
+    submissions: list[SiteIndexNowSubmission]
+    key: NotRequired[str]
+    keyLocation: NotRequired[str]
+    verifiedAt: NotRequired[str]
+    lastCheckFailure: NotRequired[str]

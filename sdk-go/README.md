@@ -225,6 +225,9 @@ position 5 to 20 (`days` 0 means 28).
 `RequestSearchInspection` queues a Search Console URL Inspection (202) and
 `ListSearchInspections` returns the results and the tenant's daily use; refusals
 carry the `SiteSearchInspection*Code` constants.
+`GetIndexNow`, `EnableIndexNow` (returns the key to host), `VerifyIndexNowKey`,
+`DisableIndexNow` and `SubmitIndexNow` (202) push changed URLs to IndexNow;
+refusals carry the `SiteIndexNow*Code` constants.
 
 Each finding carries a `Remedy`: what the fix changes (`Kind`, `Element`) and,
 for some rules, `Generated` code to copy. The page tools work on one page:

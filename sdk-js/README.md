@@ -426,7 +426,9 @@ report a dimension) and Search Console URL inspection
 (`requestSearchInspection`, `listSearchInspections`). `getProjectContext` /
 `setProjectContext` keep a Site's brands, competitors and markets. The client
 report reads are `getReport`, `getUptimeHistory`, `getLighthouseHistory` and
-`listReportShares` / `createReportShare` / `revokeReportShare`. A measurement
+`listReportShares` / `createReportShare` / `revokeReportShare`. IndexNow is
+`getIndexNow`, `enableIndexNow`, `verifyIndexNowKey`, `submitIndexNow` and
+`disableIndexNow`, with `SITE_INDEXNOW_*_CODE` refusals. A measurement
 Custd did not take is absent, never `0`.
 
 ## Schema Admin Helpers

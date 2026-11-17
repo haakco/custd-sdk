@@ -293,6 +293,15 @@ export {
   type SiteWarming,
 } from "./admin-site-domains.js";
 export {
+  type IndexNowState,
+  type IndexNowSubmission,
+  type IndexNowSubmissionRequest,
+  IndexNowSubmissionStatus,
+  SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE,
+  SITE_INDEXNOW_KEY_UNVERIFIED_CODE,
+  SITE_INDEXNOW_LIMIT_CODE,
+  SITE_INDEXNOW_NOT_ENABLED_CODE,
+  SITE_INDEXNOW_URLS_INVALID_CODE,
   SITE_PAGE_NOT_ON_DOMAIN_CODE,
   SITE_PAGE_RECHECK_LIMIT_CODE,
   SITE_SEARCH_INSPECTION_LIMIT_CODE,

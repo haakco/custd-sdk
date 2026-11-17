@@ -15,6 +15,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from custd import (
     SITE_DOMAIN_NOT_VERIFIED_CODE,
     SITE_GENERATED_FORMAT_HTML,
+    SITE_INDEXNOW_ACCEPTED,
+    SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE,
+    SITE_INDEXNOW_FAILED,
+    SITE_INDEXNOW_KEY_UNVERIFIED_CODE,
+    SITE_INDEXNOW_LIMIT_CODE,
+    SITE_INDEXNOW_NOT_ENABLED_CODE,
+    SITE_INDEXNOW_QUEUED,
+    SITE_INDEXNOW_URLS_INVALID_CODE,
     SITE_PAGE_NOT_ON_DOMAIN_CODE,
     SITE_PAGE_RECHECK_CHECKED,
     SITE_PAGE_RECHECK_LIMIT_CODE,
@@ -35,6 +43,7 @@ from custd import (
 CONTRACT_FIXTURES = Path(__file__).resolve().parents[2] / "contract-fixtures"
 FIXTURES = json.loads((CONTRACT_FIXTURES / "site-insights.json").read_text())
 PAGE_TOOLS = json.loads((CONTRACT_FIXTURES / "site-page-tools.json").read_text())
+INDEXNOW = json.loads((CONTRACT_FIXTURES / "site-indexnow.json").read_text())
 REPORTING = json.loads((CONTRACT_FIXTURES / "site-insights-reporting.json").read_text())
 BASE = "http://localhost:8080/api/v1/site-domains"
 DOMAIN = "0198a3b2-0000-7000-8000-000000000001"
@@ -471,6 +480,74 @@ class SiteReportingTest(unittest.TestCase):
         self.assertEqual("share-1", domains.list_report_shares(DOMAIN)["shares"][0]["shareUuid"])
         domains, _ = site_domains(200, REPORTING["created"])
         self.assertEqual("test-only-share-token", domains.create_report_share(DOMAIN)["token"])
+
+
+class SiteIndexNowTest(unittest.TestCase):
+    def test_indexnow_sends_its_routes_and_bodies(self) -> None:
+        domains, transport = site_domains(200, INDEXNOW["verified"])
+
+        domains.get_indexnow(DOMAIN, company_slug="acme")
+        domains.enable_indexnow(DOMAIN)
+        domains.verify_indexnow(DOMAIN)
+        domains.submit_indexnow(DOMAIN, tuple(INDEXNOW["submissionRequest"]["urls"]))
+
+        self.assertEqual(
+            [
+                ("GET", f"{BASE}/{DOMAIN}/indexnow?companySlug=acme", None),
+                ("PUT", f"{BASE}/{DOMAIN}/indexnow", None),
+                ("POST", f"{BASE}/{DOMAIN}/indexnow/verify", None),
+                ("POST", f"{BASE}/{DOMAIN}/indexnow/submissions", INDEXNOW["submissionRequest"]),
+            ],
+            transport.calls,
+        )
+
+        domains, transport = site_domains(204, None)
+        self.assertIsNone(domains.disable_indexnow(DOMAIN))
+        self.assertEqual(("DELETE", f"{BASE}/{DOMAIN}/indexnow", None), transport.calls[0])
+
+    def test_decodes_indexnow_states_with_absent_fields(self) -> None:
+        domains, _ = site_domains(200, INDEXNOW["disabled"])
+        disabled = domains.get_indexnow(DOMAIN)
+        self.assertFalse(disabled["enabled"])
+        for absent in ("key", "keyLocation", "verifiedAt", "lastCheckFailure"):
+            self.assertNotIn(absent, disabled)
+        self.assertEqual((1000, 0, []), (disabled["dailyUrlLimit"], disabled["urlsToday"], disabled["submissions"]))
+
+        domains, _ = site_domains(200, INDEXNOW["enabledUnverified"])
+        unverified = domains.verify_indexnow(DOMAIN)
+        self.assertFalse(unverified["verified"])
+        self.assertEqual("the key file answered HTTP 404", unverified["lastCheckFailure"])
+        self.assertTrue(unverified["keyLocation"].endswith(unverified["key"] + ".txt"))
+
+        domains, _ = site_domains(200, INDEXNOW["verified"])
+        verified = domains.get_indexnow(DOMAIN)
+        self.assertEqual("2026-11-17T07:00:00Z", verified["verifiedAt"])
+        queued, accepted, failed = verified["submissions"]
+        self.assertEqual(SITE_INDEXNOW_QUEUED, queued["status"])
+        self.assertNotIn("providerStatus", queued)
+        self.assertNotIn("submittedAt", queued)
+        self.assertEqual((SITE_INDEXNOW_ACCEPTED, 202), (accepted["status"], accepted["providerStatus"]))
+        self.assertEqual(SITE_INDEXNOW_FAILED, failed["status"])
+        self.assertNotIn("providerStatus", failed)
+
+        domains, _ = site_domains(202, INDEXNOW["submissionQueued"])
+        submission = domains.submit_indexnow(DOMAIN, ["https://example.com/plans"])
+        self.assertEqual(2, len(submission["urls"]))
+        self.assertNotIn("failure", submission)
+
+    def test_indexnow_problem_codes_reach_the_caller(self) -> None:
+        cases = [
+            (409, "domainUnverifiedProblem", SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE),
+            (409, "notEnabledProblem", SITE_INDEXNOW_NOT_ENABLED_CODE),
+            (409, "keyUnverifiedProblem", SITE_INDEXNOW_KEY_UNVERIFIED_CODE),
+            (400, "urlsInvalidProblem", SITE_INDEXNOW_URLS_INVALID_CODE),
+            (429, "limitProblem", SITE_INDEXNOW_LIMIT_CODE),
+        ]
+        for status, fixture, code in cases:
+            domains, _ = site_domains(status, INDEXNOW[fixture])
+            with self.assertRaises(RequestError) as raised:
+                domains.submit_indexnow(DOMAIN, ["https://example.com/"])
+            self.assertEqual((status, code), (raised.exception.status, raised.exception.code))
 
 
 class SiteRuleIdsTest(unittest.TestCase):

@@ -1,4 +1,4 @@
-import type { SiteLighthouseHistory, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory } from "./admin-site-insights.js";
+import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory } from "./admin-site-insights.js";
 import type { RequestOptions } from "./index.js";
 /** A 409 on requestAudit: the tenant has not proven control of the domain yet. */
 export declare const SITE_DOMAIN_NOT_VERIFIED_CODE = "site_domain_not_verified";
@@ -379,6 +379,19 @@ export declare class SiteDomainAdminClient {
     createReportShare(domainUuid: string, body?: SiteReportShareRequest, options?: SiteDomainRequestOptions): Promise<SiteReportShareCreated>;
     /** Revokes a share; later public reads fail. */
     revokeReportShare(domainUuid: string, shareUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Reads the domain's IndexNow setup, today's use and its recent submissions. */
+    getIndexNow(domainUuid: string, options?: SiteDomainRequestOptions): Promise<IndexNowState>;
+    /** Enables IndexNow and returns the key to host at keyLocation. An unverified domain is refused with SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE. */
+    enableIndexNow(domainUuid: string, options?: SiteDomainRequestOptions): Promise<IndexNowState>;
+    /** Disables IndexNow for the domain. */
+    disableIndexNow(domainUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Checks the hosted key file now. A failed check is not an error: it comes back in lastCheckFailure. */
+    verifyIndexNowKey(domainUuid: string, options?: SiteDomainRequestOptions): Promise<IndexNowState>;
+    /**
+     * Queues URLs for IndexNow (202). Refusals carry SITE_INDEXNOW_NOT_ENABLED_CODE,
+     * SITE_INDEXNOW_KEY_UNVERIFIED_CODE, SITE_INDEXNOW_URLS_INVALID_CODE or SITE_INDEXNOW_LIMIT_CODE.
+     */
+    submitIndexNow(domainUuid: string, body: IndexNowSubmissionRequest, options?: SiteDomainRequestOptions): Promise<IndexNowSubmission>;
     private send;
 }
 export {};

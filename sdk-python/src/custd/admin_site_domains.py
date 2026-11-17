@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import json
 import urllib.parse
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, Literal, NotRequired, TypedDict, cast
 
 from .admin_site_insights import (
+    SiteIndexNowState,
+    SiteIndexNowSubmission,
     SiteLighthouseHistory,
     SitePageCheckResponse,
     SitePageFacts,
@@ -54,6 +56,16 @@ SITE_SEARCH_INSPECTION_URL_INVALID_CODE = "site_search_inspection_url_invalid"
 SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE = "site_search_inspection_not_connected"
 # A 429 on request_search_inspection: the tenant has used its daily URL inspections.
 SITE_SEARCH_INSPECTION_LIMIT_CODE = "site_search_inspection_limit"
+# A 409 on enable_indexnow: the domain is not verified.
+SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE = "site_indexnow_domain_unverified"
+# A 409 on verify_indexnow or submit_indexnow: IndexNow is not enabled for the domain.
+SITE_INDEXNOW_NOT_ENABLED_CODE = "site_indexnow_not_enabled"
+# A 409 on submit_indexnow: the key file is not yet verified.
+SITE_INDEXNOW_KEY_UNVERIFIED_CODE = "site_indexnow_key_unverified"
+# A 400 on submit_indexnow: urls must be 1 to 100 distinct http(s) URLs on the domain's host.
+SITE_INDEXNOW_URLS_INVALID_CODE = "site_indexnow_urls_invalid"
+# A 429 on submit_indexnow: the tenant has used its daily IndexNow URLs.
+SITE_INDEXNOW_LIMIT_CODE = "site_indexnow_limit"
 
 # SiteFindingState selects which findings list_findings returns; the server defaults to open.
 SiteFindingState = Literal["open", "fixed", "all"]
@@ -804,6 +816,30 @@ class SiteDomainAdminClient:
         path = _domain_path(domain_uuid) + "/report-shares/" + quote_path(share_uuid)
         self._request("DELETE", path, {}, company_slug)
 
+    def get_indexnow(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteIndexNowState:
+        """Return the domain's IndexNow key, verification and recent submissions."""
+        return cast(SiteIndexNowState, self._request("GET", _indexnow_path(domain_uuid), {}, company_slug))
+
+    def enable_indexnow(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteIndexNowState:
+        """Enable IndexNow for a verified domain; the result names the key file to host."""
+        return cast(SiteIndexNowState, self._request("PUT", _indexnow_path(domain_uuid), {}, company_slug))
+
+    def disable_indexnow(self, domain_uuid: str, *, company_slug: str | None = None) -> None:
+        """Disable IndexNow for the domain."""
+        self._request("DELETE", _indexnow_path(domain_uuid), {}, company_slug)
+
+    def verify_indexnow(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteIndexNowState:
+        """Check the hosted key file now; a failed check returns with ``lastCheckFailure`` set."""
+        path = _indexnow_path(domain_uuid) + "/verify"
+        return cast(SiteIndexNowState, self._request("POST", path, {}, company_slug))
+
+    def submit_indexnow(
+        self, domain_uuid: str, urls: Sequence[str], *, company_slug: str | None = None
+    ) -> SiteIndexNowSubmission:
+        """Queue 1 to 100 URLs on the domain's host for IndexNow (202)."""
+        path = _indexnow_path(domain_uuid) + "/submissions"
+        return cast(SiteIndexNowSubmission, self._request("POST", path, {}, company_slug, {"urls": list(urls)}))
+
     def _request(
         self,
         method: str,
@@ -837,3 +873,7 @@ def _domain_path(domain_uuid: str) -> str:
 
 def _search_connection_path(domain_uuid: str, provider: SiteSearchProvider) -> str:
     return _domain_path(domain_uuid) + "/search/" + quote_path(provider)
+
+
+def _indexnow_path(domain_uuid: str) -> str:
+    return _domain_path(domain_uuid) + "/indexnow"

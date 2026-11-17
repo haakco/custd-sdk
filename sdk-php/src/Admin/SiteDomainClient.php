@@ -12,6 +12,8 @@ use HaakCo\Custd\Admin\SiteDomain\SiteDomainList;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingList;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingState;
 use HaakCo\Custd\Admin\SiteDomain\SiteIncidentList;
+use HaakCo\Custd\Admin\SiteDomain\SiteIndexNowState;
+use HaakCo\Custd\Admin\SiteDomain\SiteIndexNowSubmission;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchAccount;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchConnection;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchPerformance;
@@ -69,6 +71,21 @@ final class SiteDomainClient
 
     /** The problem code of the 429 returned once the tenant's daily URL inspections are used up. */
     public const SEARCH_INSPECTION_LIMIT_CODE = 'site_search_inspection_limit';
+
+    /** The problem code of the 409 returned when enabling IndexNow on an unverified domain. */
+    public const INDEXNOW_DOMAIN_UNVERIFIED_CODE = 'site_indexnow_domain_unverified';
+
+    /** The problem code of the 409 returned when verifying or submitting before IndexNow is enabled. */
+    public const INDEXNOW_NOT_ENABLED_CODE = 'site_indexnow_not_enabled';
+
+    /** The problem code of the 409 returned when submitting before the key file is verified. */
+    public const INDEXNOW_KEY_UNVERIFIED_CODE = 'site_indexnow_key_unverified';
+
+    /** The problem code of the 400 returned unless urls are 1 to 100 distinct http(s) URLs on the domain's host. */
+    public const INDEXNOW_URLS_INVALID_CODE = 'site_indexnow_urls_invalid';
+
+    /** The problem code of the 429 returned once the tenant's daily IndexNow URLs are used up. */
+    public const INDEXNOW_LIMIT_CODE = 'site_indexnow_limit';
 
     private const PREFIX = '/api/v1';
     private const COLLECTION = '/site-domains';
@@ -401,6 +418,60 @@ final class SiteDomainClient
         ));
     }
 
+    /** Read a domain's IndexNow setup, daily URL use and latest submissions. */
+    public function getIndexNow(string $domainUuid, ?string $companySlug = null): SiteIndexNowState
+    {
+        return SiteIndexNowState::fromPayload($this->send('GET', self::indexNow($domainUuid), [], $companySlug));
+    }
+
+    /**
+     * Enable IndexNow on a verified domain. Serve the returned key at keyLocation, then call
+     * verifyIndexNow(). An unverified domain throws {@see self::INDEXNOW_DOMAIN_UNVERIFIED_CODE}.
+     */
+    public function enableIndexNow(string $domainUuid, ?string $companySlug = null): SiteIndexNowState
+    {
+        return SiteIndexNowState::fromPayload($this->send('PUT', self::indexNow($domainUuid), [], $companySlug));
+    }
+
+    /** Disable IndexNow and forget the key. The route returns 204 No Content. */
+    public function disableIndexNow(string $domainUuid, ?string $companySlug = null): void
+    {
+        Http::request(
+            $this->baseUrl,
+            $this->token,
+            $this->transport,
+            'DELETE',
+            self::withQuery(self::indexNow($domainUuid), [], $companySlug),
+            null,
+            self::PREFIX
+        );
+    }
+
+    /** Check the key file now. A failed check is not an error: it comes back in lastCheckFailure. */
+    public function verifyIndexNow(string $domainUuid, ?string $companySlug = null): SiteIndexNowState
+    {
+        return SiteIndexNowState::fromPayload(
+            $this->send('POST', self::indexNow($domainUuid) . '/verify', [], $companySlug)
+        );
+    }
+
+    /**
+     * Queue 1 to 100 changed URLs on the domain's host for IndexNow (202). Accepted means IndexNow
+     * received them, not that they are indexed.
+     *
+     * @param list<string> $urls
+     */
+    public function submitIndexNow(string $domainUuid, array $urls, ?string $companySlug = null): SiteIndexNowSubmission
+    {
+        return SiteIndexNowSubmission::fromPayload($this->send(
+            'POST',
+            self::indexNow($domainUuid) . '/submissions',
+            [],
+            $companySlug,
+            ['urls' => $urls]
+        ));
+    }
+
     /** Read the complete client report without exposing private verification or connection details. */
     public function getReport(string $domainUuid, ?string $companySlug = null): SiteReport
     {
@@ -477,6 +548,11 @@ final class SiteDomainClient
     private static function item(string $domainUuid): string
     {
         return self::COLLECTION . '/' . rawurlencode($domainUuid);
+    }
+
+    private static function indexNow(string $domainUuid): string
+    {
+        return self::item($domainUuid) . '/indexnow';
     }
 
     private static function searchConnection(string $domainUuid, SiteSearchProvider $provider): string
