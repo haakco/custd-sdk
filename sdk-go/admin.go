@@ -640,6 +640,7 @@ func (c *AdminClient) requestNonAdmin(ctx context.Context, method string, path s
 		if err != nil {
 			return fmt.Errorf("custd: non-admin request failed: %w", err)
 		}
+		recordMetadata(ctx, responseHeader(resp.Headers, requestIDHeader))
 		if err := c.client.checkStatus(resp.StatusCode, resp.Body); err != nil {
 			return err
 		}
@@ -660,6 +661,7 @@ func (c *AdminClient) requestNonAdmin(ctx context.Context, method string, path s
 	if bodyErr != nil {
 		return fmt.Errorf("custd: read response: %w", bodyErr)
 	}
+	recordMetadata(ctx, resp.Header.Get(requestIDHeader))
 	if err := c.client.checkStatus(resp.StatusCode, respBody); err != nil {
 		return err
 	}
