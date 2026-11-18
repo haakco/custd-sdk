@@ -10,10 +10,11 @@ const MAX_RETRY_MS = 30000;
 /** The server refused the hello or the frame: retrying cannot help until the page reloads. */
 const CLOSE_REFUSED = 1008;
 export class AppPushChannel {
-    constructor(url, siteKey, createSocket) {
+    constructor(url, siteKey, createSocket, random = Math.random) {
         this.url = url;
         this.siteKey = siteKey;
         this.createSocket = createSocket;
+        this.random = random;
         this.entries = new Map();
         this.ready = false;
         this.refused = false;
@@ -134,7 +135,9 @@ export class AppPushChannel {
     scheduleReconnect() {
         if (this.entries.size === 0 || this.retryTimer)
             return;
-        const delay = Math.min(MIN_RETRY_MS * 2 ** this.retries, MAX_RETRY_MS);
+        // Full jitter, between 0 and the capped exponential delay, so clients dropped together do
+        // not return together.
+        const delay = Math.floor(this.random() * Math.min(MIN_RETRY_MS * 2 ** this.retries, MAX_RETRY_MS));
         this.retries += 1;
         this.retryTimer = setTimeout(() => {
             this.retryTimer = undefined;

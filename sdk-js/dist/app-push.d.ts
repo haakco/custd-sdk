@@ -32,6 +32,7 @@ export declare class AppPushChannel {
     private readonly url;
     private readonly siteKey;
     private readonly createSocket;
+    private readonly random;
     private readonly entries;
     private socket;
     private ready;
@@ -39,7 +40,7 @@ export declare class AppPushChannel {
     private retries;
     private retryTimer;
     private nextName;
-    constructor(url: string, siteKey: string, createSocket: AppWebSocketFactory);
+    constructor(url: string, siteKey: string, createSocket: AppWebSocketFactory, random?: () => number);
     /** Starts pushing changes for one watched read; the returned function stops it. */
     watch(target: AppPushTarget, events: AppPushEvents): () => void;
     /**

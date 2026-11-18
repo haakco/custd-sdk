@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type AppItemRead, AppItemsClient } from "./app-items";
 import { APP_LIVE_STATUSES, type AppLiveState } from "./app-live";
-import type { AppWebSocket } from "./app-push";
+import { AppPushChannel, type AppWebSocket } from "./app-push";
 
 const API = "https://api.custd.com";
 const SITE_KEY = `site_pk_${"a".repeat(32)}`;
@@ -202,5 +202,33 @@ describe("pushed item changes", () => {
     stop();
     expect(socket.sent[socket.sent.length - 1]).toMatchObject({ type: "unsubscribe" });
     expect(socket.readyState).toBe(3);
+  });
+
+  it("waits a random part of the capped backoff before each reconnect", async () => {
+    const channel = new AppPushChannel(
+      "wss://api.custd.com/api/v1/realtime",
+      SITE_KEY,
+      (url) => {
+        const socket = new FakeSocket(url);
+        sockets.push(socket);
+        return socket;
+      },
+      () => 0.5,
+    );
+    const stop = channel.watch(
+      { linkToken: SHARE, userToken: () => undefined },
+      { changed: () => {}, pushed: () => {} },
+    );
+    (sockets[0] as FakeSocket).drop(1006);
+    await vi.advanceTimersByTimeAsync(499);
+    expect(sockets).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sockets).toHaveLength(2);
+    (sockets[1] as FakeSocket).drop(1006);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(sockets).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sockets).toHaveLength(3);
+    stop();
   });
 });

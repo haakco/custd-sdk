@@ -56,6 +56,7 @@ export class AppPushChannel {
     private readonly url: string,
     private readonly siteKey: string,
     private readonly createSocket: AppWebSocketFactory,
+    private readonly random: () => number = Math.random,
   ) {}
 
   /** Starts pushing changes for one watched read; the returned function stops it. */
@@ -161,7 +162,9 @@ export class AppPushChannel {
 
   private scheduleReconnect(): void {
     if (this.entries.size === 0 || this.retryTimer) return;
-    const delay = Math.min(MIN_RETRY_MS * 2 ** this.retries, MAX_RETRY_MS);
+    // Full jitter, between 0 and the capped exponential delay, so clients dropped together do
+    // not return together.
+    const delay = Math.floor(this.random() * Math.min(MIN_RETRY_MS * 2 ** this.retries, MAX_RETRY_MS));
     this.retries += 1;
     this.retryTimer = setTimeout(() => {
       this.retryTimer = undefined;
