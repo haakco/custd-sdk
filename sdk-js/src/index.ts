@@ -394,6 +394,18 @@ export {
   type SiteReferringDomains,
 } from "./admin-site-links.js";
 export {
+  SITE_NEXT_ACTIONS_MAX,
+  type SiteFindingCounts,
+  type SiteNextAction,
+  SiteNextActionKind,
+  SiteNextActionPlace,
+  type SiteNextActions,
+  type SiteNextActionTarget,
+  SiteNotChecked,
+  type SitePortfolioDomain,
+  type SitePortfolioSummary,
+} from "./admin-site-next-actions.js";
+export {
   SITE_RANKINGS_DAYS_INVALID_CODE,
   SITE_RANKINGS_DEFAULT_DAYS,
   SITE_RANKINGS_MAX_DAYS,
@@ -897,7 +909,8 @@ export type ProducerProvisionCreate = {
     | "managed-audit-reporting-read"
     | "managed-audit-reporting-subject-insight"
     | "managed-audit-event-read"
-    | "site-insights";
+    | "site-insights"
+    | "site-insights-read";
   metadata?: Record<string, string>;
 };
 

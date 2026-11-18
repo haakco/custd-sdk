@@ -223,7 +223,13 @@ adds `slug`, `redirect` and `phrase`, page facts carry `shareImage` and
 (`sharedPercent` absent when not compared). Campaign links:
 `list_campaign_links(domain, include_archived)`, `create_campaign_link` and
 `archive_campaign_link` (409 `SITE_CAMPAIGN_LINK_TAKEN_CODE` or
-`SITE_CAMPAIGN_LINK_LIMIT_CODE`). Older servers (the Custd that SDK 3.46.0 targeted) send no report `template` (the default is full) and
+`SITE_CAMPAIGN_LINK_LIMIT_CODE`). Next actions: `get_next_actions(domain)`
+returns the status, one plain `headline` and the three most important actions in
+Custd's fixed order (`SITE_NEXT_ACTION_*`; show an unknown kind by its `title`
+and `why`), `get_portfolio_summary()` every domain's status and `firstAction`,
+worst first, and a report's `nextActions` are the same three;
+`SCOPE_TEMPLATE_SITE_INSIGHTS_READ` provisions a credential that reads only
+these two calls. Older servers (the Custd that SDK 3.46.0 targeted) send no report `template` (the default is full) and
 no Lighthouse `url` / `pages`; those keys are then absent.
 
 ## Dev smoke test

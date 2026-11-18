@@ -8,7 +8,9 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteReport is the client report of one domain, built from the TEMPLATE_* layout it names. template
- * is null on servers before the template field; the server's default template is full.
+ * is null on servers before the template field; the server's default template is full. nextActions
+ * are the first three of SiteNextActionClient::forDomain(), and empty in reports built or saved
+ * before servers sent them.
  */
 final readonly class SiteReport
 {
@@ -19,6 +21,7 @@ final readonly class SiteReport
 
     /**
      * @param list<SiteReportSpeed> $speed
+     * @param list<SiteNextAction> $nextActions
      */
     public function __construct(
         public string $host,
@@ -29,6 +32,7 @@ final readonly class SiteReport
         public SiteReportSearch $search,
         public SiteReportAudit $audit,
         public ?string $template = null,
+        public array $nextActions = [],
     ) {
     }
 
@@ -43,6 +47,7 @@ final readonly class SiteReport
             SiteReportSearch::fromPayload(Fields::object($payload, 'search')),
             SiteReportAudit::fromPayload(Fields::object($payload, 'audit')),
             Fields::optionalString($payload, 'template'),
+            array_map(SiteNextAction::fromPayload(...), Fields::optionalObjects($payload, 'nextActions') ?? []),
         );
     }
 }

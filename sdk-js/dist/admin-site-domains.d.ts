@@ -2,6 +2,7 @@ import type { SiteAuditDelta, SiteAuditPageList, SiteLighthousePages, SiteLighth
 import type { SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest } from "./admin-site-campaign-links.js";
 import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory, SiteWordingCompare, SiteWordingCompareRequest } from "./admin-site-insights.js";
 import type { SiteReferringDomains } from "./admin-site-links.js";
+import type { SiteNextActions, SitePortfolioSummary } from "./admin-site-next-actions.js";
 import type { SiteRankings, SiteTrackedKeyword, SiteTrackedKeywordUpdate, SiteTrackKeywordRequest } from "./admin-site-rankings.js";
 import type { SavedSiteReport, SavedSiteReportList, SavedSiteReportRequest, SiteReportRequestOptions } from "./admin-site-saved-reports.js";
 import type { SearchPoolQueryPage, SearchPoolSetting } from "./admin-site-search-pool.js";
@@ -392,6 +393,10 @@ export declare class SiteDomainAdminClient {
     getProjectContext(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteProjectContext>;
     /** Replaces a Site's project context; an omitted list is sent empty and clears it. */
     setProjectContext(body: SiteProjectContextRequest, options?: SiteDomainRequestOptions): Promise<SiteProjectContext>;
+    /** Reads the domain's status and its most important next actions, most important first. */
+    getNextActions(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteNextActions>;
+    /** Reads every domain's status, open findings and first action, worst first (only its own Site's for a site-bound credential). */
+    getPortfolioSummary(options?: SiteDomainRequestOptions): Promise<SitePortfolioSummary>;
     /** Reads the client report without private verification or connection details, in options.template over options.days. */
     getReport(domainUuid: string, options?: SiteReportRequestOptions): Promise<SiteReport>;
     /** Reads uptime windows, ninety daily bars and hourly response times over `responseDays` (1..90). */

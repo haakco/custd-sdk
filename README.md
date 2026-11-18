@@ -645,6 +645,7 @@ cap. Clients must treat export bytes as opaque and must not log audit details.
 | Site referring domains by source (Bing, Common Crawl, crawl) with authority and lost links | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Opt-in shared search pool: setting, pooled query bands and per-keyword rankings bands | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Site draft tools (slug, redirect, phrase use), wording compare and saved UTM campaign links | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
+| Site next actions, the portfolio summary and the report's next actions (`site-insights-read` template) | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Tenant usage report | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Analytics event range query | yes | yes | yes | yes | via PHP SDK | via PHP SDK |
 | Typed time-plan admin clients | yes | yes | yes | yes | via PHP SDK | via PHP SDK |

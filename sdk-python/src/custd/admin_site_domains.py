@@ -45,6 +45,7 @@ from .admin_site_insights import (
     SiteWordingCompare,
 )
 from .admin_site_links import SiteReferringDomains
+from .admin_site_next_actions import SiteNextActions, SitePortfolioSummary
 from .admin_site_rankings import SiteRankings, SiteTrackedKeyword, SiteTrackKeywordRequest
 from .admin_site_search_pool import SearchPoolQueryPage, SearchPoolSetting
 from .admin_site_search_value import SiteFindingImpact, SiteSearchValue
@@ -933,6 +934,19 @@ class SiteDomainAdminClient:
         }
         result = self._request("PUT", SITE_PROJECT_CONTEXT_PATH, query, company_slug, payload)
         return cast(SiteProjectContext, result)
+
+    def get_next_actions(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteNextActions:
+        """Return the domain's status and its most important next actions, most important first."""
+        path = _domain_path(domain_uuid) + "/next-actions"
+        return cast(SiteNextActions, self._request("GET", path, {}, company_slug))
+
+    def get_portfolio_summary(self, *, company_slug: str | None = None) -> SitePortfolioSummary:
+        """Return every domain's status, open findings and first action, worst first.
+
+        A site-bound credential gets only its own Site's domains.
+        """
+        path = SITE_DOMAINS_PATH + "/portfolio-summary"
+        return cast(SitePortfolioSummary, self._request("GET", path, {}, company_slug))
 
     def get_report(
         self,
