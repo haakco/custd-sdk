@@ -160,6 +160,7 @@ from custd import SITE_DOMAIN_NOT_VERIFIED_CODE, SITE_RULE_TITLE_MISSING, Reques
 
 domains = client.admin.site_domains
 domain = domains.create({"siteUuid": site_uuid, "host": "example.com"})
+# Or omit siteUuid: Custd places the host (SITE_CHOICE_REQUIRED_CODE when it cannot tell).
 # Publish domain["ownership"]["instructions"] (DNS TXT or well-known file), then:
 domains.verify(domain["domainUuid"])
 try:
@@ -175,10 +176,12 @@ missing_titles = [f for f in findings if f["rule"] == SITE_RULE_TITLE_MISSING]
 `SITE_RULE_*` constants (all of them in `SITE_RULE_IDS`) are the stable rule
 IDs a finding carries in `rule`; key any client-side fix on them. Each finding's
 `remedy` says what the fix changes (`kind`, `element`) and, for some rules,
-carries ready-to-copy `generated` code.
+carries ready-to-copy `generated` code; `recheckable` says a one-page recheck
+can confirm the fix.
 
-Page tools: `get_page_facts`, `request_page_recheck` / `get_page_recheck`
-(one-page rechecks, `SITE_PAGE_RECHECK_LIMIT_CODE` past the hourly allowance),
+Page tools: `get_page_facts`, `request_page_recheck` / `get_page_recheck` /
+`list_page_rechecks` (one-page rechecks, up to `SITE_PAGE_RECHECK_READ_LIMIT`
+read at once, `SITE_PAGE_RECHECK_LIMIT_CODE` past the hourly allowance),
 `check_page` (draft HTML, never stored) and `test_robots` (pasted or live
 robots.txt). Search: `list_search_rows` pages one dimension and names
 providers that cannot report it in `unavailable`; `request_search_inspection`

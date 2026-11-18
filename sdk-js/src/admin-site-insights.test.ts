@@ -6,8 +6,10 @@ import tools from "../../contract-fixtures/site-page-tools.json";
 import {
   CustdClient,
   CustdRequestError,
+  SITE_CHOICE_REQUIRED_CODE,
   SITE_PAGE_NOT_ON_DOMAIN_CODE,
   SITE_PAGE_RECHECK_LIMIT_CODE,
+  SITE_PAGE_RECHECK_READ_LIMIT,
   SITE_SEARCH_INSPECTION_LIMIT_CODE,
   SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE,
   SITE_SEARCH_INSPECTION_URL_INVALID_CODE,
@@ -104,6 +106,26 @@ describe("site insights page tools", () => {
     expect(sent[3]?.body).toEqual(tools.pageCheckRequest);
     expect(sent[4]?.body).toEqual(tools.robotsTestRequest);
     expect(sent[5]?.body).toEqual({ url: "/", userAgent: "GPTBot" });
+  });
+
+  it("reads several rechecks in one call with the ids comma-joined, and says which findings a recheck confirms", async () => {
+    const { domains, calls } = newDomains(
+      respond(200, tools.pageRecheckList),
+      respond(200, recorded.findingList),
+      respond(422, recorded.siteChoiceRequiredProblem),
+    );
+
+    const list = await domains.listPageRechecks(domainUuid, ["r-1", "r-2"]);
+    expect(list.rechecks.map((recheck) => recheck.state)).toEqual(["checked", "failed"]);
+    const findings = (await domains.listFindings(domainUuid)).findings;
+    expect(findings.map((finding) => finding.recheckable)).toEqual([true, false]);
+    const refused = await domains.create({ host: "blog.example.com" }).catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(CustdRequestError);
+    expect((refused as CustdRequestError).code).toBe(SITE_CHOICE_REQUIRED_CODE);
+    expect(SITE_PAGE_RECHECK_READ_LIMIT).toBe(30);
+    const sent = calls();
+    expect(sent[0]?.route).toBe(`GET ${item}/page-rechecks?ids=r-1%2Cr-2`);
+    expect(sent[2]?.body).toEqual({ host: "blog.example.com" });
   });
 
   it("sends the draft tools and wording compare and decodes their recorded answers", async () => {

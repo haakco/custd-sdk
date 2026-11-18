@@ -205,6 +205,10 @@ export class SiteDomainAdminClient {
         const path = `${domainPath(domainUuid)}/page-rechecks/${encodeURIComponent(recheckUuid)}`;
         return this.send("GET", path, {}, undefined, options);
     }
+    /** Reads up to SITE_PAGE_RECHECK_READ_LIMIT of the domain's rechecks at once; unknown ids are left out. */
+    listPageRechecks(domainUuid, recheckUuids, options) {
+        return this.send("GET", `${domainPath(domainUuid)}/page-rechecks`, { ids: recheckUuids.join(",") }, undefined, options);
+    }
     /** Runs the one-page checks on draft HTML, and the draft tools it asks for; nothing is fetched or stored. */
     async checkPage(domainUuid, body, options) {
         const request = { url: body.url, html: body.html };

@@ -17,6 +17,10 @@ import type { SiteNextAction } from "./admin-site-next-actions.js";
 export const SITE_PAGE_NOT_ON_DOMAIN_CODE = "site_page_not_on_domain";
 /** A 429 on requestPageRecheck: the domain's hourly page rechecks are used up. */
 export const SITE_PAGE_RECHECK_LIMIT_CODE = "site_page_recheck_limit";
+/** How many rechecks listPageRechecks reads in one call. */
+export const SITE_PAGE_RECHECK_READ_LIMIT = 30;
+/** A 422 on create without a siteUuid: no one Site holds the host; name the Site. */
+export const SITE_CHOICE_REQUIRED_CODE = "site_choice_required";
 /** A 400 on requestSearchInspection: the URL is not an http(s) URL on the domain's host. */
 export const SITE_SEARCH_INSPECTION_URL_INVALID_CODE = "site_search_inspection_url_invalid";
 /** A 409 on requestSearchInspection: the domain is not verified and connected to Google. */
@@ -151,6 +155,11 @@ export type SitePageRecheck = {
   failure?: string;
   openRules: string[];
   fixedRules: string[];
+};
+
+/** The rechecks listPageRechecks found, in the order asked. */
+export type SitePageRecheckList = {
+  rechecks: SitePageRecheck[];
 };
 
 export type SitePageCheckRequest = {

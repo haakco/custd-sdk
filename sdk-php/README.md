@@ -260,8 +260,10 @@ stop a site, so nothing wakes it). `listIncidents()` returns the domain's recent
 outages.
 
 Each finding carries a `remedy`: what the fix changes (`SiteRemedy::KIND_*`),
-the element, and for some rules `generated` code to copy. The page tools read
-`getPageFacts()`, queue `requestPageRecheck()` (poll `getPageRecheck()`), check
+the element, and for some rules `generated` code to copy, and `recheckable`
+when a one-page recheck can confirm the fix. The page tools read
+`getPageFacts()`, queue `requestPageRecheck()` (poll `getPageRecheck()`, or
+`listPageRechecks()` for up to `PAGE_RECHECK_READ_LIMIT` at once), check
 draft HTML with `checkPage()` and test crawler access with `testRobots()`
 (omit `robotsTxt` to read the live file). `listSearchRows()` pages through one
 search dimension; `unavailable` names providers that cannot report it, which is

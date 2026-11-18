@@ -13,6 +13,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from custd import (
+    SITE_CHOICE_REQUIRED_CODE,
     SITE_DOMAIN_NOT_VERIFIED_CODE,
     SITE_GENERATED_FORMAT_HTML,
     SITE_INDEXNOW_ACCEPTED,
@@ -26,6 +27,7 @@ from custd import (
     SITE_PAGE_NOT_ON_DOMAIN_CODE,
     SITE_PAGE_RECHECK_CHECKED,
     SITE_PAGE_RECHECK_LIMIT_CODE,
+    SITE_PAGE_RECHECK_READ_LIMIT,
     SITE_REMEDY_KIND_CONTENT,
     SITE_REMEDY_KIND_MARKUP,
     SITE_REMEDY_KIND_SERVER,
@@ -292,6 +294,31 @@ class SitePageToolsTest(unittest.TestCase):
 
         domains, _ = site_domains(200, PAGE_TOOLS["pageRecheckFailed"])
         self.assertEqual("the page answered HTTP 503", domains.get_page_recheck(DOMAIN, "r")["failure"])
+
+    def test_reads_several_rechecks_in_one_call_with_comma_joined_ids(self) -> None:
+        domains, transport = site_domains(200, PAGE_TOOLS["pageRecheckList"])
+
+        listed = domains.list_page_rechecks(DOMAIN, ["r-1", "r-2"])
+
+        self.assertEqual(["checked", "failed"], [recheck["state"] for recheck in listed["rechecks"]])
+        self.assertEqual([("GET", f"{BASE}/{DOMAIN}/page-rechecks?ids=r-1%2Cr-2", None)], transport.calls)
+        self.assertEqual(30, SITE_PAGE_RECHECK_READ_LIMIT)
+
+    def test_findings_say_which_rules_a_recheck_confirms(self) -> None:
+        domains, _ = site_domains(200, FIXTURES["findingList"])
+
+        findings = domains.list_findings(DOMAIN)["findings"]
+
+        self.assertEqual([True, False], [finding.get("recheckable", False) for finding in findings])
+
+    def test_create_without_a_site_surfaces_the_choice_needed(self) -> None:
+        domains, transport = site_domains(422, FIXTURES["siteChoiceRequiredProblem"])
+
+        with self.assertRaises(RequestError) as raised:
+            domains.create({"host": "blog.example.com"})
+
+        self.assertEqual((422, SITE_CHOICE_REQUIRED_CODE), (raised.exception.status, raised.exception.code))
+        self.assertEqual([("POST", BASE, {"host": "blog.example.com"})], transport.calls)
 
     def test_decodes_draft_findings_with_remedies(self) -> None:
         domains, _ = site_domains(200, PAGE_TOOLS["pageCheck"])

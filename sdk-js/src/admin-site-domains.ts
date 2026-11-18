@@ -20,6 +20,7 @@ import type {
   SitePageCheckResponse,
   SitePageFacts,
   SitePageRecheck,
+  SitePageRecheckList,
   SiteProjectContext,
   SiteProjectContextRequest,
   SiteRemedy,
@@ -164,7 +165,12 @@ export type SiteRuleId = (typeof SiteRule)[keyof typeof SiteRule];
 export type SiteDomainRequestOptions = RequestOptions & { companySlug?: string };
 
 export type SiteDomainCreateRequest = {
-  /** The Site the host belongs to; a site-bound credential may omit it. */
+  /**
+   * The Site the host belongs to. Omitted, a site-bound credential gets its own Site and anyone
+   * else the Site Custd places the host on: the Site holding it with or without www., else the
+   * Site named after it, else the only Site, or SITE_CHOICE_REQUIRED_CODE when none is decided. A
+   * tenant with no Site gets one named after the host, which needs tenant-admin access.
+   */
   siteUuid?: string;
   host: string;
 };
@@ -308,6 +314,8 @@ export type SiteFinding = {
   source: string;
   remedy: SiteRemedy;
   history: SiteFindingHistory;
+  /** A one-page recheck decides this rule, so requestPageRecheck can confirm the fix. Absent before 3.51. */
+  recheckable?: boolean;
 };
 
 /** A domain's findings, most severe first. */
@@ -578,6 +586,21 @@ export class SiteDomainAdminClient {
   ): Promise<SitePageRecheck> {
     const path = `${domainPath(domainUuid)}/page-rechecks/${encodeURIComponent(recheckUuid)}`;
     return this.send("GET", path, {}, undefined, options);
+  }
+
+  /** Reads up to SITE_PAGE_RECHECK_READ_LIMIT of the domain's rechecks at once; unknown ids are left out. */
+  listPageRechecks(
+    domainUuid: string,
+    recheckUuids: readonly string[],
+    options?: SiteDomainRequestOptions,
+  ): Promise<SitePageRecheckList> {
+    return this.send(
+      "GET",
+      `${domainPath(domainUuid)}/page-rechecks`,
+      { ids: recheckUuids.join(",") },
+      undefined,
+      options,
+    );
   }
 
   /** Runs the one-page checks on draft HTML, and the draft tools it asks for; nothing is fetched or stored. */

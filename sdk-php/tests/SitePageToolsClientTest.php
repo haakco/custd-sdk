@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\AdminProblemException;
+use HaakCo\Custd\Admin\SiteDomain\CreateSiteDomainRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteFinding;
 use HaakCo\Custd\Admin\SiteDomain\SiteGeneratedFix;
 use HaakCo\Custd\Admin\SiteDomain\SiteMarket;
@@ -43,6 +44,32 @@ final class SitePageToolsClientTest extends TestCase
         self::assertSame(SiteRemedy::KIND_CONTENT, $listed[0]->remedy->kind);
         self::assertSame(SiteRemedy::KIND_SERVER, $listed[1]->remedy->kind);
         self::assertNull($listed[1]->remedy->generated);
+        self::assertTrue($generated->recheckable);
+        self::assertSame([true, false], [$listed[0]->recheckable, $listed[1]->recheckable]);
+    }
+
+    public function testSeveralRechecksAreReadInOneCallWithCommaJoinedIds(): void
+    {
+        $list = $this->client($calls, 'pageRecheckList')->listPageRechecks('d-1', ['r-1', 'r-2']);
+
+        self::assertSame(
+            [SitePageRecheckState::Checked, SitePageRecheckState::Failed],
+            array_map(static fn ($recheck) => $recheck->state, $list->rechecks),
+        );
+        self::assertSame(['GET ' . self::BASE . '/d-1/page-rechecks?ids=r-1%2Cr-2'], array_column($calls, 'route'));
+        self::assertSame(30, SiteDomainClient::PAGE_RECHECK_READ_LIMIT);
+    }
+
+    public function testCreateWithoutASiteSurfacesTheChoiceNeeded(): void
+    {
+        try {
+            $this->client($calls, 'siteChoiceRequiredProblem', 'site-insights.json', 422)
+                ->create(CreateSiteDomainRequest::forOwnSite('blog.example.com'));
+            self::fail('expected the create to be refused');
+        } catch (AdminProblemException $error) {
+            self::assertSame(SiteDomainClient::SITE_CHOICE_REQUIRED_CODE, $error->problem->code);
+        }
+        self::assertSame(['host' => 'blog.example.com'], $calls[0]['body']);
     }
 
     public function testPageFactsAndDraftCheck(): void

@@ -461,6 +461,7 @@ address and connect Google or Bing search numbers. The routes are under
 import { SITE_DOMAIN_NOT_VERIFIED_CODE, SiteRule } from "@haakco/custd-sdk";
 
 const domain = await client.admin.siteDomains.create({ siteUuid, host: "example.com" });
+// Or omit siteUuid: Custd places the host (SITE_CHOICE_REQUIRED_CODE when it cannot tell).
 // Publish domain.ownership.instructions (DNS TXT or well-known file), then:
 await client.admin.siteDomains.verify(domain.domainUuid);
 await client.admin.siteDomains.requestAudit(domain.domainUuid);
@@ -474,8 +475,10 @@ client-side fix on them. A refused audit of an unverified domain is a
 `CustdRequestError` whose `code` is `SITE_DOMAIN_NOT_VERIFIED_CODE`.
 
 Each finding carries a `remedy` (`kind`, `element`, and ready-to-copy
-`generated` code for some rules). The page tools are `getPageFacts`,
-`requestPageRecheck` / `getPageRecheck` (refusals: `SITE_PAGE_NOT_ON_DOMAIN_CODE`,
+`generated` code for some rules) and `recheckable` when a one-page recheck can
+confirm the fix. The page tools are `getPageFacts`,
+`requestPageRecheck` / `getPageRecheck` / `listPageRechecks` (up to
+`SITE_PAGE_RECHECK_READ_LIMIT` at once; refusals: `SITE_PAGE_NOT_ON_DOMAIN_CODE`,
 `SITE_PAGE_RECHECK_LIMIT_CODE`), `checkPage` for draft HTML and `testRobots`.
 Search adds `listSearchRows` (its `unavailable` list names providers that cannot
 report a dimension) and Search Console URL inspection

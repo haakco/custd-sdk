@@ -216,6 +216,12 @@ class SitePageRecheck(TypedDict):
     fixedRules: list[str]
 
 
+class SitePageRecheckList(TypedDict):
+    """The rechecks list_page_rechecks found, in the order asked."""
+
+    rechecks: list[SitePageRecheck]
+
+
 class SitePhraseUse(TypedDict):
     """Where one phrase appears in a draft and how often, with no target or verdict.
 

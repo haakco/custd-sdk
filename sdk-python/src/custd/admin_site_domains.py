@@ -29,6 +29,7 @@ from .admin_site_insights import (
     SitePageCheckResponse,
     SitePageFacts,
     SitePageRecheck,
+    SitePageRecheckList,
     SiteProjectContext,
     SiteProjectContextRequest,
     SiteRemedy,
@@ -86,6 +87,10 @@ SITE_SEARCH_CONNECTION_NOT_FOUND_CODE = "site_search_connection_not_found"
 SITE_PAGE_NOT_ON_DOMAIN_CODE = "site_page_not_on_domain"
 # A 429 on request_page_recheck: the domain has used its hourly page rechecks.
 SITE_PAGE_RECHECK_LIMIT_CODE = "site_page_recheck_limit"
+# How many rechecks list_page_rechecks reads in one call.
+SITE_PAGE_RECHECK_READ_LIMIT = 30
+# A 422 on create without a siteUuid: no one Site holds the host; name the Site.
+SITE_CHOICE_REQUIRED_CODE = "site_choice_required"
 # A 400 on request_search_inspection: the URL is not an http(s) URL on the domain's host.
 SITE_SEARCH_INSPECTION_URL_INVALID_CODE = "site_search_inspection_url_invalid"
 # A 409 on request_search_inspection: the domain is unverified or not connected to Google.
@@ -340,6 +345,10 @@ class SiteDomainCreateRequest(TypedDict):
     """Claims a host for one of the tenant's Sites.
 
     A site-bound credential (site_domains.manage) may omit ``siteUuid`` and gets its own Site.
+    Anyone else may omit it too: Custd places the host on the Site holding it with or without
+    www., else the Site named after it, else the only Site, and answers SITE_CHOICE_REQUIRED_CODE
+    when that decides no one Site. A tenant with no Site gets one named after the host, which
+    needs tenant-admin access.
     """
 
     host: str
@@ -498,6 +507,9 @@ class SiteFinding(TypedDict):
     source: str
     remedy: SiteRemedy
     history: SiteFindingHistory
+    # A one-page recheck decides this rule, so request_page_recheck can confirm the fix.
+    # Absent from a server before 3.51.
+    recheckable: NotRequired[bool]
 
 
 class SiteFindingList(TypedDict):
@@ -775,6 +787,14 @@ class SiteDomainAdminClient:
     ) -> SitePageRecheck:
         path = _domain_path(domain_uuid) + "/page-rechecks/" + quote_path(recheck_uuid)
         return cast(SitePageRecheck, self._request("GET", path, {}, company_slug))
+
+    def list_page_rechecks(
+        self, domain_uuid: str, recheck_uuids: Sequence[str], *, company_slug: str | None = None
+    ) -> SitePageRecheckList:
+        """Read up to SITE_PAGE_RECHECK_READ_LIMIT of the domain's rechecks at once; unknown ids are left out."""
+        path = _domain_path(domain_uuid) + "/page-rechecks"
+        query = {"ids": ",".join(recheck_uuids)}
+        return cast(SitePageRecheckList, self._request("GET", path, query, company_slug))
 
     def check_page(
         self,
