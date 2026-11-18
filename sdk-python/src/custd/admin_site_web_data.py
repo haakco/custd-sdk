@@ -46,6 +46,15 @@ SITE_TREND_SOURCE_SEED = "seed"
 SITE_GAP_COVERAGE_AVAILABLE = "available"
 SITE_GAP_COVERAGE_UNAVAILABLE = "unavailable"
 
+# Where keyword demand and related keywords come from.
+SITE_KEYWORD_DEMAND_SOURCE_BING = "bing_keyword_research"
+
+# Whether a keyword list's Bing demand could be read: available, no market in the project context,
+# or no Bing keyword research on this deployment.
+SITE_KEYWORD_DEMAND_AVAILABLE = "available"
+SITE_KEYWORD_DEMAND_NO_MARKET = "no_market"
+SITE_KEYWORD_DEMAND_NO_BING = "no_bing"
+
 
 class SiteWebDomain(TypedDict):
     """One domain's page inventory. ``trancoRank`` is absent when unranked or unknown."""
@@ -155,12 +164,36 @@ class SiteKeywordListRequest(TypedDict):
     seedTerm: NotRequired[str]
 
 
+class SiteRelatedKeyword(TypedDict):
+    """A keyword Bing relates to the list's seed term, with its searches over the window."""
+
+    keyword: str
+    impressions: int
+    broadImpressions: int
+
+
+# "from" is a Python keyword, so the related keywords use the functional form.
+_SiteRelatedKeywordsWindow = TypedDict("_SiteRelatedKeywordsWindow", {"from": str, "to": str})
+
+
+class SiteRelatedKeywords(_SiteRelatedKeywordsWindow):
+    """Bing's keywords related to the seed term; ``from`` and ``to`` are YYYY-MM-DD."""
+
+    source: str
+    market: str
+    checkedAt: str
+    keywords: list[SiteRelatedKeyword]
+
+
 class SiteKeywordList(TypedDict):
+    """A keyword list; ``related`` is absent until Bing was read for the seed term, and from older servers."""
+
     name: str
     keywords: list[str]
     createdAt: str
     updatedAt: str
     seedTerm: NotRequired[str]
+    related: NotRequired[SiteRelatedKeywords]
 
 
 class SiteKeywordLists(TypedDict):
@@ -178,6 +211,8 @@ class SiteKeywordCluster(TypedDict):
     clicks: NotRequired[int]
     impressions: NotRequired[int]
     avgPosition: NotRequired[float]
+    # Bing's latest weekly searches for the cluster's keywords, summed; absent when none was read.
+    bingWeeklyImpressions: NotRequired[int]
 
 
 class SiteKeywordStriking(TypedDict):
@@ -189,8 +224,35 @@ class SiteKeywordStriking(TypedDict):
     position: float
 
 
+class SiteKeywordDemand(TypedDict):
+    """Bing's searches for one keyword in the week of ``weekOf``.
+
+    A number Bing did not report is absent, never 0; ``lastFailure`` says why the latest read
+    failed (it is retried a day later).
+    """
+
+    keyword: str
+    checkedAt: str
+    weeklyImpressions: NotRequired[int]
+    broadImpressions: NotRequired[int]
+    weekOf: NotRequired[str]
+    lastFailure: NotRequired[str]
+
+
+class SiteKeywordDemandSet(TypedDict):
+    """A keyword list's Bing demand, apart from the Site's own search numbers."""
+
+    state: str
+    source: str
+    keywords: list[SiteKeywordDemand]
+    market: NotRequired[str]
+
+
 class SiteKeywordClusters(TypedDict):
-    """A keyword list grouped by stem, with the Site's own search numbers over ``metricsDays``."""
+    """A keyword list grouped by stem, with the Site's own search numbers over ``metricsDays``.
+
+    ``demand`` is absent from an older server.
+    """
 
     siteUuid: str
     name: str
@@ -199,3 +261,4 @@ class SiteKeywordClusters(TypedDict):
     totalKeywords: int
     clusters: list[SiteKeywordCluster]
     strikingDistance: list[SiteKeywordStriking]
+    demand: NotRequired[SiteKeywordDemandSet]

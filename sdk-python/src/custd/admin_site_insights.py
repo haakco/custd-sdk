@@ -237,11 +237,20 @@ class SitePhraseUse(TypedDict):
     densityPercent: NotRequired[float]
 
 
+# How much of a page a draft is: the whole page (the server's default) or only its body content,
+# for an editor that owns the body and not the head.
+SITE_PAGE_CHECK_SCOPE_PAGE = "page"
+SITE_PAGE_CHECK_SCOPE_CONTENT = "content"
+
+
 class SitePageCheckResponse(TypedDict):
     """What the page checks found on draft HTML: the page's facts and its own findings.
 
     The draft tools are absent unless asked for: ``slug`` from the draft's first h1, else its
     title; ``redirect`` from previous_url (format SITE_GENERATED_FORMAT_REDIRECT); ``phrase``.
+    ``scope`` echoes the requested scope. ``checkedRules`` is set only for the content scope: the
+    rules checked, so a rule listed there and absent from ``findings`` passed; head rules are not
+    among them.
     """
 
     page: SitePageFacts
@@ -249,6 +258,8 @@ class SitePageCheckResponse(TypedDict):
     slug: NotRequired[str]
     redirect: NotRequired[SiteGeneratedFix]
     phrase: NotRequired[SitePhraseUse]
+    scope: NotRequired[str]
+    checkedRules: NotRequired[list[str]]
 
 
 class SiteWordingCompare(TypedDict):

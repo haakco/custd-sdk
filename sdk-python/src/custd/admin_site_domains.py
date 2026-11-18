@@ -15,7 +15,9 @@ from datetime import UTC, datetime
 from typing import Any, Literal, NotRequired, TypedDict, cast
 
 from .admin_site_access_logs import SiteAccessLogHourReplay, SiteAIVisibility, SiteTraffic
+from .admin_site_analytics import SiteAnalyticsConnection, SiteAnalyticsReport
 from .admin_site_campaign_links import SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest
+from .admin_site_export import SiteInsightsExport, SiteSearchMetricPage
 from .admin_site_insights import (
     SavedSiteReport,
     SavedSiteReportList,
@@ -47,9 +49,11 @@ from .admin_site_insights import (
 )
 from .admin_site_links import SiteReferringDomains
 from .admin_site_next_actions import SiteNextActions, SitePortfolioSummary
+from .admin_site_page_queries import SitePageSearchQueries
 from .admin_site_rankings import SiteRankings, SiteTrackedKeyword, SiteTrackKeywordRequest
 from .admin_site_search_pool import SearchPoolQueryPage, SearchPoolSetting
 from .admin_site_search_value import SiteFindingImpact, SiteSearchValue
+from .admin_site_tasks import SiteInsightsTaskList
 from .admin_site_web_data import (
     SiteContentGap,
     SiteKeywordClusters,
@@ -75,6 +79,8 @@ SITE_REFERRING_DOMAINS_PATH = SITE_DOMAINS_PATH + "/referring-domains"
 SITE_SEARCH_POOL_PATH = SITE_DOMAINS_PATH + "/search-pool"
 # Platform-wide, not under site-domains: only a system administrator may replay an hour.
 ACCESS_LOG_HOUR_REPLAY_PATH = "/admin/access-log-hours/replay"
+# Platform-wide: only a system administrator may read every tenant's Site Insights task backlog.
+SITE_INSIGHTS_TASKS_PATH = "/admin/site-insights/tasks"
 
 # Problem codes a caller branches on through RequestError.code.
 # A 409 on request_audit: the tenant has not yet proven control of the domain.
@@ -85,6 +91,8 @@ SITE_SEARCH_NOT_CONFIGURED_CODE = "site_search_not_configured"
 SITE_SEARCH_CONNECTION_NOT_FOUND_CODE = "site_search_connection_not_found"
 # A 400 on get_page_facts, request_page_recheck or check_page: the URL is not on the domain's host.
 SITE_PAGE_NOT_ON_DOMAIN_CODE = "site_page_not_on_domain"
+# A 404 on get_page_facts: no audit or recheck has read the page yet; request_page_recheck reads it.
+SITE_PAGE_NOT_READ_CODE = "site_page_not_read"
 # A 429 on request_page_recheck: the domain has used its hourly page rechecks.
 SITE_PAGE_RECHECK_LIMIT_CODE = "site_page_recheck_limit"
 # How many rechecks list_page_rechecks reads in one call.
@@ -137,6 +145,12 @@ SITE_SEARCH_POOL_SITE_BOUND_CODE = "site_search_pool_site_bound"
 SITE_SEARCH_POOL_SETTING_INVALID_CODE = "site_search_pool_setting_invalid"
 # A 400 on list_search_pool_queries: search is at most 100 characters and limit 1 to 200.
 SITE_SEARCH_POOL_QUERY_INVALID_CODE = "site_search_pool_query_invalid"
+# A 409 on retry_search_import: only a failing connection can be retried; reconnect a revoked one.
+SITE_SEARCH_RETRY_NOT_FAILING_CODE = "site_search_retry_not_failing"
+# A 400 on connect_analytics: propertyId is not a GA4 property's numeric ID (or properties/ID).
+SITE_ANALYTICS_PROPERTY_INVALID_CODE = "site_analytics_property_invalid"
+# A 404 on disconnect_analytics: the domain is not connected to GA4.
+SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE = "site_analytics_connection_not_found"
 
 # SiteFindingState selects which findings list_findings returns; the server defaults to open.
 SiteFindingState = Literal["open", "fixed", "all"]
@@ -710,9 +724,22 @@ class SiteDomainAdminClient:
         """Return whether the tenant has joined the shared search pool and the pool's rules."""
         return cast(SearchPoolSetting, self._request("GET", SITE_SEARCH_POOL_PATH, {}, company_slug))
 
-    def set_search_pool(self, joined: bool, *, company_slug: str | None = None) -> SearchPoolSetting:
-        """Join (True) or leave (False) the shared search pool."""
-        payload = {"joined": joined}
+    def set_search_pool(
+        self, joined: bool, terms_version: str | None = None, *, company_slug: str | None = None
+    ) -> SearchPoolSetting:
+        """Join (True) or leave (False) the shared search pool for the whole tenant.
+
+        Joining shares the tenant's Search Console queries, pooled anonymously, and is the
+        organisation's acceptance of the pool terms: ``terms_version`` is required to join (the
+        setting's ``termsVersion``, or SITE_SEARCH_POOL_TERMS_VERSION) and ignored when leaving. A
+        join without it raises ValueError before any request; the server refuses a stale one with
+        a 400.
+        """
+        payload: dict[str, Any] = {"joined": joined}
+        if joined:
+            if not terms_version or not terms_version.strip():
+                raise ValueError("custd: joining the shared search pool requires the terms version the caller accepts")
+            payload["termsVersion"] = terms_version
         return cast(SearchPoolSetting, self._request("PUT", SITE_SEARCH_POOL_PATH, {}, company_slug, payload))
 
     def list_search_pool_queries(
@@ -766,8 +793,69 @@ class SiteDomainAdminClient:
         """
         self._request("DELETE", _search_connection_path(domain_uuid, provider), {}, company_slug)
 
+    def retry_search_import(
+        self, domain_uuid: str, provider: SiteSearchProvider, *, company_slug: str | None = None
+    ) -> SiteSearchConnection:
+        """Make a failing provider import due on the scheduler's next tick.
+
+        A connection that is not failing answers 409 with SITE_SEARCH_RETRY_NOT_FAILING_CODE;
+        reconnect a revoked one with connect_search.
+        """
+        path = _search_connection_path(domain_uuid, provider) + "/retry"
+        return cast(SiteSearchConnection, self._request("POST", path, {}, company_slug))
+
+    def get_analytics(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteAnalyticsReport:
+        """Return the domain's imported GA4 landing pages, key events and channels."""
+        return cast(SiteAnalyticsReport, self._request("GET", _analytics_path(domain_uuid), {}, company_slug))
+
+    def connect_analytics(
+        self, domain_uuid: str, property_id: str, *, company_slug: str | None = None
+    ) -> SiteAnalyticsConnection:
+        """Connect the domain to a GA4 property, or replace it; ``property_id`` is its numeric ID.
+
+        An ID that is not a GA4 property's answers 400 with SITE_ANALYTICS_PROPERTY_INVALID_CODE.
+        """
+        path = _analytics_path(domain_uuid) + "/ga4"
+        payload = {"propertyId": property_id}
+        return cast(SiteAnalyticsConnection, self._request("PUT", path, {}, company_slug, payload))
+
+    def disconnect_analytics(self, domain_uuid: str, *, company_slug: str | None = None) -> None:
+        """Remove the GA4 connection; one that is not there answers SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE."""
+        self._request("DELETE", _analytics_path(domain_uuid) + "/ga4", {}, company_slug)
+
+    def export(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteInsightsExport:
+        """Return everything Site Insights keeps for the domain; page its search metrics with export_search_metrics."""
+        return cast(SiteInsightsExport, self._request("GET", _domain_path(domain_uuid) + "/export", {}, company_slug))
+
+    def export_search_metrics(
+        self,
+        domain_uuid: str,
+        offset: int | None = None,
+        limit: int | None = None,
+        *,
+        company_slug: str | None = None,
+    ) -> SiteSearchMetricPage:
+        """Page through the domain's stored daily search metrics.
+
+        The server defaults to offset 0 and SITE_INSIGHTS_EXPORT_SEARCH_METRICS_MAX_LIMIT rows (limit
+        1..10000); outside that range it answers a plain 400.
+        """
+        query = {name: str(value) for name, value in (("offset", offset), ("limit", limit)) if value is not None}
+        path = _domain_path(domain_uuid) + "/export/search-metrics"
+        return cast(SiteSearchMetricPage, self._request("GET", path, query, company_slug))
+
+    def get_page_search_queries(
+        self, domain_uuid: str, url: str, *, company_slug: str | None = None
+    ) -> SitePageSearchQueries:
+        """Return the Google queries one page ranks for, title options from them and pages mentioning them."""
+        path = _domain_path(domain_uuid) + "/page-search-queries"
+        return cast(SitePageSearchQueries, self._request("GET", path, {"url": url}, company_slug))
+
     def get_page_facts(self, domain_uuid: str, url: str, *, company_slug: str | None = None) -> SitePageFacts:
-        """Return what the latest audit or recheck read from one page of the domain."""
+        """Return what the latest audit or recheck read from one page of the domain.
+
+        A page nothing has read yet answers 404 with SITE_PAGE_NOT_READ_CODE; request a recheck.
+        """
         path = _domain_path(domain_uuid) + "/page-facts"
         return cast(SitePageFacts, self._request("GET", path, {"url": url}, company_slug))
 
@@ -804,13 +892,16 @@ class SiteDomainAdminClient:
         *,
         previous_url: str | None = None,
         phrase: str | None = None,
+        scope: str | None = None,
         company_slug: str | None = None,
     ) -> SitePageCheckResponse:
         """Run the one-page checks on draft HTML (at most 512 KiB) as if ``url`` served it.
 
         ``previous_url``, the page's current address on the same host, asks for the redirect a move
-        needs; ``phrase`` (at most 100 characters) asks where it appears. The draft is never
-        fetched, stored or logged.
+        needs; ``phrase`` (at most 100 characters) asks where it appears. ``scope``
+        SITE_PAGE_CHECK_SCOPE_CONTENT checks body content only and lists the rules it checked in
+        ``checkedRules``; omitted, the server checks the whole page. The draft is never fetched,
+        stored or logged.
         """
         path = _domain_path(domain_uuid) + "/page-check"
         payload = {"url": url, "html": html}
@@ -818,6 +909,8 @@ class SiteDomainAdminClient:
             payload["previousUrl"] = previous_url
         if phrase:
             payload["phrase"] = phrase
+        if scope:
+            payload["scope"] = scope
         check = cast(SitePageCheckResponse, self._request("POST", path, {}, company_slug, payload))
         if "phrase" in check and check["phrase"]["wordCount"] == 0:
             check["phrase"].pop("densityPercent", None)
@@ -1235,6 +1328,10 @@ class SiteDomainAdminClient:
         payload = {"hourStart": _rfc3339_utc(hour_start)}
         return cast(SiteAccessLogHourReplay, self._request("POST", ACCESS_LOG_HOUR_REPLAY_PATH, {}, None, payload))
 
+    def list_site_insights_tasks(self) -> SiteInsightsTaskList:
+        """Return every Site Insights scheduler task's state and backlog across tenants. System administrators only."""
+        return cast(SiteInsightsTaskList, self._request("GET", SITE_INSIGHTS_TASKS_PATH, {}, None))
+
     def get_rankings(
         self, domain_uuid: str, days: int | None = None, *, company_slug: str | None = None
     ) -> SiteRankings:
@@ -1328,6 +1425,10 @@ def _domain_path(domain_uuid: str) -> str:
 
 def _search_connection_path(domain_uuid: str, provider: SiteSearchProvider) -> str:
     return _domain_path(domain_uuid) + "/search/" + quote_path(provider)
+
+
+def _analytics_path(domain_uuid: str) -> str:
+    return _domain_path(domain_uuid) + "/analytics"
 
 
 def _indexnow_path(domain_uuid: str) -> str:
