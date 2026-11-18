@@ -4491,6 +4491,12 @@ function randomUUID(): string {
   );
 }
 
+export type {
+  SiteRegionalTrendMarket,
+  SiteRegionalTrendMatch,
+  SiteRegionalTrends,
+  SiteTechnicalTrends,
+} from "./admin-site-regional-trends.js";
 export {
   type CaptureExceptionRequest,
   createErrorCaptureEvent,

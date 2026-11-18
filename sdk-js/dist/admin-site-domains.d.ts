@@ -8,6 +8,7 @@ import type { SiteReferringDomains } from "./admin-site-links.js";
 import type { SiteNextActions, SitePortfolioSummary } from "./admin-site-next-actions.js";
 import type { SitePageSearchQueries } from "./admin-site-page-queries.js";
 import type { SiteRankings, SiteTrackedKeyword, SiteTrackedKeywordUpdate, SiteTrackKeywordRequest } from "./admin-site-rankings.js";
+import type { SiteRegionalTrends } from "./admin-site-regional-trends.js";
 import type { SavedSiteReport, SavedSiteReportList, SavedSiteReportRequest, SiteReportRequestOptions } from "./admin-site-saved-reports.js";
 import type { SearchPoolQueryPage, SearchPoolSetting } from "./admin-site-search-pool.js";
 import type { SiteFindingImpact, SiteSearchValue } from "./admin-site-search-value.js";
@@ -437,6 +438,8 @@ export declare class SiteDomainAdminClient {
     getProjectContext(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteProjectContext>;
     /** Replaces a Site's project context; an omitted list is sent empty and clears it. */
     setProjectContext(body: SiteProjectContextRequest, options?: SiteDomainRequestOptions): Promise<SiteProjectContext>;
+    /** Reads public trends matching a Site's audience and saved terms. A site token may omit siteUuid. */
+    getRegionalTrends(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteRegionalTrends>;
     /** Reads the domain's status and its most important next actions, most important first. */
     getNextActions(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteNextActions>;
     /** Reads every domain's status, open findings and first action, worst first (only its own Site's for a site-bound credential). */

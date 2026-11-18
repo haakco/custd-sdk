@@ -17,6 +17,7 @@ import {
   type SiteFinding,
   SiteGeneratedFormat,
   SitePageCheckScope,
+  type SiteRegionalTrends,
   type SiteRemedy,
   SiteRemedyKind,
   SiteRule,
@@ -296,6 +297,47 @@ describe("site insights search rows, inspections and project context", () => {
       route: `PUT ${base}/site-domains/project-context?siteUuid=${siteUuid}`,
       body: tools.projectContextRequest,
     });
+  });
+
+  it("sets or clears technical discovery and reads optional Hacker News evidence", async () => {
+    const regional = { siteUuid, source: "Google Trends", hasSavedTerms: true, markets: [] };
+    const technical: SiteRegionalTrends = {
+      ...regional,
+      technical: {
+        source: "Hacker News",
+        checkedAt: "2026-11-18T13:05:00Z",
+        stale: false,
+        matches: [
+          {
+            topic: "Database testing",
+            sourceUrl: "https://example.com/testing",
+            discussionUrl: "https://news.ycombinator.com/item?id=1",
+            publishedAt: "2026-11-18T13:00:00Z",
+            matchedTerm: "database",
+          },
+        ],
+      },
+    };
+    const { domains, calls } = newDomains(
+      respond(200, { ...tools.projectContext, hackerNewsEnabled: true }),
+      respond(200, tools.projectContext),
+      respond(200, technical),
+      respond(200, regional),
+    );
+    expect((await domains.setProjectContext({ siteUuid, hackerNewsEnabled: true })).hackerNewsEnabled).toBe(true);
+    await domains.setProjectContext({ hackerNewsEnabled: false });
+    expect(await domains.getRegionalTrends(siteUuid, { companySlug: "acme" })).toEqual(technical);
+    expect((await domains.getRegionalTrends()).technical).toBeUndefined();
+    const emptyContext = { brandNames: [], competitorDomains: [], markets: [] };
+    expect(calls()).toEqual([
+      {
+        route: `PUT ${base}/site-domains/project-context?siteUuid=${siteUuid}`,
+        body: { ...emptyContext, hackerNewsEnabled: true },
+      },
+      { route: `PUT ${base}/site-domains/project-context`, body: { ...emptyContext, hackerNewsEnabled: false } },
+      { route: `GET ${base}/site-domains/regional-trends?siteUuid=${siteUuid}&companySlug=acme`, body: undefined },
+      { route: `GET ${base}/site-domains/regional-trends`, body: undefined },
+    ]);
   });
 
   it.each([

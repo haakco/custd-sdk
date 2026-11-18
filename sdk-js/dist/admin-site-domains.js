@@ -338,8 +338,13 @@ export class SiteDomainAdminClient {
             brandNames: body.brandNames ?? [],
             competitorDomains: body.competitorDomains ?? [],
             markets: body.markets ?? [],
+            hackerNewsEnabled: body.hackerNewsEnabled,
         };
         return this.send("PUT", `${siteDomainsPath}/project-context`, { siteUuid: body.siteUuid }, request, options);
+    }
+    /** Reads public trends matching a Site's audience and saved terms. A site token may omit siteUuid. */
+    getRegionalTrends(siteUuid, options) {
+        return this.send("GET", `${siteDomainsPath}/regional-trends`, { siteUuid }, undefined, options);
     }
     /** Reads the domain's status and its most important next actions, most important first. */
     getNextActions(domainUuid, options) {

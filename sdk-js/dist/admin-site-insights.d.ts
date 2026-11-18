@@ -307,6 +307,7 @@ export type SiteProjectContext = {
     brandNames: string[];
     competitorDomains: string[];
     markets: SiteMarket[];
+    hackerNewsEnabled?: boolean;
     updatedAt?: string;
 };
 export type SiteProjectContextRequest = {
@@ -315,6 +316,8 @@ export type SiteProjectContextRequest = {
     brandNames?: string[];
     competitorDomains?: string[];
     markets?: SiteMarket[];
+    /** Omit to keep the saved choice. False disables technical discussion trends. */
+    hackerNewsEnabled?: boolean;
 };
 /** upPercent is absent for a window without checks. */
 export type SiteUptimeWindow = {

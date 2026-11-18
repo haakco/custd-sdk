@@ -1741,4 +1741,5 @@ export declare function normalizeRetryOptions(options?: RetryOptions): Required<
 export declare function withRetry<T>(options: Required<RetryOptions>, op: () => Promise<T>): Promise<T>;
 /** Opaque per-event identity, including runtimes without Web Crypto. Not an authentication token. */
 export declare function createEventId(): string;
+export type { SiteRegionalTrendMarket, SiteRegionalTrendMatch, SiteRegionalTrends, SiteTechnicalTrends, } from "./admin-site-regional-trends.js";
 export { type CaptureExceptionRequest, createErrorCaptureEvent, ErrorCaptureClient, type ErrorCaptureConfig, type ErrorCaptureEvent, type ErrorCaptureEventConfig, type ErrorCaptureResult, type ErrorFrame, installBrowserErrorCapture, installNativeErrorCapture, type NativeErrorHandler, type NativeErrorSource, } from "./error-capture.js";
