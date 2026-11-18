@@ -439,9 +439,18 @@ func (c *SchemaAdminClient) DryRun(
 	return &out, err
 }
 
+// SchemaAuditTenantNotFoundCode is the problem code a 404 from Audit carries when no tenant has
+// the named slug.
+const SchemaAuditTenantNotFoundCode = "schema_audit_tenant_not_found"
+
+// SchemaAuditTenantSlugRequiredCode is the problem code a 400 from Audit carries when the request
+// names no tenant slug.
+const SchemaAuditTenantSlugRequiredCode = "schema_audit_tenant_slug_required"
+
 // Audit reports whether each registered schema still compiles and validates, scoped to the
 // named company. The route reads the company from the query, so a system administrator has to
-// name it explicitly rather than relying on the credential's own tenant.
+// name it explicitly rather than relying on the credential's own tenant. An unknown slug is a 404
+// with SchemaAuditTenantNotFoundCode.
 func (c *SchemaAdminClient) Audit(ctx context.Context, tenantSlug string) (*SchemaAuditResponse, error) {
 	if strings.TrimSpace(tenantSlug) == "" {
 		return nil, fmt.Errorf("custd: schema audit requires a company slug")
