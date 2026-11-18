@@ -54,6 +54,22 @@ final class SiteWebDataClientTest extends TestCase
         ], array_column($calls, 'route'));
     }
 
+    public function testRegionalTrendsKeepHackerNewsSeparateAndOptional(): void
+    {
+        $trends = $this->replay($calls, 'regionalTrends')->webData()->getRegionalTrends(self::SITE, 'acme');
+        $older = $this->replay($calls, 'regionalTrendsWithoutTechnical')->webData()->getRegionalTrends();
+
+        self::assertSame('ZA', $trends->markets[0]->country);
+        self::assertNotNull($trends->technical);
+        self::assertSame('Hacker News', $trends->technical->source);
+        self::assertSame('https://news.ycombinator.com/item?id=123', $trends->technical->matches[0]->discussionUrl);
+        self::assertNull($older->technical);
+        self::assertSame([
+            'GET ' . self::BASE . '/regional-trends?siteUuid=' . self::SITE . '&companySlug=acme',
+            'GET ' . self::BASE . '/regional-trends',
+        ], array_column($calls, 'route'));
+    }
+
     public function testTrendsAndContentGapKeepMissingStateVisible(): void
     {
         $trends = $this->replay($calls, 'topicTrends')->webData()->getTopicTrends(self::SITE);

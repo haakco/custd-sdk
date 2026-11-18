@@ -69,6 +69,7 @@ from .admin_site_web_data import (
     SiteKeywordList,
     SiteKeywordListRequest,
     SiteKeywordLists,
+    SiteRegionalTrends,
     SiteTopicTrends,
     SiteWebDomains,
     SiteWebPages,
@@ -81,6 +82,7 @@ SITE_PROJECT_CONTEXT_PATH = SITE_DOMAINS_PATH + "/project-context"
 SITE_WEB_DOMAINS_PATH = SITE_DOMAINS_PATH + "/web-domains"
 SITE_WEB_PAGES_PATH = SITE_DOMAINS_PATH + "/web-pages"
 SITE_TOPIC_TRENDS_PATH = SITE_DOMAINS_PATH + "/topic-trends"
+SITE_REGIONAL_TRENDS_PATH = SITE_DOMAINS_PATH + "/regional-trends"
 SITE_CONTENT_GAP_PATH = SITE_DOMAINS_PATH + "/content-gap"
 SITE_KEYWORD_LISTS_PATH = SITE_DOMAINS_PATH + "/keyword-lists"
 SITE_KEYWORD_CLUSTERS_PATH = SITE_DOMAINS_PATH + "/keyword-clusters"
@@ -1065,6 +1067,8 @@ class SiteDomainAdminClient:
                 for market in request.get("markets", [])
             ],
         }
+        if "hackerNewsEnabled" in request:
+            payload["hackerNewsEnabled"] = request["hackerNewsEnabled"]
         result = self._request("PUT", SITE_PROJECT_CONTEXT_PATH, query, company_slug, payload)
         return cast(SiteProjectContext, result)
 
@@ -1266,6 +1270,13 @@ class SiteDomainAdminClient:
         """Return the domains linking to one of the Site's own or competitor domains, by source."""
         query = {"domain": domain, **_site_query(site_uuid)}
         return cast(SiteReferringDomains, self._request("GET", SITE_REFERRING_DOMAINS_PATH, query, company_slug))
+
+    def get_regional_trends(
+        self, site_uuid: str | None = None, *, company_slug: str | None = None
+    ) -> SiteRegionalTrends:
+        """Read saved-term matches from regional feeds and the Site's optional Hacker News source."""
+        query = {"siteUuid": site_uuid} if site_uuid else {}
+        return cast(SiteRegionalTrends, self._request("GET", SITE_REGIONAL_TRENDS_PATH, query, company_slug))
 
     def get_topic_trends(self, site_uuid: str | None = None, *, company_slug: str | None = None) -> SiteTopicTrends:
         """Return monthly Wikipedia page views for the Site's brand names and keyword-list seeds."""

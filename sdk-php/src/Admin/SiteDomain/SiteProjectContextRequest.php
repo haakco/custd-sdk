@@ -6,7 +6,7 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 
 /**
  * SiteProjectContextRequest replaces a Site's project context: up to 5 brand names, 10
- * competitor DNS names (such as competitor.example) and 10 markets. Empty lists clear it.
+ * competitor DNS names (such as competitor.example) and 10 markets. Omit the Hacker News setting to keep the saved choice.
  */
 final readonly class SiteProjectContextRequest
 {
@@ -19,12 +19,13 @@ final readonly class SiteProjectContextRequest
         public array $brandNames = [],
         public array $competitorDomains = [],
         public array $markets = [],
+        public ?bool $hackerNewsEnabled = null,
     ) {
     }
 
     /**
      * @return array{brandNames: list<string>, competitorDomains: list<string>,
-     *     markets: list<array{country: string, language: string}>}
+     *     markets: list<array{country: string, language: string}>, hackerNewsEnabled?: bool}
      */
     public function serialise(): array
     {
@@ -32,6 +33,6 @@ final readonly class SiteProjectContextRequest
             'brandNames' => $this->brandNames,
             'competitorDomains' => $this->competitorDomains,
             'markets' => array_map(static fn (SiteMarket $market): array => $market->serialise(), $this->markets),
-        ];
+        ] + ($this->hackerNewsEnabled === null ? [] : ['hackerNewsEnabled' => $this->hackerNewsEnabled]);
     }
 }

@@ -385,6 +385,7 @@ class SiteProjectContextRequest(TypedDict):
     brandNames: list[str]
     competitorDomains: list[str]
     markets: list[SiteMarket]
+    hackerNewsEnabled: NotRequired[bool]
 
 
 class SiteProjectContext(TypedDict):
@@ -395,6 +396,7 @@ class SiteProjectContext(TypedDict):
     competitorDomains: list[str]
     markets: list[SiteMarket]
     updatedAt: NotRequired[str]
+    hackerNewsEnabled: NotRequired[bool]
 
 
 class SiteUptimeWindow(TypedDict):

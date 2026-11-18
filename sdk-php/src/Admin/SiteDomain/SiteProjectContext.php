@@ -23,6 +23,7 @@ final readonly class SiteProjectContext
         public array $competitorDomains,
         public array $markets,
         public ?string $updatedAt = null,
+        public bool $hackerNewsEnabled = false,
     ) {
     }
 
@@ -34,6 +35,7 @@ final readonly class SiteProjectContext
             Fields::strings($payload, 'competitorDomains'),
             array_map(SiteMarket::fromPayload(...), Fields::objects($payload, 'markets')),
             Fields::optionalString($payload, 'updatedAt'),
+            Fields::optionalBoolean($payload, 'hackerNewsEnabled') ?? false,
         );
     }
 }

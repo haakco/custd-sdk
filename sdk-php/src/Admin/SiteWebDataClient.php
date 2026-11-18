@@ -10,6 +10,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteKeywordList;
 use HaakCo\Custd\Admin\SiteDomain\SiteKeywordListRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteKeywordLists;
 use HaakCo\Custd\Admin\SiteDomain\SiteReferringDomains;
+use HaakCo\Custd\Admin\SiteDomain\SiteRegionalTrends;
 use HaakCo\Custd\Admin\SiteDomain\SiteTopicTrends;
 use HaakCo\Custd\Admin\SiteDomain\SiteWebDomains;
 use HaakCo\Custd\Admin\SiteDomain\SiteWebPages;
@@ -70,6 +71,12 @@ final class SiteWebDataClient
     public function getTopicTrends(?string $siteUuid = null, ?string $companySlug = null): SiteTopicTrends
     {
         return SiteTopicTrends::fromPayload($this->read('/topic-trends', ['siteUuid' => $siteUuid], $companySlug));
+    }
+
+    /** Read saved-term matches from regional feeds and the Site's optional Hacker News source. */
+    public function getRegionalTrends(?string $siteUuid = null, ?string $companySlug = null): SiteRegionalTrends
+    {
+        return SiteRegionalTrends::fromPayload($this->read('/regional-trends', ['siteUuid' => $siteUuid], $companySlug));
     }
 
     /** Read the topics competitors cover that the Site does not, optionally narrowed to a $seed term. */

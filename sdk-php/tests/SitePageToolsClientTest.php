@@ -311,6 +311,20 @@ final class SitePageToolsClientTest extends TestCase
         ], array_column($calls, 'route'));
     }
 
+    public function testProjectContextSendsExplicitHackerNewsChoice(): void
+    {
+        $domains = $this->client($calls, 'projectContextEmpty');
+        $domains->setProjectContext(null, new SiteProjectContextRequest(hackerNewsEnabled: true));
+        $disabled = $domains->setProjectContext(null, new SiteProjectContextRequest(hackerNewsEnabled: false));
+        $payload = $this->fixture('projectContext');
+        $payload->hackerNewsEnabled = true;
+
+        self::assertSame(true, $calls[0]['body']['hackerNewsEnabled']);
+        self::assertSame(false, $calls[1]['body']['hackerNewsEnabled']);
+        self::assertFalse($disabled->hackerNewsEnabled);
+        self::assertTrue(\HaakCo\Custd\Admin\SiteDomain\SiteProjectContext::fromPayload($payload)->hackerNewsEnabled);
+    }
+
     public function testRefusalsCarryNamedProblemCodes(): void
     {
         $cases = [
