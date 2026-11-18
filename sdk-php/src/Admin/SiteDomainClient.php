@@ -179,6 +179,12 @@ final class SiteDomainClient
         return new SiteExportClient($this->http);
     }
 
+    /** Manage Site Insights AI settings and read billing usage. */
+    public function ai(): SiteAIClient
+    {
+        return new SiteAIClient($this->http);
+    }
+
     /** Read the state of every Site Insights scheduled task. System administrators only. */
     public function getSiteInsightsTasks(): SiteInsightsTasks
     {

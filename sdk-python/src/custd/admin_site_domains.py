@@ -15,6 +15,14 @@ from datetime import UTC, datetime
 from typing import Any, Literal, NotRequired, TypedDict, cast
 
 from .admin_site_access_logs import SiteAccessLogHourReplay, SiteAIVisibility, SiteTraffic
+from .admin_site_ai import (
+    SiteAIConsentRequest,
+    SiteAIPlatformUsage,
+    SiteAISettings,
+    SiteAISettingsRequest,
+    SiteAITenantUsage,
+    SiteAIUsagePeriod,
+)
 from .admin_site_analytics import SiteAnalyticsConnection, SiteAnalyticsReport
 from .admin_site_campaign_links import SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest
 from .admin_site_export import SiteInsightsExport, SiteSearchMetricPage
@@ -1327,6 +1335,32 @@ class SiteDomainAdminClient:
         """
         payload = {"hourStart": _rfc3339_utc(hour_start)}
         return cast(SiteAccessLogHourReplay, self._request("POST", ACCESS_LOG_HOUR_REPLAY_PATH, {}, None, payload))
+
+    def get_ai_settings(self) -> SiteAISettings:
+        """Read the tenant’s AI settings without returning the provider key."""
+        path = SITE_DOMAINS_PATH + "/ai-settings"
+        return cast(SiteAISettings, self._request("GET", path, {}, None))
+
+    def set_ai_settings(self, request: SiteAISettingsRequest) -> SiteAISettings:
+        """Replace AI mode and cap. Omitting the key may keep an existing own key."""
+        path = SITE_DOMAINS_PATH + "/ai-settings"
+        return cast(SiteAISettings, self._request("PUT", path, {}, None, dict(request)))
+
+    def set_ai_consent(self, request: SiteAIConsentRequest) -> SiteAISettings:
+        """Grant consent for the accepted terms version, or revoke it."""
+        path = SITE_DOMAINS_PATH + "/ai-settings/consent"
+        return cast(SiteAISettings, self._request("PUT", path, {}, None, dict(request)))
+
+    def get_ai_usage(self) -> SiteAITenantUsage:
+        """Read the tenant’s current UTC month of AI usage in USD micros."""
+        path = SITE_DOMAINS_PATH + "/ai-usage"
+        return cast(SiteAITenantUsage, self._request("GET", path, {}, None))
+
+    def get_platform_ai_usage(self, period: SiteAIUsagePeriod | None = None) -> SiteAIPlatformUsage:
+        """Read the platform’s AI usage. System administrators only. The default is the current UTC month."""
+        query = {"period": period} if period is not None else {}
+        path = "/admin/site-insights/ai-usage"
+        return cast(SiteAIPlatformUsage, self._request("GET", path, query, None))
 
     def list_site_insights_tasks(self) -> SiteInsightsTaskList:
         """Return every Site Insights scheduler task's state and backlog across tenants. System administrators only."""
