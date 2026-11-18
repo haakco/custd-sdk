@@ -186,7 +186,7 @@ final class SiteDomainClientTest extends TestCase
 
     public function testSiteRuleNamesEveryCatalogueRuleAndTheFixtureFindings(): void
     {
-        self::assertCount(71, SiteRule::cases());
+        self::assertCount(74, SiteRule::cases());
         $fixture = json_decode(
             (string) file_get_contents(__DIR__ . "/../../contract-fixtures/site-insights.json"),
             true,
@@ -299,6 +299,7 @@ final class SiteDomainClientTest extends TestCase
             "evidence" => "9 days",
             "fix" => "Renew it",
             "source" => "tls",
+            "remedy" => ["kind" => "server", "element" => "the TLS certificate"],
             "history" => [
                 "firstSeenAt" => "2026-11-10T08:00:00Z",
                 "lastSeenAt" => "2026-11-11T08:00:00Z",

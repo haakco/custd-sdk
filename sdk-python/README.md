@@ -173,7 +173,52 @@ missing_titles = [f for f in findings if f["rule"] == SITE_RULE_TITLE_MISSING]
 ```
 
 `SITE_RULE_*` constants (all of them in `SITE_RULE_IDS`) are the stable rule
-IDs a finding carries in `rule`; key any client-side fix on them.
+IDs a finding carries in `rule`; key any client-side fix on them. Each finding's
+`remedy` says what the fix changes (`kind`, `element`) and, for some rules,
+carries ready-to-copy `generated` code.
+
+Page tools: `get_page_facts`, `request_page_recheck` / `get_page_recheck`
+(one-page rechecks, `SITE_PAGE_RECHECK_LIMIT_CODE` past the hourly allowance),
+`check_page` (draft HTML, never stored) and `test_robots` (pasted or live
+robots.txt). Search: `list_search_rows` pages one dimension and names
+providers that cannot report it in `unavailable`; `request_search_inspection`
+and `list_search_inspections` run Search Console URL Inspection. A Site's
+brands, competitors and markets are `get_project_context` /
+`set_project_context`. Client reporting: `get_report`, `get_uptime_history`,
+`get_lighthouse_history` and `list_report_shares` / `create_report_share` /
+`revoke_report_share`. IndexNow: `enable_indexnow` names the key file to host,
+`verify_indexnow` checks it, `submit_indexnow` queues URLs, and
+`get_indexnow` / `disable_indexnow` read or turn it off. An unmeasured value (a score, `position`,
+`upPercent`, `fleschReadingEase`) is absent from the dict, never 0.
+
+Audit pages: `list_audit_pages` (offset/limit paging), `get_audit_delta`
+(new, reopened and fixed findings), `get_lighthouse_history(domain, days, url)`
+for an extra page, and `get_lighthouse_pages` / `set_lighthouse_pages`.
+Saved reports: `get_report(domain, template=..., days=...)`,
+`list_saved_reports`, `save_report`, `get_saved_report`,
+`replace_saved_report`, `delete_saved_report`, and
+`create_report_share(domain, days, report_uuid=...)` to share one. Public web
+data (Site-scoped; a site-bound credential may omit `site_uuid`):
+`get_web_domains`, `list_web_pages`, `get_topic_trends`, `get_content_gap`,
+`list_keyword_lists`, `save_keyword_list`, `delete_keyword_list` and
+`get_keyword_clusters`. Links: `get_referring_domains(domain, site_uuid)` lists
+the domains linking to an own or competitor domain by source (Bing, Common
+Crawl, Custd's crawl) with its graph authority and lost links; an unmeasured
+count or rank is absent, a real 0 stays 0. Access logs: `get_traffic`, `get_ai_visibility` and,
+for system administrators, `replay_access_log_hour(hour_start)`. Rank tracking:
+`get_rankings`, `track_keyword`, `update_tracked_keyword` and
+`untrack_keyword` (`update_tracked_keyword(..., paused=True)` without
+`notify_position` keeps the stored alert position); a day the keyword did not
+rank has no `position`. Search value: `get_finding_search_impact(domain,
+finding, days)` compares a fixed finding's page before and after the fix, and
+`get_search_value(domain, goals, days)` credits goal events to search landing
+pages. Shared search pool (tenant-wide; a site-bound credential is refused):
+`get_search_pool`, `set_search_pool(joined)` to join or leave, and
+`list_search_pool_queries(search, limit)` for pooled queries' demand and
+position bands (403 `SITE_SEARCH_POOL_NOT_JOINED_CODE` before joining).
+`get_rankings` carries the rankings' `pool` state and each keyword's pool
+band when there is one. Older servers (the Custd that SDK 3.46.0 targeted) send no report `template` (the default is full) and
+no Lighthouse `url` / `pages`; those keys are then absent.
 
 ## Dev smoke test
 

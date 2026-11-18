@@ -110,10 +110,10 @@ export const SIGN_IN_ERROR_CODES = {
 export type SignInErrorCode = (typeof SIGN_IN_ERROR_CODES)[keyof typeof SIGN_IN_ERROR_CODES];
 
 export class SignInError extends Error {
+  /** @param oauthError OAuth `error` value from the authorization server, when it sent one. */
   constructor(
     readonly code: SignInErrorCode,
     message: string,
-    /** OAuth `error` value from the authorization server, when it sent one. */
     readonly oauthError?: string,
     readonly status?: number,
   ) {

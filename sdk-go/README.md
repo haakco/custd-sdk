@@ -220,6 +220,67 @@ state, per-provider totals with the previous period (`Previous`) and each day
 (`Daily`), the top pages and queries, and `StrikingDistance` queries averaging
 position 5 to 20 (`days` 0 means 28).
 `DisconnectSearch` removes a connection and its imported numbers.
+`ListSearchRows` pages through one dimension (page, query, country or device);
+`Unavailable` names providers that cannot report it, which is not zero traffic.
+`RequestSearchInspection` queues a Search Console URL Inspection (202) and
+`ListSearchInspections` returns the results and the tenant's daily use; refusals
+carry the `SiteSearchInspection*Code` constants.
+`GetIndexNow`, `EnableIndexNow` (returns the key to host), `VerifyIndexNowKey`,
+`DisableIndexNow` and `SubmitIndexNow` (202) push changed URLs to IndexNow;
+refusals carry the `SiteIndexNow*Code` constants.
+
+Each finding carries a `Remedy`: what the fix changes (`Kind`, `Element`) and,
+for some rules, `Generated` code to copy. The page tools work on one page:
+`GetPageFacts` returns what the last audit read, `RequestPageRecheck` queues a
+recheck (poll `GetPageRecheck`; `SitePageRecheckLimitCode` past the hourly
+allowance, `SitePageNotOnDomainCode` for another host), `CheckPage` checks draft
+HTML without storing it, and `TestRobots` answers whether a crawler may fetch a
+URL under a pasted or the live robots.txt. `GetProjectContext` and
+`SetProjectContext` read and replace a Site's brand names, competitors and
+markets.
+
+`GetReport`, `GetUptimeHistory` and `GetLighthouseHistory` read the client report
+and its history; `ListReportShares`, `CreateReportShare` (the token is returned
+once) and `RevokeReportShare` manage public report links. Measurements that were
+not taken decode as `nil`, never 0.
+
+`GetReportWithOptions` picks the report template (`AdminSiteReportTemplateExecutive`
+or `AdminSiteReportTemplateFull`) and search days. `ListSavedReports`,
+`SaveReport`, `GetSavedReport`, `ReplaceSavedReport` and `DeleteSavedReport` keep
+up to 20 named reports per domain; set `ReportUUID` on
+`AdminSiteReportShareRequest` to share a saved report instead of the live one.
+`ListAuditPages` pages through the last audit's crawled URLs, `GetAuditDelta`
+returns the findings it opened, reopened and fixed, and `GetLighthousePages`,
+`SetLighthousePages` and `GetLighthousePageHistory` measure up to five extra
+pages beside the home page.
+
+Public web data is Site-scoped (an empty `siteUUID` means the credential's own
+Site): `GetWebDomains`, `ListWebPages`, `GetTopicTrends`, `GetContentGap`, and
+the keyword lists `ListKeywordLists`, `SaveKeywordList`, `DeleteKeywordList` and
+`GetKeywordClusters`. Access logs give `GetTraffic` and `GetAIVisibility` over
+`YYYY-MM-DD` UTC days; a system administrator queues one hour again with
+`ReplayAccessLogHour`. Rank tracking uses `GetRankings`, `TrackKeyword`,
+`UpdateTrackedKeyword` (a zero `NotifyPosition` keeps the stored alert position)
+and `UntrackKeyword`; a day the keyword did not rank has a `nil` `Position`.
+Refusals carry the matching `*Code` constants.
+
+`GetFindingSearchImpact` compares a fixed finding's page's search clicks before
+and after the fix; an insufficient period has `nil` numbers, never 0.
+`GetSearchValue(ctx, domainUUID, goals, days)` returns the top search pages with
+the analytics goals (1 to 5 event types) credited to them; `Landings` and
+`GoalConversions` are `nil` when goals were not measured.
+
+`GetReferringDomains(ctx, siteUUID, domain)` returns who links to one of the
+Site's domains: each source's totals with status, scope and date, the domain's
+Common Crawl authority, the referring domains with their source labels, and the
+domains lost since the previous release. A source with no number has `nil`
+counts, never 0. The tenant-wide shared search pool uses `GetSearchPool`,
+`SetSearchPool(ctx, joined)` and `ListSearchPoolQueries`; `GetRankings` reports
+`Pool` and, for a member, each keyword's pool band (`nil` otherwise, and from a
+server that predates the pool).
+
+Custd 3.46.0 and earlier send no report `Template` (their reports are the full
+template) and no Lighthouse history `URL` or `Pages`; those decode as empty.
 
 ## Schema Admin Helpers
 

@@ -10,7 +10,7 @@ The crate is not on crates.io. Add it as a git dependency, pinned to a release t
 
 ```toml
 [dependencies]
-custd-sdk = { git = "https://github.com/haakco/custd-sdk", tag = "v3.46.0" }
+custd-sdk = { git = "https://github.com/haakco/custd-sdk", tag = "v3.49.0" }
 ```
 
 It uses `ureq` with rustls (ring), `serde` and `serde_json`. It has no async runtime and no

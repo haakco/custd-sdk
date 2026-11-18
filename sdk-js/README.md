@@ -6,14 +6,14 @@ Ingestion client with retry, batching, and optional offline queueing.
 
 The supported 3.x SDK sends events to `POST /api/v1/events` and batches to
 `POST /api/v1/events/batch`. Installation examples below were verified against
-release **3.46.0** on 2026-11-17, including Node 26, pnpm 12 and Expo 58 consumers.
+release **3.49.0** on 2026-11-17, including Node 26, pnpm 12 and Expo 58 consumers.
 
 ## Install
 
 Use the GitHub package path when installing into HaakCo apps:
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.46.0&path:/sdk-js'
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.49.0&path:/sdk-js'
 ```
 
 Pin the tag to the SDK version you want. The package is no longer published to
@@ -298,6 +298,21 @@ to lower the default limit of 1000 queued events. Script-tag installs can opt
 into persistent queueing with `data-persistent-queue="true"`. Calling
 `setConsent("denied")` clears extended-mode identifiers and queued events.
 
+A page view also carries its sanitized path in the payload, so reporting can
+group page views by page. When the first page view of a document arrives from
+an AI assistant (the hostnames in `aiAssistantReferrers`, such as `chatgpt.com`,
+`perplexity.ai`, `claude.ai`, `gemini.google.com` and `copilot.microsoft.com`),
+it carries `referrerClass: "ai-assistant"` and the assistant name as
+`aiAssistant`. The referrer URL itself is never sent.
+
+Pass `webVitals: true` (script tag: `data-web-vitals="true"`) to capture
+real-user Core Web Vitals with the browser's `PerformanceObserver`. When the page
+is first hidden, the tracker sends one `web-vitals` event for the landing path
+with `lcp`, `inp`, `fcp` and `ttfb` in milliseconds and `cls` as a score. A
+metric the browser does not report, such as INP on a visit with no interaction,
+is omitted rather than sent as zero. Single-page route changes do not send
+further vitals events, because LCP, FCP and TTFB describe the document load.
+
 The browser-side origin check is a guardrail, not the security boundary.
 Collectors must enforce `allowedOrigins`, write-key validity, and rate limits
 server-side.
@@ -432,6 +447,82 @@ delete, and rotate browser tracker Sites. `create` returns the public write key
 once. `list` and `get` return Site metadata without the write key.
 `rotateWriteKey` returns the replacement write key once; update tracker config
 and stop using the old key after rotation.
+
+## Site Insights (site domains)
+
+Server-side code can use `client.admin.siteDomains` to claim a host for a Site,
+prove control (`verify`, or `attest` from a site-bound broker credential), queue
+an audit, read findings and outages, choose the check mode, set the alert
+address and connect Google or Bing search numbers. The routes are under
+`/api/v1/site-domains`; a system administrator names the tenant with
+`{ companySlug }` in the last argument.
+
+```ts
+import { SITE_DOMAIN_NOT_VERIFIED_CODE, SiteRule } from "@haakco/custd-sdk";
+
+const domain = await client.admin.siteDomains.create({ siteUuid, host: "example.com" });
+// Publish domain.ownership.instructions (DNS TXT or well-known file), then:
+await client.admin.siteDomains.verify(domain.domainUuid);
+await client.admin.siteDomains.requestAudit(domain.domainUuid);
+
+const { findings } = await client.admin.siteDomains.listFindings(domain.domainUuid, "open");
+const missingTitles = findings.filter((finding) => finding.rule === SiteRule.TitleMissing);
+```
+
+`SiteRule` holds the stable rule IDs a finding carries in `rule`; key any
+client-side fix on them. A refused audit of an unverified domain is a
+`CustdRequestError` whose `code` is `SITE_DOMAIN_NOT_VERIFIED_CODE`.
+
+Each finding carries a `remedy` (`kind`, `element`, and ready-to-copy
+`generated` code for some rules). The page tools are `getPageFacts`,
+`requestPageRecheck` / `getPageRecheck` (refusals: `SITE_PAGE_NOT_ON_DOMAIN_CODE`,
+`SITE_PAGE_RECHECK_LIMIT_CODE`), `checkPage` for draft HTML and `testRobots`.
+Search adds `listSearchRows` (its `unavailable` list names providers that cannot
+report a dimension) and Search Console URL inspection
+(`requestSearchInspection`, `listSearchInspections`). `getProjectContext` /
+`setProjectContext` keep a Site's brands, competitors and markets. The client
+report reads are `getReport`, `getUptimeHistory`, `getLighthouseHistory` and
+`listReportShares` / `createReportShare` / `revokeReportShare`. IndexNow is
+`getIndexNow`, `enableIndexNow`, `verifyIndexNowKey`, `submitIndexNow` and
+`disableIndexNow`, with `SITE_INDEXNOW_*_CODE` refusals. A measurement
+Custd did not take is absent, never `0`.
+
+More reads and controls on the same client:
+
+- Audit pages: `listAuditPages(domainUuid, offset?, limit?)` and `getAuditDelta`
+  (new, reopened and fixed findings).
+- Lighthouse pages: `getLighthousePages` / `setLighthousePages(domainUuid, urls)`
+  (at most five extra pages; `[]` clears them). `getLighthouseHistory(domainUuid, days, { url })`
+  reads one extra page.
+- Reports: `getReport(domainUuid, { template, days })` (`SiteReportTemplate.Executive`
+  or `Full`), and saved reports with `listSavedReports`, `saveReport`, `getSavedReport`,
+  `replaceSavedReport`, `deleteSavedReport`. `createReportShare(domainUuid, { reportUuid })`
+  shares a saved report.
+- Public web data per Site (`siteUuid` optional for a site-bound credential):
+  `getWebDomains`, `listWebPages(domain, { after })`, `getTopicTrends`, `getContentGap`,
+  and keyword lists with `listKeywordLists`, `saveKeywordList`, `deleteKeywordList`,
+  `getKeywordClusters`.
+- Referring domains: `getReferringDomains(domain, siteUuid?)` lists the domains linking to one
+  of the Site's web domains per source (`SiteLinkSource` bing, commoncrawl, crawl), its Common
+  Crawl authority and lost links. A count a source did not report is absent, never `0`.
+- Shared search pool (tenant-wide; a site-bound credential is refused with
+  `SITE_SEARCH_POOL_SITE_BOUND_CODE`): `getSearchPool`, `setSearchPool(joined)` and
+  `listSearchPoolQueries(search?, limit?)` (refused with `SITE_SEARCH_POOL_NOT_JOINED_CODE`
+  before joining). `getRankings` then carries `pool` and each keyword's pooled `pool` band.
+- Access logs: `getTraffic(domainUuid, from?, to?)`, `getAIVisibility`, and
+  `replayAccessLogHour(hourStart)` for system administrators.
+- Rank tracking: `getRankings(domainUuid, days?)`, `trackKeyword`,
+  `updateTrackedKeyword` (always sends `paused`; an omitted `notifyPosition` keeps the
+  stored one), `untrackKeyword`. A day that did not rank has no `position`.
+- Search value: `getFindingSearchImpact(domainUuid, findingUuid, days?)` compares a fixed
+  finding's page in search before and after the fix, and `getSearchValue(domainUuid, goals, days?)`
+  credits up to five goal event types to search landing pages. Unmeasured numbers are absent.
+- Older servers (3.46.0) send no report `template` or Lighthouse `url` / `pages`; those fields
+  are then absent (no pages).
+
+Each refusal code is a named constant, such as `SAVED_SITE_REPORT_NAME_TAKEN_CODE`,
+`SITE_KEYWORD_LIST_LIMIT_CODE`, `ACCESS_LOG_HOUR_INVALID_CODE` or
+`SITE_TRACKED_KEYWORD_DUPLICATE_CODE`.
 
 ## Schema Admin Helpers
 

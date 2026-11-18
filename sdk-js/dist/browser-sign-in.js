@@ -21,9 +21,8 @@ export const SIGN_IN_ERROR_CODES = {
     noRefreshToken: "no_refresh_token",
 };
 export class SignInError extends Error {
-    constructor(code, message, 
-    /** OAuth `error` value from the authorization server, when it sent one. */
-    oauthError, status) {
+    /** @param oauthError OAuth `error` value from the authorization server, when it sent one. */
+    constructor(code, message, oauthError, status) {
         super(`custd: ${message}`);
         this.code = code;
         this.oauthError = oauthError;

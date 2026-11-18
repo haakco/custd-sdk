@@ -259,6 +259,24 @@ GET a minute) or `SiteCheckMode::Paused` (no requests at all; set it when you
 stop a site, so nothing wakes it). `listIncidents()` returns the domain's recent
 outages.
 
+Each finding carries a `remedy`: what the fix changes (`SiteRemedy::KIND_*`),
+the element, and for some rules `generated` code to copy. The page tools read
+`getPageFacts()`, queue `requestPageRecheck()` (poll `getPageRecheck()`), check
+draft HTML with `checkPage()` and test crawler access with `testRobots()`
+(omit `robotsTxt` to read the live file). `listSearchRows()` pages through one
+search dimension; `unavailable` names providers that cannot report it, which is
+not zero traffic. `requestSearchInspection()` and `listSearchInspections()`
+run Google URL Inspection. `getProjectContext()` and `setProjectContext()` hold
+a Site's brands, competitors and markets. Missing measurements decode as
+`null`, never `0`. Refusals carry `SiteDomainClient::PAGE_NOT_ON_DOMAIN_CODE`,
+`PAGE_RECHECK_LIMIT_CODE` and the `SEARCH_INSPECTION_*_CODE` constants.
+
+`enableIndexNow()` returns the key file to serve; `verifyIndexNow()` checks it
+(a failed check is `lastCheckFailure`, not an error), `submitIndexNow()` queues
+changed URLs, `getIndexNow()` shows daily use and submissions, and
+`disableIndexNow()` turns it off. Refusals carry the `INDEXNOW_*_CODE`
+constants.
+
 ### A credential for one site (WordPress plugin, hosting environment)
 
 A server that already holds a producer-provisioning credential (a broker) mints
@@ -321,6 +339,42 @@ category, is `null`, never zero. `createReportShare($domainUuid, new
 SiteReportShareRequest(30))` returns the share and its token once;
 `listReportShares()` lists live shares without tokens and
 `revokeReportShare($domainUuid, $shareUuid)` ends one.
+
+`getReport($domainUuid, template: SiteReport::TEMPLATE_EXECUTIVE, days: 14)` picks
+the report layout and search window. `saveReport($domainUuid, new
+SavedSiteReportRequest('November', SiteReport::TEMPLATE_EXECUTIVE, 14))` keeps a
+built report under a name (`listSavedReports()`, `getSavedReport()`,
+`replaceSavedReport()`, `deleteSavedReport()`; at most 20 per domain), and
+`new SiteReportShareRequest(30, $reportUuid)` shares a saved report instead of the
+live one. `listAuditPages($domainUuid, $offset, $limit)` pages through the crawled
+URLs, `getAuditDelta()` returns the findings the latest audit raised, raised again
+and found fixed, and `setLighthousePages($domainUuid, $urls)` /
+`getLighthousePages()` choose up to five extra pages for Lighthouse;
+`getLighthouseHistory($domainUuid, url: $pageUrl)` reads one of them.
+`getFindingSearchImpact($domainUuid, $findingUuid, $days)` compares a fixed
+finding's page clicks and impressions before and after the fix (an insufficient
+window has `null` numbers), and `getSearchValue($domainUuid, ['signup'], $days)`
+joins search pages to the analytics goals credited to their landings. A report or
+Lighthouse history from a 3.46.0-era server has a `null` `template` or `url` and
+no `pages`.
+
+Four focused clients hang off the same client. `rankings()` tracks keyword
+positions from Search Console (`getRankings()`, `trackKeyword()`,
+`updateTrackedKeyword()`, whose request keeps the stored alert position when
+`notifyPosition` is null, `untrackKeyword()`); a day the domain did not rank has a
+`null` position, and once the tenant joins the shared search pool a keyword the
+pool holds carries its `pool` band. `accessLogs()` reads `getTraffic()` and
+`getAIVisibility()` over UTC days, and a system administrator can
+`replayAccessLogHour($hourStart)`. `webData()` reads a Site's `getWebDomains()`,
+`listWebPages()`, `getReferringDomains($domain, $siteUuid)` (per-source link
+totals, Common Crawl authority, referring and lost domains; a count a source did
+not report is `null`, never zero), `getTopicTrends()` and `getContentGap()` and
+keeps its keyword lists (`listKeywordLists()`, `saveKeywordList()`,
+`deleteKeywordList()`, `getKeywordClusters()`). `searchPool()` is tenant-wide:
+`getSearchPool()` and `setSearchPool(true|false)` join or leave the shared search
+pool, and `listSearchPoolQueries($search, $limit)` reads its k-anonymous query
+bands once joined (`SEARCH_POOL_NOT_JOINED_CODE` before). Refusals carry the
+`*_CODE` constants on the client that made the call.
 
 ## Schema Admin Helpers
 

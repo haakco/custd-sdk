@@ -27,22 +27,13 @@ final class LifecycleMatrixTest extends TestCase
      * relying on global transport state.
      *
      * @param array<int, array{0: string, 1: string, 2?: array<string, string>}> $queue
-     * @return array{0: CustdClient, 1: object{calls: array<int, array{method:string, url:string, body:mixed, token:string, headers:array<string, string>}>}}
+     * @return array{0: CustdClient, 1: AdminTransportRecorder}
      */
     private function client(array $queue): array
     {
-        // Use an object to hold the calls array and the queue so the closure
-        // can mutate both and the caller observes the same references after
-        // the call. PHP captures closure variables by value by default, so
-        // an object wrapper is required to keep the state shared across
-        // closure invocations.
-        $bag = new class () {
-            /** @var array<int, array{method:string, url:string, body:mixed, token:string, headers:array<string, string>}> */
-            public array $calls = [];
-            /** @var array<int, array{0: string, 1: string, 2?: array<string, string>}> */
-            public array $queue = [];
-        };
-        $bag->queue = array_values($queue);
+        // PHP captures closure variables by value, so a shared object keeps the queue and the
+        // recorded calls visible to the caller after each closure invocation.
+        $bag = new AdminTransportRecorder(array_values($queue));
         $transport = function (
             string $method,
             string $url,

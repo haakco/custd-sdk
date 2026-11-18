@@ -1,3 +1,12 @@
+import type { SiteAuditDelta, SiteAuditPageList, SiteLighthousePages, SiteLighthouseRequestOptions } from "./admin-site-audit-pages.js";
+import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory } from "./admin-site-insights.js";
+import type { SiteReferringDomains } from "./admin-site-links.js";
+import type { SiteRankings, SiteTrackedKeyword, SiteTrackedKeywordUpdate, SiteTrackKeywordRequest } from "./admin-site-rankings.js";
+import type { SavedSiteReport, SavedSiteReportList, SavedSiteReportRequest, SiteReportRequestOptions } from "./admin-site-saved-reports.js";
+import type { SearchPoolQueryPage, SearchPoolSetting } from "./admin-site-search-pool.js";
+import type { SiteFindingImpact, SiteSearchValue } from "./admin-site-search-value.js";
+import type { AccessLogHourReplay, SiteAIVisibility, SiteTraffic } from "./admin-site-traffic.js";
+import type { SiteContentGap, SiteKeywordClusters, SiteKeywordList, SiteKeywordListRequest, SiteKeywordLists, SiteTopicTrends, SiteWebDomains, SiteWebPages, SiteWebPagesQuery } from "./admin-site-web-data.js";
 import type { RequestOptions } from "./index.js";
 /** A 409 on requestAudit: the tenant has not proven control of the domain yet. */
 export declare const SITE_DOMAIN_NOT_VERIFIED_CODE = "site_domain_not_verified";
@@ -82,6 +91,9 @@ export declare const SiteRule: {
     readonly LighthouseMobileDrop: "lighthouse.mobile-score-drop";
     readonly SearchLowCTR: "search.low-ctr";
     readonly SearchPositionDrop: "search.position-drop";
+    readonly BrokenFragment: "crawl.broken-fragment";
+    readonly SitemapBlockedURL: "sitemap.blocked-url";
+    readonly LogsCrawlerNotFound: "logs.crawler-not-found";
 };
 export type SiteRuleId = (typeof SiteRule)[keyof typeof SiteRule];
 /** Per-call options. `companySlug` names the tenant when a system administrator acts for one. */
@@ -211,6 +223,7 @@ export type SiteFinding = {
     evidence: string;
     fix: string;
     source: string;
+    remedy: SiteRemedy;
     history: SiteFindingHistory;
 };
 /** A domain's findings, most severe first. */
@@ -333,12 +346,133 @@ export declare class SiteDomainAdminClient {
     setAlertDestination(body: SiteAlertDestinationRequest, options?: SiteDomainRequestOptions): Promise<SiteAlertDestination>;
     /** Reads which search providers this Custd deployment can import from. */
     getSearchAccount(options?: SiteDomainRequestOptions): Promise<SiteSearchAccount>;
+    /** Reads whether the tenant takes part in the shared search pool, and the pool's rules. */
+    getSearchPool(options?: SiteDomainRequestOptions): Promise<SearchPoolSetting>;
+    /** Joins (true) or leaves (false) the shared search pool for the whole tenant. */
+    setSearchPool(joined: boolean, options?: SiteDomainRequestOptions): Promise<SearchPoolSetting>;
+    /**
+     * Reads pooled queries matching `search` (at most 100 characters), `limit` 1..200; omitted, 50.
+     * Before joining it is refused with SITE_SEARCH_POOL_NOT_JOINED_CODE.
+     */
+    listSearchPoolQueries(search?: string, limit?: number, options?: SiteDomainRequestOptions): Promise<SearchPoolQueryPage>;
     /** Reads a domain's search numbers over the last `days` days (1..90); omitted, the server uses 28. */
     getSearchPerformance(domainUuid: string, days?: number, options?: SiteDomainRequestOptions): Promise<SiteSearchPerformance>;
     /** Connects a domain to a provider, or replaces its property or key. Refused with SITE_SEARCH_NOT_CONFIGURED_CODE when the deployment lacks the provider. */
     connectSearch(domainUuid: string, provider: SiteSearchProvider, body: SiteSearchConnectionRequest, options?: SiteDomainRequestOptions): Promise<SiteSearchConnection>;
     /** Removes a provider connection and the numbers imported through it. */
     disconnectSearch(domainUuid: string, provider: SiteSearchProvider, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Reads what the latest audit or recheck read from one page of the domain. */
+    getPageFacts(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageFacts>;
+    /**
+     * Queues one page of a verified domain for recheck (202). A page already queued comes back as it is;
+     * past the hourly allowance the server refuses with SITE_PAGE_RECHECK_LIMIT_CODE, and a page of
+     * another host with SITE_PAGE_NOT_ON_DOMAIN_CODE.
+     */
+    requestPageRecheck(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageRecheck>;
+    getPageRecheck(domainUuid: string, recheckUuid: string, options?: SiteDomainRequestOptions): Promise<SitePageRecheck>;
+    /** Runs the one-page checks on draft HTML; nothing is fetched or stored. */
+    checkPage(domainUuid: string, body: SitePageCheckRequest, options?: SiteDomainRequestOptions): Promise<SitePageCheckResponse>;
+    /** Tests a URL against a pasted robots.txt, or the domain's live file when robotsTxt is omitted. */
+    testRobots(domainUuid: string, body: SiteRobotsTestRequest, options?: SiteDomainRequestOptions): Promise<SiteRobotsTestResponse>;
+    /** Pages through one dimension of the domain's imported search rows; `unavailable` names providers without it. */
+    listSearchRows(domainUuid: string, query?: SiteSearchRowsQuery, options?: SiteDomainRequestOptions): Promise<SiteSearchRowPage>;
+    /** Lists the domain's latest URL inspections and the tenant's daily use. */
+    listSearchInspections(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteSearchInspectionList>;
+    /**
+     * Queues a Search Console URL Inspection (202). Refusals carry SITE_SEARCH_INSPECTION_URL_INVALID_CODE,
+     * SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE or SITE_SEARCH_INSPECTION_LIMIT_CODE.
+     */
+    requestSearchInspection(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SiteSearchInspection>;
+    /** Reads a Site's brands, competitors and markets. A site-bound credential may omit siteUuid. */
+    getProjectContext(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteProjectContext>;
+    /** Replaces a Site's project context; an omitted list is sent empty and clears it. */
+    setProjectContext(body: SiteProjectContextRequest, options?: SiteDomainRequestOptions): Promise<SiteProjectContext>;
+    /** Reads the client report without private verification or connection details, in options.template over options.days. */
+    getReport(domainUuid: string, options?: SiteReportRequestOptions): Promise<SiteReport>;
+    /** Reads uptime windows, ninety daily bars and hourly response times over `responseDays` (1..90). */
+    getUptimeHistory(domainUuid: string, responseDays?: number, options?: SiteDomainRequestOptions): Promise<SiteUptimeHistory>;
+    /**
+     * Reads scheduled desktop and mobile lab runs over `days` (1..30); omitted, the server uses seven.
+     * options.url reads one extra page's runs instead of the home page's.
+     */
+    getLighthouseHistory(domainUuid: string, days?: number, options?: SiteLighthouseRequestOptions): Promise<SiteLighthouseHistory>;
+    /** Reads the extra pages Lighthouse measures beside the home page. */
+    getLighthousePages(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteLighthousePages>;
+    /** Replaces the extra pages (at most five); an empty list clears them. Refused with SITE_LIGHTHOUSE_PAGE_NOT_EXTRA_CODE. */
+    setLighthousePages(domainUuid: string, urls: string[], options?: SiteDomainRequestOptions): Promise<SiteLighthousePages>;
+    /** Pages through the URLs the latest audit crawled; the server defaults limit to 50 (at most 200). */
+    listAuditPages(domainUuid: string, offset?: number, limit?: number, options?: SiteDomainRequestOptions): Promise<SiteAuditPageList>;
+    /** Reads the findings the latest audit opened, reopened and fixed. */
+    getAuditDelta(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteAuditDelta>;
+    /** Lists the domain's saved reports, newest content first. */
+    listSavedReports(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SavedSiteReportList>;
+    /** Generates and saves a report. Refused with SAVED_SITE_REPORT_NAME_TAKEN_CODE or SAVED_SITE_REPORT_LIMIT_CODE. */
+    saveReport(domainUuid: string, body: SavedSiteReportRequest, options?: SiteDomainRequestOptions): Promise<SavedSiteReport>;
+    getSavedReport(domainUuid: string, reportUuid: string, options?: SiteDomainRequestOptions): Promise<SavedSiteReport>;
+    /** Renames or regenerates a saved report; its shares open the new content. */
+    replaceSavedReport(domainUuid: string, reportUuid: string, body: SavedSiteReportRequest, options?: SiteDomainRequestOptions): Promise<SavedSiteReport>;
+    /** Deletes a saved report. */
+    deleteSavedReport(domainUuid: string, reportUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Lists live report shares. Tokens are returned only on creation. */
+    listReportShares(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteReportShareList>;
+    /** Creates a public report share. Copy the token once; creation is never retried automatically. */
+    createReportShare(domainUuid: string, body?: SiteReportShareRequest, options?: SiteDomainRequestOptions): Promise<SiteReportShareCreated>;
+    /** Revokes a share; later public reads fail. */
+    revokeReportShare(domainUuid: string, shareUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Reads the domain's IndexNow setup, today's use and its recent submissions. */
+    getIndexNow(domainUuid: string, options?: SiteDomainRequestOptions): Promise<IndexNowState>;
+    /** Enables IndexNow and returns the key to host at keyLocation. An unverified domain is refused with SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE. */
+    enableIndexNow(domainUuid: string, options?: SiteDomainRequestOptions): Promise<IndexNowState>;
+    /** Disables IndexNow for the domain. */
+    disableIndexNow(domainUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Checks the hosted key file now. A failed check is not an error: it comes back in lastCheckFailure. */
+    verifyIndexNowKey(domainUuid: string, options?: SiteDomainRequestOptions): Promise<IndexNowState>;
+    /**
+     * Queues URLs for IndexNow (202). Refusals carry SITE_INDEXNOW_NOT_ENABLED_CODE,
+     * SITE_INDEXNOW_KEY_UNVERIFIED_CODE, SITE_INDEXNOW_URLS_INVALID_CODE or SITE_INDEXNOW_LIMIT_CODE.
+     */
+    submitIndexNow(domainUuid: string, body: IndexNowSubmissionRequest, options?: SiteDomainRequestOptions): Promise<IndexNowSubmission>;
+    /** Reads the Site's own and competitor domains and their inventory state. */
+    getWebDomains(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteWebDomains>;
+    /** Pages through one inventoried domain's URLs; pass the previous page's `next` as `after`. */
+    listWebPages(domain: string, query?: SiteWebPagesQuery, options?: SiteDomainRequestOptions): Promise<SiteWebPages>;
+    /** Reads the domains linking to one of the Site's web domains, per source, with its authority and lost links. */
+    getReferringDomains(domain: string, siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteReferringDomains>;
+    /** Reads monthly Wikipedia interest in the Site's brands and seed term. */
+    getTopicTrends(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteTopicTrends>;
+    /** Reads the topics competitors cover and the Site does not, optionally around a seed term. */
+    getContentGap(siteUuid?: string, seed?: string, options?: SiteDomainRequestOptions): Promise<SiteContentGap>;
+    listKeywordLists(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteKeywordLists>;
+    /** Creates or replaces the named list. A new list past the limit is refused with SITE_KEYWORD_LIST_LIMIT_CODE. */
+    saveKeywordList(body: SiteKeywordListRequest, siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteKeywordList>;
+    /** Deletes the named list. An unknown name is refused with SITE_KEYWORD_LIST_NOT_FOUND_CODE. */
+    deleteKeywordList(name: string, siteUuid?: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Groups the named list's keywords by shared stem with the Site's own search numbers. */
+    getKeywordClusters(name: string, siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteKeywordClusters>;
+    /** Compares search for a finding's page over `days` (7..90) before and after it was fixed; omitted, 28. */
+    getFindingSearchImpact(domainUuid: string, findingUuid: string, days?: number, options?: SiteDomainRequestOptions): Promise<SiteFindingImpact>;
+    /** Reads search landing pages with the goal events (1..5 event types) credited to them over `days` (1..90). */
+    getSearchValue(domainUuid: string, goals: string[], days?: number, options?: SiteDomainRequestOptions): Promise<SiteSearchValue>;
+    /** Reads the domain's access-log traffic over UTC days `from`..`to` (YYYY-MM-DD); omitted, the server picks them. */
+    getTraffic(domainUuid: string, from?: string, to?: string, options?: SiteDomainRequestOptions): Promise<SiteTraffic>;
+    /** Reads AI crawler requests and AI-assistant referrals over UTC days `from`..`to`. */
+    getAIVisibility(domainUuid: string, from?: string, to?: string, options?: SiteDomainRequestOptions): Promise<SiteAIVisibility>;
+    /**
+     * Has the access-log task read one UTC hour again (202). System administrators only; the route is
+     * platform-wide. A bad hour is refused with ACCESS_LOG_HOUR_INVALID_CODE.
+     */
+    replayAccessLogHour(hourStart: Date | string, options?: RequestOptions): Promise<AccessLogHourReplay>;
+    /** Reads tracked keywords and each day's rank over `days` (1..90); omitted, the server uses 28. */
+    getRankings(domainUuid: string, days?: number, options?: SiteDomainRequestOptions): Promise<SiteRankings>;
+    /**
+     * Starts tracking a keyword (201). Refusals carry SITE_TRACKED_KEYWORD_INVALID_CODE,
+     * SITE_TRACKED_KEYWORD_LIMIT_CODE or SITE_TRACKED_KEYWORD_DUPLICATE_CODE.
+     */
+    trackKeyword(domainUuid: string, body: SiteTrackKeywordRequest, options?: SiteDomainRequestOptions): Promise<SiteTrackedKeyword>;
+    /** Pauses or resumes a keyword and, when notifyPosition is set, changes its alert position. */
+    updateTrackedKeyword(domainUuid: string, keywordUuid: string, body: SiteTrackedKeywordUpdate, options?: SiteDomainRequestOptions): Promise<SiteTrackedKeyword>;
+    /** Stops tracking a keyword and removes its observations. */
+    untrackKeyword(domainUuid: string, keywordUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
     private send;
 }
 export {};

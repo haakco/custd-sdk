@@ -6,8 +6,17 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 
 use HaakCo\Custd\Fields;
 
+/**
+ * SiteReport is the client report of one domain, built from the TEMPLATE_* layout it names. template
+ * is null on servers before the template field; the server's default template is full.
+ */
 final readonly class SiteReport
 {
+    /** The short summary for a site owner. */
+    public const TEMPLATE_EXECUTIVE = 'executive';
+    /** Every section; the default. */
+    public const TEMPLATE_FULL = 'full';
+
     /**
      * @param list<SiteReportSpeed> $speed
      */
@@ -19,6 +28,7 @@ final readonly class SiteReport
         public array $speed,
         public SiteReportSearch $search,
         public SiteReportAudit $audit,
+        public ?string $template = null,
     ) {
     }
 
@@ -32,6 +42,7 @@ final readonly class SiteReport
             array_map(SiteReportSpeed::fromPayload(...), Fields::objects($payload, 'speed')),
             SiteReportSearch::fromPayload(Fields::object($payload, 'search')),
             SiteReportAudit::fromPayload(Fields::object($payload, 'audit')),
+            Fields::optionalString($payload, 'template'),
         );
     }
 }

@@ -40,12 +40,10 @@ export declare const HOSTED_APP_ERROR_CODES: {
 export type HostedAppErrorCode = (typeof HOSTED_APP_ERROR_CODES)[keyof typeof HOSTED_APP_ERROR_CODES];
 export declare class HostedAppError extends Error {
     readonly code: HostedAppErrorCode;
-    /** The capability that failed to start; absent when discovery itself failed. */
     readonly capability?: HostedAppCapability | undefined;
     readonly status?: number | undefined;
-    constructor(code: HostedAppErrorCode, message: string, 
-    /** The capability that failed to start; absent when discovery itself failed. */
-    capability?: HostedAppCapability | undefined, status?: number | undefined);
+    /** @param capability The capability that failed to start; absent when discovery itself failed. */
+    constructor(code: HostedAppErrorCode, message: string, capability?: HostedAppCapability | undefined, status?: number | undefined);
 }
 /** Typed event properties: flat scalar values, as registered event schemas declare them. */
 export type AppEventProperties = Record<string, string | number | boolean | null>;
