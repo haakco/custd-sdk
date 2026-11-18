@@ -580,6 +580,8 @@ More reads and controls on the same client:
   `redirect` (format `redirect`) and `phrase`; page facts carry `shareImage` and `faqSchema`.
   `compareWording(domainUuid, { first, second })` measures shared wording as the
   `content.near-duplicate` rule does; `sharedPercent` is absent when the texts were not compared.
+  `comparePageWording(domainUuid, { firstUrl, secondUrl })` compares two stored checks from
+  one verified domain and returns each page's evidence state. Neither URL is fetched.
 - Campaign links: `listCampaignLinks(domainUuid, includeArchived?)`, `createCampaignLink` and
   `archiveCampaignLink` keep a domain's saved UTM links (409 `SITE_CAMPAIGN_LINK_TAKEN_CODE` or
   `SITE_CAMPAIGN_LINK_LIMIT_CODE`).

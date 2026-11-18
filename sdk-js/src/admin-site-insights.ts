@@ -218,7 +218,7 @@ export type SiteWordingCompareRequest = {
 };
 
 /**
- * How much wording two drafts share, measured as the content.near-duplicate rule does; wording
+ * How much wording two texts share, measured as the content.near-duplicate rule does; wording
  * overlap, not plagiarism. Texts under minWords are not compared: compared is false and
  * sharedPercent absent.
  */
@@ -230,6 +230,24 @@ export type SiteWordingCompare = {
   sharedPercent?: number;
   thresholdPercent: number;
   nearDuplicate: boolean;
+};
+
+/** Two distinct absolute URLs on the same verified domain. */
+export type SitePageWordingQuery = { firstUrl: string; secondUrl: string };
+
+export type SiteWordingObservationState = "unread" | "unavailable" | "short" | "ready";
+
+/** The latest stored check of a page. An unread page has no observation timestamp. */
+export type SiteWordingObservation = {
+  state: SiteWordingObservationState;
+  observedAt?: string;
+};
+
+/** Comparison is absent for unread or unavailable evidence. Short observations keep the word counts. */
+export type SiteObservedWording = {
+  first: SiteWordingObservation;
+  second: SiteWordingObservation;
+  comparison?: SiteWordingCompare;
 };
 
 export type SiteRobotsTestRequest = {

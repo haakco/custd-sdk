@@ -28,11 +28,13 @@ import type {
   IndexNowSubmission,
   IndexNowSubmissionRequest,
   SiteLighthouseHistory,
+  SiteObservedWording,
   SitePageCheckRequest,
   SitePageCheckResponse,
   SitePageFacts,
   SitePageRecheck,
   SitePageRecheckList,
+  SitePageWordingQuery,
   SiteProjectContext,
   SiteProjectContextRequest,
   SiteRemedy,
@@ -736,6 +738,18 @@ export class SiteDomainAdminClient {
     const path = `${domainPath(domainUuid)}/wording-compare`;
     const result = await this.send<SiteWordingCompare>("POST", path, {}, request, options);
     if (!result.compared) delete result.sharedPercent;
+    return result;
+  }
+
+  /** Compares two stored page observations on a verified domain without fetching either URL. */
+  async comparePageWording(
+    domainUuid: string,
+    { firstUrl, secondUrl }: SitePageWordingQuery,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteObservedWording> {
+    const path = `${domainPath(domainUuid)}/page-wording`;
+    const result = await this.send<SiteObservedWording>("GET", path, { firstUrl, secondUrl }, undefined, options);
+    if (result.comparison && !result.comparison.compared) delete result.comparison.sharedPercent;
     return result;
   }
 

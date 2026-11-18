@@ -291,6 +291,14 @@ export class SiteDomainAdminClient {
             delete result.sharedPercent;
         return result;
     }
+    /** Compares two stored page observations on a verified domain without fetching either URL. */
+    async comparePageWording(domainUuid, { firstUrl, secondUrl }, options) {
+        const path = `${domainPath(domainUuid)}/page-wording`;
+        const result = await this.send("GET", path, { firstUrl, secondUrl }, undefined, options);
+        if (result.comparison && !result.comparison.compared)
+            delete result.comparison.sharedPercent;
+        return result;
+    }
     /** Tests a URL against a pasted robots.txt, or the domain's live file when robotsTxt is omitted. */
     testRobots(domainUuid, body, options) {
         const request = { url: body.url, userAgent: body.userAgent };

@@ -131,6 +131,34 @@ describe("site insights page tools", () => {
     expect(sent[2]?.body).toEqual({ host: "blog.example.com" });
   });
 
+  it("compares two stored page observations, preserving missing and short evidence", async () => {
+    const { domains, calls } = newDomains(
+      respond(200, tools.observedWording),
+      respond(200, tools.observedWordingUnavailable),
+      respond(200, tools.observedWordingShort),
+    );
+    const query = {
+      firstUrl: "https://example.com/plans?locale=en&view=full",
+      secondUrl: "https://example.com/support",
+    };
+    const ready = await domains.comparePageWording(domainUuid, query, { companySlug: "acme" });
+    const unavailable = await domains.comparePageWording(domainUuid, query);
+    const short = await domains.comparePageWording(domainUuid, query);
+    expect(ready).toEqual(tools.observedWording);
+    expect(unavailable).toEqual(tools.observedWordingUnavailable);
+    expect(short.first.state).toBe("short");
+    expect(short.comparison).toMatchObject({ firstWords: 80, compared: false });
+    expect(short.comparison).not.toHaveProperty("sharedPercent");
+    const route =
+      `GET ${item}/page-wording?firstUrl=${encodeURIComponent(query.firstUrl)}` +
+      `&secondUrl=${encodeURIComponent(query.secondUrl)}`;
+    expect(calls()).toEqual([
+      { route: `${route}&companySlug=acme`, body: undefined },
+      { route, body: undefined },
+      { route, body: undefined },
+    ]);
+  });
+
   it("sends the draft tools and wording compare and decodes their recorded answers", async () => {
     const { domains, calls } = newDomains(
       respond(200, tools.pageCheckDraftTools),

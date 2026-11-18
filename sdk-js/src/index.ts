@@ -394,6 +394,7 @@ export {
   type SiteLighthouseRun,
   type SiteLighthouseScores,
   type SiteMarket,
+  type SiteObservedWording,
   type SitePageCheckRequest,
   type SitePageCheckResponse,
   SitePageCheckScope,
@@ -407,6 +408,7 @@ export {
   SitePageRecheckState,
   type SitePageRobots,
   type SitePageTwitter,
+  type SitePageWordingQuery,
   type SitePhraseUse,
   type SiteProjectContext,
   type SiteProjectContextRequest,
@@ -440,6 +442,8 @@ export {
   type SiteUptimeWindows,
   type SiteWordingCompare,
   type SiteWordingCompareRequest,
+  type SiteWordingObservation,
+  type SiteWordingObservationState,
 } from "./admin-site-insights.js";
 export {
   SiteInsightsAdminClient,
