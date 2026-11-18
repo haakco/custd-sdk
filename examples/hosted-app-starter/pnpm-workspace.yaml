@@ -1,0 +1,6 @@
+# A standalone project: copy this folder anywhere and it installs on its own.
+packages:
+  - "."
+
+onlyBuiltDependencies:
+  - esbuild
