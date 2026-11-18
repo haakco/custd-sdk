@@ -34,6 +34,7 @@ import type {
   SiteSearchRowsQuery,
   SiteUptimeHistory,
 } from "./admin-site-insights.js";
+import type { SiteReferringDomains } from "./admin-site-links.js";
 import type {
   SiteRankings,
   SiteTrackedKeyword,
@@ -46,6 +47,7 @@ import type {
   SavedSiteReportRequest,
   SiteReportRequestOptions,
 } from "./admin-site-saved-reports.js";
+import type { SearchPoolQueryPage, SearchPoolSetting } from "./admin-site-search-pool.js";
 import type { SiteFindingImpact, SiteSearchValue } from "./admin-site-search-value.js";
 import type { AccessLogHourReplay, SiteAIVisibility, SiteTraffic } from "./admin-site-traffic.js";
 import type {
@@ -403,6 +405,7 @@ type NonAdminRequester = <T>(method: string, path: string, body?: unknown, optio
 type QueryValues = Record<string, string | string[] | undefined>;
 
 const siteDomainsPath = "/site-domains";
+const searchPoolPath = `${siteDomainsPath}/search-pool`;
 const keywordListsPath = `${siteDomainsPath}/keyword-lists`;
 
 export class SiteDomainAdminClient {
@@ -495,6 +498,29 @@ export class SiteDomainAdminClient {
   /** Reads which search providers this Custd deployment can import from. */
   getSearchAccount(options?: SiteDomainRequestOptions): Promise<SiteSearchAccount> {
     return this.send("GET", `${siteDomainsPath}/search-account`, {}, undefined, options);
+  }
+
+  /** Reads whether the tenant takes part in the shared search pool, and the pool's rules. */
+  getSearchPool(options?: SiteDomainRequestOptions): Promise<SearchPoolSetting> {
+    return this.send("GET", searchPoolPath, {}, undefined, options);
+  }
+
+  /** Joins (true) or leaves (false) the shared search pool for the whole tenant. */
+  setSearchPool(joined: boolean, options?: SiteDomainRequestOptions): Promise<SearchPoolSetting> {
+    return this.send("PUT", searchPoolPath, {}, { joined }, options);
+  }
+
+  /**
+   * Reads pooled queries matching `search` (at most 100 characters), `limit` 1..200; omitted, 50.
+   * Before joining it is refused with SITE_SEARCH_POOL_NOT_JOINED_CODE.
+   */
+  listSearchPoolQueries(
+    search?: string,
+    limit?: number,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SearchPoolQueryPage> {
+    const query = { limit: limit?.toString(), search };
+    return this.send("GET", `${searchPoolPath}/queries`, query, undefined, options);
   }
 
   /** Reads a domain's search numbers over the last `days` days (1..90); omitted, the server uses 28. */
@@ -777,6 +803,15 @@ export class SiteDomainAdminClient {
   ): Promise<SiteWebPages> {
     const values = { siteUuid: query.siteUuid, domain, after: query.after, limit: query.limit?.toString() };
     return this.send("GET", `${siteDomainsPath}/web-pages`, values, undefined, options);
+  }
+
+  /** Reads the domains linking to one of the Site's web domains, per source, with its authority and lost links. */
+  getReferringDomains(
+    domain: string,
+    siteUuid?: string,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteReferringDomains> {
+    return this.send("GET", `${siteDomainsPath}/referring-domains`, { domain, siteUuid }, undefined, options);
   }
 
   /** Reads monthly Wikipedia interest in the Site's brands and seed term. */

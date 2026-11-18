@@ -130,6 +130,12 @@ final class SiteDomainClient
         return new SiteWebDataClient($this->http);
     }
 
+    /** Join or leave the tenant's shared search pool and read its pooled queries. */
+    public function searchPool(): SiteSearchPoolClient
+    {
+        return new SiteSearchPoolClient($this->http);
+    }
+
     /** Claim a host for a site. The result carries the verification instructions. */
     public function create(CreateSiteDomainRequest $request, ?string $companySlug = null): SiteDomain
     {

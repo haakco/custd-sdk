@@ -1,4 +1,4 @@
-"""Site Insights audit pages, saved reports, web data, access logs and rankings.
+"""Site Insights audit pages, saved reports, web data, links, access logs, rankings and the search pool.
 
 Each contract-fixtures file is the server's own Go types encoded by encoding/json, so omitted
 (omitempty) fields are absent exactly as the server sends them.
@@ -29,6 +29,11 @@ from custd import (
     SITE_KEYWORD_LIST_LIMIT_CODE,
     SITE_KEYWORD_LIST_NOT_FOUND_CODE,
     SITE_LIGHTHOUSE_PAGE_NOT_EXTRA_CODE,
+    SITE_LINK_SOURCE_COMMONCRAWL,
+    SITE_LINK_SOURCE_STATUS_AVAILABLE,
+    SITE_LINK_SOURCE_STATUS_FAILED,
+    SITE_LINK_SOURCE_STATUS_PENDING,
+    SITE_LINK_SOURCE_STATUS_UNAVAILABLE,
     SITE_RANK_COUNTRY_ALL,
     SITE_RANK_STATE_NOT_RANKING,
     SITE_RANK_STATE_RANKING,
@@ -43,6 +48,14 @@ from custd import (
     SITE_SEARCH_IMPACT_INSUFFICIENT,
     SITE_SEARCH_IMPACT_MEASURED,
     SITE_SEARCH_IMPACT_OPEN,
+    SITE_SEARCH_POOL_DEMAND_10K_100K,
+    SITE_SEARCH_POOL_DEMAND_100_999,
+    SITE_SEARCH_POOL_JOINED,
+    SITE_SEARCH_POOL_NOT_JOINED,
+    SITE_SEARCH_POOL_NOT_JOINED_CODE,
+    SITE_SEARCH_POOL_QUERY_INVALID_CODE,
+    SITE_SEARCH_POOL_SETTING_INVALID_CODE,
+    SITE_SEARCH_POOL_SITE_BOUND_CODE,
     SITE_SEARCH_VALUE_GOALS_PARTIAL,
     SITE_SEARCH_VALUE_GOALS_UNAVAILABLE,
     SITE_TRACKED_KEYWORD_DUPLICATE_CODE,
@@ -53,6 +66,7 @@ from custd import (
     SITE_TRAFFIC_OTHER_KEY,
     SITE_TRANCO_UNRANKED,
     SITE_TREND_NO_ARTICLE,
+    SITE_WEB_DOMAIN_ROLE_COMPETITOR,
     SITE_WEB_DOMAIN_ROLE_OWN,
     CustdClient,
     RequestError,
@@ -73,6 +87,8 @@ SEARCH_VALUE = fixture("site-search-value.json")
 WEB = fixture("site-web-data.json")
 LOGS = fixture("site-access-logs.json")
 RANKINGS = fixture("site-rankings.json")
+LINKS = fixture("site-links.json")
+POOL = fixture("site-search-pool.json")
 API = "http://localhost:8080/api/v1"
 BASE = API + "/site-domains"
 DOMAIN = "domain-1"
@@ -114,6 +130,10 @@ class ProblemCodesTest(unittest.TestCase):
             (RANKINGS, "trackedKeywordDuplicateProblem", SITE_TRACKED_KEYWORD_DUPLICATE_CODE),
             (RANKINGS, "trackedKeywordNotFoundProblem", SITE_TRACKED_KEYWORD_NOT_FOUND_CODE),
             (RANKINGS, "rankingsDaysInvalidProblem", SITE_RANKINGS_DAYS_INVALID_CODE),
+            (POOL, "notJoinedProblem", SITE_SEARCH_POOL_NOT_JOINED_CODE),
+            (POOL, "siteBoundProblem", SITE_SEARCH_POOL_SITE_BOUND_CODE),
+            (POOL, "settingInvalidProblem", SITE_SEARCH_POOL_SETTING_INVALID_CODE),
+            (POOL, "queryInvalidProblem", SITE_SEARCH_POOL_QUERY_INVALID_CODE),
         ]
         for fixtures, key, code in cases:
             problem = fixtures[key]
@@ -284,6 +304,8 @@ class WebDataTest(unittest.TestCase):
         domains.save_keyword_list(WEB["keywordListRequest"], SITE)
         domains.save_keyword_list({"name": "Brand", "keywords": []})
         domains.get_keyword_clusters("Pricing", SITE)
+        domains.get_referring_domains("example.com", SITE)
+        domains.get_referring_domains("example.com")
 
         self.assertEqual(
             [
@@ -303,6 +325,8 @@ class WebDataTest(unittest.TestCase):
                 ("PUT", f"{BASE}/keyword-lists?siteUuid={SITE}", WEB["keywordListRequest"]),
                 ("PUT", f"{BASE}/keyword-lists", {"name": "Brand", "keywords": []}),
                 ("GET", f"{BASE}/keyword-clusters?siteUuid={SITE}&name=Pricing", None),
+                ("GET", f"{BASE}/referring-domains?domain=example.com&siteUuid={SITE}", None),
+                ("GET", f"{BASE}/referring-domains?domain=example.com", None),
             ],
             transport.calls,
         )
@@ -346,6 +370,109 @@ class WebDataTest(unittest.TestCase):
         self.assertEqual(6.5, measured["avgPosition"])
         self.assertEqual(0, unmeasured["measuredKeywords"])
         self.assertNotIn("clicks", unmeasured)
+
+
+class ReferringDomainsTest(unittest.TestCase):
+    def test_decodes_referring_domains_keeping_absent_none_and_real_zeros(self) -> None:
+        domains, _ = site_domains(200, LINKS["referringDomains"])
+        links = domains.get_referring_domains("example.com")
+        self.assertEqual(SITE_WEB_DOMAIN_ROLE_OWN, links["role"])
+        bing, commoncrawl, crawl = links["sources"]
+        self.assertEqual((57, True), (bing.get("links"), bing["complete"]))
+        self.assertEqual(SITE_LINK_SOURCE_COMMONCRAWL, commoncrawl["source"])
+        self.assertEqual(1843, commoncrawl.get("referringDomains"))
+        self.assertFalse(commoncrawl["complete"])
+        self.assertIsNone(commoncrawl.get("links"))
+        self.assertEqual(SITE_LINK_SOURCE_STATUS_AVAILABLE, crawl["status"])
+        self.assertEqual(48210, links["authority"].get("harmonicRank"))
+        news, blog, _forum = links["referringDomains"]
+        self.assertIs(False, news.get("followed"))
+        self.assertIsNone(blog.get("crawlLinks"))
+        self.assertIsNone(blog.get("followed"))
+        old, gone = links["lost"]["domains"]
+        self.assertEqual(70000, old.get("harmonicRank"))
+        self.assertIsNone(gone.get("harmonicRank"))
+
+        domains, _ = site_domains(200, LINKS["referringDomainsPending"])
+        pending = domains.get_referring_domains("rival.example")
+        self.assertEqual(SITE_WEB_DOMAIN_ROLE_COMPETITOR, pending["role"])
+        self.assertEqual(
+            [SITE_LINK_SOURCE_STATUS_UNAVAILABLE, SITE_LINK_SOURCE_STATUS_PENDING, SITE_LINK_SOURCE_STATUS_UNAVAILABLE],
+            [source["status"] for source in pending["sources"]],
+        )
+        for source in pending["sources"]:
+            self.assertIsNone(source.get("referringDomains"))
+            self.assertIsNone(source.get("links"))
+        self.assertIsNone(pending.get("authority"))
+        self.assertEqual([], pending["referringDomains"])
+        self.assertEqual((SITE_LINK_SOURCE_STATUS_PENDING, []), (pending["lost"]["status"], pending["lost"]["domains"]))
+
+        domains, _ = site_domains(200, LINKS["referringDomainsOutsideGraph"])
+        outside = domains.get_referring_domains("shop.example.dev")
+        failed, unavailable, crawled = outside["sources"]
+        self.assertEqual(SITE_LINK_SOURCE_STATUS_FAILED, failed["status"])
+        self.assertEqual("bing GetLinkCounts: 401 Unauthorized", failed.get("lastFailure"))
+        self.assertIsNone(failed.get("referringDomains"))
+        self.assertEqual("cc-main-2026-aug-sep-oct", unavailable.get("asOf"))
+        self.assertEqual((0, 0), (crawled.get("referringDomains"), crawled.get("links")))
+        authority = outside["authority"]
+        self.assertIs(False, authority["inGraph"])
+        for absent in ("harmonicRank", "harmonicCentrality", "pageRankRank", "pageRank", "hosts"):
+            self.assertIsNone(authority.get(absent))
+        self.assertEqual(SITE_LINK_SOURCE_STATUS_UNAVAILABLE, outside["lost"]["status"])
+
+
+class SearchPoolTest(unittest.TestCase):
+    def test_search_pool_sends_its_routes_and_bodies(self) -> None:
+        domains, transport = site_domains(200, POOL["settingJoined"])
+
+        domains.get_search_pool()
+        domains.set_search_pool(True)
+        domains.set_search_pool(False, company_slug="acme")
+        domains.list_search_pool_queries()
+        domains.list_search_pool_queries("pricing", 10)
+
+        pool = f"{BASE}/search-pool"
+        self.assertEqual(
+            [
+                ("GET", pool, None),
+                ("PUT", pool, POOL["joinRequest"]),
+                ("PUT", f"{pool}?companySlug=acme", POOL["leaveRequest"]),
+                ("GET", f"{pool}/queries", None),
+                ("GET", f"{pool}/queries?limit=10&search=pricing", None),
+            ],
+            transport.calls,
+        )
+
+    def test_decodes_pool_settings_and_queries_keeping_real_zeros(self) -> None:
+        domains, _ = site_domains(200, POOL["settingNotJoined"])
+        not_joined = domains.get_search_pool()
+        self.assertIs(False, not_joined["joined"])
+        self.assertIsNone(not_joined.get("joinedAt"))
+        rules = (not_joined["minContributors"], not_joined["minImpressions"], not_joined["windowDays"])
+        self.assertEqual((5, 100, 28), rules)
+        domains, _ = site_domains(200, POOL["settingJoined"])
+        self.assertEqual("2026-11-17T09:30:00Z", domains.set_search_pool(True).get("joinedAt"))
+
+        domains, _ = site_domains(200, POOL["queries"])
+        page = domains.list_search_pool_queries()
+        self.assertEqual(("2026-10-18", "2026-11-14"), (page.get("from"), page.get("to")))
+        pricing, free = page["queries"]
+        self.assertEqual(("pricing tool", SITE_SEARCH_POOL_DEMAND_10K_100K), (pricing["query"], pricing["demandBand"]))
+        self.assertEqual(SITE_SEARCH_POOL_DEMAND_100_999, free["demandBand"])
+        self.assertEqual({"top3": 0, "top10": 0, "top20": 25, "beyond20": 75}, free["positions"])
+
+        domains, _ = site_domains(200, POOL["queriesBeforeRollup"])
+        before = domains.list_search_pool_queries()
+        self.assertEqual([], before["queries"])
+        for absent in ("from", "to", "computedAt"):
+            self.assertIsNone(before.get(absent))
+
+        problem = POOL["notJoinedProblem"]
+        domains, _ = site_domains(problem["status"], problem)
+        with self.assertRaises(RequestError) as raised:
+            domains.list_search_pool_queries("pricing")
+        self.assertEqual((403, SITE_SEARCH_POOL_NOT_JOINED_CODE), (raised.exception.status, raised.exception.code))
 
 
 class AccessLogsTest(unittest.TestCase):
@@ -439,18 +566,33 @@ class RankingsTest(unittest.TestCase):
         self.assertNotIn("position", not_ranking)
         self.assertNotIn("rankingUrl", no_data)
         self.assertEqual(SITE_RANK_COUNTRY_ALL, paused["country"])
+        self.assertEqual(SITE_SEARCH_POOL_JOINED, domains.get_rankings(DOMAIN).get("pool"))
+        self.assertEqual(SITE_SEARCH_POOL_DEMAND_10K_100K, tracked["pool"]["demandBand"])
+        self.assertEqual({"top3": 35, "top10": 40, "top20": 15, "beyond20": 10}, tracked["pool"]["positions"])
+        self.assertIsNone(paused.get("pool"))
 
         domains, _ = site_domains(200, RANKINGS["rankingsNotConnected"])
-        self.assertEqual(SITE_RANKINGS_SOURCE_NOT_CONNECTED, domains.get_rankings(DOMAIN)["source"])
+        not_connected = domains.get_rankings(DOMAIN)
+        self.assertEqual(SITE_RANKINGS_SOURCE_NOT_CONNECTED, not_connected["source"])
+        self.assertEqual(SITE_SEARCH_POOL_NOT_JOINED, not_connected.get("pool"))
         domains, _ = site_domains(200, RANKINGS["rankingsFailing"])
         failing = domains.get_rankings(DOMAIN)
         self.assertEqual(SITE_RANKINGS_SOURCE_FAILING, failing["source"])
+        self.assertEqual(SITE_SEARCH_POOL_NOT_JOINED, failing.get("pool"))
         self.assertEqual("Search Console refused the token", failing["sourceFailure"])
 
         domains, _ = site_domains(201, RANKINGS["trackedKeyword"])
         created = domains.track_keyword(DOMAIN, RANKINGS["trackKeywordRequest"])
         self.assertEqual(("pricing tool", 10), (created["keyword"], created["notifyPosition"]))
         self.assertNotIn("position", created["latest"])
+
+    def test_decodes_rankings_from_a_server_before_the_search_pool(self) -> None:
+        domains, _ = site_domains(200, RANKINGS["rankingsBeforePool"])
+        rankings = domains.get_rankings(DOMAIN)
+        self.assertIsNone(rankings.get("pool"))
+        self.assertEqual(2, len(rankings["keywords"]))
+        for keyword in rankings["keywords"]:
+            self.assertIsNone(keyword.get("pool"))
 
 
 class SearchValueTest(unittest.TestCase):

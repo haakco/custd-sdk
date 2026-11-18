@@ -1,12 +1,16 @@
 """Site Insights rank tracking: a domain's tracked keywords and their daily Search Console positions.
 
-A day the keyword did not rank has no ``position``: it is absent from the dict, never 0.
+A day the keyword did not rank has no ``position``: it is absent from the dict, never 0. A keyword's
+``pool`` band is absent when the tenant has not joined the search pool or the keyword is below its
+threshold; the rankings' ``pool`` (SITE_SEARCH_POOL_JOINED or _NOT_JOINED) is absent from older servers.
 Enum-like strings are open sets: compare with the constants.
 """
 
 from __future__ import annotations
 
 from typing import NotRequired, TypedDict
+
+from .admin_site_search_pool import SearchPoolBand
 
 # One day's rank state: ranked, had impressions without ranking, or no data for the day.
 SITE_RANK_STATE_RANKING = "ranking"
@@ -69,6 +73,7 @@ class SiteTrackedKeyword(TypedDict):
     createdAt: str
     latest: SiteRankObservation
     observations: list[SiteRankObservation]
+    pool: NotRequired[SearchPoolBand]
 
 
 # "from" is a Python keyword, so the window's fields use the functional form.
@@ -82,3 +87,4 @@ class SiteRankings(_SiteRankingsWindow):
     maxKeywords: int
     keywords: list[SiteTrackedKeyword]
     sourceFailure: NotRequired[str]
+    pool: NotRequired[str]

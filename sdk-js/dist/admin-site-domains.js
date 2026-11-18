@@ -91,6 +91,7 @@ export const SiteRule = {
     LogsCrawlerNotFound: "logs.crawler-not-found",
 };
 const siteDomainsPath = "/site-domains";
+const searchPoolPath = `${siteDomainsPath}/search-pool`;
 const keywordListsPath = `${siteDomainsPath}/keyword-lists`;
 export class SiteDomainAdminClient {
     constructor(request) {
@@ -157,6 +158,22 @@ export class SiteDomainAdminClient {
     /** Reads which search providers this Custd deployment can import from. */
     getSearchAccount(options) {
         return this.send("GET", `${siteDomainsPath}/search-account`, {}, undefined, options);
+    }
+    /** Reads whether the tenant takes part in the shared search pool, and the pool's rules. */
+    getSearchPool(options) {
+        return this.send("GET", searchPoolPath, {}, undefined, options);
+    }
+    /** Joins (true) or leaves (false) the shared search pool for the whole tenant. */
+    setSearchPool(joined, options) {
+        return this.send("PUT", searchPoolPath, {}, { joined }, options);
+    }
+    /**
+     * Reads pooled queries matching `search` (at most 100 characters), `limit` 1..200; omitted, 50.
+     * Before joining it is refused with SITE_SEARCH_POOL_NOT_JOINED_CODE.
+     */
+    listSearchPoolQueries(search, limit, options) {
+        const query = { limit: limit?.toString(), search };
+        return this.send("GET", `${searchPoolPath}/queries`, query, undefined, options);
     }
     /** Reads a domain's search numbers over the last `days` days (1..90); omitted, the server uses 28. */
     getSearchPerformance(domainUuid, days, options) {
@@ -335,6 +352,10 @@ export class SiteDomainAdminClient {
     listWebPages(domain, query = {}, options) {
         const values = { siteUuid: query.siteUuid, domain, after: query.after, limit: query.limit?.toString() };
         return this.send("GET", `${siteDomainsPath}/web-pages`, values, undefined, options);
+    }
+    /** Reads the domains linking to one of the Site's web domains, per source, with its authority and lost links. */
+    getReferringDomains(domain, siteUuid, options) {
+        return this.send("GET", `${siteDomainsPath}/referring-domains`, { domain, siteUuid }, undefined, options);
     }
     /** Reads monthly Wikipedia interest in the Site's brands and seed term. */
     getTopicTrends(siteUuid, options) {

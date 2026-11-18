@@ -1,7 +1,9 @@
 import type { SiteAuditDelta, SiteAuditPageList, SiteLighthousePages, SiteLighthouseRequestOptions } from "./admin-site-audit-pages.js";
 import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory } from "./admin-site-insights.js";
+import type { SiteReferringDomains } from "./admin-site-links.js";
 import type { SiteRankings, SiteTrackedKeyword, SiteTrackedKeywordUpdate, SiteTrackKeywordRequest } from "./admin-site-rankings.js";
 import type { SavedSiteReport, SavedSiteReportList, SavedSiteReportRequest, SiteReportRequestOptions } from "./admin-site-saved-reports.js";
+import type { SearchPoolQueryPage, SearchPoolSetting } from "./admin-site-search-pool.js";
 import type { SiteFindingImpact, SiteSearchValue } from "./admin-site-search-value.js";
 import type { AccessLogHourReplay, SiteAIVisibility, SiteTraffic } from "./admin-site-traffic.js";
 import type { SiteContentGap, SiteKeywordClusters, SiteKeywordList, SiteKeywordListRequest, SiteKeywordLists, SiteTopicTrends, SiteWebDomains, SiteWebPages, SiteWebPagesQuery } from "./admin-site-web-data.js";
@@ -344,6 +346,15 @@ export declare class SiteDomainAdminClient {
     setAlertDestination(body: SiteAlertDestinationRequest, options?: SiteDomainRequestOptions): Promise<SiteAlertDestination>;
     /** Reads which search providers this Custd deployment can import from. */
     getSearchAccount(options?: SiteDomainRequestOptions): Promise<SiteSearchAccount>;
+    /** Reads whether the tenant takes part in the shared search pool, and the pool's rules. */
+    getSearchPool(options?: SiteDomainRequestOptions): Promise<SearchPoolSetting>;
+    /** Joins (true) or leaves (false) the shared search pool for the whole tenant. */
+    setSearchPool(joined: boolean, options?: SiteDomainRequestOptions): Promise<SearchPoolSetting>;
+    /**
+     * Reads pooled queries matching `search` (at most 100 characters), `limit` 1..200; omitted, 50.
+     * Before joining it is refused with SITE_SEARCH_POOL_NOT_JOINED_CODE.
+     */
+    listSearchPoolQueries(search?: string, limit?: number, options?: SiteDomainRequestOptions): Promise<SearchPoolQueryPage>;
     /** Reads a domain's search numbers over the last `days` days (1..90); omitted, the server uses 28. */
     getSearchPerformance(domainUuid: string, days?: number, options?: SiteDomainRequestOptions): Promise<SiteSearchPerformance>;
     /** Connects a domain to a provider, or replaces its property or key. Refused with SITE_SEARCH_NOT_CONFIGURED_CODE when the deployment lacks the provider. */
@@ -425,6 +436,8 @@ export declare class SiteDomainAdminClient {
     getWebDomains(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteWebDomains>;
     /** Pages through one inventoried domain's URLs; pass the previous page's `next` as `after`. */
     listWebPages(domain: string, query?: SiteWebPagesQuery, options?: SiteDomainRequestOptions): Promise<SiteWebPages>;
+    /** Reads the domains linking to one of the Site's web domains, per source, with its authority and lost links. */
+    getReferringDomains(domain: string, siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteReferringDomains>;
     /** Reads monthly Wikipedia interest in the Site's brands and seed term. */
     getTopicTrends(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteTopicTrends>;
     /** Reads the topics competitors cover and the Site does not, optionally around a seed term. */

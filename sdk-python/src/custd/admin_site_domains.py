@@ -42,7 +42,9 @@ from .admin_site_insights import (
     SiteSearchRowPage,
     SiteUptimeHistory,
 )
+from .admin_site_links import SiteReferringDomains
 from .admin_site_rankings import SiteRankings, SiteTrackedKeyword, SiteTrackKeywordRequest
+from .admin_site_search_pool import SearchPoolQueryPage, SearchPoolSetting
 from .admin_site_search_value import SiteFindingImpact, SiteSearchValue
 from .admin_site_web_data import (
     SiteContentGap,
@@ -65,6 +67,8 @@ SITE_TOPIC_TRENDS_PATH = SITE_DOMAINS_PATH + "/topic-trends"
 SITE_CONTENT_GAP_PATH = SITE_DOMAINS_PATH + "/content-gap"
 SITE_KEYWORD_LISTS_PATH = SITE_DOMAINS_PATH + "/keyword-lists"
 SITE_KEYWORD_CLUSTERS_PATH = SITE_DOMAINS_PATH + "/keyword-clusters"
+SITE_REFERRING_DOMAINS_PATH = SITE_DOMAINS_PATH + "/referring-domains"
+SITE_SEARCH_POOL_PATH = SITE_DOMAINS_PATH + "/search-pool"
 # Platform-wide, not under site-domains: only a system administrator may replay an hour.
 ACCESS_LOG_HOUR_REPLAY_PATH = "/admin/access-log-hours/replay"
 
@@ -117,6 +121,14 @@ SITE_TRACKED_KEYWORD_DUPLICATE_CODE = "site_tracked_keyword_duplicate"
 SITE_TRACKED_KEYWORD_NOT_FOUND_CODE = "site_tracked_keyword_not_found"
 # A 400 on get_rankings: days must be 1 to 90.
 SITE_RANKINGS_DAYS_INVALID_CODE = "site_rankings_days_invalid"
+# A 403 on list_search_pool_queries: the tenant has not joined the shared search pool.
+SITE_SEARCH_POOL_NOT_JOINED_CODE = "site_search_pool_not_joined"
+# A 403 on any search pool call from a credential bound to one Site.
+SITE_SEARCH_POOL_SITE_BOUND_CODE = "site_search_pool_site_bound"
+# A 400 on set_search_pool: joined must be true or false.
+SITE_SEARCH_POOL_SETTING_INVALID_CODE = "site_search_pool_setting_invalid"
+# A 400 on list_search_pool_queries: search is at most 100 characters and limit 1 to 200.
+SITE_SEARCH_POOL_QUERY_INVALID_CODE = "site_search_pool_query_invalid"
 
 # SiteFindingState selects which findings list_findings returns; the server defaults to open.
 SiteFindingState = Literal["open", "fixed", "all"]
@@ -675,6 +687,30 @@ class SiteDomainAdminClient:
         """Return which providers this deployment can import from."""
         return cast(SiteSearchAccount, self._request("GET", SITE_DOMAINS_PATH + "/search-account", {}, company_slug))
 
+    def get_search_pool(self, *, company_slug: str | None = None) -> SearchPoolSetting:
+        """Return whether the tenant has joined the shared search pool and the pool's rules."""
+        return cast(SearchPoolSetting, self._request("GET", SITE_SEARCH_POOL_PATH, {}, company_slug))
+
+    def set_search_pool(self, joined: bool, *, company_slug: str | None = None) -> SearchPoolSetting:
+        """Join (True) or leave (False) the shared search pool."""
+        payload = {"joined": joined}
+        return cast(SearchPoolSetting, self._request("PUT", SITE_SEARCH_POOL_PATH, {}, company_slug, payload))
+
+    def list_search_pool_queries(
+        self, search: str | None = None, limit: int | None = None, *, company_slug: str | None = None
+    ) -> SearchPoolQueryPage:
+        """Return pooled queries containing ``search`` (at most 100 characters); ``limit`` 1..200, default 50.
+
+        A tenant that has not joined answers 403 with SITE_SEARCH_POOL_NOT_JOINED_CODE.
+        """
+        query: dict[str, str] = {}
+        if limit is not None:
+            query["limit"] = str(limit)
+        if search:
+            query["search"] = search
+        path = SITE_SEARCH_POOL_PATH + "/queries"
+        return cast(SearchPoolQueryPage, self._request("GET", path, query, company_slug))
+
     def get_search_performance(
         self, domain_uuid: str, days: int | None = None, *, company_slug: str | None = None
     ) -> SiteSearchPerformance:
@@ -1013,6 +1049,13 @@ class SiteDomainAdminClient:
         if limit is not None:
             query["limit"] = str(limit)
         return cast(SiteWebPages, self._request("GET", SITE_WEB_PAGES_PATH, query, company_slug))
+
+    def get_referring_domains(
+        self, domain: str, site_uuid: str | None = None, *, company_slug: str | None = None
+    ) -> SiteReferringDomains:
+        """Return the domains linking to one of the Site's own or competitor domains, by source."""
+        query = {"domain": domain, **_site_query(site_uuid)}
+        return cast(SiteReferringDomains, self._request("GET", SITE_REFERRING_DOMAINS_PATH, query, company_slug))
 
     def get_topic_trends(self, site_uuid: str | None = None, *, company_slug: str | None = None) -> SiteTopicTrends:
         """Return monthly Wikipedia page views for the Site's brand names and keyword-list seeds."""

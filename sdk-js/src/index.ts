@@ -373,6 +373,16 @@ export {
   type SiteUptimeWindows,
 } from "./admin-site-insights.js";
 export {
+  type SiteDomainAuthority,
+  SiteLinkSource,
+  SiteLinkSourceStatus,
+  type SiteLinkSourceTotal,
+  type SiteLostLinks,
+  type SiteLostReferringDomain,
+  type SiteReferringDomain,
+  type SiteReferringDomains,
+} from "./admin-site-links.js";
+export {
   SITE_RANKINGS_DAYS_INVALID_CODE,
   SITE_RANKINGS_DEFAULT_DAYS,
   SITE_RANKINGS_MAX_DAYS,
@@ -404,6 +414,25 @@ export {
   type SiteReportRequestOptions,
   SiteReportTemplate,
 } from "./admin-site-saved-reports.js";
+export {
+  SEARCH_POOL_MIN_CONTRIBUTORS,
+  SEARCH_POOL_MIN_IMPRESSIONS,
+  SEARCH_POOL_QUERIES_DEFAULT_LIMIT,
+  SEARCH_POOL_QUERIES_MAX_LIMIT,
+  SEARCH_POOL_SEARCH_MAX_LENGTH,
+  SEARCH_POOL_WINDOW_DAYS,
+  SearchPoolAccess,
+  type SearchPoolBand,
+  SearchPoolDemandBand,
+  type SearchPoolPositions,
+  type SearchPoolQuery,
+  type SearchPoolQueryPage,
+  type SearchPoolSetting,
+  SITE_SEARCH_POOL_NOT_JOINED_CODE,
+  SITE_SEARCH_POOL_QUERY_INVALID_CODE,
+  SITE_SEARCH_POOL_SETTING_INVALID_CODE,
+  SITE_SEARCH_POOL_SITE_BOUND_CODE,
+} from "./admin-site-search-pool.js";
 export {
   SITE_FINDING_IMPACT_DEFAULT_DAYS,
   SITE_FINDING_IMPACT_MAX_DAYS,

@@ -1,3 +1,4 @@
+import type { SearchPoolBand } from "./admin-site-search-pool.js";
 /** A 400 on trackKeyword or updateTrackedKeyword: keyword, country, device or notifyPosition is out of range. */
 export declare const SITE_TRACKED_KEYWORD_INVALID_CODE = "site_tracked_keyword_invalid";
 /** A 409 on trackKeyword: the Site tracks the most keywords; remove one first. */
@@ -68,11 +69,15 @@ export type SiteTrackedKeyword = {
     latest: SiteRankObservation;
     /** Every day of the window, oldest first. */
     observations: SiteRankObservation[];
+    /** The shared search pool's band for the keyword; absent when not joined or below the pool's threshold. */
+    pool?: SearchPoolBand;
 };
 export type SiteRankings = {
     /** A SiteRankingsSource value. */
     source: string;
     sourceFailure?: string;
+    /** A SearchPoolAccess value; absent from servers before the shared search pool. */
+    pool?: string;
     from: string;
     to: string;
     maxKeywords: number;

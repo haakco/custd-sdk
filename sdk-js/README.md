@@ -446,6 +446,13 @@ More reads and controls on the same client:
   `getWebDomains`, `listWebPages(domain, { after })`, `getTopicTrends`, `getContentGap`,
   and keyword lists with `listKeywordLists`, `saveKeywordList`, `deleteKeywordList`,
   `getKeywordClusters`.
+- Referring domains: `getReferringDomains(domain, siteUuid?)` lists the domains linking to one
+  of the Site's web domains per source (`SiteLinkSource` bing, commoncrawl, crawl), its Common
+  Crawl authority and lost links. A count a source did not report is absent, never `0`.
+- Shared search pool (tenant-wide; a site-bound credential is refused with
+  `SITE_SEARCH_POOL_SITE_BOUND_CODE`): `getSearchPool`, `setSearchPool(joined)` and
+  `listSearchPoolQueries(search?, limit?)` (refused with `SITE_SEARCH_POOL_NOT_JOINED_CODE`
+  before joining). `getRankings` then carries `pool` and each keyword's pooled `pool` band.
 - Access logs: `getTraffic(domainUuid, from?, to?)`, `getAIVisibility`, and
   `replayAccessLogHour(hourStart)` for system administrators.
 - Rank tracking: `getRankings(domainUuid, days?)`, `trackKeyword`,

@@ -9,6 +9,7 @@ use HaakCo\Custd\Fields;
 /**
  * SiteTrackedKeyword is one keyword a domain tracks, its latest day and its daily observations.
  * country is an ISO 3166-1 alpha-3 code or ALL; device a DEVICE_* value or ALL; status a STATUS_* value.
+ * pool is the shared search pool's band for the keyword, null unless the tenant joined and the pool holds it.
  */
 final readonly class SiteTrackedKeyword
 {
@@ -31,11 +32,14 @@ final readonly class SiteTrackedKeyword
         public string $createdAt,
         public SiteRankObservation $latest,
         public array $observations,
+        public ?SearchPoolBand $pool = null,
     ) {
     }
 
     public static function fromPayload(\stdClass $payload): self
     {
+        $pool = Fields::optionalObject($payload, 'pool');
+
         return new self(
             Fields::string($payload, 'keywordUuid'),
             Fields::string($payload, 'keyword'),
@@ -46,6 +50,7 @@ final readonly class SiteTrackedKeyword
             Fields::string($payload, 'createdAt'),
             SiteRankObservation::fromPayload(Fields::object($payload, 'latest')),
             array_map(SiteRankObservation::fromPayload(...), Fields::objects($payload, 'observations')),
+            $pool === null ? null : SearchPoolBand::fromPayload($pool),
         );
     }
 }

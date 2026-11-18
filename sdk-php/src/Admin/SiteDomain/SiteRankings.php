@@ -8,7 +8,8 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteRankings is a domain's tracked keywords over from..to (YYYY-MM-DD). source is the Search
- * Console connection's state (a SOURCE_* value); sourceFailure says why a failing one fails.
+ * Console connection's state (a SOURCE_* value); sourceFailure says why a failing one fails. pool is
+ * the tenant's shared search pool access (a SearchPoolSetting::ACCESS_* value), null from an older server.
  */
 final readonly class SiteRankings
 {
@@ -32,6 +33,7 @@ final readonly class SiteRankings
         public int $maxKeywords,
         public array $keywords,
         public ?string $sourceFailure = null,
+        public ?string $pool = null,
     ) {
     }
 
@@ -44,6 +46,7 @@ final readonly class SiteRankings
             Fields::integer($payload, 'maxKeywords'),
             array_map(SiteTrackedKeyword::fromPayload(...), Fields::objects($payload, 'keywords')),
             Fields::optionalString($payload, 'sourceFailure'),
+            Fields::optionalString($payload, 'pool'),
         );
     }
 }

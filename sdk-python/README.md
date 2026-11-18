@@ -201,7 +201,10 @@ Saved reports: `get_report(domain, template=..., days=...)`,
 data (Site-scoped; a site-bound credential may omit `site_uuid`):
 `get_web_domains`, `list_web_pages`, `get_topic_trends`, `get_content_gap`,
 `list_keyword_lists`, `save_keyword_list`, `delete_keyword_list` and
-`get_keyword_clusters`. Access logs: `get_traffic`, `get_ai_visibility` and,
+`get_keyword_clusters`. Links: `get_referring_domains(domain, site_uuid)` lists
+the domains linking to an own or competitor domain by source (Bing, Common
+Crawl, Custd's crawl) with its graph authority and lost links; an unmeasured
+count or rank is absent, a real 0 stays 0. Access logs: `get_traffic`, `get_ai_visibility` and,
 for system administrators, `replay_access_log_hour(hour_start)`. Rank tracking:
 `get_rankings`, `track_keyword`, `update_tracked_keyword` and
 `untrack_keyword` (`update_tracked_keyword(..., paused=True)` without
@@ -209,7 +212,12 @@ for system administrators, `replay_access_log_hour(hour_start)`. Rank tracking:
 rank has no `position`. Search value: `get_finding_search_impact(domain,
 finding, days)` compares a fixed finding's page before and after the fix, and
 `get_search_value(domain, goals, days)` credits goal events to search landing
-pages. Older servers (the Custd that SDK 3.46.0 targeted) send no report `template` (the default is full) and
+pages. Shared search pool (tenant-wide; a site-bound credential is refused):
+`get_search_pool`, `set_search_pool(joined)` to join or leave, and
+`list_search_pool_queries(search, limit)` for pooled queries' demand and
+position bands (403 `SITE_SEARCH_POOL_NOT_JOINED_CODE` before joining).
+`get_rankings` carries the rankings' `pool` state and each keyword's pool
+band when there is one. Older servers (the Custd that SDK 3.46.0 targeted) send no report `template` (the default is full) and
 no Lighthouse `url` / `pages`; those keys are then absent.
 
 ## Dev smoke test

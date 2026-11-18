@@ -358,17 +358,23 @@ joins search pages to the analytics goals credited to their landings. A report o
 Lighthouse history from a 3.46.0-era server has a `null` `template` or `url` and
 no `pages`.
 
-Three focused clients hang off the same client. `rankings()` tracks keyword
+Four focused clients hang off the same client. `rankings()` tracks keyword
 positions from Search Console (`getRankings()`, `trackKeyword()`,
 `updateTrackedKeyword()`, whose request keeps the stored alert position when
 `notifyPosition` is null, `untrackKeyword()`); a day the domain did not rank has a
-`null` position. `accessLogs()` reads `getTraffic()` and `getAIVisibility()` over
-UTC days, and a system administrator can `replayAccessLogHour($hourStart)`.
-`webData()` reads a Site's `getWebDomains()`, `listWebPages()`,
-`getTopicTrends()` and `getContentGap()` and keeps its keyword lists
-(`listKeywordLists()`, `saveKeywordList()`, `deleteKeywordList()`,
-`getKeywordClusters()`). Refusals carry the `*_CODE` constants on the client that
-made the call.
+`null` position, and once the tenant joins the shared search pool a keyword the
+pool holds carries its `pool` band. `accessLogs()` reads `getTraffic()` and
+`getAIVisibility()` over UTC days, and a system administrator can
+`replayAccessLogHour($hourStart)`. `webData()` reads a Site's `getWebDomains()`,
+`listWebPages()`, `getReferringDomains($domain, $siteUuid)` (per-source link
+totals, Common Crawl authority, referring and lost domains; a count a source did
+not report is `null`, never zero), `getTopicTrends()` and `getContentGap()` and
+keeps its keyword lists (`listKeywordLists()`, `saveKeywordList()`,
+`deleteKeywordList()`, `getKeywordClusters()`). `searchPool()` is tenant-wide:
+`getSearchPool()` and `setSearchPool(true|false)` join or leave the shared search
+pool, and `listSearchPoolQueries($search, $limit)` reads its k-anonymous query
+bands once joined (`SEARCH_POOL_NOT_JOINED_CODE` before). Refusals carry the
+`*_CODE` constants on the client that made the call.
 
 ## Schema Admin Helpers
 

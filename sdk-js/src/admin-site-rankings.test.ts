@@ -3,6 +3,8 @@ import ranks from "../../contract-fixtures/site-rankings.json";
 import {
   CustdClient,
   CustdRequestError,
+  SearchPoolAccess,
+  SearchPoolDemandBand,
   SITE_RANKINGS_DAYS_INVALID_CODE,
   SITE_TRACKED_KEYWORD_ALL,
   SITE_TRACKED_KEYWORD_DUPLICATE_CODE,
@@ -63,8 +65,16 @@ describe("site rank tracking", () => {
     expect(ranking?.position).toBe(7.4);
     expect(rankings.keywords[1]?.status).toBe(SiteTrackedKeywordStatus.Paused);
     expect(rankings.keywords[1]?.device).toBe(SITE_TRACKED_KEYWORD_ALL);
-    expect((await domains.getRankings(domainUuid)).source).toBe(SiteRankingsSource.NotConnected);
-    expect((await domains.getRankings(domainUuid)).sourceFailure).toBe("Search Console refused the token");
+    expect(rankings.pool).toBe(SearchPoolAccess.Joined);
+    expect(rankings.keywords[0]?.pool?.demandBand).toBe(SearchPoolDemandBand.TensOfThousands);
+    expect(rankings.keywords[0]?.pool?.positions).toEqual({ top3: 35, top10: 40, top20: 15, beyond20: 10 });
+    expect(rankings.keywords[1]?.pool).toBeUndefined();
+    const notConnected = await domains.getRankings(domainUuid);
+    expect(notConnected.source).toBe(SiteRankingsSource.NotConnected);
+    expect(notConnected.pool).toBe(SearchPoolAccess.NotJoined);
+    const failing = await domains.getRankings(domainUuid);
+    expect(failing.sourceFailure).toBe("Search Console refused the token");
+    expect(failing.pool).toBe(SearchPoolAccess.NotJoined);
     const tracked = await domains.trackKeyword(domainUuid, ranks.trackKeywordRequest);
     expect(tracked.latest.state).toBe(SiteRankState.NoData);
     const updated = await domains.updateTrackedKeyword(domainUuid, keywordUuid, ranks.updateTrackedKeywordRequest);
@@ -82,6 +92,15 @@ describe("site rank tracking", () => {
     ]);
     expect(sent[3]?.body).toEqual(ranks.trackKeywordRequest);
     expect(sent[4]?.body).toEqual(ranks.updateTrackedKeywordRequest);
+  });
+
+  it("decodes a server from before the shared search pool without pool fields", async () => {
+    const { domains } = newDomains(respond(200, ranks.rankingsBeforePool));
+    const rankings = await domains.getRankings(domainUuid);
+    expect(rankings).toEqual(ranks.rankingsBeforePool);
+    expect(rankings.pool).toBeUndefined();
+    expect(rankings.keywords.length).toBeGreaterThan(0);
+    for (const keyword of rankings.keywords) expect(keyword.pool).toBeUndefined();
   });
 
   it("pauses a keyword without sending an alert position", async () => {

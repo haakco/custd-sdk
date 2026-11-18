@@ -9,13 +9,14 @@ use HaakCo\Custd\Admin\SiteDomain\SiteKeywordClusters;
 use HaakCo\Custd\Admin\SiteDomain\SiteKeywordList;
 use HaakCo\Custd\Admin\SiteDomain\SiteKeywordListRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteKeywordLists;
+use HaakCo\Custd\Admin\SiteDomain\SiteReferringDomains;
 use HaakCo\Custd\Admin\SiteDomain\SiteTopicTrends;
 use HaakCo\Custd\Admin\SiteDomain\SiteWebDomains;
 use HaakCo\Custd\Admin\SiteDomain\SiteWebPages;
 
 /**
- * SiteWebDataClient reads a Site's public web data (domain inventory, competitor pages, topic
- * trends, content gaps) and keeps its keyword lists. It is reached through
+ * SiteWebDataClient reads a Site's public web data (domain inventory, competitor pages, referring
+ * domains, topic trends, content gaps) and keeps its keyword lists. It is reached through
  * SiteDomainClient::webData(). Every call is Site-scoped: a site-bound credential passes a null
  * Site UUID for its own Site. A system administrator names the tenant with the company slug.
  */
@@ -52,6 +53,17 @@ final class SiteWebDataClient
             ['siteUuid' => $siteUuid, 'domain' => $domain, 'after' => $after, 'limit' => $limit],
             $companySlug
         ));
+    }
+
+    /** Read the domains linking to one of the Site's own or competitor domains, by link source. */
+    public function getReferringDomains(
+        string $domain,
+        ?string $siteUuid = null,
+        ?string $companySlug = null,
+    ): SiteReferringDomains {
+        return SiteReferringDomains::fromPayload(
+            $this->read('/referring-domains', ['domain' => $domain, 'siteUuid' => $siteUuid], $companySlug)
+        );
     }
 
     /** Read the monthly Wikipedia views of the Site's brand names and keyword-list seeds. */

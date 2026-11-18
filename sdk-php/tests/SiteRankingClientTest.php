@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Tests;
 
+use HaakCo\Custd\Admin\SiteDomain\SearchPoolBand;
+use HaakCo\Custd\Admin\SiteDomain\SearchPoolSetting;
 use HaakCo\Custd\Admin\SiteDomain\SiteRankings;
 use HaakCo\Custd\Admin\SiteDomain\SiteRankObservation;
 use HaakCo\Custd\Admin\SiteDomain\SiteTrackedKeyword;
@@ -46,6 +48,13 @@ final class SiteRankingClientTest extends TestCase
         self::assertSame('https://example.com/pricing', $ranking->rankingUrl);
         self::assertSame(SiteTrackedKeyword::STATUS_PAUSED, $paused->status);
         self::assertSame(SiteTrackedKeyword::ALL, $paused->country);
+        self::assertSame(SearchPoolSetting::ACCESS_JOINED, $rankings->pool);
+        self::assertSame(SearchPoolBand::DEMAND_10K_100K, $tracked->pool?->demandBand);
+        self::assertSame(40, $tracked->pool->positions->top10);
+        self::assertSame(10, $tracked->pool->positions->beyond20);
+        self::assertNull($paused->pool);
+        self::assertSame(SearchPoolSetting::ACCESS_NOT_JOINED, $failing->pool);
+        self::assertSame(SearchPoolSetting::ACCESS_NOT_JOINED, $notConnected->pool);
         self::assertSame('Search Console refused the token', $failing->sourceFailure);
         self::assertSame(SiteRankings::SOURCE_NOT_CONNECTED, $notConnected->source);
         self::assertNull($notConnected->sourceFailure);
@@ -54,6 +63,17 @@ final class SiteRankingClientTest extends TestCase
             'GET ' . self::BASE,
             'GET ' . self::BASE,
         ], array_column($calls, 'route'));
+    }
+
+    public function testRankingsFromBeforeThePoolHaveNoPool(): void
+    {
+        $rankings = $this->replay($calls, 'rankingsBeforePool')->rankings()->getRankings('d-1');
+
+        self::assertNull($rankings->pool);
+        self::assertSame([null, null], array_map(
+            static fn (SiteTrackedKeyword $keyword): ?SearchPoolBand => $keyword->pool,
+            $rankings->keywords
+        ));
     }
 
     public function testTrackUpdateAndUntrackSendOnlyTheirFields(): void
