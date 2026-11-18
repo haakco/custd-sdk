@@ -1,5 +1,6 @@
 export type SiteAIMode = "off" | "platform" | "own-key";
-export type SiteAIUsagePeriod = "day" | "month";
+export type SiteAIUsagePeriod = "day" | "month" | "previous-month";
+export type SiteAIProduct = "hosting" | "custd" | "cb" | "awthy";
 
 /** Grant requires the version the tenant explicitly accepted. */
 export type SiteAIConsentRequest = { action: "grant"; termsVersion: string } | { action: "revoke" };
@@ -8,6 +9,7 @@ export type SiteAISettings = {
   aiMode: SiteAIMode;
   monthlyCapUsdMicros: number;
   keyConfigured: boolean;
+  keyRefused?: boolean;
   currentTermsVersion?: string;
   acceptedTermsVersion?: string;
   consentAcceptedAt?: string;
@@ -22,6 +24,7 @@ export type SiteAISettingsRequest = {
 export type SiteAIUsageRow = {
   tenantSlug?: string;
   feature: string;
+  samplingProduct?: SiteAIProduct;
   provider: string;
   method: string;
   model: string;

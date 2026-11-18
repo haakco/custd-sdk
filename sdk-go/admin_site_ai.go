@@ -25,15 +25,35 @@ const (
 type SiteAIUsagePeriod string
 
 const (
-	SiteAIUsageDay   SiteAIUsagePeriod = "day"
-	SiteAIUsageMonth SiteAIUsagePeriod = "month"
+	SiteAIUsageDay           SiteAIUsagePeriod = "day"
+	SiteAIUsageMonth         SiteAIUsagePeriod = "month"
+	SiteAIUsagePreviousMonth SiteAIUsagePeriod = "previous-month"
 )
+
+// SiteAIProduct identifies an approved product with attributed answer-sampling usage.
+type SiteAIProduct string
+
+const (
+	SiteAIProductHosting SiteAIProduct = "hosting"
+	SiteAIProductCustd   SiteAIProduct = "custd"
+	SiteAIProductCB      SiteAIProduct = "cb"
+	SiteAIProductAwthy   SiteAIProduct = "awthy"
+)
+
+var siteAIProductValues = map[SiteAIProduct]bool{
+	SiteAIProductHosting: true, SiteAIProductCustd: true, SiteAIProductCB: true, SiteAIProductAwthy: true,
+}
+
+func (value *SiteAIProduct) UnmarshalJSON(raw []byte) error {
+	return unmarshalClosedUnion(raw, value, siteAIProductValues)
+}
 
 // SiteAISettings contains the current tenant policy and terms versions.
 type SiteAISettings struct {
 	Mode                 SiteAIMode `json:"aiMode"`
 	MonthlyCapUSDMicros  int64      `json:"monthlyCapUsdMicros"`
 	KeyConfigured        bool       `json:"keyConfigured"`
+	KeyRefused           bool       `json:"keyRefused,omitempty"`
 	CurrentTermsVersion  string     `json:"currentTermsVersion,omitempty"`
 	AcceptedTermsVersion string     `json:"acceptedTermsVersion,omitempty"`
 	ConsentAcceptedAt    *time.Time `json:"consentAcceptedAt,omitempty"`
@@ -53,27 +73,28 @@ type SiteAIConsentRequest struct {
 
 // SiteAIUsageRow groups attempt counts, provider units and costs in USD micros.
 type SiteAIUsageRow struct {
-	TenantSlug             string `json:"tenantSlug,omitempty"`
-	Feature                string `json:"feature"`
-	Provider               string `json:"provider"`
-	Method                 string `json:"method"`
-	Model                  string `json:"model"`
-	Payer                  string `json:"payer"`
-	PriceRevision          string `json:"priceRevision"`
-	Attempts               int64  `json:"attempts"`
-	UnsettledAttempts      int64  `json:"unsettledAttempts"`
-	UnknownCostAttempts    int64  `json:"unknownCostAttempts"`
-	FailedAttempts         int64  `json:"failedAttempts"`
-	NotSentAttempts        int64  `json:"notSentAttempts"`
-	InputTokens            int64  `json:"inputTokens"`
-	CachedInputTokens      int64  `json:"cachedInputTokens"`
-	OutputTokens           int64  `json:"outputTokens"`
-	Searches               int64  `json:"searches"`
-	Pages                  int64  `json:"pages"`
-	AudioMilliseconds      int64  `json:"audioMilliseconds"`
-	ConfirmedCostUSDMicros int64  `json:"confirmedCostUsdMicros"`
-	EstimatedCostUSDMicros int64  `json:"estimatedCostUsdMicros"`
-	CapAccountedUSDMicros  int64  `json:"capAccountedUsdMicros"`
+	TenantSlug             string        `json:"tenantSlug,omitempty"`
+	Feature                string        `json:"feature"`
+	SamplingProduct        SiteAIProduct `json:"samplingProduct,omitempty"`
+	Provider               string        `json:"provider"`
+	Method                 string        `json:"method"`
+	Model                  string        `json:"model"`
+	Payer                  string        `json:"payer"`
+	PriceRevision          string        `json:"priceRevision"`
+	Attempts               int64         `json:"attempts"`
+	UnsettledAttempts      int64         `json:"unsettledAttempts"`
+	UnknownCostAttempts    int64         `json:"unknownCostAttempts"`
+	FailedAttempts         int64         `json:"failedAttempts"`
+	NotSentAttempts        int64         `json:"notSentAttempts"`
+	InputTokens            int64         `json:"inputTokens"`
+	CachedInputTokens      int64         `json:"cachedInputTokens"`
+	OutputTokens           int64         `json:"outputTokens"`
+	Searches               int64         `json:"searches"`
+	Pages                  int64         `json:"pages"`
+	AudioMilliseconds      int64         `json:"audioMilliseconds"`
+	ConfirmedCostUSDMicros int64         `json:"confirmedCostUsdMicros"`
+	EstimatedCostUSDMicros int64         `json:"estimatedCostUsdMicros"`
+	CapAccountedUSDMicros  int64         `json:"capAccountedUsdMicros"`
 }
 
 type SiteAIUsage struct {

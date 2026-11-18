@@ -269,6 +269,7 @@ export type {
   SiteAIConsentRequest,
   SiteAIMode,
   SiteAIPlatformUsage,
+  SiteAIProduct,
   SiteAISettings,
   SiteAISettingsRequest,
   SiteAITenantUsage,
