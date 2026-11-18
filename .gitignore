@@ -29,6 +29,10 @@ tmp/
 *.log
 .pi
 
+# The Rust SDK is a library: the consuming binary's Cargo.lock pins its dependencies.
+/sdk-rust/target/
+/sdk-rust/Cargo.lock
+
 # Compiler probe left by a build running in this directory (PHP/configure
 # writes a.out when it tests the toolchain).
 a.out

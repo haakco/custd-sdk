@@ -248,6 +248,29 @@ jobs:
       - name: Test WordPress package
         run: cd wordpress-plugin && composer test
 
+  rust:
+    runs-on: haakco-build
+    container:
+      image: ghcr.io/haakco/actions-runner:2
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      options: --user root
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      # Keep the toolchain in step with the rust pin in mise.toml.
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --profile minimal --default-toolchain 1.100.0 --component clippy,rustfmt
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Check Rust SDK format
+        run: cd sdk-rust && cargo fmt --check
+      - name: Lint Rust SDK
+        run: cd sdk-rust && cargo clippy --all-targets -- -D warnings
+      - name: Test Rust SDK
+        run: cd sdk-rust && cargo test
+
   workflows:
     runs-on: haakco-build
     container:

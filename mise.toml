@@ -8,6 +8,8 @@ php = "8.5.12"
 just = "latest"
 actionlint = "latest"
 ripgrep = "latest"
+# sdk-rust: clippy and rustfmt ship in the default rustup profile.
+rust = "1.100.0"
 # Declared because the release-mirror job resolves it as `mise which infisical`
 # before invoking it by path. Undeclared, mise installs the bin but reports
 # "infisical is a mise bin however it is not currently active" and the job fails
@@ -66,6 +68,10 @@ run = "just test-python"
 [tasks.test-php]
 description = "Run PHP SDK tests"
 run = "just test-php"
+
+[tasks.test-rust]
+description = "Run Rust SDK format, lint and tests"
+run = "just test-rust"
 
 [tasks.lint-workflows]
 description = "Lint GitHub Actions workflows"

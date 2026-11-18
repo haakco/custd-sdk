@@ -1,5 +1,6 @@
+import { AppItemsClient } from "./app-items.js";
 import { BrowserSignIn, type CustdDiscoveryDocument, type CustdDiscoverySignIn, type SignInStorage } from "./browser-sign-in.js";
-import { type BrowserTracker, type BrowserTrackerConfig } from "./browser-tracker.js";
+import { type BrowserIdentityMode, type BrowserTracker, type BrowserTrackerConfig } from "./browser-tracker.js";
 import { ErrorCaptureClient } from "./error-capture.js";
 export declare const HOSTED_APP_DISCOVERY_PATH = "/.well-known/custd.json";
 export declare const HOSTED_APP_CAPABILITIES: {
@@ -25,6 +26,10 @@ export type HostedAppDiscovery = CustdDiscoveryDocument & {
     /** Capabilities this SDK knows; unknown values from a newer backend are dropped. */
     capabilities: HostedAppCapability[];
     signIn?: HostedAppDiscoverySignIn;
+    /** The Site's public config; when both are present the tracker starts without fetching it. */
+    identityMode?: BrowserIdentityMode;
+    allowedOrigins?: string[];
+    pageViewSchemaVersion?: string;
 };
 export declare const HOSTED_APP_ERROR_CODES: {
     readonly discoveryUnavailable: "discovery_unavailable";
@@ -61,6 +66,8 @@ export type HostedApp<TEvents extends AppEventMap = AppEventMap> = {
     errorCapture?: ErrorCaptureClient;
     /** Present when sign-in is enabled. Call `restore()` on page load (the React provider does). */
     signIn?: BrowserSignIn;
+    /** Present when app data is enabled: create, read and change the app's items. */
+    appItems?: AppItemsClient;
     /** Capabilities the discovery file enabled that could not start. The app keeps working. */
     problems: HostedAppError[];
     /** Sends a typed app event through the tracker. Never rejects. */

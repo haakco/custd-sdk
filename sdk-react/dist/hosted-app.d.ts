@@ -19,6 +19,8 @@ export type CustdHostedAppProviderProps = {
 export declare function CustdHostedAppProvider({ options, onSignInComplete, children }: CustdHostedAppProviderProps): import("react").JSX.Element;
 /** The hosted app's state: loading, ready with its handle, or a typed error. */
 export declare function useCustdHostedApp<TEvents extends AppEventMap = AppEventMap>(): CustdHostedAppState<TEvents>;
+/** The hosted app's state, or null outside `CustdHostedAppProvider`. */
+export declare function useOptionalCustdHostedApp(): CustdHostedAppState | null;
 /**
  * Starts the app and reports its result while active. The returned cleanup
  * stops the app, including one that resolves after cleanup.

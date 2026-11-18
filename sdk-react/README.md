@@ -14,12 +14,12 @@ function or existing `UseQueryResult`. The session helpers wrap a core
 ## Install
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.45.0&path:/sdk-js' \
-  '@haakco/custd-react@github:haakco/custd-sdk#v3.45.0&path:/sdk-react'
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.46.0&path:/sdk-js' \
+  '@haakco/custd-react@github:haakco/custd-sdk#v3.46.0&path:/sdk-react'
 ```
 
 Use the same released tag for both packages. These examples were verified on
-2026-11-15 against **3.45.0**. Keep the application's installed React 18/19 and
+2026-11-17 against **3.46.0**. Keep the application's installed React 18/19 and
 TanStack Query 5 peers; do not install a different React copy for this helper.
 GitHub tags with checked-in distributions are the publication owner, not a
 private registry. The state-display component renders DOM elements and is for
@@ -107,6 +107,55 @@ waits on Custd. When `sign_in` is enabled the children are wrapped in
 `CustdSessionProvider` once ready; call `useCustdSession` only below a ready
 app with `app.signIn`. Send typed app events with
 `hosted.app.trackAppEvent(name, properties)`.
+
+### Live items and forecasts
+
+`useAppItem(token, options)`, `useAppForecast(token, options)` (latest run,
+`empty` until the first run), `useAppForecastStory(token, options)` and
+`useAppModelRun(token, options)` read through the provider's `app.appItems`, or
+`options.client`. `token` is a link token, or `{ item }` for an item the
+signed-in user owns. They return the core watched state (`loading`, `fresh`,
+`empty`, `stale`, `offline`, `error`), `idle` while the token is empty, and
+`refresh()`. Components watching the same item and link on the same client
+share one poller.
+
+```tsx
+import { useAppForecast, useAppItem } from "@haakco/custd-react";
+
+function Counter({ shareToken }: { shareToken: string }) {
+  const item = useAppItem(shareToken);
+  const forecast = useAppForecast(shareToken);
+  if (item.status === "error" && !item.data) return <p role="alert">{item.error.code}</p>;
+  if (!("data" in item) || !item.data) return <p role="status">Loading…</p>; // idle, loading, offline first read
+  return (
+    <CounterView
+      item={item.data}
+      forecast={"data" in forecast ? forecast.data : undefined}
+      stale={item.status !== "fresh"}
+      updatedAt={item.lastUpdatedAt}
+    />
+  );
+}
+```
+
+### Uncertainty models
+
+`ModelEditor` edits a model's quantities (values, ranges, k of n, samples or
+formulas) and saves a version through `onSave`; the server's `fieldErrors` land
+on the quantity they name, and a cycle marks every quantity in it.
+`ModelCalculator` tries other input values against a saved version: given
+`access` (a link token) it calculates with `appItems.calculateModel`, which
+stores nothing, and it says when the caller is rate-limited. Pass the latest run
+as `baseline`; its `queuedRunFailure` shows when live inputs changed but the
+queued run failed. `QuantityHistogram`, `SensitivityView` and `MeasureNextPanel`
+draw a run's results, sensitivity and value of information, and
+`downloadSummaryCsv` saves its summary.
+
+```tsx
+const run = useAppModelRun(shareToken);
+const baseline = "data" in run ? run.data : undefined;
+<ModelCalculator version={version} inputs={["price"]} outputs={["revenue"]} access={shareToken} baseline={baseline} />;
+```
 
 ## Forecast charts
 

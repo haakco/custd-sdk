@@ -51,6 +51,8 @@ update_json_version("sdk-js/package.json")
 update_json_version("sdk-react/package.json")
 update_json_version("sdk-php/composer.json")
 replace_once("sdk-python/pyproject.toml", r'^version = "[0-9]+\.[0-9]+\.[0-9]+"$', f'version = "{version}"')
+# The Rust crate's X-Custd-Sdk identity is read from this version at compile time.
+replace_once("sdk-rust/Cargo.toml", r'^version = "[0-9]+\.[0-9]+\.[0-9]+"$', f'version = "{version}"')
 replace_once("wordpress-plugin/custd.php", r'^ \* Version: [0-9]+\.[0-9]+\.[0-9]+$', f" * Version: {version}")
 # The X-Custd-Sdk identity each SDK reports. A release must move these with the
 # version, or the platform records a client under the wrong release.

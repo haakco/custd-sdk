@@ -6,14 +6,14 @@ Ingestion client with retry, batching, and optional offline queueing.
 
 The supported 3.x SDK sends events to `POST /api/v1/events` and batches to
 `POST /api/v1/events/batch`. Installation examples below were verified against
-release **3.45.0** on 2026-11-17, including Node 26, pnpm 12 and Expo 58 consumers.
+release **3.46.0** on 2026-11-17, including Node 26, pnpm 12 and Expo 58 consumers.
 
 ## Install
 
 Use the GitHub package path when installing into HaakCo apps:
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.45.0&path:/sdk-js'
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.46.0&path:/sdk-js'
 ```
 
 Pin the tag to the SDK version you want. The package is no longer published to
@@ -339,6 +339,62 @@ if (started.status === "ready") {
 `{ status: "error", error }`; an enabled capability that cannot start is listed
 in `app.problems` while the others keep running. App events must be registered
 event types with flat scalar properties; `trackAppEvent` never rejects either.
+
+### App items
+
+With `app_data` enabled, `app.appItems` is an `AppItemsClient` for the app's
+items. Creating one needs only the Site key; every other call takes the item's
+owner link token (reads and changes) or share link token (reads only). Tokens
+travel only in the `Authorization` header and are never logged.
+
+```ts
+import { appItemOwnerUrl, appItemShareUrl, parseAppItemLink } from "@haakco/custd-sdk/browser";
+
+const items = app.appItems!; // or AppItemsClient.fromDiscovery(discovery)
+const created = await items.createItem({
+  kind: "measurement_project",
+  measurementProject: { kind: "deadline_forecast", name: "Launch", series: [series], target },
+});
+const ownerUrl = appItemOwnerUrl({ host: app.discovery.host, kindPath: "c", token: created.ownerToken });
+const shareUrl = appItemShareUrl({ host: app.discovery.host, kindPath: "c", token: created.shareToken });
+
+await items.addMeasurements(created.ownerToken, { rows: [{ observedAt: new Date().toISOString(), value: 12 }] });
+await items.runForecast(created.ownerToken);
+
+const pasted = parseAppItemLink(input); // owner URL, share URL or bare token; null otherwise
+const watch = items.watchItem(created.shareToken); // { getState, subscribe, refresh }
+const stop = watch.subscribe(() => render(watch.getState()));
+```
+
+Reads (`readItem`, `latestForecast`, `forecastRun`, `forecastStory`) take
+`{ item, etag }` and return `{ status: "modified", data, etag }` or
+`{ status: "not_modified", etag }`. `item` reads an entry of a dashboard through
+the dashboard's own link. Failures throw `AppItemError` with the server's
+`code` (`APP_ITEM_ERROR_CODES`); `terminal` is true when retrying cannot help.
+
+`watchItem`, `watchLatestForecast` and `watchForecastStory` poll with
+`If-None-Match` every 5 s (`intervalMs`), pause while the tab is hidden, poll at
+once when it is shown or the browser comes back online, and back off up to 60 s
+while requests fail. Watchers of the same read and link share one poller. State
+is `loading`, `fresh`, `stale` (earlier data, the last poll failed), `offline`
+or `error` (`retrying: false` once the link or key is refused, until
+`refresh()`); `lastUpdatedAt` is when the server last confirmed the data,
+including an unchanged answer. A write through the client polls that link's
+watchers at once. The latest forecast is `empty` until a first run exists.
+Watchers share a poller on the same client. A Site key refused for the page's
+origin gets no CORS header, so the browser reports it as `network`/`offline`.
+
+A signed-in user's access token travels in `X-Custd-User-Token` beside the
+link: `startHostedApp` wires it from `app.signIn`, or pass `userToken` to the
+client. `listMyItems()` reads "my items", `claim(ownerToken)` takes ownership of
+an unowned item, and `{ item: itemUuid }` in place of a token reaches an item
+the user owns without a link. Reads carry `item.ownership` (`unowned`, `yours`,
+`other`). `error.signInNeeded` means sign in again; `app_user_check_unavailable`
+is retried and keeps the session.
+
+Model items add `addModelVersion`, `copyModel`, `runModel`, `latestModelRun`,
+`watchLatestModelRun` and `calculateModel(token, { versionNumber, inputs,
+outputs })`, which any link may call and which stores nothing.
 
 ## Browser app user sign-in
 

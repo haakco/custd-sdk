@@ -1,6 +1,7 @@
 // Zero-config start for an app Custd hosts: read the app's own discovery file and
 // start tracking, error capture and sign-in as the file enables them. Starting
 // never throws; every failure comes back as a typed state the app can show.
+import { AppItemsClient } from "./app-items.js";
 import { BrowserSignIn, signInConfigFromDiscovery, } from "./browser-sign-in.js";
 import { createBrowserTracker, defaultSiteBatchSize, defaultSiteConsent, fetchBrowserSiteConfig, siteConfigSchemaVersion, } from "./browser-tracker.js";
 import { ErrorCaptureClient, installBrowserErrorCapture } from "./error-capture.js";
@@ -64,9 +65,14 @@ export async function startHostedApp(options = {}) {
             return undefined;
         })
         : undefined;
+    const appItems = enabled.has(HOSTED_APP_CAPABILITIES.appData)
+        ? AppItemsClient.fromDiscovery(discovery, { fetch: options.fetch, userToken: () => liveAccessToken(signIn) })
+        : undefined;
+    // Ownership is part of every read, so a sign-in, refresh or sign-out re-reads what is watched.
+    const unwatchSignIn = appItems && signIn?.subscribe(() => appItems.refreshAll());
     return {
         status: HOSTED_APP_STATUSES.ready,
-        app: hostedApp({ discovery, tracker, errorCapture, signIn, problems }),
+        app: hostedApp({ discovery, tracker, errorCapture, signIn, appItems, unwatchSignIn, problems }),
     };
 }
 function hostedApp(pieces) {
@@ -77,6 +83,7 @@ function hostedApp(pieces) {
         tracker,
         errorCapture: errorCapture?.client,
         signIn: pieces.signIn,
+        appItems: pieces.appItems,
         problems: pieces.problems,
         trackAppEvent: async (name, properties) => {
             if (!tracker || stopped)
@@ -95,6 +102,7 @@ function hostedApp(pieces) {
             stopped = true;
             tracker?.close();
             errorCapture?.uninstall();
+            pieces.unwatchSignIn?.();
         },
     };
 }
@@ -135,6 +143,13 @@ function parseHostedAppDiscovery(body) {
     const signIn = parseSignIn(body.signIn);
     if (signIn)
         discovery.signIn = signIn;
+    if (body.identityMode === "cookieless" || body.identityMode === "extended")
+        discovery.identityMode = body.identityMode;
+    if (Array.isArray(body.allowedOrigins) && body.allowedOrigins.every((origin) => typeof origin === "string")) {
+        discovery.allowedOrigins = body.allowedOrigins;
+    }
+    if (typeof body.pageViewSchemaVersion === "string" && body.pageViewSchemaVersion !== "")
+        discovery.pageViewSchemaVersion = body.pageViewSchemaVersion;
     return discovery;
 }
 function parseSignIn(value) {
@@ -153,12 +168,12 @@ function parseSignIn(value) {
     };
     if (nonEmptyString(value.endSessionEndpoint))
         signIn.endSessionEndpoint = value.endSessionEndpoint;
+    if (nonEmptyString(value.postLogoutRedirectUri))
+        signIn.postLogoutRedirectUri = value.postLogoutRedirectUri;
     return signIn;
 }
 async function startTracking(discovery, options, fetchImpl) {
-    const siteConfig = await fetchBrowserSiteConfig(discovery.apiBaseUrl, discovery.siteUuid, fetchImpl).catch(() => {
-        throw new HostedAppError(HOSTED_APP_ERROR_CODES.siteConfigUnavailable, "site config could not be read", HOSTED_APP_CAPABILITIES.tracking);
-    });
+    const siteConfig = await hostedSiteConfig(discovery, fetchImpl);
     const tracker = createBrowserTracker({
         baseUrl: discovery.apiBaseUrl,
         siteUuid: discovery.siteUuid,
@@ -173,6 +188,33 @@ async function startTracking(discovery, options, fetchImpl) {
     });
     tracker.installSpaTracking();
     return tracker;
+}
+/** The discovery file's copy of the Site config, or the Site config route for an older backend. */
+async function hostedSiteConfig(discovery, fetchImpl) {
+    if (discovery.identityMode && discovery.allowedOrigins && discovery.pageViewSchemaVersion) {
+        return {
+            identityMode: discovery.identityMode,
+            allowedOrigins: discovery.allowedOrigins,
+            pageViewSchemaVersion: discovery.pageViewSchemaVersion,
+        };
+    }
+    return fetchBrowserSiteConfig(discovery.apiBaseUrl, discovery.siteUuid, fetchImpl).catch(() => {
+        throw new HostedAppError(HOSTED_APP_ERROR_CODES.siteConfigUnavailable, "site config could not be read", HOSTED_APP_CAPABILITIES.tracking);
+    });
+}
+/** Starts a refresh this long before the access token expires, so long-open pages stay signed in. */
+const ACCESS_TOKEN_REFRESH_MS = 30000;
+/**
+ * The signed-in user's access token while it is still valid. Near expiry it starts `restore()`,
+ * which refreshes the session (one shared request) or signs out with a visible error state.
+ */
+function liveAccessToken(signIn) {
+    const session = signIn?.currentSession();
+    if (!signIn || !session)
+        return undefined;
+    if (session.expiresAtMs - ACCESS_TOKEN_REFRESH_MS <= Date.now())
+        void signIn.restore();
+    return session.expiresAtMs > Date.now() ? session.accessToken : undefined;
 }
 function startErrorCapture(discovery, options, fetchImpl) {
     const client = new ErrorCaptureClient({

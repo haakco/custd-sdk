@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppItemsClient } from "./app-items";
 import {
   APP_EVENT_OUTCOMES,
   HOSTED_APP_CAPABILITIES,
@@ -85,10 +86,31 @@ describe("startHostedApp", () => {
     expect(app.tracker).toBeDefined();
     expect(app.errorCapture).toBeDefined();
     expect(app.signIn?.getState().status).toBe("signed_out");
+    expect(app.appItems).toBeInstanceOf(AppItemsClient);
     const [pageView] = collected(fetchMock);
     expect(pageView.eventTypeSlug).toBe("page-view");
     expect(pageView.payload.siteUuid).toBe(SITE_UUID);
     expect(pageView.labels).toEqual({ "custd.environment": "prod" });
+    app.stop();
+  });
+
+  it("sends a valid signed-in session's access token on app item calls, and none once it expired", async () => {
+    const fetchMock = routes(discovery({ capabilities: ["sign_in", "app_data"] }));
+    const session = (expiresAtMs: number) =>
+      JSON.stringify({ accessToken: "user-access", tokenType: "bearer", expiresAtMs, scopes: ["openid"] });
+    sessionStorage.setItem("custd:sign-in:app-client:session", session(Date.now() + 3_600_000));
+    const app = readyApp(await startHostedApp());
+    const userTokenOfLastCall = () => {
+      const [, init] = fetchMock.mock.calls[fetchMock.mock.calls.length - 1] ?? [];
+      return (init?.headers as Record<string, string> | undefined)?.["X-Custd-User-Token"];
+    };
+
+    await app.appItems?.listMyItems().catch(() => undefined);
+    expect(userTokenOfLastCall()).toBe("user-access");
+
+    sessionStorage.setItem("custd:sign-in:app-client:session", session(Date.now() - 1000));
+    await app.appItems?.listMyItems().catch(() => undefined);
+    expect(userTokenOfLastCall()).toBeUndefined();
     app.stop();
   });
 
@@ -110,6 +132,7 @@ describe("startHostedApp", () => {
     expect(app.discovery.capabilities).toEqual([HOSTED_APP_CAPABILITIES.errorCapture]);
     expect(app.tracker).toBeUndefined();
     expect(app.signIn).toBeUndefined();
+    expect(app.appItems).toBeUndefined();
     expect(app.errorCapture).toBeDefined();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await expect(app.trackAppEvent("item-created", { kind: "counter" })).resolves.toBe(APP_EVENT_OUTCOMES.trackingOff);
@@ -123,6 +146,43 @@ describe("startHostedApp", () => {
 
     expect(collected(fetchMock)).toEqual([]);
     app.stop();
+  });
+
+  it("starts tracking from the discovery file's Site config without fetching it", async () => {
+    const fetchMock = routes(
+      discovery({
+        capabilities: ["tracking"],
+        identityMode: "extended",
+        allowedOrigins: [ORIGIN],
+        pageViewSchemaVersion: "1.0.0",
+      }),
+      "cookieless",
+    );
+
+    const app = readyApp(await startHostedApp());
+    await app.trackAppEvent("item-created", { kind: "counter" });
+
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/config"))).toBe(false);
+    expect(collected(fetchMock)).toEqual([]); // extended from discovery: waits for consent
+    app.stop();
+  });
+
+  it("fetches the Site config when discovery lacks the page-view schema version", async () => {
+    const fetchMock = routes(
+      discovery({ capabilities: ["tracking"], identityMode: "extended", allowedOrigins: [ORIGIN] }),
+    );
+
+    readyApp(await startHostedApp()).stop();
+
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith(`/api/v1/sites/${SITE_UUID}/config`))).toBe(true);
+  });
+
+  it("falls back to the Site config route when discovery lacks it", async () => {
+    const fetchMock = routes(discovery({ capabilities: ["tracking"], identityMode: "extended" }));
+
+    readyApp(await startHostedApp()).stop();
+
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith(`/api/v1/sites/${SITE_UUID}/config`))).toBe(true);
   });
 
   it("sends typed app events through the tracker", async () => {
