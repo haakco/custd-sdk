@@ -104,6 +104,22 @@ class DataScopeAdminClientTest(unittest.TestCase):
         scopes.revoke_grant(grant)
         self.assertEqual(transport.calls[2], ("POST", "/api/v1/admin/data-scope-grants/revoke", grant))
 
+    def test_machine_client_id_matches_server_bound(self) -> None:
+        def grant(client_id: str) -> dict:
+            return {
+                "principal": {"kind": "machine", "clientId": client_id},
+                "target": {"kind": "parent"},
+                "action": "read",
+            }
+
+        transport = Transport(grant("x"))
+        make_client(transport).admin.data_scopes.create_grant(grant("a" * 255))
+        self.assertEqual(1, len(transport.calls))
+        refused = Transport(grant("x"))
+        with self.assertRaises(ValueError):
+            make_client(refused).admin.data_scopes.create_grant(grant("a" * 256))
+        self.assertEqual([], refused.calls)
+
     def test_rejects_invalid_shapes_before_sending(self) -> None:
         cases = [
             lambda s: s.create_scope({"code": "bad code", "name": "x"}),

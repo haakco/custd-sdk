@@ -136,6 +136,19 @@ describe("data scope admin client", () => {
     expect(revokeFetch.mock.calls[0]?.[1]?.method).toBe("POST");
   });
 
+  it("accepts a machine client ID up to the server's 255 bytes and refuses a longer one", async () => {
+    const grantFor = (clientId: string): DataScopeGrant => ({
+      ...grantFixture,
+      principal: { kind: "machine", clientId },
+    });
+    const fetchImpl = mockFetch(grantFixture, 201);
+    await client(fetchImpl).admin.dataScopes.createGrant(grantFor("a".repeat(255)));
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const refused = mockFetch(grantFixture, 201);
+    await expect(client(refused).admin.dataScopes.createGrant(grantFor("a".repeat(256)))).rejects.toThrow(RangeError);
+    expect(refused).not.toHaveBeenCalled();
+  });
+
   it("rejects an invalid grant shape without sending", async () => {
     const fetchImpl = mockFetch(grantFixture, 201);
     await expect(

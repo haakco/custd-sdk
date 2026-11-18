@@ -7,6 +7,7 @@ import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SiteDomainAdminClient } from "./admin-site-domains.js";
+import { SiteInsightsAdminClient } from "./admin-site-insights-tasks.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 import { TimePlanAdminClient } from "./admin-timeplans.js";
@@ -25,18 +26,22 @@ export { OffboardingClient, } from "./admin-offboarding.js";
 export { PredictionAdminClient, } from "./admin-predictions.js";
 export { PrivacyErasureClient, PrivacyErasureError, } from "./admin-privacy-erasures.js";
 export { RetentionClient, } from "./admin-retention.js";
+export { SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE, SITE_ANALYTICS_PROPERTY_INVALID_CODE, SITE_ANALYTICS_PROVIDER_GA4, SiteAnalyticsUnavailableReport, } from "./admin-site-analytics.js";
 export { SITE_AUDIT_PAGES_DEFAULT_LIMIT, SITE_AUDIT_PAGES_MAX_LIMIT, SITE_LIGHTHOUSE_MAX_EXTRA_PAGES, SITE_LIGHTHOUSE_PAGE_NOT_EXTRA_CODE, SiteAuditPageIndexability, SiteAuditRun, } from "./admin-site-audit-pages.js";
 export { SITE_CAMPAIGN_LINK_LIMIT_CODE, SITE_CAMPAIGN_LINK_TAKEN_CODE, SITE_CAMPAIGN_LINKS_MAX, } from "./admin-site-campaign-links.js";
-export { SITE_DOMAIN_NOT_VERIFIED_CODE, SITE_SEARCH_CONNECTION_NOT_FOUND_CODE, SITE_SEARCH_NOT_CONFIGURED_CODE, SiteDomainAdminClient, SiteRule, } from "./admin-site-domains.js";
-export { IndexNowSubmissionStatus, SITE_CHOICE_REQUIRED_CODE, SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE, SITE_INDEXNOW_KEY_UNVERIFIED_CODE, SITE_INDEXNOW_LIMIT_CODE, SITE_INDEXNOW_NOT_ENABLED_CODE, SITE_INDEXNOW_URLS_INVALID_CODE, SITE_PAGE_NOT_ON_DOMAIN_CODE, SITE_PAGE_RECHECK_LIMIT_CODE, SITE_PAGE_RECHECK_READ_LIMIT, SITE_SEARCH_INSPECTION_LIMIT_CODE, SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE, SITE_SEARCH_INSPECTION_URL_INVALID_CODE, SiteGeneratedFormat, SitePageRecheckState, SiteRemedyKind, } from "./admin-site-insights.js";
+export { SITE_DOMAIN_NOT_VERIFIED_CODE, SITE_SEARCH_CONNECTION_NOT_FOUND_CODE, SITE_SEARCH_NOT_CONFIGURED_CODE, SITE_SEARCH_RETRY_NOT_FAILING_CODE, SiteDomainAdminClient, SiteRule, } from "./admin-site-domains.js";
+export { SITE_INSIGHTS_EXPORT_SCHEMA, SITE_INSIGHTS_EXPORT_SEARCH_METRICS_MAX_LIMIT, SiteSearchMetricDimension, } from "./admin-site-export.js";
+export { IndexNowSubmissionStatus, SITE_CHOICE_REQUIRED_CODE, SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE, SITE_INDEXNOW_KEY_UNVERIFIED_CODE, SITE_INDEXNOW_LIMIT_CODE, SITE_INDEXNOW_NOT_ENABLED_CODE, SITE_INDEXNOW_URLS_INVALID_CODE, SITE_PAGE_NOT_ON_DOMAIN_CODE, SITE_PAGE_NOT_READ_CODE, SITE_PAGE_RECHECK_LIMIT_CODE, SITE_PAGE_RECHECK_READ_LIMIT, SITE_SEARCH_INSPECTION_LIMIT_CODE, SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE, SITE_SEARCH_INSPECTION_URL_INVALID_CODE, SiteGeneratedFormat, SitePageCheckScope, SitePageRecheckState, SiteRemedyKind, } from "./admin-site-insights.js";
+export { SiteInsightsAdminClient, SiteInsightsTaskName, } from "./admin-site-insights-tasks.js";
 export { SiteLinkSource, SiteLinkSourceStatus, } from "./admin-site-links.js";
 export { SITE_NEXT_ACTIONS_MAX, SiteNextActionKind, SiteNextActionPlace, SiteNotChecked, } from "./admin-site-next-actions.js";
+export { SitePageLinkSourceWhere, SitePageQueriesState, SiteTitleTemplate, } from "./admin-site-page-queries.js";
 export { SITE_RANKINGS_DAYS_INVALID_CODE, SITE_RANKINGS_DEFAULT_DAYS, SITE_RANKINGS_MAX_DAYS, SITE_TRACKED_KEYWORD_ALL, SITE_TRACKED_KEYWORD_DEFAULT_NOTIFY_POSITION, SITE_TRACKED_KEYWORD_DUPLICATE_CODE, SITE_TRACKED_KEYWORD_INVALID_CODE, SITE_TRACKED_KEYWORD_LIMIT_CODE, SITE_TRACKED_KEYWORD_NOT_FOUND_CODE, SITE_TRACKED_KEYWORDS_MAX, SiteRankDevice, SiteRankingsSource, SiteRankState, SiteTrackedKeywordStatus, } from "./admin-site-rankings.js";
 export { SAVED_SITE_REPORT_LIMIT_CODE, SAVED_SITE_REPORT_NAME_TAKEN_CODE, SITE_SAVED_REPORTS_MAX, SiteReportTemplate, } from "./admin-site-saved-reports.js";
-export { SEARCH_POOL_MIN_CONTRIBUTORS, SEARCH_POOL_MIN_IMPRESSIONS, SEARCH_POOL_QUERIES_DEFAULT_LIMIT, SEARCH_POOL_QUERIES_MAX_LIMIT, SEARCH_POOL_SEARCH_MAX_LENGTH, SEARCH_POOL_WINDOW_DAYS, SearchPoolAccess, SearchPoolDemandBand, SITE_SEARCH_POOL_NOT_JOINED_CODE, SITE_SEARCH_POOL_QUERY_INVALID_CODE, SITE_SEARCH_POOL_SETTING_INVALID_CODE, SITE_SEARCH_POOL_SITE_BOUND_CODE, } from "./admin-site-search-pool.js";
+export { SEARCH_POOL_MIN_CONTRIBUTORS, SEARCH_POOL_MIN_IMPRESSIONS, SEARCH_POOL_QUERIES_DEFAULT_LIMIT, SEARCH_POOL_QUERIES_MAX_LIMIT, SEARCH_POOL_SEARCH_MAX_LENGTH, SEARCH_POOL_TERMS_VERSION, SEARCH_POOL_WINDOW_DAYS, SearchPoolAccess, SearchPoolDemandBand, SITE_SEARCH_POOL_NOT_JOINED_CODE, SITE_SEARCH_POOL_QUERY_INVALID_CODE, SITE_SEARCH_POOL_SETTING_INVALID_CODE, SITE_SEARCH_POOL_SITE_BOUND_CODE, } from "./admin-site-search-pool.js";
 export { SITE_FINDING_IMPACT_DEFAULT_DAYS, SITE_FINDING_IMPACT_MAX_DAYS, SITE_FINDING_IMPACT_MIN_DAYS, SITE_SEARCH_VALUE_DEFAULT_DAYS, SITE_SEARCH_VALUE_MAX_DAYS, SITE_SEARCH_VALUE_MAX_GOALS, SITE_SEARCH_VALUE_MAX_PAGES, SiteFindingImpactStatus, SiteSearchGoalStatus, } from "./admin-site-search-value.js";
 export { ACCESS_LOG_HOUR_INVALID_CODE, AccessLogHourStatus, SiteCrawlerIdentity, SiteReferrerClass, SiteTrafficDayCoverage, TRAFFIC_OTHER_KEY, } from "./admin-site-traffic.js";
-export { SITE_KEYWORD_LIST_LIMIT_CODE, SITE_KEYWORD_LIST_NOT_FOUND_CODE, SiteContentGapCoverage, SiteTopicTrendSource, SiteTopicTrendStatus, SiteTrancoBand, SiteWebDomainRole, SiteWebInventoryStatus, SiteWebPageSource, } from "./admin-site-web-data.js";
+export { SITE_KEYWORD_DEMAND_SOURCE_BING, SITE_KEYWORD_LIST_LIMIT_CODE, SITE_KEYWORD_LIST_NOT_FOUND_CODE, SiteContentGapCoverage, SiteKeywordDemandState, SiteTopicTrendSource, SiteTopicTrendStatus, SiteTrancoBand, SiteWebDomainRole, SiteWebInventoryStatus, SiteWebPageSource, } from "./admin-site-web-data.js";
 export { SubjectExportClient, } from "./admin-subject-exports.js";
 export { TenantStorageClient, } from "./admin-tenant-storage.js";
 export { TimePlanAdminClient, validateTimePlanDefinition, } from "./admin-timeplans.js";
@@ -115,6 +120,10 @@ export class CustdRawAcceptanceUnknownError extends Error {
         this.operationKey = options?.operationKey;
     }
 }
+/** A 404 on schema audit: the named tenant does not exist. */
+export const SCHEMA_AUDIT_TENANT_NOT_FOUND_CODE = "schema_audit_tenant_not_found";
+/** A 400 on schema audit: the request names no tenantSlug. */
+export const SCHEMA_AUDIT_TENANT_SLUG_REQUIRED_CODE = "schema_audit_tenant_slug_required";
 function publicAdminSite(site) {
     const { writeKey: _writeKey, ...safeSite } = site;
     return safeSite;
@@ -952,6 +961,7 @@ class AdminNamespace {
         this.oauthClients = new AdminOAuthClientNamespace(request);
         this.sites = new AdminSiteNamespace(request);
         this.siteDomains = new SiteDomainAdminClient(nonAdminRequest);
+        this.siteInsights = new SiteInsightsAdminClient(request);
         this.schemas = new AdminSchemaNamespace(request);
         this.measurement = new AdminMeasurementNamespace(request);
         this.predictions = new PredictionAdminClient(request);

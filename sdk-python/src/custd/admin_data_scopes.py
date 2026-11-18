@@ -106,6 +106,15 @@ class DataScopeGrantListResponse(TypedDict):
     grants: list[DataScopeGrant]
 
 
+MAX_DATA_SCOPE_CLIENT_ID_BYTES = 255
+"""The server's OAuth producer client ID bound, which includes already-issued credentials."""
+
+
+def _valid_data_scope_client_id(value: str) -> bool:
+    """Report whether value is a machine principal client ID the server accepts."""
+    return value != "" and len(value.encode()) <= MAX_DATA_SCOPE_CLIENT_ID_BYTES and value == value.strip()
+
+
 def valid_data_scope_code(value: str) -> bool:
     """Report whether value is a valid immutable external scope/resource code."""
     return 1 <= len(value) <= 128 and DATA_SCOPE_CODE_PATTERN.match(value) is not None
@@ -147,7 +156,7 @@ def _assert_principal(principal: DataScopePrincipalRef) -> None:
             raise ValueError("custd: a human principal requires userUuid and no clientId")
         return
     if kind == "machine":
-        if not isinstance(client_id, str) or user_uuid is not None or not valid_data_scope_code(client_id):
+        if not isinstance(client_id, str) or user_uuid is not None or not _valid_data_scope_client_id(client_id):
             raise ValueError("custd: a machine principal requires a bounded clientId and no userUuid")
         return
     raise ValueError('custd: data scope principal kind must be "human" or "machine"')

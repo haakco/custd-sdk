@@ -8,6 +8,12 @@ export const SITE_SEARCH_POOL_NOT_JOINED_CODE = "site_search_pool_not_joined";
 export const SITE_SEARCH_POOL_SITE_BOUND_CODE = "site_search_pool_site_bound";
 /** A 400 on setSearchPool: joined must be true or false. */
 export const SITE_SEARCH_POOL_SETTING_INVALID_CODE = "site_search_pool_setting_invalid";
+/**
+ * The shared search pool terms version current at this SDK release. Joining is consent the
+ * caller gives: read the live version from SearchPoolSetting.termsVersion, show those terms,
+ * and pass the version accepted to setSearchPool. A missing or stale version is a plain 400.
+ */
+export const SEARCH_POOL_TERMS_VERSION = "2026-11-18";
 /** A 400 on listSearchPoolQueries: search or limit is out of range. */
 export const SITE_SEARCH_POOL_QUERY_INVALID_CODE = "site_search_pool_query_invalid";
 /** listSearchPoolQueries returns this many queries when limit is omitted. */

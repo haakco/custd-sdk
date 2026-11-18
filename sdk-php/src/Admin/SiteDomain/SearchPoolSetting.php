@@ -9,7 +9,8 @@ use HaakCo\Custd\Fields;
 /**
  * SearchPoolSetting says whether the tenant shares its Search Console queries in the shared search
  * pool, and the rules a pooled query must meet: at least minContributors tenants and minImpressions
- * impressions over windowDays days. joinedAt is null while the tenant has not joined.
+ * impressions over windowDays days. joinedAt and acceptedTermsVersion are null while the
+ * tenant has not joined; termsVersion is the version a join must name (null from an older server).
  */
 final readonly class SearchPoolSetting
 {
@@ -26,6 +27,8 @@ final readonly class SearchPoolSetting
         public int $minImpressions,
         public int $windowDays,
         public ?string $joinedAt = null,
+        public ?string $termsVersion = null,
+        public ?string $acceptedTermsVersion = null,
     ) {
     }
 
@@ -37,6 +40,8 @@ final readonly class SearchPoolSetting
             Fields::integer($payload, 'minImpressions'),
             Fields::integer($payload, 'windowDays'),
             Fields::optionalString($payload, 'joinedAt'),
+            Fields::optionalString($payload, 'termsVersion'),
+            Fields::optionalString($payload, 'acceptedTermsVersion'),
         );
     }
 }

@@ -8,6 +8,7 @@ import {
   CustdRequestError,
   SITE_CHOICE_REQUIRED_CODE,
   SITE_PAGE_NOT_ON_DOMAIN_CODE,
+  SITE_PAGE_NOT_READ_CODE,
   SITE_PAGE_RECHECK_LIMIT_CODE,
   SITE_PAGE_RECHECK_READ_LIMIT,
   SITE_SEARCH_INSPECTION_LIMIT_CODE,
@@ -15,8 +16,10 @@ import {
   SITE_SEARCH_INSPECTION_URL_INVALID_CODE,
   type SiteFinding,
   SiteGeneratedFormat,
+  SitePageCheckScope,
   type SiteRemedy,
   SiteRemedyKind,
+  SiteRule,
 } from "./index";
 
 const base = "http://localhost:8080/api/v1";
@@ -174,6 +177,34 @@ describe("site insights page tools", () => {
     expect(sent[4]?.body).toEqual({ url: "https://example.com/plans", html: "<p></p>", phrase: "x" });
     expect(tools.pageCheck).not.toHaveProperty("slug");
     expect(tools.pageFacts).not.toHaveProperty("shareImage");
+  });
+
+  it("sends a content-scope draft check and names the rules it checked", async () => {
+    const { domains, calls } = newDomains(
+      respond(200, tools.pageCheckContent),
+      respond(200, tools.pageCheckDraftTools),
+    );
+
+    const check = await domains.checkPage(domainUuid, tools.pageCheckContentRequest);
+    expect(check).toEqual(tools.pageCheckContent);
+    expect(check.scope).toBe(SitePageCheckScope.Content);
+    expect(check.checkedRules).toContain(SiteRule.ImageNotLazy);
+    expect(check.findings.map((finding) => finding.rule)).not.toContain(SiteRule.ImageNotLazy);
+    const whole = await domains.checkPage(domainUuid, tools.pageCheckDraftToolsRequest);
+    expect(whole.scope).toBeUndefined();
+    expect(whole.checkedRules).toBeUndefined();
+
+    const sent = calls();
+    expect(sent[0]?.body).toEqual(tools.pageCheckContentRequest);
+    expect(sent[1]?.body).not.toHaveProperty("scope");
+  });
+
+  it("surfaces the recorded page-not-read problem code from getPageFacts", async () => {
+    const problem = tools.pageNotReadProblem;
+    const { domains } = newDomains(respond(problem.status, problem));
+    const refusal = domains.getPageFacts(domainUuid, "https://example.com/new");
+    await expect(refusal).rejects.toBeInstanceOf(CustdRequestError);
+    await expect(refusal).rejects.toMatchObject({ status: 404, code: SITE_PAGE_NOT_READ_CODE });
   });
 
   it("decodes absent readability and recheck failures without inventing zeros", () => {

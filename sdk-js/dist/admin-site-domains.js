@@ -9,6 +9,8 @@ export const SITE_DOMAIN_NOT_VERIFIED_CODE = "site_domain_not_verified";
 export const SITE_SEARCH_NOT_CONFIGURED_CODE = "site_search_not_configured";
 /** A 404 on disconnectSearch: the domain is not connected to that provider. */
 export const SITE_SEARCH_CONNECTION_NOT_FOUND_CODE = "site_search_connection_not_found";
+/** A 409 on retrySearchImport: only a failing connection retries now; reconnect a revoked one. */
+export const SITE_SEARCH_RETRY_NOT_FAILING_CODE = "site_search_retry_not_failing";
 /**
  * The stable rule IDs a SiteFinding carries in `rule`, from Custd's siteaudit
  * rule catalogue. Key a client-side fix or display on these, never on the title.
@@ -166,8 +168,17 @@ export class SiteDomainAdminClient {
         return this.send("GET", searchPoolPath, {}, undefined, options);
     }
     /** Joins (true) or leaves (false) the shared search pool for the whole tenant. */
-    setSearchPool(joined, options) {
-        return this.send("PUT", searchPoolPath, {}, { joined }, options);
+    /**
+     * Joins (with the terms version the caller accepted) or leaves the shared search pool.
+     * Joining without a termsVersion is refused before any request; leaving sends only joined.
+     */
+    setSearchPool(joined, termsVersion, options) {
+        if (!joined)
+            return this.send("PUT", searchPoolPath, {}, { joined }, options);
+        if (typeof termsVersion !== "string" || termsVersion.trim() === "") {
+            return Promise.reject(new Error("custd: joining the shared search pool needs the accepted termsVersion"));
+        }
+        return this.send("PUT", searchPoolPath, {}, { joined, termsVersion }, options);
     }
     /**
      * Reads pooled queries matching `search` (at most 100 characters), `limit` 1..200; omitted, 50.
@@ -190,6 +201,37 @@ export class SiteDomainAdminClient {
         return this.send("DELETE", searchConnectionPath(domainUuid, provider), {}, undefined, options);
     }
     /** Reads what the latest audit or recheck read from one page of the domain. */
+    /** Retries a failing search import now; anything else is refused with SITE_SEARCH_RETRY_NOT_FAILING_CODE. */
+    retrySearchImport(domainUuid, provider, options) {
+        return this.send("POST", `${searchConnectionPath(domainUuid, provider)}/retry`, {}, undefined, options);
+    }
+    /** Reads the searches one page shows for, with title options and pages that could link to it. */
+    getPageSearchQueries(domainUuid, url, options) {
+        return this.send("GET", `${domainPath(domainUuid)}/page-search-queries`, { url }, undefined, options);
+    }
+    /** Reads the domain's GA4 landing pages, key events and channels; empty until connected and imported. */
+    getAnalytics(domainUuid, options) {
+        return this.send("GET", analyticsPath(domainUuid), {}, undefined, options);
+    }
+    /** Connects the domain to a GA4 property; a bad ID is refused with SITE_ANALYTICS_PROPERTY_INVALID_CODE. */
+    connectAnalytics(domainUuid, body, options) {
+        const request = { propertyId: body.propertyId };
+        return this.send("PUT", `${analyticsPath(domainUuid)}/ga4`, {}, request, options);
+    }
+    /** Disconnects GA4; an unconnected domain is refused with SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE. */
+    disconnectAnalytics(domainUuid, options) {
+        return this.send("DELETE", `${analyticsPath(domainUuid)}/ga4`, {}, undefined, options);
+    }
+    /** Exports everything Site Insights holds for the domain and its Site, except the daily search metrics. */
+    getExport(domainUuid, options) {
+        return this.send("GET", exportPath(domainUuid), {}, undefined, options);
+    }
+    /** Pages through the domain's daily search metrics; the export's search.metricRows is the total. */
+    listExportSearchMetrics(domainUuid, query = {}, options) {
+        const values = { offset: query.offset?.toString(), limit: query.limit?.toString() };
+        return this.send("GET", `${exportPath(domainUuid)}/search-metrics`, values, undefined, options);
+    }
+    /** Reads what the last audit or recheck saw on a page; an unread page is refused with SITE_PAGE_NOT_READ_CODE. */
     getPageFacts(domainUuid, url, options) {
         return this.send("GET", `${domainPath(domainUuid)}/page-facts`, { url }, undefined, options);
     }
@@ -216,6 +258,8 @@ export class SiteDomainAdminClient {
             request.previousUrl = body.previousUrl;
         if (body.phrase)
             request.phrase = body.phrase;
+        if (body.scope)
+            request.scope = body.scope;
         const check = await this.send("POST", `${domainPath(domainUuid)}/page-check`, {}, request, options);
         if (check.phrase?.wordCount === 0)
             delete check.phrase.densityPercent;
@@ -541,6 +585,12 @@ function rankingKeywordPath(domainUuid, keywordUuid) {
 /** RFC 3339 UTC to the second, as the server documents hour starts. */
 function utcSeconds(value) {
     return value.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+function analyticsPath(domainUuid) {
+    return `${domainPath(domainUuid)}/analytics`;
+}
+function exportPath(domainUuid) {
+    return `${domainPath(domainUuid)}/export`;
 }
 function indexNowPath(domainUuid) {
     return `${domainPath(domainUuid)}/indexnow`;

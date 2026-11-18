@@ -19,6 +19,9 @@ final readonly class PrincipalRef
     /** The closed principal discriminators. */
     public const KINDS = ['human', 'machine'];
 
+    /** The server's OAuth producer client ID bound, which includes already-issued credentials. */
+    public const MAX_CLIENT_ID_BYTES = 255;
+
     public function __construct(
         public string $kind,
         public ?string $userUuid = null,
@@ -32,10 +35,12 @@ final readonly class PrincipalRef
             return;
         }
         if ($this->kind === 'machine') {
-            if ($this->clientId === null || $this->userUuid !== null) {
-                throw new \InvalidArgumentException('custd: a machine principal requires a clientId and no userUuid');
+            if ($this->clientId === null || $this->userUuid !== null || !self::isValidClientId($this->clientId)) {
+                throw new \InvalidArgumentException(
+                    'custd: a machine principal requires a clientId of at most '
+                    . self::MAX_CLIENT_ID_BYTES . ' bytes and no userUuid'
+                );
             }
-            DataScopeValidation::assertCode($this->clientId, 'machine principal client');
 
             return;
         }
@@ -65,5 +70,10 @@ final readonly class PrincipalRef
             Fields::optionalString($payload, 'userUuid'),
             Fields::optionalString($payload, 'clientId'),
         );
+    }
+
+    private static function isValidClientId(string $value): bool
+    {
+        return $value !== '' && strlen($value) <= self::MAX_CLIENT_ID_BYTES && $value === trim($value);
     }
 }

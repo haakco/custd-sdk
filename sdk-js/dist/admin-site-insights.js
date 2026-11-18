@@ -4,6 +4,8 @@
 // A measurement Custd did not take is absent, never 0.
 /** A 400 on page tools: the URL is not on the domain's own host. */
 export const SITE_PAGE_NOT_ON_DOMAIN_CODE = "site_page_not_on_domain";
+/** A 404 on getPageFacts: no audit or recheck has read the page yet; ask for a page recheck. */
+export const SITE_PAGE_NOT_READ_CODE = "site_page_not_read";
 /** A 429 on requestPageRecheck: the domain's hourly page rechecks are used up. */
 export const SITE_PAGE_RECHECK_LIMIT_CODE = "site_page_recheck_limit";
 /** How many rechecks listPageRechecks reads in one call. */
@@ -34,6 +36,11 @@ export const SitePageRecheckState = {
     Queued: "queued",
     Checked: "checked",
     Failed: "failed",
+};
+/** How much of a page a checkPage draft is: the whole page, or only its body content. */
+export const SitePageCheckScope = {
+    Page: "page",
+    Content: "content",
 };
 /** A 409 on enableIndexNow: verify the domain first. */
 export const SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE = "site_indexnow_domain_unverified";

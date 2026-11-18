@@ -97,6 +97,13 @@ final class DataScopeClientTest extends TestCase
         self::assertSame("http://localhost:8080/api/v1/admin/data-scope-grants/revoke", $calls[2]["url"]);
     }
 
+    public function testMachineClientIdMatchesServerBound(): void
+    {
+        self::assertSame(str_repeat("a", 255), (new PrincipalRef("machine", clientId: str_repeat("a", 255)))->clientId);
+        $this->expectException(\InvalidArgumentException::class);
+        new PrincipalRef("machine", clientId: str_repeat("a", 256));
+    }
+
     public function testRejectsInvalidShapesBeforeSending(): void
     {
         $cases = [

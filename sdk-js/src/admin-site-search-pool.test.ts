@@ -5,6 +5,7 @@ import {
   CustdRequestError,
   SEARCH_POOL_MIN_CONTRIBUTORS,
   SEARCH_POOL_MIN_IMPRESSIONS,
+  SEARCH_POOL_TERMS_VERSION,
   SEARCH_POOL_WINDOW_DAYS,
   SearchPoolDemandBand,
   SITE_SEARCH_POOL_NOT_JOINED_CODE,
@@ -56,8 +57,12 @@ describe("site shared search pool", () => {
     expect(setting.minContributors).toBe(SEARCH_POOL_MIN_CONTRIBUTORS);
     expect(setting.minImpressions).toBe(SEARCH_POOL_MIN_IMPRESSIONS);
     expect(setting.windowDays).toBe(SEARCH_POOL_WINDOW_DAYS);
-    expect((await domains.setSearchPool(true)).joinedAt).toBe("2026-11-17T09:30:00Z");
-    expect((await domains.setSearchPool(false)).joined).toBe(false);
+    expect(setting.termsVersion).toBe(SEARCH_POOL_TERMS_VERSION);
+    expect(setting.acceptedTermsVersion).toBeUndefined();
+    const joined = await domains.setSearchPool(true, setting.termsVersion);
+    expect(joined.joinedAt).toBe("2026-11-18T09:00:00Z");
+    expect(joined.acceptedTermsVersion).toBe(SEARCH_POOL_TERMS_VERSION);
+    expect((await domains.setSearchPool(false, SEARCH_POOL_TERMS_VERSION)).joined).toBe(false);
     const page = await domains.listSearchPoolQueries("pricing", 10);
     expect(page).toEqual(pool.queries);
     expect(page.queries[0]?.demandBand).toBe(SearchPoolDemandBand.TensOfThousands);
@@ -78,6 +83,19 @@ describe("site shared search pool", () => {
     ]);
     expect(sent[1]?.body).toEqual(pool.joinRequest);
     expect(sent[2]?.body).toEqual(pool.leaveRequest);
+  });
+
+  it("refuses to join without a terms version before sending anything", async () => {
+    const { domains, calls } = newDomains();
+    await expect(domains.setSearchPool(true)).rejects.toThrow(/termsVersion/);
+    await expect(domains.setSearchPool(true, " ")).rejects.toThrow(/termsVersion/);
+    expect(calls()).toEqual([]);
+  });
+
+  it("surfaces the server's refusal of missing or stale terms as a plain 400", async () => {
+    const problem = pool.termsNotAcceptedProblem;
+    const { domains } = newDomains(respond(problem.status, problem));
+    await expect(domains.setSearchPool(true, "2026-01-01")).rejects.toMatchObject({ status: 400 });
   });
 
   it.each([

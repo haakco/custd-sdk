@@ -562,9 +562,20 @@ More reads and controls on the same client:
   of the Site's web domains per source (`SiteLinkSource` bing, commoncrawl, crawl), its Common
   Crawl authority and lost links. A count a source did not report is absent, never `0`.
 - Shared search pool (tenant-wide; a site-bound credential is refused with
-  `SITE_SEARCH_POOL_SITE_BOUND_CODE`): `getSearchPool`, `setSearchPool(joined)` and
+  `SITE_SEARCH_POOL_SITE_BOUND_CODE`): `getSearchPool`, `setSearchPool(joined, termsVersion?)` and
   `listSearchPoolQueries(search?, limit?)` (refused with `SITE_SEARCH_POOL_NOT_JOINED_CODE`
   before joining). `getRankings` then carries `pool` and each keyword's pooled `pool` band.
+  Joining is audited consent: pass the `termsVersion` the caller accepted (the setting's
+  `termsVersion`; `SEARCH_POOL_TERMS_VERSION` names the one current at this release). Joining
+  without it is refused locally before any request; leaving sends only `{ joined: false }`.
+- Page search queries: `getPageSearchQueries(domainUuid, url)` returns one page's queries, title
+  options and pages to link from. `checkPage` takes `scope` (`SitePageCheckScope`); a content
+  check returns `checkedRules`. `getPageFacts` answers 404 `SITE_PAGE_NOT_READ_CODE` for a page
+  nothing has read yet. Keyword clusters carry Bing `demand`, and keyword lists `related` keywords.
+- GA4: `getAnalytics`, `connectAnalytics(domainUuid, { propertyId })` and `disconnectAnalytics`.
+  `retrySearchImport(domainUuid, provider)` retries a failing search import.
+- Export: `getExport(domainUuid)` and `listExportSearchMetrics(domainUuid, { offset, limit })`.
+- Operators: `client.admin.siteInsights.listTasks()` reads the Site Insights tasks' state.
 - Draft tools: `checkPage` takes optional `previousUrl` and `phrase` and returns `slug`,
   `redirect` (format `redirect`) and `phrase`; page facts carry `shareImage` and `faqSchema`.
   `compareWording(domainUuid, { first, second })` measures shared wording as the

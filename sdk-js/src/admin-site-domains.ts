@@ -5,12 +5,18 @@
 // a site-bound credential (site_domains.manage) reaches its own Site only.
 
 import type {
+  SiteAnalyticsConnection,
+  SiteAnalyticsConnectionRequest,
+  SiteAnalyticsReport,
+} from "./admin-site-analytics.js";
+import type {
   SiteAuditDelta,
   SiteAuditPageList,
   SiteLighthousePages,
   SiteLighthouseRequestOptions,
 } from "./admin-site-audit-pages.js";
 import type { SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest } from "./admin-site-campaign-links.js";
+import type { SiteInsightsExport, SiteSearchMetricPage, SiteSearchMetricsQuery } from "./admin-site-export.js";
 import type {
   IndexNowState,
   IndexNowSubmission,
@@ -40,6 +46,7 @@ import type {
 } from "./admin-site-insights.js";
 import type { SiteReferringDomains } from "./admin-site-links.js";
 import type { SiteNextActions, SitePortfolioSummary } from "./admin-site-next-actions.js";
+import type { SitePageSearchQueries } from "./admin-site-page-queries.js";
 import type {
   SiteRankings,
   SiteTrackedKeyword,
@@ -74,6 +81,8 @@ export const SITE_DOMAIN_NOT_VERIFIED_CODE = "site_domain_not_verified";
 export const SITE_SEARCH_NOT_CONFIGURED_CODE = "site_search_not_configured";
 /** A 404 on disconnectSearch: the domain is not connected to that provider. */
 export const SITE_SEARCH_CONNECTION_NOT_FOUND_CODE = "site_search_connection_not_found";
+/** A 409 on retrySearchImport: only a failing connection retries now; reconnect a revoked one. */
+export const SITE_SEARCH_RETRY_NOT_FAILING_CODE = "site_search_retry_not_failing";
 
 /**
  * The stable rule IDs a SiteFinding carries in `rule`, from Custd's siteaudit
@@ -520,8 +529,20 @@ export class SiteDomainAdminClient {
   }
 
   /** Joins (true) or leaves (false) the shared search pool for the whole tenant. */
-  setSearchPool(joined: boolean, options?: SiteDomainRequestOptions): Promise<SearchPoolSetting> {
-    return this.send("PUT", searchPoolPath, {}, { joined }, options);
+  /**
+   * Joins (with the terms version the caller accepted) or leaves the shared search pool.
+   * Joining without a termsVersion is refused before any request; leaving sends only joined.
+   */
+  setSearchPool(
+    joined: boolean,
+    termsVersion?: string,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SearchPoolSetting> {
+    if (!joined) return this.send("PUT", searchPoolPath, {}, { joined }, options);
+    if (typeof termsVersion !== "string" || termsVersion.trim() === "") {
+      return Promise.reject(new Error("custd: joining the shared search pool needs the accepted termsVersion"));
+    }
+    return this.send("PUT", searchPoolPath, {}, { joined, termsVersion }, options);
   }
 
   /**
@@ -566,6 +587,60 @@ export class SiteDomainAdminClient {
   }
 
   /** Reads what the latest audit or recheck read from one page of the domain. */
+  /** Retries a failing search import now; anything else is refused with SITE_SEARCH_RETRY_NOT_FAILING_CODE. */
+  retrySearchImport(
+    domainUuid: string,
+    provider: SiteSearchProvider,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteSearchConnection> {
+    return this.send("POST", `${searchConnectionPath(domainUuid, provider)}/retry`, {}, undefined, options);
+  }
+
+  /** Reads the searches one page shows for, with title options and pages that could link to it. */
+  getPageSearchQueries(
+    domainUuid: string,
+    url: string,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SitePageSearchQueries> {
+    return this.send("GET", `${domainPath(domainUuid)}/page-search-queries`, { url }, undefined, options);
+  }
+
+  /** Reads the domain's GA4 landing pages, key events and channels; empty until connected and imported. */
+  getAnalytics(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteAnalyticsReport> {
+    return this.send("GET", analyticsPath(domainUuid), {}, undefined, options);
+  }
+
+  /** Connects the domain to a GA4 property; a bad ID is refused with SITE_ANALYTICS_PROPERTY_INVALID_CODE. */
+  connectAnalytics(
+    domainUuid: string,
+    body: SiteAnalyticsConnectionRequest,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteAnalyticsConnection> {
+    const request: SiteAnalyticsConnectionRequest = { propertyId: body.propertyId };
+    return this.send("PUT", `${analyticsPath(domainUuid)}/ga4`, {}, request, options);
+  }
+
+  /** Disconnects GA4; an unconnected domain is refused with SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE. */
+  disconnectAnalytics(domainUuid: string, options?: SiteDomainRequestOptions): Promise<void> {
+    return this.send("DELETE", `${analyticsPath(domainUuid)}/ga4`, {}, undefined, options);
+  }
+
+  /** Exports everything Site Insights holds for the domain and its Site, except the daily search metrics. */
+  getExport(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteInsightsExport> {
+    return this.send("GET", exportPath(domainUuid), {}, undefined, options);
+  }
+
+  /** Pages through the domain's daily search metrics; the export's search.metricRows is the total. */
+  listExportSearchMetrics(
+    domainUuid: string,
+    query: SiteSearchMetricsQuery = {},
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteSearchMetricPage> {
+    const values = { offset: query.offset?.toString(), limit: query.limit?.toString() };
+    return this.send("GET", `${exportPath(domainUuid)}/search-metrics`, values, undefined, options);
+  }
+
+  /** Reads what the last audit or recheck saw on a page; an unread page is refused with SITE_PAGE_NOT_READ_CODE. */
   getPageFacts(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageFacts> {
     return this.send("GET", `${domainPath(domainUuid)}/page-facts`, { url }, undefined, options);
   }
@@ -612,6 +687,7 @@ export class SiteDomainAdminClient {
     const request: SitePageCheckRequest = { url: body.url, html: body.html };
     if (body.previousUrl) request.previousUrl = body.previousUrl;
     if (body.phrase) request.phrase = body.phrase;
+    if (body.scope) request.scope = body.scope;
     const check = await this.send<SitePageCheckResponse>(
       "POST",
       `${domainPath(domainUuid)}/page-check`,
@@ -1095,6 +1171,14 @@ function rankingKeywordPath(domainUuid: string, keywordUuid: string): string {
 /** RFC 3339 UTC to the second, as the server documents hour starts. */
 function utcSeconds(value: Date): string {
   return value.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+function analyticsPath(domainUuid: string): string {
+  return `${domainPath(domainUuid)}/analytics`;
+}
+
+function exportPath(domainUuid: string): string {
+  return `${domainPath(domainUuid)}/export`;
 }
 
 function indexNowPath(domainUuid: string): string {

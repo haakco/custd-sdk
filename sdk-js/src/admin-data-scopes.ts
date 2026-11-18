@@ -81,6 +81,16 @@ export type DataScopeGrantListResponse = { grants: DataScopeGrant[] };
 const DATA_SCOPE_CODE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 const DATA_SCOPE_UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
+/** The server's OAuth producer client ID bound, which includes already-issued credentials. */
+const MAX_DATA_SCOPE_CLIENT_ID_BYTES = 255;
+
+/** A machine principal's client ID: non-empty, at most 255 bytes, no surrounding whitespace. */
+function validDataScopeClientId(value: string): boolean {
+  return (
+    value !== "" && new TextEncoder().encode(value).length <= MAX_DATA_SCOPE_CLIENT_ID_BYTES && value === value.trim()
+  );
+}
+
 export function validDataScopeCode(value: string): boolean {
   return value.length >= 1 && value.length <= 128 && DATA_SCOPE_CODE_PATTERN.test(value);
 }
@@ -126,7 +136,7 @@ function assertDataScopePrincipal(principal: DataScopePrincipalRef): void {
     return;
   }
   if (principal.kind === "machine") {
-    if (!hasClient || hasUser || !validDataScopeCode(principal.clientId as string)) {
+    if (!hasClient || hasUser || !validDataScopeClientId(principal.clientId as string)) {
       throw new RangeError("custd: a machine principal requires a bounded clientId and no userUuid");
     }
     return;

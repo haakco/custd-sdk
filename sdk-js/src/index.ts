@@ -7,6 +7,7 @@ import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SiteDomainAdminClient } from "./admin-site-domains.js";
+import { SiteInsightsAdminClient } from "./admin-site-insights-tasks.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 import { TimePlanAdminClient } from "./admin-timeplans.js";
@@ -265,6 +266,17 @@ export {
   type RetentionRunsListResponse,
 } from "./admin-retention.js";
 export {
+  SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE,
+  SITE_ANALYTICS_PROPERTY_INVALID_CODE,
+  SITE_ANALYTICS_PROVIDER_GA4,
+  type SiteAnalyticsConnection,
+  type SiteAnalyticsConnectionRequest,
+  type SiteAnalyticsReport,
+  type SiteAnalyticsRow,
+  type SiteAnalyticsUnavailable,
+  SiteAnalyticsUnavailableReport,
+} from "./admin-site-analytics.js";
+export {
   SITE_AUDIT_PAGES_DEFAULT_LIMIT,
   SITE_AUDIT_PAGES_MAX_LIMIT,
   SITE_LIGHTHOUSE_MAX_EXTRA_PAGES,
@@ -289,6 +301,7 @@ export {
   SITE_DOMAIN_NOT_VERIFIED_CODE,
   SITE_SEARCH_CONNECTION_NOT_FOUND_CODE,
   SITE_SEARCH_NOT_CONFIGURED_CODE,
+  SITE_SEARCH_RETRY_NOT_FAILING_CODE,
   type SiteAlertDestination,
   type SiteAlertDestinationRequest,
   type SiteAuditSummary,
@@ -329,6 +342,19 @@ export {
   type SiteWarming,
 } from "./admin-site-domains.js";
 export {
+  SITE_INSIGHTS_EXPORT_SCHEMA,
+  SITE_INSIGHTS_EXPORT_SEARCH_METRICS_MAX_LIMIT,
+  type SiteInsightsExport,
+  type SiteInsightsMonitoringExport,
+  type SiteInsightsReportsExport,
+  type SiteInsightsSearchExport,
+  type SiteInsightsSiteExport,
+  type SiteSearchMetricDay,
+  SiteSearchMetricDimension,
+  type SiteSearchMetricPage,
+  type SiteSearchMetricsQuery,
+} from "./admin-site-export.js";
+export {
   type IndexNowState,
   type IndexNowSubmission,
   type IndexNowSubmissionRequest,
@@ -340,6 +366,7 @@ export {
   SITE_INDEXNOW_NOT_ENABLED_CODE,
   SITE_INDEXNOW_URLS_INVALID_CODE,
   SITE_PAGE_NOT_ON_DOMAIN_CODE,
+  SITE_PAGE_NOT_READ_CODE,
   SITE_PAGE_RECHECK_LIMIT_CODE,
   SITE_PAGE_RECHECK_READ_LIMIT,
   SITE_SEARCH_INSPECTION_LIMIT_CODE,
@@ -357,6 +384,7 @@ export {
   type SiteMarket,
   type SitePageCheckRequest,
   type SitePageCheckResponse,
+  SitePageCheckScope,
   type SitePageFacts,
   type SitePageFinding,
   type SitePageHeading,
@@ -402,6 +430,13 @@ export {
   type SiteWordingCompareRequest,
 } from "./admin-site-insights.js";
 export {
+  SiteInsightsAdminClient,
+  type SiteInsightsBacklog,
+  type SiteInsightsTaskList,
+  SiteInsightsTaskName,
+  type SiteInsightsTaskStatus,
+} from "./admin-site-insights-tasks.js";
+export {
   type SiteDomainAuthority,
   SiteLinkSource,
   SiteLinkSourceStatus,
@@ -423,6 +458,16 @@ export {
   type SitePortfolioDomain,
   type SitePortfolioSummary,
 } from "./admin-site-next-actions.js";
+export {
+  type SitePageLinkSource,
+  SitePageLinkSourceWhere,
+  SitePageQueriesState,
+  type SitePageQuery,
+  type SitePageQueryWindow,
+  type SitePageSearchQueries,
+  type SiteTitleOption,
+  SiteTitleTemplate,
+} from "./admin-site-page-queries.js";
 export {
   SITE_RANKINGS_DAYS_INVALID_CODE,
   SITE_RANKINGS_DEFAULT_DAYS,
@@ -461,6 +506,7 @@ export {
   SEARCH_POOL_QUERIES_DEFAULT_LIMIT,
   SEARCH_POOL_QUERIES_MAX_LIMIT,
   SEARCH_POOL_SEARCH_MAX_LENGTH,
+  SEARCH_POOL_TERMS_VERSION,
   SEARCH_POOL_WINDOW_DAYS,
   SearchPoolAccess,
   type SearchPoolBand,
@@ -512,6 +558,7 @@ export {
   TRAFFIC_OTHER_KEY,
 } from "./admin-site-traffic.js";
 export {
+  SITE_KEYWORD_DEMAND_SOURCE_BING,
   SITE_KEYWORD_LIST_LIMIT_CODE,
   SITE_KEYWORD_LIST_NOT_FOUND_CODE,
   type SiteContentGap,
@@ -521,9 +568,14 @@ export {
   type SiteContentGapTopic,
   type SiteKeywordCluster,
   type SiteKeywordClusters,
+  type SiteKeywordDemand,
+  type SiteKeywordDemandSet,
+  SiteKeywordDemandState,
   type SiteKeywordList,
   type SiteKeywordListRequest,
   type SiteKeywordLists,
+  type SiteRelatedKeyword,
+  type SiteRelatedKeywords,
   type SiteStrikingKeyword,
   type SiteTopicTrend,
   type SiteTopicTrendMonth,
@@ -1261,6 +1313,11 @@ export type AdminSchemaDryRunResult = {
   failed: number;
   issues: AdminSchemaIssue[];
 };
+
+/** A 404 on schema audit: the named tenant does not exist. */
+export const SCHEMA_AUDIT_TENANT_NOT_FOUND_CODE = "schema_audit_tenant_not_found";
+/** A 400 on schema audit: the request names no tenantSlug. */
+export const SCHEMA_AUDIT_TENANT_SLUG_REQUIRED_CODE = "schema_audit_tenant_slug_required";
 
 export type AdminSchemaAuditEntry = {
   eventId: string;
@@ -3247,6 +3304,7 @@ class AdminNamespace {
   readonly oauthClients: AdminOAuthClientNamespace;
   readonly sites: AdminSiteNamespace;
   readonly siteDomains: SiteDomainAdminClient;
+  readonly siteInsights: SiteInsightsAdminClient;
   readonly schemas: AdminSchemaNamespace;
   readonly measurement: AdminMeasurementNamespace;
   readonly predictions: PredictionAdminClient;
@@ -3277,6 +3335,7 @@ class AdminNamespace {
     this.oauthClients = new AdminOAuthClientNamespace(request);
     this.sites = new AdminSiteNamespace(request);
     this.siteDomains = new SiteDomainAdminClient(nonAdminRequest);
+    this.siteInsights = new SiteInsightsAdminClient(request);
     this.schemas = new AdminSchemaNamespace(request);
     this.measurement = new AdminMeasurementNamespace(request);
     this.predictions = new PredictionAdminClient(request);

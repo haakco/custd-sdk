@@ -29,15 +29,27 @@ SITE_SEARCH_POOL_MIN_CONTRIBUTORS = 5
 SITE_SEARCH_POOL_MIN_IMPRESSIONS = 100
 SITE_SEARCH_POOL_WINDOW_DAYS = 28
 
+# The shared search pool terms version current when this SDK was released
+# (https://custd.com/docs/terms/shared-search-pool/). Joining is the organisation's consent, so the
+# caller names the version it accepts; prefer the live SearchPoolSetting.termsVersion, since this
+# constant goes stale when the terms change.
+SITE_SEARCH_POOL_TERMS_VERSION = "2026-11-18"
+
 
 class SearchPoolSetting(TypedDict):
-    """The tenant's pool membership and the pool's rules; ``joinedAt`` is absent when not joined."""
+    """The tenant's pool membership, the pool's rules and the terms a join accepts.
+
+    ``joinedAt`` and ``acceptedTermsVersion`` are absent when not joined; ``termsVersion``, the
+    version a join must name, is absent from an older server.
+    """
 
     joined: bool
     minContributors: int
     minImpressions: int
     windowDays: int
     joinedAt: NotRequired[str]
+    termsVersion: NotRequired[str]
+    acceptedTermsVersion: NotRequired[str]
 
 
 class SearchPoolPositions(TypedDict):
