@@ -5,6 +5,12 @@
 // a site-bound credential (site_domains.manage) reaches its own Site only.
 
 import type {
+  SiteAIConsentRequest,
+  SiteAISettings,
+  SiteAISettingsRequest,
+  SiteAITenantUsage,
+} from "./admin-site-ai.js";
+import type {
   SiteAnalyticsConnection,
   SiteAnalyticsConnectionRequest,
   SiteAnalyticsReport,
@@ -428,6 +434,7 @@ type NonAdminRequester = <T>(method: string, path: string, body?: unknown, optio
 type QueryValues = Record<string, string | string[] | undefined>;
 
 const siteDomainsPath = "/site-domains";
+const siteAISettingsPath = `${siteDomainsPath}/ai-settings`;
 const searchPoolPath = `${siteDomainsPath}/search-pool`;
 const keywordListsPath = `${siteDomainsPath}/keyword-lists`;
 
@@ -521,6 +528,26 @@ export class SiteDomainAdminClient {
   /** Reads which search providers this Custd deployment can import from. */
   getSearchAccount(options?: SiteDomainRequestOptions): Promise<SiteSearchAccount> {
     return this.send("GET", `${siteDomainsPath}/search-account`, {}, undefined, options);
+  }
+
+  /** Reads the tenant's AI policy and current provider terms version. */
+  getAISettings(options?: SiteDomainRequestOptions): Promise<SiteAISettings> {
+    return this.send("GET", siteAISettingsPath, {}, undefined, options);
+  }
+
+  /** Replaces the tenant's AI mode and cap. The API key is write-only. */
+  setAISettings(body: SiteAISettingsRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings> {
+    return this.send("PUT", siteAISettingsPath, {}, body, options);
+  }
+
+  /** Records explicit acceptance of the supplied terms version or revokes consent. */
+  setAIConsent(body: SiteAIConsentRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings> {
+    return this.send("PUT", `${siteAISettingsPath}/consent`, {}, body, options);
+  }
+
+  /** Reads the tenant's current UTC month's AI usage. */
+  getAIUsage(options?: SiteDomainRequestOptions): Promise<SiteAITenantUsage> {
+    return this.send("GET", `${siteDomainsPath}/ai-usage`, {}, undefined, options);
   }
 
   /** Reads whether the tenant takes part in the shared search pool, and the pool's rules. */

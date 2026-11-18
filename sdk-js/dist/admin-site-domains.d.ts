@@ -1,3 +1,4 @@
+import type { SiteAIConsentRequest, SiteAISettings, SiteAISettingsRequest, SiteAITenantUsage } from "./admin-site-ai.js";
 import type { SiteAnalyticsConnection, SiteAnalyticsConnectionRequest, SiteAnalyticsReport } from "./admin-site-analytics.js";
 import type { SiteAuditDelta, SiteAuditPageList, SiteLighthousePages, SiteLighthouseRequestOptions } from "./admin-site-audit-pages.js";
 import type { SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest } from "./admin-site-campaign-links.js";
@@ -362,6 +363,14 @@ export declare class SiteDomainAdminClient {
     setAlertDestination(body: SiteAlertDestinationRequest, options?: SiteDomainRequestOptions): Promise<SiteAlertDestination>;
     /** Reads which search providers this Custd deployment can import from. */
     getSearchAccount(options?: SiteDomainRequestOptions): Promise<SiteSearchAccount>;
+    /** Reads the tenant's AI policy and current provider terms version. */
+    getAISettings(options?: SiteDomainRequestOptions): Promise<SiteAISettings>;
+    /** Replaces the tenant's AI mode and cap. The API key is write-only. */
+    setAISettings(body: SiteAISettingsRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings>;
+    /** Records explicit acceptance of the supplied terms version or revokes consent. */
+    setAIConsent(body: SiteAIConsentRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings>;
+    /** Reads the tenant's current UTC month's AI usage. */
+    getAIUsage(options?: SiteDomainRequestOptions): Promise<SiteAITenantUsage>;
     /** Reads whether the tenant takes part in the shared search pool, and the pool's rules. */
     getSearchPool(options?: SiteDomainRequestOptions): Promise<SearchPoolSetting>;
     /** Joins (true) or leaves (false) the shared search pool for the whole tenant. */

@@ -95,6 +95,7 @@ export const SiteRule = {
     LogsCrawlerNotFound: "logs.crawler-not-found",
 };
 const siteDomainsPath = "/site-domains";
+const siteAISettingsPath = `${siteDomainsPath}/ai-settings`;
 const searchPoolPath = `${siteDomainsPath}/search-pool`;
 const keywordListsPath = `${siteDomainsPath}/keyword-lists`;
 export class SiteDomainAdminClient {
@@ -162,6 +163,22 @@ export class SiteDomainAdminClient {
     /** Reads which search providers this Custd deployment can import from. */
     getSearchAccount(options) {
         return this.send("GET", `${siteDomainsPath}/search-account`, {}, undefined, options);
+    }
+    /** Reads the tenant's AI policy and current provider terms version. */
+    getAISettings(options) {
+        return this.send("GET", siteAISettingsPath, {}, undefined, options);
+    }
+    /** Replaces the tenant's AI mode and cap. The API key is write-only. */
+    setAISettings(body, options) {
+        return this.send("PUT", siteAISettingsPath, {}, body, options);
+    }
+    /** Records explicit acceptance of the supplied terms version or revokes consent. */
+    setAIConsent(body, options) {
+        return this.send("PUT", `${siteAISettingsPath}/consent`, {}, body, options);
+    }
+    /** Reads the tenant's current UTC month's AI usage. */
+    getAIUsage(options) {
+        return this.send("GET", `${siteDomainsPath}/ai-usage`, {}, undefined, options);
     }
     /** Reads whether the tenant takes part in the shared search pool, and the pool's rules. */
     getSearchPool(options) {

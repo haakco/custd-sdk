@@ -1,3 +1,4 @@
+import type { SiteAIPlatformUsage, SiteAIUsagePeriod } from "./admin-site-ai.js";
 import type { RequestOptions } from "./index.js";
 /** The Site Insights task names; newer tasks may appear. */
 export declare const SiteInsightsTaskName: {
@@ -37,5 +38,7 @@ export declare class SiteInsightsAdminClient {
     constructor(request: AdminRequester);
     /** Reads every Site Insights task's schedule, last outcome and backlog. System administrators only. */
     listTasks(options?: RequestOptions): Promise<SiteInsightsTaskList>;
+    /** Reads AI usage across tenants. System administrators only. */
+    getAIUsage(period?: SiteAIUsagePeriod, options?: RequestOptions): Promise<SiteAIPlatformUsage>;
 }
 export {};

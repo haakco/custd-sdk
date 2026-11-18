@@ -265,6 +265,17 @@ export {
   type RetentionRunPreview,
   type RetentionRunsListResponse,
 } from "./admin-retention.js";
+export type {
+  SiteAIConsentRequest,
+  SiteAIMode,
+  SiteAIPlatformUsage,
+  SiteAISettings,
+  SiteAISettingsRequest,
+  SiteAITenantUsage,
+  SiteAIUsage,
+  SiteAIUsagePeriod,
+  SiteAIUsageRow,
+} from "./admin-site-ai.js";
 export {
   SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE,
   SITE_ANALYTICS_PROPERTY_INVALID_CODE,
