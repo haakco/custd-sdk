@@ -1,4 +1,5 @@
 import type { SiteAuditSummary, SiteFindingSeverity, SiteSearchProvider, SiteSearchRow, SiteSearchSource, SiteUptimeStatus } from "./admin-site-domains.js";
+import type { SiteNextAction } from "./admin-site-next-actions.js";
 /** A 400 on page tools: the URL is not on the domain's own host. */
 export declare const SITE_PAGE_NOT_ON_DOMAIN_CODE = "site_page_not_on_domain";
 /** A 429 on requestPageRecheck: the domain's hourly page rechecks are used up. */
@@ -415,6 +416,8 @@ export type SiteReport = {
     speed: SiteReportSpeed[];
     search: SiteReportSearch;
     audit: SiteReportAudit;
+    /** The first three next actions, as getNextActions ranks them; absent from reports built or saved before servers sent them. */
+    nextActions?: SiteNextAction[];
 };
 export type SiteReportShare = {
     shareUuid: string;

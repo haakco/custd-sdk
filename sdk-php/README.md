@@ -375,7 +375,13 @@ keeps its keyword lists (`listKeywordLists()`, `saveKeywordList()`,
 pool, and `listSearchPoolQueries($search, $limit)` reads its k-anonymous query
 bands once joined (`SEARCH_POOL_NOT_JOINED_CODE` before). `campaignLinks()`
 keeps a domain's saved UTM links (`listCampaignLinks()`, `createCampaignLink()`,
-`archiveCampaignLink()`). Refusals carry the `*_CODE` constants on the client that
+`archiveCampaignLink()`). `nextActions()` reads what to do next: `forDomain()`
+returns the status, one plain headline and the three most important actions in
+Custd's fixed order (`SiteNextAction::KIND_*`; show an unknown kind by its title
+and why), `portfolioSummary()` every domain's status and first action, worst
+first, and `SiteReport::$nextActions` are the same three.
+`SCOPE_TEMPLATE_SITE_INSIGHTS_READ` provisions a credential that reads only
+these two calls. Refusals carry the `*_CODE` constants on the client that
 made the call.
 
 `checkPage()` takes an optional `previousUrl` and `phrase` on

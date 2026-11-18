@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal, NotRequired, TypedDict
 
+from .admin_site_next_actions import SiteNextAction
+
 if TYPE_CHECKING:
     # admin_site_domains imports this module for its client's return types, so the shared
     # shapes are referenced only in (postponed) annotations.
@@ -569,6 +571,8 @@ class SiteReport(TypedDict):
     """One domain's client report, without verification tokens or connection details.
 
     ``template`` is absent on servers before the template field; the server's default template is full.
+    ``nextActions`` (the first three of get_next_actions) is absent from reports built or saved before
+    servers sent them.
     """
 
     host: str
@@ -579,6 +583,7 @@ class SiteReport(TypedDict):
     speed: list[SiteReportSpeed]
     search: SiteReportSearch
     audit: SiteReportAudit
+    nextActions: NotRequired[list[SiteNextAction]]
 
 
 class SiteReportShare(TypedDict):

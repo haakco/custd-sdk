@@ -460,6 +460,11 @@ More reads and controls on the same client:
 - Campaign links: `listCampaignLinks(domainUuid, includeArchived?)`, `createCampaignLink` and
   `archiveCampaignLink` keep a domain's saved UTM links (409 `SITE_CAMPAIGN_LINK_TAKEN_CODE` or
   `SITE_CAMPAIGN_LINK_LIMIT_CODE`).
+- Next actions: `getNextActions(domainUuid)` returns the status, one plain `headline`, what is not
+  checked yet and the three most important actions in Custd's fixed order (`SiteNextActionKind`;
+  show an unknown kind by its `title` and `why`). `getPortfolioSummary()` gives every domain's
+  status, open findings and `firstAction`, worst first; a report's `nextActions` are the same three.
+  The `site-insights-read` scope template provisions a credential that reads only these two calls.
 - Access logs: `getTraffic(domainUuid, from?, to?)`, `getAIVisibility`, and
   `replayAccessLogHour(hourStart)` for system administrators.
 - Rank tracking: `getRankings(domainUuid, days?)`, `trackKeyword`,

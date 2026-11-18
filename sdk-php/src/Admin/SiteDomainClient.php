@@ -138,6 +138,12 @@ final class SiteDomainClient
         return new SiteCampaignLinkClient($this->http);
     }
 
+    /** Read what to do next for one domain, and every domain's status and first action. */
+    public function nextActions(): SiteNextActionClient
+    {
+        return new SiteNextActionClient($this->http);
+    }
+
     /** Join or leave the tenant's shared search pool and read its pooled queries. */
     public function searchPool(): SiteSearchPoolClient
     {

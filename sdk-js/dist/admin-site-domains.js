@@ -268,6 +268,14 @@ export class SiteDomainAdminClient {
         };
         return this.send("PUT", `${siteDomainsPath}/project-context`, { siteUuid: body.siteUuid }, request, options);
     }
+    /** Reads the domain's status and its most important next actions, most important first. */
+    getNextActions(domainUuid, options) {
+        return this.send("GET", `${domainPath(domainUuid)}/next-actions`, {}, undefined, options);
+    }
+    /** Reads every domain's status, open findings and first action, worst first (only its own Site's for a site-bound credential). */
+    getPortfolioSummary(options) {
+        return this.send("GET", `${siteDomainsPath}/portfolio-summary`, {}, undefined, options);
+    }
     /** Reads the client report without private verification or connection details, in options.template over options.days. */
     getReport(domainUuid, options) {
         const { template, days, ...requestOptions } = options ?? {};
