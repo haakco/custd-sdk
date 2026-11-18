@@ -34,6 +34,8 @@ use HaakCo\Custd\Admin\SiteDomain\SiteLighthouseHistory;
 use HaakCo\Custd\Admin\SiteDomain\SitePageCheckRequest;
 use HaakCo\Custd\Admin\SiteDomain\SitePageCheckResponse;
 use HaakCo\Custd\Admin\SiteDomain\SitePageFacts;
+use HaakCo\Custd\Admin\SiteDomain\SitePageSearchQueries;
+use HaakCo\Custd\Admin\SiteDomain\SiteInsightsTasks;
 use HaakCo\Custd\Admin\SiteDomain\SitePageRecheck;
 use HaakCo\Custd\Admin\SiteDomain\SitePageRecheckList;
 use HaakCo\Custd\Admin\SiteDomain\SiteProjectContext;
@@ -72,6 +74,12 @@ final class SiteDomainClient
 
     /** The problem code of the 429 returned once the domain's hourly page rechecks are used up. */
     public const PAGE_RECHECK_LIMIT_CODE = 'site_page_recheck_limit';
+
+    /** The problem code of the 404 returned by getPageFacts when no audit or recheck has read the page yet. */
+    public const PAGE_NOT_READ_CODE = 'site_page_not_read';
+
+    /** The problem code of the 409 returned when retrying a search connection that is not failing. */
+    public const SEARCH_RETRY_NOT_FAILING_CODE = 'site_search_retry_not_failing';
 
     /** How many rechecks listPageRechecks reads in one call. */
     public const PAGE_RECHECK_READ_LIMIT = 30;
@@ -155,6 +163,24 @@ final class SiteDomainClient
     public function searchPool(): SiteSearchPoolClient
     {
         return new SiteSearchPoolClient($this->http);
+    }
+
+    /** Connect a domain to GA4 and read its imported numbers. */
+    public function analytics(): SiteAnalyticsClient
+    {
+        return new SiteAnalyticsClient($this->http);
+    }
+
+    /** Export everything Custd keeps about a domain. */
+    public function export(): SiteExportClient
+    {
+        return new SiteExportClient($this->http);
+    }
+
+    /** Read the state of every Site Insights scheduled task. System administrators only. */
+    public function getSiteInsightsTasks(): SiteInsightsTasks
+    {
+        return SiteInsightsTasks::fromPayload($this->send('GET', '/admin/site-insights/tasks', [], null));
     }
 
     /** Claim a host for a site. The result carries the verification instructions. */
@@ -335,6 +361,21 @@ final class SiteDomainClient
     }
 
     /**
+     * Import a failing search connection again now instead of waiting for its retry. A connection
+     * that is not failing throws AdminProblemException with {@see self::SEARCH_RETRY_NOT_FAILING_CODE};
+     * reconnect a revoked one with connectSearch().
+     */
+    public function retrySearch(
+        string $domainUuid,
+        SiteSearchProvider $provider,
+        ?string $companySlug = null,
+    ): SiteSearchConnection {
+        return SiteSearchConnection::fromPayload(
+            $this->send('POST', self::searchConnection($domainUuid, $provider) . '/retry', [], $companySlug)
+        );
+    }
+
+    /**
      * Page through one dimension of a domain's imported search rows. Null arguments let the server
      * default to the query dimension, every provider, 28 days, offset 0 and 100 rows (limit 1..1000).
      */
@@ -380,11 +421,26 @@ final class SiteDomainClient
         );
     }
 
-    /** Read what the latest audit or recheck read from one page of the domain. */
+    /**
+     * Read what the latest audit or recheck read from one page of the domain. A page nothing has
+     * read yet throws AdminProblemException with {@see self::PAGE_NOT_READ_CODE}; ask for a
+     * requestPageRecheck().
+     */
     public function getPageFacts(string $domainUuid, string $url, ?string $companySlug = null): SitePageFacts
     {
         return SitePageFacts::fromPayload(
             $this->send('GET', self::item($domainUuid) . '/page-facts', ['url' => $url], $companySlug)
+        );
+    }
+
+    /**
+     * Read the Search Console queries one page ranks for, title options built from them and the
+     * domain's pages that could link to it; state says why the lists are empty.
+     */
+    public function getPageSearchQueries(string $domainUuid, string $url, ?string $companySlug = null): SitePageSearchQueries
+    {
+        return SitePageSearchQueries::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/page-search-queries', ['url' => $url], $companySlug)
         );
     }
 

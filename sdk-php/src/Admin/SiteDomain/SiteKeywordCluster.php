@@ -8,7 +8,8 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteKeywordCluster groups a list's keywords by shared word. clicks, impressions and avgPosition are
- * null when none of its keywords was measured.
+ * null when none of its keywords was measured;
+ * bingWeeklyImpressions sums Bing's latest weekly searches and is null when Bing reported none.
  */
 final readonly class SiteKeywordCluster
 {
@@ -21,6 +22,7 @@ final readonly class SiteKeywordCluster
         public ?int $clicks = null,
         public ?int $impressions = null,
         public ?float $avgPosition = null,
+        public ?int $bingWeeklyImpressions = null,
     ) {
     }
 
@@ -34,6 +36,7 @@ final readonly class SiteKeywordCluster
             Fields::optionalInteger($payload, 'clicks'),
             Fields::optionalInteger($payload, 'impressions'),
             Fields::optionalNumber($payload, 'avgPosition'),
+            Fields::optionalInteger($payload, 'bingWeeklyImpressions'),
         );
     }
 }

@@ -8,7 +8,8 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteKeywordClusters is one keyword list grouped into clusters with the search numbers of the last
- * metricsDays days from metricsSource.
+ * metricsDays days from metricsSource, and the list's Bing keyword research in demand (null from an
+ * older server).
  */
 final readonly class SiteKeywordClusters
 {
@@ -24,11 +25,14 @@ final readonly class SiteKeywordClusters
         public int $totalKeywords,
         public array $clusters,
         public array $strikingDistance,
+        public ?SiteKeywordDemandSet $demand = null,
     ) {
     }
 
     public static function fromPayload(\stdClass $payload): self
     {
+        $demand = Fields::optionalObject($payload, 'demand');
+
         return new self(
             Fields::string($payload, 'siteUuid'),
             Fields::string($payload, 'name'),
@@ -37,6 +41,7 @@ final readonly class SiteKeywordClusters
             Fields::integer($payload, 'totalKeywords'),
             array_map(SiteKeywordCluster::fromPayload(...), Fields::objects($payload, 'clusters')),
             array_map(SiteKeywordStriking::fromPayload(...), Fields::objects($payload, 'strikingDistance')),
+            $demand === null ? null : SiteKeywordDemandSet::fromPayload($demand),
         );
     }
 }

@@ -105,6 +105,24 @@ final class SitePageToolsClientTest extends TestCase
         ], array_column($calls, 'route'));
     }
 
+    public function testContentScopeListsTheRulesCheckedAndAPageCheckHasNone(): void
+    {
+        $request = $this->fixture('pageCheckContentRequest');
+        $check = $this->client($calls, 'pageCheckContent')->checkPage('d-1', new SitePageCheckRequest(
+            (string) $request->url,
+            (string) $request->html,
+            scope: SitePageCheckRequest::SCOPE_CONTENT,
+        ));
+        $page = $this->client($calls, 'pageCheck')->checkPage('d-1', new SitePageCheckRequest('https://example.com/', '<p>x</p>'));
+
+        self::assertSame(SitePageCheckRequest::SCOPE_CONTENT, $check->scope);
+        self::assertContains('image.not-lazy', $check->checkedRules ?? []);
+        self::assertNotContains('image.not-lazy', array_map(static fn ($finding): string => $finding->rule, $check->findings));
+        self::assertSame(['url' => $request->url, 'html' => $request->html, 'scope' => 'content'], $calls[0]['body']);
+        self::assertNull($page->scope);
+        self::assertNull($page->checkedRules);
+    }
+
     public function testDraftToolsSendPreviousUrlAndPhraseAndDecodeTheirAnswers(): void
     {
         $request = $this->fixture('pageCheckDraftToolsRequest');
@@ -273,6 +291,14 @@ final class SitePageToolsClientTest extends TestCase
             'searchInspectionNotConnectedProblem' => SiteDomainClient::SEARCH_INSPECTION_NOT_CONNECTED_CODE,
             'searchInspectionLimitProblem' => SiteDomainClient::SEARCH_INSPECTION_LIMIT_CODE,
         ];
+        $problem = $this->fixture('pageNotReadProblem');
+        try {
+            $this->client($calls, 'pageNotReadProblem', status: (int) $problem->status)->getPageFacts('d-1', 'https://example.com/');
+            self::fail('expected pageNotReadProblem to be refused');
+        } catch (AdminProblemException $error) {
+            self::assertSame(404, $error->status);
+            self::assertSame(SiteDomainClient::PAGE_NOT_READ_CODE, $error->problem->code);
+        }
         foreach ($cases as $key => $code) {
             $problem = $this->fixture($key);
             try {

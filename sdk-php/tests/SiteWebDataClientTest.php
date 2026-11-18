@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\SiteDomain\SiteContentGap;
+use HaakCo\Custd\Admin\SiteDomain\SiteKeywordDemandSet;
 use HaakCo\Custd\Admin\SiteDomain\SiteKeywordListRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteTopicTrend;
 use HaakCo\Custd\Admin\SiteDomain\SiteWebDomain;
@@ -103,6 +104,34 @@ final class SiteWebDataClientTest extends TestCase
             'GET ' . self::BASE . '/keyword-clusters?name=Pricing',
         ], array_column($calls, 'route'));
         self::assertSame([null, self::fixtureArray('keywordListRequest'), null, null], array_column($calls, 'body'));
+    }
+
+    public function testKeywordResearchDecodesBingDemandAndRelatedKeywords(): void
+    {
+        $older = $this->replay($calls, 'keywordClusters')->webData()->getKeywordClusters('Pricing');
+        $demand = $this->replay($calls, 'keywordClustersWithDemand')->webData()->getKeywordClusters('Pricing');
+        $noMarket = $this->replay($calls, 'keywordClustersNoMarket')->webData()->getKeywordClusters('Pricing');
+        $list = $this->replay($calls, 'keywordListWithRelated')->webData()->saveKeywordList(
+            new SiteKeywordListRequest('Pricing', ['pricing tool'], 'pricing'),
+        );
+
+        self::assertNull($older->demand);
+        self::assertNull($older->clusters[0]->bingWeeklyImpressions);
+        self::assertSame(1400, $demand->clusters[0]->bingWeeklyImpressions);
+        self::assertNull($demand->clusters[1]->bingWeeklyImpressions);
+        self::assertSame(SiteKeywordDemandSet::STATE_AVAILABLE, $demand->demand?->state);
+        self::assertSame('en-ZA', $demand->demand->market);
+        [$tool, $checker, $audit] = $demand->demand->keywords;
+        self::assertSame(3200, $tool->broadImpressions);
+        self::assertNull($checker->broadImpressions);
+        self::assertNull($audit->weeklyImpressions);
+        self::assertNull($audit->weekOf);
+        self::assertSame('bing keyword research: the service answered 503', $audit->lastFailure);
+        self::assertSame(SiteKeywordDemandSet::STATE_NO_MARKET, $noMarket->demand?->state);
+        self::assertNull($noMarket->demand->market);
+        self::assertSame([], $noMarket->demand->keywords);
+        self::assertSame(SiteKeywordDemandSet::SOURCE_BING_KEYWORD_RESEARCH, $list->related?->source);
+        self::assertSame(12000, $list->related->keywords[0]->broadImpressions);
     }
 
     public function testKeywordListRefusalsCarryNamedCodes(): void
