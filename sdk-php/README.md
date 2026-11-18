@@ -412,7 +412,9 @@ made the call.
 `phrase`; `scope: SitePageCheckRequest::SCOPE_CONTENT` checks body content only
 and returns the `checkedRules`; page facts carry `shareImage` and `faqSchema`. `compareWording()`
 measures two drafts as the `content.near-duplicate` rule does; `sharedPercent` is
-`null` when the texts were too short to compare.
+`null` when the texts were too short to compare. `comparePageWording(domain, firstUrl, secondUrl)`
+reads the last saved observations of two pages on the verified domain. It includes each page's
+state and observation time when known, and omits a comparison for unread or unavailable pages.
 
 ## Schema Admin Helpers
 

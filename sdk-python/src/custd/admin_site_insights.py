@@ -263,7 +263,7 @@ class SitePageCheckResponse(TypedDict):
 
 
 class SiteWordingCompare(TypedDict):
-    """How much wording two drafts share, measured as the content.near-duplicate rule does.
+    """How much wording two texts share, measured as the content.near-duplicate rule does.
 
     It is wording overlap, not plagiarism. Texts under ``minWords`` are not compared:
     ``compared`` is False and ``sharedPercent`` absent.
@@ -276,6 +276,24 @@ class SiteWordingCompare(TypedDict):
     sharedPercent: NotRequired[int]
     thresholdPercent: int
     nearDuplicate: bool
+
+
+WordingObservationState = Literal["unread", "unavailable", "short", "ready"]
+
+
+class SiteWordingObservation(TypedDict):
+    """Availability and time of the latest checked copy of a page."""
+
+    state: WordingObservationState
+    observedAt: NotRequired[str]
+
+
+class SiteObservedWording(TypedDict):
+    """Wording overlap of two saved observations. Comparison is absent if either is unavailable."""
+
+    first: SiteWordingObservation
+    second: SiteWordingObservation
+    comparison: NotRequired[SiteWordingCompare]
 
 
 class SiteRobotsRule(TypedDict):

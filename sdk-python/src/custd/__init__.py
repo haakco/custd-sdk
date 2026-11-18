@@ -484,6 +484,9 @@ __all__ = [
     "SitePageCheckResponse",
     "SitePageFacts",
     "SitePhraseUse",
+    "SiteObservedWording",
+    "SiteWordingObservation",
+    "WordingObservationState",
     "SiteWordingCompare",
     "SITE_CAMPAIGN_LINK_LIMIT_CODE",
     "SITE_CAMPAIGN_LINK_TAKEN_CODE",
@@ -1113,6 +1116,7 @@ from .admin_site_insights import (
     SiteLighthouseRun,
     SiteLighthouseScores,
     SiteMarket,
+    SiteObservedWording,
     SitePageCheckResponse,
     SitePageFacts,
     SitePageFinding,
@@ -1154,6 +1158,8 @@ from .admin_site_insights import (
     SiteUptimeWindow,
     SiteUptimeWindows,
     SiteWordingCompare,
+    SiteWordingObservation,
+    WordingObservationState,
 )
 from .admin_site_links import (
     SITE_LINK_SOURCE_BING,

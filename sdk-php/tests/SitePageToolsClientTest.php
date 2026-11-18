@@ -21,6 +21,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteSearchDimension;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspectionStatus;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchProvider;
 use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompareRequest;
+use HaakCo\Custd\Admin\SiteDomain\WordingObservationState;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use HaakCo\Custd\CustdClient;
 use PHPUnit\Framework\TestCase;
@@ -166,6 +167,34 @@ final class SitePageToolsClientTest extends TestCase
             ['POST ' . self::BASE . '/d-1/wording-compare', 'POST ' . self::BASE . '/d-1/wording-compare'],
             array_column($calls, 'route'),
         );
+    }
+
+    public function testObservedWordingUsesSavedPagesAndDistinguishesUnavailableAndShort(): void
+    {
+        $first = 'https://example.com/plans';
+        $second = 'https://example.com/support';
+        $ready = $this->client($calls, 'observedWording')->comparePageWording('d-1', $first, $second, 'acme');
+        self::assertSame(WordingObservationState::Ready, $ready->first->state);
+        self::assertSame('2026-11-18T11:00:00Z', $ready->first->observedAt);
+        self::assertSame(96, $ready->comparison?->sharedPercent);
+        self::assertSame([null], array_column($calls, 'body'));
+        self::assertSame(
+            ['GET ' . self::BASE . '/d-1/page-wording?firstUrl=https%3A%2F%2Fexample.com%2Fplans'
+                . '&secondUrl=https%3A%2F%2Fexample.com%2Fsupport&companySlug=acme'],
+            array_column($calls, 'route')
+        );
+
+        $missing = $this->client($calls, 'observedWordingUnavailable')->comparePageWording('d-1', $first, $second);
+        self::assertSame(WordingObservationState::Unavailable, $missing->first->state);
+        self::assertSame(WordingObservationState::Unread, $missing->second->state);
+        self::assertNull($missing->second->observedAt);
+        self::assertNull($missing->comparison);
+
+        $short = $this->client($calls, 'observedWordingShort')->comparePageWording('d-1', $first, $second);
+        self::assertSame(WordingObservationState::Short, $short->first->state);
+        self::assertNotNull($short->comparison);
+        self::assertSame(80, $short->comparison->firstWords);
+        self::assertNull($short->comparison->sharedPercent);
     }
 
     public function testPageRechecksQueueAndPoll(): void

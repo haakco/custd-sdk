@@ -49,6 +49,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspection;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspectionList;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchRowPage;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchValue;
+use HaakCo\Custd\Admin\SiteDomain\SiteObservedWording;
 use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompare;
 use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompareRequest;
 
@@ -521,6 +522,21 @@ final class SiteDomainClient
     ): SiteWordingCompare {
         return SiteWordingCompare::fromPayload(
             $this->send('POST', self::item($domainUuid) . '/wording-compare', [], $companySlug, $request->serialise())
+        );
+    }
+
+    /** Compare the latest saved observations of two URLs on a verified domain. No pages are fetched. */
+    public function comparePageWording(
+        string $domainUuid,
+        string $firstUrl,
+        string $secondUrl,
+        ?string $companySlug = null,
+    ): SiteObservedWording {
+        return SiteObservedWording::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/page-wording', [
+                'firstUrl' => $firstUrl,
+                'secondUrl' => $secondUrl,
+            ], $companySlug)
         );
     }
 

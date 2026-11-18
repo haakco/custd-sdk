@@ -231,6 +231,9 @@ adds `slug`, `redirect` and `phrase`, page facts carry `shareImage` and
 checks body content only and lists the rules it ran in `checkedRules` (a listed
 rule without a finding passed); `get_page_facts` answers 404
 `SITE_PAGE_NOT_READ_CODE` until an audit or recheck has read the page.
+`compare_page_wording(domain, first_url, second_url)` compares two saved page observations on the
+verified domain, with their observation states and times. Unread or unavailable pages have no
+comparison.
 `get_page_search_queries(domain, url)` returns the Google queries a page ranks
 for, title options built from them and the Site's pages that mention them
 (`window` absent until an import). Keyword research: `get_keyword_clusters`

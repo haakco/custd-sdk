@@ -36,6 +36,7 @@ from .admin_site_insights import (
     SiteIndexNowSubmission,
     SiteLighthouseHistory,
     SiteLighthousePages,
+    SiteObservedWording,
     SitePageCheckResponse,
     SitePageFacts,
     SitePageRecheck,
@@ -924,6 +925,18 @@ class SiteDomainAdminClient:
             check["phrase"].pop("densityPercent", None)
         return check
 
+    def compare_page_wording(
+        self, domain_uuid: str, first_url: str, second_url: str, *, company_slug: str | None = None
+    ) -> SiteObservedWording:
+        """Compare the latest saved observations of two URLs on one verified domain. No pages are fetched."""
+        path = _domain_path(domain_uuid) + "/page-wording"
+        query = {"firstUrl": first_url, "secondUrl": second_url}
+        result = cast(SiteObservedWording, self._request("GET", path, query, company_slug))
+        comparison = result.get("comparison")
+        if comparison is not None:
+            _normalize_wording_comparison(comparison)
+        return result
+
     def compare_wording(
         self, domain_uuid: str, first: str, second: str, *, company_slug: str | None = None
     ) -> SiteWordingCompare:
@@ -932,8 +945,7 @@ class SiteDomainAdminClient:
         result = cast(
             SiteWordingCompare, self._request("POST", path, {}, company_slug, {"first": first, "second": second})
         )
-        if not result["compared"]:
-            result.pop("sharedPercent", None)
+        _normalize_wording_comparison(result)
         return result
 
     def list_campaign_links(
@@ -1451,6 +1463,11 @@ class SiteDomainAdminClient:
         if not isinstance(decoded, Mapping):
             raise ValueError("custd: site domain response must be a JSON object")
         return dict(decoded)
+
+
+def _normalize_wording_comparison(comparison: SiteWordingCompare) -> None:
+    if not comparison["compared"]:
+        comparison.pop("sharedPercent", None)
 
 
 def _domain_path(domain_uuid: str) -> str:
