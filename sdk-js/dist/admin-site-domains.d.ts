@@ -1,8 +1,11 @@
+import type { SiteAnalyticsConnection, SiteAnalyticsConnectionRequest, SiteAnalyticsReport } from "./admin-site-analytics.js";
 import type { SiteAuditDelta, SiteAuditPageList, SiteLighthousePages, SiteLighthouseRequestOptions } from "./admin-site-audit-pages.js";
 import type { SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest } from "./admin-site-campaign-links.js";
+import type { SiteInsightsExport, SiteSearchMetricPage, SiteSearchMetricsQuery } from "./admin-site-export.js";
 import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SitePageRecheckList, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory, SiteWordingCompare, SiteWordingCompareRequest } from "./admin-site-insights.js";
 import type { SiteReferringDomains } from "./admin-site-links.js";
 import type { SiteNextActions, SitePortfolioSummary } from "./admin-site-next-actions.js";
+import type { SitePageSearchQueries } from "./admin-site-page-queries.js";
 import type { SiteRankings, SiteTrackedKeyword, SiteTrackedKeywordUpdate, SiteTrackKeywordRequest } from "./admin-site-rankings.js";
 import type { SavedSiteReport, SavedSiteReportList, SavedSiteReportRequest, SiteReportRequestOptions } from "./admin-site-saved-reports.js";
 import type { SearchPoolQueryPage, SearchPoolSetting } from "./admin-site-search-pool.js";
@@ -16,6 +19,8 @@ export declare const SITE_DOMAIN_NOT_VERIFIED_CODE = "site_domain_not_verified";
 export declare const SITE_SEARCH_NOT_CONFIGURED_CODE = "site_search_not_configured";
 /** A 404 on disconnectSearch: the domain is not connected to that provider. */
 export declare const SITE_SEARCH_CONNECTION_NOT_FOUND_CODE = "site_search_connection_not_found";
+/** A 409 on retrySearchImport: only a failing connection retries now; reconnect a revoked one. */
+export declare const SITE_SEARCH_RETRY_NOT_FAILING_CODE = "site_search_retry_not_failing";
 /**
  * The stable rule IDs a SiteFinding carries in `rule`, from Custd's siteaudit
  * rule catalogue. Key a client-side fix or display on these, never on the title.
@@ -360,7 +365,11 @@ export declare class SiteDomainAdminClient {
     /** Reads whether the tenant takes part in the shared search pool, and the pool's rules. */
     getSearchPool(options?: SiteDomainRequestOptions): Promise<SearchPoolSetting>;
     /** Joins (true) or leaves (false) the shared search pool for the whole tenant. */
-    setSearchPool(joined: boolean, options?: SiteDomainRequestOptions): Promise<SearchPoolSetting>;
+    /**
+     * Joins (with the terms version the caller accepted) or leaves the shared search pool.
+     * Joining without a termsVersion is refused before any request; leaving sends only joined.
+     */
+    setSearchPool(joined: boolean, termsVersion?: string, options?: SiteDomainRequestOptions): Promise<SearchPoolSetting>;
     /**
      * Reads pooled queries matching `search` (at most 100 characters), `limit` 1..200; omitted, 50.
      * Before joining it is refused with SITE_SEARCH_POOL_NOT_JOINED_CODE.
@@ -373,6 +382,21 @@ export declare class SiteDomainAdminClient {
     /** Removes a provider connection and the numbers imported through it. */
     disconnectSearch(domainUuid: string, provider: SiteSearchProvider, options?: SiteDomainRequestOptions): Promise<void>;
     /** Reads what the latest audit or recheck read from one page of the domain. */
+    /** Retries a failing search import now; anything else is refused with SITE_SEARCH_RETRY_NOT_FAILING_CODE. */
+    retrySearchImport(domainUuid: string, provider: SiteSearchProvider, options?: SiteDomainRequestOptions): Promise<SiteSearchConnection>;
+    /** Reads the searches one page shows for, with title options and pages that could link to it. */
+    getPageSearchQueries(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageSearchQueries>;
+    /** Reads the domain's GA4 landing pages, key events and channels; empty until connected and imported. */
+    getAnalytics(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteAnalyticsReport>;
+    /** Connects the domain to a GA4 property; a bad ID is refused with SITE_ANALYTICS_PROPERTY_INVALID_CODE. */
+    connectAnalytics(domainUuid: string, body: SiteAnalyticsConnectionRequest, options?: SiteDomainRequestOptions): Promise<SiteAnalyticsConnection>;
+    /** Disconnects GA4; an unconnected domain is refused with SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE. */
+    disconnectAnalytics(domainUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Exports everything Site Insights holds for the domain and its Site, except the daily search metrics. */
+    getExport(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteInsightsExport>;
+    /** Pages through the domain's daily search metrics; the export's search.metricRows is the total. */
+    listExportSearchMetrics(domainUuid: string, query?: SiteSearchMetricsQuery, options?: SiteDomainRequestOptions): Promise<SiteSearchMetricPage>;
+    /** Reads what the last audit or recheck saw on a page; an unread page is refused with SITE_PAGE_NOT_READ_CODE. */
     getPageFacts(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageFacts>;
     /**
      * Queues one page of a verified domain for recheck (202). A page already queued comes back as it is;

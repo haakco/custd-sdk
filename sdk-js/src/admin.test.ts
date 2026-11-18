@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import schemaAudit from "../../contract-fixtures/schema-audit.json";
 import type { ClientSetupManifest } from "./admin-client-setup.js";
-import { CustdClient } from "./index";
+import {
+  CustdClient,
+  CustdRequestError,
+  SCHEMA_AUDIT_TENANT_NOT_FOUND_CODE,
+  SCHEMA_AUDIT_TENANT_SLUG_REQUIRED_CODE,
+} from "./index";
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -676,5 +682,27 @@ describe("CustdClient schemas", () => {
       clientId: "tiao-local-lifecycle",
       purposeProfile: "lifecycle",
     });
+  });
+});
+
+describe("CustdClient admin schema audit", () => {
+  it.each([
+    [schemaAudit.tenantNotFoundProblem, SCHEMA_AUDIT_TENANT_NOT_FOUND_CODE],
+    [schemaAudit.tenantSlugRequiredProblem, SCHEMA_AUDIT_TENANT_SLUG_REQUIRED_CODE],
+  ])("surfaces the recorded %s problem code", async (problem, code) => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify(problem), {
+        status: problem.status,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "admin-token",
+      fetch: fetchImpl as unknown as typeof fetch,
+    });
+    const refusal = client.admin.schemas.audit();
+    await expect(refusal).rejects.toBeInstanceOf(CustdRequestError);
+    await expect(refusal).rejects.toMatchObject({ status: problem.status, code });
   });
 });
