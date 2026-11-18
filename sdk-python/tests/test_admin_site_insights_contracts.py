@@ -1,4 +1,5 @@
-"""Site Insights audit pages, saved reports, web data, links, access logs, rankings and the search pool.
+"""Site Insights audit pages, saved reports, web data, links, access logs, rankings, the search pool,
+campaign links and the draft tools.
 
 Each contract-fixtures file is the server's own Go types encoded by encoding/json, so omitted
 (omitempty) fields are absent exactly as the server sends them.
@@ -21,8 +22,12 @@ from custd import (
     SITE_AUDIT_RUN_COMPLETE,
     SITE_AUDIT_RUN_FAILED,
     SITE_AUDIT_RUN_NOT_AUDITED,
+    SITE_CAMPAIGN_LINK_LIMIT_CODE,
+    SITE_CAMPAIGN_LINK_TAKEN_CODE,
+    SITE_CAMPAIGN_LINKS_MAX,
     SITE_CRAWLER_IDENTITY_CLAIMS_TO_BE,
     SITE_GAP_COVERAGE_UNAVAILABLE,
+    SITE_GENERATED_FORMAT_REDIRECT,
     SITE_INDEXABILITY_ERROR,
     SITE_INDEXABILITY_REDIRECTED,
     SITE_INVENTORY_PENDING,
@@ -70,6 +75,7 @@ from custd import (
     SITE_WEB_DOMAIN_ROLE_OWN,
     CustdClient,
     RequestError,
+    SiteCampaignLinkRequest,
 )
 
 CONTRACT_FIXTURES = Path(__file__).resolve().parents[2] / "contract-fixtures"
@@ -89,6 +95,8 @@ LOGS = fixture("site-access-logs.json")
 RANKINGS = fixture("site-rankings.json")
 LINKS = fixture("site-links.json")
 POOL = fixture("site-search-pool.json")
+CAMPAIGNS = fixture("site-campaign-links.json")
+TOOLS = fixture("site-page-tools.json")
 API = "http://localhost:8080/api/v1"
 BASE = API + "/site-domains"
 DOMAIN = "domain-1"
@@ -134,6 +142,8 @@ class ProblemCodesTest(unittest.TestCase):
             (POOL, "siteBoundProblem", SITE_SEARCH_POOL_SITE_BOUND_CODE),
             (POOL, "settingInvalidProblem", SITE_SEARCH_POOL_SETTING_INVALID_CODE),
             (POOL, "queryInvalidProblem", SITE_SEARCH_POOL_QUERY_INVALID_CODE),
+            (CAMPAIGNS, "campaignLinkTakenProblem", SITE_CAMPAIGN_LINK_TAKEN_CODE),
+            (CAMPAIGNS, "campaignLinkLimitProblem", SITE_CAMPAIGN_LINK_LIMIT_CODE),
         ]
         for fixtures, key, code in cases:
             problem = fixtures[key]
@@ -646,6 +656,77 @@ class SearchValueTest(unittest.TestCase):
         unavailable = domains.get_search_value(DOMAIN, ["signup"], 7)
         self.assertEqual(SITE_SEARCH_VALUE_GOALS_UNAVAILABLE, unavailable["goalStatus"])
         self.assertNotIn("goalConversions", unavailable["pages"][0])
+
+
+class CampaignLinksTest(unittest.TestCase):
+    def test_campaign_links_send_their_routes_and_bodies(self) -> None:
+        domains, transport = site_domains(200, CAMPAIGNS["campaignLinkListWithArchived"])
+
+        listed = domains.list_campaign_links(DOMAIN, True)
+        domains.list_campaign_links(DOMAIN)
+        domains.create_campaign_link(DOMAIN, CAMPAIGNS["campaignLinkRequest"])
+        plain: SiteCampaignLinkRequest = {
+            "url": "https://example.com/",
+            "source": "google",
+            "medium": "cpc",
+            "campaign": "sale",
+        }
+        domains.create_campaign_link(DOMAIN, plain)
+        domains.archive_campaign_link(DOMAIN, "link-2")
+
+        links = f"{D}/campaign-links"
+        self.assertEqual(
+            [
+                ("GET", f"{links}?archived=true", None),
+                ("GET", links, None),
+                ("POST", links, CAMPAIGNS["campaignLinkRequest"]),
+                ("POST", links, plain),
+                ("POST", f"{links}/link-2/archive", None),
+            ],
+            transport.calls,
+        )
+        self.assertEqual(SITE_CAMPAIGN_LINKS_MAX, listed["maxLinks"])
+        self.assertNotIn("archivedAt", listed["links"][0])
+        self.assertEqual("", listed["links"][1]["term"])
+        self.assertIn("archivedAt", listed["links"][1])
+
+
+class DraftToolsTest(unittest.TestCase):
+    def test_check_page_sends_the_draft_tools_and_decodes_them(self) -> None:
+        domains, transport = site_domains(200, TOOLS["pageCheckDraftTools"])
+        request = TOOLS["pageCheckDraftToolsRequest"]
+
+        check = domains.check_page(
+            DOMAIN, request["url"], request["html"], previous_url=request["previousUrl"], phrase=request["phrase"]
+        )
+
+        self.assertEqual([("POST", f"{D}/page-check", request)], transport.calls)
+        self.assertEqual("cafe-hosting-plans-for-small-teams", check["slug"])
+        self.assertEqual(SITE_GENERATED_FORMAT_REDIRECT, check["redirect"]["format"])
+        self.assertEqual(3.85, check["phrase"]["densityPercent"])
+        self.assertEqual("https://example.com/img/team.jpg", check["page"]["shareImage"])
+        self.assertIn("FAQPage", check["page"]["faqSchema"]["code"])
+        self.assertNotIn("slug", TOOLS["pageCheck"])
+        self.assertNotIn("shareImage", TOOLS["pageFacts"])
+
+        no_words = {"phrase": "x", "count": 0, "wordCount": 0, "densityPercent": 0}
+        wordless = dict(TOOLS["pageCheckDraftTools"], phrase=no_words)
+        domains, transport = site_domains(200, wordless)
+        self.assertNotIn("densityPercent", domains.check_page(DOMAIN, request["url"], "<p></p>", phrase="x")["phrase"])
+        self.assertEqual({"url": request["url"], "html": "<p></p>", "phrase": "x"}, transport.calls[0][2])
+
+    def test_compare_wording_drops_the_share_of_texts_it_did_not_compare(self) -> None:
+        domains, transport = site_domains(200, TOOLS["wordingCompare"])
+        request = TOOLS["wordingCompareRequest"]
+
+        compared = domains.compare_wording(DOMAIN, request["first"], request["second"])
+        self.assertEqual([("POST", f"{D}/wording-compare", request)], transport.calls)
+        self.assertEqual((True, 91, True), (compared["compared"], compared["sharedPercent"], compared["nearDuplicate"]))
+
+        domains, _ = site_domains(200, TOOLS["wordingCompareNotCompared"])
+        short = domains.compare_wording(DOMAIN, "a", "b")
+        self.assertFalse(short["compared"])
+        self.assertNotIn("sharedPercent", short)
 
 
 if __name__ == "__main__":

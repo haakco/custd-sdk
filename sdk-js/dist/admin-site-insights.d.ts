@@ -1,8 +1,13 @@
 import type { SiteAuditSummary, SiteFindingSeverity, SiteSearchProvider, SiteSearchRow, SiteSearchSource, SiteUptimeStatus } from "./admin-site-domains.js";
+import type { SiteNextAction } from "./admin-site-next-actions.js";
 /** A 400 on page tools: the URL is not on the domain's own host. */
 export declare const SITE_PAGE_NOT_ON_DOMAIN_CODE = "site_page_not_on_domain";
 /** A 429 on requestPageRecheck: the domain's hourly page rechecks are used up. */
 export declare const SITE_PAGE_RECHECK_LIMIT_CODE = "site_page_recheck_limit";
+/** How many rechecks listPageRechecks reads in one call. */
+export declare const SITE_PAGE_RECHECK_READ_LIMIT = 30;
+/** A 422 on create without a siteUuid: no one Site holds the host; name the Site. */
+export declare const SITE_CHOICE_REQUIRED_CODE = "site_choice_required";
 /** A 400 on requestSearchInspection: the URL is not an http(s) URL on the domain's host. */
 export declare const SITE_SEARCH_INSPECTION_URL_INVALID_CODE = "site_search_inspection_url_invalid";
 /** A 409 on requestSearchInspection: the domain is not verified and connected to Google. */
@@ -20,6 +25,8 @@ export declare const SiteRemedyKind: {
 export declare const SiteGeneratedFormat: {
     readonly HTML: "html";
     readonly RobotsTxt: "robots.txt";
+    /** One Apache line and one nginx line. */
+    readonly Redirect: "redirect";
 };
 /** Ready-to-copy code for one finding. It is never a published change. */
 export type SiteGeneratedFix = {
@@ -99,6 +106,10 @@ export type SitePageFacts = {
     headings: SitePageHeading[];
     wordCount: number;
     readability: SitePageReadability;
+    /** The og:image a fix would name: the largest declared image, else the first unsized one; never fetched. */
+    shareImage?: string;
+    /** FAQPage JSON-LD from the page's question headings; Google shows no FAQ rich results since 7 May 2026. */
+    faqSchema?: SiteGeneratedFix;
 };
 export declare const SitePageRecheckState: {
     readonly Queued: "queued";
@@ -117,16 +128,60 @@ export type SitePageRecheck = {
     openRules: string[];
     fixedRules: string[];
 };
+/** The rechecks listPageRechecks found, in the order asked. */
+export type SitePageRecheckList = {
+    rechecks: SitePageRecheck[];
+};
 export type SitePageCheckRequest = {
     /** The address the draft will be published at, on the domain's host. */
     url: string;
     /** The page's full HTML, at most 512 KiB. */
     html: string;
+    /** The page's current address on the same host, when publishing moves it; asks for the redirect. */
+    previousUrl?: string;
+    /** A search phrase, at most 100 characters, to find in the draft. */
+    phrase?: string;
 };
-/** What the page checks found on one page, without the rest of the site. */
+/** Where one phrase appears in a draft and how often, with no target or verdict. */
+export type SitePhraseUse = {
+    phrase: string;
+    inTitle: boolean;
+    inDescription: boolean;
+    inH1: boolean;
+    count: number;
+    /** Words of visible text the count is out of. */
+    wordCount: number;
+    /** count over wordCount as a percentage; absent when the draft has no words. */
+    densityPercent?: number;
+};
+/** What the page checks found on one page, without the rest of the site. The draft tools are absent unless asked for. */
 export type SitePageCheckResponse = {
     page: SitePageFacts;
     findings: SitePageFinding[];
+    /** A URL slug from the draft's first h1, else its title. */
+    slug?: string;
+    /** The permanent redirect from previousUrl, format SiteGeneratedFormat.Redirect. */
+    redirect?: SiteGeneratedFix;
+    phrase?: SitePhraseUse;
+};
+/** Two drafts, as HTML or plain text (each at most 512 KiB), to compare. Nothing is stored. */
+export type SiteWordingCompareRequest = {
+    first: string;
+    second: string;
+};
+/**
+ * How much wording two drafts share, measured as the content.near-duplicate rule does; wording
+ * overlap, not plagiarism. Texts under minWords are not compared: compared is false and
+ * sharedPercent absent.
+ */
+export type SiteWordingCompare = {
+    firstWords: number;
+    secondWords: number;
+    minWords: number;
+    compared: boolean;
+    sharedPercent?: number;
+    thresholdPercent: number;
+    nearDuplicate: boolean;
 };
 export type SiteRobotsTestRequest = {
     /** A path such as /blog/post?id=1, or an http(s) URL. */
@@ -369,6 +424,8 @@ export type SiteReport = {
     speed: SiteReportSpeed[];
     search: SiteReportSearch;
     audit: SiteReportAudit;
+    /** The first three next actions, as getNextActions ranks them; absent from reports built or saved before servers sent them. */
+    nextActions?: SiteNextAction[];
 };
 export type SiteReportShare = {
     shareUuid: string;

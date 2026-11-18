@@ -52,6 +52,9 @@ func TestSiteRemedyDecodesGeneratedAndUnknown(t *testing.T) {
 		generated.Format != AdminSiteGeneratedFormatHTML || generated.Code != `<link rel="canonical" href="https://example.com/plans">` {
 		t.Fatalf("remedy = %+v", finding.Remedy)
 	}
+	if !finding.Recheckable {
+		t.Fatal("canonical.missing finding is not recheckable")
+	}
 	var unknown AdminSiteRemedy
 	if err := json.Unmarshal([]byte(sitePageToolsFixture(t, "remedyUnknownRule")), &unknown); err != nil ||
 		unknown != (AdminSiteRemedy{}) {
@@ -119,6 +122,19 @@ func TestSitePageRecheckRoutesAndStates(t *testing.T) {
 	assertSiteProblemCode(t, err, http.StatusBadRequest, SitePageNotOnDomainCode)
 }
 
+// ListPageRechecks sends the ids comma-joined, as the server reads them, and decodes the list.
+func TestSitePageRechecksReadSendsCommaJoinedIDs(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, sitePageToolsFixture(t, "pageRecheckList"))
+	domains := newAdminTestClient(t, doer, "http://localhost:8080").Admin.SiteDomains
+
+	list, err := domains.ListPageRechecks(context.Background(), "d-1", []string{"r-1", "r-2"})
+	if err != nil || len(list.Rechecks) != 2 || list.Rechecks[0].State != AdminSitePageRecheckChecked ||
+		list.Rechecks[1].State != AdminSitePageRecheckFailed {
+		t.Fatalf("list = %+v, %v", list, err)
+	}
+	assertSiteRequests(t, doer.requests, []string{"GET " + siteTestBase + "/page-rechecks?ids=r-1%2Cr-2"})
+}
+
 func TestSitePageCheckSendsDraftAndDecodesFindings(t *testing.T) {
 	doer := newCaptureDoer(http.StatusOK, sitePageToolsFixture(t, "pageCheck"))
 	domains := newAdminTestClient(t, doer, "http://localhost:8080").Admin.SiteDomains
@@ -171,5 +187,68 @@ func TestSiteRobotsTestPastedAndLive(t *testing.T) {
 	assertSiteBody(t, doer.requests[1], `{"url":"/","userAgent":"GPTBot"}`)
 	assertSiteRequests(t, doer.requests, []string{
 		"POST " + siteTestBase + "/robots-test", "POST " + siteTestBase + "/robots-test",
+	})
+}
+
+// The draft tools ride on the page check: the request names previousUrl and phrase, and the
+// response adds a slug, the redirect and the phrase's use, with the page's share image and FAQ
+// markup. The older pageCheck shape above decodes without any of them.
+func TestSitePageCheckDraftTools(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, sitePageToolsFixture(t, "pageCheckDraftTools"))
+	domains := newAdminTestClient(t, doer, "http://localhost:8080").Admin.SiteDomains
+	var req AdminSitePageCheckRequest
+	if err := json.Unmarshal([]byte(sitePageToolsFixture(t, "pageCheckDraftToolsRequest")), &req); err != nil {
+		t.Fatal(err)
+	}
+
+	check, err := domains.CheckPage(context.Background(), "d-1", req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertSiteBody(t, doer.requests[0], sitePageToolsFixture(t, "pageCheckDraftToolsRequest"))
+	phrase := check.Phrase
+	if check.Slug != "cafe-hosting-plans-for-small-teams" || check.Redirect == nil ||
+		check.Redirect.Format != AdminSiteGeneratedFormatRedirect || phrase == nil || phrase.Count != 2 ||
+		!phrase.InDescription || phrase.InH1 || phrase.DensityPercent == nil || *phrase.DensityPercent != 3.85 {
+		t.Fatalf("draft tools = %q %+v %+v", check.Slug, check.Redirect, phrase)
+	}
+	if check.Page.ShareImage != "https://example.com/img/team.jpg" || check.Page.FAQSchema == nil ||
+		check.Page.FAQSchema.Format != AdminSiteGeneratedFormatHTML {
+		t.Fatalf("page = %+v", check.Page)
+	}
+	var older AdminSitePageCheck
+	if err := json.Unmarshal([]byte(sitePageToolsFixture(t, "pageCheck")), &older); err != nil ||
+		older.Slug != "" || older.Redirect != nil || older.Phrase != nil || older.Page.ShareImage != "" ||
+		older.Page.FAQSchema != nil {
+		t.Fatalf("older = %+v, %v", older, err)
+	}
+	var empty AdminSitePhraseUse
+	if err := json.Unmarshal([]byte(`{"phrase":"x","count":0,"wordCount":0,"densityPercent":0}`), &empty); err != nil ||
+		empty.DensityPercent != nil {
+		t.Fatalf("no words = %+v, %v", empty, err)
+	}
+}
+
+func TestSiteWordingCompareRouteAndNotCompared(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, sitePageToolsFixture(t, "wordingCompare"))
+	domains := newAdminTestClient(t, doer, "http://localhost:8080").Admin.SiteDomains
+	var req AdminSiteWordingCompareRequest
+	if err := json.Unmarshal([]byte(sitePageToolsFixture(t, "wordingCompareRequest")), &req); err != nil {
+		t.Fatal(err)
+	}
+
+	compared, err := domains.CompareWording(context.Background(), "d-1", req)
+	if err != nil || !compared.Compared || compared.SharedPercent == nil || *compared.SharedPercent != 91 ||
+		!compared.NearDuplicate || compared.ThresholdPercent != 90 {
+		t.Fatalf("compared = %+v, %v", compared, err)
+	}
+	assertSiteBody(t, doer.requests[0], sitePageToolsFixture(t, "wordingCompareRequest"))
+	doer.body = sitePageToolsFixture(t, "wordingCompareNotCompared")
+	short, err := domains.CompareWording(context.Background(), "d-1", AdminSiteWordingCompareRequest{First: "a", Second: "b"})
+	if err != nil || short.Compared || short.SharedPercent != nil || short.MinWords != 200 || short.FirstWords != 5 {
+		t.Fatalf("short = %+v, %v", short, err)
+	}
+	assertSiteRequests(t, doer.requests, []string{
+		"POST " + siteTestBase + "/wording-compare", "POST " + siteTestBase + "/wording-compare",
 	})
 }

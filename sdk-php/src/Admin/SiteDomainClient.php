@@ -35,6 +35,7 @@ use HaakCo\Custd\Admin\SiteDomain\SitePageCheckRequest;
 use HaakCo\Custd\Admin\SiteDomain\SitePageCheckResponse;
 use HaakCo\Custd\Admin\SiteDomain\SitePageFacts;
 use HaakCo\Custd\Admin\SiteDomain\SitePageRecheck;
+use HaakCo\Custd\Admin\SiteDomain\SitePageRecheckList;
 use HaakCo\Custd\Admin\SiteDomain\SiteProjectContext;
 use HaakCo\Custd\Admin\SiteDomain\SiteProjectContextRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteRobotsTestRequest;
@@ -44,6 +45,8 @@ use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspection;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspectionList;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchRowPage;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchValue;
+use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompare;
+use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompareRequest;
 
 /**
  * SiteDomainClient claims the hosts a site serves, proves the tenant controls
@@ -69,6 +72,12 @@ final class SiteDomainClient
 
     /** The problem code of the 429 returned once the domain's hourly page rechecks are used up. */
     public const PAGE_RECHECK_LIMIT_CODE = 'site_page_recheck_limit';
+
+    /** How many rechecks listPageRechecks reads in one call. */
+    public const PAGE_RECHECK_READ_LIMIT = 30;
+
+    /** The problem code of the 422 returned when a domain created without a Site matches no one Site. */
+    public const SITE_CHOICE_REQUIRED_CODE = 'site_choice_required';
 
     /** The problem code of the 400 returned when a URL to inspect is not an http(s) URL on the domain's host. */
     public const SEARCH_INSPECTION_URL_INVALID_CODE = 'site_search_inspection_url_invalid';
@@ -128,6 +137,18 @@ final class SiteDomainClient
     public function webData(): SiteWebDataClient
     {
         return new SiteWebDataClient($this->http);
+    }
+
+    /** Keep the domains' saved UTM campaign links. */
+    public function campaignLinks(): SiteCampaignLinkClient
+    {
+        return new SiteCampaignLinkClient($this->http);
+    }
+
+    /** Read what to do next for one domain, and every domain's status and first action. */
+    public function nextActions(): SiteNextActionClient
+    {
+        return new SiteNextActionClient($this->http);
     }
 
     /** Join or leave the tenant's shared search pool and read its pooled queries. */
@@ -390,7 +411,26 @@ final class SiteDomainClient
         ));
     }
 
-    /** Run the one-page checks on draft HTML before it is published. Nothing is fetched or stored. */
+    /**
+     * Read up to {@see self::PAGE_RECHECK_READ_LIMIT} of the domain's rechecks at once; an id that
+     * is not one of the domain's is left out.
+     *
+     * @param list<string> $recheckUuids
+     */
+    public function listPageRechecks(string $domainUuid, array $recheckUuids, ?string $companySlug = null): SitePageRecheckList
+    {
+        return SitePageRecheckList::fromPayload($this->send(
+            'GET',
+            self::item($domainUuid) . '/page-rechecks',
+            ['ids' => implode(',', $recheckUuids)],
+            $companySlug
+        ));
+    }
+
+    /**
+     * Run the one-page checks on draft HTML before it is published, and the draft tools the request
+     * asks for. Nothing is fetched or stored.
+     */
     public function checkPage(
         string $domainUuid,
         SitePageCheckRequest $request,
@@ -398,6 +438,17 @@ final class SiteDomainClient
     ): SitePageCheckResponse {
         return SitePageCheckResponse::fromPayload(
             $this->send('POST', self::item($domainUuid) . '/page-check', [], $companySlug, $request->serialise())
+        );
+    }
+
+    /** Measure how much wording two drafts share, as the near-duplicate rule does. Nothing is stored. */
+    public function compareWording(
+        string $domainUuid,
+        SiteWordingCompareRequest $request,
+        ?string $companySlug = null,
+    ): SiteWordingCompare {
+        return SiteWordingCompare::fromPayload(
+            $this->send('POST', self::item($domainUuid) . '/wording-compare', [], $companySlug, $request->serialise())
         );
     }
 

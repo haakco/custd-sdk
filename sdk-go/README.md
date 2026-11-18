@@ -230,9 +230,11 @@ carry the `SiteSearchInspection*Code` constants.
 refusals carry the `SiteIndexNow*Code` constants.
 
 Each finding carries a `Remedy`: what the fix changes (`Kind`, `Element`) and,
-for some rules, `Generated` code to copy. The page tools work on one page:
+for some rules, `Generated` code to copy, and `Recheckable` when a one-page
+recheck can confirm the fix. The page tools work on one page:
 `GetPageFacts` returns what the last audit read, `RequestPageRecheck` queues a
-recheck (poll `GetPageRecheck`; `SitePageRecheckLimitCode` past the hourly
+recheck (poll `GetPageRecheck`, or `ListPageRechecks` for up to
+`SitePageRecheckReadLimit` at once; `SitePageRecheckLimitCode` past the hourly
 allowance, `SitePageNotOnDomainCode` for another host), `CheckPage` checks draft
 HTML without storing it, and `TestRobots` answers whether a crawler may fetch a
 URL under a pasted or the live robots.txt. `GetProjectContext` and
@@ -278,6 +280,22 @@ counts, never 0. The tenant-wide shared search pool uses `GetSearchPool`,
 `SetSearchPool(ctx, joined)` and `ListSearchPoolQueries`; `GetRankings` reports
 `Pool` and, for a member, each keyword's pool band (`nil` otherwise, and from a
 server that predates the pool).
+
+`CheckPage` takes an optional `PreviousURL` and `Phrase` and then returns the
+draft's `Slug`, the `Redirect` a move needs (format `redirect`) and the phrase's
+`Phrase` use; page facts carry `ShareImage` and `FAQSchema`. `CompareWording`
+measures two drafts as the `content.near-duplicate` rule does (`SharedPercent`
+is `nil` when the texts were too short to compare). `ListCampaignLinks`,
+`CreateCampaignLink` and `ArchiveCampaignLink` keep a domain's saved UTM links
+(409 `SiteCampaignLinkTakenCode` or `SiteCampaignLinkLimitCode`).
+
+`NextActions` returns a domain's status, one plain `Headline`, what is not
+checked yet and its three most important actions in Custd's fixed order
+(`AdminSiteNextAction*` kinds; show an unknown kind by its `Title` and `Why`).
+`PortfolioSummary` gives every domain's status, open findings and
+`FirstAction`, worst first, and the report's `NextActions` are the same three.
+`ScopeTemplateSiteInsightsRead` provisions a tenant-wide credential that reads
+only these two calls.
 
 Custd 3.46.0 and earlier send no report `Template` (their reports are the full
 template) and no Lighthouse history `URL` or `Pages`; those decode as empty.

@@ -160,6 +160,7 @@ from custd import SITE_DOMAIN_NOT_VERIFIED_CODE, SITE_RULE_TITLE_MISSING, Reques
 
 domains = client.admin.site_domains
 domain = domains.create({"siteUuid": site_uuid, "host": "example.com"})
+# Or omit siteUuid: Custd places the host (SITE_CHOICE_REQUIRED_CODE when it cannot tell).
 # Publish domain["ownership"]["instructions"] (DNS TXT or well-known file), then:
 domains.verify(domain["domainUuid"])
 try:
@@ -175,10 +176,12 @@ missing_titles = [f for f in findings if f["rule"] == SITE_RULE_TITLE_MISSING]
 `SITE_RULE_*` constants (all of them in `SITE_RULE_IDS`) are the stable rule
 IDs a finding carries in `rule`; key any client-side fix on them. Each finding's
 `remedy` says what the fix changes (`kind`, `element`) and, for some rules,
-carries ready-to-copy `generated` code.
+carries ready-to-copy `generated` code; `recheckable` says a one-page recheck
+can confirm the fix.
 
-Page tools: `get_page_facts`, `request_page_recheck` / `get_page_recheck`
-(one-page rechecks, `SITE_PAGE_RECHECK_LIMIT_CODE` past the hourly allowance),
+Page tools: `get_page_facts`, `request_page_recheck` / `get_page_recheck` /
+`list_page_rechecks` (one-page rechecks, up to `SITE_PAGE_RECHECK_READ_LIMIT`
+read at once, `SITE_PAGE_RECHECK_LIMIT_CODE` past the hourly allowance),
 `check_page` (draft HTML, never stored) and `test_robots` (pasted or live
 robots.txt). Search: `list_search_rows` pages one dimension and names
 providers that cannot report it in `unavailable`; `request_search_inspection`
@@ -217,7 +220,19 @@ pages. Shared search pool (tenant-wide; a site-bound credential is refused):
 `list_search_pool_queries(search, limit)` for pooled queries' demand and
 position bands (403 `SITE_SEARCH_POOL_NOT_JOINED_CODE` before joining).
 `get_rankings` carries the rankings' `pool` state and each keyword's pool
-band when there is one. Older servers (the Custd that SDK 3.46.0 targeted) send no report `template` (the default is full) and
+band when there is one. Draft tools: `check_page(..., previous_url=, phrase=)`
+adds `slug`, `redirect` and `phrase`, page facts carry `shareImage` and
+`faqSchema`, and `compare_wording(domain, first, second)` measures shared wording
+(`sharedPercent` absent when not compared). Campaign links:
+`list_campaign_links(domain, include_archived)`, `create_campaign_link` and
+`archive_campaign_link` (409 `SITE_CAMPAIGN_LINK_TAKEN_CODE` or
+`SITE_CAMPAIGN_LINK_LIMIT_CODE`). Next actions: `get_next_actions(domain)`
+returns the status, one plain `headline` and the three most important actions in
+Custd's fixed order (`SITE_NEXT_ACTION_*`; show an unknown kind by its `title`
+and `why`), `get_portfolio_summary()` every domain's status and `firstAction`,
+worst first, and a report's `nextActions` are the same three;
+`SCOPE_TEMPLATE_SITE_INSIGHTS_READ` provisions a credential that reads only
+these two calls. Older servers (the Custd that SDK 3.46.0 targeted) send no report `template` (the default is full) and
 no Lighthouse `url` / `pages`; those keys are then absent.
 
 ## Dev smoke test

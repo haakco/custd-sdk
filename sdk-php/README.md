@@ -260,8 +260,10 @@ stop a site, so nothing wakes it). `listIncidents()` returns the domain's recent
 outages.
 
 Each finding carries a `remedy`: what the fix changes (`SiteRemedy::KIND_*`),
-the element, and for some rules `generated` code to copy. The page tools read
-`getPageFacts()`, queue `requestPageRecheck()` (poll `getPageRecheck()`), check
+the element, and for some rules `generated` code to copy, and `recheckable`
+when a one-page recheck can confirm the fix. The page tools read
+`getPageFacts()`, queue `requestPageRecheck()` (poll `getPageRecheck()`, or
+`listPageRechecks()` for up to `PAGE_RECHECK_READ_LIMIT` at once), check
 draft HTML with `checkPage()` and test crawler access with `testRobots()`
 (omit `robotsTxt` to read the live file). `listSearchRows()` pages through one
 search dimension; `unavailable` names providers that cannot report it, which is
@@ -358,7 +360,7 @@ joins search pages to the analytics goals credited to their landings. A report o
 Lighthouse history from a 3.46.0-era server has a `null` `template` or `url` and
 no `pages`.
 
-Four focused clients hang off the same client. `rankings()` tracks keyword
+Five focused clients hang off the same client. `rankings()` tracks keyword
 positions from Search Console (`getRankings()`, `trackKeyword()`,
 `updateTrackedKeyword()`, whose request keeps the stored alert position when
 `notifyPosition` is null, `untrackKeyword()`); a day the domain did not rank has a
@@ -373,8 +375,22 @@ keeps its keyword lists (`listKeywordLists()`, `saveKeywordList()`,
 `deleteKeywordList()`, `getKeywordClusters()`). `searchPool()` is tenant-wide:
 `getSearchPool()` and `setSearchPool(true|false)` join or leave the shared search
 pool, and `listSearchPoolQueries($search, $limit)` reads its k-anonymous query
-bands once joined (`SEARCH_POOL_NOT_JOINED_CODE` before). Refusals carry the
-`*_CODE` constants on the client that made the call.
+bands once joined (`SEARCH_POOL_NOT_JOINED_CODE` before). `campaignLinks()`
+keeps a domain's saved UTM links (`listCampaignLinks()`, `createCampaignLink()`,
+`archiveCampaignLink()`). `nextActions()` reads what to do next: `forDomain()`
+returns the status, one plain headline and the three most important actions in
+Custd's fixed order (`SiteNextAction::KIND_*`; show an unknown kind by its title
+and why), `portfolioSummary()` every domain's status and first action, worst
+first, and `SiteReport::$nextActions` are the same three.
+`SCOPE_TEMPLATE_SITE_INSIGHTS_READ` provisions a credential that reads only
+these two calls. Refusals carry the `*_CODE` constants on the client that
+made the call.
+
+`checkPage()` takes an optional `previousUrl` and `phrase` on
+`SitePageCheckRequest` and then returns the draft's `slug`, `redirect` and
+`phrase`; page facts carry `shareImage` and `faqSchema`. `compareWording()`
+measures two drafts as the `content.near-duplicate` rule does; `sharedPercent` is
+`null` when the texts were too short to compare.
 
 ## Schema Admin Helpers
 

@@ -263,6 +263,14 @@ export {
   type SiteLighthouseRequestOptions,
 } from "./admin-site-audit-pages.js";
 export {
+  SITE_CAMPAIGN_LINK_LIMIT_CODE,
+  SITE_CAMPAIGN_LINK_TAKEN_CODE,
+  SITE_CAMPAIGN_LINKS_MAX,
+  type SiteCampaignLink,
+  type SiteCampaignLinkList,
+  type SiteCampaignLinkRequest,
+} from "./admin-site-campaign-links.js";
+export {
   SITE_DOMAIN_NOT_VERIFIED_CODE,
   SITE_SEARCH_CONNECTION_NOT_FOUND_CODE,
   SITE_SEARCH_NOT_CONFIGURED_CODE,
@@ -310,6 +318,7 @@ export {
   type IndexNowSubmission,
   type IndexNowSubmissionRequest,
   IndexNowSubmissionStatus,
+  SITE_CHOICE_REQUIRED_CODE,
   SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE,
   SITE_INDEXNOW_KEY_UNVERIFIED_CODE,
   SITE_INDEXNOW_LIMIT_CODE,
@@ -317,6 +326,7 @@ export {
   SITE_INDEXNOW_URLS_INVALID_CODE,
   SITE_PAGE_NOT_ON_DOMAIN_CODE,
   SITE_PAGE_RECHECK_LIMIT_CODE,
+  SITE_PAGE_RECHECK_READ_LIMIT,
   SITE_SEARCH_INSPECTION_LIMIT_CODE,
   SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE,
   SITE_SEARCH_INSPECTION_URL_INVALID_CODE,
@@ -338,9 +348,11 @@ export {
   type SitePageOpenGraph,
   type SitePageReadability,
   type SitePageRecheck,
+  type SitePageRecheckList,
   SitePageRecheckState,
   type SitePageRobots,
   type SitePageTwitter,
+  type SitePhraseUse,
   type SiteProjectContext,
   type SiteProjectContextRequest,
   type SiteRemedy,
@@ -371,6 +383,8 @@ export {
   type SiteUptimeHistory,
   type SiteUptimeWindow,
   type SiteUptimeWindows,
+  type SiteWordingCompare,
+  type SiteWordingCompareRequest,
 } from "./admin-site-insights.js";
 export {
   type SiteDomainAuthority,
@@ -382,6 +396,18 @@ export {
   type SiteReferringDomain,
   type SiteReferringDomains,
 } from "./admin-site-links.js";
+export {
+  SITE_NEXT_ACTIONS_MAX,
+  type SiteFindingCounts,
+  type SiteNextAction,
+  SiteNextActionKind,
+  SiteNextActionPlace,
+  type SiteNextActions,
+  type SiteNextActionTarget,
+  SiteNotChecked,
+  type SitePortfolioDomain,
+  type SitePortfolioSummary,
+} from "./admin-site-next-actions.js";
 export {
   SITE_RANKINGS_DAYS_INVALID_CODE,
   SITE_RANKINGS_DEFAULT_DAYS,
@@ -886,7 +912,8 @@ export type ProducerProvisionCreate = {
     | "managed-audit-reporting-read"
     | "managed-audit-reporting-subject-insight"
     | "managed-audit-event-read"
-    | "site-insights";
+    | "site-insights"
+    | "site-insights-read";
   metadata?: Record<string, string>;
 };
 

@@ -6,19 +6,31 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 
 /**
  * SitePageCheckRequest checks draft HTML as if $url served it. The draft is never stored;
- * html is at most 512 KiB and $url must be on the domain's host.
+ * html is at most 512 KiB and $url must be on the domain's host. $previousUrl, the page's current
+ * address on the same host, asks for the redirect a move needs; $phrase (at most 100 characters)
+ * asks where it appears. Either is left out when null or empty.
  */
 final readonly class SitePageCheckRequest
 {
     public function __construct(
         public string $url,
         public string $html,
+        public ?string $previousUrl = null,
+        public ?string $phrase = null,
     ) {
     }
 
-    /** @return array{url: string, html: string} */
+    /** @return array{url: string, html: string, previousUrl?: string, phrase?: string} */
     public function serialise(): array
     {
-        return ['url' => $this->url, 'html' => $this->html];
+        $body = ['url' => $this->url, 'html' => $this->html];
+        if ($this->previousUrl !== null && $this->previousUrl !== '') {
+            $body['previousUrl'] = $this->previousUrl;
+        }
+        if ($this->phrase !== null && $this->phrase !== '') {
+            $body['phrase'] = $this->phrase;
+        }
+
+        return $body;
     }
 }

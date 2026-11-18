@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from typing import Any, Literal, NotRequired, TypedDict, cast
 
 from .admin_site_access_logs import SiteAccessLogHourReplay, SiteAIVisibility, SiteTraffic
+from .admin_site_campaign_links import SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest
 from .admin_site_insights import (
     SavedSiteReport,
     SavedSiteReportList,
@@ -28,6 +29,7 @@ from .admin_site_insights import (
     SitePageCheckResponse,
     SitePageFacts,
     SitePageRecheck,
+    SitePageRecheckList,
     SiteProjectContext,
     SiteProjectContextRequest,
     SiteRemedy,
@@ -41,8 +43,10 @@ from .admin_site_insights import (
     SiteSearchInspectionList,
     SiteSearchRowPage,
     SiteUptimeHistory,
+    SiteWordingCompare,
 )
 from .admin_site_links import SiteReferringDomains
+from .admin_site_next_actions import SiteNextActions, SitePortfolioSummary
 from .admin_site_rankings import SiteRankings, SiteTrackedKeyword, SiteTrackKeywordRequest
 from .admin_site_search_pool import SearchPoolQueryPage, SearchPoolSetting
 from .admin_site_search_value import SiteFindingImpact, SiteSearchValue
@@ -83,6 +87,10 @@ SITE_SEARCH_CONNECTION_NOT_FOUND_CODE = "site_search_connection_not_found"
 SITE_PAGE_NOT_ON_DOMAIN_CODE = "site_page_not_on_domain"
 # A 429 on request_page_recheck: the domain has used its hourly page rechecks.
 SITE_PAGE_RECHECK_LIMIT_CODE = "site_page_recheck_limit"
+# How many rechecks list_page_rechecks reads in one call.
+SITE_PAGE_RECHECK_READ_LIMIT = 30
+# A 422 on create without a siteUuid: no one Site holds the host; name the Site.
+SITE_CHOICE_REQUIRED_CODE = "site_choice_required"
 # A 400 on request_search_inspection: the URL is not an http(s) URL on the domain's host.
 SITE_SEARCH_INSPECTION_URL_INVALID_CODE = "site_search_inspection_url_invalid"
 # A 409 on request_search_inspection: the domain is unverified or not connected to Google.
@@ -194,6 +202,7 @@ SITE_RULE_LANG_MISSING = "html.lang-missing"
 SITE_RULE_HTML_TOO_LARGE = "html.too-large"
 SITE_RULE_OPEN_GRAPH_MISSING = "og.missing"
 SITE_RULE_OPEN_GRAPH_IMAGE_MISSING = "og.image-missing"
+SITE_RULE_OPEN_GRAPH_IMAGE_UNREACHABLE = "og.image-unreachable"
 SITE_RULE_TWITTER_CARD_MISSING = "twitter.card-missing"
 SITE_RULE_IMAGE_ALT_MISSING = "image.alt-missing"
 SITE_RULE_IMAGE_TOO_LARGE = "image.too-large"
@@ -223,6 +232,7 @@ SITE_RULE_CANONICAL_CONFLICT = "canonical.conflict"
 SITE_RULE_HEADING_SKIP = "heading.order-skip"
 SITE_RULE_THIN_CONTENT = "content.thin"
 SITE_RULE_DUPLICATE_CONTENT = "content.duplicate"
+SITE_RULE_NEAR_DUPLICATE = "content.near-duplicate"
 SITE_RULE_HREFLANG_INVALID_CODE = "hreflang.invalid-code"
 SITE_RULE_HREFLANG_MISSING_SELF = "hreflang.missing-self-reference"
 SITE_RULE_HREFLANG_MISSING_RETURN = "hreflang.missing-return-link"
@@ -270,6 +280,7 @@ SITE_RULE_IDS: tuple[str, ...] = (
     SITE_RULE_HTML_TOO_LARGE,
     SITE_RULE_OPEN_GRAPH_MISSING,
     SITE_RULE_OPEN_GRAPH_IMAGE_MISSING,
+    SITE_RULE_OPEN_GRAPH_IMAGE_UNREACHABLE,
     SITE_RULE_TWITTER_CARD_MISSING,
     SITE_RULE_IMAGE_ALT_MISSING,
     SITE_RULE_IMAGE_TOO_LARGE,
@@ -299,6 +310,7 @@ SITE_RULE_IDS: tuple[str, ...] = (
     SITE_RULE_HEADING_SKIP,
     SITE_RULE_THIN_CONTENT,
     SITE_RULE_DUPLICATE_CONTENT,
+    SITE_RULE_NEAR_DUPLICATE,
     SITE_RULE_HREFLANG_INVALID_CODE,
     SITE_RULE_HREFLANG_MISSING_SELF,
     SITE_RULE_HREFLANG_MISSING_RETURN,
@@ -333,6 +345,10 @@ class SiteDomainCreateRequest(TypedDict):
     """Claims a host for one of the tenant's Sites.
 
     A site-bound credential (site_domains.manage) may omit ``siteUuid`` and gets its own Site.
+    Anyone else may omit it too: Custd places the host on the Site holding it with or without
+    www., else the Site named after it, else the only Site, and answers SITE_CHOICE_REQUIRED_CODE
+    when that decides no one Site. A tenant with no Site gets one named after the host, which
+    needs tenant-admin access.
     """
 
     host: str
@@ -491,6 +507,9 @@ class SiteFinding(TypedDict):
     source: str
     remedy: SiteRemedy
     history: SiteFindingHistory
+    # A one-page recheck decides this rule, so request_page_recheck can confirm the fix.
+    # Absent from a server before 3.51.
+    recheckable: NotRequired[bool]
 
 
 class SiteFindingList(TypedDict):
@@ -769,16 +788,81 @@ class SiteDomainAdminClient:
         path = _domain_path(domain_uuid) + "/page-rechecks/" + quote_path(recheck_uuid)
         return cast(SitePageRecheck, self._request("GET", path, {}, company_slug))
 
+    def list_page_rechecks(
+        self, domain_uuid: str, recheck_uuids: Sequence[str], *, company_slug: str | None = None
+    ) -> SitePageRecheckList:
+        """Read up to SITE_PAGE_RECHECK_READ_LIMIT of the domain's rechecks at once; unknown ids are left out."""
+        path = _domain_path(domain_uuid) + "/page-rechecks"
+        query = {"ids": ",".join(recheck_uuids)}
+        return cast(SitePageRecheckList, self._request("GET", path, query, company_slug))
+
     def check_page(
-        self, domain_uuid: str, url: str, html: str, *, company_slug: str | None = None
+        self,
+        domain_uuid: str,
+        url: str,
+        html: str,
+        *,
+        previous_url: str | None = None,
+        phrase: str | None = None,
+        company_slug: str | None = None,
     ) -> SitePageCheckResponse:
         """Run the one-page checks on draft HTML (at most 512 KiB) as if ``url`` served it.
 
-        The draft is never fetched, stored or logged.
+        ``previous_url``, the page's current address on the same host, asks for the redirect a move
+        needs; ``phrase`` (at most 100 characters) asks where it appears. The draft is never
+        fetched, stored or logged.
         """
         path = _domain_path(domain_uuid) + "/page-check"
         payload = {"url": url, "html": html}
-        return cast(SitePageCheckResponse, self._request("POST", path, {}, company_slug, payload))
+        if previous_url:
+            payload["previousUrl"] = previous_url
+        if phrase:
+            payload["phrase"] = phrase
+        check = cast(SitePageCheckResponse, self._request("POST", path, {}, company_slug, payload))
+        if "phrase" in check and check["phrase"]["wordCount"] == 0:
+            check["phrase"].pop("densityPercent", None)
+        return check
+
+    def compare_wording(
+        self, domain_uuid: str, first: str, second: str, *, company_slug: str | None = None
+    ) -> SiteWordingCompare:
+        """Measure how much wording two drafts (HTML or text, each at most 512 KiB) share; nothing is stored."""
+        path = _domain_path(domain_uuid) + "/wording-compare"
+        result = cast(
+            SiteWordingCompare, self._request("POST", path, {}, company_slug, {"first": first, "second": second})
+        )
+        if not result["compared"]:
+            result.pop("sharedPercent", None)
+        return result
+
+    def list_campaign_links(
+        self, domain_uuid: str, include_archived: bool = False, *, company_slug: str | None = None
+    ) -> SiteCampaignLinkList:
+        """Return the domain's active campaign links, newest first, and archived ones with include_archived."""
+        query = {"archived": "true"} if include_archived else {}
+        return cast(SiteCampaignLinkList, self._request("GET", _campaign_links_path(domain_uuid), query, company_slug))
+
+    def create_campaign_link(
+        self, domain_uuid: str, request: SiteCampaignLinkRequest, *, company_slug: str | None = None
+    ) -> SiteCampaignLink:
+        """Save a tagged page link (201).
+
+        A second active copy answers SITE_CAMPAIGN_LINK_TAKEN_CODE, a full domain
+        SITE_CAMPAIGN_LINK_LIMIT_CODE and a page on another host SITE_PAGE_NOT_ON_DOMAIN_CODE.
+        """
+        payload: dict[str, Any] = {name: request[name] for name in ("url", "source", "medium", "campaign")}
+        for name in ("term", "content"):
+            if request.get(name):
+                payload[name] = request.get(name)
+        path = _campaign_links_path(domain_uuid)
+        return cast(SiteCampaignLink, self._request("POST", path, {}, company_slug, payload))
+
+    def archive_campaign_link(
+        self, domain_uuid: str, link_uuid: str, *, company_slug: str | None = None
+    ) -> SiteCampaignLink:
+        """Archive a link: it stays listed with archived links and its tagged URL is free again."""
+        path = _campaign_links_path(domain_uuid) + "/" + quote_path(link_uuid) + "/archive"
+        return cast(SiteCampaignLink, self._request("POST", path, {}, company_slug))
 
     def test_robots(
         self,
@@ -870,6 +954,19 @@ class SiteDomainAdminClient:
         }
         result = self._request("PUT", SITE_PROJECT_CONTEXT_PATH, query, company_slug, payload)
         return cast(SiteProjectContext, result)
+
+    def get_next_actions(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteNextActions:
+        """Return the domain's status and its most important next actions, most important first."""
+        path = _domain_path(domain_uuid) + "/next-actions"
+        return cast(SiteNextActions, self._request("GET", path, {}, company_slug))
+
+    def get_portfolio_summary(self, *, company_slug: str | None = None) -> SitePortfolioSummary:
+        """Return every domain's status, open findings and first action, worst first.
+
+        A site-bound credential gets only its own Site's domains.
+        """
+        path = SITE_DOMAINS_PATH + "/portfolio-summary"
+        return cast(SitePortfolioSummary, self._request("GET", path, {}, company_slug))
 
     def get_report(
         self,
@@ -1256,6 +1353,10 @@ def _day_range_query(from_day: str | None, to_day: str | None) -> dict[str, str]
     if to_day:
         query["to"] = to_day
     return query
+
+
+def _campaign_links_path(domain_uuid: str) -> str:
+    return _domain_path(domain_uuid) + "/campaign-links"
 
 
 def _saved_report_payload(request: SavedSiteReportRequest) -> dict[str, Any]:

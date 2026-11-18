@@ -479,6 +479,7 @@ address and connect Google or Bing search numbers. The routes are under
 import { SITE_DOMAIN_NOT_VERIFIED_CODE, SiteRule } from "@haakco/custd-sdk";
 
 const domain = await client.admin.siteDomains.create({ siteUuid, host: "example.com" });
+// Or omit siteUuid: Custd places the host (SITE_CHOICE_REQUIRED_CODE when it cannot tell).
 // Publish domain.ownership.instructions (DNS TXT or well-known file), then:
 await client.admin.siteDomains.verify(domain.domainUuid);
 await client.admin.siteDomains.requestAudit(domain.domainUuid);
@@ -492,8 +493,10 @@ client-side fix on them. A refused audit of an unverified domain is a
 `CustdRequestError` whose `code` is `SITE_DOMAIN_NOT_VERIFIED_CODE`.
 
 Each finding carries a `remedy` (`kind`, `element`, and ready-to-copy
-`generated` code for some rules). The page tools are `getPageFacts`,
-`requestPageRecheck` / `getPageRecheck` (refusals: `SITE_PAGE_NOT_ON_DOMAIN_CODE`,
+`generated` code for some rules) and `recheckable` when a one-page recheck can
+confirm the fix. The page tools are `getPageFacts`,
+`requestPageRecheck` / `getPageRecheck` / `listPageRechecks` (up to
+`SITE_PAGE_RECHECK_READ_LIMIT` at once; refusals: `SITE_PAGE_NOT_ON_DOMAIN_CODE`,
 `SITE_PAGE_RECHECK_LIMIT_CODE`), `checkPage` for draft HTML and `testRobots`.
 Search adds `listSearchRows` (its `unavailable` list names providers that cannot
 report a dimension) and Search Console URL inspection
@@ -527,6 +530,18 @@ More reads and controls on the same client:
   `SITE_SEARCH_POOL_SITE_BOUND_CODE`): `getSearchPool`, `setSearchPool(joined)` and
   `listSearchPoolQueries(search?, limit?)` (refused with `SITE_SEARCH_POOL_NOT_JOINED_CODE`
   before joining). `getRankings` then carries `pool` and each keyword's pooled `pool` band.
+- Draft tools: `checkPage` takes optional `previousUrl` and `phrase` and returns `slug`,
+  `redirect` (format `redirect`) and `phrase`; page facts carry `shareImage` and `faqSchema`.
+  `compareWording(domainUuid, { first, second })` measures shared wording as the
+  `content.near-duplicate` rule does; `sharedPercent` is absent when the texts were not compared.
+- Campaign links: `listCampaignLinks(domainUuid, includeArchived?)`, `createCampaignLink` and
+  `archiveCampaignLink` keep a domain's saved UTM links (409 `SITE_CAMPAIGN_LINK_TAKEN_CODE` or
+  `SITE_CAMPAIGN_LINK_LIMIT_CODE`).
+- Next actions: `getNextActions(domainUuid)` returns the status, one plain `headline`, what is not
+  checked yet and the three most important actions in Custd's fixed order (`SiteNextActionKind`;
+  show an unknown kind by its `title` and `why`). `getPortfolioSummary()` gives every domain's
+  status, open findings and `firstAction`, worst first; a report's `nextActions` are the same three.
+  The `site-insights-read` scope template provisions a credential that reads only these two calls.
 - Access logs: `getTraffic(domainUuid, from?, to?)`, `getAIVisibility`, and
   `replayAccessLogHour(hourStart)` for system administrators.
 - Rank tracking: `getRankings(domainUuid, days?)`, `trackKeyword`,

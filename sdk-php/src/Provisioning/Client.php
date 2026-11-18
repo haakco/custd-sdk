@@ -22,6 +22,12 @@ final class Client
      */
     public const SCOPE_TEMPLATE_SITE_INSIGHTS_ATTESTING = 'site-insights-attesting';
 
+    /**
+     * A tenant-wide, read-only credential (site_insights.read) bound to no Site: it reads only the
+     * next actions and the portfolio summary of every Site (SiteNextActionClient), as a hub shows them.
+     */
+    public const SCOPE_TEMPLATE_SITE_INSIGHTS_READ = 'site-insights-read';
+
     public function __construct(
         private readonly string $baseUrl,
         private readonly string $token,

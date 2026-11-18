@@ -6,7 +6,10 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 
 /**
  * CreateSiteDomainRequest claims a host for one of the tenant's sites. A site-bound credential
- * (site_domains.manage) leaves the site null and gets its own Site; anyone else names it.
+ * (site_domains.manage) leaves the site null and gets its own Site. Anyone else may leave it null
+ * too: Custd places the host on the Site holding it with or without www., else the Site named after
+ * it, else the only Site, and refuses with SiteDomainClient::SITE_CHOICE_REQUIRED_CODE when that
+ * decides no one Site. A tenant with no Site gets one named after the host (tenant-admin only).
  */
 final readonly class CreateSiteDomainRequest
 {
@@ -16,7 +19,7 @@ final readonly class CreateSiteDomainRequest
     ) {
     }
 
-    /** Claim a host for the calling site-bound credential's own Site. */
+    /** Claim a host without naming its Site: a site-bound credential's own, or the Site Custd places it on. */
     public static function forOwnSite(string $host): self
     {
         return new self(null, $host);

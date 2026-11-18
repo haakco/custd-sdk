@@ -1,6 +1,8 @@
 import type { SiteAuditDelta, SiteAuditPageList, SiteLighthousePages, SiteLighthouseRequestOptions } from "./admin-site-audit-pages.js";
-import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory } from "./admin-site-insights.js";
+import type { SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest } from "./admin-site-campaign-links.js";
+import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SitePageRecheckList, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory, SiteWordingCompare, SiteWordingCompareRequest } from "./admin-site-insights.js";
 import type { SiteReferringDomains } from "./admin-site-links.js";
+import type { SiteNextActions, SitePortfolioSummary } from "./admin-site-next-actions.js";
 import type { SiteRankings, SiteTrackedKeyword, SiteTrackedKeywordUpdate, SiteTrackKeywordRequest } from "./admin-site-rankings.js";
 import type { SavedSiteReport, SavedSiteReportList, SavedSiteReportRequest, SiteReportRequestOptions } from "./admin-site-saved-reports.js";
 import type { SearchPoolQueryPage, SearchPoolSetting } from "./admin-site-search-pool.js";
@@ -47,6 +49,7 @@ export declare const SiteRule: {
     readonly HTMLTooLarge: "html.too-large";
     readonly OpenGraphMissing: "og.missing";
     readonly OpenGraphImageMissing: "og.image-missing";
+    readonly OpenGraphImageUnreachable: "og.image-unreachable";
     readonly TwitterCardMissing: "twitter.card-missing";
     readonly ImageAltMissing: "image.alt-missing";
     readonly ImageTooLarge: "image.too-large";
@@ -76,6 +79,7 @@ export declare const SiteRule: {
     readonly HeadingSkip: "heading.order-skip";
     readonly ThinContent: "content.thin";
     readonly DuplicateContent: "content.duplicate";
+    readonly NearDuplicate: "content.near-duplicate";
     readonly HreflangInvalidCode: "hreflang.invalid-code";
     readonly HreflangMissingSelf: "hreflang.missing-self-reference";
     readonly HreflangMissingReturn: "hreflang.missing-return-link";
@@ -101,7 +105,12 @@ export type SiteDomainRequestOptions = RequestOptions & {
     companySlug?: string;
 };
 export type SiteDomainCreateRequest = {
-    /** The Site the host belongs to; a site-bound credential may omit it. */
+    /**
+     * The Site the host belongs to. Omitted, a site-bound credential gets its own Site and anyone
+     * else the Site Custd places the host on: the Site holding it with or without www., else the
+     * Site named after it, else the only Site, or SITE_CHOICE_REQUIRED_CODE when none is decided. A
+     * tenant with no Site gets one named after the host, which needs tenant-admin access.
+     */
     siteUuid?: string;
     host: string;
 };
@@ -225,6 +234,8 @@ export type SiteFinding = {
     source: string;
     remedy: SiteRemedy;
     history: SiteFindingHistory;
+    /** A one-page recheck decides this rule, so requestPageRecheck can confirm the fix. Absent before 3.51. */
+    recheckable?: boolean;
 };
 /** A domain's findings, most severe first. */
 export type SiteFindingList = {
@@ -370,8 +381,12 @@ export declare class SiteDomainAdminClient {
      */
     requestPageRecheck(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageRecheck>;
     getPageRecheck(domainUuid: string, recheckUuid: string, options?: SiteDomainRequestOptions): Promise<SitePageRecheck>;
-    /** Runs the one-page checks on draft HTML; nothing is fetched or stored. */
+    /** Reads up to SITE_PAGE_RECHECK_READ_LIMIT of the domain's rechecks at once; unknown ids are left out. */
+    listPageRechecks(domainUuid: string, recheckUuids: readonly string[], options?: SiteDomainRequestOptions): Promise<SitePageRecheckList>;
+    /** Runs the one-page checks on draft HTML, and the draft tools it asks for; nothing is fetched or stored. */
     checkPage(domainUuid: string, body: SitePageCheckRequest, options?: SiteDomainRequestOptions): Promise<SitePageCheckResponse>;
+    /** Measures how much wording two drafts share, as the near-duplicate rule does; nothing is stored. */
+    compareWording(domainUuid: string, body: SiteWordingCompareRequest, options?: SiteDomainRequestOptions): Promise<SiteWordingCompare>;
     /** Tests a URL against a pasted robots.txt, or the domain's live file when robotsTxt is omitted. */
     testRobots(domainUuid: string, body: SiteRobotsTestRequest, options?: SiteDomainRequestOptions): Promise<SiteRobotsTestResponse>;
     /** Pages through one dimension of the domain's imported search rows; `unavailable` names providers without it. */
@@ -387,6 +402,10 @@ export declare class SiteDomainAdminClient {
     getProjectContext(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteProjectContext>;
     /** Replaces a Site's project context; an omitted list is sent empty and clears it. */
     setProjectContext(body: SiteProjectContextRequest, options?: SiteDomainRequestOptions): Promise<SiteProjectContext>;
+    /** Reads the domain's status and its most important next actions, most important first. */
+    getNextActions(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteNextActions>;
+    /** Reads every domain's status, open findings and first action, worst first (only its own Site's for a site-bound credential). */
+    getPortfolioSummary(options?: SiteDomainRequestOptions): Promise<SitePortfolioSummary>;
     /** Reads the client report without private verification or connection details, in options.template over options.days. */
     getReport(domainUuid: string, options?: SiteReportRequestOptions): Promise<SiteReport>;
     /** Reads uptime windows, ninety daily bars and hourly response times over `responseDays` (1..90). */
@@ -413,6 +432,15 @@ export declare class SiteDomainAdminClient {
     replaceSavedReport(domainUuid: string, reportUuid: string, body: SavedSiteReportRequest, options?: SiteDomainRequestOptions): Promise<SavedSiteReport>;
     /** Deletes a saved report. */
     deleteSavedReport(domainUuid: string, reportUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Lists the domain's active campaign links, newest first, and archived ones too with includeArchived. */
+    listCampaignLinks(domainUuid: string, includeArchived?: boolean, options?: SiteDomainRequestOptions): Promise<SiteCampaignLinkList>;
+    /**
+     * Saves a tagged page link (201). Refused with SITE_CAMPAIGN_LINK_TAKEN_CODE or
+     * SITE_CAMPAIGN_LINK_LIMIT_CODE, and a page of another host with SITE_PAGE_NOT_ON_DOMAIN_CODE.
+     */
+    createCampaignLink(domainUuid: string, body: SiteCampaignLinkRequest, options?: SiteDomainRequestOptions): Promise<SiteCampaignLink>;
+    /** Archives a link: it stays listed with archived links and its tagged URL is free again. */
+    archiveCampaignLink(domainUuid: string, linkUuid: string, options?: SiteDomainRequestOptions): Promise<SiteCampaignLink>;
     /** Lists live report shares. Tokens are returned only on creation. */
     listReportShares(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteReportShareList>;
     /** Creates a public report share. Copy the token once; creation is never retried automatically. */

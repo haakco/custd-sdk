@@ -6,7 +6,11 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 
 use HaakCo\Custd\Fields;
 
-/** SiteFinding is one problem an audit found on a verified domain, with the fix. */
+/**
+ * SiteFinding is one problem an audit found on a verified domain, with the fix. recheckable says a
+ * one-page recheck decides its rule, so requestPageRecheck can confirm the fix; it reads false from
+ * a server before 3.51.
+ */
 final readonly class SiteFinding
 {
     public function __construct(
@@ -20,6 +24,7 @@ final readonly class SiteFinding
         public string $source,
         public SiteRemedy $remedy,
         public SiteFindingHistory $history,
+        public bool $recheckable = false,
     ) {
     }
 
@@ -36,6 +41,7 @@ final readonly class SiteFinding
             Fields::string($payload, 'source'),
             SiteRemedy::fromPayload(Fields::object($payload, 'remedy')),
             SiteFindingHistory::fromPayload(Fields::object($payload, 'history')),
+            Fields::optionalBoolean($payload, 'recheckable') ?? false,
         );
     }
 }
