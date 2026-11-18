@@ -38,6 +38,7 @@ enum SiteRule: string
     case HTMLTooLarge = 'html.too-large';
     case OpenGraphMissing = 'og.missing';
     case OpenGraphImageMissing = 'og.image-missing';
+    case OpenGraphImageUnreachable = 'og.image-unreachable';
     case TwitterCardMissing = 'twitter.card-missing';
     case ImageAltMissing = 'image.alt-missing';
     case ImageTooLarge = 'image.too-large';
@@ -67,6 +68,7 @@ enum SiteRule: string
     case HeadingSkip = 'heading.order-skip';
     case ThinContent = 'content.thin';
     case DuplicateContent = 'content.duplicate';
+    case NearDuplicate = 'content.near-duplicate';
     case HreflangInvalidCode = 'hreflang.invalid-code';
     case HreflangMissingSelf = 'hreflang.missing-self-reference';
     case HreflangMissingReturn = 'hreflang.missing-return-link';

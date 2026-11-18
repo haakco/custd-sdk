@@ -42,6 +42,7 @@ export const SiteRule = {
     HTMLTooLarge: "html.too-large",
     OpenGraphMissing: "og.missing",
     OpenGraphImageMissing: "og.image-missing",
+    OpenGraphImageUnreachable: "og.image-unreachable",
     TwitterCardMissing: "twitter.card-missing",
     ImageAltMissing: "image.alt-missing",
     ImageTooLarge: "image.too-large",
@@ -71,6 +72,7 @@ export const SiteRule = {
     HeadingSkip: "heading.order-skip",
     ThinContent: "content.thin",
     DuplicateContent: "content.duplicate",
+    NearDuplicate: "content.near-duplicate",
     HreflangInvalidCode: "hreflang.invalid-code",
     HreflangMissingSelf: "hreflang.missing-self-reference",
     HreflangMissingReturn: "hreflang.missing-return-link",
@@ -203,9 +205,26 @@ export class SiteDomainAdminClient {
         const path = `${domainPath(domainUuid)}/page-rechecks/${encodeURIComponent(recheckUuid)}`;
         return this.send("GET", path, {}, undefined, options);
     }
-    /** Runs the one-page checks on draft HTML; nothing is fetched or stored. */
-    checkPage(domainUuid, body, options) {
-        return this.send("POST", `${domainPath(domainUuid)}/page-check`, {}, { url: body.url, html: body.html }, options);
+    /** Runs the one-page checks on draft HTML, and the draft tools it asks for; nothing is fetched or stored. */
+    async checkPage(domainUuid, body, options) {
+        const request = { url: body.url, html: body.html };
+        if (body.previousUrl)
+            request.previousUrl = body.previousUrl;
+        if (body.phrase)
+            request.phrase = body.phrase;
+        const check = await this.send("POST", `${domainPath(domainUuid)}/page-check`, {}, request, options);
+        if (check.phrase?.wordCount === 0)
+            delete check.phrase.densityPercent;
+        return check;
+    }
+    /** Measures how much wording two drafts share, as the near-duplicate rule does; nothing is stored. */
+    async compareWording(domainUuid, body, options) {
+        const request = { first: body.first, second: body.second };
+        const path = `${domainPath(domainUuid)}/wording-compare`;
+        const result = await this.send("POST", path, {}, request, options);
+        if (!result.compared)
+            delete result.sharedPercent;
+        return result;
     }
     /** Tests a URL against a pasted robots.txt, or the domain's live file when robotsTxt is omitted. */
     testRobots(domainUuid, body, options) {
@@ -304,6 +323,33 @@ export class SiteDomainAdminClient {
     /** Deletes a saved report. */
     deleteSavedReport(domainUuid, reportUuid, options) {
         return this.send("DELETE", savedReportPath(domainUuid, reportUuid), {}, undefined, options);
+    }
+    /** Lists the domain's active campaign links, newest first, and archived ones too with includeArchived. */
+    listCampaignLinks(domainUuid, includeArchived = false, options) {
+        const query = { archived: includeArchived ? "true" : undefined };
+        return this.send("GET", campaignLinksPath(domainUuid), query, undefined, options);
+    }
+    /**
+     * Saves a tagged page link (201). Refused with SITE_CAMPAIGN_LINK_TAKEN_CODE or
+     * SITE_CAMPAIGN_LINK_LIMIT_CODE, and a page of another host with SITE_PAGE_NOT_ON_DOMAIN_CODE.
+     */
+    createCampaignLink(domainUuid, body, options) {
+        const request = {
+            url: body.url,
+            source: body.source,
+            medium: body.medium,
+            campaign: body.campaign,
+        };
+        if (body.term)
+            request.term = body.term;
+        if (body.content)
+            request.content = body.content;
+        return this.send("POST", campaignLinksPath(domainUuid), {}, request, options);
+    }
+    /** Archives a link: it stays listed with archived links and its tagged URL is free again. */
+    archiveCampaignLink(domainUuid, linkUuid, options) {
+        const path = `${campaignLinksPath(domainUuid)}/${encodeURIComponent(linkUuid)}/archive`;
+        return this.send("POST", path, {}, undefined, options);
     }
     /** Lists live report shares. Tokens are returned only on creation. */
     listReportShares(domainUuid, options) {
@@ -470,6 +516,9 @@ function savedReportBody(body) {
     if (body.days !== undefined)
         request.days = body.days;
     return request;
+}
+function campaignLinksPath(domainUuid) {
+    return `${domainPath(domainUuid)}/campaign-links`;
 }
 function rankingKeywordsPath(domainUuid) {
     return `${domainPath(domainUuid)}/rankings/keywords`;

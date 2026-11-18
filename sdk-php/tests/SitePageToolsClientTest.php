@@ -10,6 +10,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteGeneratedFix;
 use HaakCo\Custd\Admin\SiteDomain\SiteMarket;
 use HaakCo\Custd\Admin\SiteDomain\SitePageCheckRequest;
 use HaakCo\Custd\Admin\SiteDomain\SitePageRecheckState;
+use HaakCo\Custd\Admin\SiteDomain\SitePhraseUse;
 use HaakCo\Custd\Admin\SiteDomain\SiteProjectContextRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteRemedy;
 use HaakCo\Custd\Admin\SiteDomain\SiteRobotsDirective;
@@ -18,6 +19,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteRobotsTestRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchDimension;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspectionStatus;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchProvider;
+use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompareRequest;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use HaakCo\Custd\CustdClient;
 use PHPUnit\Framework\TestCase;
@@ -64,11 +66,61 @@ final class SitePageToolsClientTest extends TestCase
         self::assertSame('ai.js-required', $check->findings[0]->rule);
         self::assertSame(SiteGeneratedFix::FORMAT_HTML, $check->findings[1]->remedy->generated?->format);
         self::assertSame(['url' => $request->url, 'html' => $request->html], $calls[2]['body']);
+        self::assertNull($check->slug);
+        self::assertNull($check->redirect);
+        self::assertNull($check->phrase);
+        self::assertSame('', $facts->shareImage);
+        self::assertNull($facts->faqSchema);
         self::assertSame([
             'GET ' . self::BASE . '/d-1/page-facts?url=https%3A%2F%2Fexample.com%2Fplans&companySlug=acme',
             'GET ' . self::BASE . '/d-1/page-facts?url=https%3A%2F%2Fexample.com%2Faf%2Fplanne',
             'POST ' . self::BASE . '/d-1/page-check',
         ], array_column($calls, 'route'));
+    }
+
+    public function testDraftToolsSendPreviousUrlAndPhraseAndDecodeTheirAnswers(): void
+    {
+        $request = $this->fixture('pageCheckDraftToolsRequest');
+        $check = $this->client($calls, 'pageCheckDraftTools')->checkPage('d-1', new SitePageCheckRequest(
+            (string) $request->url,
+            (string) $request->html,
+            (string) $request->previousUrl,
+            (string) $request->phrase,
+        ));
+        $facts = $this->client($calls, 'pageFactsShareImage')->getPageFacts('d-1', 'https://example.com/plans');
+        $wordless = SitePhraseUse::fromPayload(
+            json_decode('{"phrase":"x","inTitle":false,"inDescription":false,"inH1":false,"count":0,"wordCount":0,"densityPercent":0}', false, 512, JSON_THROW_ON_ERROR),
+        );
+
+        self::assertSame((array) $request, $calls[0]['body']);
+        self::assertSame('cafe-hosting-plans-for-small-teams', $check->slug);
+        self::assertSame(SiteGeneratedFix::FORMAT_REDIRECT, $check->redirect?->format);
+        self::assertSame(2, $check->phrase?->count);
+        self::assertTrue($check->phrase->inDescription);
+        self::assertSame(3.85, $check->phrase->densityPercent);
+        self::assertNull($wordless->densityPercent);
+        self::assertSame('https://example.com/img/team.jpg', $facts->shareImage);
+        self::assertStringContainsString('FAQPage', (string) $facts->faqSchema?->code);
+    }
+
+    public function testWordingCompareLeavesTheShareOfUncomparedTextsNull(): void
+    {
+        $request = $this->fixture('wordingCompareRequest');
+        $compared = $this->client($calls, 'wordingCompare')
+            ->compareWording('d-1', new SiteWordingCompareRequest((string) $request->first, (string) $request->second));
+        $short = $this->client($calls, 'wordingCompareNotCompared')
+            ->compareWording('d-1', new SiteWordingCompareRequest('a', 'b'));
+
+        self::assertSame((array) $request, $calls[0]['body']);
+        self::assertSame(91, $compared->sharedPercent);
+        self::assertTrue($compared->nearDuplicate);
+        self::assertFalse($short->compared);
+        self::assertNull($short->sharedPercent);
+        self::assertSame(200, $short->minWords);
+        self::assertSame(
+            ['POST ' . self::BASE . '/d-1/wording-compare', 'POST ' . self::BASE . '/d-1/wording-compare'],
+            array_column($calls, 'route'),
+        );
     }
 
     public function testPageRechecksQueueAndPoll(): void

@@ -358,7 +358,7 @@ joins search pages to the analytics goals credited to their landings. A report o
 Lighthouse history from a 3.46.0-era server has a `null` `template` or `url` and
 no `pages`.
 
-Four focused clients hang off the same client. `rankings()` tracks keyword
+Five focused clients hang off the same client. `rankings()` tracks keyword
 positions from Search Console (`getRankings()`, `trackKeyword()`,
 `updateTrackedKeyword()`, whose request keeps the stored alert position when
 `notifyPosition` is null, `untrackKeyword()`); a day the domain did not rank has a
@@ -373,8 +373,16 @@ keeps its keyword lists (`listKeywordLists()`, `saveKeywordList()`,
 `deleteKeywordList()`, `getKeywordClusters()`). `searchPool()` is tenant-wide:
 `getSearchPool()` and `setSearchPool(true|false)` join or leave the shared search
 pool, and `listSearchPoolQueries($search, $limit)` reads its k-anonymous query
-bands once joined (`SEARCH_POOL_NOT_JOINED_CODE` before). Refusals carry the
-`*_CODE` constants on the client that made the call.
+bands once joined (`SEARCH_POOL_NOT_JOINED_CODE` before). `campaignLinks()`
+keeps a domain's saved UTM links (`listCampaignLinks()`, `createCampaignLink()`,
+`archiveCampaignLink()`). Refusals carry the `*_CODE` constants on the client that
+made the call.
+
+`checkPage()` takes an optional `previousUrl` and `phrase` on
+`SitePageCheckRequest` and then returns the draft's `slug`, `redirect` and
+`phrase`; page facts carry `shareImage` and `faqSchema`. `compareWording()`
+measures two drafts as the `content.near-duplicate` rule does; `sharedPercent` is
+`null` when the texts were too short to compare.
 
 ## Schema Admin Helpers
 

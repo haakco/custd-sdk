@@ -25,6 +25,7 @@ export { PredictionAdminClient, } from "./admin-predictions.js";
 export { PrivacyErasureClient, PrivacyErasureError, } from "./admin-privacy-erasures.js";
 export { RetentionClient, } from "./admin-retention.js";
 export { SITE_AUDIT_PAGES_DEFAULT_LIMIT, SITE_AUDIT_PAGES_MAX_LIMIT, SITE_LIGHTHOUSE_MAX_EXTRA_PAGES, SITE_LIGHTHOUSE_PAGE_NOT_EXTRA_CODE, SiteAuditPageIndexability, SiteAuditRun, } from "./admin-site-audit-pages.js";
+export { SITE_CAMPAIGN_LINK_LIMIT_CODE, SITE_CAMPAIGN_LINK_TAKEN_CODE, SITE_CAMPAIGN_LINKS_MAX, } from "./admin-site-campaign-links.js";
 export { SITE_DOMAIN_NOT_VERIFIED_CODE, SITE_SEARCH_CONNECTION_NOT_FOUND_CODE, SITE_SEARCH_NOT_CONFIGURED_CODE, SiteDomainAdminClient, SiteRule, } from "./admin-site-domains.js";
 export { IndexNowSubmissionStatus, SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE, SITE_INDEXNOW_KEY_UNVERIFIED_CODE, SITE_INDEXNOW_LIMIT_CODE, SITE_INDEXNOW_NOT_ENABLED_CODE, SITE_INDEXNOW_URLS_INVALID_CODE, SITE_PAGE_NOT_ON_DOMAIN_CODE, SITE_PAGE_RECHECK_LIMIT_CODE, SITE_SEARCH_INSPECTION_LIMIT_CODE, SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE, SITE_SEARCH_INSPECTION_URL_INVALID_CODE, SiteGeneratedFormat, SitePageRecheckState, SiteRemedyKind, } from "./admin-site-insights.js";
 export { SiteLinkSource, SiteLinkSourceStatus, } from "./admin-site-links.js";

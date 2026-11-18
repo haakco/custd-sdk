@@ -8,7 +8,10 @@ use HaakCo\Custd\Fields;
 
 /**
  * SitePageFacts is what the latest audit, recheck or draft check read from one page. Text
- * fields are as written on the page and empty when absent.
+ * fields are as written on the page and empty when absent. shareImage is the og:image a fix would
+ * name (the largest declared image, else the first unsized one; never fetched), empty when there
+ * is none or the server predates it. faqSchema is FAQPage JSON-LD from the page's question
+ * headings, null when it asks none; Google shows no FAQ rich results since 7 May 2026.
  */
 final readonly class SitePageFacts
 {
@@ -31,11 +34,15 @@ final readonly class SitePageFacts
         public array $headings,
         public int $wordCount,
         public SitePageReadability $readability,
+        public string $shareImage = '',
+        public ?SiteGeneratedFix $faqSchema = null,
     ) {
     }
 
     public static function fromPayload(\stdClass $payload): self
     {
+        $faqSchema = Fields::optionalObject($payload, 'faqSchema');
+
         return new self(
             Fields::string($payload, 'url'),
             Fields::string($payload, 'observedAt'),
@@ -51,6 +58,8 @@ final readonly class SitePageFacts
             array_map(SitePageHeading::fromPayload(...), Fields::objects($payload, 'headings')),
             Fields::integer($payload, 'wordCount'),
             SitePageReadability::fromPayload(Fields::object($payload, 'readability')),
+            Fields::optionalString($payload, 'shareImage') ?? '',
+            $faqSchema === null ? null : SiteGeneratedFix::fromPayload($faqSchema),
         );
     }
 }

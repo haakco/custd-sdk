@@ -31,6 +31,8 @@ SITE_REMEDY_KIND_SERVER = "server"
 # The formats a remedy's generated code comes in.
 SITE_GENERATED_FORMAT_HTML = "html"
 SITE_GENERATED_FORMAT_ROBOTS_TXT = "robots.txt"
+# One Apache line and one nginx line.
+SITE_GENERATED_FORMAT_REDIRECT = "redirect"
 
 # SitePageRecheckState: queued until the scheduler's next tick, then checked or failed.
 SitePageRecheckState = Literal["queued", "checked", "failed"]
@@ -174,7 +176,12 @@ class SitePageReadability(TypedDict):
 
 
 class SitePageFacts(TypedDict):
-    """What the latest audit, recheck or draft check read from one page."""
+    """What the latest audit, recheck or draft check read from one page.
+
+    ``shareImage`` is the og:image a fix would name (the largest declared image, else the first
+    unsized one; never fetched). ``faqSchema`` is FAQPage JSON-LD from the page's question
+    headings; Google shows no FAQ rich results since 7 May 2026. Both are absent from older servers.
+    """
 
     url: str
     observedAt: str
@@ -190,6 +197,8 @@ class SitePageFacts(TypedDict):
     headings: list[SitePageHeading]
     wordCount: int
     readability: SitePageReadability
+    shareImage: NotRequired[str]
+    faqSchema: NotRequired[SiteGeneratedFix]
 
 
 class SitePageRecheck(TypedDict):
@@ -205,11 +214,49 @@ class SitePageRecheck(TypedDict):
     fixedRules: list[str]
 
 
+class SitePhraseUse(TypedDict):
+    """Where one phrase appears in a draft and how often, with no target or verdict.
+
+    ``densityPercent`` is count over wordCount as a percentage, absent when the draft has no words.
+    """
+
+    phrase: str
+    inTitle: bool
+    inDescription: bool
+    inH1: bool
+    count: int
+    wordCount: int
+    densityPercent: NotRequired[float]
+
+
 class SitePageCheckResponse(TypedDict):
-    """What the page checks found on draft HTML: the page's facts and its own findings."""
+    """What the page checks found on draft HTML: the page's facts and its own findings.
+
+    The draft tools are absent unless asked for: ``slug`` from the draft's first h1, else its
+    title; ``redirect`` from previous_url (format SITE_GENERATED_FORMAT_REDIRECT); ``phrase``.
+    """
 
     page: SitePageFacts
     findings: list[SitePageFinding]
+    slug: NotRequired[str]
+    redirect: NotRequired[SiteGeneratedFix]
+    phrase: NotRequired[SitePhraseUse]
+
+
+class SiteWordingCompare(TypedDict):
+    """How much wording two drafts share, measured as the content.near-duplicate rule does.
+
+    It is wording overlap, not plagiarism. Texts under ``minWords`` are not compared:
+    ``compared`` is False and ``sharedPercent`` absent.
+    """
+
+    firstWords: int
+    secondWords: int
+    minWords: int
+    compared: bool
+    sharedPercent: NotRequired[int]
+    thresholdPercent: int
+    nearDuplicate: bool
 
 
 class SiteRobotsRule(TypedDict):

@@ -44,6 +44,8 @@ use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspection;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspectionList;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchRowPage;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchValue;
+use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompare;
+use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompareRequest;
 
 /**
  * SiteDomainClient claims the hosts a site serves, proves the tenant controls
@@ -128,6 +130,12 @@ final class SiteDomainClient
     public function webData(): SiteWebDataClient
     {
         return new SiteWebDataClient($this->http);
+    }
+
+    /** Keep the domains' saved UTM campaign links. */
+    public function campaignLinks(): SiteCampaignLinkClient
+    {
+        return new SiteCampaignLinkClient($this->http);
     }
 
     /** Join or leave the tenant's shared search pool and read its pooled queries. */
@@ -390,7 +398,10 @@ final class SiteDomainClient
         ));
     }
 
-    /** Run the one-page checks on draft HTML before it is published. Nothing is fetched or stored. */
+    /**
+     * Run the one-page checks on draft HTML before it is published, and the draft tools the request
+     * asks for. Nothing is fetched or stored.
+     */
     public function checkPage(
         string $domainUuid,
         SitePageCheckRequest $request,
@@ -398,6 +409,17 @@ final class SiteDomainClient
     ): SitePageCheckResponse {
         return SitePageCheckResponse::fromPayload(
             $this->send('POST', self::item($domainUuid) . '/page-check', [], $companySlug, $request->serialise())
+        );
+    }
+
+    /** Measure how much wording two drafts share, as the near-duplicate rule does. Nothing is stored. */
+    public function compareWording(
+        string $domainUuid,
+        SiteWordingCompareRequest $request,
+        ?string $companySlug = null,
+    ): SiteWordingCompare {
+        return SiteWordingCompare::fromPayload(
+            $this->send('POST', self::item($domainUuid) . '/wording-compare', [], $companySlug, $request->serialise())
         );
     }
 

@@ -20,6 +20,8 @@ export declare const SiteRemedyKind: {
 export declare const SiteGeneratedFormat: {
     readonly HTML: "html";
     readonly RobotsTxt: "robots.txt";
+    /** One Apache line and one nginx line. */
+    readonly Redirect: "redirect";
 };
 /** Ready-to-copy code for one finding. It is never a published change. */
 export type SiteGeneratedFix = {
@@ -99,6 +101,10 @@ export type SitePageFacts = {
     headings: SitePageHeading[];
     wordCount: number;
     readability: SitePageReadability;
+    /** The og:image a fix would name: the largest declared image, else the first unsized one; never fetched. */
+    shareImage?: string;
+    /** FAQPage JSON-LD from the page's question headings; Google shows no FAQ rich results since 7 May 2026. */
+    faqSchema?: SiteGeneratedFix;
 };
 export declare const SitePageRecheckState: {
     readonly Queued: "queued";
@@ -122,11 +128,51 @@ export type SitePageCheckRequest = {
     url: string;
     /** The page's full HTML, at most 512 KiB. */
     html: string;
+    /** The page's current address on the same host, when publishing moves it; asks for the redirect. */
+    previousUrl?: string;
+    /** A search phrase, at most 100 characters, to find in the draft. */
+    phrase?: string;
 };
-/** What the page checks found on one page, without the rest of the site. */
+/** Where one phrase appears in a draft and how often, with no target or verdict. */
+export type SitePhraseUse = {
+    phrase: string;
+    inTitle: boolean;
+    inDescription: boolean;
+    inH1: boolean;
+    count: number;
+    /** Words of visible text the count is out of. */
+    wordCount: number;
+    /** count over wordCount as a percentage; absent when the draft has no words. */
+    densityPercent?: number;
+};
+/** What the page checks found on one page, without the rest of the site. The draft tools are absent unless asked for. */
 export type SitePageCheckResponse = {
     page: SitePageFacts;
     findings: SitePageFinding[];
+    /** A URL slug from the draft's first h1, else its title. */
+    slug?: string;
+    /** The permanent redirect from previousUrl, format SiteGeneratedFormat.Redirect. */
+    redirect?: SiteGeneratedFix;
+    phrase?: SitePhraseUse;
+};
+/** Two drafts, as HTML or plain text (each at most 512 KiB), to compare. Nothing is stored. */
+export type SiteWordingCompareRequest = {
+    first: string;
+    second: string;
+};
+/**
+ * How much wording two drafts share, measured as the content.near-duplicate rule does; wording
+ * overlap, not plagiarism. Texts under minWords are not compared: compared is false and
+ * sharedPercent absent.
+ */
+export type SiteWordingCompare = {
+    firstWords: number;
+    secondWords: number;
+    minWords: number;
+    compared: boolean;
+    sharedPercent?: number;
+    thresholdPercent: number;
+    nearDuplicate: boolean;
 };
 export type SiteRobotsTestRequest = {
     /** A path such as /blog/post?id=1, or an http(s) URL. */
