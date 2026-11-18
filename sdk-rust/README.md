@@ -1,8 +1,8 @@
 # custd SDK (Rust)
 
 A blocking, typed client for the Custd API. It covers measurement projects, the hosted-app item
-links under `/api/v1/app/`, and RFC 8628 device-code login, which works the same way as
-`custdctl login --method device`.
+routes under `/api/v1/app/` (items, meetings, alerts and forecasts), and RFC 8628 device-code
+login, which works the same way as `custdctl login --method device`.
 
 ## Install
 
@@ -10,7 +10,7 @@ The crate is not on crates.io. Add it as a git dependency, pinned to a release t
 
 ```toml
 [dependencies]
-custd-sdk = { git = "https://github.com/haakco/custd-sdk", tag = "v3.49.0" }
+custd-sdk = { git = "https://github.com/haakco/custd-sdk", tag = "v3.52.0" }
 ```
 
 It uses `ureq` with rustls (ring), `serde` and `serde_json`. It has no async runtime and no
@@ -54,6 +54,16 @@ if let Conditional::Modified { etag, value } = link.read(&AppReadOptions::defaul
     println!("version {} (etag {etag:?})", value.item.version);
 }
 ```
+
+`AppClient::with_user_token` adds the signed-in user's access token (`X-Custd-User-Token`) to every
+call: `list_my_items()` reads "my items", `link(owner_token).claim()` takes ownership, and
+`owned_item(item_uuid)` reaches an owned item with no link. Links also cover `forecast_story`,
+meetings (`start_meeting`, `advance_meeting(block_uuid)`, `end_meeting`) and alerts
+(`alert_settings`, `add_alert_rule`, `add_alert_webhook`, `subscribe_alert_email`,
+`alert_deliveries` and their removals). `ApiError::code()` names a refusal, such as
+`APP_ITEM_MEETING_STEP_REFUSED` or `APP_ALERT_NO_VERIFIED_EMAIL`.
+`read_hosted_app_discovery(app_origin)` reads `/.well-known/custd.json`, and
+`AppClient::from_discovery` builds a client from it.
 
 Observation imports check that every row has a result and that every accepted row has an
 `observationUuid`. An HTTP 202 on its own is not treated as success. A non-success answer

@@ -14,12 +14,12 @@ function or existing `UseQueryResult`. The session helpers wrap a core
 ## Install
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.49.0&path:/sdk-js' \
-  '@haakco/custd-react@github:haakco/custd-sdk#v3.49.0&path:/sdk-react'
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.52.0&path:/sdk-js' \
+  '@haakco/custd-react@github:haakco/custd-sdk#v3.52.0&path:/sdk-react'
 ```
 
 Use the same released tag for both packages. These examples were verified on
-2026-11-17 against **3.49.0**. Keep the application's installed React 18/19 and
+2026-11-17 against **3.52.0**. Keep the application's installed React 18/19 and
 TanStack Query 5 peers; do not install a different React copy for this helper.
 GitHub tags with checked-in distributions are the publication owner, not a
 private registry. The state-display component renders DOM elements and is for
@@ -118,6 +118,10 @@ signed-in user owns. They return the core watched state (`loading`, `fresh`,
 `empty`, `stale`, `offline`, `error`), `idle` while the token is empty, and
 `refresh()`. Components watching the same item and link on the same client
 share one poller.
+
+`useAppMeeting(token, options)` reads a meeting item's `meeting` through the
+same item poller, so it adds no request beside `useAppItem` on that link; an
+item of another kind is an `error` with code `app_item_wrong_kind`.
 
 ```tsx
 import { useAppForecast, useAppItem } from "@haakco/custd-react";

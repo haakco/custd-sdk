@@ -1,4 +1,6 @@
+import { type AppAlertDeliveryList, type AppAlertRule, type AppAlertRuleSpec, type AppAlertSettings, type AppAlertSubscription, type AppAlertWebhookCreated, type AppAlertWebhookCreateRequest } from "./app-alerts.js";
 import { type AppLiveWatch, type AppLiveWatchOptions } from "./app-live.js";
+import { type AppMeeting, type AppMeetingAdvanceRequest, type AppMeetingCreate } from "./app-meetings.js";
 import { type AppModelCalculateRequest, type AppModelCalculateResult, type AppModelCopyRequest, type AppModelCreate, type AppModelRun, type AppModelRunRequest, type AppModelVersionCreateRequest, type AppUncertaintyModel } from "./app-models.js";
 export declare const APP_ITEM_SITE_KEY_HEADER = "X-Custd-Site-Key";
 /** Carries the signed-in user's access token beside the link token. */
@@ -93,6 +95,10 @@ export type AppItemCreateRequest = {
 } | {
     kind: typeof APP_ITEM_KINDS.linkCollection;
     idleExpirySeconds?: number;
+} | {
+    kind: typeof APP_ITEM_KINDS.meeting;
+    idleExpirySeconds?: number;
+    meeting: AppMeetingCreate;
 } | {
     kind: typeof APP_ITEM_KINDS.uncertaintyModel;
     idleExpirySeconds?: number;
@@ -224,6 +230,7 @@ export type AppItemRead = {
     linkCollection?: {
         entries: AppLinkCollectionEntry[] | null;
     };
+    meeting?: AppMeeting;
     uncertaintyModel?: AppUncertaintyModel;
 };
 /** A new item and its two links. Each token is shown this once: keep it, Custd cannot. */
@@ -467,6 +474,8 @@ export declare class AppItemError extends Error {
     status: number | null, code: string, problem?: AppProblem | undefined);
     /** The user must sign in (again): their access token was refused, or none was sent. */
     get signInNeeded(): boolean;
+    /** Alert email needs a verified address: the signed-in user must verify one first. */
+    get verifiedEmailNeeded(): boolean;
     /** Retrying cannot help: the link, key or request itself was refused. */
     get terminal(): boolean;
 }
@@ -553,6 +562,36 @@ export declare class AppItemsClient {
     calculateModel(access: AppItemAccess, request: AppModelCalculateRequest): Promise<AppModelCalculateResult>;
     /** The newest model run; a `runMissing` AppItemError until one exists. */
     latestModelRun(access: AppItemAccess, options?: AppReadOptions): Promise<AppConditionalRead<AppModelRun>>;
+    /** The item's alert rules, webhooks and the signed-in caller's email subscription. Owner only. */
+    alertSettings(access: AppItemAccess): Promise<AppAlertSettings>;
+    /** The item's newest alert deliveries, at most 100. Owner only. */
+    alertDeliveries(access: AppItemAccess): Promise<AppAlertDeliveryList>;
+    /** Adds a rule that fires once each time its condition becomes true. At most 10 per item. */
+    addAlertRule(access: AppItemAccess, rule: AppAlertRuleSpec): Promise<AppAlertRule>;
+    /** Removes a rule and its delivery history. */
+    removeAlertRule(access: AppItemAccess, ruleUuid: string): Promise<void>;
+    /** Registers a signed webhook. Its `signingSecret` is shown this once. At most 5 per item. */
+    addAlertWebhook(access: AppItemAccess, request: AppAlertWebhookCreateRequest): Promise<AppAlertWebhookCreated>;
+    /** Removes a webhook; its undelivered alerts go with it. */
+    removeAlertWebhook(access: AppItemAccess, webhookUuid: string): Promise<void>;
+    /**
+     * Emails the signed-in user's verified address when a rule fires; repeating it keeps one
+     * subscription. Refused with `app_sign_in_required` when signed out, `verifiedEmailNeeded` when
+     * the user has no verified address, and a retryable `emailCheckUnavailable`.
+     */
+    subscribeAlertEmail(access: AppItemAccess): Promise<AppAlertSubscription>;
+    /** Stops the signed-in user's alert email. Repeating it succeeds. */
+    unsubscribeAlertEmail(access: AppItemAccess): Promise<void>;
+    /** Starts the meeting item's first block. Owner only. */
+    startMeeting(access: AppItemAccess): Promise<AppItemRead>;
+    /**
+     * Finishes the block `blockUuid` names (the meeting's `currentBlockUuid`) and puts the next one
+     * on. Repeating the advance of the block that just finished returns the meeting unchanged; any
+     * other block is refused with a 409 `stepRefused`, after which watched reads poll at once.
+     */
+    advanceMeeting(access: AppItemAccess, request: AppMeetingAdvanceRequest): Promise<AppItemRead>;
+    /** Ends the meeting now; blocks not reached are recorded as `not_run`. */
+    endMeeting(access: AppItemAccess): Promise<AppItemRead>;
     /** A self-refreshing latest model run; `empty` until the first run exists. */
     watchLatestModelRun(access: AppItemAccess, options?: AppLiveWatchOptions): AppLiveWatch<AppModelRun>;
     /** A self-refreshing item read, shared by every caller watching the same item and link. */
@@ -568,6 +607,7 @@ export declare class AppItemsClient {
     private reach;
     private signedIn;
     private write;
+    private meetingStep;
     private conditional;
     private json;
     private send;

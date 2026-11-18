@@ -1,6 +1,6 @@
 {
   "name": "@haakco/custd-react",
-  "version": "3.49.0",
+  "version": "3.52.0",
   "type": "module",
   "engines": {
     "node": ">=24 <27"
@@ -25,7 +25,7 @@
     "test": "vitest run src"
   },
   "peerDependencies": {
-    "@haakco/custd-sdk": ">=3.49.0 <4",
+    "@haakco/custd-sdk": ">=3.52.0 <4",
     "@tanstack/react-query": ">=5 <6",
     "react": ">=18 <20"
   },

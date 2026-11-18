@@ -6,14 +6,14 @@ Ingestion client with retry, batching, and optional offline queueing.
 
 The supported 3.x SDK sends events to `POST /api/v1/events` and batches to
 `POST /api/v1/events/batch`. Installation examples below were verified against
-release **3.49.0** on 2026-11-17, including Node 26, pnpm 12 and Expo 58 consumers.
+release **3.52.0** on 2026-11-17, including Node 26, pnpm 12 and Expo 58 consumers.
 
 ## Install
 
 Use the GitHub package path when installing into HaakCo apps:
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.49.0&path:/sdk-js'
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.52.0&path:/sdk-js'
 ```
 
 Pin the tag to the SDK version you want. The package is no longer published to
@@ -410,6 +410,24 @@ is retried and keeps the session.
 Model items add `addModelVersion`, `copyModel`, `runModel`, `latestModelRun`,
 `watchLatestModelRun` and `calculateModel(token, { versionNumber, inputs,
 outputs })`, which any link may call and which stores nothing.
+
+Meeting items are created with `{ kind: "meeting", meeting: { name, blocks:
+[{ title, predictedMs }] } }`. The owner calls `startMeeting`,
+`advanceMeeting(token, { blockUuid })` and `endMeeting`; each returns the item
+read, whose `meeting` holds `status`, `currentBlockUuid`, every block's
+`predictedMs`, `allocatedMs` (rebalanced after an overrun) and `actualMs`, and
+the `summary`. `blockUuid` names the block being finished, so a retried
+advance is a no-op; a stale one fails with 409
+`APP_MEETING_ERROR_CODES.stepRefused` and the client's watchers poll at once.
+
+Alerts manage the item with the owner link or the owning user:
+`alertSettings`, `addAlertRule(token, { type, threshold?, staleDays? })`,
+`removeAlertRule`, `addAlertWebhook(token, { endpoint })` (its
+`signingSecret` is shown once), `removeAlertWebhook`, `alertDeliveries`, and
+for a signed-in user `subscribeAlertEmail` and `unsubscribeAlertEmail`.
+`error.verifiedEmailNeeded` means the user has no verified address
+(`app_alert_no_verified_email`); `app_alert_email_check_unavailable` is
+retryable. The codes are in `APP_ALERT_ERROR_CODES`.
 
 ## Browser app user sign-in
 

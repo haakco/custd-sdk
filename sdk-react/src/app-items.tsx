@@ -10,6 +10,7 @@ import {
   type AppLiveState,
   type AppLiveWatch,
   type AppLiveWatchOptions,
+  type AppMeeting,
   type AppModelRun,
   HOSTED_APP_STATUSES,
 } from "@haakco/custd-sdk/browser";
@@ -77,6 +78,28 @@ export function useAppModelRun(
   options: UseAppLiveOptions = {},
 ): CustdAppLiveResult<AppModelRun> {
   return useAppLive(token, options, watchLatestModelRun);
+}
+
+/**
+ * The meeting a meeting item runs, kept fresh through the item's shared poller, so it costs no
+ * extra request beside `useAppItem` on the same link. An item of another kind is an `error`
+ * with code `app_item_wrong_kind`.
+ */
+export function useAppMeeting(
+  token: CustdAppItemAccess,
+  options: UseAppLiveOptions = {},
+): CustdAppLiveResult<AppMeeting> {
+  const item = useAppItem(token, options);
+  return useMemo(() => meetingOf(item), [item]);
+}
+
+const NOT_A_MEETING = new AppItemError(null, APP_ITEM_ERROR_CODES.wrongKind);
+
+function meetingOf(result: CustdAppLiveResult<AppItemRead>): CustdAppLiveResult<AppMeeting> {
+  if (!("data" in result) || result.data === undefined) return result as CustdAppLiveResult<AppMeeting>;
+  const meeting = result.data.meeting;
+  if (meeting) return { ...result, data: meeting };
+  return { status: APP_LIVE_STATUSES.error, error: NOT_A_MEETING, retrying: false, refresh: result.refresh };
 }
 
 function watchLatestModelRun(client: AppItemsClient, access: AppItemAccess, options: AppLiveWatchOptions) {

@@ -1,7 +1,9 @@
 // Browser data access for hosted apps: create an item with the app's Site key, then read and
 // change it with its owner link, or only read it with its share link. A link token travels only
 // in the Authorization header: never in a URL, a log line or an error message.
+import { APP_ALERT_ERROR_CODES, } from "./app-alerts.js";
 import { APP_LIVE_STATUSES, AppLiveRegistry, } from "./app-live.js";
+import { APP_MEETING_ERROR_CODES, } from "./app-meetings.js";
 import { APP_MODEL_ERROR_CODES, } from "./app-models.js";
 export const APP_ITEM_SITE_KEY_HEADER = "X-Custd-Site-Key";
 /** Carries the signed-in user's access token beside the link token. */
@@ -73,6 +75,10 @@ export class AppItemError extends Error {
     get signInNeeded() {
         return this.code === APP_ITEM_ERROR_CODES.userRefused || this.code === APP_ITEM_ERROR_CODES.signInRequired;
     }
+    /** Alert email needs a verified address: the signed-in user must verify one first. */
+    get verifiedEmailNeeded() {
+        return this.code === APP_ALERT_ERROR_CODES.noVerifiedEmail;
+    }
     /** Retrying cannot help: the link, key or request itself was refused. */
     get terminal() {
         return (this.status !== null && this.status >= 400 && this.status < 500 && this.status !== 408 && this.status !== 429);
@@ -82,6 +88,8 @@ const ITEMS_PATH = "/api/v1/app/items";
 const ITEM_PATH = "/api/v1/app/item";
 const FORECAST_PATH = "/api/v1/app/forecast";
 const MODELS_PATH = "/api/v1/app/models";
+const ALERTS_PATH = `${ITEM_PATH}/alerts`;
+const MEETING_PATH = `${ITEM_PATH}/meeting`;
 export class AppItemsClient {
     constructor(config) {
         this.live = new AppLiveRegistry();
@@ -196,6 +204,75 @@ export class AppItemsClient {
     latestModelRun(access, options = {}) {
         return this.conditional(`${MODELS_PATH}/latest`, access, options);
     }
+    /** The item's alert rules, webhooks and the signed-in caller's email subscription. Owner only. */
+    alertSettings(access) {
+        return this.json({ method: "GET", path: ALERTS_PATH, ...this.reach(access) });
+    }
+    /** The item's newest alert deliveries, at most 100. Owner only. */
+    alertDeliveries(access) {
+        return this.json({ method: "GET", path: `${ALERTS_PATH}/deliveries`, ...this.reach(access) });
+    }
+    /** Adds a rule that fires once each time its condition becomes true. At most 10 per item. */
+    addAlertRule(access, rule) {
+        return this.json({ method: "POST", path: `${ALERTS_PATH}/rules`, body: rule, ...this.reach(access) });
+    }
+    /** Removes a rule and its delivery history. */
+    async removeAlertRule(access, ruleUuid) {
+        await this.json({
+            method: "DELETE",
+            path: `${ALERTS_PATH}/rules/${encodeURIComponent(ruleUuid)}`,
+            ...this.reach(access),
+        });
+    }
+    /** Registers a signed webhook. Its `signingSecret` is shown this once. At most 5 per item. */
+    addAlertWebhook(access, request) {
+        return this.json({
+            method: "POST",
+            path: `${ALERTS_PATH}/webhooks`,
+            body: request,
+            ...this.reach(access),
+        });
+    }
+    /** Removes a webhook; its undelivered alerts go with it. */
+    async removeAlertWebhook(access, webhookUuid) {
+        await this.json({
+            method: "DELETE",
+            path: `${ALERTS_PATH}/webhooks/${encodeURIComponent(webhookUuid)}`,
+            ...this.reach(access),
+        });
+    }
+    /**
+     * Emails the signed-in user's verified address when a rule fires; repeating it keeps one
+     * subscription. Refused with `app_sign_in_required` when signed out, `verifiedEmailNeeded` when
+     * the user has no verified address, and a retryable `emailCheckUnavailable`.
+     */
+    subscribeAlertEmail(access) {
+        return this.json({
+            method: "PUT",
+            path: `${ALERTS_PATH}/subscription`,
+            ...this.reach(access),
+        });
+    }
+    /** Stops the signed-in user's alert email. Repeating it succeeds. */
+    async unsubscribeAlertEmail(access) {
+        await this.json({ method: "DELETE", path: `${ALERTS_PATH}/subscription`, ...this.reach(access) });
+    }
+    /** Starts the meeting item's first block. Owner only. */
+    startMeeting(access) {
+        return this.meetingStep(access, "start");
+    }
+    /**
+     * Finishes the block `blockUuid` names (the meeting's `currentBlockUuid`) and puts the next one
+     * on. Repeating the advance of the block that just finished returns the meeting unchanged; any
+     * other block is refused with a 409 `stepRefused`, after which watched reads poll at once.
+     */
+    advanceMeeting(access, request) {
+        return this.meetingStep(access, "advance", request);
+    }
+    /** Ends the meeting now; blocks not reached are recorded as `not_run`. */
+    endMeeting(access) {
+        return this.meetingStep(access, "end");
+    }
     /** A self-refreshing latest model run; `empty` until the first run exists. */
     watchLatestModelRun(access, options = {}) {
         return this.live.watch(this.liveKey(access, "model_latest", options.item), accessKey(access), options, (etag) => this.latestModelRun(access, { item: options.item, etag }).catch(noModelRunYet));
@@ -233,6 +310,18 @@ export class AppItemsClient {
         const result = await this.json({ method, path, body, ...this.reach(access) });
         this.live.refreshToken(accessKey(access));
         return result;
+    }
+    async meetingStep(access, step, body) {
+        try {
+            return await this.write(access, "POST", `${MEETING_PATH}/${step}`, body);
+        }
+        catch (error) {
+            // A refused step means this page's view is behind: show watchers the meeting as it is.
+            if (error instanceof AppItemError && error.code === APP_MEETING_ERROR_CODES.stepRefused) {
+                this.live.refreshToken(accessKey(access));
+            }
+            throw error;
+        }
     }
     async conditional(path, access, options) {
         const reached = this.reach(access);

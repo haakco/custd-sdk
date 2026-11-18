@@ -46,6 +46,13 @@ pub struct Problem {
     pub retryability: Option<String>,
 }
 
+impl ApiError {
+    /// The problem's `code`, such as `app_item_meeting_step_refused`, when Custd sent one.
+    pub fn code(&self) -> Option<&str> {
+        self.problem.as_ref()?.code.as_deref()
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

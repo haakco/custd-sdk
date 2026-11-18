@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { APP_ALERT_ERROR_CODES } from "./app-alerts";
 import {
   APP_ITEM_ERROR_CODES,
   type AppItemError,
@@ -9,6 +10,7 @@ import {
   parseAppItemLink,
 } from "./app-items";
 import { APP_LIVE_STATUSES, type AppLiveState } from "./app-live";
+import { APP_MEETING_ERROR_CODES, type AppMeeting } from "./app-meetings";
 
 const API = "https://api.custd.com";
 const SITE_KEY = `site_pk_${"a".repeat(32)}`;
@@ -185,6 +187,161 @@ describe("AppItemsClient for a signed-in user", () => {
     expect(unchecked).toMatchObject({ signInNeeded: false, terminal: false });
     expect(claimed).toMatchObject({ code: APP_ITEM_ERROR_CODES.claimed, terminal: true });
     expect(String(refused.message)).not.toContain(USER);
+  });
+});
+
+describe("item alerts", () => {
+  const USER = "user-access-token";
+  const signedIn = (fetchMock: ReturnType<typeof fakeFetch>) =>
+    new AppItemsClient({
+      apiBaseUrl: API,
+      siteKey: SITE_KEY,
+      fetch: fetchMock as unknown as typeof fetch,
+      userToken: () => USER,
+    });
+
+  it("manages rules, webhooks and the email subscription on the alert routes", async () => {
+    const rule = {
+      ruleUuid: "r1",
+      type: "estimate_stale",
+      staleDays: 7,
+      conditionMet: false,
+      crossings: 0,
+      createdAt: "t",
+    };
+    const webhook = {
+      webhook: { webhookUuid: "w1", endpoint: "https://hooks.example.com/x", createdAt: "t" },
+      signingSecret: "whsec",
+    };
+    const noContent = () => new Response(null, { status: 204 });
+    const fetchMock = fakeFetch(
+      () => json({ rules: [rule], webhooks: [], deliveryAvailable: true }),
+      () => json(rule, 201),
+      noContent,
+      () => json(webhook, 201),
+      noContent,
+      () => json({ subscriptionUuid: "s1", createdAt: "t" }),
+      noContent,
+      () => json({ deliveries: [] }),
+    );
+    const items = signedIn(fetchMock);
+
+    expect((await items.alertSettings(OWNER)).deliveryAvailable).toBe(true);
+    expect(await items.addAlertRule(OWNER, { type: "estimate_stale", staleDays: 7 })).toEqual(rule);
+    await items.removeAlertRule(OWNER, "r1");
+    expect((await items.addAlertWebhook(OWNER, { endpoint: "https://hooks.example.com/x" })).signingSecret).toBe(
+      "whsec",
+    );
+    await items.removeAlertWebhook({ item: ITEM_UUID }, "w1");
+    expect(await items.subscribeAlertEmail(OWNER)).toEqual({ subscriptionUuid: "s1", createdAt: "t" });
+    await items.unsubscribeAlertEmail(OWNER);
+    expect(await items.alertDeliveries(OWNER)).toEqual({ deliveries: [] });
+
+    const calls = fetchMock.mock.calls.map((_, index) => {
+      const request = sent(fetchMock, index);
+      return `${request.init.method} ${request.url.replace(`${API}/api/v1/app/item/alerts`, "")}`;
+    });
+    expect(calls).toEqual([
+      "GET ",
+      "POST /rules",
+      "DELETE /rules/r1",
+      "POST /webhooks",
+      `DELETE /webhooks/w1?item=${ITEM_UUID}`,
+      "PUT /subscription",
+      "DELETE /subscription",
+      "GET /deliveries",
+    ]);
+    expect(JSON.parse(String(sent(fetchMock, 1).init.body))).toEqual({ type: "estimate_stale", staleDays: 7 });
+    expect(sent(fetchMock, 5).headers).toEqual({
+      "X-Custd-Site-Key": SITE_KEY,
+      Authorization: `Bearer ${OWNER}`,
+      "X-Custd-User-Token": USER,
+    });
+  });
+
+  it("names a missing verified email and an email check to retry", async () => {
+    const fetchMock = fakeFetch(
+      () => json({ status: 422, code: "app_alert_no_verified_email" }, 422),
+      () => json({ status: 503, code: "app_alert_email_check_unavailable" }, 503),
+    );
+    const items = signedIn(fetchMock);
+
+    const unverified = await items.subscribeAlertEmail(OWNER).catch((error) => error);
+    const unchecked = await items.subscribeAlertEmail(OWNER).catch((error) => error);
+
+    expect(unverified).toMatchObject({
+      code: APP_ALERT_ERROR_CODES.noVerifiedEmail,
+      verifiedEmailNeeded: true,
+      terminal: true,
+    });
+    expect(unchecked).toMatchObject({
+      code: APP_ALERT_ERROR_CODES.emailCheckUnavailable,
+      verifiedEmailNeeded: false,
+      terminal: false,
+    });
+  });
+});
+
+describe("meetings", () => {
+  const BLOCK = "22222222-2222-4333-8444-555555555555";
+  function meetingRead(status: AppMeeting["status"], current?: string): AppItemRead {
+    const read = itemRead(1);
+    read.item.kind = "meeting";
+    read.meeting = {
+      name: "Standup",
+      status,
+      blocks: [],
+      summary: { predictedMs: 60000, finishedPredictedMs: 0, finishedActualMs: 0, finishedBlocks: 0, overrunMs: 0 },
+    };
+    if (current) read.meeting.currentBlockUuid = current;
+    return read;
+  }
+
+  it("creates a meeting item and starts, advances and ends it", async () => {
+    const fetchMock = fakeFetch(
+      () => json({ item: meetingRead("ready"), ownerToken: OWNER, shareToken: SHARE }, 201),
+      () => json(meetingRead("running", BLOCK)),
+      () => json(meetingRead("running")),
+      () => json(meetingRead("completed")),
+    );
+    const items = client(fetchMock);
+    const agenda = { name: "Standup", blocks: [{ title: "Updates", predictedMs: 60000 }] };
+
+    await items.createItem({ kind: "meeting", meeting: agenda });
+    expect((await items.startMeeting(OWNER)).meeting?.currentBlockUuid).toBe(BLOCK);
+    await items.advanceMeeting(OWNER, { blockUuid: BLOCK });
+    expect((await items.endMeeting(OWNER)).meeting?.status).toBe("completed");
+
+    expect(JSON.parse(String(sent(fetchMock, 0).init.body))).toEqual({ kind: "meeting", meeting: agenda });
+    expect(sent(fetchMock, 1)).toMatchObject({ url: `${API}/api/v1/app/item/meeting/start`, init: { method: "POST" } });
+    expect(sent(fetchMock, 1).init.body).toBeUndefined();
+    expect(sent(fetchMock, 2).url).toBe(`${API}/api/v1/app/item/meeting/advance`);
+    expect(JSON.parse(String(sent(fetchMock, 2).init.body))).toEqual({ blockUuid: BLOCK });
+    expect(sent(fetchMock, 3).url).toBe(`${API}/api/v1/app/item/meeting/end`);
+  });
+
+  it("refreshes the watched meeting after a stale advance is refused", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchMock = fakeFetch(
+        () => json(meetingRead("running", BLOCK)),
+        () => json({ status: 409, code: "app_item_meeting_step_refused" }, 409),
+        () => json(meetingRead("completed")),
+      );
+      const items = client(fetchMock);
+      const watch = items.watchItem(OWNER);
+      const unsubscribe = watch.subscribe(() => {});
+      await vi.advanceTimersByTimeAsync(0);
+
+      const refused = await items.advanceMeeting(OWNER, { blockUuid: BLOCK }).catch((error) => error);
+      expect(refused).toMatchObject({ status: 409, code: APP_MEETING_ERROR_CODES.stepRefused });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(watch.getState()).toMatchObject({ status: APP_LIVE_STATUSES.fresh, data: meetingRead("completed") });
+      unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

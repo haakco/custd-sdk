@@ -2,7 +2,7 @@
 import { AppItemsClient } from "@haakco/custd-sdk/browser";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useAppForecast, useAppItem } from "./app-items.js";
+import { useAppForecast, useAppItem, useAppMeeting } from "./app-items.js";
 import { CustdHostedAppProvider } from "./hosted-app.js";
 
 const API = "https://api.custd.com";
@@ -84,5 +84,48 @@ describe("useAppItem", () => {
     }
     render(<Explicit />);
     await waitFor(() => expect(screen.getByText("ready")).toBeTruthy());
+  });
+});
+
+describe("useAppMeeting", () => {
+  const OWNER = "o".repeat(43);
+  const meetingRead = {
+    item: { itemUuid: "m1", kind: "meeting", role: "owner", version: 4 },
+    meeting: {
+      name: "Standup",
+      status: "running",
+      currentBlockUuid: "b1",
+      blocks: [],
+      summary: { predictedMs: 60000, finishedPredictedMs: 0, finishedActualMs: 0, finishedBlocks: 0, overrunMs: 0 },
+    },
+  };
+
+  it("reads the meeting through the item's shared poller, and refuses an item of another kind", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      return json(headers.Authorization === `Bearer ${OWNER}` ? meetingRead : itemRead);
+    });
+    const client = new AppItemsClient({ apiBaseUrl: API, siteKey: "site_pk_key", fetch: fetchMock });
+    function Meeting({ token }: { token: string }) {
+      const meeting = useAppMeeting(token, { client });
+      if (meeting.status === "fresh") return <p>{`${meeting.data.name} on ${meeting.data.currentBlockUuid}`}</p>;
+      return <p>{meeting.status === "error" ? meeting.error.code : meeting.status}</p>;
+    }
+    function ItemVersion() {
+      const item = useAppItem(OWNER, { client });
+      return <p>{item.status === "fresh" ? `v${item.data.item.version}` : item.status}</p>;
+    }
+    render(
+      <>
+        <Meeting token={OWNER} />
+        <ItemVersion />
+        <Meeting token={SHARE} />
+      </>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Standup on b1")).toBeTruthy());
+    expect(screen.getByText("v4")).toBeTruthy();
+    await waitFor(() => expect(screen.getByText("app_item_wrong_kind")).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

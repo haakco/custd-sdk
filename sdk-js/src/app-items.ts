@@ -3,12 +3,28 @@
 // in the Authorization header: never in a URL, a log line or an error message.
 
 import {
+  APP_ALERT_ERROR_CODES,
+  type AppAlertDeliveryList,
+  type AppAlertRule,
+  type AppAlertRuleSpec,
+  type AppAlertSettings,
+  type AppAlertSubscription,
+  type AppAlertWebhookCreated,
+  type AppAlertWebhookCreateRequest,
+} from "./app-alerts.js";
+import {
   APP_LIVE_STATUSES,
   type AppLiveRead,
   AppLiveRegistry,
   type AppLiveWatch,
   type AppLiveWatchOptions,
 } from "./app-live.js";
+import {
+  APP_MEETING_ERROR_CODES,
+  type AppMeeting,
+  type AppMeetingAdvanceRequest,
+  type AppMeetingCreate,
+} from "./app-meetings.js";
 import {
   APP_MODEL_ERROR_CODES,
   type AppModelCalculateRequest,
@@ -132,6 +148,7 @@ export type AppItemCreateRequest =
       measurementProject: AppMeasurementProjectCreate;
     }
   | { kind: typeof APP_ITEM_KINDS.linkCollection; idleExpirySeconds?: number }
+  | { kind: typeof APP_ITEM_KINDS.meeting; idleExpirySeconds?: number; meeting: AppMeetingCreate }
   | { kind: typeof APP_ITEM_KINDS.uncertaintyModel; idleExpirySeconds?: number; uncertaintyModel: AppModelCreate };
 
 /** Changes only the fields it names. */
@@ -263,6 +280,7 @@ export type AppItemRead = {
   measurementProject?: AppMeasurementProject;
   estimates?: AppProjectEstimateList;
   linkCollection?: { entries: AppLinkCollectionEntry[] | null };
+  meeting?: AppMeeting;
   uncertaintyModel?: AppUncertaintyModel;
 };
 
@@ -472,6 +490,11 @@ export class AppItemError extends Error {
     return this.code === APP_ITEM_ERROR_CODES.userRefused || this.code === APP_ITEM_ERROR_CODES.signInRequired;
   }
 
+  /** Alert email needs a verified address: the signed-in user must verify one first. */
+  get verifiedEmailNeeded(): boolean {
+    return this.code === APP_ALERT_ERROR_CODES.noVerifiedEmail;
+  }
+
   /** Retrying cannot help: the link, key or request itself was refused. */
   get terminal(): boolean {
     return (
@@ -508,7 +531,7 @@ export type AppItemsClientConfig = {
 };
 
 type AppRequest = {
-  method: "GET" | "POST" | "PATCH" | "DELETE";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   path: string;
   credential?: AppItemCredential;
   item?: string;
@@ -520,6 +543,8 @@ const ITEMS_PATH = "/api/v1/app/items";
 const ITEM_PATH = "/api/v1/app/item";
 const FORECAST_PATH = "/api/v1/app/forecast";
 const MODELS_PATH = "/api/v1/app/models";
+const ALERTS_PATH = `${ITEM_PATH}/alerts`;
+const MEETING_PATH = `${ITEM_PATH}/meeting`;
 
 export class AppItemsClient {
   private readonly baseUrl: string;
@@ -673,6 +698,86 @@ export class AppItemsClient {
     return this.conditional<AppModelRun>(`${MODELS_PATH}/latest`, access, options);
   }
 
+  /** The item's alert rules, webhooks and the signed-in caller's email subscription. Owner only. */
+  alertSettings(access: AppItemAccess): Promise<AppAlertSettings> {
+    return this.json<AppAlertSettings>({ method: "GET", path: ALERTS_PATH, ...this.reach(access) });
+  }
+
+  /** The item's newest alert deliveries, at most 100. Owner only. */
+  alertDeliveries(access: AppItemAccess): Promise<AppAlertDeliveryList> {
+    return this.json<AppAlertDeliveryList>({ method: "GET", path: `${ALERTS_PATH}/deliveries`, ...this.reach(access) });
+  }
+
+  /** Adds a rule that fires once each time its condition becomes true. At most 10 per item. */
+  addAlertRule(access: AppItemAccess, rule: AppAlertRuleSpec): Promise<AppAlertRule> {
+    return this.json<AppAlertRule>({ method: "POST", path: `${ALERTS_PATH}/rules`, body: rule, ...this.reach(access) });
+  }
+
+  /** Removes a rule and its delivery history. */
+  async removeAlertRule(access: AppItemAccess, ruleUuid: string): Promise<void> {
+    await this.json<null>({
+      method: "DELETE",
+      path: `${ALERTS_PATH}/rules/${encodeURIComponent(ruleUuid)}`,
+      ...this.reach(access),
+    });
+  }
+
+  /** Registers a signed webhook. Its `signingSecret` is shown this once. At most 5 per item. */
+  addAlertWebhook(access: AppItemAccess, request: AppAlertWebhookCreateRequest): Promise<AppAlertWebhookCreated> {
+    return this.json<AppAlertWebhookCreated>({
+      method: "POST",
+      path: `${ALERTS_PATH}/webhooks`,
+      body: request,
+      ...this.reach(access),
+    });
+  }
+
+  /** Removes a webhook; its undelivered alerts go with it. */
+  async removeAlertWebhook(access: AppItemAccess, webhookUuid: string): Promise<void> {
+    await this.json<null>({
+      method: "DELETE",
+      path: `${ALERTS_PATH}/webhooks/${encodeURIComponent(webhookUuid)}`,
+      ...this.reach(access),
+    });
+  }
+
+  /**
+   * Emails the signed-in user's verified address when a rule fires; repeating it keeps one
+   * subscription. Refused with `app_sign_in_required` when signed out, `verifiedEmailNeeded` when
+   * the user has no verified address, and a retryable `emailCheckUnavailable`.
+   */
+  subscribeAlertEmail(access: AppItemAccess): Promise<AppAlertSubscription> {
+    return this.json<AppAlertSubscription>({
+      method: "PUT",
+      path: `${ALERTS_PATH}/subscription`,
+      ...this.reach(access),
+    });
+  }
+
+  /** Stops the signed-in user's alert email. Repeating it succeeds. */
+  async unsubscribeAlertEmail(access: AppItemAccess): Promise<void> {
+    await this.json<null>({ method: "DELETE", path: `${ALERTS_PATH}/subscription`, ...this.reach(access) });
+  }
+
+  /** Starts the meeting item's first block. Owner only. */
+  startMeeting(access: AppItemAccess): Promise<AppItemRead> {
+    return this.meetingStep(access, "start");
+  }
+
+  /**
+   * Finishes the block `blockUuid` names (the meeting's `currentBlockUuid`) and puts the next one
+   * on. Repeating the advance of the block that just finished returns the meeting unchanged; any
+   * other block is refused with a 409 `stepRefused`, after which watched reads poll at once.
+   */
+  advanceMeeting(access: AppItemAccess, request: AppMeetingAdvanceRequest): Promise<AppItemRead> {
+    return this.meetingStep(access, "advance", request);
+  }
+
+  /** Ends the meeting now; blocks not reached are recorded as `not_run`. */
+  endMeeting(access: AppItemAccess): Promise<AppItemRead> {
+    return this.meetingStep(access, "end");
+  }
+
   /** A self-refreshing latest model run; `empty` until the first run exists. */
   watchLatestModelRun(access: AppItemAccess, options: AppLiveWatchOptions = {}): AppLiveWatch<AppModelRun> {
     return this.live.watch(this.liveKey(access, "model_latest", options.item), accessKey(access), options, (etag) =>
@@ -730,6 +835,22 @@ export class AppItemsClient {
     const result = await this.json<T>({ method, path, body, ...this.reach(access) });
     this.live.refreshToken(accessKey(access));
     return result;
+  }
+
+  private async meetingStep(
+    access: AppItemAccess,
+    step: string,
+    body?: AppMeetingAdvanceRequest,
+  ): Promise<AppItemRead> {
+    try {
+      return await this.write<AppItemRead>(access, "POST", `${MEETING_PATH}/${step}`, body);
+    } catch (error) {
+      // A refused step means this page's view is behind: show watchers the meeting as it is.
+      if (error instanceof AppItemError && error.code === APP_MEETING_ERROR_CODES.stepRefused) {
+        this.live.refreshToken(accessKey(access));
+      }
+      throw error;
+    }
   }
 
   private async conditional<T>(

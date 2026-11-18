@@ -154,6 +154,7 @@ export {
   useAppForecast,
   useAppForecastStory,
   useAppItem,
+  useAppMeeting,
   useAppModelRun,
 } from "./app-items.js";
 export {

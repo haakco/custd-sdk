@@ -13,6 +13,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 pub(crate) enum Method {
     Get,
     Post,
+    Put,
     Delete,
 }
 
@@ -108,6 +109,7 @@ fn http_method(method: Method) -> ureq::http::Method {
     match method {
         Method::Get => ureq::http::Method::GET,
         Method::Post => ureq::http::Method::POST,
+        Method::Put => ureq::http::Method::PUT,
         Method::Delete => ureq::http::Method::DELETE,
     }
 }
