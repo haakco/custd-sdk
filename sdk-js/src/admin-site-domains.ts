@@ -10,6 +10,7 @@ import type {
   SiteLighthousePages,
   SiteLighthouseRequestOptions,
 } from "./admin-site-audit-pages.js";
+import type { SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest } from "./admin-site-campaign-links.js";
 import type {
   IndexNowState,
   IndexNowSubmission,
@@ -33,6 +34,8 @@ import type {
   SiteSearchRowPage,
   SiteSearchRowsQuery,
   SiteUptimeHistory,
+  SiteWordingCompare,
+  SiteWordingCompareRequest,
 } from "./admin-site-insights.js";
 import type { SiteReferringDomains } from "./admin-site-links.js";
 import type {
@@ -103,6 +106,7 @@ export const SiteRule = {
   HTMLTooLarge: "html.too-large",
   OpenGraphMissing: "og.missing",
   OpenGraphImageMissing: "og.image-missing",
+  OpenGraphImageUnreachable: "og.image-unreachable",
   TwitterCardMissing: "twitter.card-missing",
   ImageAltMissing: "image.alt-missing",
   ImageTooLarge: "image.too-large",
@@ -132,6 +136,7 @@ export const SiteRule = {
   HeadingSkip: "heading.order-skip",
   ThinContent: "content.thin",
   DuplicateContent: "content.duplicate",
+  NearDuplicate: "content.near-duplicate",
   HreflangInvalidCode: "hreflang.invalid-code",
   HreflangMissingSelf: "hreflang.missing-self-reference",
   HreflangMissingReturn: "hreflang.missing-return-link",
@@ -574,13 +579,37 @@ export class SiteDomainAdminClient {
     return this.send("GET", path, {}, undefined, options);
   }
 
-  /** Runs the one-page checks on draft HTML; nothing is fetched or stored. */
-  checkPage(
+  /** Runs the one-page checks on draft HTML, and the draft tools it asks for; nothing is fetched or stored. */
+  async checkPage(
     domainUuid: string,
     body: SitePageCheckRequest,
     options?: SiteDomainRequestOptions,
   ): Promise<SitePageCheckResponse> {
-    return this.send("POST", `${domainPath(domainUuid)}/page-check`, {}, { url: body.url, html: body.html }, options);
+    const request: SitePageCheckRequest = { url: body.url, html: body.html };
+    if (body.previousUrl) request.previousUrl = body.previousUrl;
+    if (body.phrase) request.phrase = body.phrase;
+    const check = await this.send<SitePageCheckResponse>(
+      "POST",
+      `${domainPath(domainUuid)}/page-check`,
+      {},
+      request,
+      options,
+    );
+    if (check.phrase?.wordCount === 0) delete check.phrase.densityPercent;
+    return check;
+  }
+
+  /** Measures how much wording two drafts share, as the near-duplicate rule does; nothing is stored. */
+  async compareWording(
+    domainUuid: string,
+    body: SiteWordingCompareRequest,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteWordingCompare> {
+    const request: SiteWordingCompareRequest = { first: body.first, second: body.second };
+    const path = `${domainPath(domainUuid)}/wording-compare`;
+    const result = await this.send<SiteWordingCompare>("POST", path, {}, request, options);
+    if (!result.compared) delete result.sharedPercent;
+    return result;
   }
 
   /** Tests a URL against a pasted robots.txt, or the domain's live file when robotsTxt is omitted. */
@@ -734,6 +763,46 @@ export class SiteDomainAdminClient {
   /** Deletes a saved report. */
   deleteSavedReport(domainUuid: string, reportUuid: string, options?: SiteDomainRequestOptions): Promise<void> {
     return this.send("DELETE", savedReportPath(domainUuid, reportUuid), {}, undefined, options);
+  }
+
+  /** Lists the domain's active campaign links, newest first, and archived ones too with includeArchived. */
+  listCampaignLinks(
+    domainUuid: string,
+    includeArchived = false,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteCampaignLinkList> {
+    const query = { archived: includeArchived ? "true" : undefined };
+    return this.send("GET", campaignLinksPath(domainUuid), query, undefined, options);
+  }
+
+  /**
+   * Saves a tagged page link (201). Refused with SITE_CAMPAIGN_LINK_TAKEN_CODE or
+   * SITE_CAMPAIGN_LINK_LIMIT_CODE, and a page of another host with SITE_PAGE_NOT_ON_DOMAIN_CODE.
+   */
+  createCampaignLink(
+    domainUuid: string,
+    body: SiteCampaignLinkRequest,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteCampaignLink> {
+    const request: SiteCampaignLinkRequest = {
+      url: body.url,
+      source: body.source,
+      medium: body.medium,
+      campaign: body.campaign,
+    };
+    if (body.term) request.term = body.term;
+    if (body.content) request.content = body.content;
+    return this.send("POST", campaignLinksPath(domainUuid), {}, request, options);
+  }
+
+  /** Archives a link: it stays listed with archived links and its tagged URL is free again. */
+  archiveCampaignLink(
+    domainUuid: string,
+    linkUuid: string,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteCampaignLink> {
+    const path = `${campaignLinksPath(domainUuid)}/${encodeURIComponent(linkUuid)}/archive`;
+    return this.send("POST", path, {}, undefined, options);
   }
 
   /** Lists live report shares. Tokens are returned only on creation. */
@@ -975,6 +1044,10 @@ function savedReportBody(body: SavedSiteReportRequest): SavedSiteReportRequest {
   if (body.template) request.template = body.template;
   if (body.days !== undefined) request.days = body.days;
   return request;
+}
+
+function campaignLinksPath(domainUuid: string): string {
+  return `${domainPath(domainUuid)}/campaign-links`;
 }
 
 function rankingKeywordsPath(domainUuid: string): string {

@@ -263,6 +263,14 @@ export {
   type SiteLighthouseRequestOptions,
 } from "./admin-site-audit-pages.js";
 export {
+  SITE_CAMPAIGN_LINK_LIMIT_CODE,
+  SITE_CAMPAIGN_LINK_TAKEN_CODE,
+  SITE_CAMPAIGN_LINKS_MAX,
+  type SiteCampaignLink,
+  type SiteCampaignLinkList,
+  type SiteCampaignLinkRequest,
+} from "./admin-site-campaign-links.js";
+export {
   SITE_DOMAIN_NOT_VERIFIED_CODE,
   SITE_SEARCH_CONNECTION_NOT_FOUND_CODE,
   SITE_SEARCH_NOT_CONFIGURED_CODE,
@@ -341,6 +349,7 @@ export {
   SitePageRecheckState,
   type SitePageRobots,
   type SitePageTwitter,
+  type SitePhraseUse,
   type SiteProjectContext,
   type SiteProjectContextRequest,
   type SiteRemedy,
@@ -371,6 +380,8 @@ export {
   type SiteUptimeHistory,
   type SiteUptimeWindow,
   type SiteUptimeWindows,
+  type SiteWordingCompare,
+  type SiteWordingCompareRequest,
 } from "./admin-site-insights.js";
 export {
   type SiteDomainAuthority,

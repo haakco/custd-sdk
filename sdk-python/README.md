@@ -217,7 +217,13 @@ pages. Shared search pool (tenant-wide; a site-bound credential is refused):
 `list_search_pool_queries(search, limit)` for pooled queries' demand and
 position bands (403 `SITE_SEARCH_POOL_NOT_JOINED_CODE` before joining).
 `get_rankings` carries the rankings' `pool` state and each keyword's pool
-band when there is one. Older servers (the Custd that SDK 3.46.0 targeted) send no report `template` (the default is full) and
+band when there is one. Draft tools: `check_page(..., previous_url=, phrase=)`
+adds `slug`, `redirect` and `phrase`, page facts carry `shareImage` and
+`faqSchema`, and `compare_wording(domain, first, second)` measures shared wording
+(`sharedPercent` absent when not compared). Campaign links:
+`list_campaign_links(domain, include_archived)`, `create_campaign_link` and
+`archive_campaign_link` (409 `SITE_CAMPAIGN_LINK_TAKEN_CODE` or
+`SITE_CAMPAIGN_LINK_LIMIT_CODE`). Older servers (the Custd that SDK 3.46.0 targeted) send no report `template` (the default is full) and
 no Lighthouse `url` / `pages`; those keys are then absent.
 
 ## Dev smoke test

@@ -106,6 +106,54 @@ describe("site insights page tools", () => {
     expect(sent[5]?.body).toEqual({ url: "/", userAgent: "GPTBot" });
   });
 
+  it("sends the draft tools and wording compare and decodes their recorded answers", async () => {
+    const { domains, calls } = newDomains(
+      respond(200, tools.pageCheckDraftTools),
+      respond(200, tools.pageFactsShareImage),
+      respond(200, tools.wordingCompare),
+      respond(200, tools.wordingCompareNotCompared),
+      respond(200, {
+        ...tools.pageCheckDraftTools,
+        phrase: { ...tools.pageCheckDraftTools.phrase, count: 0, wordCount: 0, densityPercent: 0 },
+      }),
+    );
+
+    const draft = await domains.checkPage(domainUuid, tools.pageCheckDraftToolsRequest);
+    expect(draft).toEqual(tools.pageCheckDraftTools);
+    expect(draft.slug).toBe("cafe-hosting-plans-for-small-teams");
+    expect(draft.redirect?.format).toBe(SiteGeneratedFormat.Redirect);
+    expect(draft.phrase?.densityPercent).toBe(3.85);
+    const facts = await domains.getPageFacts(domainUuid, "https://example.com/plans");
+    expect(facts.shareImage).toBe("https://example.com/img/team.jpg");
+    expect(facts.faqSchema?.format).toBe(SiteGeneratedFormat.HTML);
+    const compared = await domains.compareWording(domainUuid, tools.wordingCompareRequest);
+    expect(compared.sharedPercent).toBe(91);
+    expect(compared.nearDuplicate).toBe(true);
+    const short = await domains.compareWording(domainUuid, { first: "a", second: "b" });
+    expect(short.compared).toBe(false);
+    expect(short).not.toHaveProperty("sharedPercent");
+    const wordless = await domains.checkPage(domainUuid, {
+      url: "https://example.com/plans",
+      html: "<p></p>",
+      phrase: "x",
+    });
+    expect(wordless.phrase).not.toHaveProperty("densityPercent");
+
+    const sent = calls();
+    expect(sent.map((call) => call.route)).toEqual([
+      `POST ${item}/page-check`,
+      `GET ${item}/page-facts?url=${encodeURIComponent("https://example.com/plans")}`,
+      `POST ${item}/wording-compare`,
+      `POST ${item}/wording-compare`,
+      `POST ${item}/page-check`,
+    ]);
+    expect(sent[0]?.body).toEqual(tools.pageCheckDraftToolsRequest);
+    expect(sent[2]?.body).toEqual(tools.wordingCompareRequest);
+    expect(sent[4]?.body).toEqual({ url: "https://example.com/plans", html: "<p></p>", phrase: "x" });
+    expect(tools.pageCheck).not.toHaveProperty("slug");
+    expect(tools.pageFacts).not.toHaveProperty("shareImage");
+  });
+
   it("decodes absent readability and recheck failures without inventing zeros", () => {
     expect(tools.pageFactsWithoutReadingEase.readability).not.toHaveProperty("fleschReadingEase");
     expect(tools.pageRecheckFailed.failure).toBe("the page answered HTTP 503");

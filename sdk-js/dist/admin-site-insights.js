@@ -23,6 +23,8 @@ export const SiteRemedyKind = {
 export const SiteGeneratedFormat = {
     HTML: "html",
     RobotsTxt: "robots.txt",
+    /** One Apache line and one nginx line. */
+    Redirect: "redirect",
 };
 export const SitePageRecheckState = {
     Queued: "queued",

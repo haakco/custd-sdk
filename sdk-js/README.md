@@ -453,6 +453,13 @@ More reads and controls on the same client:
   `SITE_SEARCH_POOL_SITE_BOUND_CODE`): `getSearchPool`, `setSearchPool(joined)` and
   `listSearchPoolQueries(search?, limit?)` (refused with `SITE_SEARCH_POOL_NOT_JOINED_CODE`
   before joining). `getRankings` then carries `pool` and each keyword's pooled `pool` band.
+- Draft tools: `checkPage` takes optional `previousUrl` and `phrase` and returns `slug`,
+  `redirect` (format `redirect`) and `phrase`; page facts carry `shareImage` and `faqSchema`.
+  `compareWording(domainUuid, { first, second })` measures shared wording as the
+  `content.near-duplicate` rule does; `sharedPercent` is absent when the texts were not compared.
+- Campaign links: `listCampaignLinks(domainUuid, includeArchived?)`, `createCampaignLink` and
+  `archiveCampaignLink` keep a domain's saved UTM links (409 `SITE_CAMPAIGN_LINK_TAKEN_CODE` or
+  `SITE_CAMPAIGN_LINK_LIMIT_CODE`).
 - Access logs: `getTraffic(domainUuid, from?, to?)`, `getAIVisibility`, and
   `replayAccessLogHour(hourStart)` for system administrators.
 - Rank tracking: `getRankings(domainUuid, days?)`, `trackKeyword`,

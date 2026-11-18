@@ -1,5 +1,6 @@
 import type { SiteAuditDelta, SiteAuditPageList, SiteLighthousePages, SiteLighthouseRequestOptions } from "./admin-site-audit-pages.js";
-import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory } from "./admin-site-insights.js";
+import type { SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest } from "./admin-site-campaign-links.js";
+import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory, SiteWordingCompare, SiteWordingCompareRequest } from "./admin-site-insights.js";
 import type { SiteReferringDomains } from "./admin-site-links.js";
 import type { SiteRankings, SiteTrackedKeyword, SiteTrackedKeywordUpdate, SiteTrackKeywordRequest } from "./admin-site-rankings.js";
 import type { SavedSiteReport, SavedSiteReportList, SavedSiteReportRequest, SiteReportRequestOptions } from "./admin-site-saved-reports.js";
@@ -47,6 +48,7 @@ export declare const SiteRule: {
     readonly HTMLTooLarge: "html.too-large";
     readonly OpenGraphMissing: "og.missing";
     readonly OpenGraphImageMissing: "og.image-missing";
+    readonly OpenGraphImageUnreachable: "og.image-unreachable";
     readonly TwitterCardMissing: "twitter.card-missing";
     readonly ImageAltMissing: "image.alt-missing";
     readonly ImageTooLarge: "image.too-large";
@@ -76,6 +78,7 @@ export declare const SiteRule: {
     readonly HeadingSkip: "heading.order-skip";
     readonly ThinContent: "content.thin";
     readonly DuplicateContent: "content.duplicate";
+    readonly NearDuplicate: "content.near-duplicate";
     readonly HreflangInvalidCode: "hreflang.invalid-code";
     readonly HreflangMissingSelf: "hreflang.missing-self-reference";
     readonly HreflangMissingReturn: "hreflang.missing-return-link";
@@ -370,8 +373,10 @@ export declare class SiteDomainAdminClient {
      */
     requestPageRecheck(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageRecheck>;
     getPageRecheck(domainUuid: string, recheckUuid: string, options?: SiteDomainRequestOptions): Promise<SitePageRecheck>;
-    /** Runs the one-page checks on draft HTML; nothing is fetched or stored. */
+    /** Runs the one-page checks on draft HTML, and the draft tools it asks for; nothing is fetched or stored. */
     checkPage(domainUuid: string, body: SitePageCheckRequest, options?: SiteDomainRequestOptions): Promise<SitePageCheckResponse>;
+    /** Measures how much wording two drafts share, as the near-duplicate rule does; nothing is stored. */
+    compareWording(domainUuid: string, body: SiteWordingCompareRequest, options?: SiteDomainRequestOptions): Promise<SiteWordingCompare>;
     /** Tests a URL against a pasted robots.txt, or the domain's live file when robotsTxt is omitted. */
     testRobots(domainUuid: string, body: SiteRobotsTestRequest, options?: SiteDomainRequestOptions): Promise<SiteRobotsTestResponse>;
     /** Pages through one dimension of the domain's imported search rows; `unavailable` names providers without it. */
@@ -413,6 +418,15 @@ export declare class SiteDomainAdminClient {
     replaceSavedReport(domainUuid: string, reportUuid: string, body: SavedSiteReportRequest, options?: SiteDomainRequestOptions): Promise<SavedSiteReport>;
     /** Deletes a saved report. */
     deleteSavedReport(domainUuid: string, reportUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Lists the domain's active campaign links, newest first, and archived ones too with includeArchived. */
+    listCampaignLinks(domainUuid: string, includeArchived?: boolean, options?: SiteDomainRequestOptions): Promise<SiteCampaignLinkList>;
+    /**
+     * Saves a tagged page link (201). Refused with SITE_CAMPAIGN_LINK_TAKEN_CODE or
+     * SITE_CAMPAIGN_LINK_LIMIT_CODE, and a page of another host with SITE_PAGE_NOT_ON_DOMAIN_CODE.
+     */
+    createCampaignLink(domainUuid: string, body: SiteCampaignLinkRequest, options?: SiteDomainRequestOptions): Promise<SiteCampaignLink>;
+    /** Archives a link: it stays listed with archived links and its tagged URL is free again. */
+    archiveCampaignLink(domainUuid: string, linkUuid: string, options?: SiteDomainRequestOptions): Promise<SiteCampaignLink>;
     /** Lists live report shares. Tokens are returned only on creation. */
     listReportShares(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteReportShareList>;
     /** Creates a public report share. Copy the token once; creation is never retried automatically. */
