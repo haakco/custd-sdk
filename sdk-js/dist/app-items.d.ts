@@ -1,7 +1,8 @@
-import { type AppAlertDeliveryList, type AppAlertRule, type AppAlertRuleSpec, type AppAlertSettings, type AppAlertSubscription, type AppAlertWebhookCreated, type AppAlertWebhookCreateRequest } from "./app-alerts.js";
+import { type AppAlertDeliveryList, type AppAlertRule, type AppAlertRuleSpec, type AppAlertSettings, type AppAlertSlackCreateRequest, type AppAlertSubscription, type AppAlertWebhook, type AppAlertWebhookCreated, type AppAlertWebhookCreateRequest } from "./app-alerts.js";
 import { type AppLiveWatch, type AppLiveWatchOptions } from "./app-live.js";
 import { type AppMeeting, type AppMeetingAdvanceRequest, type AppMeetingCreate } from "./app-meetings.js";
 import { type AppModelCalculateRequest, type AppModelCalculateResult, type AppModelCopyRequest, type AppModelCreate, type AppModelRun, type AppModelRunRequest, type AppModelVersionCreateRequest, type AppUncertaintyModel } from "./app-models.js";
+import { type AppWebSocketFactory } from "./app-push.js";
 export declare const APP_ITEM_SITE_KEY_HEADER = "X-Custd-Site-Key";
 /** Carries the signed-in user's access token beside the link token. */
 export declare const APP_ITEM_USER_TOKEN_HEADER = "X-Custd-User-Token";
@@ -505,6 +506,12 @@ export type AppItemsClientConfig = {
      * on every call; the hosted app reads it from its `BrowserSignIn`.
      */
     userToken?: () => string | null | undefined;
+    /**
+     * Opens the realtime socket that pushes changes to watched reads. Defaults to the global
+     * WebSocket, unless you supplied your own `fetch`; then pass one here too. `null` keeps watched
+     * reads on polling only. Without push, or while it is down, watched reads poll as before.
+     */
+    webSocket?: AppWebSocketFactory | null;
 };
 export declare class AppItemsClient {
     private readonly baseUrl;
@@ -517,7 +524,7 @@ export declare class AppItemsClient {
     static fromDiscovery(discovery: {
         apiBaseUrl: string;
         browserKey: string;
-    }, options?: Pick<AppItemsClientConfig, "fetch" | "userToken">): AppItemsClient;
+    }, options?: Pick<AppItemsClientConfig, "fetch" | "userToken" | "webSocket">): AppItemsClient;
     /**
      * Creates an item with the Site key; a signed-in creator owns it at once. Keep both tokens:
      * they are shown this once.
@@ -572,7 +579,12 @@ export declare class AppItemsClient {
     removeAlertRule(access: AppItemAccess, ruleUuid: string): Promise<void>;
     /** Registers a signed webhook. Its `signingSecret` is shown this once. At most 5 per item. */
     addAlertWebhook(access: AppItemAccess, request: AppAlertWebhookCreateRequest): Promise<AppAlertWebhookCreated>;
-    /** Removes a webhook; its undelivered alerts go with it. */
+    /**
+     * Posts the item's alerts to a Slack incoming webhook as Slack messages. The URL is checked,
+     * stored sealed and never returned; it counts against the 5 webhooks per item.
+     */
+    addAlertSlack(access: AppItemAccess, request: AppAlertSlackCreateRequest): Promise<AppAlertWebhook>;
+    /** Removes a webhook or Slack destination; its undelivered alerts go with it. */
     removeAlertWebhook(access: AppItemAccess, webhookUuid: string): Promise<void>;
     /**
      * Emails the signed-in user's verified address when a rule fires; repeating it keeps one
@@ -603,6 +615,8 @@ export declare class AppItemsClient {
     /** Polls every watched read now, for example after the signed-in user changed. */
     refreshAll(): void;
     private liveKey;
+    /** What a watched read subscribes with: its link, or the signed-in user's own item. */
+    private pushTarget;
     /** The link or user-owned item a call reaches, with the signed-in user when there is one. */
     private reach;
     private signedIn;

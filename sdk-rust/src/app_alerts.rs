@@ -1,5 +1,5 @@
 //! Alerts on an app item (`/api/v1/app/item/alerts`): rules that fire once each time their
-//! condition becomes true, signed webhooks, the signed-in owner's email subscription, and the
+//! condition becomes true, signed webhooks and Slack incoming webhooks, the signed-in owner's email subscription, and the
 //! deliveries they made. Every alert route needs the owner link or the owning user.
 
 use std::fmt;
@@ -15,6 +15,11 @@ pub const APP_ALERT_RULE_DEADLINE_PROBABILITY_BELOW: &str = "deadline_probabilit
 pub const APP_ALERT_RULE_TARGET_REACHED: &str = "target_reached";
 pub const APP_ALERT_RULE_ESTIMATE_STALE: &str = "estimate_stale";
 pub const APP_ALERT_RULE_FORECAST_MOVED_INSIDE_TARGET: &str = "forecast_moved_inside_target";
+
+/// A destination that posts signed Custd JSON.
+pub const APP_ALERT_DESTINATION_WEBHOOK: &str = "webhook";
+/// A destination that posts a Slack message to a Slack incoming webhook.
+pub const APP_ALERT_DESTINATION_SLACK: &str = "slack";
 
 /// 422: the signed-in user has no verified email address to send alerts to.
 pub const APP_ALERT_NO_VERIFIED_EMAIL: &str = "app_alert_no_verified_email";
@@ -50,10 +55,13 @@ pub struct AppAlertRule {
     pub created_at: String,
 }
 
+/// One destination. For Slack the endpoint is only a hint of the sealed URL.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppAlertWebhook {
     pub webhook_uuid: String,
+    /// [`APP_ALERT_DESTINATION_WEBHOOK`] or [`APP_ALERT_DESTINATION_SLACK`].
+    pub kind: String,
     pub endpoint: String,
     pub created_at: String,
 }
@@ -89,7 +97,7 @@ pub struct AppAlertSettings {
     pub delivery_available: bool,
 }
 
-/// One delivery of one rule crossing to one destination. `channel` is `webhook` or `email`;
+/// One delivery of one rule crossing to one destination. `channel` is `webhook`, `slack` or `email`;
 /// `outcome` is `pending`, `sent` or `failed`.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -121,6 +129,12 @@ struct AppAlertWebhookCreate<'a> {
     endpoint: &'a str,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppAlertSlackCreate<'a> {
+    webhook_url: &'a str,
+}
+
 impl AppLink<'_> {
     /// The item's rules, webhooks and the signed-in caller's email subscription.
     pub fn alert_settings(&self) -> Result<AppAlertSettings> {
@@ -149,7 +163,14 @@ impl AppLink<'_> {
         self.write(Method::Post, "/alerts/webhooks", Some(&body))
     }
 
-    /// Removes a webhook; its undelivered alerts go with it.
+    /// Posts the item's alerts to a Slack incoming webhook (`https://hooks.slack.com/services/...`).
+    /// The URL is stored sealed and never returned; it counts against the 5 webhooks per item.
+    pub fn add_alert_slack(&self, webhook_url: &str) -> Result<AppAlertWebhook> {
+        let body = AppAlertSlackCreate { webhook_url };
+        self.write(Method::Post, "/alerts/slack", Some(&body))
+    }
+
+    /// Removes a webhook or Slack destination; its undelivered alerts go with it.
     pub fn remove_alert_webhook(&self, webhook_uuid: &str) -> Result<()> {
         let suffix = format!("/alerts/webhooks/{}", percent_encode(webhook_uuid));
         self.write(Method::Delete, &suffix, NO_BODY)

@@ -1,4 +1,5 @@
 import type { AppConditionalRead, AppItemError } from "./app-items.js";
+import type { AppPushChannel, AppPushTarget } from "./app-push.js";
 export declare const APP_LIVE_STATUSES: {
     /** No answer yet. */
     readonly loading: "loading";
@@ -61,6 +62,8 @@ export type AppLiveWatch<T> = {
     refresh: () => void;
 };
 export declare const APP_LIVE_DEFAULT_INTERVAL_MS = 5000;
+/** The safety poll interval while pushed changes carry a read. */
+export declare const APP_LIVE_PUSHED_INTERVAL_MS = 60000;
 /** A conditional read, or an answer that there is nothing to read yet. */
 export type AppLiveRead<T> = AppConditionalRead<T> | {
     status: typeof APP_LIVE_STATUSES.empty;
@@ -68,9 +71,12 @@ export type AppLiveRead<T> = AppConditionalRead<T> | {
 type Loader<T> = (etag: string | undefined) => Promise<AppLiveRead<T>>;
 /** The pollers of one client, keyed by resource, collection item and link. */
 export declare class AppLiveRegistry {
+    private readonly push?;
     private readonly pollers;
-    watch<T>(key: string, token: string, options: AppLiveWatchOptions, load: Loader<T>): AppLiveWatch<T>;
-    /** Polls every watched read now. */
+    /** `push`, when given, carries pushed changes for every read watched with a push target. */
+    constructor(push?: AppPushChannel | undefined);
+    watch<T>(key: string, token: string, options: AppLiveWatchOptions, load: Loader<T>, pushTarget?: AppPushTarget): AppLiveWatch<T>;
+    /** Polls every watched read now, and resubscribes pushed reads whose user token changed. */
     refreshAll(): void;
     /** Polls every watched read of this link now, after a change made through it. */
     refreshToken(token: string): void;

@@ -1,7 +1,9 @@
 // Self-refreshing reads of app items by conditional polling. One poller serves every watcher
 // of the same resource and link; it asks with If-None-Match, so an unchanged item costs one
 // 304. Polling pauses while the page is hidden, resumes at once when it is shown again, and
-// backs off while requests fail.
+// backs off while requests fail. When the client has a realtime channel, a pushed change
+// replaces the timer: the poller polls when told, and falls back to its timer whenever push
+// is not carrying it.
 export const APP_LIVE_STATUSES = {
     /** No answer yet. */
     loading: "loading",
@@ -17,20 +19,25 @@ export const APP_LIVE_STATUSES = {
     error: "error",
 };
 export const APP_LIVE_DEFAULT_INTERVAL_MS = 5000;
+/** The safety poll interval while pushed changes carry a read. */
+export const APP_LIVE_PUSHED_INTERVAL_MS = 60000;
 const DEFAULT_MAX_BACKOFF_MS = 60000;
 const LOADING = Object.freeze({ status: APP_LIVE_STATUSES.loading });
 class AppLivePoller {
-    constructor(token, load, intervalMs, maxBackoffMs) {
+    constructor(token, load, intervalMs, maxBackoffMs, push) {
         this.token = token;
         this.load = load;
         this.intervalMs = intervalMs;
         this.maxBackoffMs = maxBackoffMs;
+        this.push = push;
         this.state = LOADING;
         this.listeners = new Set();
         this.failures = 0;
         this.inFlight = false;
         this.again = false;
         this.halted = false;
+        /** True while the realtime channel carries this read, so no timer is needed. */
+        this.pushed = false;
         this.onVisibility = () => {
             if (pageHidden())
                 this.clearTimer();
@@ -53,6 +60,10 @@ class AppLivePoller {
         globalThis.addEventListener?.("online", this.onOnline);
         if (!pageHidden())
             void this.poll();
+        this.stopPush = this.push?.channel.watch(this.push.target, {
+            changed: () => this.pollNow(),
+            pushed: (on) => this.setPushed(on),
+        });
     }
     remove(listener) {
         this.listeners.delete(listener);
@@ -61,6 +72,18 @@ class AppLivePoller {
         this.clearTimer();
         globalThis.document?.removeEventListener("visibilitychange", this.onVisibility);
         globalThis.removeEventListener?.("online", this.onOnline);
+        this.stopPush?.();
+        this.stopPush = undefined;
+        this.pushed = false;
+    }
+    /** Push took over (no timer) or dropped (poll now, then on the timer again). */
+    setPushed(on) {
+        const dropped = this.pushed && !on;
+        this.pushed = on;
+        if (on)
+            this.clearTimer();
+        else if (dropped)
+            this.pollNow();
     }
     /** Polls now, and resumes polling stopped by a refusal. */
     pollNow() {
@@ -135,7 +158,10 @@ class AppLivePoller {
         this.clearTimer();
         if (this.halted || pageHidden())
             return;
-        const delay = Math.min(this.intervalMs * 2 ** this.failures, Math.max(this.maxBackoffMs, this.intervalMs));
+        // Pushed changes replace the fast timer; a slow safety poll still notices a socket that went
+        // quiet without closing, and a failing poll still retries with backoff.
+        const interval = this.pushed ? Math.max(APP_LIVE_PUSHED_INTERVAL_MS, this.intervalMs) : this.intervalMs;
+        const delay = Math.min(interval * 2 ** this.failures, Math.max(this.maxBackoffMs, interval));
         this.timer = setTimeout(() => {
             this.timer = undefined;
             void this.poll();
@@ -154,10 +180,12 @@ class AppLivePoller {
 }
 /** The pollers of one client, keyed by resource, collection item and link. */
 export class AppLiveRegistry {
-    constructor() {
+    /** `push`, when given, carries pushed changes for every read watched with a push target. */
+    constructor(push) {
+        this.push = push;
         this.pollers = new Map();
     }
-    watch(key, token, options, load) {
+    watch(key, token, options, load, pushTarget) {
         const interval = options.intervalMs ?? APP_LIVE_DEFAULT_INTERVAL_MS;
         const maxBackoff = options.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS;
         const current = () => this.pollers.get(key);
@@ -166,7 +194,8 @@ export class AppLiveRegistry {
             subscribe: (listener) => {
                 let poller = current();
                 if (!poller) {
-                    poller = new AppLivePoller(token, load, interval, maxBackoff);
+                    const push = this.push && pushTarget ? { channel: this.push, target: pushTarget } : undefined;
+                    poller = new AppLivePoller(token, load, interval, maxBackoff, push);
                     this.pollers.set(key, poller);
                 }
                 const subscribed = poller;
@@ -180,8 +209,9 @@ export class AppLiveRegistry {
             refresh: () => current()?.pollNow(),
         };
     }
-    /** Polls every watched read now. */
+    /** Polls every watched read now, and resubscribes pushed reads whose user token changed. */
     refreshAll() {
+        this.push?.refreshCredentials();
         for (const poller of this.pollers.values())
             poller.pollNow();
     }

@@ -26,11 +26,12 @@ pub use app::{
     AppMeasurementProjectCreate, AppReadOptions, Conditional,
 };
 pub use app_alerts::{
-    APP_ALERT_EMAIL_CHECK_UNAVAILABLE, APP_ALERT_LIMIT, APP_ALERT_NO_VERIFIED_EMAIL,
-    APP_ALERT_RULE_DEADLINE_PROBABILITY_BELOW, APP_ALERT_RULE_ESTIMATE_STALE,
-    APP_ALERT_RULE_FORECAST_MOVED_INSIDE_TARGET, APP_ALERT_RULE_TARGET_REACHED, AppAlertDelivery,
-    AppAlertDeliveryList, AppAlertRule, AppAlertRuleSpec, AppAlertSettings, AppAlertSubscription,
-    AppAlertWebhook, AppAlertWebhookCreated,
+    APP_ALERT_DESTINATION_SLACK, APP_ALERT_DESTINATION_WEBHOOK, APP_ALERT_EMAIL_CHECK_UNAVAILABLE,
+    APP_ALERT_LIMIT, APP_ALERT_NO_VERIFIED_EMAIL, APP_ALERT_RULE_DEADLINE_PROBABILITY_BELOW,
+    APP_ALERT_RULE_ESTIMATE_STALE, APP_ALERT_RULE_FORECAST_MOVED_INSIDE_TARGET,
+    APP_ALERT_RULE_TARGET_REACHED, AppAlertDelivery, AppAlertDeliveryList, AppAlertRule,
+    AppAlertRuleSpec, AppAlertSettings, AppAlertSubscription, AppAlertWebhook,
+    AppAlertWebhookCreated,
 };
 pub use app_meetings::{
     APP_ITEM_MEETING_STEP_REFUSED, AppMeeting, AppMeetingBlock, AppMeetingBlockCreate,

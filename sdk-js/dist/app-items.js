@@ -5,6 +5,7 @@ import { APP_ALERT_ERROR_CODES, } from "./app-alerts.js";
 import { APP_LIVE_STATUSES, AppLiveRegistry, } from "./app-live.js";
 import { APP_MEETING_ERROR_CODES, } from "./app-meetings.js";
 import { APP_MODEL_ERROR_CODES, } from "./app-models.js";
+import { AppPushChannel, appRealtimeUrl, globalWebSocketFactory, } from "./app-push.js";
 export const APP_ITEM_SITE_KEY_HEADER = "X-Custd-Site-Key";
 /** Carries the signed-in user's access token beside the link token. */
 export const APP_ITEM_USER_TOKEN_HEADER = "X-Custd-User-Token";
@@ -92,11 +93,12 @@ const ALERTS_PATH = `${ITEM_PATH}/alerts`;
 const MEETING_PATH = `${ITEM_PATH}/meeting`;
 export class AppItemsClient {
     constructor(config) {
-        this.live = new AppLiveRegistry();
         this.baseUrl = config.apiBaseUrl.replace(/\/+$/, "");
         this.siteKey = config.siteKey;
         this.fetchImpl = config.fetch ?? ((input, init) => globalThis.fetch(input, init));
         this.userToken = config.userToken;
+        const createSocket = config.webSocket === undefined ? (config.fetch ? undefined : globalWebSocketFactory()) : config.webSocket;
+        this.live = new AppLiveRegistry(createSocket ? new AppPushChannel(appRealtimeUrl(this.baseUrl), this.siteKey, createSocket) : undefined);
     }
     /** Builds the client from a hosted app's discovery file. */
     static fromDiscovery(discovery, options = {}) {
@@ -105,6 +107,7 @@ export class AppItemsClient {
             siteKey: discovery.browserKey,
             fetch: options.fetch,
             userToken: options.userToken,
+            webSocket: options.webSocket,
         });
     }
     /**
@@ -233,7 +236,19 @@ export class AppItemsClient {
             ...this.reach(access),
         });
     }
-    /** Removes a webhook; its undelivered alerts go with it. */
+    /**
+     * Posts the item's alerts to a Slack incoming webhook as Slack messages. The URL is checked,
+     * stored sealed and never returned; it counts against the 5 webhooks per item.
+     */
+    addAlertSlack(access, request) {
+        return this.json({
+            method: "POST",
+            path: `${ALERTS_PATH}/slack`,
+            body: request,
+            ...this.reach(access),
+        });
+    }
+    /** Removes a webhook or Slack destination; its undelivered alerts go with it. */
     async removeAlertWebhook(access, webhookUuid) {
         await this.json({
             method: "DELETE",
@@ -275,19 +290,19 @@ export class AppItemsClient {
     }
     /** A self-refreshing latest model run; `empty` until the first run exists. */
     watchLatestModelRun(access, options = {}) {
-        return this.live.watch(this.liveKey(access, "model_latest", options.item), accessKey(access), options, (etag) => this.latestModelRun(access, { item: options.item, etag }).catch(noModelRunYet));
+        return this.live.watch(this.liveKey(access, "model_latest", options.item), accessKey(access), options, (etag) => this.latestModelRun(access, { item: options.item, etag }).catch(noModelRunYet), this.pushTarget(access, options.item));
     }
     /** A self-refreshing item read, shared by every caller watching the same item and link. */
     watchItem(access, options = {}) {
-        return this.live.watch(this.liveKey(access, "item", options.item), accessKey(access), options, (etag) => this.readItem(access, { item: options.item, etag }));
+        return this.live.watch(this.liveKey(access, "item", options.item), accessKey(access), options, (etag) => this.readItem(access, { item: options.item, etag }), this.pushTarget(access, options.item));
     }
     /** A self-refreshing latest forecast; `empty` until the first run exists. */
     watchLatestForecast(access, options = {}) {
-        return this.live.watch(this.liveKey(access, "forecast_latest", options.item), accessKey(access), options, (etag) => this.latestForecast(access, { item: options.item, etag }).catch(noForecastYet));
+        return this.live.watch(this.liveKey(access, "forecast_latest", options.item), accessKey(access), options, (etag) => this.latestForecast(access, { item: options.item, etag }).catch(noForecastYet), this.pushTarget(access, options.item));
     }
     /** A self-refreshing forecast story. */
     watchForecastStory(access, options = {}) {
-        return this.live.watch(this.liveKey(access, "forecast_story", options.item), accessKey(access), options, (etag) => this.forecastStory(access, { item: options.item, etag }));
+        return this.live.watch(this.liveKey(access, "forecast_story", options.item), accessKey(access), options, (etag) => this.forecastStory(access, { item: options.item, etag }), this.pushTarget(access, options.item));
     }
     /** Polls every watched read now, for example after the signed-in user changed. */
     refreshAll() {
@@ -295,6 +310,13 @@ export class AppItemsClient {
     }
     liveKey(access, resource, item) {
         return `${resource}\u0000${item ?? ""}\u0000${accessKey(access)}`;
+    }
+    /** What a watched read subscribes with: its link, or the signed-in user's own item. */
+    pushTarget(access, item) {
+        const userToken = () => this.userToken?.()?.trim() || undefined;
+        if (typeof access === "string")
+            return { linkToken: access, item, userToken };
+        return { item: item ?? access.item, userToken };
     }
     /** The link or user-owned item a call reaches, with the signed-in user when there is one. */
     reach(access) {

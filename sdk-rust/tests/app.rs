@@ -1,10 +1,11 @@
 mod support;
 
 use custd_sdk::{
-    APP_ALERT_NO_VERIFIED_EMAIL, APP_ALERT_RULE_DEADLINE_PROBABILITY_BELOW,
-    APP_ITEM_KIND_LINK_COLLECTION, APP_ITEM_KIND_MEETING, APP_ITEM_MEETING_STEP_REFUSED,
-    AppAlertRuleSpec, AppClient, AppItemCreate, AppMeetingBlockCreate, AppMeetingCreate,
-    AppReadOptions, Conditional, Error, read_hosted_app_discovery,
+    APP_ALERT_DESTINATION_SLACK, APP_ALERT_NO_VERIFIED_EMAIL,
+    APP_ALERT_RULE_DEADLINE_PROBABILITY_BELOW, APP_ITEM_KIND_LINK_COLLECTION,
+    APP_ITEM_KIND_MEETING, APP_ITEM_MEETING_STEP_REFUSED, AppAlertRuleSpec, AppClient,
+    AppItemCreate, AppMeetingBlockCreate, AppMeetingCreate, AppReadOptions, Conditional, Error,
+    read_hosted_app_discovery,
 };
 use support::{Answer, FakeServer, answer};
 
@@ -240,7 +241,7 @@ fn alerts_manage_rules_webhooks_and_the_email_subscription() {
     let settings = r#"{"rules":null,"webhooks":null,"deliveryAvailable":true}"#;
     let rule = r#"{"ruleUuid":"r-1","type":"deadline_probability_below","threshold":0.5,"conditionMet":false,
 "crossings":0,"createdAt":"2026-11-17T00:00:00Z"}"#;
-    let webhook = r#"{"webhook":{"webhookUuid":"w-1","endpoint":"https://hooks.example.com/a",
+    let webhook = r#"{"webhook":{"webhookUuid":"w-1","kind":"webhook","endpoint":"https://hooks.example.com/a",
 "createdAt":"2026-11-17T00:00:00Z"},"signingSecret":"secret-1"}"#;
     let deliveries = r#"{"deliveries":[{"deliveryUuid":"d-1","ruleUuid":"r-1","ruleType":"target_reached",
 "crossing":1,"channel":"email","outcome":"sent","attempts":1,"createdAt":"2026-11-17T00:00:00Z",
@@ -324,6 +325,31 @@ fn alerts_manage_rules_webhooks_and_the_email_subscription() {
     for (got, want) in sent.iter().zip(expected) {
         assert_eq!((got.0.as_str(), got.1.as_str(), got.2.as_str()), want);
     }
+}
+
+#[test]
+fn alerts_add_a_slack_destination_and_remove_it_like_a_webhook() {
+    let slack = r#"{"webhookUuid":"w-2","kind":"slack","endpoint":"hooks.slack.com/services/T0/…",
+"createdAt":"2026-11-17T00:00:00Z"}"#;
+    let server = FakeServer::start(vec![answer(201, slack), no_content()]);
+    let app = app(&server);
+    let link = app.link("own-1");
+
+    let added = link
+        .add_alert_slack("https://hooks.slack.com/services/T0/B0/x")
+        .unwrap();
+    link.remove_alert_webhook(&added.webhook_uuid).unwrap();
+
+    assert_eq!(added.kind, APP_ALERT_DESTINATION_SLACK);
+    let post = server.next();
+    assert_eq!(
+        (post.target.as_str(), post.body.as_str()),
+        (
+            "/api/v1/app/item/alerts/slack",
+            r#"{"webhookUrl":"https://hooks.slack.com/services/T0/B0/x"}"#
+        )
+    );
+    assert_eq!(server.next().target, "/api/v1/app/item/alerts/webhooks/w-2");
 }
 
 #[test]

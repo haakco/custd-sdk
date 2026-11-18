@@ -8,7 +8,9 @@ import {
   type AppAlertRule,
   type AppAlertRuleSpec,
   type AppAlertSettings,
+  type AppAlertSlackCreateRequest,
   type AppAlertSubscription,
+  type AppAlertWebhook,
   type AppAlertWebhookCreated,
   type AppAlertWebhookCreateRequest,
 } from "./app-alerts.js";
@@ -36,6 +38,13 @@ import {
   type AppModelVersionCreateRequest,
   type AppUncertaintyModel,
 } from "./app-models.js";
+import {
+  AppPushChannel,
+  type AppPushTarget,
+  type AppWebSocketFactory,
+  appRealtimeUrl,
+  globalWebSocketFactory,
+} from "./app-push.js";
 
 export const APP_ITEM_SITE_KEY_HEADER = "X-Custd-Site-Key";
 /** Carries the signed-in user's access token beside the link token. */
@@ -528,6 +537,12 @@ export type AppItemsClientConfig = {
    * on every call; the hosted app reads it from its `BrowserSignIn`.
    */
   userToken?: () => string | null | undefined;
+  /**
+   * Opens the realtime socket that pushes changes to watched reads. Defaults to the global
+   * WebSocket, unless you supplied your own `fetch`; then pass one here too. `null` keeps watched
+   * reads on polling only. Without push, or while it is down, watched reads poll as before.
+   */
+  webSocket?: AppWebSocketFactory | null;
 };
 
 type AppRequest = {
@@ -551,25 +566,31 @@ export class AppItemsClient {
   private readonly siteKey: string;
   private readonly fetchImpl: typeof fetch;
   private readonly userToken: AppItemsClientConfig["userToken"];
-  private readonly live = new AppLiveRegistry();
+  private readonly live: AppLiveRegistry;
 
   constructor(config: AppItemsClientConfig) {
     this.baseUrl = config.apiBaseUrl.replace(/\/+$/, "");
     this.siteKey = config.siteKey;
     this.fetchImpl = config.fetch ?? ((input, init) => globalThis.fetch(input, init));
     this.userToken = config.userToken;
+    const createSocket =
+      config.webSocket === undefined ? (config.fetch ? undefined : globalWebSocketFactory()) : config.webSocket;
+    this.live = new AppLiveRegistry(
+      createSocket ? new AppPushChannel(appRealtimeUrl(this.baseUrl), this.siteKey, createSocket) : undefined,
+    );
   }
 
   /** Builds the client from a hosted app's discovery file. */
   static fromDiscovery(
     discovery: { apiBaseUrl: string; browserKey: string },
-    options: Pick<AppItemsClientConfig, "fetch" | "userToken"> = {},
+    options: Pick<AppItemsClientConfig, "fetch" | "userToken" | "webSocket"> = {},
   ): AppItemsClient {
     return new AppItemsClient({
       apiBaseUrl: discovery.apiBaseUrl,
       siteKey: discovery.browserKey,
       fetch: options.fetch,
       userToken: options.userToken,
+      webSocket: options.webSocket,
     });
   }
 
@@ -732,7 +753,20 @@ export class AppItemsClient {
     });
   }
 
-  /** Removes a webhook; its undelivered alerts go with it. */
+  /**
+   * Posts the item's alerts to a Slack incoming webhook as Slack messages. The URL is checked,
+   * stored sealed and never returned; it counts against the 5 webhooks per item.
+   */
+  addAlertSlack(access: AppItemAccess, request: AppAlertSlackCreateRequest): Promise<AppAlertWebhook> {
+    return this.json<AppAlertWebhook>({
+      method: "POST",
+      path: `${ALERTS_PATH}/slack`,
+      body: request,
+      ...this.reach(access),
+    });
+  }
+
+  /** Removes a webhook or Slack destination; its undelivered alerts go with it. */
   async removeAlertWebhook(access: AppItemAccess, webhookUuid: string): Promise<void> {
     await this.json<null>({
       method: "DELETE",
@@ -780,29 +814,45 @@ export class AppItemsClient {
 
   /** A self-refreshing latest model run; `empty` until the first run exists. */
   watchLatestModelRun(access: AppItemAccess, options: AppLiveWatchOptions = {}): AppLiveWatch<AppModelRun> {
-    return this.live.watch(this.liveKey(access, "model_latest", options.item), accessKey(access), options, (etag) =>
-      this.latestModelRun(access, { item: options.item, etag }).catch(noModelRunYet),
+    return this.live.watch(
+      this.liveKey(access, "model_latest", options.item),
+      accessKey(access),
+      options,
+      (etag) => this.latestModelRun(access, { item: options.item, etag }).catch(noModelRunYet),
+      this.pushTarget(access, options.item),
     );
   }
 
   /** A self-refreshing item read, shared by every caller watching the same item and link. */
   watchItem(access: AppItemAccess, options: AppLiveWatchOptions = {}): AppLiveWatch<AppItemRead> {
-    return this.live.watch(this.liveKey(access, "item", options.item), accessKey(access), options, (etag) =>
-      this.readItem(access, { item: options.item, etag }),
+    return this.live.watch(
+      this.liveKey(access, "item", options.item),
+      accessKey(access),
+      options,
+      (etag) => this.readItem(access, { item: options.item, etag }),
+      this.pushTarget(access, options.item),
     );
   }
 
   /** A self-refreshing latest forecast; `empty` until the first run exists. */
   watchLatestForecast(access: AppItemAccess, options: AppLiveWatchOptions = {}): AppLiveWatch<AppForecastRun> {
-    return this.live.watch(this.liveKey(access, "forecast_latest", options.item), accessKey(access), options, (etag) =>
-      this.latestForecast(access, { item: options.item, etag }).catch(noForecastYet),
+    return this.live.watch(
+      this.liveKey(access, "forecast_latest", options.item),
+      accessKey(access),
+      options,
+      (etag) => this.latestForecast(access, { item: options.item, etag }).catch(noForecastYet),
+      this.pushTarget(access, options.item),
     );
   }
 
   /** A self-refreshing forecast story. */
   watchForecastStory(access: AppItemAccess, options: AppLiveWatchOptions = {}): AppLiveWatch<AppForecastStory> {
-    return this.live.watch(this.liveKey(access, "forecast_story", options.item), accessKey(access), options, (etag) =>
-      this.forecastStory(access, { item: options.item, etag }),
+    return this.live.watch(
+      this.liveKey(access, "forecast_story", options.item),
+      accessKey(access),
+      options,
+      (etag) => this.forecastStory(access, { item: options.item, etag }),
+      this.pushTarget(access, options.item),
     );
   }
 
@@ -813,6 +863,13 @@ export class AppItemsClient {
 
   private liveKey(access: AppItemAccess, resource: string, item: string | undefined): string {
     return `${resource}\u0000${item ?? ""}\u0000${accessKey(access)}`;
+  }
+
+  /** What a watched read subscribes with: its link, or the signed-in user's own item. */
+  private pushTarget(access: AppItemAccess, item: string | undefined): AppPushTarget {
+    const userToken = () => this.userToken?.()?.trim() || undefined;
+    if (typeof access === "string") return { linkToken: access, item, userToken };
+    return { item: item ?? access.item, userToken };
   }
 
   /** The link or user-owned item a call reaches, with the signed-in user when there is one. */

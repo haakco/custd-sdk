@@ -65,7 +65,11 @@ export async function startHostedApp(options = {}) {
         })
         : undefined;
     const appItems = enabled.has(HOSTED_APP_CAPABILITIES.appData)
-        ? AppItemsClient.fromDiscovery(discovery, { fetch: options.fetch, userToken: () => liveAccessToken(signIn) })
+        ? AppItemsClient.fromDiscovery(discovery, {
+            fetch: options.fetch,
+            userToken: () => liveAccessToken(signIn),
+            webSocket: options.webSocket,
+        })
         : undefined;
     // Ownership is part of every read, so a sign-in, refresh or sign-out re-reads what is watched.
     const unwatchSignIn = appItems && signIn?.subscribe(() => appItems.refreshAll());
@@ -173,7 +177,7 @@ function parseSignIn(value) {
 }
 async function startTracking(discovery, options, fetchImpl) {
     const siteConfig = await hostedSiteConfig(discovery, fetchImpl);
-    const tracker = createBrowserTracker({
+    const tracker = (options.createTracker ?? createBrowserTracker)({
         baseUrl: discovery.apiBaseUrl,
         siteUuid: discovery.siteUuid,
         writeKey: discovery.browserKey,
@@ -216,13 +220,16 @@ function liveAccessToken(signIn) {
     return session.expiresAtMs > Date.now() ? session.accessToken : undefined;
 }
 function startErrorCapture(discovery, options, fetchImpl) {
-    const client = new ErrorCaptureClient({
+    return (options.startErrorCapture ?? startBrowserErrorCapture)({
         baseUrl: discovery.apiBaseUrl,
         writeKey: discovery.browserKey,
         environment: discovery.environment,
         release: options.release,
         fetch: fetchImpl,
     });
+}
+function startBrowserErrorCapture(config) {
+    const client = new ErrorCaptureClient(config);
     return { client, uninstall: installBrowserErrorCapture(client) };
 }
 function createSignIn(discovery, options, fetchImpl) {

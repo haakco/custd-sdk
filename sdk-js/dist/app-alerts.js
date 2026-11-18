@@ -1,5 +1,5 @@
 // Alerts on an app item (Admin API /api/v1/app/item/alerts): rules that fire once each time their
-// condition becomes true, signed webhooks, the signed-in owner's email subscription, and the
+// condition becomes true, signed webhooks and Slack incoming webhooks, the signed-in owner's email subscription, and the
 // deliveries they made. Every alert route manages the item, so it needs the owner link or the
 // owning user. The JSON names match the routes.
 export const APP_ALERT_RULE_TYPES = {
@@ -13,6 +13,7 @@ export const APP_ALERT_RULE_TYPES = {
 };
 export const APP_ALERT_CHANNELS = {
     webhook: "webhook",
+    slack: "slack",
     email: "email",
 };
 export const APP_ALERT_DELIVERY_OUTCOMES = {
@@ -33,4 +34,9 @@ export const APP_ALERT_ERROR_CODES = {
     ruleInvalid: "app_alert_rule_invalid",
     /** This deployment cannot deliver webhooks or email right now. */
     deliveryUnavailable: "app_alert_delivery_unavailable",
+};
+/** How a destination is delivered: signed Custd JSON, or a Slack message. */
+export const APP_ALERT_DESTINATION_KINDS = {
+    webhook: "webhook",
+    slack: "slack",
 };

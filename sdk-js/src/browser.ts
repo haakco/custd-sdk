@@ -10,6 +10,7 @@ export {
 } from "./app-live.js";
 export * from "./app-meetings.js";
 export * from "./app-models.js";
+export { APP_REALTIME_PATH, type AppWebSocket, type AppWebSocketFactory } from "./app-push.js";
 export * from "./browser-tracker.js";
 export {
   type CaptureExceptionRequest,
@@ -32,6 +33,8 @@ export {
   type HostedAppDiscovery,
   type HostedAppDiscoverySignIn,
   HostedAppError,
+  type HostedAppErrorCapture,
+  type HostedAppErrorCaptureStart,
   type HostedAppErrorCode,
   type HostedAppOptions,
   type HostedAppStart,

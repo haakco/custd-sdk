@@ -72,6 +72,7 @@ export type AppReleaseSummary = {
   releaseId: string;
   state: AppReleaseState;
   active: boolean;
+  label?: string;
   fileCount: number;
   totalBytes: number;
   createdAt: string;

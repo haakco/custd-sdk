@@ -10,6 +10,7 @@ export declare const APP_ALERT_RULE_TYPES: {
 export type AppAlertRuleType = (typeof APP_ALERT_RULE_TYPES)[keyof typeof APP_ALERT_RULE_TYPES];
 export declare const APP_ALERT_CHANNELS: {
     readonly webhook: "webhook";
+    readonly slack: "slack";
     readonly email: "email";
 };
 export type AppAlertChannel = (typeof APP_ALERT_CHANNELS)[keyof typeof APP_ALERT_CHANNELS];
@@ -53,8 +54,20 @@ export type AppAlertWebhookCreateRequest = {
     /** HTTPS URL on port 443 that resolves only to public addresses. */
     endpoint: string;
 };
+/** How a destination is delivered: signed Custd JSON, or a Slack message. */
+export declare const APP_ALERT_DESTINATION_KINDS: {
+    readonly webhook: "webhook";
+    readonly slack: "slack";
+};
+export type AppAlertDestinationKind = (typeof APP_ALERT_DESTINATION_KINDS)[keyof typeof APP_ALERT_DESTINATION_KINDS];
+export type AppAlertSlackCreateRequest = {
+    /** Slack incoming-webhook URL, `https://hooks.slack.com/services/...`. It is the secret: stored sealed, never shown again. */
+    webhookUrl: string;
+};
+/** One destination: a signed webhook or a Slack incoming webhook, whose `endpoint` is only a hint of its URL. */
 export type AppAlertWebhook = {
     webhookUuid: string;
+    kind: AppAlertDestinationKind;
     endpoint: string;
     createdAt: string;
 };

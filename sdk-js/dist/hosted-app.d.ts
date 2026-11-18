@@ -1,7 +1,8 @@
 import { AppItemsClient } from "./app-items.js";
+import type { AppWebSocketFactory } from "./app-push.js";
 import { BrowserSignIn, type CustdDiscoveryDocument, type CustdDiscoverySignIn, type SignInStorage } from "./browser-sign-in.js";
 import { type BrowserIdentityMode, type BrowserTracker, type BrowserTrackerConfig } from "./browser-tracker.js";
-import { ErrorCaptureClient } from "./error-capture.js";
+import { ErrorCaptureClient, type ErrorCaptureConfig } from "./error-capture.js";
 export declare const HOSTED_APP_DISCOVERY_PATH = "/.well-known/custd.json";
 export declare const HOSTED_APP_CAPABILITIES: {
     readonly tracking: "tracking";
@@ -58,10 +59,17 @@ export declare const APP_EVENT_OUTCOMES: {
     readonly failed: "failed";
 };
 export type AppEventOutcome = (typeof APP_EVENT_OUTCOMES)[keyof typeof APP_EVENT_OUTCOMES];
+/** What a hosted app's error capture offers: report one error. Always resolves. */
+export type HostedAppErrorCapture = Pick<ErrorCaptureClient, "captureException">;
+/** Started error capture and how to remove the page handlers it installed. */
+export type HostedAppErrorCaptureStart = {
+    client: HostedAppErrorCapture;
+    uninstall: () => void;
+};
 export type HostedApp<TEvents extends AppEventMap = AppEventMap> = {
     discovery: HostedAppDiscovery;
     tracker?: BrowserTracker;
-    errorCapture?: ErrorCaptureClient;
+    errorCapture?: HostedAppErrorCapture;
     /** Present when sign-in is enabled. Call `restore()` on page load (the React provider does). */
     signIn?: BrowserSignIn;
     /** Present when app data is enabled: create, read and change the app's items. */
@@ -89,6 +97,8 @@ export type HostedAppOptions = {
     discoveryUrl?: string;
     /** Used for discovery, site config, error capture and sign-in; the tracker uses the global fetch. */
     fetch?: typeof fetch;
+    /** Opens the realtime socket for watched app reads; see `AppItemsClientConfig.webSocket`. */
+    webSocket?: AppWebSocketFactory | null;
     /** Release reported with captured errors, such as the build's commit. */
     release?: string;
     /** Overrides the consent default the Site's identity mode sets. */
@@ -96,6 +106,10 @@ export type HostedAppOptions = {
     pageContext?: BrowserTrackerConfig["pageContext"];
     signInScopes?: string[];
     signInStorage?: SignInStorage;
+    /** Builds the tracker; defaults to the browser tracker. `@haakco/custd-sdk/testing` records instead. */
+    createTracker?: (config: BrowserTrackerConfig) => BrowserTracker;
+    /** Starts error capture; defaults to the page's error handlers. `@haakco/custd-sdk/testing` records instead. */
+    startErrorCapture?: (config: ErrorCaptureConfig) => HostedAppErrorCaptureStart;
 };
 /** Reads the hosted app's discovery file and starts what it enables. Never rejects. */
 export declare function startHostedApp<TEvents extends AppEventMap = AppEventMap>(options?: HostedAppOptions): Promise<HostedAppStart<TEvents>>;

@@ -1,6 +1,6 @@
 {
   "name": "@haakco/custd-react",
-  "version": "3.52.0",
+  "version": "3.54.0",
   "type": "module",
   "engines": {
     "node": ">=24 <27"
@@ -12,6 +12,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
     }
   },
   "files": [
@@ -25,7 +29,7 @@
     "test": "vitest run src"
   },
   "peerDependencies": {
-    "@haakco/custd-sdk": ">=3.52.0 <4",
+    "@haakco/custd-sdk": ">=3.54.0 <4",
     "@tanstack/react-query": ">=5 <6",
     "react": ">=18 <20"
   },

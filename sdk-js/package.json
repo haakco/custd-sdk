@@ -1,6 +1,6 @@
 {
   "name": "@haakco/custd-sdk",
-  "version": "3.52.0",
+  "version": "3.54.0",
   "type": "module",
   "engines": {
     "node": ">=24 <27"
@@ -23,6 +23,11 @@
       "types": "./dist/browser-script.d.ts",
       "import": "./dist/browser-script.js",
       "default": "./dist/browser-script.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
     }
   },
   "files": [

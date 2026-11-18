@@ -3,6 +3,7 @@
 // never throws; every failure comes back as a typed state the app can show.
 
 import { AppItemsClient } from "./app-items.js";
+import type { AppWebSocketFactory } from "./app-push.js";
 import {
   BrowserSignIn,
   type CustdDiscoveryDocument,
@@ -21,7 +22,7 @@ import {
   fetchBrowserSiteConfig,
   siteConfigSchemaVersion,
 } from "./browser-tracker.js";
-import { ErrorCaptureClient, installBrowserErrorCapture } from "./error-capture.js";
+import { ErrorCaptureClient, type ErrorCaptureConfig, installBrowserErrorCapture } from "./error-capture.js";
 
 export const HOSTED_APP_DISCOVERY_PATH = "/.well-known/custd.json";
 
@@ -96,10 +97,16 @@ export const APP_EVENT_OUTCOMES = {
 
 export type AppEventOutcome = (typeof APP_EVENT_OUTCOMES)[keyof typeof APP_EVENT_OUTCOMES];
 
+/** What a hosted app's error capture offers: report one error. Always resolves. */
+export type HostedAppErrorCapture = Pick<ErrorCaptureClient, "captureException">;
+
+/** Started error capture and how to remove the page handlers it installed. */
+export type HostedAppErrorCaptureStart = { client: HostedAppErrorCapture; uninstall: () => void };
+
 export type HostedApp<TEvents extends AppEventMap = AppEventMap> = {
   discovery: HostedAppDiscovery;
   tracker?: BrowserTracker;
-  errorCapture?: ErrorCaptureClient;
+  errorCapture?: HostedAppErrorCapture;
   /** Present when sign-in is enabled. Call `restore()` on page load (the React provider does). */
   signIn?: BrowserSignIn;
   /** Present when app data is enabled: create, read and change the app's items. */
@@ -129,6 +136,8 @@ export type HostedAppOptions = {
   discoveryUrl?: string;
   /** Used for discovery, site config, error capture and sign-in; the tracker uses the global fetch. */
   fetch?: typeof fetch;
+  /** Opens the realtime socket for watched app reads; see `AppItemsClientConfig.webSocket`. */
+  webSocket?: AppWebSocketFactory | null;
   /** Release reported with captured errors, such as the build's commit. */
   release?: string;
   /** Overrides the consent default the Site's identity mode sets. */
@@ -136,6 +145,10 @@ export type HostedAppOptions = {
   pageContext?: BrowserTrackerConfig["pageContext"];
   signInScopes?: string[];
   signInStorage?: SignInStorage;
+  /** Builds the tracker; defaults to the browser tracker. `@haakco/custd-sdk/testing` records instead. */
+  createTracker?: (config: BrowserTrackerConfig) => BrowserTracker;
+  /** Starts error capture; defaults to the page's error handlers. `@haakco/custd-sdk/testing` records instead. */
+  startErrorCapture?: (config: ErrorCaptureConfig) => HostedAppErrorCaptureStart;
 };
 
 /** Reads the hosted app's discovery file and starts what it enables. Never rejects. */
@@ -164,7 +177,11 @@ export async function startHostedApp<TEvents extends AppEventMap = AppEventMap>(
       })
     : undefined;
   const appItems = enabled.has(HOSTED_APP_CAPABILITIES.appData)
-    ? AppItemsClient.fromDiscovery(discovery, { fetch: options.fetch, userToken: () => liveAccessToken(signIn) })
+    ? AppItemsClient.fromDiscovery(discovery, {
+        fetch: options.fetch,
+        userToken: () => liveAccessToken(signIn),
+        webSocket: options.webSocket,
+      })
     : undefined;
   // Ownership is part of every read, so a sign-in, refresh or sign-out re-reads what is watched.
   const unwatchSignIn = appItems && signIn?.subscribe(() => appItems.refreshAll());
@@ -177,7 +194,7 @@ export async function startHostedApp<TEvents extends AppEventMap = AppEventMap>(
 type StartedPieces = {
   discovery: HostedAppDiscovery;
   tracker?: BrowserTracker;
-  errorCapture?: { client: ErrorCaptureClient; uninstall: () => void };
+  errorCapture?: HostedAppErrorCaptureStart;
   signIn?: BrowserSignIn;
   appItems?: AppItemsClient;
   unwatchSignIn?: () => void;
@@ -284,7 +301,7 @@ async function startTracking(
   fetchImpl: typeof fetch,
 ): Promise<BrowserTracker> {
   const siteConfig = await hostedSiteConfig(discovery, fetchImpl);
-  const tracker = createBrowserTracker({
+  const tracker = (options.createTracker ?? createBrowserTracker)({
     baseUrl: discovery.apiBaseUrl,
     siteUuid: discovery.siteUuid,
     writeKey: discovery.browserKey,
@@ -336,14 +353,18 @@ function startErrorCapture(
   discovery: HostedAppDiscovery,
   options: HostedAppOptions,
   fetchImpl: typeof fetch,
-): { client: ErrorCaptureClient; uninstall: () => void } {
-  const client = new ErrorCaptureClient({
+): HostedAppErrorCaptureStart {
+  return (options.startErrorCapture ?? startBrowserErrorCapture)({
     baseUrl: discovery.apiBaseUrl,
     writeKey: discovery.browserKey,
     environment: discovery.environment,
     release: options.release,
     fetch: fetchImpl,
   });
+}
+
+function startBrowserErrorCapture(config: ErrorCaptureConfig): HostedAppErrorCaptureStart {
+  const client = new ErrorCaptureClient(config);
   return { client, uninstall: installBrowserErrorCapture(client) };
 }
 

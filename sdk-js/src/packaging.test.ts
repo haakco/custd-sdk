@@ -39,6 +39,8 @@ describe("published package integrity", () => {
     expect(existsSync(new URL("../dist/index.d.ts", import.meta.url))).toBe(true);
     expect(existsSync(new URL("../dist/browser.d.ts", import.meta.url))).toBe(true);
     expect(existsSync(new URL("../dist/browser-script.d.ts", import.meta.url))).toBe(true);
+    expect(existsSync(new URL("../dist/testing.js", import.meta.url))).toBe(true);
+    expect(existsSync(new URL("../dist/testing.d.ts", import.meta.url))).toBe(true);
   });
 
   it("ships a hashed browser artifact with a matching minimal manifest", () => {

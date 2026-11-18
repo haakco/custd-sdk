@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { APP_ALERT_ERROR_CODES } from "./app-alerts";
+import { APP_ALERT_DESTINATION_KINDS, APP_ALERT_ERROR_CODES, type AppAlertWebhook } from "./app-alerts";
 import {
   APP_ITEM_ERROR_CODES,
   type AppItemError,
@@ -257,6 +257,31 @@ describe("item alerts", () => {
       Authorization: `Bearer ${OWNER}`,
       "X-Custd-User-Token": USER,
     });
+  });
+
+  it("adds a Slack destination on its own route and removes it like a webhook", async () => {
+    const slack: AppAlertWebhook = {
+      webhookUuid: "w2",
+      kind: APP_ALERT_DESTINATION_KINDS.slack,
+      endpoint: "hooks.slack.com/services/T0/…",
+      createdAt: "t",
+    };
+    const fetchMock = fakeFetch(
+      () => json(slack, 201),
+      () => new Response(null, { status: 204 }),
+    );
+    const items = signedIn(fetchMock);
+
+    expect(await items.addAlertSlack(OWNER, { webhookUrl: "https://hooks.slack.com/services/T0/B0/x" })).toEqual(slack);
+    await items.removeAlertWebhook(OWNER, "w2");
+
+    expect(`${sent(fetchMock, 0).init.method} ${sent(fetchMock, 0).url}`).toBe(
+      `POST ${API}/api/v1/app/item/alerts/slack`,
+    );
+    expect(JSON.parse(String(sent(fetchMock, 0).init.body))).toEqual({
+      webhookUrl: "https://hooks.slack.com/services/T0/B0/x",
+    });
+    expect(sent(fetchMock, 1).url).toBe(`${API}/api/v1/app/item/alerts/webhooks/w2`);
   });
 
   it("names a missing verified email and an email check to retry", async () => {

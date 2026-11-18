@@ -399,6 +399,13 @@ watchers at once. The latest forecast is `empty` until a first run exists.
 Watchers share a poller on the same client. A Site key refused for the page's
 origin gets no CORS header, so the browser reports it as `network`/`offline`.
 
+Watched reads also listen on one realtime WebSocket per client
+(`/api/v1/realtime`): a pushed `item.changed` polls that read at once, and while
+push carries a read its timer stays quiet. The socket reconnects with backoff
+and resubscribes; while it is down or refused, reads poll as above. It uses the
+global `WebSocket` unless you pass your own `fetch`; then pass `webSocket` too,
+or `null` for polling only.
+
 A signed-in user's access token travels in `X-Custd-User-Token` beside the
 link: `startHostedApp` wires it from `app.signIn`, or pass `userToken` to the
 client. `listMyItems()` reads "my items", `claim(ownerToken)` takes ownership of
@@ -423,11 +430,39 @@ advance is a no-op; a stale one fails with 409
 Alerts manage the item with the owner link or the owning user:
 `alertSettings`, `addAlertRule(token, { type, threshold?, staleDays? })`,
 `removeAlertRule`, `addAlertWebhook(token, { endpoint })` (its
-`signingSecret` is shown once), `removeAlertWebhook`, `alertDeliveries`, and
+`signingSecret` is shown once), `addAlertSlack(token, { webhookUrl })` (a Slack
+incoming webhook; the URL is sealed and only a hint comes back, `kind:
+"slack"`), `removeAlertWebhook` (either kind), `alertDeliveries`, and
 for a signed-in user `subscribeAlertEmail` and `unsubscribeAlertEmail`.
 `error.verifiedEmailNeeded` means the user has no verified address
 (`app_alert_no_verified_email`); `app_alert_email_check_unavailable` is
 retryable. The codes are in `APP_ALERT_ERROR_CODES`.
+
+### Testing apps without Custd
+
+`@haakco/custd-sdk/testing` is an in-memory Custd for an app's tests. It serves
+the discovery file, the app item, link, measurement, estimate, forecast,
+model, alert and meeting routes, and a PKCE sign-in, with deterministic,
+deliberately simple results (a straight-line forecast, model midpoints). Its
+answers are built from this SDK's DTOs, so a contract change fails your
+typecheck. `fake.requests` records every request for assertions. Every
+capability starts: tracking and error capture are recorders that touch no page
+globals and send nothing, so `fake.trackedEvents` and `fake.capturedErrors` hold
+what the app tracked and captured.
+
+```ts
+import { startHostedApp } from "@haakco/custd-sdk/browser";
+import { FakeCustd, signInWithFake } from "@haakco/custd-sdk/testing";
+
+const fake = new FakeCustd({ now: () => Date.parse("2026-01-01T00:00:00Z") });
+const start = await startHostedApp(fake.hostedAppOptions());
+if (start.status === "ready" && start.app.signIn) await signInWithFake(fake, start.app.signIn, "alice");
+const items = fake.appItemsClient({ userToken: "alice" });
+```
+
+In a browser test, route the page's requests to `fake.handle({ method, url,
+headers, body })` and serve its `{ status, headers, body }`; the API lives under
+`/__custd` and sign-in under `/__auth` on the fake's `origin`.
 
 ## Browser app user sign-in
 
@@ -753,6 +788,13 @@ application principals a directory holds, through `/api/v1/admin/auth-projects`:
 - `createEnvironment`
 - `listPrincipalSessions`, `revokePrincipalSession`, `revokePrincipalSessions`
 - `revokePrincipalMembership`
+- Apps (`/api/v1/admin/apps`): `createApp({ name, signIn? })` creates the
+  project, its hosted environment and ingest destination in one call and
+  requires `idempotencyKey` (repeat it to finish `app_setup_incomplete`);
+  `listApps(after?)` and `getApp(slug)` report one `status` per app (codes in
+  `APP_STATUSES`, `APP_REASON_CODES`, `APP_ERROR_CODES`);
+  `createAppDeployCredential(slug)` returns a CI client that can deploy only that
+  app (its secret is shown once) and `deleteAppDeployCredential(slug, clientId)`
 - Hosted app releases: `createAppRelease` (manifest files and routing),
   `uploadAppReleaseFile` (one file's raw bytes, sent as `application/octet-stream`),
   `verifyAppRelease`, `promoteAppRelease` and `listAppReleases`

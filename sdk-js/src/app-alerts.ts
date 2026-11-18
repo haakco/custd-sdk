@@ -1,5 +1,5 @@
 // Alerts on an app item (Admin API /api/v1/app/item/alerts): rules that fire once each time their
-// condition becomes true, signed webhooks, the signed-in owner's email subscription, and the
+// condition becomes true, signed webhooks and Slack incoming webhooks, the signed-in owner's email subscription, and the
 // deliveries they made. Every alert route manages the item, so it needs the owner link or the
 // owning user. The JSON names match the routes.
 
@@ -17,6 +17,7 @@ export type AppAlertRuleType = (typeof APP_ALERT_RULE_TYPES)[keyof typeof APP_AL
 
 export const APP_ALERT_CHANNELS = {
   webhook: "webhook",
+  slack: "slack",
   email: "email",
 } as const;
 
@@ -68,7 +69,26 @@ export type AppAlertWebhookCreateRequest = {
   endpoint: string;
 };
 
-export type AppAlertWebhook = { webhookUuid: string; endpoint: string; createdAt: string };
+/** How a destination is delivered: signed Custd JSON, or a Slack message. */
+export const APP_ALERT_DESTINATION_KINDS = {
+  webhook: "webhook",
+  slack: "slack",
+} as const;
+
+export type AppAlertDestinationKind = (typeof APP_ALERT_DESTINATION_KINDS)[keyof typeof APP_ALERT_DESTINATION_KINDS];
+
+export type AppAlertSlackCreateRequest = {
+  /** Slack incoming-webhook URL, `https://hooks.slack.com/services/...`. It is the secret: stored sealed, never shown again. */
+  webhookUrl: string;
+};
+
+/** One destination: a signed webhook or a Slack incoming webhook, whose `endpoint` is only a hint of its URL. */
+export type AppAlertWebhook = {
+  webhookUuid: string;
+  kind: AppAlertDestinationKind;
+  endpoint: string;
+  createdAt: string;
+};
 
 /**
  * A new webhook and its signing secret, shown this once: keep it, Custd cannot. Every delivery is

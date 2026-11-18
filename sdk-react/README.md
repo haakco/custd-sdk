@@ -161,6 +161,15 @@ const baseline = "data" in run ? run.data : undefined;
 <ModelCalculator version={version} inputs={["price"]} outputs={["revenue"]} access={shareToken} baseline={baseline} />;
 ```
 
+In tests, `CustdFakeHostedAppProvider` from `@haakco/custd-react/testing`
+starts the provider against a `FakeCustd` from `@haakco/custd-sdk/testing`, so
+the hooks above run with no network:
+
+```tsx
+const fake = new FakeCustd();
+render(<CustdFakeHostedAppProvider fake={fake}><App /></CustdFakeHostedAppProvider>);
+```
+
 ## Forecast charts
 
 `ForecastChart`, `ConvergenceStory` and `ArrivalHistogram` draw Custd
