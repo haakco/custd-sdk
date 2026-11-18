@@ -6,6 +6,8 @@ namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\AdminProblemException;
 use HaakCo\Custd\Admin\SiteDomain\CreateSiteDomainRequest;
+use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollectorMode;
+use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollectorRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingState;
 use HaakCo\Custd\Admin\SiteDomain\SiteRule;
@@ -59,6 +61,29 @@ final class SiteDomainClientTest extends TestCase
 
         self::assertSame(["host" => "shop.example.com"], $calls[0]["body"]);
         self::assertSame("GET " . self::BASE, $calls[1]["method"] . " " . $calls[1]["url"]);
+    }
+
+    public function testBrowserCollectorConvergesWithTheSiteCredential(): void
+    {
+        $calls = [];
+        $domains = $this->client($calls)->adminSiteDomains();
+        $enabled = $domains->convergeBrowserCollector("d-1", SiteBrowserCollectorRequest::enable("production"));
+        $disabled = $domains->convergeBrowserCollector("d-1", SiteBrowserCollectorRequest::disable());
+
+        self::assertSame(
+            [
+                ["method" => "PUT", "url" => self::BASE . "/d-1/browser-collector", "body" => ["mode" => "enabled", "environment" => "production"]],
+                ["method" => "PUT", "url" => self::BASE . "/d-1/browser-collector", "body" => ["mode" => "disabled"]],
+            ],
+            $calls,
+        );
+        self::assertSame("s-1", $enabled->siteUuid);
+        self::assertSame(SiteBrowserCollectorMode::Enabled, $enabled->mode);
+        self::assertSame("site_pk_example", $enabled->browserKey);
+        self::assertSame("production", $enabled->environment);
+        self::assertSame("https://www.example.com", $enabled->allowedOrigin);
+        self::assertSame(SiteBrowserCollectorMode::Disabled, $disabled->mode);
+        self::assertNull($disabled->browserKey);
     }
 
     /** A reseller emails one Site's alerts to its customer, and clears it again. */
@@ -345,6 +370,9 @@ final class SiteDomainClientTest extends TestCase
             }
             $payload = match (true) {
                 str_ends_with($path, "/attestation") => $this->attestedDomain(),
+                str_ends_with($path, "/browser-collector") => ($body["mode"] ?? null) === "enabled"
+                    ? ["siteUuid" => "s-1", "mode" => "enabled", "browserKey" => "site_pk_example", "environment" => "production", "allowedOrigin" => "https://www.example.com"]
+                    : ["siteUuid" => "s-1", "mode" => "disabled"],
                 str_ends_with($path, "/alert-destination") => ["siteUuid" => "s-1"],
                 str_ends_with($path, "/search-account") => [
                     "googleConfigured" => true,

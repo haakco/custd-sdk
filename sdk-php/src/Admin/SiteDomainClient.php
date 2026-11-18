@@ -12,6 +12,8 @@ use HaakCo\Custd\Admin\SiteDomain\SiteAuditDelta;
 use HaakCo\Custd\Admin\SiteDomain\SiteAuditPageList;
 use HaakCo\Custd\Admin\SiteDomain\SiteLighthousePages;
 use HaakCo\Custd\Admin\SiteDomain\SiteAlertDestination;
+use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollector;
+use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollectorRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
 use HaakCo\Custd\Admin\SiteDomain\SiteDomain;
 use HaakCo\Custd\Admin\SiteDomain\SiteDomainList;
@@ -225,6 +227,14 @@ final class SiteDomainClient
     public function attest(string $domainUuid): SiteDomain
     {
         return SiteDomain::fromPayload($this->send('POST', self::item($domainUuid) . '/attestation', [], null));
+    }
+
+    /** Converge the browser collector of the verified domain owned by this Site credential. */
+    public function convergeBrowserCollector(string $domainUuid, SiteBrowserCollectorRequest $request): SiteBrowserCollector
+    {
+        return SiteBrowserCollector::fromPayload(
+            $this->send('PUT', self::item($domainUuid) . '/browser-collector', [], null, $request->serialise())
+        );
     }
 
     /** Withdraw this credential's attestation; the domain stays verified only by its own proof or a verified parent. */
