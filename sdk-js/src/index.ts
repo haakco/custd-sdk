@@ -334,6 +334,7 @@ export {
   type SiteFindingList,
   type SiteFindingSeverity,
   type SiteFindingState,
+  type SiteFindingSuggestion,
   type SiteIncident,
   type SiteIncidentList,
   SiteRule,

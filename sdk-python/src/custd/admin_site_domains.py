@@ -516,6 +516,13 @@ class SiteFindingHistory(TypedDict):
     fixedAt: NotRequired[str]
 
 
+class SiteFindingSuggestion(TypedDict):
+    """Cached AI explanation and next step for an active finding."""
+
+    explanation: str
+    nextStep: str
+
+
 class SiteFinding(TypedDict):
     """One problem an audit or check found, with the advice to fix it and a source to read.
 
@@ -535,6 +542,7 @@ class SiteFinding(TypedDict):
     # A one-page recheck decides this rule, so request_page_recheck can confirm the fix.
     # Absent from a server before 3.51.
     recheckable: NotRequired[bool]
+    suggestion: NotRequired[SiteFindingSuggestion]
 
 
 class SiteFindingList(TypedDict):

@@ -25,11 +25,14 @@ final readonly class SiteFinding
         public SiteRemedy $remedy,
         public SiteFindingHistory $history,
         public bool $recheckable = false,
+        public ?SiteFindingSuggestion $suggestion = null,
     ) {
     }
 
     public static function fromPayload(\stdClass $payload): self
     {
+        $suggestion = Fields::optionalObject($payload, 'suggestion');
+
         return new self(
             Fields::string($payload, 'findingUuid'),
             Fields::string($payload, 'rule'),
@@ -42,6 +45,7 @@ final readonly class SiteFinding
             SiteRemedy::fromPayload(Fields::object($payload, 'remedy')),
             SiteFindingHistory::fromPayload(Fields::object($payload, 'history')),
             Fields::optionalBoolean($payload, 'recheckable') ?? false,
+            $suggestion === null ? null : SiteFindingSuggestion::fromPayload($suggestion),
         );
     }
 }

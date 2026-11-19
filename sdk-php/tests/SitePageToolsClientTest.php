@@ -45,6 +45,9 @@ final class SitePageToolsClientTest extends TestCase
         self::assertSame(SiteRemedy::KIND_CONTENT, $listed[0]->remedy->kind);
         self::assertSame(SiteRemedy::KIND_SERVER, $listed[1]->remedy->kind);
         self::assertNull($listed[1]->remedy->generated);
+        self::assertSame('The page has no title.', $listed[0]->suggestion?->explanation);
+        self::assertSame('Add a title that describes the page.', $listed[0]->suggestion?->nextStep);
+        self::assertNull($listed[1]->suggestion);
         self::assertTrue($generated->recheckable);
         self::assertSame([true, false], [$listed[0]->recheckable, $listed[1]->recheckable]);
     }

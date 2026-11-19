@@ -320,6 +320,11 @@ export type SiteFindingHistory = {
   fixedAt?: string;
 };
 
+export type SiteFindingSuggestion = {
+  explanation: string;
+  nextStep: string;
+};
+
 /** One problem found on a verified domain, with the advice to fix it. `rule` is a SiteRule ID. */
 export type SiteFinding = {
   findingUuid: string;
@@ -334,6 +339,7 @@ export type SiteFinding = {
   history: SiteFindingHistory;
   /** A one-page recheck decides this rule, so requestPageRecheck can confirm the fix. Absent before 3.51. */
   recheckable?: boolean;
+  suggestion?: SiteFindingSuggestion;
 };
 
 /** A domain's findings, most severe first. */
