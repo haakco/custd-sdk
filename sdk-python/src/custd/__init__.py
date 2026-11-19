@@ -435,6 +435,7 @@ __all__ = [
     "SiteLostReferringDomain",
     "SiteReferringDomain",
     "SiteReferringDomains",
+    "SCOPE_TEMPLATE_SITE_AI_READ",
     "SCOPE_TEMPLATE_SITE_INSIGHTS_READ",
     "SITE_NEXT_ACTIONS_MAX",
     "SITE_NEXT_ACTION_CERTIFICATE",
@@ -854,6 +855,7 @@ from .admin_site_access_logs import (
     SiteTrafficTotals,
 )
 from .admin_site_ai import (
+    SCOPE_TEMPLATE_SITE_AI_READ,
     SiteAIConsentRequest,
     SiteAIGrantConsentRequest,
     SiteAIMode,

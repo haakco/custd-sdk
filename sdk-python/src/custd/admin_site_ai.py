@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
 
+SCOPE_TEMPLATE_SITE_AI_READ = "site-ai-read"
+
 SiteAIMode = Literal["off", "platform", "own-key"]
 SiteAIProduct = Literal["hosting", "custd", "cb", "awthy"]
 SiteAIUsagePeriod = Literal["day", "month", "previous-month"]
