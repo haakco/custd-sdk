@@ -146,6 +146,18 @@ export type AppPlanForecast = {
     lower?: string;
     upper?: string;
     horizonMissFraction?: number;
+    observedProgress?: AppPlanProgressPoint[];
+    projectedProgress?: AppPlanProgressBand[];
+};
+export type AppPlanProgressPoint = {
+    at: string;
+    completed: number;
+};
+export type AppPlanProgressBand = {
+    at: string;
+    lower: number;
+    median: number;
+    upper: number;
 };
 export type AppPlanUpdate = {
     expectedRevision: number;

@@ -26,7 +26,8 @@ pub use app::{
     APP_ITEM_KIND_PLAN, AppClient, AppItem, AppItemCreate, AppItemCreated, AppItemLink,
     AppItemLinkRotated, AppItemList, AppItemRead, AppItemSummary, AppLink, AppLinkCollection,
     AppLinkCollectionEntry, AppMeasurementProjectCreate, AppPlan, AppPlanForecast, AppPlanPart,
-    AppPlanPartUpdate, AppPlanUpdate, AppReadOptions, Conditional,
+    AppPlanPartUpdate, AppPlanProgressBand, AppPlanProgressPoint, AppPlanUpdate, AppReadOptions,
+    Conditional,
 };
 pub use app_alerts::{
     APP_ALERT_DESTINATION_SLACK, APP_ALERT_DESTINATION_WEBHOOK, APP_ALERT_EMAIL_CHECK_UNAVAILABLE,

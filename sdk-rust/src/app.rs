@@ -161,6 +161,24 @@ pub struct AppPlanForecast {
     pub lower: Option<String>,
     pub upper: Option<String>,
     pub horizon_miss_fraction: Option<f64>,
+    #[serde(default)]
+    pub observed_progress: Vec<AppPlanProgressPoint>,
+    #[serde(default)]
+    pub projected_progress: Vec<AppPlanProgressBand>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct AppPlanProgressPoint {
+    pub at: String,
+    pub completed: u32,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct AppPlanProgressBand {
+    pub at: String,
+    pub lower: u32,
+    pub median: u32,
+    pub upper: u32,
 }
 
 #[derive(Serialize)]
