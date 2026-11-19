@@ -111,6 +111,21 @@ describe("AppItemsClient", () => {
     });
   });
 
+  it("updates a plan with its expected revision through the owner link", async () => {
+    const part = { itemUuid: ITEM_UUID, required: true, prerequisites: [] };
+    const plan = { revision: 2, parts: [part] };
+    const updated = { ...itemRead(2), plan };
+    const request = { expectedRevision: 1, parts: [{ ...part, linkToken: SHARE }] };
+    const fetchMock = fakeFetch(() => json(updated));
+
+    expect(await client(fetchMock).updatePlan(OWNER, request)).toEqual(updated);
+    const sentUpdate = sent(fetchMock, 0);
+    expect(sentUpdate.url).toBe(`${API}/api/v1/app/item/plan`);
+    expect(sentUpdate.headers.Authorization).toBe(`Bearer ${OWNER}`);
+    expect(sentUpdate.init.method).toBe("PATCH");
+    expect(JSON.parse(String(sentUpdate.init.body))).toEqual(request);
+  });
+
   it("reads conditionally inside a collection and reports 304 as not modified", async () => {
     const etag = `"${ITEM_UUID}.2.share"`;
     const fetchMock = fakeFetch(

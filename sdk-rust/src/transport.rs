@@ -14,6 +14,7 @@ pub(crate) enum Method {
     Get,
     Post,
     Put,
+    Patch,
     Delete,
 }
 
@@ -110,6 +111,7 @@ fn http_method(method: Method) -> ureq::http::Method {
         Method::Get => ureq::http::Method::GET,
         Method::Post => ureq::http::Method::POST,
         Method::Put => ureq::http::Method::PUT,
+        Method::Patch => ureq::http::Method::PATCH,
         Method::Delete => ureq::http::Method::DELETE,
     }
 }

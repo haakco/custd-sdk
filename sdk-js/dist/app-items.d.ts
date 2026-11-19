@@ -18,6 +18,7 @@ export declare const APP_ITEM_KINDS: {
     readonly linkCollection: "link_collection";
     readonly uncertaintyModel: "uncertainty_model";
     readonly meeting: "meeting";
+    readonly plan: "plan";
 };
 export type AppItemKind = (typeof APP_ITEM_KINDS)[keyof typeof APP_ITEM_KINDS];
 export declare const APP_LINK_ROLES: {
@@ -94,8 +95,9 @@ export type AppItemCreateRequest = {
     idleExpirySeconds?: number;
     measurementProject: AppMeasurementProjectCreate;
 } | {
-    kind: typeof APP_ITEM_KINDS.linkCollection;
+    kind: typeof APP_ITEM_KINDS.linkCollection | typeof APP_ITEM_KINDS.plan;
     idleExpirySeconds?: number;
+    name?: string;
 } | {
     kind: typeof APP_ITEM_KINDS.meeting;
     idleExpirySeconds?: number;
@@ -116,8 +118,26 @@ export type AppProjectUpdateRequest = {
     runSimilar?: boolean;
 };
 export type AppItemSettingsRequest = {
+    name?: string;
     idleExpirySeconds?: number;
     project?: AppProjectUpdateRequest;
+};
+export type AppPlanPart = {
+    itemUuid: string;
+    required: boolean;
+    prerequisites: string[];
+};
+export type AppPlan = {
+    revision: number;
+    deadline?: string;
+    parts: AppPlanPart[];
+};
+export type AppPlanUpdate = {
+    expectedRevision: number;
+    deadline?: string;
+    parts: Array<AppPlanPart & {
+        linkToken?: string;
+    }>;
 };
 export type AppMeasurementRow = {
     /** Optional when the project has one series. */
@@ -232,6 +252,7 @@ export type AppItemRead = {
         entries: AppLinkCollectionEntry[] | null;
     };
     meeting?: AppMeeting;
+    plan?: AppPlan;
     uncertaintyModel?: AppUncertaintyModel;
 };
 /** A new item and its two links. Each token is shown this once: keep it, Custd cannot. */
@@ -538,6 +559,7 @@ export declare class AppItemsClient {
      */
     claim(ownerToken: string): Promise<AppItemRead>;
     readItem(access: AppItemAccess, options?: AppReadOptions): Promise<AppConditionalRead<AppItemRead>>;
+    updatePlan(access: AppItemAccess, request: AppPlanUpdate): Promise<AppItemRead>;
     updateSettings(access: AppItemAccess, request: AppItemSettingsRequest): Promise<AppItemRead>;
     /** Records up to 1000 measurements; check each row's `success`. */
     addMeasurements(access: AppItemAccess, request: AppMeasurementBulkRequest): Promise<AppMeasurementBulkResponse>;

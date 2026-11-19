@@ -29,6 +29,7 @@ use crate::transport::{Method, Transport, UreqTransport, percent_encode};
 pub const APP_ITEM_KIND_MEASUREMENT_PROJECT: &str = "measurement_project";
 pub const APP_ITEM_KIND_LINK_COLLECTION: &str = "link_collection";
 pub const APP_ITEM_KIND_MEETING: &str = "meeting";
+pub const APP_ITEM_KIND_PLAN: &str = "plan";
 
 const ITEMS_PATH: &str = "/api/v1/app/items";
 const ITEM_PATH: &str = "/api/v1/app/item";
@@ -81,7 +82,7 @@ pub struct AppReadOptions {
 #[serde(rename_all = "camelCase")]
 pub struct AppItemCreate {
     /// [`APP_ITEM_KIND_MEASUREMENT_PROJECT`], [`APP_ITEM_KIND_LINK_COLLECTION`] or
-    /// [`APP_ITEM_KIND_MEETING`].
+    /// [`APP_ITEM_KIND_MEETING`] or [`APP_ITEM_KIND_PLAN`].
     pub kind: String,
     /// How long the item may go unchanged before it is deleted; default 7 days.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -124,6 +125,40 @@ pub struct AppItemRead {
     pub estimates: Option<ProjectEstimateList>,
     pub link_collection: Option<AppLinkCollection>,
     pub meeting: Option<AppMeeting>,
+    pub plan: Option<AppPlan>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppPlan {
+    pub revision: i64,
+    pub deadline: Option<String>,
+    pub parts: Vec<AppPlanPart>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppPlanPart {
+    pub item_uuid: String,
+    pub required: bool,
+    pub prerequisites: Vec<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppPlanUpdate {
+    pub expected_revision: i64,
+    pub deadline: Option<String>,
+    pub parts: Vec<AppPlanPartUpdate>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppPlanPartUpdate {
+    #[serde(flatten)]
+    pub part: AppPlanPart,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub link_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -294,6 +329,11 @@ impl AppLink<'_> {
 
     pub fn read(&self, options: &AppReadOptions) -> Result<Conditional<AppItemRead>> {
         self.read_conditional(ITEM_PATH, options)
+    }
+
+    /// Replaces the plan graph if its revision still matches the caller's copy.
+    pub fn update_plan(&self, request: &AppPlanUpdate) -> Result<AppItemRead> {
+        self.write(Method::Patch, "/plan", Some(request))
     }
 
     /// Adds measurements, one or in bulk, and checks every row's result.

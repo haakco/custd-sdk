@@ -19,6 +19,7 @@ export const APP_ITEM_KINDS = {
     linkCollection: "link_collection",
     uncertaintyModel: "uncertainty_model",
     meeting: "meeting",
+    plan: "plan",
 };
 export const APP_LINK_ROLES = {
     owner: "owner",
@@ -130,6 +131,9 @@ export class AppItemsClient {
     }
     readItem(access, options = {}) {
         return this.conditional(ITEM_PATH, access, options);
+    }
+    updatePlan(access, request) {
+        return this.write(access, "PATCH", `${ITEM_PATH}/plan`, request);
     }
     updateSettings(access, request) {
         return this.write(access, "PATCH", ITEM_PATH, request);

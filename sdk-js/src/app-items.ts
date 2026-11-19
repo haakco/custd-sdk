@@ -64,6 +64,7 @@ export const APP_ITEM_KINDS = {
   linkCollection: "link_collection",
   uncertaintyModel: "uncertainty_model",
   meeting: "meeting",
+  plan: "plan",
 } as const;
 
 export type AppItemKind = (typeof APP_ITEM_KINDS)[keyof typeof APP_ITEM_KINDS];
@@ -156,7 +157,11 @@ export type AppItemCreateRequest =
       idleExpirySeconds?: number;
       measurementProject: AppMeasurementProjectCreate;
     }
-  | { kind: typeof APP_ITEM_KINDS.linkCollection; idleExpirySeconds?: number }
+  | {
+      kind: typeof APP_ITEM_KINDS.linkCollection | typeof APP_ITEM_KINDS.plan;
+      idleExpirySeconds?: number;
+      name?: string;
+    }
   | { kind: typeof APP_ITEM_KINDS.meeting; idleExpirySeconds?: number; meeting: AppMeetingCreate }
   | { kind: typeof APP_ITEM_KINDS.uncertaintyModel; idleExpirySeconds?: number; uncertaintyModel: AppModelCreate };
 
@@ -172,8 +177,27 @@ export type AppProjectUpdateRequest = {
 };
 
 export type AppItemSettingsRequest = {
+  name?: string;
   idleExpirySeconds?: number;
   project?: AppProjectUpdateRequest;
+};
+
+export type AppPlanPart = {
+  itemUuid: string;
+  required: boolean;
+  prerequisites: string[];
+};
+
+export type AppPlan = {
+  revision: number;
+  deadline?: string;
+  parts: AppPlanPart[];
+};
+
+export type AppPlanUpdate = {
+  expectedRevision: number;
+  deadline?: string;
+  parts: Array<AppPlanPart & { linkToken?: string }>;
 };
 
 export type AppMeasurementRow = {
@@ -290,6 +314,7 @@ export type AppItemRead = {
   estimates?: AppProjectEstimateList;
   linkCollection?: { entries: AppLinkCollectionEntry[] | null };
   meeting?: AppMeeting;
+  plan?: AppPlan;
   uncertaintyModel?: AppUncertaintyModel;
 };
 
@@ -617,6 +642,10 @@ export class AppItemsClient {
 
   readItem(access: AppItemAccess, options: AppReadOptions = {}): Promise<AppConditionalRead<AppItemRead>> {
     return this.conditional<AppItemRead>(ITEM_PATH, access, options);
+  }
+
+  updatePlan(access: AppItemAccess, request: AppPlanUpdate): Promise<AppItemRead> {
+    return this.write<AppItemRead>(access, "PATCH", `${ITEM_PATH}/plan`, request);
   }
 
   updateSettings(access: AppItemAccess, request: AppItemSettingsRequest): Promise<AppItemRead> {
