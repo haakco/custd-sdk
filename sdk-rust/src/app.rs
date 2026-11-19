@@ -160,6 +160,7 @@ pub struct AppPlanForecast {
     pub missing_parts: Vec<String>,
     pub deadline_probability: Option<f64>,
     pub median: Option<String>,
+    pub previous_median: Option<String>,
     pub lower: Option<String>,
     pub upper: Option<String>,
     pub horizon_miss_fraction: Option<f64>,

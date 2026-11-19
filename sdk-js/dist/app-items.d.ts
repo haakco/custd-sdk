@@ -143,6 +143,8 @@ export type AppPlanForecast = {
     missingParts: string[];
     deadlineProbability?: number;
     median?: string;
+    /** Median of the immediately preceding stored forecast, when available. */
+    previousMedian?: string;
     lower?: string;
     upper?: string;
     horizonMissFraction?: number;
