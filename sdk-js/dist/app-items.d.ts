@@ -132,6 +132,20 @@ export type AppPlan = {
     deadline?: string;
     parts: AppPlanPart[];
 };
+export type AppPlanForecast = {
+    revision: number;
+    asOf: string;
+    horizon: string;
+    model: string;
+    requiredParts: number;
+    completedParts: number;
+    missingParts: string[];
+    deadlineProbability?: number;
+    median?: string;
+    lower?: string;
+    upper?: string;
+    horizonMissFraction?: number;
+};
 export type AppPlanUpdate = {
     expectedRevision: number;
     deadline?: string;
@@ -559,6 +573,7 @@ export declare class AppItemsClient {
      */
     claim(ownerToken: string): Promise<AppItemRead>;
     readItem(access: AppItemAccess, options?: AppReadOptions): Promise<AppConditionalRead<AppItemRead>>;
+    planForecast(access: AppItemAccess): Promise<AppPlanForecast>;
     updatePlan(access: AppItemAccess, request: AppPlanUpdate): Promise<AppItemRead>;
     updateSettings(access: AppItemAccess, request: AppItemSettingsRequest): Promise<AppItemRead>;
     /** Records up to 1000 measurements; check each row's `success`. */

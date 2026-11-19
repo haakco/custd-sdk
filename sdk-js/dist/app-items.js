@@ -132,6 +132,9 @@ export class AppItemsClient {
     readItem(access, options = {}) {
         return this.conditional(ITEM_PATH, access, options);
     }
+    planForecast(access) {
+        return this.json({ method: "GET", path: `${ITEM_PATH}/plan/forecast`, ...this.reach(access) });
+    }
     updatePlan(access, request) {
         return this.write(access, "PATCH", `${ITEM_PATH}/plan`, request);
     }

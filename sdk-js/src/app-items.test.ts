@@ -116,14 +116,34 @@ describe("AppItemsClient", () => {
     const plan = { revision: 2, parts: [part] };
     const updated = { ...itemRead(2), plan };
     const request = { expectedRevision: 1, parts: [{ ...part, linkToken: SHARE }] };
-    const fetchMock = fakeFetch(() => json(updated));
+    const forecast = {
+      revision: 2,
+      asOf: "2026-11-19T10:00:00Z",
+      horizon: "2036-11-19T10:00:00Z",
+      model: "independent_finish_to_start_v1",
+      requiredParts: 1,
+      completedParts: 0,
+      missingParts: [ITEM_UUID],
+    };
+    const fetchMock = fakeFetch(
+      () => json(updated),
+      () => json(forecast),
+    );
+    const items = client(fetchMock);
 
-    expect(await client(fetchMock).updatePlan(OWNER, request)).toEqual(updated);
+    expect(await items.updatePlan(OWNER, request)).toEqual(updated);
     const sentUpdate = sent(fetchMock, 0);
     expect(sentUpdate.url).toBe(`${API}/api/v1/app/item/plan`);
     expect(sentUpdate.headers.Authorization).toBe(`Bearer ${OWNER}`);
     expect(sentUpdate.init.method).toBe("PATCH");
     expect(JSON.parse(String(sentUpdate.init.body))).toEqual(request);
+
+    expect(await items.planForecast(SHARE)).toEqual(forecast);
+    expect(sent(fetchMock, 1)).toMatchObject({
+      url: `${API}/api/v1/app/item/plan/forecast`,
+      init: { method: "GET" },
+      headers: { Authorization: `Bearer ${SHARE}` },
+    });
   });
 
   it("reads conditionally inside a collection and reports 304 as not modified", async () => {

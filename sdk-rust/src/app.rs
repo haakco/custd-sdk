@@ -144,6 +144,23 @@ pub struct AppPlanPart {
     pub prerequisites: Vec<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppPlanForecast {
+    pub revision: i64,
+    pub as_of: String,
+    pub horizon: String,
+    pub model: String,
+    pub required_parts: u32,
+    pub completed_parts: u32,
+    pub missing_parts: Vec<String>,
+    pub deadline_probability: Option<f64>,
+    pub median: Option<String>,
+    pub lower: Option<String>,
+    pub upper: Option<String>,
+    pub horizon_miss_fraction: Option<f64>,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppPlanUpdate {
@@ -329,6 +346,15 @@ impl AppLink<'_> {
 
     pub fn read(&self, options: &AppReadOptions) -> Result<Conditional<AppItemRead>> {
         self.read_conditional(ITEM_PATH, options)
+    }
+
+    /// Reads the overall completion forecast for the plan.
+    pub fn plan_forecast(&self) -> Result<AppPlanForecast> {
+        let path = self.target(&format!("{ITEM_PATH}/plan/forecast"), None);
+        let response = self
+            .app
+            .send(Method::Get, path, self.token(), NO_BODY, None)?;
+        decode(&response.body)
     }
 
     /// Replaces the plan graph if its revision still matches the caller's copy.

@@ -194,6 +194,21 @@ export type AppPlan = {
   parts: AppPlanPart[];
 };
 
+export type AppPlanForecast = {
+  revision: number;
+  asOf: string;
+  horizon: string;
+  model: string;
+  requiredParts: number;
+  completedParts: number;
+  missingParts: string[];
+  deadlineProbability?: number;
+  median?: string;
+  lower?: string;
+  upper?: string;
+  horizonMissFraction?: number;
+};
+
 export type AppPlanUpdate = {
   expectedRevision: number;
   deadline?: string;
@@ -642,6 +657,10 @@ export class AppItemsClient {
 
   readItem(access: AppItemAccess, options: AppReadOptions = {}): Promise<AppConditionalRead<AppItemRead>> {
     return this.conditional<AppItemRead>(ITEM_PATH, access, options);
+  }
+
+  planForecast(access: AppItemAccess): Promise<AppPlanForecast> {
+    return this.json<AppPlanForecast>({ method: "GET", path: `${ITEM_PATH}/plan/forecast`, ...this.reach(access) });
   }
 
   updatePlan(access: AppItemAccess, request: AppPlanUpdate): Promise<AppItemRead> {
