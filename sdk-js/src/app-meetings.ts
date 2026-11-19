@@ -82,3 +82,20 @@ export type AppMeeting = {
   blocks: AppMeetingBlock[] | null;
   summary: AppMeetingSummary;
 };
+
+export type AppMeetingAction = {
+  description: string;
+  partUuid?: string;
+};
+
+export type AppMeetingMinutes = {
+  planUuid?: string;
+  minutes: string;
+  decisions: string;
+  actions: AppMeetingAction[];
+};
+
+export type AppMeetingMinutesUpdate = AppMeetingMinutes & {
+  expectedRevision: number;
+  planLinkToken?: string;
+};

@@ -280,6 +280,9 @@ export class AppItemsClient {
         await this.json({ method: "DELETE", path: `${ALERTS_PATH}/subscription`, ...this.reach(access) });
     }
     /** Starts the meeting item's first block. Owner only. */
+    updateMeetingMinutes(access, request) {
+        return this.write(access, "PATCH", `${ITEM_PATH}/meeting/minutes`, request);
+    }
     startMeeting(access) {
         return this.meetingStep(access, "start");
     }

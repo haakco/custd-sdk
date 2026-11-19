@@ -37,8 +37,9 @@ pub use app_alerts::{
     AppAlertWebhookCreated,
 };
 pub use app_meetings::{
-    APP_ITEM_MEETING_STEP_REFUSED, AppMeeting, AppMeetingBlock, AppMeetingBlockCreate,
-    AppMeetingCreate, AppMeetingSummary,
+    APP_ITEM_MEETING_STEP_REFUSED, AppMeeting, AppMeetingAction, AppMeetingBlock,
+    AppMeetingBlockCreate, AppMeetingCreate, AppMeetingMinutes, AppMeetingMinutesUpdate,
+    AppMeetingSummary,
 };
 pub use app_story::{
     AppForecastStory, AppForecastStoryDelivery, AppForecastStoryEstimate,

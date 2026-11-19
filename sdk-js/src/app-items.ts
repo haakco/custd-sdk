@@ -26,6 +26,8 @@ import {
   type AppMeeting,
   type AppMeetingAdvanceRequest,
   type AppMeetingCreate,
+  type AppMeetingMinutes,
+  type AppMeetingMinutesUpdate,
 } from "./app-meetings.js";
 import {
   APP_MODEL_ERROR_CODES,
@@ -329,6 +331,7 @@ export type AppItemRead = {
   estimates?: AppProjectEstimateList;
   linkCollection?: { entries: AppLinkCollectionEntry[] | null };
   meeting?: AppMeeting;
+  meetingMinutes?: AppMeetingMinutes;
   plan?: AppPlan;
   uncertaintyModel?: AppUncertaintyModel;
 };
@@ -842,6 +845,10 @@ export class AppItemsClient {
   }
 
   /** Starts the meeting item's first block. Owner only. */
+  updateMeetingMinutes(access: AppItemAccess, request: AppMeetingMinutesUpdate): Promise<AppItemRead> {
+    return this.write<AppItemRead>(access, "PATCH", `${ITEM_PATH}/meeting/minutes`, request);
+  }
+
   startMeeting(access: AppItemAccess): Promise<AppItemRead> {
     return this.meetingStep(access, "start");
   }

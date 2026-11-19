@@ -81,7 +81,40 @@ struct AppMeetingAdvance<'a> {
     block_uuid: &'a str,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppMeetingAction {
+    pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub part_uuid: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppMeetingMinutes {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plan_uuid: Option<String>,
+    pub minutes: String,
+    pub decisions: String,
+    pub actions: Vec<AppMeetingAction>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppMeetingMinutesUpdate {
+    #[serde(flatten)]
+    pub minutes: AppMeetingMinutes,
+    pub expected_revision: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plan_link_token: Option<String>,
+}
+
 impl AppLink<'_> {
+    /// Saves the owner's private notes and actions at an expected item revision.
+    pub fn update_meeting_minutes(&self, update: &AppMeetingMinutesUpdate) -> Result<AppItemRead> {
+        self.write(Method::Patch, "/meeting/minutes", Some(update))
+    }
+
     /// Starts the meeting's first block. Owner only.
     pub fn start_meeting(&self) -> Result<AppItemRead> {
         self.write(Method::Post, "/meeting/start", NO_BODY)

@@ -14,7 +14,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::Result;
-use crate::app_meetings::AppMeeting;
+use crate::app_meetings::{AppMeeting, AppMeetingMinutes};
 use crate::app_story::AppForecastStory;
 use crate::client::{decode, execute, json_request, trim_base_url};
 use crate::discovery::HostedAppDiscovery;
@@ -125,6 +125,7 @@ pub struct AppItemRead {
     pub estimates: Option<ProjectEstimateList>,
     pub link_collection: Option<AppLinkCollection>,
     pub meeting: Option<AppMeeting>,
+    pub meeting_minutes: Option<AppMeetingMinutes>,
     pub plan: Option<AppPlan>,
 }
 

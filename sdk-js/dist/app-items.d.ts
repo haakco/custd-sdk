@@ -1,6 +1,6 @@
 import { type AppAlertDeliveryList, type AppAlertRule, type AppAlertRuleSpec, type AppAlertSettings, type AppAlertSlackCreateRequest, type AppAlertSubscription, type AppAlertWebhook, type AppAlertWebhookCreated, type AppAlertWebhookCreateRequest } from "./app-alerts.js";
 import { type AppLiveWatch, type AppLiveWatchOptions } from "./app-live.js";
-import { type AppMeeting, type AppMeetingAdvanceRequest, type AppMeetingCreate } from "./app-meetings.js";
+import { type AppMeeting, type AppMeetingAdvanceRequest, type AppMeetingCreate, type AppMeetingMinutes, type AppMeetingMinutesUpdate } from "./app-meetings.js";
 import { type AppModelCalculateRequest, type AppModelCalculateResult, type AppModelCopyRequest, type AppModelCreate, type AppModelRun, type AppModelRunRequest, type AppModelVersionCreateRequest, type AppUncertaintyModel } from "./app-models.js";
 import { type AppWebSocketFactory } from "./app-push.js";
 export declare const APP_ITEM_SITE_KEY_HEADER = "X-Custd-Site-Key";
@@ -266,6 +266,7 @@ export type AppItemRead = {
         entries: AppLinkCollectionEntry[] | null;
     };
     meeting?: AppMeeting;
+    meetingMinutes?: AppMeetingMinutes;
     plan?: AppPlan;
     uncertaintyModel?: AppUncertaintyModel;
 };
@@ -632,6 +633,7 @@ export declare class AppItemsClient {
     /** Stops the signed-in user's alert email. Repeating it succeeds. */
     unsubscribeAlertEmail(access: AppItemAccess): Promise<void>;
     /** Starts the meeting item's first block. Owner only. */
+    updateMeetingMinutes(access: AppItemAccess, request: AppMeetingMinutesUpdate): Promise<AppItemRead>;
     startMeeting(access: AppItemAccess): Promise<AppItemRead>;
     /**
      * Finishes the block `blockUuid` names (the meeting's `currentBlockUuid`) and puts the next one
