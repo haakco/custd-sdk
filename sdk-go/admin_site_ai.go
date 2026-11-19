@@ -53,6 +53,7 @@ type SiteAISettings struct {
 	Mode                 SiteAIMode `json:"aiMode"`
 	MonthlyCapUSDMicros  int64      `json:"monthlyCapUsdMicros"`
 	KeyConfigured        bool       `json:"keyConfigured"`
+	OwnKeyAvailable      bool       `json:"ownKeyAvailable,omitempty"`
 	KeyRefused           bool       `json:"keyRefused,omitempty"`
 	CurrentTermsVersion  string     `json:"currentTermsVersion,omitempty"`
 	AcceptedTermsVersion string     `json:"acceptedTermsVersion,omitempty"`

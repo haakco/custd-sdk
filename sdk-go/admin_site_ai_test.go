@@ -23,7 +23,7 @@ func TestSiteAIClient(t *testing.T) {
 		t.Fatalf("settings = %+v, %v", settings, err)
 	}
 	settings, err = admin.SiteDomains.SetAISettings(ctx, SiteAISettingsRequest{Mode: SiteAIOwnKey, MonthlyCapUSDMicros: 10_000_000, APIKey: "test-only-key"})
-	if err != nil || !settings.KeyConfigured {
+	if err != nil || !settings.KeyConfigured || !settings.OwnKeyAvailable {
 		t.Fatalf("updated settings = %+v, %v", settings, err)
 	}
 	_, err = admin.SiteDomains.SetAIConsent(ctx, SiteAIConsentRequest{Action: SiteAIGrantConsent, TermsVersion: "terms-v1"})

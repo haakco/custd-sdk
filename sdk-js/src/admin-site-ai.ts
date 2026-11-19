@@ -9,6 +9,7 @@ export type SiteAISettings = {
   aiMode: SiteAIMode;
   monthlyCapUsdMicros: number;
   keyConfigured: boolean;
+  ownKeyAvailable?: boolean;
   keyRefused?: boolean;
   currentTermsVersion?: string;
   acceptedTermsVersion?: string;

@@ -26,6 +26,7 @@ final class SiteAIClientTest extends TestCase
         $settings = $ai->getSettings();
         self::assertSame(SiteAIMode::OwnKey, $settings->aiMode);
         self::assertTrue($settings->keyRefused);
+        self::assertTrue($settings->ownKeyAvailable);
         self::assertSame('terms-v1', $settings->acceptedTermsVersion);
         self::assertStringNotContainsString('apiKey', json_encode($settings, JSON_THROW_ON_ERROR));
 
@@ -48,6 +49,7 @@ final class SiteAIClientTest extends TestCase
         $revoked = $this->replay($revocation, 'revoked')->ai()->setConsent(SiteAIConsentRequest::revoke());
         self::assertFalse($revoked->keyRefused);
         self::assertFalse($revoked->keyConfigured);
+        self::assertFalse($revoked->ownKeyAvailable);
         self::assertSame([['action' => 'revoke']], array_column($revocation, 'body'));
     }
 

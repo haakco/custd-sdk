@@ -15,6 +15,7 @@ class SiteAISettings(TypedDict):
     aiMode: SiteAIMode
     monthlyCapUsdMicros: int
     keyConfigured: bool
+    ownKeyAvailable: NotRequired[bool]
     keyRefused: NotRequired[bool]
     currentTermsVersion: NotRequired[str]
     acceptedTermsVersion: NotRequired[str]
