@@ -96,7 +96,17 @@ pub struct AppMeetingMinutes {
     pub plan_uuid: Option<String>,
     pub minutes: String,
     pub decisions: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shared_summary: Option<String>,
     pub actions: Vec<AppMeetingAction>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppPlanMeetingSummary {
+    pub meeting_uuid: String,
+    pub name: String,
+    pub summary: String,
 }
 
 #[derive(Serialize)]

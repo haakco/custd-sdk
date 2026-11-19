@@ -92,10 +92,17 @@ export type AppMeetingMinutes = {
   planUuid?: string;
   minutes: string;
   decisions: string;
+  sharedSummary?: string;
   actions: AppMeetingAction[];
 };
 
 export type AppMeetingMinutesUpdate = AppMeetingMinutes & {
   expectedRevision: number;
   planLinkToken?: string;
+};
+
+export type AppPlanMeetingSummary = {
+  meetingUuid: string;
+  name: string;
+  summary: string;
 };

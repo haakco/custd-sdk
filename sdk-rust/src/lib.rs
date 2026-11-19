@@ -40,7 +40,7 @@ pub use app_alerts::{
 pub use app_meetings::{
     APP_ITEM_MEETING_STEP_REFUSED, AppMeeting, AppMeetingAction, AppMeetingBlock,
     AppMeetingBlockCreate, AppMeetingCreate, AppMeetingMinutes, AppMeetingMinutesUpdate,
-    AppMeetingSummary,
+    AppMeetingSummary, AppPlanMeetingSummary,
 };
 pub use app_story::{
     AppForecastStory, AppForecastStoryDelivery, AppForecastStoryEstimate,

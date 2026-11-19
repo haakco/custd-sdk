@@ -1,6 +1,6 @@
 [package]
 name = "custd-sdk"
-version = "3.62.0"
+version = "3.63.0"
 edition = "2024"
 description = "Typed Custd API client: measurement projects, app item links and device-code login."
 license = "MIT"

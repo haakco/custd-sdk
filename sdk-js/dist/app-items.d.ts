@@ -1,6 +1,6 @@
 import { type AppAlertDeliveryList, type AppAlertRule, type AppAlertRuleSpec, type AppAlertSettings, type AppAlertSlackCreateRequest, type AppAlertSubscription, type AppAlertWebhook, type AppAlertWebhookCreated, type AppAlertWebhookCreateRequest } from "./app-alerts.js";
 import { type AppLiveWatch, type AppLiveWatchOptions } from "./app-live.js";
-import { type AppMeeting, type AppMeetingAdvanceRequest, type AppMeetingCreate, type AppMeetingMinutes, type AppMeetingMinutesUpdate } from "./app-meetings.js";
+import { type AppMeeting, type AppMeetingAdvanceRequest, type AppMeetingCreate, type AppMeetingMinutes, type AppMeetingMinutesUpdate, type AppPlanMeetingSummary } from "./app-meetings.js";
 import { type AppModelCalculateRequest, type AppModelCalculateResult, type AppModelCopyRequest, type AppModelCreate, type AppModelRun, type AppModelRunRequest, type AppModelVersionCreateRequest, type AppUncertaintyModel } from "./app-models.js";
 import { type AppWebSocketFactory } from "./app-push.js";
 export declare const APP_ITEM_SITE_KEY_HEADER = "X-Custd-Site-Key";
@@ -280,6 +280,7 @@ export type AppItemRead = {
     };
     meeting?: AppMeeting;
     meetingMinutes?: AppMeetingMinutes;
+    planMeetingSummaries?: AppPlanMeetingSummary[];
     plan?: AppPlan;
     uncertaintyModel?: AppUncertaintyModel;
 };

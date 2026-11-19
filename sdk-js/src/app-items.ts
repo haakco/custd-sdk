@@ -28,6 +28,7 @@ import {
   type AppMeetingCreate,
   type AppMeetingMinutes,
   type AppMeetingMinutesUpdate,
+  type AppPlanMeetingSummary,
 } from "./app-meetings.js";
 import {
   APP_MODEL_ERROR_CODES,
@@ -338,6 +339,7 @@ export type AppItemRead = {
   linkCollection?: { entries: AppLinkCollectionEntry[] | null };
   meeting?: AppMeeting;
   meetingMinutes?: AppMeetingMinutes;
+  planMeetingSummaries?: AppPlanMeetingSummary[];
   plan?: AppPlan;
   uncertaintyModel?: AppUncertaintyModel;
 };
