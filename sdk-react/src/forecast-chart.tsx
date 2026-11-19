@@ -1,4 +1,4 @@
-import { type CSSProperties, type PointerEvent, useEffect, useId, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type PointerEvent, type WheelEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   type ChartDomain,
   DAY_MS,
@@ -130,12 +130,11 @@ type ViewProps = Required<ChartFormatters> & {
 
 function ForecastChartView({ data, domains, labels, formatDate, ...props }: ViewProps) {
   const { full } = domains;
-  const [view, setView] = useState(full);
+  const [selection, setSelection] = useState<ChartDomain | null>(null);
+  const view = selection ? zoomDomain(selection, 1, full, MIN_SPAN_MS) : full;
   const [fullScreen, setFullScreen] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
   const shown = useTweenedDomain(view, reducedMotion);
-  // New data with the same extent keeps the reader's zoom; a changed extent resets it.
-  useEffect(() => setView({ start: full.start, end: full.end }), [full.start, full.end]);
   useEffect(() => {
     if (!fullScreen) return;
     const exit = (event: KeyboardEvent) => event.key === "Escape" && setFullScreen(false);
@@ -143,8 +142,9 @@ function ForecastChartView({ data, domains, labels, formatDate, ...props }: View
     return () => document.removeEventListener("keydown", exit);
   }, [fullScreen]);
 
-  const zoom = (factor: number) => setView((current) => zoomDomain(current, factor, full, MIN_SPAN_MS));
-  const pan = (fraction: number) => setView((current) => panDomain(current, fraction, full));
+  const select = (next: ChartDomain) => setSelection(sameDomain(next, full) ? null : next);
+  const zoom = (factor: number) => select(zoomDomain(view, factor, full, MIN_SPAN_MS));
+  const pan = (fraction: number) => select(panDomain(view, fraction, full));
   const atFull = sameDomain(view, full);
   return (
     <div
@@ -164,8 +164,8 @@ function ForecastChartView({ data, domains, labels, formatDate, ...props }: View
         <ChartButton label={labels.zoomOut} onClick={() => zoom(1 / ZOOM_FACTOR)} disabled={atFull} />
         <ChartButton label={labels.panEarlier} onClick={() => pan(-PAN_FRACTION)} disabled={view.start <= full.start} />
         <ChartButton label={labels.panLater} onClick={() => pan(PAN_FRACTION)} disabled={view.end >= full.end} />
-        <ChartButton label={labels.reset} onClick={() => setView(full)} disabled={atFull} />
-        <ChartButton label={labels.zoomToData} onClick={() => setView(domains.observed)} />
+        <ChartButton label={labels.reset} onClick={() => setSelection(null)} disabled={atFull} />
+        <ChartButton label={labels.zoomToData} onClick={() => select(domains.observed)} disabled={sameDomain(view, domains.observed)} />
         <ChartButton label={labels.fullScreen} pressed={fullScreen} onClick={() => setFullScreen((on) => !on)} />
       </fieldset>
       <p role="status" aria-live="polite" style={VISUALLY_HIDDEN}>
@@ -222,6 +222,13 @@ function ForecastPlot({ data, x, y, title, summary, width, height, formatDate, f
     const rendered = event.currentTarget.getBoundingClientRect().width;
     if (rendered > 0) drag.current = { clientX: event.clientX, width: rendered };
   };
+  const onWheel = (event: WheelEvent<SVGSVGElement>) => {
+    const delta = event.shiftKey && event.deltaX === 0 ? event.deltaY : event.deltaX;
+    if (delta === 0 || (!event.shiftKey && Math.abs(delta) < Math.abs(event.deltaY))) return;
+    const distance = event.deltaMode === 1 ? delta * 16 : delta;
+    const rendered = event.currentTarget.getBoundingClientRect().width;
+    if (rendered > 0) onPan(event.deltaMode === 2 ? delta : distance / rendered);
+  };
   const endDrag = () => {
     drag.current = undefined;
   };
@@ -240,6 +247,7 @@ function ForecastPlot({ data, x, y, title, summary, width, height, formatDate, f
       viewBox={`0 0 ${width} ${height}`}
       width="100%"
       style={{ display: "block", touchAction: "pan-y" }}
+      onWheel={onWheel}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
       onPointerLeave={endDrag}

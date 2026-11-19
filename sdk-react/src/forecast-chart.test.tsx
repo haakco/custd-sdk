@@ -110,12 +110,14 @@ describe("ForecastChart", () => {
     expect(drawnEnd()).toBe("2026-07-31");
   });
 
-  it("keeps the reader's zoom when equal data arrives again", () => {
+  it("keeps the reader's zoom when a new forecast moves the end date", () => {
     reduceMotion(true);
     const { rerender } = render(<ForecastChart data={data} title="Signups" />);
     fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
-    rerender(<ForecastChart data={{ ...data, observations: [...data.observations] }} title="Signups" />);
+    rerender(<ForecastChart data={{ ...data, completionMedian: "2026-09-15T00:00:00Z" }} title="Signups" />);
     expect(view()).toBe("Showing 2026-07-11 to 2026-07-31");
+    fireEvent.click(screen.getByRole("button", { name: "Reset view" }));
+    expect(view()).toBe("Showing 2026-07-01 to 2026-09-15");
   });
 
   it("shows partial and empty states in the client's wording", () => {
