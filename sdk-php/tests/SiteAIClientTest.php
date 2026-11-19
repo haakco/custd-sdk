@@ -56,6 +56,7 @@ final class SiteAIClientTest extends TestCase
     public function testUsageKeepsSeparateCostsAndOptionalProductAttribution(): void
     {
         $tenant = $this->replay($tenantCalls, 'tenantUsage')->ai()->getTenantUsage();
+        self::assertSame(61, $tenant->monthlyCapUsedUsdMicros);
         self::assertSame(SiteAIUsagePeriod::Month, $tenant->usage->period);
         self::assertNull($tenant->usage->rows[0]->samplingProduct);
         self::assertSame(['GET http://localhost:8080/api/v1/site-domains/ai-usage'], array_column($tenantCalls, 'route'));

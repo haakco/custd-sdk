@@ -37,7 +37,7 @@ func TestSiteAIClient(t *testing.T) {
 	}
 	doer.body = string(fixture.TenantUsage)
 	tenant, err := admin.SiteDomains.GetAIUsage(ctx)
-	if err != nil || len(tenant.Rows) != 1 || tenant.Rows[0].CapAccountedUSDMicros != 61 || tenant.Rows[0].SamplingProduct != "" {
+	if err != nil || tenant.MonthlyCapUsedUSDMicros == nil || *tenant.MonthlyCapUsedUSDMicros != 61 || len(tenant.Rows) != 1 || tenant.Rows[0].CapAccountedUSDMicros != 61 || tenant.Rows[0].SamplingProduct != "" {
 		t.Fatalf("tenant usage = %+v, %v", tenant, err)
 	}
 	doer.body = string(fixture.PlatformUsage)

@@ -76,6 +76,7 @@ class SiteAITenantUsage(_SiteAIUsageWindow):
     period: Literal["month"]
     aiMode: SiteAIMode
     monthlyCapUsdMicros: int
+    monthlyCapUsedUsdMicros: NotRequired[int]
 
 
 class SiteAIPlatformUsage(SiteAIUsage):

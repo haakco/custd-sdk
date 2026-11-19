@@ -12,6 +12,7 @@ final readonly class SiteAITenantUsage
         public SiteAIUsage $usage,
         public SiteAIMode $aiMode,
         public int $monthlyCapUsdMicros,
+        public ?int $monthlyCapUsedUsdMicros = null,
     ) {
     }
 
@@ -21,6 +22,7 @@ final readonly class SiteAITenantUsage
             SiteAIUsage::fromPayload($payload),
             SiteAIMode::from(Fields::string($payload, 'aiMode')),
             Fields::integer($payload, 'monthlyCapUsdMicros'),
+            Fields::optionalInteger($payload, 'monthlyCapUsedUsdMicros'),
         );
     }
 }

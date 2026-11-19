@@ -57,6 +57,7 @@ export type SiteAITenantUsage = SiteAIUsage & {
     period: "month";
     aiMode: SiteAIMode;
     monthlyCapUsdMicros: number;
+    monthlyCapUsedUsdMicros?: number;
 };
 export type SiteAIPlatformUsage = SiteAIUsage & {
     samplingMonthlyCapUsdMicros: number;
