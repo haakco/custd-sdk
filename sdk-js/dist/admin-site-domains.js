@@ -95,6 +95,7 @@ export const SiteRule = {
     LogsCrawlerNotFound: "logs.crawler-not-found",
 };
 const siteDomainsPath = "/site-domains";
+const siteAISettingsPath = `${siteDomainsPath}/ai-settings`;
 const searchPoolPath = `${siteDomainsPath}/search-pool`;
 const keywordListsPath = `${siteDomainsPath}/keyword-lists`;
 export class SiteDomainAdminClient {
@@ -162,6 +163,22 @@ export class SiteDomainAdminClient {
     /** Reads which search providers this Custd deployment can import from. */
     getSearchAccount(options) {
         return this.send("GET", `${siteDomainsPath}/search-account`, {}, undefined, options);
+    }
+    /** Reads the tenant's AI policy and current provider terms version. */
+    getAISettings(options) {
+        return this.send("GET", siteAISettingsPath, {}, undefined, options);
+    }
+    /** Replaces the tenant's AI mode and cap. The API key is write-only. */
+    setAISettings(body, options) {
+        return this.send("PUT", siteAISettingsPath, {}, body, options);
+    }
+    /** Records explicit acceptance of the supplied terms version or revokes consent. */
+    setAIConsent(body, options) {
+        return this.send("PUT", `${siteAISettingsPath}/consent`, {}, body, options);
+    }
+    /** Reads the tenant's current UTC month's AI usage. */
+    getAIUsage(options) {
+        return this.send("GET", `${siteDomainsPath}/ai-usage`, {}, undefined, options);
     }
     /** Reads whether the tenant takes part in the shared search pool, and the pool's rules. */
     getSearchPool(options) {
@@ -274,6 +291,14 @@ export class SiteDomainAdminClient {
             delete result.sharedPercent;
         return result;
     }
+    /** Compares two stored page observations on a verified domain without fetching either URL. */
+    async comparePageWording(domainUuid, { firstUrl, secondUrl }, options) {
+        const path = `${domainPath(domainUuid)}/page-wording`;
+        const result = await this.send("GET", path, { firstUrl, secondUrl }, undefined, options);
+        if (result.comparison && !result.comparison.compared)
+            delete result.comparison.sharedPercent;
+        return result;
+    }
     /** Tests a URL against a pasted robots.txt, or the domain's live file when robotsTxt is omitted. */
     testRobots(domainUuid, body, options) {
         const request = { url: body.url, userAgent: body.userAgent };
@@ -313,8 +338,13 @@ export class SiteDomainAdminClient {
             brandNames: body.brandNames ?? [],
             competitorDomains: body.competitorDomains ?? [],
             markets: body.markets ?? [],
+            hackerNewsEnabled: body.hackerNewsEnabled,
         };
         return this.send("PUT", `${siteDomainsPath}/project-context`, { siteUuid: body.siteUuid }, request, options);
+    }
+    /** Reads public trends matching a Site's audience and saved terms. A site token may omit siteUuid. */
+    getRegionalTrends(siteUuid, options) {
+        return this.send("GET", `${siteDomainsPath}/regional-trends`, { siteUuid }, undefined, options);
     }
     /** Reads the domain's status and its most important next actions, most important first. */
     getNextActions(domainUuid, options) {

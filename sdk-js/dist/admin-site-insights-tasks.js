@@ -19,4 +19,10 @@ export class SiteInsightsAdminClient {
     listTasks(options) {
         return this.request("GET", "/site-insights/tasks", undefined, options);
     }
+    /** Reads AI usage across tenants. System administrators only. */
+    getAIUsage(period, options) {
+        const path = "/site-insights/ai-usage";
+        const query = period ? `?${new URLSearchParams({ period })}` : "";
+        return this.request("GET", path + query, undefined, options);
+    }
 }

@@ -265,6 +265,18 @@ export {
   type RetentionRunPreview,
   type RetentionRunsListResponse,
 } from "./admin-retention.js";
+export type {
+  SiteAIConsentRequest,
+  SiteAIMode,
+  SiteAIPlatformUsage,
+  SiteAIProduct,
+  SiteAISettings,
+  SiteAISettingsRequest,
+  SiteAITenantUsage,
+  SiteAIUsage,
+  SiteAIUsagePeriod,
+  SiteAIUsageRow,
+} from "./admin-site-ai.js";
 export {
   SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE,
   SITE_ANALYTICS_PROPERTY_INVALID_CODE,
@@ -382,6 +394,7 @@ export {
   type SiteLighthouseRun,
   type SiteLighthouseScores,
   type SiteMarket,
+  type SiteObservedWording,
   type SitePageCheckRequest,
   type SitePageCheckResponse,
   SitePageCheckScope,
@@ -395,6 +408,7 @@ export {
   SitePageRecheckState,
   type SitePageRobots,
   type SitePageTwitter,
+  type SitePageWordingQuery,
   type SitePhraseUse,
   type SiteProjectContext,
   type SiteProjectContextRequest,
@@ -428,6 +442,8 @@ export {
   type SiteUptimeWindows,
   type SiteWordingCompare,
   type SiteWordingCompareRequest,
+  type SiteWordingObservation,
+  type SiteWordingObservationState,
 } from "./admin-site-insights.js";
 export {
   SiteInsightsAdminClient,
@@ -4475,6 +4491,12 @@ function randomUUID(): string {
   );
 }
 
+export type {
+  SiteRegionalTrendMarket,
+  SiteRegionalTrendMatch,
+  SiteRegionalTrends,
+  SiteTechnicalTrends,
+} from "./admin-site-regional-trends.js";
 export {
   type CaptureExceptionRequest,
   createErrorCaptureEvent,

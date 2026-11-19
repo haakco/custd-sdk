@@ -17,6 +17,7 @@ import {
   type SiteFinding,
   SiteGeneratedFormat,
   SitePageCheckScope,
+  type SiteRegionalTrends,
   type SiteRemedy,
   SiteRemedyKind,
   SiteRule,
@@ -129,6 +130,34 @@ describe("site insights page tools", () => {
     const sent = calls();
     expect(sent[0]?.route).toBe(`GET ${item}/page-rechecks?ids=r-1%2Cr-2`);
     expect(sent[2]?.body).toEqual({ host: "blog.example.com" });
+  });
+
+  it("compares two stored page observations, preserving missing and short evidence", async () => {
+    const { domains, calls } = newDomains(
+      respond(200, tools.observedWording),
+      respond(200, tools.observedWordingUnavailable),
+      respond(200, tools.observedWordingShort),
+    );
+    const query = {
+      firstUrl: "https://example.com/plans?locale=en&view=full",
+      secondUrl: "https://example.com/support",
+    };
+    const ready = await domains.comparePageWording(domainUuid, query, { companySlug: "acme" });
+    const unavailable = await domains.comparePageWording(domainUuid, query);
+    const short = await domains.comparePageWording(domainUuid, query);
+    expect(ready).toEqual(tools.observedWording);
+    expect(unavailable).toEqual(tools.observedWordingUnavailable);
+    expect(short.first.state).toBe("short");
+    expect(short.comparison).toMatchObject({ firstWords: 80, compared: false });
+    expect(short.comparison).not.toHaveProperty("sharedPercent");
+    const route =
+      `GET ${item}/page-wording?firstUrl=${encodeURIComponent(query.firstUrl)}` +
+      `&secondUrl=${encodeURIComponent(query.secondUrl)}`;
+    expect(calls()).toEqual([
+      { route: `${route}&companySlug=acme`, body: undefined },
+      { route, body: undefined },
+      { route, body: undefined },
+    ]);
   });
 
   it("sends the draft tools and wording compare and decodes their recorded answers", async () => {
@@ -268,6 +297,47 @@ describe("site insights search rows, inspections and project context", () => {
       route: `PUT ${base}/site-domains/project-context?siteUuid=${siteUuid}`,
       body: tools.projectContextRequest,
     });
+  });
+
+  it("sets or clears technical discovery and reads optional Hacker News evidence", async () => {
+    const regional = { siteUuid, source: "Google Trends", hasSavedTerms: true, markets: [] };
+    const technical: SiteRegionalTrends = {
+      ...regional,
+      technical: {
+        source: "Hacker News",
+        checkedAt: "2026-11-18T13:05:00Z",
+        stale: false,
+        matches: [
+          {
+            topic: "Database testing",
+            sourceUrl: "https://example.com/testing",
+            discussionUrl: "https://news.ycombinator.com/item?id=1",
+            publishedAt: "2026-11-18T13:00:00Z",
+            matchedTerm: "database",
+          },
+        ],
+      },
+    };
+    const { domains, calls } = newDomains(
+      respond(200, { ...tools.projectContext, hackerNewsEnabled: true }),
+      respond(200, tools.projectContext),
+      respond(200, technical),
+      respond(200, regional),
+    );
+    expect((await domains.setProjectContext({ siteUuid, hackerNewsEnabled: true })).hackerNewsEnabled).toBe(true);
+    await domains.setProjectContext({ hackerNewsEnabled: false });
+    expect(await domains.getRegionalTrends(siteUuid, { companySlug: "acme" })).toEqual(technical);
+    expect((await domains.getRegionalTrends()).technical).toBeUndefined();
+    const emptyContext = { brandNames: [], competitorDomains: [], markets: [] };
+    expect(calls()).toEqual([
+      {
+        route: `PUT ${base}/site-domains/project-context?siteUuid=${siteUuid}`,
+        body: { ...emptyContext, hackerNewsEnabled: true },
+      },
+      { route: `PUT ${base}/site-domains/project-context`, body: { ...emptyContext, hackerNewsEnabled: false } },
+      { route: `GET ${base}/site-domains/regional-trends?siteUuid=${siteUuid}&companySlug=acme`, body: undefined },
+      { route: `GET ${base}/site-domains/regional-trends`, body: undefined },
+    ]);
   });
 
   it.each([

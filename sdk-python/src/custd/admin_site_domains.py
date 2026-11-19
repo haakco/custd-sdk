@@ -15,6 +15,14 @@ from datetime import UTC, datetime
 from typing import Any, Literal, NotRequired, TypedDict, cast
 
 from .admin_site_access_logs import SiteAccessLogHourReplay, SiteAIVisibility, SiteTraffic
+from .admin_site_ai import (
+    SiteAIConsentRequest,
+    SiteAIPlatformUsage,
+    SiteAISettings,
+    SiteAISettingsRequest,
+    SiteAITenantUsage,
+    SiteAIUsagePeriod,
+)
 from .admin_site_analytics import SiteAnalyticsConnection, SiteAnalyticsReport
 from .admin_site_campaign_links import SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest
 from .admin_site_export import SiteInsightsExport, SiteSearchMetricPage
@@ -28,6 +36,7 @@ from .admin_site_insights import (
     SiteIndexNowSubmission,
     SiteLighthouseHistory,
     SiteLighthousePages,
+    SiteObservedWording,
     SitePageCheckResponse,
     SitePageFacts,
     SitePageRecheck,
@@ -60,6 +69,7 @@ from .admin_site_web_data import (
     SiteKeywordList,
     SiteKeywordListRequest,
     SiteKeywordLists,
+    SiteRegionalTrends,
     SiteTopicTrends,
     SiteWebDomains,
     SiteWebPages,
@@ -72,6 +82,7 @@ SITE_PROJECT_CONTEXT_PATH = SITE_DOMAINS_PATH + "/project-context"
 SITE_WEB_DOMAINS_PATH = SITE_DOMAINS_PATH + "/web-domains"
 SITE_WEB_PAGES_PATH = SITE_DOMAINS_PATH + "/web-pages"
 SITE_TOPIC_TRENDS_PATH = SITE_DOMAINS_PATH + "/topic-trends"
+SITE_REGIONAL_TRENDS_PATH = SITE_DOMAINS_PATH + "/regional-trends"
 SITE_CONTENT_GAP_PATH = SITE_DOMAINS_PATH + "/content-gap"
 SITE_KEYWORD_LISTS_PATH = SITE_DOMAINS_PATH + "/keyword-lists"
 SITE_KEYWORD_CLUSTERS_PATH = SITE_DOMAINS_PATH + "/keyword-clusters"
@@ -916,6 +927,18 @@ class SiteDomainAdminClient:
             check["phrase"].pop("densityPercent", None)
         return check
 
+    def compare_page_wording(
+        self, domain_uuid: str, first_url: str, second_url: str, *, company_slug: str | None = None
+    ) -> SiteObservedWording:
+        """Compare the latest saved observations of two URLs on one verified domain. No pages are fetched."""
+        path = _domain_path(domain_uuid) + "/page-wording"
+        query = {"firstUrl": first_url, "secondUrl": second_url}
+        result = cast(SiteObservedWording, self._request("GET", path, query, company_slug))
+        comparison = result.get("comparison")
+        if comparison is not None:
+            _normalize_wording_comparison(comparison)
+        return result
+
     def compare_wording(
         self, domain_uuid: str, first: str, second: str, *, company_slug: str | None = None
     ) -> SiteWordingCompare:
@@ -924,8 +947,7 @@ class SiteDomainAdminClient:
         result = cast(
             SiteWordingCompare, self._request("POST", path, {}, company_slug, {"first": first, "second": second})
         )
-        if not result["compared"]:
-            result.pop("sharedPercent", None)
+        _normalize_wording_comparison(result)
         return result
 
     def list_campaign_links(
@@ -1045,6 +1067,8 @@ class SiteDomainAdminClient:
                 for market in request.get("markets", [])
             ],
         }
+        if "hackerNewsEnabled" in request:
+            payload["hackerNewsEnabled"] = request["hackerNewsEnabled"]
         result = self._request("PUT", SITE_PROJECT_CONTEXT_PATH, query, company_slug, payload)
         return cast(SiteProjectContext, result)
 
@@ -1247,6 +1271,13 @@ class SiteDomainAdminClient:
         query = {"domain": domain, **_site_query(site_uuid)}
         return cast(SiteReferringDomains, self._request("GET", SITE_REFERRING_DOMAINS_PATH, query, company_slug))
 
+    def get_regional_trends(
+        self, site_uuid: str | None = None, *, company_slug: str | None = None
+    ) -> SiteRegionalTrends:
+        """Read saved-term matches from regional feeds and the Site's optional Hacker News source."""
+        query = {"siteUuid": site_uuid} if site_uuid else {}
+        return cast(SiteRegionalTrends, self._request("GET", SITE_REGIONAL_TRENDS_PATH, query, company_slug))
+
     def get_topic_trends(self, site_uuid: str | None = None, *, company_slug: str | None = None) -> SiteTopicTrends:
         """Return monthly Wikipedia page views for the Site's brand names and keyword-list seeds."""
         query = _site_query(site_uuid)
@@ -1327,6 +1358,32 @@ class SiteDomainAdminClient:
         """
         payload = {"hourStart": _rfc3339_utc(hour_start)}
         return cast(SiteAccessLogHourReplay, self._request("POST", ACCESS_LOG_HOUR_REPLAY_PATH, {}, None, payload))
+
+    def get_ai_settings(self) -> SiteAISettings:
+        """Read the tenant’s AI settings without returning the provider key."""
+        path = SITE_DOMAINS_PATH + "/ai-settings"
+        return cast(SiteAISettings, self._request("GET", path, {}, None))
+
+    def set_ai_settings(self, request: SiteAISettingsRequest) -> SiteAISettings:
+        """Replace AI mode and cap. Omitting the key may keep an existing own key."""
+        path = SITE_DOMAINS_PATH + "/ai-settings"
+        return cast(SiteAISettings, self._request("PUT", path, {}, None, dict(request)))
+
+    def set_ai_consent(self, request: SiteAIConsentRequest) -> SiteAISettings:
+        """Grant consent for the accepted terms version, or revoke it."""
+        path = SITE_DOMAINS_PATH + "/ai-settings/consent"
+        return cast(SiteAISettings, self._request("PUT", path, {}, None, dict(request)))
+
+    def get_ai_usage(self) -> SiteAITenantUsage:
+        """Read the tenant’s current UTC month of AI usage in USD micros."""
+        path = SITE_DOMAINS_PATH + "/ai-usage"
+        return cast(SiteAITenantUsage, self._request("GET", path, {}, None))
+
+    def get_platform_ai_usage(self, period: SiteAIUsagePeriod | None = None) -> SiteAIPlatformUsage:
+        """Read the platform’s AI usage. System administrators only. The default is the current UTC month."""
+        query = {"period": period} if period is not None else {}
+        path = "/admin/site-insights/ai-usage"
+        return cast(SiteAIPlatformUsage, self._request("GET", path, query, None))
 
     def list_site_insights_tasks(self) -> SiteInsightsTaskList:
         """Return every Site Insights scheduler task's state and backlog across tenants. System administrators only."""
@@ -1417,6 +1474,11 @@ class SiteDomainAdminClient:
         if not isinstance(decoded, Mapping):
             raise ValueError("custd: site domain response must be a JSON object")
         return dict(decoded)
+
+
+def _normalize_wording_comparison(comparison: SiteWordingCompare) -> None:
+    if not comparison["compared"]:
+        comparison.pop("sharedPercent", None)
 
 
 def _domain_path(domain_uuid: str) -> str:

@@ -12,6 +12,8 @@ use HaakCo\Custd\Admin\SiteDomain\SiteAuditDelta;
 use HaakCo\Custd\Admin\SiteDomain\SiteAuditPageList;
 use HaakCo\Custd\Admin\SiteDomain\SiteLighthousePages;
 use HaakCo\Custd\Admin\SiteDomain\SiteAlertDestination;
+use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollector;
+use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollectorRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
 use HaakCo\Custd\Admin\SiteDomain\SiteDomain;
 use HaakCo\Custd\Admin\SiteDomain\SiteDomainList;
@@ -47,6 +49,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspection;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspectionList;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchRowPage;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchValue;
+use HaakCo\Custd\Admin\SiteDomain\SiteObservedWording;
 use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompare;
 use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompareRequest;
 
@@ -177,6 +180,12 @@ final class SiteDomainClient
         return new SiteExportClient($this->http);
     }
 
+    /** Manage Site Insights AI settings and read billing usage. */
+    public function ai(): SiteAIClient
+    {
+        return new SiteAIClient($this->http);
+    }
+
     /** Read the state of every Site Insights scheduled task. System administrators only. */
     public function getSiteInsightsTasks(): SiteInsightsTasks
     {
@@ -225,6 +234,14 @@ final class SiteDomainClient
     public function attest(string $domainUuid): SiteDomain
     {
         return SiteDomain::fromPayload($this->send('POST', self::item($domainUuid) . '/attestation', [], null));
+    }
+
+    /** Converge the browser collector of the verified domain owned by this Site credential. */
+    public function convergeBrowserCollector(string $domainUuid, SiteBrowserCollectorRequest $request): SiteBrowserCollector
+    {
+        return SiteBrowserCollector::fromPayload(
+            $this->send('PUT', self::item($domainUuid) . '/browser-collector', [], null, $request->serialise())
+        );
     }
 
     /** Withdraw this credential's attestation; the domain stays verified only by its own proof or a verified parent. */
@@ -505,6 +522,21 @@ final class SiteDomainClient
     ): SiteWordingCompare {
         return SiteWordingCompare::fromPayload(
             $this->send('POST', self::item($domainUuid) . '/wording-compare', [], $companySlug, $request->serialise())
+        );
+    }
+
+    /** Compare the latest saved observations of two URLs on a verified domain. No pages are fetched. */
+    public function comparePageWording(
+        string $domainUuid,
+        string $firstUrl,
+        string $secondUrl,
+        ?string $companySlug = null,
+    ): SiteObservedWording {
+        return SiteObservedWording::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/page-wording', [
+                'firstUrl' => $firstUrl,
+                'secondUrl' => $secondUrl,
+            ], $companySlug)
         );
     }
 

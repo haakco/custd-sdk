@@ -796,6 +796,30 @@ class DraftToolsTest(unittest.TestCase):
         self.assertFalse(short["compared"])
         self.assertNotIn("sharedPercent", short)
 
+    def test_compare_page_wording_preserves_observation_states(self) -> None:
+        first = "https://example.com/plans"
+        second = "https://example.com/support"
+        domains, transport = site_domains(200, TOOLS["observedWording"])
+        observed = domains.compare_page_wording(DOMAIN, first, second, company_slug="acme")
+        self.assertEqual([(
+            "GET", f"{D}/page-wording?firstUrl=https%3A%2F%2Fexample.com%2Fplans"
+            "&secondUrl=https%3A%2F%2Fexample.com%2Fsupport&companySlug=acme", None,
+        )], transport.calls)
+        self.assertEqual("2026-11-18T11:00:00Z", observed["first"]["observedAt"])
+        self.assertEqual(96, observed["comparison"]["sharedPercent"])
+
+        domains, _ = site_domains(200, TOOLS["observedWordingUnavailable"])
+        unavailable = domains.compare_page_wording(DOMAIN, first, second)
+        self.assertEqual("unavailable", unavailable["first"]["state"])
+        self.assertEqual({"state": "unread"}, unavailable["second"])
+        self.assertNotIn("comparison", unavailable)
+
+        domains, _ = site_domains(200, TOOLS["observedWordingShort"])
+        short = domains.compare_page_wording(DOMAIN, first, second)
+        self.assertEqual("short", short["first"]["state"])
+        self.assertEqual(80, short["comparison"]["firstWords"])
+        self.assertNotIn("sharedPercent", short["comparison"])
+
 
 if __name__ == "__main__":
     unittest.main()

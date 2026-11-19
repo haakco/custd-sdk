@@ -5,6 +5,12 @@
 // a site-bound credential (site_domains.manage) reaches its own Site only.
 
 import type {
+  SiteAIConsentRequest,
+  SiteAISettings,
+  SiteAISettingsRequest,
+  SiteAITenantUsage,
+} from "./admin-site-ai.js";
+import type {
   SiteAnalyticsConnection,
   SiteAnalyticsConnectionRequest,
   SiteAnalyticsReport,
@@ -22,11 +28,13 @@ import type {
   IndexNowSubmission,
   IndexNowSubmissionRequest,
   SiteLighthouseHistory,
+  SiteObservedWording,
   SitePageCheckRequest,
   SitePageCheckResponse,
   SitePageFacts,
   SitePageRecheck,
   SitePageRecheckList,
+  SitePageWordingQuery,
   SiteProjectContext,
   SiteProjectContextRequest,
   SiteRemedy,
@@ -53,6 +61,7 @@ import type {
   SiteTrackedKeywordUpdate,
   SiteTrackKeywordRequest,
 } from "./admin-site-rankings.js";
+import type { SiteRegionalTrends } from "./admin-site-regional-trends.js";
 import type {
   SavedSiteReport,
   SavedSiteReportList,
@@ -428,6 +437,7 @@ type NonAdminRequester = <T>(method: string, path: string, body?: unknown, optio
 type QueryValues = Record<string, string | string[] | undefined>;
 
 const siteDomainsPath = "/site-domains";
+const siteAISettingsPath = `${siteDomainsPath}/ai-settings`;
 const searchPoolPath = `${siteDomainsPath}/search-pool`;
 const keywordListsPath = `${siteDomainsPath}/keyword-lists`;
 
@@ -521,6 +531,26 @@ export class SiteDomainAdminClient {
   /** Reads which search providers this Custd deployment can import from. */
   getSearchAccount(options?: SiteDomainRequestOptions): Promise<SiteSearchAccount> {
     return this.send("GET", `${siteDomainsPath}/search-account`, {}, undefined, options);
+  }
+
+  /** Reads the tenant's AI policy and current provider terms version. */
+  getAISettings(options?: SiteDomainRequestOptions): Promise<SiteAISettings> {
+    return this.send("GET", siteAISettingsPath, {}, undefined, options);
+  }
+
+  /** Replaces the tenant's AI mode and cap. The API key is write-only. */
+  setAISettings(body: SiteAISettingsRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings> {
+    return this.send("PUT", siteAISettingsPath, {}, body, options);
+  }
+
+  /** Records explicit acceptance of the supplied terms version or revokes consent. */
+  setAIConsent(body: SiteAIConsentRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings> {
+    return this.send("PUT", `${siteAISettingsPath}/consent`, {}, body, options);
+  }
+
+  /** Reads the tenant's current UTC month's AI usage. */
+  getAIUsage(options?: SiteDomainRequestOptions): Promise<SiteAITenantUsage> {
+    return this.send("GET", `${siteDomainsPath}/ai-usage`, {}, undefined, options);
   }
 
   /** Reads whether the tenant takes part in the shared search pool, and the pool's rules. */
@@ -712,6 +742,18 @@ export class SiteDomainAdminClient {
     return result;
   }
 
+  /** Compares two stored page observations on a verified domain without fetching either URL. */
+  async comparePageWording(
+    domainUuid: string,
+    { firstUrl, secondUrl }: SitePageWordingQuery,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteObservedWording> {
+    const path = `${domainPath(domainUuid)}/page-wording`;
+    const result = await this.send<SiteObservedWording>("GET", path, { firstUrl, secondUrl }, undefined, options);
+    if (result.comparison && !result.comparison.compared) delete result.comparison.sharedPercent;
+    return result;
+  }
+
   /** Tests a URL against a pasted robots.txt, or the domain's live file when robotsTxt is omitted. */
   testRobots(
     domainUuid: string,
@@ -767,8 +809,14 @@ export class SiteDomainAdminClient {
       brandNames: body.brandNames ?? [],
       competitorDomains: body.competitorDomains ?? [],
       markets: body.markets ?? [],
+      hackerNewsEnabled: body.hackerNewsEnabled,
     };
     return this.send("PUT", `${siteDomainsPath}/project-context`, { siteUuid: body.siteUuid }, request, options);
+  }
+
+  /** Reads public trends matching a Site's audience and saved terms. A site token may omit siteUuid. */
+  getRegionalTrends(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteRegionalTrends> {
+    return this.send("GET", `${siteDomainsPath}/regional-trends`, { siteUuid }, undefined, options);
   }
 
   /** Reads the domain's status and its most important next actions, most important first. */

@@ -262,3 +262,36 @@ class SiteKeywordClusters(TypedDict):
     clusters: list[SiteKeywordCluster]
     strikingDistance: list[SiteKeywordStriking]
     demand: NotRequired[SiteKeywordDemandSet]
+
+
+class SiteRegionalTrendMatch(TypedDict):
+    topic: str
+    sourceUrl: str
+    publishedAt: str
+    matchedTerm: str
+    discussionUrl: NotRequired[str]
+
+
+class SiteRegionalTrendMarket(TypedDict):
+    supported: bool
+    country: str
+    checkedAt: NotRequired[str]
+    stale: bool
+    matches: list[SiteRegionalTrendMatch]
+
+
+class SiteTechnicalTrends(TypedDict):
+    """Global Hacker News evidence for a Site that opted in."""
+
+    source: str
+    checkedAt: NotRequired[str]
+    stale: bool
+    matches: list[SiteRegionalTrendMatch]
+
+
+class SiteRegionalTrends(TypedDict):
+    siteUuid: str
+    source: str
+    hasSavedTerms: bool
+    markets: list[SiteRegionalTrendMarket]
+    technical: NotRequired[SiteTechnicalTrends]

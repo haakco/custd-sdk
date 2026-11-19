@@ -2,6 +2,7 @@
 // registered and enabled, its last and next run, and its backlog. A system
 // administrator reads it platform-wide through client.admin.siteInsights.
 
+import type { SiteAIPlatformUsage, SiteAIUsagePeriod } from "./admin-site-ai.js";
 import type { RequestOptions } from "./index.js";
 
 /** The Site Insights task names; newer tasks may appear. */
@@ -48,5 +49,12 @@ export class SiteInsightsAdminClient {
   /** Reads every Site Insights task's schedule, last outcome and backlog. System administrators only. */
   listTasks(options?: RequestOptions): Promise<SiteInsightsTaskList> {
     return this.request("GET", "/site-insights/tasks", undefined, options);
+  }
+
+  /** Reads AI usage across tenants. System administrators only. */
+  getAIUsage(period?: SiteAIUsagePeriod, options?: RequestOptions): Promise<SiteAIPlatformUsage> {
+    const path = "/site-insights/ai-usage";
+    const query = period ? `?${new URLSearchParams({ period })}` : "";
+    return this.request("GET", path + query, undefined, options);
   }
 }

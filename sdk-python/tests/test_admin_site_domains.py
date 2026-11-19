@@ -452,6 +452,31 @@ class SiteProjectContextTest(unittest.TestCase):
         self.assertNotIn("updatedAt", empty)
 
 
+    def test_hacker_news_option_and_trend_evidence(self) -> None:
+        domains, transport = site_domains(200, {**PAGE_TOOLS["projectContext"], "hackerNewsEnabled": True})
+        enabled = domains.set_project_context(
+            {"brandNames": [], "competitorDomains": [], "markets": [], "hackerNewsEnabled": True}
+        )
+        domains.set_project_context(
+            {"brandNames": [], "competitorDomains": [], "markets": [], "hackerNewsEnabled": False}
+        )
+        self.assertIs(enabled["hackerNewsEnabled"], True)
+        self.assertIs(transport.calls[0][2]["hackerNewsEnabled"], True)
+        self.assertIs(transport.calls[1][2]["hackerNewsEnabled"], False)
+
+        web_data = json.loads((CONTRACT_FIXTURES / "site-web-data.json").read_text())
+        domains, transport = site_domains(200, web_data["regionalTrends"])
+        trends = domains.get_regional_trends(SITE, company_slug="acme")
+        self.assertEqual([("GET", f"{BASE}/regional-trends?siteUuid={SITE}&companySlug=acme", None)], transport.calls)
+        self.assertEqual("ZA", trends["markets"][0]["country"])
+        self.assertEqual("Hacker News", trends["technical"]["source"])
+        self.assertEqual(
+            "https://news.ycombinator.com/item?id=123", trends["technical"]["matches"][0]["discussionUrl"]
+        )
+        domains, _ = site_domains(200, web_data["regionalTrendsWithoutTechnical"])
+        self.assertNotIn("technical", domains.get_regional_trends())
+
+
 class SiteReportingTest(unittest.TestCase):
     def test_reporting_reads_send_their_routes(self) -> None:
         domains, transport = site_domains(200, REPORTING["created"])

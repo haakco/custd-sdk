@@ -1,12 +1,14 @@
+import type { SiteAIConsentRequest, SiteAISettings, SiteAISettingsRequest, SiteAITenantUsage } from "./admin-site-ai.js";
 import type { SiteAnalyticsConnection, SiteAnalyticsConnectionRequest, SiteAnalyticsReport } from "./admin-site-analytics.js";
 import type { SiteAuditDelta, SiteAuditPageList, SiteLighthousePages, SiteLighthouseRequestOptions } from "./admin-site-audit-pages.js";
 import type { SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest } from "./admin-site-campaign-links.js";
 import type { SiteInsightsExport, SiteSearchMetricPage, SiteSearchMetricsQuery } from "./admin-site-export.js";
-import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SitePageRecheckList, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory, SiteWordingCompare, SiteWordingCompareRequest } from "./admin-site-insights.js";
+import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SiteObservedWording, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SitePageRecheckList, SitePageWordingQuery, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory, SiteWordingCompare, SiteWordingCompareRequest } from "./admin-site-insights.js";
 import type { SiteReferringDomains } from "./admin-site-links.js";
 import type { SiteNextActions, SitePortfolioSummary } from "./admin-site-next-actions.js";
 import type { SitePageSearchQueries } from "./admin-site-page-queries.js";
 import type { SiteRankings, SiteTrackedKeyword, SiteTrackedKeywordUpdate, SiteTrackKeywordRequest } from "./admin-site-rankings.js";
+import type { SiteRegionalTrends } from "./admin-site-regional-trends.js";
 import type { SavedSiteReport, SavedSiteReportList, SavedSiteReportRequest, SiteReportRequestOptions } from "./admin-site-saved-reports.js";
 import type { SearchPoolQueryPage, SearchPoolSetting } from "./admin-site-search-pool.js";
 import type { SiteFindingImpact, SiteSearchValue } from "./admin-site-search-value.js";
@@ -362,6 +364,14 @@ export declare class SiteDomainAdminClient {
     setAlertDestination(body: SiteAlertDestinationRequest, options?: SiteDomainRequestOptions): Promise<SiteAlertDestination>;
     /** Reads which search providers this Custd deployment can import from. */
     getSearchAccount(options?: SiteDomainRequestOptions): Promise<SiteSearchAccount>;
+    /** Reads the tenant's AI policy and current provider terms version. */
+    getAISettings(options?: SiteDomainRequestOptions): Promise<SiteAISettings>;
+    /** Replaces the tenant's AI mode and cap. The API key is write-only. */
+    setAISettings(body: SiteAISettingsRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings>;
+    /** Records explicit acceptance of the supplied terms version or revokes consent. */
+    setAIConsent(body: SiteAIConsentRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings>;
+    /** Reads the tenant's current UTC month's AI usage. */
+    getAIUsage(options?: SiteDomainRequestOptions): Promise<SiteAITenantUsage>;
     /** Reads whether the tenant takes part in the shared search pool, and the pool's rules. */
     getSearchPool(options?: SiteDomainRequestOptions): Promise<SearchPoolSetting>;
     /** Joins (true) or leaves (false) the shared search pool for the whole tenant. */
@@ -411,6 +421,8 @@ export declare class SiteDomainAdminClient {
     checkPage(domainUuid: string, body: SitePageCheckRequest, options?: SiteDomainRequestOptions): Promise<SitePageCheckResponse>;
     /** Measures how much wording two drafts share, as the near-duplicate rule does; nothing is stored. */
     compareWording(domainUuid: string, body: SiteWordingCompareRequest, options?: SiteDomainRequestOptions): Promise<SiteWordingCompare>;
+    /** Compares two stored page observations on a verified domain without fetching either URL. */
+    comparePageWording(domainUuid: string, { firstUrl, secondUrl }: SitePageWordingQuery, options?: SiteDomainRequestOptions): Promise<SiteObservedWording>;
     /** Tests a URL against a pasted robots.txt, or the domain's live file when robotsTxt is omitted. */
     testRobots(domainUuid: string, body: SiteRobotsTestRequest, options?: SiteDomainRequestOptions): Promise<SiteRobotsTestResponse>;
     /** Pages through one dimension of the domain's imported search rows; `unavailable` names providers without it. */
@@ -426,6 +438,8 @@ export declare class SiteDomainAdminClient {
     getProjectContext(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteProjectContext>;
     /** Replaces a Site's project context; an omitted list is sent empty and clears it. */
     setProjectContext(body: SiteProjectContextRequest, options?: SiteDomainRequestOptions): Promise<SiteProjectContext>;
+    /** Reads public trends matching a Site's audience and saved terms. A site token may omit siteUuid. */
+    getRegionalTrends(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteRegionalTrends>;
     /** Reads the domain's status and its most important next actions, most important first. */
     getNextActions(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteNextActions>;
     /** Reads every domain's status, open findings and first action, worst first (only its own Site's for a site-bound credential). */

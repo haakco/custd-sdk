@@ -21,6 +21,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteSearchDimension;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspectionStatus;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchProvider;
 use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompareRequest;
+use HaakCo\Custd\Admin\SiteDomain\WordingObservationState;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use HaakCo\Custd\CustdClient;
 use PHPUnit\Framework\TestCase;
@@ -168,6 +169,34 @@ final class SitePageToolsClientTest extends TestCase
         );
     }
 
+    public function testObservedWordingUsesSavedPagesAndDistinguishesUnavailableAndShort(): void
+    {
+        $first = 'https://example.com/plans';
+        $second = 'https://example.com/support';
+        $ready = $this->client($calls, 'observedWording')->comparePageWording('d-1', $first, $second, 'acme');
+        self::assertSame(WordingObservationState::Ready, $ready->first->state);
+        self::assertSame('2026-11-18T11:00:00Z', $ready->first->observedAt);
+        self::assertSame(96, $ready->comparison?->sharedPercent);
+        self::assertSame([null], array_column($calls, 'body'));
+        self::assertSame(
+            ['GET ' . self::BASE . '/d-1/page-wording?firstUrl=https%3A%2F%2Fexample.com%2Fplans'
+                . '&secondUrl=https%3A%2F%2Fexample.com%2Fsupport&companySlug=acme'],
+            array_column($calls, 'route')
+        );
+
+        $missing = $this->client($calls, 'observedWordingUnavailable')->comparePageWording('d-1', $first, $second);
+        self::assertSame(WordingObservationState::Unavailable, $missing->first->state);
+        self::assertSame(WordingObservationState::Unread, $missing->second->state);
+        self::assertNull($missing->second->observedAt);
+        self::assertNull($missing->comparison);
+
+        $short = $this->client($calls, 'observedWordingShort')->comparePageWording('d-1', $first, $second);
+        self::assertSame(WordingObservationState::Short, $short->first->state);
+        self::assertNotNull($short->comparison);
+        self::assertSame(80, $short->comparison->firstWords);
+        self::assertNull($short->comparison->sharedPercent);
+    }
+
     public function testPageRechecksQueueAndPoll(): void
     {
         $queued = $this->client($calls, 'pageRecheckQueued', status: 202)->requestPageRecheck('d-1', 'https://example.com/plans');
@@ -280,6 +309,20 @@ final class SitePageToolsClientTest extends TestCase
             'PUT ' . self::BASE . '/project-context?siteUuid=s-1&companySlug=acme',
             'PUT ' . self::BASE . '/project-context',
         ], array_column($calls, 'route'));
+    }
+
+    public function testProjectContextSendsExplicitHackerNewsChoice(): void
+    {
+        $domains = $this->client($calls, 'projectContextEmpty');
+        $domains->setProjectContext(null, new SiteProjectContextRequest(hackerNewsEnabled: true));
+        $disabled = $domains->setProjectContext(null, new SiteProjectContextRequest(hackerNewsEnabled: false));
+        $payload = $this->fixture('projectContext');
+        $payload->hackerNewsEnabled = true;
+
+        self::assertSame(true, $calls[0]['body']['hackerNewsEnabled']);
+        self::assertSame(false, $calls[1]['body']['hackerNewsEnabled']);
+        self::assertFalse($disabled->hackerNewsEnabled);
+        self::assertTrue(\HaakCo\Custd\Admin\SiteDomain\SiteProjectContext::fromPayload($payload)->hackerNewsEnabled);
     }
 
     public function testRefusalsCarryNamedProblemCodes(): void
