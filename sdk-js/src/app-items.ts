@@ -191,6 +191,7 @@ export type AppPlanPart = {
 };
 
 export type AppPlan = {
+  name?: string;
   revision: number;
   deadline?: string;
   parts: AppPlanPart[];

@@ -132,6 +132,7 @@ pub struct AppItemRead {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppPlan {
+    pub name: Option<String>,
     pub revision: i64,
     pub deadline: Option<String>,
     pub parts: Vec<AppPlanPart>,

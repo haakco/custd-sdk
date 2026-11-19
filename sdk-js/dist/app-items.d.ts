@@ -128,6 +128,7 @@ export type AppPlanPart = {
     prerequisites: string[];
 };
 export type AppPlan = {
+    name?: string;
     revision: number;
     deadline?: string;
     parts: AppPlanPart[];
