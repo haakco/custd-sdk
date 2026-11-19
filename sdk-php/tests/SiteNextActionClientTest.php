@@ -28,6 +28,7 @@ final class SiteNextActionClientTest extends TestCase
         $findings = $this->replay($calls, 'nextActionsFindings')->nextActions()->forDomain('d-1', 'acme');
 
         self::assertSame('down', $next->status);
+        self::assertSame('own-key', $next->aiMode?->value);
         self::assertSame(6, $next->actionCount);
         self::assertCount(SiteNextActions::MAX_ACTIONS, $next->actions);
         self::assertSame(
