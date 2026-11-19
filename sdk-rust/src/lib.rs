@@ -4,6 +4,7 @@
 //! - [`AppClient`] calls the hosted-app item routes (`/api/v1/app/`) with an app's Site key and a
 //!   link token, the signed-in user's token, or both: items, meetings, alerts and forecasts.
 //! - [`read_hosted_app_discovery`] reads a hosted app's `/.well-known/custd.json`.
+//! - [`BrowserLogin`] signs in to a hosted application with a configured loopback callback.
 //! - [`DeviceLogin`] signs a person in with the RFC 8628 device flow, the same way `custdctl` does.
 //!
 //! Every call is blocking. Every request reports this release in `X-Custd-Sdk`.
@@ -12,6 +13,7 @@ mod app;
 mod app_alerts;
 mod app_meetings;
 mod app_story;
+mod browser_login;
 mod client;
 mod device;
 mod discovery;
@@ -43,6 +45,7 @@ pub use app_story::{
     AppForecastStoryProvenance, AppForecastStorySnapshot, AppForecastStoryTarget,
     AppForecastStoryTrust,
 };
+pub use browser_login::BrowserLogin;
 pub use client::CustdClient;
 pub use device::{
     DeviceInstructions, DeviceLogin, DeviceLoginError, DeviceToken, device_user_code_groups,

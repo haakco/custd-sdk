@@ -354,7 +354,7 @@ fn redeem(transport: &dyn Transport, token_endpoint: &str, form: &[u8]) -> Resul
     }
 }
 
-fn decode_token(body: &[u8]) -> Option<DeviceToken> {
+pub(crate) fn decode_token(body: &[u8]) -> Option<DeviceToken> {
     let answer: TokenAnswer = decode_bounded(body).ok()?;
     let lifetime_ok = answer.expires_in > 0 && answer.expires_in as u64 <= MAX_LIFETIME_SECONDS;
     if answer.access_token.is_empty()

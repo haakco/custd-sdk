@@ -12,6 +12,9 @@ publish = false
 name = "custd_sdk"
 
 [dependencies]
+base64 = "0.22.1"
+ring = "0.17.14"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 ureq = { version = "3.5.2", default-features = false, features = ["rustls"] }
+url = "2.5.8"
