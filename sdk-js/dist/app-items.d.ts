@@ -587,7 +587,7 @@ export declare class AppItemsClient {
      */
     claim(ownerToken: string): Promise<AppItemRead>;
     readItem(access: AppItemAccess, options?: AppReadOptions): Promise<AppConditionalRead<AppItemRead>>;
-    planForecast(access: AppItemAccess): Promise<AppPlanForecast>;
+    planForecast(access: AppItemAccess, options?: Pick<AppReadOptions, "item">): Promise<AppPlanForecast>;
     updatePlan(access: AppItemAccess, request: AppPlanUpdate): Promise<AppItemRead>;
     updateSettings(access: AppItemAccess, request: AppItemSettingsRequest): Promise<AppItemRead>;
     /** Records up to 1000 measurements; check each row's `success`. */

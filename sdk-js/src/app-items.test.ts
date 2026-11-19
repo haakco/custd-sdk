@@ -138,9 +138,9 @@ describe("AppItemsClient", () => {
     expect(sentUpdate.init.method).toBe("PATCH");
     expect(JSON.parse(String(sentUpdate.init.body))).toEqual(request);
 
-    expect(await items.planForecast(SHARE)).toEqual(forecast);
+    expect(await items.planForecast(SHARE, { item: ITEM_UUID })).toEqual(forecast);
     expect(sent(fetchMock, 1)).toMatchObject({
-      url: `${API}/api/v1/app/item/plan/forecast`,
+      url: `${API}/api/v1/app/item/plan/forecast?item=${ITEM_UUID}`,
       init: { method: "GET" },
       headers: { Authorization: `Bearer ${SHARE}` },
     });

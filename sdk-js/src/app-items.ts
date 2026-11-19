@@ -668,8 +668,14 @@ export class AppItemsClient {
     return this.conditional<AppItemRead>(ITEM_PATH, access, options);
   }
 
-  planForecast(access: AppItemAccess): Promise<AppPlanForecast> {
-    return this.json<AppPlanForecast>({ method: "GET", path: `${ITEM_PATH}/plan/forecast`, ...this.reach(access) });
+  planForecast(access: AppItemAccess, options: Pick<AppReadOptions, "item"> = {}): Promise<AppPlanForecast> {
+    const reached = this.reach(access);
+    return this.json<AppPlanForecast>({
+      method: "GET",
+      path: `${ITEM_PATH}/plan/forecast`,
+      credential: reached.credential,
+      item: options.item ?? reached.item,
+    });
   }
 
   updatePlan(access: AppItemAccess, request: AppPlanUpdate): Promise<AppItemRead> {
