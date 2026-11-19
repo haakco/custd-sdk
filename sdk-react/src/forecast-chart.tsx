@@ -1,4 +1,13 @@
-import { type CSSProperties, type PointerEvent, type WheelEvent, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type PointerEvent,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type WheelEvent,
+} from "react";
 import {
   type ChartDomain,
   DAY_MS,
@@ -142,9 +151,15 @@ function ForecastChartView({ data, domains, labels, formatDate, ...props }: View
     return () => document.removeEventListener("keydown", exit);
   }, [fullScreen]);
 
-  const select = (next: ChartDomain) => setSelection(sameDomain(next, full) ? null : next);
-  const zoom = (factor: number) => select(zoomDomain(view, factor, full, MIN_SPAN_MS));
-  const pan = (fraction: number) => select(panDomain(view, fraction, full));
+  const changeView = (update: (current: ChartDomain) => ChartDomain) => {
+    setSelection((current) => {
+      const bounded = current ? zoomDomain(current, 1, full, MIN_SPAN_MS) : full;
+      const next = update(bounded);
+      return sameDomain(next, full) ? null : next;
+    });
+  };
+  const zoom = (factor: number) => changeView((current) => zoomDomain(current, factor, full, MIN_SPAN_MS));
+  const pan = (fraction: number) => changeView((current) => panDomain(current, fraction, full));
   const atFull = sameDomain(view, full);
   return (
     <div
@@ -165,7 +180,11 @@ function ForecastChartView({ data, domains, labels, formatDate, ...props }: View
         <ChartButton label={labels.panEarlier} onClick={() => pan(-PAN_FRACTION)} disabled={view.start <= full.start} />
         <ChartButton label={labels.panLater} onClick={() => pan(PAN_FRACTION)} disabled={view.end >= full.end} />
         <ChartButton label={labels.reset} onClick={() => setSelection(null)} disabled={atFull} />
-        <ChartButton label={labels.zoomToData} onClick={() => select(domains.observed)} disabled={sameDomain(view, domains.observed)} />
+        <ChartButton
+          label={labels.zoomToData}
+          onClick={() => changeView(() => domains.observed)}
+          disabled={sameDomain(view, domains.observed)}
+        />
         <ChartButton label={labels.fullScreen} pressed={fullScreen} onClick={() => setFullScreen((on) => !on)} />
       </fieldset>
       <p role="status" aria-live="polite" style={VISUALLY_HIDDEN}>
