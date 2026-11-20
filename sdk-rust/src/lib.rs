@@ -12,6 +12,7 @@
 mod app;
 mod app_alerts;
 mod app_meetings;
+mod app_models;
 mod app_story;
 mod browser_login;
 mod client;
@@ -23,11 +24,11 @@ mod transport;
 
 pub use app::{
     APP_ITEM_KIND_LINK_COLLECTION, APP_ITEM_KIND_MEASUREMENT_PROJECT, APP_ITEM_KIND_MEETING,
-    APP_ITEM_KIND_PLAN, AppClient, AppItem, AppItemCreate, AppItemCreated, AppItemLink,
-    AppItemLinkRotated, AppItemList, AppItemRead, AppItemSummary, AppLink, AppLinkCollection,
-    AppLinkCollectionEntry, AppMeasurementProjectCreate, AppPlan, AppPlanForecast, AppPlanPart,
-    AppPlanPartUpdate, AppPlanProgressBand, AppPlanProgressPoint, AppPlanUpdate, AppReadOptions,
-    Conditional,
+    APP_ITEM_KIND_PLAN, APP_ITEM_KIND_UNCERTAINTY_MODEL, AppClient, AppItem, AppItemCreate,
+    AppItemCreated, AppItemLink, AppItemLinkRotated, AppItemList, AppItemRead, AppItemSummary,
+    AppLink, AppLinkCollection, AppLinkCollectionEntry, AppMeasurementProjectCreate, AppPlan,
+    AppPlanForecast, AppPlanPart, AppPlanPartUpdate, AppPlanProgressBand, AppPlanProgressPoint,
+    AppPlanUpdate, AppReadOptions, Conditional,
 };
 pub use app_alerts::{
     APP_ALERT_DESTINATION_SLACK, APP_ALERT_DESTINATION_WEBHOOK, APP_ALERT_EMAIL_CHECK_UNAVAILABLE,
@@ -41,6 +42,10 @@ pub use app_meetings::{
     APP_ITEM_MEETING_STEP_REFUSED, AppMeeting, AppMeetingAction, AppMeetingBlock,
     AppMeetingBlockCreate, AppMeetingCreate, AppMeetingMinutes, AppMeetingMinutesUpdate,
     AppMeetingSummary, AppPlanMeetingSummary,
+};
+pub use app_models::{
+    AppModelHistogram, AppModelPercentiles, AppModelQuantityError, AppModelQuantityResult,
+    AppModelQuantitySummary, AppModelRun, AppModelRunRequest, AppUncertaintyModel,
 };
 pub use app_story::{
     AppForecastStory, AppForecastStoryDelivery, AppForecastStoryEstimate,

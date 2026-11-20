@@ -393,3 +393,59 @@ fn reads_the_forecast_story_and_the_discovery_file() {
     let from = AppClient::from_discovery(&read, &read.allowed_origins[0]);
     assert!(format!("{from:?}").contains("https://api.custd.com"));
 }
+
+#[test]
+fn stores_with_owner_and_reads_model_histogram_with_share_link() {
+    use custd_sdk::AppModelRunRequest;
+
+    let result = r#"{"runUuid":"run-1","modelUuid":"model-1","versionNumber":2,"seed":7,
+        "sampleCount":100,"createdAt":"2026-11-21T00:00:00Z",
+        "quantities":[{"name":"cost","summary":{"mean":75,"stdDev":5,
+            "percentiles":{"p5":65,"p25":70,"p50":75,"p75":80,"p95":85},
+            "histogram":{"min":65,"max":85,"counts":[10,80,10]}}}]}"#;
+    let server = FakeServer::start(vec![answer(201, result), answer(200, result)]);
+    let app = app(&server);
+
+    let stored = app
+        .link("owner")
+        .run_model(&AppModelRunRequest {
+            seed: 7,
+            sample_count: Some(100),
+            sensitivity_output: Some("cost".to_owned()),
+        })
+        .unwrap();
+    assert_eq!(stored.run_uuid, "run-1");
+    let request = server.next();
+    assert_eq!(request.header("authorization"), Some("Bearer owner"));
+    assert_eq!(
+        (request.method.as_str(), request.target.as_str()),
+        ("POST", "/api/v1/app/models/runs")
+    );
+    assert_eq!(
+        request.body,
+        r#"{"seed":7,"sampleCount":100,"sensitivityOutput":"cost"}"#
+    );
+
+    let Conditional::Modified { value, .. } = app
+        .link("viewer")
+        .latest_model_run(&AppReadOptions::default())
+        .unwrap()
+    else {
+        panic!("expected stored result");
+    };
+    assert_eq!(
+        value.quantities[0]
+            .summary
+            .as_ref()
+            .unwrap()
+            .histogram
+            .counts,
+        vec![10, 80, 10]
+    );
+    let request = server.next();
+    assert_eq!(request.header("authorization"), Some("Bearer viewer"));
+    assert_eq!(
+        (request.method.as_str(), request.target.as_str()),
+        ("GET", "/api/v1/app/models/latest")
+    );
+}

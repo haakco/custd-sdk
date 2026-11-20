@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::Result;
 use crate::app_meetings::{AppMeeting, AppMeetingMinutes, AppPlanMeetingSummary};
+use crate::app_models::{AppModelRun, AppModelRunRequest, AppUncertaintyModel};
 use crate::app_story::AppForecastStory;
 use crate::client::{decode, execute, json_request, trim_base_url};
 use crate::discovery::HostedAppDiscovery;
@@ -29,10 +30,12 @@ use crate::transport::{Method, Transport, UreqTransport, percent_encode};
 pub const APP_ITEM_KIND_MEASUREMENT_PROJECT: &str = "measurement_project";
 pub const APP_ITEM_KIND_LINK_COLLECTION: &str = "link_collection";
 pub const APP_ITEM_KIND_MEETING: &str = "meeting";
+pub const APP_ITEM_KIND_UNCERTAINTY_MODEL: &str = "uncertainty_model";
 pub const APP_ITEM_KIND_PLAN: &str = "plan";
 
 const ITEMS_PATH: &str = "/api/v1/app/items";
 const ITEM_PATH: &str = "/api/v1/app/item";
+const MODEL_RUNS_PATH: &str = "/api/v1/app/models";
 const FORECAST_PATH: &str = "/api/v1/app/forecast";
 const SITE_KEY_HEADER: &str = "X-Custd-Site-Key";
 const USER_TOKEN_HEADER: &str = "X-Custd-User-Token";
@@ -129,6 +132,7 @@ pub struct AppItemRead {
     #[serde(default, deserialize_with = "null_as_empty")]
     pub plan_meeting_summaries: Vec<AppPlanMeetingSummary>,
     pub plan: Option<AppPlan>,
+    pub uncertainty_model: Option<AppUncertaintyModel>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -489,6 +493,20 @@ impl AppLink<'_> {
     ) -> Result<Conditional<MeasurementForecastRun>> {
         let path = format!("{FORECAST_PATH}/runs/{}", percent_encode(run_uuid));
         self.read_conditional(&path, options)
+    }
+
+    /// Stores a model run. Requires an owner grant.
+    pub fn run_model(&self, request: &AppModelRunRequest) -> Result<AppModelRun> {
+        let path = self.target(&format!("{MODEL_RUNS_PATH}/runs"), None);
+        let response = self
+            .app
+            .send(Method::Post, path, self.token(), Some(request), None)?;
+        decode(&response.body)
+    }
+
+    /// Reads the latest stored result, including for a read-only share.
+    pub fn latest_model_run(&self, options: &AppReadOptions) -> Result<Conditional<AppModelRun>> {
+        self.read_conditional(&format!("{MODEL_RUNS_PATH}/latest"), options)
     }
 
     /// A call to `/api/v1/app/item<suffix>`.
