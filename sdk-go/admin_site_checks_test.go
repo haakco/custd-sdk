@@ -116,3 +116,21 @@ func TestSiteHTTPExpectationsSetAndClear(t *testing.T) {
 		`{"mode":"uptime","httpExpectations":{"statusCode":200,"maxResponseMs":750,"json":{"field":"status","value":"ok"}}}`)
 	assertSiteBody(t, doer.requests[1], `{"mode":"uptime","httpExpectations":{}}`)
 }
+
+func TestSiteRegistrationDistinguishesUnknownExpiry(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK,
+		`{"checks":{"registration":{"domain":"example.com","source":"rdap.example.com","readAt":"2026-11-20T07:00:00Z","expiresAt":"2027-01-01T00:00:00Z"}}}`)
+	domains := newAdminTestClient(t, doer, "http://localhost:8080").Admin.SiteDomains
+	ctx := context.Background()
+	read, err := domains.Get(ctx, "d-1")
+	if err != nil || read.Checks.Registration == nil || read.Checks.Registration.ExpiresAt == nil ||
+		read.Checks.Registration.Source != "rdap.example.com" {
+		t.Fatalf("registry lookup = %+v, %v", read, err)
+	}
+	doer.body = `{"checks":{"registration":{"domain":"example.com","readAt":"2026-11-20T07:00:00Z"}}}`
+	read, err = domains.Get(ctx, "d-1")
+	if err != nil || read.Checks.Registration == nil || read.Checks.Registration.ReadAt.IsZero() ||
+		read.Checks.Registration.ExpiresAt != nil {
+		t.Fatalf("unknown expiry = %+v, %v", read, err)
+	}
+}

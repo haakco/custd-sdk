@@ -90,6 +90,16 @@ type AdminSiteDomainChecks struct {
 	OpenIncident     *AdminSiteIncident         `json:"openIncident,omitempty"`
 	ChromeUX         *AdminSiteChromeUX         `json:"chromeUx,omitempty"`
 	HTTPExpectations *AdminSiteHTTPExpectations `json:"httpExpectations,omitempty"`
+	Registration     *AdminSiteRegistration     `json:"registration,omitempty"`
+}
+
+// AdminSiteRegistration records the registry lookup. A missing ExpiresAt means
+// the registry did not provide an expiry date.
+type AdminSiteRegistration struct {
+	Domain    string     `json:"domain"`
+	Source    string     `json:"source,omitempty"`
+	ReadAt    time.Time  `json:"readAt"`
+	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
 }
 
 // AdminSiteChromeUX is the last successful Chrome UX Report lookup. A nil observation
