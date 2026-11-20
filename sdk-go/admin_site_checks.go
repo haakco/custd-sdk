@@ -3,6 +3,7 @@ package custd
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -65,12 +66,13 @@ type AdminSiteWarming struct {
 // AdminSiteIncident is one outage, from the first failed check until the first check
 // that passed. ResolvedAt is nil while it is open.
 type AdminSiteIncident struct {
-	IncidentUUID string     `json:"incidentUuid"`
-	StartedAt    time.Time  `json:"startedAt"`
-	OpenedAt     time.Time  `json:"openedAt"`
-	ResolvedAt   *time.Time `json:"resolvedAt,omitempty"`
-	Cause        string     `json:"cause"`
-	FailedChecks int        `json:"failedChecks"`
+	IncidentUUID   string     `json:"incidentUuid"`
+	StartedAt      time.Time  `json:"startedAt"`
+	OpenedAt       time.Time  `json:"openedAt"`
+	AcknowledgedAt *time.Time `json:"acknowledgedAt,omitempty"`
+	ResolvedAt     *time.Time `json:"resolvedAt,omitempty"`
+	Cause          string     `json:"cause"`
+	FailedChecks   int        `json:"failedChecks"`
 }
 
 // AdminSiteIncidentList lists a domain's recent outages, newest first.
@@ -138,4 +140,14 @@ func (c *SiteDomainAdminClient) ListIncidents(ctx context.Context, domainUUID st
 	var incidents AdminSiteIncidentList
 	err := c.request(ctx, http.MethodGet, siteDomainPath(domainUUID)+"/incidents", nil, &incidents)
 	return &incidents, err
+}
+
+// AcknowledgeIncident records that a person has seen the open incident without resolving it.
+func (c *SiteDomainAdminClient) AcknowledgeIncident(
+	ctx context.Context, domainUUID, incidentUUID string,
+) (*AdminSiteIncident, error) {
+	var incident AdminSiteIncident
+	path := siteDomainPath(domainUUID) + "/incidents/" + url.PathEscape(incidentUUID) + "/acknowledgment"
+	err := c.request(ctx, http.MethodPost, path, nil, &incident)
+	return &incident, err
 }

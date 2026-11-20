@@ -77,3 +77,17 @@ func TestSiteChromeUXAvailability(t *testing.T) {
 		t.Fatalf("unchecked CrUX = %+v, %v", unchecked, err)
 	}
 }
+
+func TestSiteIncidentAcknowledgmentDoesNotResolveAnOutage(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK,
+		`{"incidentUuid":"i-1","acknowledgedAt":"2026-11-20T07:00:00Z","cause":"HTTP 503","failedChecks":2}`)
+	domains := newAdminTestClient(t, doer, "http://localhost:8080").Admin.SiteDomains
+	incident, err := domains.AcknowledgeIncident(context.Background(), "d-1", "i-1")
+	if err != nil || incident.IncidentUUID != "i-1" || incident.AcknowledgedAt == nil || incident.ResolvedAt != nil {
+		t.Fatalf("acknowledged incident = %+v, %v", incident, err)
+	}
+	assertSiteRequests(t, doer.requests, []string{"POST " + siteTestBase + "/incidents/i-1/acknowledgment"})
+	if len(doer.requests[0].Body) != 0 {
+		t.Fatal("acknowledgment unexpectedly sends a body")
+	}
+}
