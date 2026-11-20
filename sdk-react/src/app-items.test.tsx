@@ -43,6 +43,22 @@ function Forecast() {
   return <p>{forecast.status === "empty" ? "no forecast yet" : forecast.status}</p>;
 }
 
+function Explicit({ client }: { client: AppItemsClient }) {
+  const item = useAppItem(SHARE, { client });
+  return <p>{item.status === "fresh" ? "ready" : item.status}</p>;
+}
+
+function Meeting({ token, client }: { token: string; client: AppItemsClient }) {
+  const meeting = useAppMeeting(token, { client });
+  if (meeting.status === "fresh") return <p>{`${meeting.data.name} on ${meeting.data.currentBlockUuid}`}</p>;
+  return <p>{meeting.status === "error" ? meeting.error.code : meeting.status}</p>;
+}
+
+function ItemVersion({ token, client }: { token: string; client: AppItemsClient }) {
+  const item = useAppItem(token, { client });
+  return <p>{item.status === "fresh" ? `v${item.data.item.version}` : item.status}</p>;
+}
+
 afterEach(cleanup);
 
 describe("useAppItem", () => {
@@ -78,11 +94,7 @@ describe("useAppItem", () => {
   it("uses an explicit client without a provider", async () => {
     const fetchMock = api();
     const client = new AppItemsClient({ apiBaseUrl: API, siteKey: "site_pk_key", fetch: fetchMock });
-    function Explicit() {
-      const item = useAppItem(SHARE, { client });
-      return <p>{item.status === "fresh" ? "ready" : item.status}</p>;
-    }
-    render(<Explicit />);
+    render(<Explicit client={client} />);
     await waitFor(() => expect(screen.getByText("ready")).toBeTruthy());
   });
 });
@@ -106,20 +118,11 @@ describe("useAppMeeting", () => {
       return json(headers.Authorization === `Bearer ${OWNER}` ? meetingRead : itemRead);
     });
     const client = new AppItemsClient({ apiBaseUrl: API, siteKey: "site_pk_key", fetch: fetchMock });
-    function Meeting({ token }: { token: string }) {
-      const meeting = useAppMeeting(token, { client });
-      if (meeting.status === "fresh") return <p>{`${meeting.data.name} on ${meeting.data.currentBlockUuid}`}</p>;
-      return <p>{meeting.status === "error" ? meeting.error.code : meeting.status}</p>;
-    }
-    function ItemVersion() {
-      const item = useAppItem(OWNER, { client });
-      return <p>{item.status === "fresh" ? `v${item.data.item.version}` : item.status}</p>;
-    }
     render(
       <>
-        <Meeting token={OWNER} />
-        <ItemVersion />
-        <Meeting token={SHARE} />
+        <Meeting token={OWNER} client={client} />
+        <ItemVersion token={OWNER} client={client} />
+        <Meeting token={SHARE} client={client} />
       </>,
     );
 

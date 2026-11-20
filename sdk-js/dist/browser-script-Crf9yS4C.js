@@ -57,8 +57,7 @@ function a() {
 function o(e, t, n) {
 	n !== void 0 && Number.isFinite(n) && n >= 0 && (e[t] = Math.round(n));
 }
-//#endregion
-//#region src/index.ts
+// src/index.ts
 var s = class {
 	constructor() {
 		this.events = [];
@@ -176,8 +175,7 @@ function v(e) {
 function y() {
 	return typeof crypto < "u" && typeof crypto.randomUUID == "function" ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (e) => (Number(e) ^ Math.random() * 16 >> Number(e) / 4).toString(16));
 }
-//#endregion
-//#region src/browser-tracker.ts
+// src/browser-tracker.ts
 var ie = "1.0.0", b = "page-view", ae = "web-vitals", oe = "ai-assistant", se = /* @__PURE__ */ new Map([
 	["chatgpt.com", "chatgpt"],
 	["chat.openai.com", "chatgpt"],
@@ -650,4 +648,3 @@ function ke(e) {
 	return typeof e == "string" && x.test(e) ? e : void 0;
 }
 N(Array.from(document.scripts).find((e) => e.src === import.meta.url)).then((e) => e.installSpaTracking()).catch(() => void 0);
-//#endregion
