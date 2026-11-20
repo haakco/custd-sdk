@@ -6,6 +6,8 @@
 export const APP_ALERT_RULE_TYPES = {
   /** The chance of finishing by the deadline fell below `threshold`. */
   deadlineProbabilityBelow: "deadline_probability_below",
+  /** The named model output's 95th percentile rose above the threshold. */
+  modelRangeAbove: "model_range_above",
   targetReached: "target_reached",
   /** No new estimate for `staleDays`. */
   estimateStale: "estimate_stale",
@@ -49,8 +51,10 @@ export const APP_ALERT_ERROR_CODES = {
 /** A rule's type and parameters. */
 export type AppAlertRuleSpec = {
   type: AppAlertRuleType;
-  /** Chance from 0 to 1 (exclusive); `deadline_probability_below` only. */
+  /** A probability in (0, 1) or a finite model output threshold, depending on the rule. */
   threshold?: number;
+  /** The quantity whose range is monitored by `model_range_above`. */
+  modelOutput?: string;
   /** Days without a new estimate, 1 to 365; `estimate_stale` only. */
   staleDays?: number;
 };

@@ -5,6 +5,8 @@
 export const APP_ALERT_RULE_TYPES = {
     /** The chance of finishing by the deadline fell below `threshold`. */
     deadlineProbabilityBelow: "deadline_probability_below",
+    /** The named model output's 95th percentile rose above the threshold. */
+    modelRangeAbove: "model_range_above",
     targetReached: "target_reached",
     /** No new estimate for `staleDays`. */
     estimateStale: "estimate_stale",

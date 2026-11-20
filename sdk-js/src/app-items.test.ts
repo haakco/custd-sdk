@@ -238,8 +238,9 @@ describe("item alerts", () => {
   it("manages rules, webhooks and the email subscription on the alert routes", async () => {
     const rule = {
       ruleUuid: "r1",
-      type: "estimate_stale",
-      staleDays: 7,
+      type: "model_range_above",
+      threshold: 75,
+      modelOutput: "cost",
       conditionMet: false,
       crossings: 0,
       createdAt: "t",
@@ -262,7 +263,9 @@ describe("item alerts", () => {
     const items = signedIn(fetchMock);
 
     expect((await items.alertSettings(OWNER)).deliveryAvailable).toBe(true);
-    expect(await items.addAlertRule(OWNER, { type: "estimate_stale", staleDays: 7 })).toEqual(rule);
+    expect(await items.addAlertRule(OWNER, { type: "model_range_above", threshold: 75, modelOutput: "cost" })).toEqual(
+      rule,
+    );
     await items.removeAlertRule(OWNER, "r1");
     expect((await items.addAlertWebhook(OWNER, { endpoint: "https://hooks.example.com/x" })).signingSecret).toBe(
       "whsec",
@@ -286,7 +289,11 @@ describe("item alerts", () => {
       "DELETE /subscription",
       "GET /deliveries",
     ]);
-    expect(JSON.parse(String(sent(fetchMock, 1).init.body))).toEqual({ type: "estimate_stale", staleDays: 7 });
+    expect(JSON.parse(String(sent(fetchMock, 1).init.body))).toEqual({
+      type: "model_range_above",
+      threshold: 75,
+      modelOutput: "cost",
+    });
     expect(sent(fetchMock, 5).headers).toEqual({
       "X-Custd-Site-Key": SITE_KEY,
       Authorization: `Bearer ${OWNER}`,
