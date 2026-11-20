@@ -92,6 +92,20 @@ type adminSiteCheckSettings struct {
 	Mode AdminSiteCheckMode `json:"mode"`
 }
 
+// SiteUptimeCheckInactiveCode identifies a request refused because public checks are inactive.
+const SiteUptimeCheckInactiveCode = "site_uptime_check_inactive"
+
+// SiteUptimeCheckMaintenanceCode identifies a request refused during active maintenance.
+const SiteUptimeCheckMaintenanceCode = "site_uptime_check_maintenance"
+
+// RequestUptimeCheck queues a public uptime check for a verified domain with active checks.
+// The result is the current domain snapshot. Read it again after the scheduler runs.
+func (c *SiteDomainAdminClient) RequestUptimeCheck(ctx context.Context, domainUUID string) (*AdminSiteDomain, error) {
+	var domain AdminSiteDomain
+	err := c.request(ctx, http.MethodPost, siteDomainPath(domainUUID)+"/uptime-check", nil, &domain)
+	return &domain, err
+}
+
 // SetCheckMode chooses how a domain is checked and returns the domain. It works
 // before verification too, so a consumer can pause a domain before its first check.
 func (c *SiteDomainAdminClient) SetCheckMode(

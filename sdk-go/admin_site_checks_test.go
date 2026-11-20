@@ -40,6 +40,14 @@ func TestSiteCheckOperationsSendTheirRoutesAndDecode(t *testing.T) {
 	if len(incidents.Incidents) != 1 || incidents.Incidents[0].ResolvedAt == nil {
 		t.Fatalf("incidents = %+v", incidents)
 	}
+	doer.status, doer.body = http.StatusAccepted, `{"domainUuid":"d-1","checks":{"uptime":{"status":"down"}}}`
+	queued, err := domains.RequestUptimeCheck(context.Background(), "d-1")
+	if err != nil || queued.DomainUUID != "d-1" || queued.Checks.Uptime.Status != AdminSiteUptimeDown {
+		t.Fatalf("queued check snapshot = %+v, %v", queued, err)
+	}
 	base := "http://localhost:8080/api/v1/site-domains/d-1"
-	assertSiteRequests(t, doer.requests, []string{"PUT " + base + "/checks", "GET " + base + "/incidents"})
+	assertSiteRequests(t, doer.requests, []string{"PUT " + base + "/checks", "GET " + base + "/incidents", "POST " + base + "/uptime-check"})
+	if len(doer.requests[2].Body) != 0 {
+		t.Fatal("queue uptime check unexpectedly sends a body")
+	}
 }
