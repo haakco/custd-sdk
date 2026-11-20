@@ -23,7 +23,7 @@ func (r PrivateUptimeRunner) Run(ctx context.Context) error {
 	if r.Observe == nil || r.OnError == nil || r.Interval < privateUptimePollInterval {
 		return fmt.Errorf("custd: private uptime runner requires an observer, an error handler and at least a 15-second interval")
 	}
-	if _, err := privateUptimeEndpoint(r.Destination); err != nil {
+	if _, err := siteMonitorDestination(r.Destination).endpoint(privateUptimeReportPrefix); err != nil {
 		return err
 	}
 	return r.run(ctx, privateUptimePollInterval)

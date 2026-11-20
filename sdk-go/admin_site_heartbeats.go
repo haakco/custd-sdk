@@ -22,8 +22,8 @@ type AdminSiteHeartbeatCreate struct {
 
 // SiteHeartbeatReport identifies the scheduled occurrence and its final outcome.
 type SiteHeartbeatReport struct {
-	ScheduledFor time.Time `json:"scheduledFor"`
-	Outcome      string    `json:"outcome"`
+	ScheduledFor time.Time            `json:"scheduledFor"`
+	Outcome      SiteHeartbeatOutcome `json:"outcome"`
 }
 
 // AdminSiteHeartbeatReceipt is the first accepted report for an occurrence.
