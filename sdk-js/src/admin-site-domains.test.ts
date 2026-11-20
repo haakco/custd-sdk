@@ -35,6 +35,23 @@ function sent(fetchImpl: ReturnType<typeof vi.fn>, index: number): { url: string
 }
 
 describe("site domain admin client", () => {
+  it("replaces, reads and clears DNS address expectations", async () => {
+    const dns = { kind: "dns" as const, expectedAddresses: ["192.0.2.1"] };
+    const observations = { missingAddresses: ["192.0.2.1"], unexpectedAddresses: ["192.0.2.2"] };
+    const result = { probes: [{ ...dns, status: "down", detail: observations }] };
+    const { client, fetchImpl } = newClient(respond(200, result), respond(200, result), respond(200, { probes: [] }));
+    const domains = client.admin.siteDomains;
+    const options = { companySlug: "acme" };
+    const url = `${base}/site-domains/${domainUuid}/probes?companySlug=acme`;
+
+    await domains.setProbes(domainUuid, [dns], options);
+    expect((await domains.listProbes(domainUuid, options)).probes[0]?.detail).toEqual(observations);
+    expect(await domains.setProbes(domainUuid, [], options)).toEqual({ probes: [] });
+    expect(sent(fetchImpl, 0)).toEqual({ url, method: "PUT", body: { probes: [dns] } });
+    expect(sent(fetchImpl, 1)).toEqual({ url, method: "GET", body: undefined });
+    expect(sent(fetchImpl, 2)).toEqual({ url, method: "PUT", body: { probes: [] } });
+  });
+
   it("sends every operation to its admin-api route and returns the recorded response", async () => {
     const sites = (...responses: Response[]) => {
       const pair = newClient(...responses);

@@ -249,6 +249,47 @@ export type SiteCheckMode = "paused" | "uptime" | "warm";
 /** failing is one failed check; down is an open incident (two or more in a row). */
 export type SiteUptimeStatus = "unknown" | "up" | "failing" | "down" | "paused";
 
+export type SiteProbeSpec =
+  | { kind: "ping" }
+  | { kind: "tcp"; port: number }
+  | { kind: "dns"; expectedAddresses?: string[] }
+  | { kind: "http-delivery"; protocol?: "http1.1" | "http2" };
+
+export type SiteProbeDetail = {
+  resolvedIp?: string;
+  addresses?: string[];
+  missingAddresses?: string[];
+  unexpectedAddresses?: string[];
+  statusCode?: number;
+  negotiatedProtocol?: string;
+  tlsVersion?: string;
+  bytesRead?: number;
+  timings?: {
+    dnsMs?: number;
+    connectMs?: number;
+    tlsMs?: number;
+    firstByteMs?: number;
+    totalMs: number;
+  };
+  cache?: {
+    cacheControl?: string;
+    age?: string;
+    cacheStatus?: string;
+    server?: string;
+    via?: string;
+  };
+};
+
+export type SiteProbe = SiteProbeSpec & {
+  status: SiteUptimeStatus;
+  lastCheckedAt?: string;
+  responseMs?: number;
+  lastFailure?: string;
+  detail?: SiteProbeDetail;
+};
+
+export type SiteProbeList = { probes: SiteProbe[] };
+
 export type SiteUptime = {
   status: SiteUptimeStatus;
   lastCheckedAt?: string;
@@ -465,6 +506,20 @@ const keywordListsPath = `${siteDomainsPath}/keyword-lists`;
 
 export class SiteDomainAdminClient {
   constructor(private readonly request: NonAdminRequester) {}
+
+  /** Reads the domain's network checks and their latest results. */
+  listProbes(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteProbeList> {
+    return this.send("GET", `${domainPath(domainUuid)}/probes`, {}, undefined, options);
+  }
+
+  /** Replaces the domain's network checks. Pass an empty array to disable them. */
+  setProbes(
+    domainUuid: string,
+    probes: readonly SiteProbeSpec[],
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteProbeList> {
+    return this.send("PUT", `${domainPath(domainUuid)}/probes`, {}, { probes }, options);
+  }
 
   /** Claims a host for a Site and returns the verification instructions. */
   create(body: SiteDomainCreateRequest, options?: SiteDomainRequestOptions): Promise<SiteDomain> {
