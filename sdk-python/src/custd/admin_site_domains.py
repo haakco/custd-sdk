@@ -434,6 +434,54 @@ class SiteDomainAudit(TypedDict, total=False):
     lastFailure: str
 
 
+class SiteProbeSpec(TypedDict):
+    kind: Literal["ping", "tcp", "dns", "http-delivery"]
+    port: NotRequired[int]
+    expectedAddresses: NotRequired[list[str]]
+    protocol: NotRequired[Literal["http1.1", "http2"]]
+
+
+class SiteProbeTimings(TypedDict):
+    dnsMs: NotRequired[int]
+    connectMs: NotRequired[int]
+    tlsMs: NotRequired[int]
+    firstByteMs: NotRequired[int]
+    totalMs: int
+
+
+class SiteProbeCache(TypedDict, total=False):
+    cacheControl: str
+    age: str
+    cacheStatus: str
+    server: str
+    via: str
+
+
+class SiteProbeDetail(TypedDict, total=False):
+    resolvedIp: str
+    addresses: list[str]
+    missingAddresses: list[str]
+    unexpectedAddresses: list[str]
+    statusCode: int
+    negotiatedProtocol: str
+    tlsVersion: str
+    bytesRead: int
+    timings: SiteProbeTimings
+    cache: SiteProbeCache
+
+
+class SiteProbe(SiteProbeSpec):
+    status: Literal["unknown", "up", "down", "paused"]
+    lastCheckedAt: NotRequired[str]
+    responseMs: NotRequired[int]
+    lastFailure: NotRequired[str]
+    detail: NotRequired[SiteProbeDetail]
+
+
+class SiteProbeList(TypedDict):
+    probes: list[SiteProbe]
+
+
 class SiteUptime(TypedDict):
     """The latest home page check."""
 
@@ -1178,6 +1226,18 @@ class SiteDomainAdminClient:
         """Return the findings the latest audit opened, reopened and fixed."""
         path = _domain_path(domain_uuid) + "/audit-delta"
         return cast(SiteAuditDelta, self._request("GET", path, {}, company_slug))
+
+    def list_probes(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteProbeList:
+        """Return the configured network probes and their latest results."""
+        path = _domain_path(domain_uuid) + "/probes"
+        return cast(SiteProbeList, self._request("GET", path, {}, company_slug))
+
+    def set_probes(
+        self, domain_uuid: str, probes: Sequence[SiteProbeSpec], *, company_slug: str | None = None
+    ) -> SiteProbeList:
+        """Replace the network probes. An empty sequence disables them."""
+        path = _domain_path(domain_uuid) + "/probes"
+        return cast(SiteProbeList, self._request("PUT", path, {}, company_slug, {"probes": list(probes)}))
 
     def get_uptime_history(
         self, domain_uuid: str, response_days: int | None = None, *, company_slug: str | None = None
