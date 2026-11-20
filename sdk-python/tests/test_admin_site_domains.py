@@ -73,6 +73,21 @@ def site_domains(status: int, body: Any) -> tuple[Any, RecordingTransport]:
 
 
 class SiteDomainRoutesTest(unittest.TestCase):
+    def test_probe_configuration_and_dns_mismatch(self) -> None:
+        spec = {"kind": "dns", "expectedAddresses": ["192.0.2.1"]}
+        detail = {"missingAddresses": ["192.0.2.1"], "unexpectedAddresses": ["192.0.2.2"]}
+        domains, transport = site_domains(200, {"probes": [{**spec, "status": "down", "detail": detail}]})
+        url = f"{BASE}/{DOMAIN}/probes?companySlug=acme"
+
+        domains.set_probes(DOMAIN, [{"kind": "dns", "expectedAddresses": ["192.0.2.1"]}], company_slug="acme")
+        self.assertEqual(domains.list_probes(DOMAIN, company_slug="acme")["probes"][0]["detail"], detail)
+        transport.body = {"probes": []}
+        self.assertEqual(domains.set_probes(DOMAIN, [], company_slug="acme"), {"probes": []})
+        self.assertEqual(
+            transport.calls,
+            [("PUT", url, {"probes": [spec]}), ("GET", url, None), ("PUT", url, {"probes": []})],
+        )
+
     def test_domain_operations_send_their_routes_and_acting_company(self) -> None:
         domains, transport = site_domains(200, FIXTURES["domain"])
 
@@ -604,7 +619,7 @@ class SiteIndexNowTest(unittest.TestCase):
 
 class SiteRuleIdsTest(unittest.TestCase):
     def test_rule_ids_are_unique_and_cover_check_rules(self) -> None:
-        self.assertEqual(76, len(SITE_RULE_IDS))
+        self.assertEqual(77, len(SITE_RULE_IDS))
         self.assertEqual(len(SITE_RULE_IDS), len(set(SITE_RULE_IDS)))
         self.assertIn("tls.expiring-soon", SITE_RULE_IDS)
         self.assertIn("lighthouse.mobile-score-drop", SITE_RULE_IDS)

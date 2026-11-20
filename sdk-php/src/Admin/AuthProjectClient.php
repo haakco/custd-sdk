@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Admin\AuthProject\AuthDomainBinding;
 use HaakCo\Custd\Admin\AuthProject\AudienceGrant;
 use HaakCo\Custd\Admin\AuthProject\AudienceGrantRequest;
 use HaakCo\Custd\Admin\AuthProject\PrincipalAudiences;
@@ -362,6 +363,17 @@ final class AuthProjectClient
         $path = self::environmentPath($projectId, $environmentId) . "/status";
 
         return Status::fromPayload($this->call("GET", $path, null, $options));
+    }
+
+    /** Read the environment's branded issuer and its observed activation state. */
+    public function getEnvironmentAuthDomain(
+        string $projectId,
+        string $environmentId,
+        ?RequestOptions $options = null,
+    ): AuthDomainBinding {
+        $path = self::environmentPath($projectId, $environmentId) . "/domain";
+
+        return AuthDomainBinding::fromPayload($this->call("GET", $path, null, $options));
     }
 
     /** Read the environment's supported auth configuration. */

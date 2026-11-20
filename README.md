@@ -450,6 +450,11 @@ same typed admin clients:
 - erase the complete principal mapping set with explicit confirmation
 - delete one environment, or the whole project, with the stored slug as confirmation
 
+PHP consumers can call
+`adminAuthProjects()->getEnvironmentAuthDomain($projectId, $environmentId, $options)`
+to read the branded issuer, DNS proof and observed lifecycle state. Treat only an
+`active` binding for the requested environment as eligible for issuer adoption.
+
 The desired-state operations address one environment
 (`/api/v1/admin/auth-projects/{projectId}/environments/{environmentId}`):
 

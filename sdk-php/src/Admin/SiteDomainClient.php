@@ -28,6 +28,8 @@ use HaakCo\Custd\Admin\SiteDomain\SiteSearchConnection;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchPerformance;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchProvider;
 use HaakCo\Custd\Admin\SiteDomain\SiteReport;
+use HaakCo\Custd\Admin\SiteDomain\SiteProbeList;
+use HaakCo\Custd\Admin\SiteDomain\SiteProbeSpec;
 use HaakCo\Custd\Admin\SiteDomain\SiteReportShareRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteReportShareCreated;
 use HaakCo\Custd\Admin\SiteDomain\SiteReportShareList;
@@ -786,6 +788,24 @@ final class SiteDomainClient
         return SiteLighthousePages::fromPayload(
             $this->send('PUT', self::lighthousePages($domainUuid), [], $companySlug, ['urls' => array_values($urls)])
         );
+    }
+
+    /** Read the configured network probes and their latest results. */
+    public function listProbes(string $domainUuid, ?string $companySlug = null): SiteProbeList
+    {
+        return SiteProbeList::fromPayload($this->send('GET', self::item($domainUuid) . '/probes', [], $companySlug));
+    }
+
+    /**
+     * Replace the configured network probes. An empty list disables them.
+     *
+     * @param list<SiteProbeSpec> $probes
+     */
+    public function setProbes(string $domainUuid, array $probes, ?string $companySlug = null): SiteProbeList
+    {
+        $body = ['probes' => array_map(static fn (SiteProbeSpec $probe): array => $probe->toPayload(), $probes)];
+
+        return SiteProbeList::fromPayload($this->send('PUT', self::item($domainUuid) . '/probes', [], $companySlug, $body));
     }
 
     /** List safe metadata for live report shares. Tokens are returned only on creation. */
