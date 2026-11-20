@@ -6,6 +6,8 @@
 
 import type {
   SiteAIConsentRequest,
+  SiteAIOwnerHandoff,
+  SiteAIOwnerHandoffRequest,
   SiteAISettings,
   SiteAISettingsRequest,
   SiteAITenantUsage,
@@ -633,6 +635,11 @@ export class SiteDomainAdminClient {
   /** Records explicit acceptance of the supplied terms version or revokes consent. */
   setAIConsent(body: SiteAIConsentRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings> {
     return this.send("PUT", `${siteAISettingsPath}/consent`, {}, body, options);
+  }
+
+  /** Creates a one-time code the tenant owner redeems by form POST to manage AI settings. */
+  createAIOwnerHandoff(body: SiteAIOwnerHandoffRequest, options?: RequestOptions): Promise<SiteAIOwnerHandoff> {
+    return this.send("POST", `${siteDomainsPath}/ai-owner-handoffs`, {}, body, options);
   }
 
   /** Reads the tenant's current UTC month's AI usage. */

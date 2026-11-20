@@ -268,6 +268,8 @@ export {
 export type {
   SiteAIConsentRequest,
   SiteAIMode,
+  SiteAIOwnerHandoff,
+  SiteAIOwnerHandoffRequest,
   SiteAIPlatformUsage,
   SiteAIProduct,
   SiteAISettings,

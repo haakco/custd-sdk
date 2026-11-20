@@ -8,6 +8,14 @@ export type SiteAIConsentRequest = {
 } | {
     action: "revoke";
 };
+export type SiteAIOwnerHandoffRequest = {
+    tenantSlug: string;
+    ownerSubject: string;
+};
+export type SiteAIOwnerHandoff = {
+    code: string;
+    redeemUrl: string;
+};
 export type SiteAISettings = {
     aiMode: SiteAIMode;
     monthlyCapUsdMicros: number;

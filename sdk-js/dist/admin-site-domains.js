@@ -176,6 +176,10 @@ export class SiteDomainAdminClient {
     setAIConsent(body, options) {
         return this.send("PUT", `${siteAISettingsPath}/consent`, {}, body, options);
     }
+    /** Creates a one-time code the tenant owner redeems by form POST to manage AI settings. */
+    createAIOwnerHandoff(body, options) {
+        return this.send("POST", `${siteDomainsPath}/ai-owner-handoffs`, {}, body, options);
+    }
     /** Reads the tenant's current UTC month's AI usage. */
     getAIUsage(options) {
         return this.send("GET", `${siteDomainsPath}/ai-usage`, {}, undefined, options);

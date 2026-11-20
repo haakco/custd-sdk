@@ -1,4 +1,4 @@
-import type { SiteAIConsentRequest, SiteAISettings, SiteAISettingsRequest, SiteAITenantUsage } from "./admin-site-ai.js";
+import type { SiteAIConsentRequest, SiteAIOwnerHandoff, SiteAIOwnerHandoffRequest, SiteAISettings, SiteAISettingsRequest, SiteAITenantUsage } from "./admin-site-ai.js";
 import type { SiteAnalyticsConnection, SiteAnalyticsConnectionRequest, SiteAnalyticsReport } from "./admin-site-analytics.js";
 import type { SiteAuditDelta, SiteAuditPageList, SiteLighthousePages, SiteLighthouseRequestOptions } from "./admin-site-audit-pages.js";
 import type { SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest } from "./admin-site-campaign-links.js";
@@ -389,6 +389,8 @@ export declare class SiteDomainAdminClient {
     setAISettings(body: SiteAISettingsRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings>;
     /** Records explicit acceptance of the supplied terms version or revokes consent. */
     setAIConsent(body: SiteAIConsentRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings>;
+    /** Creates a one-time code the tenant owner redeems by form POST to manage AI settings. */
+    createAIOwnerHandoff(body: SiteAIOwnerHandoffRequest, options?: RequestOptions): Promise<SiteAIOwnerHandoff>;
     /** Reads the tenant's current UTC month's AI usage. */
     getAIUsage(options?: SiteDomainRequestOptions): Promise<SiteAITenantUsage>;
     /** Reads whether the tenant takes part in the shared search pool, and the pool's rules. */
