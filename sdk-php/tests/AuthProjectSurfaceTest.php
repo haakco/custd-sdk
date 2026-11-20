@@ -96,6 +96,34 @@ final class AuthProjectSurfaceTest extends TestCase
         return $this->clientWithQueue([["body" => $response]], $calls);
     }
 
+    public function testReadsObservedEnvironmentAuthDomainWithOwnerAuthority(): void
+    {
+        $calls = [];
+        $client = $this->clientWithResponse([
+            "environmentId" => "environment-1",
+            "host" => "auth.example.test",
+            "issuer" => "https://auth.example.test/",
+            "status" => "active",
+            "dnsProof" => ["recordName" => "_custd-auth.auth.example.test", "recordValue" => "ownership-proof"],
+            "createdAt" => "2026-11-20T00:00:00Z",
+        ], $calls);
+
+        $binding = $client->adminAuthProjects()->getEnvironmentAuthDomain(
+            "project-1",
+            "environment-1",
+            new RequestOptions(self::OWNING_USER),
+        );
+
+        self::assertSame("GET", $calls[0]["method"]);
+        self::assertSame(self::BASE . "/domain", $calls[0]["url"]);
+        self::assertSame(self::OWNING_USER, $calls[0]["headers"][self::OWNING_USER_HEADER]);
+        self::assertSame("environment-1", $binding->environmentId);
+        self::assertSame("https://auth.example.test/", $binding->issuer);
+        self::assertSame("active", $binding->status);
+        self::assertSame("_custd-auth.auth.example.test", $binding->dnsProof->recordName);
+        self::assertNull($binding->certificateExpiresAt);
+    }
+
     public function testReadsCapability(): void
     {
         $calls = [];
