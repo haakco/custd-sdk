@@ -12,6 +12,7 @@ export type SiteAISettings = {
     aiMode: SiteAIMode;
     monthlyCapUsdMicros: number;
     keyConfigured: boolean;
+    ownKeyAvailable?: boolean;
     keyRefused?: boolean;
     currentTermsVersion?: string;
     acceptedTermsVersion?: string;
@@ -56,6 +57,7 @@ export type SiteAITenantUsage = SiteAIUsage & {
     period: "month";
     aiMode: SiteAIMode;
     monthlyCapUsdMicros: number;
+    monthlyCapUsedUsdMicros?: number;
 };
 export type SiteAIPlatformUsage = SiteAIUsage & {
     samplingMonthlyCapUsdMicros: number;

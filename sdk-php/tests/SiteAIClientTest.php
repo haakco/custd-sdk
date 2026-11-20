@@ -26,6 +26,7 @@ final class SiteAIClientTest extends TestCase
         $settings = $ai->getSettings();
         self::assertSame(SiteAIMode::OwnKey, $settings->aiMode);
         self::assertTrue($settings->keyRefused);
+        self::assertTrue($settings->ownKeyAvailable);
         self::assertSame('terms-v1', $settings->acceptedTermsVersion);
         self::assertStringNotContainsString('apiKey', json_encode($settings, JSON_THROW_ON_ERROR));
 
@@ -48,12 +49,14 @@ final class SiteAIClientTest extends TestCase
         $revoked = $this->replay($revocation, 'revoked')->ai()->setConsent(SiteAIConsentRequest::revoke());
         self::assertFalse($revoked->keyRefused);
         self::assertFalse($revoked->keyConfigured);
+        self::assertFalse($revoked->ownKeyAvailable);
         self::assertSame([['action' => 'revoke']], array_column($revocation, 'body'));
     }
 
     public function testUsageKeepsSeparateCostsAndOptionalProductAttribution(): void
     {
         $tenant = $this->replay($tenantCalls, 'tenantUsage')->ai()->getTenantUsage();
+        self::assertSame(61, $tenant->monthlyCapUsedUsdMicros);
         self::assertSame(SiteAIUsagePeriod::Month, $tenant->usage->period);
         self::assertNull($tenant->usage->rows[0]->samplingProduct);
         self::assertSame(['GET http://localhost:8080/api/v1/site-domains/ai-usage'], array_column($tenantCalls, 'route'));

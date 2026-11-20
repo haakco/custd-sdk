@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import NotRequired, TypedDict
 
+from .admin_site_ai import SiteAIMode
+
 # A next-actions read returns at most this many actions.
 SITE_NEXT_ACTIONS_MAX = 3
 
@@ -69,6 +71,7 @@ class SiteNextActions(TypedDict):
     ``actionCount`` counts every action; at most SITE_NEXT_ACTIONS_MAX are in ``actions``.
     """
 
+    aiMode: NotRequired[SiteAIMode]
     domainUuid: str
     host: str
     status: str

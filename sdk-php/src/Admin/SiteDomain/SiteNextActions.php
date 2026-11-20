@@ -31,11 +31,14 @@ final readonly class SiteNextActions
         public int $actionCount,
         public array $actions,
         public ?string $checkedAt = null,
+        public ?SiteAIMode $aiMode = null,
     ) {
     }
 
     public static function fromPayload(\stdClass $payload): self
     {
+        $mode = Fields::optionalString($payload, 'aiMode');
+
         return new self(
             Fields::string($payload, 'domainUuid'),
             Fields::string($payload, 'host'),
@@ -45,6 +48,7 @@ final readonly class SiteNextActions
             Fields::integer($payload, 'actionCount'),
             array_map(SiteNextAction::fromPayload(...), Fields::objects($payload, 'actions')),
             Fields::optionalString($payload, 'checkedAt'),
+            $mode === null ? null : SiteAIMode::tryFrom($mode),
         );
     }
 }

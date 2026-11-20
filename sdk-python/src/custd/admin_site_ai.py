@@ -15,6 +15,7 @@ class SiteAISettings(TypedDict):
     aiMode: SiteAIMode
     monthlyCapUsdMicros: int
     keyConfigured: bool
+    ownKeyAvailable: NotRequired[bool]
     keyRefused: NotRequired[bool]
     currentTermsVersion: NotRequired[str]
     acceptedTermsVersion: NotRequired[str]
@@ -75,6 +76,7 @@ class SiteAITenantUsage(_SiteAIUsageWindow):
     period: Literal["month"]
     aiMode: SiteAIMode
     monthlyCapUsdMicros: int
+    monthlyCapUsedUsdMicros: NotRequired[int]
 
 
 class SiteAIPlatformUsage(SiteAIUsage):

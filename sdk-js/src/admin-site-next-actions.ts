@@ -5,6 +5,8 @@
 // own Site; a site_insights.read credential reads these two calls for every Site
 // and nothing else.
 
+import type { SiteAIMode } from "./admin-site-ai.js";
+
 /** A next-actions read returns at most this many actions. */
 export const SITE_NEXT_ACTIONS_MAX = 3;
 
@@ -65,6 +67,7 @@ export type SiteNextAction = {
 };
 
 export type SiteNextActions = {
+  aiMode?: SiteAIMode;
   domainUuid: string;
   host: string;
   /** unknown, up, failing, down or paused. */

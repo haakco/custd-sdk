@@ -16,6 +16,7 @@ final readonly class SiteAISettings
         public ?string $currentTermsVersion,
         public ?string $acceptedTermsVersion,
         public ?string $consentAcceptedAt,
+        public bool $ownKeyAvailable = false,
     ) {
     }
 
@@ -29,6 +30,7 @@ final readonly class SiteAISettings
             Fields::optionalString($payload, 'currentTermsVersion'),
             Fields::optionalString($payload, 'acceptedTermsVersion'),
             Fields::optionalString($payload, 'consentAcceptedAt'),
+            Fields::optionalBoolean($payload, 'ownKeyAvailable') ?? false,
         );
     }
 }
