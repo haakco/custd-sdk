@@ -86,6 +86,23 @@ type AdminSiteDomainChecks struct {
 	TLS          AdminSiteTLS       `json:"tls"`
 	Warming      AdminSiteWarming   `json:"warming"`
 	OpenIncident *AdminSiteIncident `json:"openIncident,omitempty"`
+	ChromeUX     *AdminSiteChromeUX `json:"chromeUx,omitempty"`
+}
+
+// AdminSiteChromeUX is the last successful Chrome UX Report lookup. A nil observation
+// means the provider returned no field data for the domain's origin.
+type AdminSiteChromeUX struct {
+	CheckedAt   time.Time                     `json:"checkedAt"`
+	Observation *AdminSiteChromeUXObservation `json:"observation,omitempty"`
+}
+
+// AdminSiteChromeUXObservation contains the available 75th-percentile field metrics.
+type AdminSiteChromeUXObservation struct {
+	FirstDate time.Time `json:"firstDate"`
+	LastDate  time.Time `json:"lastDate"`
+	LCPMs     *float64  `json:"lcpMs,omitempty"`
+	INPMs     *float64  `json:"inpMs,omitempty"`
+	CLS       *float64  `json:"cls,omitempty"`
 }
 
 type adminSiteCheckSettings struct {

@@ -51,3 +51,29 @@ func TestSiteCheckOperationsSendTheirRoutesAndDecode(t *testing.T) {
 		t.Fatal("queue uptime check unexpectedly sends a body")
 	}
 }
+
+func TestSiteChromeUXAvailability(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, `{"checks":{"chromeUx":{"checkedAt":"2026-11-20T07:00:00Z",
+		"observation":{"firstDate":"2026-10-21T00:00:00Z","lastDate":"2026-11-17T00:00:00Z","lcpMs":1700,"cls":0}}}}`)
+	domains := newAdminTestClient(t, doer, "http://localhost:8080").Admin.SiteDomains
+	ctx := context.Background()
+	measured, err := domains.Get(ctx, "d-1")
+	if err != nil || measured.Checks.ChromeUX == nil || measured.Checks.ChromeUX.Observation == nil {
+		t.Fatalf("measured CrUX = %+v, %v", measured, err)
+	}
+	observation := measured.Checks.ChromeUX.Observation
+	if observation.CLS == nil || *observation.CLS != 0 || observation.INPMs != nil ||
+		observation.LCPMs == nil || *observation.LCPMs != 1700 || !observation.LastDate.After(observation.FirstDate) {
+		t.Fatalf("observation = %+v", observation)
+	}
+	doer.body = `{"checks":{"chromeUx":{"checkedAt":"2026-11-20T07:00:00Z"}}}`
+	empty, err := domains.Get(ctx, "d-1")
+	if err != nil || empty.Checks.ChromeUX == nil || empty.Checks.ChromeUX.Observation != nil {
+		t.Fatalf("no-data CrUX = %+v, %v", empty, err)
+	}
+	doer.body = `{"checks":{}}`
+	unchecked, err := domains.Get(ctx, "d-1")
+	if err != nil || unchecked.Checks.ChromeUX != nil {
+		t.Fatalf("unchecked CrUX = %+v, %v", unchecked, err)
+	}
+}
