@@ -11,6 +11,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollectorRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
 use HaakCo\Custd\Admin\SiteDomain\SiteChromeUx;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingState;
+use HaakCo\Custd\Admin\SiteDomain\SiteProbeSpec;
 use HaakCo\Custd\Admin\SiteDomain\SiteRule;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchConnectionStatus;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchProvider;
@@ -22,6 +23,39 @@ use PHPUnit\Framework\TestCase;
 final class SiteDomainClientTest extends TestCase
 {
     private const BASE = "http://localhost:8080/api/v1/site-domains";
+
+    public function testNetworkProbeSettingsAndDnsMismatch(): void
+    {
+        $calls = [];
+        $address = '192.0.2.1';
+        $dns = new SiteProbeSpec(SiteProbeSpec::DNS, expectedAddresses: [$address]);
+        $transport = static function (string $method, string $url, ?array $request) use (&$calls, $address): array {
+            $calls[] = [$method, $url, $request];
+            $probes = $request === ['probes' => []] ? [] : [[
+                'kind' => 'dns',
+                'expectedAddresses' => [$address],
+                'status' => 'down',
+                'detail' => ['missingAddresses' => [$address], 'unexpectedAddresses' => ['192.0.2.2']],
+            ]];
+
+            return ['status' => 200, 'body' => json_encode(['probes' => $probes], JSON_THROW_ON_ERROR)];
+        };
+        $domains = (new CustdClient('http://localhost:8080', 'token', ['admin_http_client' => $transport]))
+            ->adminSiteDomains();
+        $url = self::BASE . '/d-1/probes?companySlug=acme';
+
+        $domains->setProbes('d-1', [$dns], 'acme');
+        $result = $domains->listProbes('d-1', 'acme')->probes[0];
+        self::assertNotNull($result->detail);
+        self::assertSame([$address], $result->detail->missingAddresses);
+        self::assertSame(['192.0.2.2'], $result->detail->unexpectedAddresses);
+        self::assertSame([], $domains->setProbes('d-1', [], 'acme')->probes);
+        self::assertSame([
+            ['PUT', $url, ['probes' => [['kind' => 'dns', 'expectedAddresses' => [$address]]]]],
+            ['GET', $url, null],
+            ['PUT', $url, ['probes' => []]],
+        ], $calls);
+    }
 
     public function testChromeUxKeepsZeroSeparateFromMissingMetrics(): void
     {
