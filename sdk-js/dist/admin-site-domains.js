@@ -86,6 +86,7 @@ export const SiteRule = {
     TLSInvalid: "tls.invalid",
     TLSExpiring: "tls.expiring",
     TLSExpiringSoon: "tls.expiring-soon",
+    RegistrationExpiring: "registration.expiring",
     LighthouseDesktopDrop: "lighthouse.desktop-score-drop",
     LighthouseMobileDrop: "lighthouse.mobile-score-drop",
     SearchLowCTR: "search.low-ctr",
@@ -101,6 +102,14 @@ const keywordListsPath = `${siteDomainsPath}/keyword-lists`;
 export class SiteDomainAdminClient {
     constructor(request) {
         this.request = request;
+    }
+    /** Reads the domain's network checks and their latest results. */
+    listProbes(domainUuid, options) {
+        return this.send("GET", `${domainPath(domainUuid)}/probes`, {}, undefined, options);
+    }
+    /** Replaces the domain's network checks. Pass an empty array to disable them. */
+    setProbes(domainUuid, probes, options) {
+        return this.send("PUT", `${domainPath(domainUuid)}/probes`, {}, { probes }, options);
     }
     /** Claims a host for a Site and returns the verification instructions. */
     create(body, options) {

@@ -98,6 +98,7 @@ export declare const SiteRule: {
     readonly TLSInvalid: "tls.invalid";
     readonly TLSExpiring: "tls.expiring";
     readonly TLSExpiringSoon: "tls.expiring-soon";
+    readonly RegistrationExpiring: "registration.expiring";
     readonly LighthouseDesktopDrop: "lighthouse.desktop-score-drop";
     readonly LighthouseMobileDrop: "lighthouse.mobile-score-drop";
     readonly SearchLowCTR: "search.low-ctr";
@@ -169,6 +170,52 @@ export type SiteDomainAudit = {
 export type SiteCheckMode = "paused" | "uptime" | "warm";
 /** failing is one failed check; down is an open incident (two or more in a row). */
 export type SiteUptimeStatus = "unknown" | "up" | "failing" | "down" | "paused";
+export type SiteProbeSpec = {
+    kind: "ping";
+} | {
+    kind: "tcp";
+    port: number;
+} | {
+    kind: "dns";
+    expectedAddresses?: string[];
+} | {
+    kind: "http-delivery";
+    protocol?: "http1.1" | "http2";
+};
+export type SiteProbeDetail = {
+    resolvedIp?: string;
+    addresses?: string[];
+    missingAddresses?: string[];
+    unexpectedAddresses?: string[];
+    statusCode?: number;
+    negotiatedProtocol?: string;
+    tlsVersion?: string;
+    bytesRead?: number;
+    timings?: {
+        dnsMs?: number;
+        connectMs?: number;
+        tlsMs?: number;
+        firstByteMs?: number;
+        totalMs: number;
+    };
+    cache?: {
+        cacheControl?: string;
+        age?: string;
+        cacheStatus?: string;
+        server?: string;
+        via?: string;
+    };
+};
+export type SiteProbe = SiteProbeSpec & {
+    status: SiteUptimeStatus;
+    lastCheckedAt?: string;
+    responseMs?: number;
+    lastFailure?: string;
+    detail?: SiteProbeDetail;
+};
+export type SiteProbeList = {
+    probes: SiteProbe[];
+};
 export type SiteUptime = {
     status: SiteUptimeStatus;
     lastCheckedAt?: string;
@@ -214,6 +261,13 @@ export type SiteChromeUX = {
     checkedAt: string;
     observation?: SiteChromeUXObservation;
 };
+/** Registry lookup. An absent expiry date means the registry did not supply one. */
+export type SiteRegistration = {
+    domain: string;
+    source?: string;
+    readAt: string;
+    expiresAt?: string;
+};
 export type SiteDomainChecks = {
     mode: SiteCheckMode;
     uptime: SiteUptime;
@@ -221,6 +275,7 @@ export type SiteDomainChecks = {
     warming: SiteWarming;
     openIncident?: SiteIncident;
     chromeUx?: SiteChromeUX;
+    registration?: SiteRegistration;
 };
 /** A host a Site has claimed. Only a verified domain is audited or checked. */
 export type SiteDomain = {
@@ -349,6 +404,10 @@ type NonAdminRequester = <T>(method: string, path: string, body?: unknown, optio
 export declare class SiteDomainAdminClient {
     private readonly request;
     constructor(request: NonAdminRequester);
+    /** Reads the domain's network checks and their latest results. */
+    listProbes(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteProbeList>;
+    /** Replaces the domain's network checks. Pass an empty array to disable them. */
+    setProbes(domainUuid: string, probes: readonly SiteProbeSpec[], options?: SiteDomainRequestOptions): Promise<SiteProbeList>;
     /** Claims a host for a Site and returns the verification instructions. */
     create(body: SiteDomainCreateRequest, options?: SiteDomainRequestOptions): Promise<SiteDomain>;
     /** Lists one Site's domains. A site-bound credential may omit siteUuid for its own Site. */
