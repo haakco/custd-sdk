@@ -318,6 +318,8 @@ export {
   type SiteAlertDestinationRequest,
   type SiteAuditSummary,
   type SiteCheckMode,
+  type SiteChromeUX,
+  type SiteChromeUXObservation,
   type SiteDomain,
   SiteDomainAdminClient,
   type SiteDomainAttestation,

@@ -286,12 +286,28 @@ export type SiteIncidentList = {
   incidents: SiteIncident[];
 };
 
+/** The field collection period and available 75th-percentile Web Vitals. */
+export type SiteChromeUXObservation = {
+  firstDate: string;
+  lastDate: string;
+  lcpMs?: number;
+  inpMs?: number;
+  cls?: number;
+};
+
+/** A lookup without an observation returned no field data for the origin. */
+export type SiteChromeUX = {
+  checkedAt: string;
+  observation?: SiteChromeUXObservation;
+};
+
 export type SiteDomainChecks = {
   mode: SiteCheckMode;
   uptime: SiteUptime;
   tls: SiteTLS;
   warming: SiteWarming;
   openIncident?: SiteIncident;
+  chromeUx?: SiteChromeUX;
 };
 
 /** A host a Site has claimed. Only a verified domain is audited or checked. */

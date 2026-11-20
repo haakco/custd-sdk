@@ -9,6 +9,7 @@ use HaakCo\Custd\Admin\SiteDomain\CreateSiteDomainRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollectorMode;
 use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollectorRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
+use HaakCo\Custd\Admin\SiteDomain\SiteChromeUx;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingState;
 use HaakCo\Custd\Admin\SiteDomain\SiteRule;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchConnectionStatus;
@@ -21,6 +22,23 @@ use PHPUnit\Framework\TestCase;
 final class SiteDomainClientTest extends TestCase
 {
     private const BASE = "http://localhost:8080/api/v1/site-domains";
+
+    public function testChromeUxKeepsZeroSeparateFromMissingMetrics(): void
+    {
+        $fieldData = SiteChromeUx::fromPayload((object) [
+            "checkedAt" => "2026-11-20T07:00:00Z",
+            "observation" => (object) [
+                "firstDate" => "2026-10-21T00:00:00Z",
+                "lastDate" => "2026-11-17T00:00:00Z",
+                "cls" => 0,
+            ],
+        ]);
+
+        self::assertNotNull($fieldData->observation);
+        self::assertSame(0.0, $fieldData->observation->cls);
+        self::assertNull($fieldData->observation->inpMs);
+        self::assertNull(SiteChromeUx::fromPayload((object) ["checkedAt" => $fieldData->checkedAt])->observation);
+    }
 
     public function testOperationsSendTheirRoutesAndCompanySlug(): void
     {

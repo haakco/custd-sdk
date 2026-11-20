@@ -479,6 +479,23 @@ class SiteIncidentList(TypedDict):
     incidents: list[SiteIncident]
 
 
+class SiteChromeUXObservation(TypedDict):
+    """The field collection period and available 75th-percentile Web Vitals."""
+
+    firstDate: str
+    lastDate: str
+    lcpMs: NotRequired[float]
+    inpMs: NotRequired[float]
+    cls: NotRequired[float]
+
+
+class SiteChromeUX(TypedDict):
+    """A lookup without an observation returned no field data for the origin."""
+
+    checkedAt: str
+    observation: NotRequired[SiteChromeUXObservation]
+
+
 class SiteDomainChecks(TypedDict):
     """Uptime, certificate and warming state. Their problems are also uptime.* and tls.* findings."""
 
@@ -487,6 +504,7 @@ class SiteDomainChecks(TypedDict):
     tls: SiteTLS
     warming: SiteWarming
     openIncident: NotRequired[SiteIncident]
+    chromeUx: NotRequired[SiteChromeUX]
 
 
 class SiteDomain(TypedDict):
