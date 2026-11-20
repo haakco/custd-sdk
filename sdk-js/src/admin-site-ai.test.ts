@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, it, vi } from "vitest";
-import { CustdClient, type SiteAIProduct } from "./index.js";
+import { CustdClient, type SiteAIOwnerHandoff, type SiteAIOwnerHandoffRequest, type SiteAIProduct } from "./index.js";
 
 it("uses the AI settings, consent, tenant and platform routes", async () => {
   const fixture = JSON.parse(readFileSync(new URL("../../contract-fixtures/site-ai.json", import.meta.url), "utf8"));
@@ -43,4 +43,25 @@ it("uses the AI settings, consent, tenant and platform routes", async () => {
     ["/api/v1/site-domains/ai-usage", "GET", undefined],
     ["/api/v1/admin/site-insights/ai-usage?period=previous-month", "GET", undefined],
   ]);
+});
+
+it("creates an AI owner handoff through the site-domain API", async () => {
+  const request: SiteAIOwnerHandoffRequest = { tenantSlug: "example-tenant", ownerSubject: "example-owner" };
+  const handoff: SiteAIOwnerHandoff = {
+    code: "test-code",
+    redeemUrl: "https://custd.example/api/v1/site-ai-owner/redeem",
+  };
+  const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(Response.json(handoff));
+  const client = new CustdClient({
+    baseUrl: "https://custd.example",
+    getToken: () => "broker-token",
+    fetch: fetchImpl,
+  });
+  const { signal } = new AbortController();
+
+  await expect(client.admin.siteDomains.createAIOwnerHandoff(request, { signal })).resolves.toEqual(handoff);
+  expect(fetchImpl).toHaveBeenCalledExactlyOnceWith(
+    "https://custd.example/api/v1/site-domains/ai-owner-handoffs",
+    expect.objectContaining({ method: "POST", body: JSON.stringify(request), signal }),
+  );
 });

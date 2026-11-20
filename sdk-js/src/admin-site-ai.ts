@@ -5,6 +5,16 @@ export type SiteAIProduct = "hosting" | "custd" | "cb" | "awthy";
 /** Grant requires the version the tenant explicitly accepted. */
 export type SiteAIConsentRequest = { action: "grant"; termsVersion: string } | { action: "revoke" };
 
+export type SiteAIOwnerHandoffRequest = {
+  tenantSlug: string;
+  ownerSubject: string;
+};
+
+export type SiteAIOwnerHandoff = {
+  code: string;
+  redeemUrl: string;
+};
+
 export type SiteAISettings = {
   aiMode: SiteAIMode;
   monthlyCapUsdMicros: number;
