@@ -83,12 +83,13 @@ type AdminSiteIncidentList struct {
 // AdminSiteDomainChecks is a domain's uptime, certificate and warming state. The
 // problems the checks find are also findings, under the uptime.* and tls.* rules.
 type AdminSiteDomainChecks struct {
-	Mode         AdminSiteCheckMode `json:"mode"`
-	Uptime       AdminSiteUptime    `json:"uptime"`
-	TLS          AdminSiteTLS       `json:"tls"`
-	Warming      AdminSiteWarming   `json:"warming"`
-	OpenIncident *AdminSiteIncident `json:"openIncident,omitempty"`
-	ChromeUX     *AdminSiteChromeUX `json:"chromeUx,omitempty"`
+	Mode             AdminSiteCheckMode         `json:"mode"`
+	Uptime           AdminSiteUptime            `json:"uptime"`
+	TLS              AdminSiteTLS               `json:"tls"`
+	Warming          AdminSiteWarming           `json:"warming"`
+	OpenIncident     *AdminSiteIncident         `json:"openIncident,omitempty"`
+	ChromeUX         *AdminSiteChromeUX         `json:"chromeUx,omitempty"`
+	HTTPExpectations *AdminSiteHTTPExpectations `json:"httpExpectations,omitempty"`
 }
 
 // AdminSiteChromeUX is the last successful Chrome UX Report lookup. A nil observation
@@ -107,8 +108,25 @@ type AdminSiteChromeUXObservation struct {
 	CLS       *float64  `json:"cls,omitempty"`
 }
 
-type adminSiteCheckSettings struct {
-	Mode AdminSiteCheckMode `json:"mode"`
+// AdminSiteHTTPExpectations configures optional checks on the final home page response.
+type AdminSiteHTTPExpectations struct {
+	StatusCode    int                           `json:"statusCode,omitempty"`
+	MaxResponseMs int                           `json:"maxResponseMs,omitempty"`
+	BodyContains  string                        `json:"bodyContains,omitempty"`
+	JSON          *AdminSiteHTTPJSONExpectation `json:"json,omitempty"`
+}
+
+// AdminSiteHTTPJSONExpectation matches one top-level JSON string field.
+type AdminSiteHTTPJSONExpectation struct {
+	Field string `json:"field"`
+	Value string `json:"value"`
+}
+
+// AdminSiteCheckSettings sets the check mode and optionally updates HTTP expectations.
+// Nil expectations preserve existing settings. A pointer to an empty value clears them.
+type AdminSiteCheckSettings struct {
+	Mode             AdminSiteCheckMode         `json:"mode"`
+	HTTPExpectations *AdminSiteHTTPExpectations `json:"httpExpectations,omitempty"`
 }
 
 // SiteUptimeCheckInactiveCode identifies a request refused because public checks are inactive.
@@ -130,8 +148,15 @@ func (c *SiteDomainAdminClient) RequestUptimeCheck(ctx context.Context, domainUU
 func (c *SiteDomainAdminClient) SetCheckMode(
 	ctx context.Context, domainUUID string, mode AdminSiteCheckMode,
 ) (*AdminSiteDomain, error) {
+	return c.SetCheckSettings(ctx, domainUUID, AdminSiteCheckSettings{Mode: mode})
+}
+
+// SetCheckSettings updates the check mode and any supplied HTTP expectations.
+func (c *SiteDomainAdminClient) SetCheckSettings(
+	ctx context.Context, domainUUID string, settings AdminSiteCheckSettings,
+) (*AdminSiteDomain, error) {
 	var domain AdminSiteDomain
-	err := c.request(ctx, http.MethodPut, siteDomainPath(domainUUID)+"/checks", adminSiteCheckSettings{Mode: mode}, &domain)
+	err := c.request(ctx, http.MethodPut, siteDomainPath(domainUUID)+"/checks", settings, &domain)
 	return &domain, err
 }
 
