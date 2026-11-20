@@ -141,6 +141,8 @@ export type AppModelCreate = {
 /** A new immutable version: the whole quantity list, 1 to 100 quantities. */
 export type AppModelVersionCreateRequest = {
   quantities: AppModelQuantity[];
+  /** Counter link tokens authorizing newly linked projects. Tokens are excluded from the saved graph. */
+  counterLinks?: string[];
   note?: string;
 };
 

@@ -42,7 +42,17 @@ describe("AppItemsClient models", () => {
     const fetchMock = vi.fn(async () => json({}, 201));
     const items = client(fetchMock);
     await items.addModelVersion(OWNER, {
-      quantities: [{ name: "a", kind: "input", input: { shape: "point", value: 1 } }],
+      quantities: [
+        {
+          name: "rate",
+          kind: "input",
+          input: {
+            shape: "bound",
+            source: { kind: "counter_forecast", projectUuid: "project", field: "rate_per_day" },
+          },
+        },
+      ],
+      counterLinks: ["counter-link-token"],
     });
     await items.copyModel(OWNER);
     await items.runModel(OWNER, { seed: 1 });
@@ -53,6 +63,7 @@ describe("AppItemsClient models", () => {
       `POST ${API}/api/v1/app/models/runs`,
     ]);
     expect(calls[0]?.[1].headers).toMatchObject({ Authorization: `Bearer ${OWNER}` });
+    expect(JSON.parse(String(calls[0]?.[1].body))).toMatchObject({ counterLinks: ["counter-link-token"] });
     expect(JSON.parse(String(calls[1]?.[1].body))).toEqual({});
   });
 
