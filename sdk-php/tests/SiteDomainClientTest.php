@@ -9,6 +9,7 @@ use HaakCo\Custd\Admin\SiteDomain\CreateSiteDomainRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollectorMode;
 use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollectorRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
+use HaakCo\Custd\Admin\SiteDomain\SiteDomainChecks;
 use HaakCo\Custd\Admin\SiteDomain\SiteChromeUx;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingState;
 use HaakCo\Custd\Admin\SiteDomain\SiteProbeSpec;
@@ -55,6 +56,24 @@ final class SiteDomainClientTest extends TestCase
             ['GET', $url, null],
             ['PUT', $url, ['probes' => []]],
         ], $calls);
+    }
+
+    public function testRegistrationWithUnknownExpiryKeepsRegistryEvidence(): void
+    {
+        $fixture = json_decode((string) file_get_contents(__DIR__ . '/../../contract-fixtures/site-insights.json'));
+        self::assertInstanceOf(\stdClass::class, $fixture);
+        $checks = $fixture->domain->checks;
+        $checks->registration = (object) [
+            'domain' => 'example.com',
+            'source' => 'rdap.example.com',
+            'readAt' => '2026-11-20T07:00:00Z',
+        ];
+
+        $registration = SiteDomainChecks::fromPayload($checks)->registration;
+        self::assertNotNull($registration);
+        self::assertSame('rdap.example.com', $registration->source);
+        self::assertSame('2026-11-20T07:00:00Z', $registration->readAt);
+        self::assertNull($registration->expiresAt);
     }
 
     public function testChromeUxKeepsZeroSeparateFromMissingMetrics(): void
@@ -263,7 +282,7 @@ final class SiteDomainClientTest extends TestCase
 
     public function testSiteRuleNamesEveryCatalogueRuleAndTheFixtureFindings(): void
     {
-        self::assertCount(76, SiteRule::cases());
+        self::assertCount(77, SiteRule::cases());
         $fixture = json_decode(
             (string) file_get_contents(__DIR__ . "/../../contract-fixtures/site-insights.json"),
             true,

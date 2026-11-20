@@ -269,6 +269,7 @@ SITE_RULE_UPTIME_SLOW = "uptime.slow"
 SITE_RULE_TLS_INVALID = "tls.invalid"
 SITE_RULE_TLS_EXPIRING = "tls.expiring"
 SITE_RULE_TLS_EXPIRING_SOON = "tls.expiring-soon"
+SITE_RULE_REGISTRATION_EXPIRING = "registration.expiring"
 SITE_RULE_SEARCH_LOW_CTR = "search.low-ctr"
 SITE_RULE_SEARCH_POSITION_DROP = "search.position-drop"
 SITE_RULE_LIGHTHOUSE_DESKTOP_DROP = "lighthouse.desktop-score-drop"
@@ -347,6 +348,7 @@ SITE_RULE_IDS: tuple[str, ...] = (
     SITE_RULE_TLS_INVALID,
     SITE_RULE_TLS_EXPIRING,
     SITE_RULE_TLS_EXPIRING_SOON,
+    SITE_RULE_REGISTRATION_EXPIRING,
     SITE_RULE_SEARCH_LOW_CTR,
     SITE_RULE_SEARCH_POSITION_DROP,
     SITE_RULE_LIGHTHOUSE_DESKTOP_DROP,
@@ -363,6 +365,7 @@ SITE_CHECK_RULE_IDS: tuple[str, ...] = (
     SITE_RULE_TLS_INVALID,
     SITE_RULE_TLS_EXPIRING,
     SITE_RULE_TLS_EXPIRING_SOON,
+    SITE_RULE_REGISTRATION_EXPIRING,
 )
 
 
@@ -544,6 +547,15 @@ class SiteChromeUX(TypedDict):
     observation: NotRequired[SiteChromeUXObservation]
 
 
+class SiteRegistration(TypedDict):
+    """Registry lookup. An absent expiry date means the registry did not supply one."""
+
+    domain: str
+    source: NotRequired[str]
+    readAt: str
+    expiresAt: NotRequired[str]
+
+
 class SiteDomainChecks(TypedDict):
     """Uptime, certificate and warming state. Their problems are also uptime.* and tls.* findings."""
 
@@ -553,6 +565,7 @@ class SiteDomainChecks(TypedDict):
     warming: SiteWarming
     openIncident: NotRequired[SiteIncident]
     chromeUx: NotRequired[SiteChromeUX]
+    registration: NotRequired[SiteRegistration]
 
 
 class SiteDomain(TypedDict):

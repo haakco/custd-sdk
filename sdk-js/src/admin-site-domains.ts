@@ -168,6 +168,7 @@ export const SiteRule = {
   TLSInvalid: "tls.invalid",
   TLSExpiring: "tls.expiring",
   TLSExpiringSoon: "tls.expiring-soon",
+  RegistrationExpiring: "registration.expiring",
   LighthouseDesktopDrop: "lighthouse.desktop-score-drop",
   LighthouseMobileDrop: "lighthouse.mobile-score-drop",
   SearchLowCTR: "search.low-ctr",
@@ -342,6 +343,14 @@ export type SiteChromeUX = {
   observation?: SiteChromeUXObservation;
 };
 
+/** Registry lookup. An absent expiry date means the registry did not supply one. */
+export type SiteRegistration = {
+  domain: string;
+  source?: string;
+  readAt: string;
+  expiresAt?: string;
+};
+
 export type SiteDomainChecks = {
   mode: SiteCheckMode;
   uptime: SiteUptime;
@@ -349,6 +358,7 @@ export type SiteDomainChecks = {
   warming: SiteWarming;
   openIncident?: SiteIncident;
   chromeUx?: SiteChromeUX;
+  registration?: SiteRegistration;
 };
 
 /** A host a Site has claimed. Only a verified domain is audited or checked. */

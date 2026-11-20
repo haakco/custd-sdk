@@ -343,6 +343,7 @@ export {
   type SiteProbeDetail,
   type SiteProbeList,
   type SiteProbeSpec,
+  type SiteRegistration,
   SiteRule,
   type SiteRuleId,
   type SiteSearchAccount,
