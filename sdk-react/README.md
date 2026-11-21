@@ -81,6 +81,57 @@ and then replaces the URL with the saved `returnTo` path (override with
 `signed_out`, `signing_in`, `signed_in` or `error`; `session` is set only when
 signed in. The consumer owns placement, wording and styling.
 
+## Application account settings
+
+Add the account link to the signed-in application menu. Use the issuer and app
+home from the application's deployment configuration. The issuer uses its
+registered app home for the return link.
+
+```tsx
+import { CustdAccountMenuItem } from "@haakco/custd-react";
+import { CurrentAppProfileClient } from "@haakco/custd-sdk/browser";
+
+const account = {
+  issuer: "https://auth.canvas.example/",
+  applicationHome: "https://canvas.example/",
+};
+
+<CustdAccountMenuItem account={account} role="menuitem" />;
+
+const profile = new CurrentAppProfileClient({
+  apiBaseUrl: "https://api.custd.com",
+  accessToken: getCurrentAppAccessToken,
+});
+const { fields, managedPhoto } = await profile.read();
+const photo = managedPhoto ? await profile.readPhoto() : null;
+```
+
+The access token getter returns the signed-in member's current application
+grant with the `profile` scope. On a gateway-owned session, keep the forwarded
+grant on the app server and read the profile there. The field policy reports
+which values can be edited. Use `uploadPhoto` and `removePhoto` for a managed
+photo, and release any object URL the app creates from a returned blob. When importing
+existing app data, `initialize` and `initializePhoto` fill only fields that
+have never been written. Use the returned profile, which includes any current
+value saved concurrently. A cleared value remains initialized.
+
+A gateway-owned remembered session can use an account entry ticket instead of
+asking the user to authenticate again. The app backend calls
+`createAppAccountEntry` or Go's `CreateAppAccountEntry` with the forwarded app
+bearer, the configured issuer, and the registered app origin. If the issuer
+refuses a ticket for a short session, use the ordinary account settings link.
+
+Render the returned action and ticket as an escaped native form on the app
+origin. The form is a top-level, same-tab POST. Keep the ticket out of URLs,
+logs, browser storage and cached responses.
+
+```tsx
+<form action={entry.actionUrl} method="post" target="_self">
+  <input type="hidden" name="ticket" value={entry.ticket} />
+  <button type="submit">Account settings</button>
+</form>
+```
+
 ## Hosted apps
 
 An app Custd hosts wraps its root once. The provider calls the core
