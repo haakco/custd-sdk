@@ -145,6 +145,7 @@ function renderReportingContent<TData extends RenderedWidgetData>(
   return typeof children === "function" ? children(data) : children;
 }
 
+export { CustdAccountMenuItem, type CustdAccountMenuItemProps } from "./account-menu-item.js";
 export {
   CUSTD_APP_LIVE_IDLE,
   type CustdAppItemAccess,
