@@ -39,6 +39,8 @@ export type CurrentAppProfileField = {
   fieldKey: string;
   value?: string;
   present: boolean;
+  /** Remains true after an explicit clear so apps do not import the old value again. */
+  initialized: boolean;
   required: boolean;
   editableBy: string;
   editable: boolean;
@@ -86,8 +88,17 @@ export class CurrentAppProfileClient {
   }
 
   update(update: CurrentAppProfileUpdate): Promise<CurrentAppProfile> {
+    return this.writeFields("PATCH", update);
+  }
+
+  /** Fill only previously uninitialized fields and return the current profile. */
+  initialize(update: CurrentAppProfileUpdate): Promise<CurrentAppProfile> {
+    return this.writeFields("POST", update);
+  }
+
+  private writeFields(method: "PATCH" | "POST", update: CurrentAppProfileUpdate): Promise<CurrentAppProfile> {
     return this.profile(profilePath, {
-      method: "PATCH",
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(update),
     });
@@ -101,8 +112,17 @@ export class CurrentAppProfileClient {
   }
 
   uploadPhoto(photo: Blob): Promise<CurrentAppProfile> {
+    return this.writePhoto("PUT", photo);
+  }
+
+  /** Fill a previously uninitialized photo and return the current profile. */
+  initializePhoto(photo: Blob): Promise<CurrentAppProfile> {
+    return this.writePhoto("POST", photo);
+  }
+
+  private writePhoto(method: "PUT" | "POST", photo: Blob): Promise<CurrentAppProfile> {
     validatePhoto(photo);
-    return this.profile(photoPath, { method: "PUT", headers: { "Content-Type": photo.type }, body: photo });
+    return this.profile(photoPath, { method, headers: { "Content-Type": photo.type }, body: photo });
   }
 
   removePhoto(): Promise<CurrentAppProfile> {
@@ -148,6 +168,7 @@ function decodeField(record: Record<string, unknown>): CurrentAppProfileField {
   const field: CurrentAppProfileField = {
     fieldKey: requireString(record, "fieldKey", profileContext),
     present: requireBoolean(record, "present", profileContext),
+    initialized: record.initialized === undefined ? false : requireBoolean(record, "initialized", profileContext),
     required: requireBoolean(record, "required", profileContext),
     editableBy: requireString(record, "editableBy", profileContext),
     editable: requireBoolean(record, "editable", profileContext),

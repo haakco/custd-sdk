@@ -110,7 +110,10 @@ The access token getter returns the signed-in member's current application
 grant with the `profile` scope. On a gateway-owned session, keep the forwarded
 grant on the app server and read the profile there. The field policy reports
 which values can be edited. Use `uploadPhoto` and `removePhoto` for a managed
-photo, and release any object URL the app creates from a returned blob.
+photo, and release any object URL the app creates from a returned blob. When importing
+existing app data, `initialize` and `initializePhoto` fill only fields that
+have never been written. Use the returned profile, which includes any current
+value saved concurrently. A cleared value remains initialized.
 
 ## Hosted apps
 

@@ -37,8 +37,15 @@ export class CurrentAppProfileClient {
         return this.profile(profilePath, { method: "GET" });
     }
     update(update) {
+        return this.writeFields("PATCH", update);
+    }
+    /** Fill only previously uninitialized fields and return the current profile. */
+    initialize(update) {
+        return this.writeFields("POST", update);
+    }
+    writeFields(method, update) {
         return this.profile(profilePath, {
-            method: "PATCH",
+            method,
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(update),
         });
@@ -50,8 +57,15 @@ export class CurrentAppProfileClient {
         return photo;
     }
     uploadPhoto(photo) {
+        return this.writePhoto("PUT", photo);
+    }
+    /** Fill a previously uninitialized photo and return the current profile. */
+    initializePhoto(photo) {
+        return this.writePhoto("POST", photo);
+    }
+    writePhoto(method, photo) {
         validatePhoto(photo);
-        return this.profile(photoPath, { method: "PUT", headers: { "Content-Type": photo.type }, body: photo });
+        return this.profile(photoPath, { method, headers: { "Content-Type": photo.type }, body: photo });
     }
     removePhoto() {
         return this.profile(photoPath, { method: "DELETE" });
@@ -94,6 +108,7 @@ function decodeField(record) {
     const field = {
         fieldKey: requireString(record, "fieldKey", profileContext),
         present: requireBoolean(record, "present", profileContext),
+        initialized: record.initialized === undefined ? false : requireBoolean(record, "initialized", profileContext),
         required: requireBoolean(record, "required", profileContext),
         editableBy: requireString(record, "editableBy", profileContext),
         editable: requireBoolean(record, "editable", profileContext),

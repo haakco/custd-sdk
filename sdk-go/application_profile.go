@@ -19,8 +19,15 @@ const (
 // member. Fields report whether the member can edit them. ManagedPhoto means
 // the uploaded photo must be read with the same app profile grant.
 type CurrentAppProfile struct {
-	Fields       []ApplicationProfileField `json:"fields"`
-	ManagedPhoto bool                      `json:"managedPhoto,omitempty"`
+	Fields       []CurrentAppProfileField `json:"fields"`
+	ManagedPhoto bool                     `json:"managedPhoto,omitempty"`
+}
+
+// CurrentAppProfileField includes whether a field has ever been written.
+// A cleared field remains initialized so importing old app data cannot restore it.
+type CurrentAppProfileField struct {
+	ApplicationProfileField
+	Initialized bool `json:"initialized"`
 }
 
 type CurrentAppProfilePhoto struct {
@@ -33,11 +40,21 @@ func (c *CustdClient) GetCurrentAppProfile(ctx context.Context, token string) (*
 }
 
 func (c *CustdClient) UpdateCurrentAppProfile(ctx context.Context, token string, update ApplicationProfileValuesRequest) (*CurrentAppProfile, error) {
+	return c.writeCurrentAppProfile(ctx, token, http.MethodPatch, update)
+}
+
+// InitializeCurrentAppProfile fills only previously uninitialized fields.
+// The response carries the current values, including any concurrent winner.
+func (c *CustdClient) InitializeCurrentAppProfile(ctx context.Context, token string, update ApplicationProfileValuesRequest) (*CurrentAppProfile, error) {
+	return c.writeCurrentAppProfile(ctx, token, http.MethodPost, update)
+}
+
+func (c *CustdClient) writeCurrentAppProfile(ctx context.Context, token, method string, update ApplicationProfileValuesRequest) (*CurrentAppProfile, error) {
 	body, err := json.Marshal(update)
 	if err != nil {
 		return nil, fmt.Errorf("custd: encode application profile update: %w", err)
 	}
-	return c.currentAppProfile(ctx, token, http.MethodPatch, currentAppProfilePath, "application/json", body)
+	return c.currentAppProfile(ctx, token, method, currentAppProfilePath, "application/json", body)
 }
 
 func (c *CustdClient) GetCurrentAppProfilePhoto(ctx context.Context, token string) (*CurrentAppProfilePhoto, error) {
@@ -58,10 +75,19 @@ func (c *CustdClient) GetCurrentAppProfilePhoto(ctx context.Context, token strin
 }
 
 func (c *CustdClient) UploadCurrentAppProfilePhoto(ctx context.Context, token string, photo CurrentAppProfilePhoto) (*CurrentAppProfile, error) {
+	return c.writeCurrentAppProfilePhoto(ctx, token, http.MethodPut, photo)
+}
+
+// InitializeCurrentAppProfilePhoto fills only a previously uninitialized photo.
+func (c *CustdClient) InitializeCurrentAppProfilePhoto(ctx context.Context, token string, photo CurrentAppProfilePhoto) (*CurrentAppProfile, error) {
+	return c.writeCurrentAppProfilePhoto(ctx, token, http.MethodPost, photo)
+}
+
+func (c *CustdClient) writeCurrentAppProfilePhoto(ctx context.Context, token, method string, photo CurrentAppProfilePhoto) (*CurrentAppProfile, error) {
 	if err := photo.validate(); err != nil {
 		return nil, err
 	}
-	return c.currentAppProfile(ctx, token, http.MethodPut, currentAppPhotoPath, photo.ContentType, photo.Bytes)
+	return c.currentAppProfile(ctx, token, method, currentAppPhotoPath, photo.ContentType, photo.Bytes)
 }
 
 func (c *CustdClient) RemoveCurrentAppProfilePhoto(ctx context.Context, token string) (*CurrentAppProfile, error) {

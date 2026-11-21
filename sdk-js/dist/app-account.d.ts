@@ -14,6 +14,8 @@ export type CurrentAppProfileField = {
     fieldKey: string;
     value?: string;
     present: boolean;
+    /** Remains true after an explicit clear so apps do not import the old value again. */
+    initialized: boolean;
     required: boolean;
     editableBy: string;
     editable: boolean;
@@ -45,8 +47,14 @@ export declare class CurrentAppProfileClient {
     constructor(config: CurrentAppProfileClientConfig);
     read(): Promise<CurrentAppProfile>;
     update(update: CurrentAppProfileUpdate): Promise<CurrentAppProfile>;
+    /** Fill only previously uninitialized fields and return the current profile. */
+    initialize(update: CurrentAppProfileUpdate): Promise<CurrentAppProfile>;
+    private writeFields;
     readPhoto(): Promise<Blob>;
     uploadPhoto(photo: Blob): Promise<CurrentAppProfile>;
+    /** Fill a previously uninitialized photo and return the current profile. */
+    initializePhoto(photo: Blob): Promise<CurrentAppProfile>;
+    private writePhoto;
     removePhoto(): Promise<CurrentAppProfile>;
     private profile;
     private request;

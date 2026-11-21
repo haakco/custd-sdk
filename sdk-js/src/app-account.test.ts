@@ -24,6 +24,7 @@ describe("current application profile", () => {
           fieldKey: "display_name",
           value: "Canvas Member",
           present: true,
+          initialized: true,
           required: false,
           editable: true,
           editableBy: "user",
@@ -68,6 +69,38 @@ describe("current application profile", () => {
     expect(calls.every((request) => request.credentials === "omit" && request.redirect === "error")).toBe(true);
     expect(await calls[1]?.json()).toEqual(update);
     expect(await calls[3]?.blob()).toEqual(photo);
+  });
+
+  it("initializes by POST and preserves the server's winning value or explicit clear", async () => {
+    const requests: Request[] = [];
+    const cleared = {
+      fieldKey: "picture_url",
+      present: false,
+      initialized: true,
+      required: false,
+      editableBy: "user",
+      editable: true,
+    };
+    const initialized = { ...cleared, fieldKey: "display_name", present: true, value: "Saved name" };
+    const client = new CurrentAppProfileClient({
+      apiBaseUrl: "https://api.custd.test",
+      accessToken: () => "test-token",
+      fetch: async (input, init) => {
+        requests.push(new Request(input, init));
+        return Response.json({ fields: [initialized, cleared] });
+      },
+    });
+    const name = { values: [{ fieldKey: "display_name", value: "Imported name" }] };
+    const photo = new Blob([new Uint8Array([1, 2])], { type: "image/png" });
+
+    expect((await client.initialize(name)).fields[0]).toEqual(initialized);
+    expect((await client.initializePhoto(photo)).fields[1]).toEqual(cleared);
+    expect(requests.map((req) => [req.method, new URL(req.url).pathname])).toEqual([
+      ["POST", "/api/v1/app/profile"],
+      ["POST", "/api/v1/app/profile/photo"],
+    ]);
+    expect(await requests[0]?.json()).toEqual(name);
+    expect(await requests[1]?.blob()).toEqual(photo);
   });
 
   it("preserves status for rejected grants and refuses malformed successful profile bodies", async () => {
