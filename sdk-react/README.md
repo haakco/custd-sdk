@@ -115,6 +115,23 @@ existing app data, `initialize` and `initializePhoto` fill only fields that
 have never been written. Use the returned profile, which includes any current
 value saved concurrently. A cleared value remains initialized.
 
+A gateway-owned remembered session can use an account entry ticket instead of
+asking the user to authenticate again. The app backend calls
+`createAppAccountEntry` or Go's `CreateAppAccountEntry` with the forwarded app
+bearer, the configured issuer, and the registered app origin. If the issuer
+refuses a ticket for a short session, use the ordinary account settings link.
+
+Render the returned action and ticket as an escaped native form on the app
+origin. The form is a top-level, same-tab POST. Keep the ticket out of URLs,
+logs, browser storage and cached responses.
+
+```tsx
+<form action={entry.actionUrl} method="post" target="_self">
+  <input type="hidden" name="ticket" value={entry.ticket} />
+  <button type="submit">Account settings</button>
+</form>
+```
+
 ## Hosted apps
 
 An app Custd hosts wraps its root once. The provider calls the core

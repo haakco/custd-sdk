@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { appAccountNavigation, CurrentAppProfileClient, CurrentAppProfileError } from "./app-account.js";
+import {
+  appAccountNavigation,
+  CurrentAppProfileClient,
+  CurrentAppProfileError,
+  createAppAccountEntry,
+} from "./app-account.js";
 
 describe("app account navigation", () => {
   it("builds the same-tab entry without sending the return destination as request data", () => {
@@ -13,6 +18,34 @@ describe("app account navigation", () => {
       }),
     ).toThrow(TypeError);
   });
+});
+
+it("issues an account entry for the exact issuer and refuses a different form action", async () => {
+  const actionUrl = "https://auth.canvas.test/settings/entry";
+  const applicationOrigin = "https://canvas.test";
+  const ticket = "A".repeat(43);
+  const options = { issuer: "https://auth.canvas.test/", applicationOrigin, accessToken: "test-token" };
+  const entry = await createAppAccountEntry({
+    ...options,
+    fetch: async (input, init) => {
+      const request = new Request(input, init);
+      expect(request.method).toBe("POST");
+      expect(request.url).toBe(`${actionUrl}/ticket`);
+      expect(await request.json()).toEqual({ applicationOrigin });
+      expect(request.headers.get("Authorization")).toBe("Bearer test-token");
+      expect(request.redirect).toBe("error");
+      expect(request.cache).toBe("no-store");
+      expect(request.credentials).toBe("omit");
+      return Response.json({ actionUrl, ticket });
+    },
+  });
+  expect(entry).toEqual({ actionUrl, ticket });
+  await expect(
+    createAppAccountEntry({
+      ...options,
+      fetch: async () => Response.json({ actionUrl: `${actionUrl}?ticket=${ticket}`, ticket }),
+    }),
+  ).rejects.toThrow("invalid app account entry response");
 });
 
 describe("current application profile", () => {

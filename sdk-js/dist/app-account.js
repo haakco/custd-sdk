@@ -16,6 +16,40 @@ function appHttpsUrl(value) {
     }
     return url;
 }
+/** Issue a hosted settings entry ticket for the remembered application session. */
+export async function createAppAccountEntry(options) {
+    const issuer = appHttpsUrl(options.issuer);
+    if (options.issuer !== issuer.origin && options.issuer !== `${issuer.origin}/`) {
+        throw new TypeError("custd: account entry requires an HTTPS issuer origin");
+    }
+    const applicationOrigin = appHttpsUrl(options.applicationOrigin).origin;
+    if (applicationOrigin !== options.applicationOrigin) {
+        throw new TypeError("custd: account entry requires a serialized application origin");
+    }
+    const actionUrl = `${issuer.origin}/settings/entry`;
+    const response = await requestWithAppGrant(options.fetch ?? globalThis.fetch.bind(globalThis), options.accessToken, new URL(`${actionUrl}/ticket`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationOrigin }),
+    });
+    if (!response.ok)
+        throw new AppAccountEntryError(response.status);
+    const entry = requireRecord(await response.json().catch(() => {
+        throw new TypeError("custd: invalid app account entry response");
+    }), "app account entry");
+    const ticket = requireString(entry, "ticket", "app account entry");
+    if (entry.actionUrl !== actionUrl || !/^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(ticket)) {
+        throw new TypeError("custd: invalid app account entry response");
+    }
+    return { actionUrl, ticket };
+}
+export class AppAccountEntryError extends Error {
+    constructor(status) {
+        super(`custd: app account entry request failed (HTTP ${status})`);
+        this.status = status;
+        this.name = "AppAccountEntryError";
+    }
+}
 export class CurrentAppProfileError extends Error {
     constructor(status) {
         super(`custd: current app profile request failed (HTTP ${status})`);
@@ -75,22 +109,18 @@ export class CurrentAppProfileClient {
         return decodeProfile(await response.json());
     }
     async request(path, init) {
-        const token = await this.config.accessToken();
-        if (!token || /\s/.test(token))
-            throw new TypeError("custd: app profile access token is required");
-        const headers = new Headers(init.headers);
-        headers.set("Authorization", `Bearer ${token}`);
-        const response = await this.fetch(new URL(path, this.origin), {
-            ...init,
-            headers,
-            redirect: "error",
-            credentials: "omit",
-            cache: "no-store",
-        });
+        const response = await requestWithAppGrant(this.fetch, await this.config.accessToken(), new URL(path, this.origin), init);
         if (!response.ok)
             throw new CurrentAppProfileError(response.status);
         return response;
     }
+}
+function requestWithAppGrant(fetcher, token, url, init) {
+    if (!token || /\s/.test(token))
+        throw new TypeError("custd: application access token is required");
+    const headers = new Headers(init.headers);
+    headers.set("Authorization", `Bearer ${token}`);
+    return fetcher(url, { ...init, headers, redirect: "error", credentials: "omit", cache: "no-store" });
 }
 function validatePhoto(photo) {
     if (!["image/png", "image/webp"].includes(photo.type) || photo.size === 0 || photo.size > maxPhotoBytes) {

@@ -10,6 +10,25 @@ export type AppAccountNavigation = {
 };
 /** Build the account link without accepting destinations from browser navigation state. */
 export declare function appAccountNavigation(config: AppAccountNavigationConfig): AppAccountNavigation;
+export type CreateAppAccountEntryOptions = {
+    /** The trusted issuer that authenticated this application session. */
+    issuer: string;
+    /** The registered application's serialized HTTPS origin. */
+    applicationOrigin: string;
+    accessToken: string;
+    fetch?: typeof globalThis.fetch;
+};
+export type AppAccountEntry = {
+    actionUrl: string;
+    /** A short-lived, one-use credential for the form body. Keep it out of URLs and logs. */
+    ticket: string;
+};
+/** Issue a hosted settings entry ticket for the remembered application session. */
+export declare function createAppAccountEntry(options: CreateAppAccountEntryOptions): Promise<AppAccountEntry>;
+export declare class AppAccountEntryError extends Error {
+    readonly status: number;
+    constructor(status: number);
+}
 export type CurrentAppProfileField = {
     fieldKey: string;
     value?: string;
