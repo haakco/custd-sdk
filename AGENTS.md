@@ -42,6 +42,9 @@ created by the subtree split inherit that same tag.
   `composer.json`, `laravel-package/composer.json`, and `wordpress-plugin/composer.json`
   take their version from the git tag on their split mirror — adding a `version` key
   there reintroduces drift.
+- **Rebuild the checked-in JavaScript after a version bump.** Run `pnpm -C sdk-js run build` and
+  review `sdk-js/dist/` before tagging. The identity guard checks the built module, declarations,
+  and browser manifest against `VERSION`.
 - **Tag must equal `VERSION`.** The `release-guard` CI job fails any `v*` tag push
   whose tag does not match `VERSION`.
 - **The gate is enforced, not advisory.** `sdk-php/tests/VersionSyncTest.php` checks

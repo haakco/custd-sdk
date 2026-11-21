@@ -23,12 +23,15 @@ check() {
 check "sdk-go/version.go" "const Version = \"([0-9]+\\.[0-9]+\\.[0-9]+)\"" "sdk-go"
 check "sdk-php/src/CustdClient.php" "public const VERSION = \"([0-9]+\\.[0-9]+\\.[0-9]+)\"" "sdk-php"
 check "sdk-js/src/version.ts" "export const SDK_VERSION = \"([0-9]+\\.[0-9]+\\.[0-9]+)\"" "sdk-js"
+check "sdk-js/dist/version.js" "export const SDK_VERSION = \"([0-9]+\\.[0-9]+\\.[0-9]+)\"" "sdk-js compiled module"
+check "sdk-js/dist/version.d.ts" "export declare const SDK_VERSION = \"([0-9]+\\.[0-9]+\\.[0-9]+)\"" "sdk-js declarations"
+check "sdk-js/dist/browser-manifest.json" "\"sdkVersion\": \"([0-9]+\\.[0-9]+\\.[0-9]+)\"" "sdk-js browser artifact"
 check "sdk-python/src/custd/version.py" "VERSION = \"([0-9]+\\.[0-9]+\\.[0-9]+)\"" "sdk-python"
 # The crate's identity is env!("CARGO_PKG_VERSION"), so its package version is the constant.
 check "sdk-rust/Cargo.toml" "^version = \"([0-9]+\\.[0-9]+\\.[0-9]+)\"" "sdk-rust"
 
 if [ "${failures}" -ne 0 ]; then
-  printf 'Run scripts/bump-version.sh %s to realign the identity constants.\n' "${version}" >&2
+  printf 'Run scripts/bump-version.sh %s and pnpm -C sdk-js run build to realign the identity constants and generated JavaScript.\n' "${version}" >&2
   exit 1
 fi
 
