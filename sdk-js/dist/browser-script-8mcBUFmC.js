@@ -190,7 +190,13 @@ var ie = "1.0.0", b = "page-view", ae = "web-vitals", oe = "ai-assistant", se = 
 	["meta.ai", "meta-ai"],
 	["you.com", "you"],
 	["phind.com", "phind"]
-]), x = /^[0-9]+\.[0-9]+\.[0-9]+$/u, S = 1e3, C = "[redacted]", ce = /^[A-Za-z][A-Za-z0-9._~-]{0,63}$/u, le = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu, ue = /^[A-Za-z0-9_-]{24,}$/u, de = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u, w = /^[A-Za-z0-9._~:{}*[\]-]*$/u, T = 1024, E = 200, D = /* @__PURE__ */ new Set([
+]), x = /^[0-9]+\.[0-9]+\.[0-9]+$/u, S = 1e3, C = "[redacted]", ce = /^[A-Za-z][A-Za-z0-9._~-]{0,63}$/u, le = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu, ue = /^[A-Za-z0-9_-]{24,}$/u, de = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u, w = [
+	["utm_source", "utmSource"],
+	["utm_medium", "utmMedium"],
+	["utm_campaign", "utmCampaign"],
+	["utm_term", "utmTerm"],
+	["utm_content", "utmContent"]
+], T = 100, E = /^[A-Za-z0-9._~:{}*[\]-]*$/u, D = 1024, O = 200, k = /* @__PURE__ */ new Set([
 	408,
 	429,
 	500,
@@ -198,16 +204,16 @@ var ie = "1.0.0", b = "page-view", ae = "web-vitals", oe = "ai-assistant", se = 
 	503,
 	504
 ]);
-function O(e) {
-	return new k(e);
+function A(e) {
+	return new j(e);
 }
-var k = class {
+var j = class {
 	constructor(t) {
 		this.queue = [], this.installedSpaTracking = !1, this.lastTrackedPath = null, this.referrerClassified = !1, this.webVitals = null, this.originalPushState = null, this.originalReplaceState = null, this.onlineHandler = () => this.detach("flush", () => this.flush()), this.pagehideHandler = () => {
 			this.enqueueWebVitals(), this.flushWithKeepalive();
 		}, this.visibilityHandler = () => {
 			document.visibilityState === "hidden" && this.enqueueWebVitals() && this.flushWithKeepalive();
-		}, this.popstateHandler = () => this.detachPathChange(() => this.trackPageView()), this.config = t, this.baseUrl = t.baseUrl.replace(/\/$/, ""), this.schemaVersion = Y(t.schemaVersion), this.pageViewSchemaVersion = t.pageViewSchemaVersion === void 0 ? this.schemaVersion : Y(t.pageViewSchemaVersion), this.labels = { ...t.labels ?? {} }, this.queueStorage = t.queueStorage ?? be(t.siteUuid, t.persistentQueue === !0), this.retry = re(t.retry), this.maxQueueSize = t.maxQueueSize ?? 1e3, this.queue = this.queueStorage.load(), this.trimQueue(), this.consent = t.consent === "required" ? "denied" : "granted", this.trackingDisabled() && this.clearStoredState(), $(this.baseUrl, "baseUrl"), me(t), window.addEventListener("online", this.onlineHandler), window.addEventListener("pagehide", this.pagehideHandler), t.webVitals === !0 && (this.webVitalsPath = this.pageContext().path, this.webVitals = e(), window.addEventListener("visibilitychange", this.visibilityHandler));
+		}, this.popstateHandler = () => this.detachPathChange(() => this.trackPageView()), this.config = t, this.baseUrl = t.baseUrl.replace(/\/$/, ""), this.schemaVersion = Y(t.schemaVersion), this.pageViewSchemaVersion = t.pageViewSchemaVersion === void 0 ? this.schemaVersion : Y(t.pageViewSchemaVersion), this.labels = { ...t.labels ?? {} }, this.queueStorage = t.queueStorage ?? Q(t.siteUuid, t.persistentQueue === !0), this.retry = re(t.retry), this.maxQueueSize = t.maxQueueSize ?? 1e3, this.queue = this.queueStorage.load(), this.trimQueue(), this.consent = t.consent === "required" ? "denied" : "granted", this.trackingDisabled() && this.clearStoredState(), $(this.baseUrl, "baseUrl"), ge(t), window.addEventListener("online", this.onlineHandler), window.addEventListener("pagehide", this.pagehideHandler), t.webVitals === !0 && (this.webVitalsPath = this.pageContext().path, this.webVitals = e(), window.addEventListener("visibilitychange", this.visibilityHandler));
 	}
 	async track(e, t = {}) {
 		if (this.trackingDisabled()) return;
@@ -218,7 +224,7 @@ var k = class {
 		this.lastTrackedPath = window.location.pathname;
 		let e = this.trackingDisabled() ? {} : this.landingReferral();
 		return this.track("page-view", {
-			...B(),
+			...H(new URL(window.location.href).searchParams),
 			...e
 		});
 	}
@@ -233,7 +239,7 @@ var k = class {
 			this.clearStoredState();
 			return;
 		}
-		if (this.queue.length === 0 || !Te()) return;
+		if (this.queue.length === 0 || !De()) return;
 		let e = this.queue.splice(0, this.queue.length), t;
 		try {
 			t = await this.sendBatch(e);
@@ -252,7 +258,7 @@ var k = class {
 		});
 	}
 	trackingDisabled() {
-		return !!(this.consent !== "granted" || we());
+		return !!(this.consent !== "granted" || Ee());
 	}
 	enqueue(e) {
 		this.queue.push(e), this.trimQueue(), this.queueStorage.save(this.queue);
@@ -261,7 +267,7 @@ var k = class {
 		this.queue.length > this.maxQueueSize && (this.queue = this.queue.slice(this.queue.length - this.maxQueueSize));
 	}
 	clearStoredState() {
-		this.queue = [], this.queueStorage.clear(), typeof localStorage < "u" && (localStorage.removeItem(A(this.config.siteUuid)), localStorage.removeItem(M(this.config.siteUuid))), typeof sessionStorage < "u" && sessionStorage.removeItem(j(this.config.siteUuid));
+		this.queue = [], this.queueStorage.clear(), typeof localStorage < "u" && (localStorage.removeItem(M(this.config.siteUuid)), localStorage.removeItem(P(this.config.siteUuid))), typeof sessionStorage < "u" && sessionStorage.removeItem(N(this.config.siteUuid));
 	}
 	buildEvent(e, t) {
 		let n = this.identityFields(), r = this.pageContext(), i = {
@@ -269,7 +275,7 @@ var k = class {
 			schemaVersion: e === b ? this.pageViewSchemaVersion : this.schemaVersion,
 			timestamp: (/* @__PURE__ */ new Date()).toISOString(),
 			...n,
-			context: F(r),
+			context: L(r),
 			payload: {
 				siteUuid: this.config.siteUuid,
 				...e === b && r.path !== void 0 ? { path: r.path } : {},
@@ -283,7 +289,7 @@ var k = class {
 	landingReferral() {
 		if (this.referrerClassified) return {};
 		this.referrerClassified = !0;
-		let e = z(document.referrer);
+		let e = V(document.referrer);
 		return e ? {
 			referrerClass: oe,
 			aiAssistant: e
@@ -308,8 +314,8 @@ var k = class {
 	}
 	identityFields() {
 		return this.config.identityMode === "extended" ? {
-			anonymousId: Z(A(this.config.siteUuid), localStorage),
-			sessionId: Z(j(this.config.siteUuid), sessionStorage)
+			anonymousId: Z(M(this.config.siteUuid), localStorage),
+			sessionId: Z(N(this.config.siteUuid), sessionStorage)
 		} : {
 			anonymousId: "",
 			sessionId: ""
@@ -326,7 +332,7 @@ var k = class {
 		});
 	}
 	async sendBatch(e, t = !1) {
-		return pe(e, await g(this.retry, async () => {
+		return he(e, await g(this.retry, async () => {
 			let n = await fetch(`${this.baseUrl}/api/v1/collect/events/batch`, {
 				method: "POST",
 				headers: U(this.config.writeKey),
@@ -334,7 +340,7 @@ var k = class {
 				credentials: "omit",
 				keepalive: t
 			});
-			return W(n), fe(n, e.length);
+			return W(n), me(n, e.length);
 		}));
 	}
 	applyBatchOutcome(e, t) {
@@ -345,7 +351,7 @@ var k = class {
 	}
 	pageContext() {
 		let e = {
-			path: V(window.location.pathname),
+			path: fe(window.location.pathname),
 			title: document.title
 		}, t = this.config.pageContext;
 		if (!t) return e;
@@ -355,7 +361,7 @@ var k = class {
 		} catch {
 			return {};
 		}
-		return I(n, e.path);
+		return R(n, e.path);
 	}
 	detach(e, t) {
 		t().catch((t) => this.notifyFailure({
@@ -392,31 +398,31 @@ var k = class {
 		});
 	}
 };
-function A(e) {
+function M(e) {
 	return `custd:${e}:anonymous_id`;
 }
-function j(e) {
+function N(e) {
 	return `custd:${e}:session_id`;
 }
-function M(e) {
+function P(e) {
 	return `custd:${e}:event_queue`;
 }
-async function N(e) {
-	let t = e ?? xe(), n = he();
+async function F(e) {
+	let t = e ?? Se(), n = _e();
 	try {
 		let e = t.dataset.siteUuid, r = t.dataset.writeKey;
 		if (!e || !r) throw Error("custd: browser script requires data-site-uuid and data-write-key");
 		let i = t.dataset.baseUrl ?? new URL(t.src).origin;
 		$(i, "baseUrl");
-		let a = await P(i, e), o = O({
+		let a = await I(i, e), o = A({
 			baseUrl: i,
 			siteUuid: e,
 			writeKey: r,
 			identityMode: a.identityMode,
 			allowedOrigins: a.allowedOrigins,
-			pageViewSchemaVersion: ke(a.pageViewSchemaVersion),
-			batchSize: Number(t.dataset.batchSize || Ce(a)),
-			consent: Q(t, a),
+			pageViewSchemaVersion: je(a.pageViewSchemaVersion),
+			batchSize: Number(t.dataset.batchSize || Te(a)),
+			consent: Ce(t, a),
 			persistentQueue: t.dataset.persistentQueue === "true",
 			webVitals: t.dataset.webVitals === "true"
 		});
@@ -424,39 +430,39 @@ async function N(e) {
 			track: (e, t) => o.track(e, t),
 			trackPageView: () => o.trackPageView(),
 			setConsent: (e) => o.setConsent(e)
-		}, await _e(o, n), o;
+		}, await ye(o, n), o;
 	} catch (e) {
-		throw ve(n, e), ye(e), e;
+		throw be(n, e), xe(e), e;
 	}
 }
-async function P(e, t, n = (e, t) => globalThis.fetch(e, t)) {
+async function I(e, t, n = (e, t) => globalThis.fetch(e, t)) {
 	let r = await n(`${e.replace(/\/$/, "")}/api/v1/sites/${encodeURIComponent(t)}/config`, { credentials: "omit" });
 	if (!r.ok) throw Error(`custd: site config request failed with status ${r.status}`);
 	return await r.json();
 }
-function F(e) {
+function L(e) {
 	let t = {
-		device: { type: Ee() },
+		device: { type: Oe() },
 		locale: navigator.language,
 		timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
 	};
 	return (e.path !== void 0 || e.title !== void 0) && (t.page = e), t;
 }
-function I(e, t) {
+function R(e, t) {
 	let n = {};
-	typeof e?.path == "string" && (n.path = L(e.path) ? e.path : t);
-	let r = R(e?.title);
+	typeof e?.path == "string" && (n.path = z(e.path) ? e.path : t);
+	let r = B(e?.title);
 	return r !== void 0 && (n.title = r), n;
 }
-function L(e) {
-	return e.length === 0 || e.length > T || !e.startsWith("/") || e.startsWith("//") ? !1 : e.split("/").every((e) => w.test(e));
+function z(e) {
+	return e.length === 0 || e.length > D || !e.startsWith("/") || e.startsWith("//") ? !1 : e.split("/").every((e) => E.test(e));
 }
-function R(e) {
+function B(e) {
 	if (typeof e != "string") return;
 	let t = e.replace(/[\p{Cc}]/gu, "").trim();
-	return t === "" ? void 0 : t.slice(0, E);
+	return t === "" ? void 0 : t.slice(0, O);
 }
-function z(e) {
+function V(e) {
 	if (!e) return;
 	let t;
 	try {
@@ -466,17 +472,23 @@ function z(e) {
 	}
 	return se.get(t.replace(/^www\./u, ""));
 }
-function B() {
-	let e = new URL(window.location.href).searchParams, t = e.get("ref") ?? "";
-	return e.get("source") !== "powered-by" || !de.test(t) ? {} : {
+function H(e) {
+	let t = e.get("ref") ?? "";
+	if (e.get("source") === "powered-by" && de.test(t)) return {
 		utmSource: t,
 		utmMedium: "powered-by"
 	};
+	let n = {};
+	for (let [t, r] of w) {
+		let i = e.get(t)?.toLowerCase().split(/\p{White_Space}+/u).filter(Boolean).join("_");
+		i && [...i].length <= T && !/\p{Cc}/u.test(i) && (n[r] = i);
+	}
+	return n;
 }
-function V(e) {
-	return (e.startsWith("/") ? e : `/${e}`).split("/").map(H).join("/") || "/";
+function fe(e) {
+	return (e.startsWith("/") ? e : `/${e}`).split("/").map(pe).join("/") || "/";
 }
-function H(e) {
+function pe(e) {
 	if (e === "") return "";
 	let t;
 	try {
@@ -493,7 +505,7 @@ function U(e) {
 	};
 }
 function W(e) {
-	if (!e.ok) throw D.has(e.status) ? new K(e.status) : new G(e.status);
+	if (!e.ok) throw k.has(e.status) ? new K(e.status) : new G(e.status);
 }
 var G = class extends Error {
 	constructor(e) {
@@ -511,7 +523,7 @@ var G = class extends Error {
 function J(e) {
 	if (e instanceof K || e instanceof G) return e.status;
 }
-async function fe(e, t) {
+async function me(e, t) {
 	let n;
 	try {
 		n = await e.json();
@@ -529,13 +541,13 @@ async function fe(e, t) {
 		};
 	});
 }
-function pe(e, t) {
+function he(e, t) {
 	let n = {
 		rejected: [],
 		retryable: []
 	};
 	return t.forEach((t, r) => {
-		t.success || (D.has(t.status) ? (n.retryable.push(e[r]), n.retryableStatus ??= t.status) : n.rejected.push(e[r]));
+		t.success || (k.has(t.status) ? (n.retryable.push(e[r]), n.retryableStatus ??= t.status) : n.rejected.push(e[r]));
 	}), n;
 }
 function Y(e) {
@@ -543,12 +555,12 @@ function Y(e) {
 	if (!x.test(e)) throw Error(`custd: schemaVersion ${JSON.stringify(e)} must be a dotted numeric version such as "1.0.0"`);
 	return e;
 }
-function me(e) {
+function ge(e) {
 	let t = e.allowedOrigins ?? [];
 	if (t.length === 0) throw Error("custd: site config must include allowed origins for this site");
 	if (!t.includes(window.location.origin)) throw Error("custd: origin is not allowed for this site");
 }
-function he() {
+function _e() {
 	let e = {
 		calls: [],
 		promises: []
@@ -561,7 +573,7 @@ function he() {
 		}),
 		trackPageView: () => X(e, { type: "trackPageView" }),
 		setConsent: (t) => {
-			ge(e, {
+			ve(e, {
 				type: "setConsent",
 				state: t
 			});
@@ -576,10 +588,10 @@ function X(e, t) {
 		});
 	});
 }
-function ge(e, t) {
+function ve(e, t) {
 	e.calls.length >= S || e.calls.push(t);
 }
-async function _e(e, t) {
+async function ye(e, t) {
 	for (let n of t.calls) {
 		let r = n.type === "setConsent" ? void 0 : t.promises.shift();
 		try {
@@ -589,10 +601,10 @@ async function _e(e, t) {
 		}
 	}
 }
-function ve(e, t) {
+function be(e, t) {
 	for (let n of e.promises.splice(0, e.promises.length)) n.reject(t);
 }
-function ye(e) {
+function xe(e) {
 	window.custd = {
 		track: () => Promise.reject(e),
 		trackPageView: () => Promise.reject(e),
@@ -604,47 +616,47 @@ function ye(e) {
 function Z(e, t) {
 	let n = t.getItem(e);
 	if (n) return n;
-	let r = Oe();
+	let r = Ae();
 	return t.setItem(e, r), r;
 }
-function be(e, t) {
+function Q(e, t) {
 	return !t || typeof localStorage > "u" ? new s() : new c(`custd:${e}:event_queue`);
 }
-function xe() {
+function Se() {
 	let e = document.currentScript;
 	if (!e) throw Error("custd: browser script could not find document.currentScript");
 	return e;
 }
-function Q(e, t) {
-	return e.dataset.consent === "granted" ? "granted" : Se(t);
+function Ce(e, t) {
+	return e.dataset.consent === "granted" ? "granted" : we(t);
 }
-function Se(e) {
+function we(e) {
 	return e.identityMode === "extended" ? "required" : void 0;
 }
-function Ce(e) {
+function Te(e) {
 	return e.identityMode === "extended" ? 25 : 1;
 }
-function we() {
+function Ee() {
 	let e = navigator.doNotTrack;
 	return e === "1" || e === "yes";
 }
-function Te() {
+function De() {
 	return typeof navigator.onLine != "boolean" || navigator.onLine;
 }
-function Ee() {
+function Oe() {
 	return /Mobi|Android/i.test(navigator.userAgent) ? "mobile" : "desktop";
 }
 function $(e, t) {
 	let n = new URL(e);
-	if (n.protocol !== "https:" && !(n.protocol === "http:" && De(n.hostname))) throw Error(`custd: ${t} must use https unless it targets localhost`);
-}
-function De(e) {
-	return e === "localhost" || e === "127.0.0.1" || e === "::1" || e === "host.docker.internal";
-}
-function Oe() {
-	return typeof crypto < "u" && typeof crypto.randomUUID == "function" ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (e) => (Number(e) ^ Math.random() * 16 >> Number(e) / 4).toString(16));
+	if (n.protocol !== "https:" && !(n.protocol === "http:" && ke(n.hostname))) throw Error(`custd: ${t} must use https unless it targets localhost`);
 }
 function ke(e) {
+	return e === "localhost" || e === "127.0.0.1" || e === "::1" || e === "host.docker.internal";
+}
+function Ae() {
+	return typeof crypto < "u" && typeof crypto.randomUUID == "function" ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (e) => (Number(e) ^ Math.random() * 16 >> Number(e) / 4).toString(16));
+}
+function je(e) {
 	return typeof e == "string" && x.test(e) ? e : void 0;
 }
-N(Array.from(document.scripts).find((e) => e.src === import.meta.url)).then((e) => e.installSpaTracking()).catch(() => void 0);
+F(Array.from(document.scripts).find((e) => e.src === import.meta.url)).then((e) => e.installSpaTracking()).catch(() => void 0);

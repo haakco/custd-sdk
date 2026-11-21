@@ -31,6 +31,14 @@ const safePathSegment = /^[A-Za-z][A-Za-z0-9._~-]{0,63}$/u;
 const uuidPathSegment = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const opaquePathSegment = /^[A-Za-z0-9_-]{24,}$/u;
 const poweredByProjectSlug = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
+const campaignQueryFields = [
+    ["utm_source", "utmSource"],
+    ["utm_medium", "utmMedium"],
+    ["utm_campaign", "utmCampaign"],
+    ["utm_term", "utmTerm"],
+    ["utm_content", "utmContent"],
+];
+const maxCampaignValueLength = 100;
 const safeRoutePathSegment = /^[A-Za-z0-9._~:{}*[\]-]*$/u;
 const maxRoutePathLength = 1024;
 const maxPageTitleLength = 200;
@@ -103,7 +111,10 @@ class DefaultBrowserTracker {
     trackPageView() {
         this.lastTrackedPath = window.location.pathname;
         const referral = this.trackingDisabled() ? {} : this.landingReferral();
-        return this.track("page-view", { ...poweredByAttribution(), ...referral });
+        return this.track("page-view", {
+            ...campaignAttribution(new URL(window.location.href).searchParams),
+            ...referral,
+        });
     }
     installSpaTracking() {
         if (this.installedSpaTracking) {
@@ -491,13 +502,25 @@ export function aiAssistantReferrer(referrer) {
     }
     return aiAssistantReferrers.get(hostname.replace(/^www\./u, ""));
 }
-function poweredByAttribution() {
-    const query = new URL(window.location.href).searchParams;
+function campaignAttribution(query) {
     const project = query.get("ref") ?? "";
-    if (query.get("source") !== "powered-by" || !poweredByProjectSlug.test(project)) {
-        return {};
+    if (query.get("source") === "powered-by" && poweredByProjectSlug.test(project)) {
+        return { utmSource: project, utmMedium: "powered-by" };
     }
-    return { utmSource: project, utmMedium: "powered-by" };
+    // Match the saved campaign-link values without forwarding the URL or unrelated query fields.
+    const attribution = {};
+    for (const [parameter, field] of campaignQueryFields) {
+        const value = query
+            .get(parameter)
+            ?.toLowerCase()
+            .split(/\p{White_Space}+/u)
+            .filter(Boolean)
+            .join("_");
+        if (value && [...value].length <= maxCampaignValueLength && !/\p{Cc}/u.test(value)) {
+            attribution[field] = value;
+        }
+    }
+    return attribution;
 }
 function sanitizeBrowserPath(pathname) {
     const path = pathname.startsWith("/") ? pathname : `/${pathname}`;

@@ -175,7 +175,8 @@ describe("createBrowserTracker", () => {
     window.history.replaceState(
       {},
       "",
-      "https://example.com/?ref=awthy&source=powered-by&email=private%40example.com&token=secret",
+      "https://example.com/?ref=awthy&source=powered-by&utm_campaign=other" +
+        "&email=private%40example.com&token=secret",
     );
 
     const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });
@@ -190,6 +191,45 @@ describe("createBrowserTracker", () => {
     });
     expect(JSON.stringify(sent)).not.toContain("private@example.com");
     expect(JSON.stringify(sent)).not.toContain("secret");
+  });
+
+  it("records only normalized campaign tags in the page-view payload", async () => {
+    const fetchMock = mockFetch();
+    window.history.replaceState(
+      {},
+      "",
+      "https://example.com/sale?utm_source=News+Letter&utm_medium=EMAIL&utm_campaign=Spring+Sale" +
+        "&utm_term=Cloud+Hosting&utm_content=Header+Link&email=private%40example.com&token=secret",
+    );
+
+    const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });
+    await tracker.trackPageView();
+
+    const event = eventFromFetch(fetchMock);
+    expect(event.payload).toEqual({
+      siteUuid: "site-123",
+      path: "/sale",
+      utmSource: "news_letter",
+      utmMedium: "email",
+      utmCampaign: "spring_sale",
+      utmTerm: "cloud_hosting",
+      utmContent: "header_link",
+    });
+    expect(JSON.stringify(event)).not.toMatch(/private@example\.com|secret/);
+  });
+
+  it("omits blank, oversized and control-containing campaign values", async () => {
+    const fetchMock = mockFetch();
+    window.history.replaceState(
+      {},
+      "",
+      `https://example.com/?utm_source=News&utm_medium=+++&utm_campaign=${"x".repeat(101)}&utm_content=a%00b`,
+    );
+
+    const tracker = createBrowserTracker({ ...baseConfig, trackInitialPageView: false });
+    await tracker.trackPageView();
+
+    expect(eventFromFetch(fetchMock).payload).toEqual({ siteUuid: "site-123", path: "/", utmSource: "news" });
   });
 
   it.each([
