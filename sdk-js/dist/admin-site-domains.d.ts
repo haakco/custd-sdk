@@ -1,9 +1,14 @@
+import type { SiteAIConsentRequest, SiteAIOwnerHandoff, SiteAIOwnerHandoffRequest, SiteAISettings, SiteAISettingsRequest, SiteAITenantUsage } from "./admin-site-ai.js";
+import type { SiteAnalyticsConnection, SiteAnalyticsConnectionRequest, SiteAnalyticsReport } from "./admin-site-analytics.js";
 import type { SiteAuditDelta, SiteAuditPageList, SiteLighthousePages, SiteLighthouseRequestOptions } from "./admin-site-audit-pages.js";
 import type { SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest } from "./admin-site-campaign-links.js";
-import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory, SiteWordingCompare, SiteWordingCompareRequest } from "./admin-site-insights.js";
+import type { SiteInsightsExport, SiteSearchMetricPage, SiteSearchMetricsQuery } from "./admin-site-export.js";
+import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SiteObservedWording, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SitePageRecheckList, SitePageWordingQuery, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory, SiteWordingCompare, SiteWordingCompareRequest } from "./admin-site-insights.js";
 import type { SiteReferringDomains } from "./admin-site-links.js";
 import type { SiteNextActions, SitePortfolioSummary } from "./admin-site-next-actions.js";
+import type { SitePageSearchQueries } from "./admin-site-page-queries.js";
 import type { SiteRankings, SiteTrackedKeyword, SiteTrackedKeywordUpdate, SiteTrackKeywordRequest } from "./admin-site-rankings.js";
+import type { SiteRegionalTrends } from "./admin-site-regional-trends.js";
 import type { SavedSiteReport, SavedSiteReportList, SavedSiteReportRequest, SiteReportRequestOptions } from "./admin-site-saved-reports.js";
 import type { SearchPoolQueryPage, SearchPoolSetting } from "./admin-site-search-pool.js";
 import type { SiteFindingImpact, SiteSearchValue } from "./admin-site-search-value.js";
@@ -16,6 +21,8 @@ export declare const SITE_DOMAIN_NOT_VERIFIED_CODE = "site_domain_not_verified";
 export declare const SITE_SEARCH_NOT_CONFIGURED_CODE = "site_search_not_configured";
 /** A 404 on disconnectSearch: the domain is not connected to that provider. */
 export declare const SITE_SEARCH_CONNECTION_NOT_FOUND_CODE = "site_search_connection_not_found";
+/** A 409 on retrySearchImport: only a failing connection retries now; reconnect a revoked one. */
+export declare const SITE_SEARCH_RETRY_NOT_FAILING_CODE = "site_search_retry_not_failing";
 /**
  * The stable rule IDs a SiteFinding carries in `rule`, from Custd's siteaudit
  * rule catalogue. Key a client-side fix or display on these, never on the title.
@@ -91,6 +98,7 @@ export declare const SiteRule: {
     readonly TLSInvalid: "tls.invalid";
     readonly TLSExpiring: "tls.expiring";
     readonly TLSExpiringSoon: "tls.expiring-soon";
+    readonly RegistrationExpiring: "registration.expiring";
     readonly LighthouseDesktopDrop: "lighthouse.desktop-score-drop";
     readonly LighthouseMobileDrop: "lighthouse.mobile-score-drop";
     readonly SearchLowCTR: "search.low-ctr";
@@ -105,7 +113,12 @@ export type SiteDomainRequestOptions = RequestOptions & {
     companySlug?: string;
 };
 export type SiteDomainCreateRequest = {
-    /** The Site the host belongs to; a site-bound credential may omit it. */
+    /**
+     * The Site the host belongs to. Omitted, a site-bound credential gets its own Site and anyone
+     * else the Site Custd places the host on: the Site holding it with or without www., else the
+     * Site named after it, else the only Site, or SITE_CHOICE_REQUIRED_CODE when none is decided. A
+     * tenant with no Site gets one named after the host, which needs tenant-admin access.
+     */
     siteUuid?: string;
     host: string;
 };
@@ -157,6 +170,52 @@ export type SiteDomainAudit = {
 export type SiteCheckMode = "paused" | "uptime" | "warm";
 /** failing is one failed check; down is an open incident (two or more in a row). */
 export type SiteUptimeStatus = "unknown" | "up" | "failing" | "down" | "paused";
+export type SiteProbeSpec = {
+    kind: "ping";
+} | {
+    kind: "tcp";
+    port: number;
+} | {
+    kind: "dns";
+    expectedAddresses?: string[];
+} | {
+    kind: "http-delivery";
+    protocol?: "http1.1" | "http2";
+};
+export type SiteProbeDetail = {
+    resolvedIp?: string;
+    addresses?: string[];
+    missingAddresses?: string[];
+    unexpectedAddresses?: string[];
+    statusCode?: number;
+    negotiatedProtocol?: string;
+    tlsVersion?: string;
+    bytesRead?: number;
+    timings?: {
+        dnsMs?: number;
+        connectMs?: number;
+        tlsMs?: number;
+        firstByteMs?: number;
+        totalMs: number;
+    };
+    cache?: {
+        cacheControl?: string;
+        age?: string;
+        cacheStatus?: string;
+        server?: string;
+        via?: string;
+    };
+};
+export type SiteProbe = SiteProbeSpec & {
+    status: SiteUptimeStatus;
+    lastCheckedAt?: string;
+    responseMs?: number;
+    lastFailure?: string;
+    detail?: SiteProbeDetail;
+};
+export type SiteProbeList = {
+    probes: SiteProbe[];
+};
 export type SiteUptime = {
     status: SiteUptimeStatus;
     lastCheckedAt?: string;
@@ -189,12 +248,34 @@ export type SiteIncident = {
 export type SiteIncidentList = {
     incidents: SiteIncident[];
 };
+/** The field collection period and available 75th-percentile Web Vitals. */
+export type SiteChromeUXObservation = {
+    firstDate: string;
+    lastDate: string;
+    lcpMs?: number;
+    inpMs?: number;
+    cls?: number;
+};
+/** A lookup without an observation returned no field data for the origin. */
+export type SiteChromeUX = {
+    checkedAt: string;
+    observation?: SiteChromeUXObservation;
+};
+/** Registry lookup. An absent expiry date means the registry did not supply one. */
+export type SiteRegistration = {
+    domain: string;
+    source?: string;
+    readAt: string;
+    expiresAt?: string;
+};
 export type SiteDomainChecks = {
     mode: SiteCheckMode;
     uptime: SiteUptime;
     tls: SiteTLS;
     warming: SiteWarming;
     openIncident?: SiteIncident;
+    chromeUx?: SiteChromeUX;
+    registration?: SiteRegistration;
 };
 /** A host a Site has claimed. Only a verified domain is audited or checked. */
 export type SiteDomain = {
@@ -217,6 +298,10 @@ export type SiteFindingHistory = {
     fixed: boolean;
     fixedAt?: string;
 };
+export type SiteFindingSuggestion = {
+    explanation: string;
+    nextStep: string;
+};
 /** One problem found on a verified domain, with the advice to fix it. `rule` is a SiteRule ID. */
 export type SiteFinding = {
     findingUuid: string;
@@ -229,6 +314,9 @@ export type SiteFinding = {
     source: string;
     remedy: SiteRemedy;
     history: SiteFindingHistory;
+    /** A one-page recheck decides this rule, so requestPageRecheck can confirm the fix. Absent before 3.51. */
+    recheckable?: boolean;
+    suggestion?: SiteFindingSuggestion;
 };
 /** A domain's findings, most severe first. */
 export type SiteFindingList = {
@@ -316,6 +404,10 @@ type NonAdminRequester = <T>(method: string, path: string, body?: unknown, optio
 export declare class SiteDomainAdminClient {
     private readonly request;
     constructor(request: NonAdminRequester);
+    /** Reads the domain's network checks and their latest results. */
+    listProbes(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteProbeList>;
+    /** Replaces the domain's network checks. Pass an empty array to disable them. */
+    setProbes(domainUuid: string, probes: readonly SiteProbeSpec[], options?: SiteDomainRequestOptions): Promise<SiteProbeList>;
     /** Claims a host for a Site and returns the verification instructions. */
     create(body: SiteDomainCreateRequest, options?: SiteDomainRequestOptions): Promise<SiteDomain>;
     /** Lists one Site's domains. A site-bound credential may omit siteUuid for its own Site. */
@@ -350,10 +442,24 @@ export declare class SiteDomainAdminClient {
     setAlertDestination(body: SiteAlertDestinationRequest, options?: SiteDomainRequestOptions): Promise<SiteAlertDestination>;
     /** Reads which search providers this Custd deployment can import from. */
     getSearchAccount(options?: SiteDomainRequestOptions): Promise<SiteSearchAccount>;
+    /** Reads the tenant's AI policy and current provider terms version. */
+    getAISettings(options?: SiteDomainRequestOptions): Promise<SiteAISettings>;
+    /** Replaces the tenant's AI mode and cap. The API key is write-only. */
+    setAISettings(body: SiteAISettingsRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings>;
+    /** Records explicit acceptance of the supplied terms version or revokes consent. */
+    setAIConsent(body: SiteAIConsentRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings>;
+    /** Creates a one-time code the tenant owner redeems by form POST to manage AI settings. */
+    createAIOwnerHandoff(body: SiteAIOwnerHandoffRequest, options?: RequestOptions): Promise<SiteAIOwnerHandoff>;
+    /** Reads the tenant's current UTC month's AI usage. */
+    getAIUsage(options?: SiteDomainRequestOptions): Promise<SiteAITenantUsage>;
     /** Reads whether the tenant takes part in the shared search pool, and the pool's rules. */
     getSearchPool(options?: SiteDomainRequestOptions): Promise<SearchPoolSetting>;
     /** Joins (true) or leaves (false) the shared search pool for the whole tenant. */
-    setSearchPool(joined: boolean, options?: SiteDomainRequestOptions): Promise<SearchPoolSetting>;
+    /**
+     * Joins (with the terms version the caller accepted) or leaves the shared search pool.
+     * Joining without a termsVersion is refused before any request; leaving sends only joined.
+     */
+    setSearchPool(joined: boolean, termsVersion?: string, options?: SiteDomainRequestOptions): Promise<SearchPoolSetting>;
     /**
      * Reads pooled queries matching `search` (at most 100 characters), `limit` 1..200; omitted, 50.
      * Before joining it is refused with SITE_SEARCH_POOL_NOT_JOINED_CODE.
@@ -366,6 +472,21 @@ export declare class SiteDomainAdminClient {
     /** Removes a provider connection and the numbers imported through it. */
     disconnectSearch(domainUuid: string, provider: SiteSearchProvider, options?: SiteDomainRequestOptions): Promise<void>;
     /** Reads what the latest audit or recheck read from one page of the domain. */
+    /** Retries a failing search import now; anything else is refused with SITE_SEARCH_RETRY_NOT_FAILING_CODE. */
+    retrySearchImport(domainUuid: string, provider: SiteSearchProvider, options?: SiteDomainRequestOptions): Promise<SiteSearchConnection>;
+    /** Reads the searches one page shows for, with title options and pages that could link to it. */
+    getPageSearchQueries(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageSearchQueries>;
+    /** Reads the domain's GA4 landing pages, key events and channels; empty until connected and imported. */
+    getAnalytics(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteAnalyticsReport>;
+    /** Connects the domain to a GA4 property; a bad ID is refused with SITE_ANALYTICS_PROPERTY_INVALID_CODE. */
+    connectAnalytics(domainUuid: string, body: SiteAnalyticsConnectionRequest, options?: SiteDomainRequestOptions): Promise<SiteAnalyticsConnection>;
+    /** Disconnects GA4; an unconnected domain is refused with SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE. */
+    disconnectAnalytics(domainUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Exports everything Site Insights holds for the domain and its Site, except the daily search metrics. */
+    getExport(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteInsightsExport>;
+    /** Pages through the domain's daily search metrics; the export's search.metricRows is the total. */
+    listExportSearchMetrics(domainUuid: string, query?: SiteSearchMetricsQuery, options?: SiteDomainRequestOptions): Promise<SiteSearchMetricPage>;
+    /** Reads what the last audit or recheck saw on a page; an unread page is refused with SITE_PAGE_NOT_READ_CODE. */
     getPageFacts(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageFacts>;
     /**
      * Queues one page of a verified domain for recheck (202). A page already queued comes back as it is;
@@ -374,10 +495,14 @@ export declare class SiteDomainAdminClient {
      */
     requestPageRecheck(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageRecheck>;
     getPageRecheck(domainUuid: string, recheckUuid: string, options?: SiteDomainRequestOptions): Promise<SitePageRecheck>;
+    /** Reads up to SITE_PAGE_RECHECK_READ_LIMIT of the domain's rechecks at once; unknown ids are left out. */
+    listPageRechecks(domainUuid: string, recheckUuids: readonly string[], options?: SiteDomainRequestOptions): Promise<SitePageRecheckList>;
     /** Runs the one-page checks on draft HTML, and the draft tools it asks for; nothing is fetched or stored. */
     checkPage(domainUuid: string, body: SitePageCheckRequest, options?: SiteDomainRequestOptions): Promise<SitePageCheckResponse>;
     /** Measures how much wording two drafts share, as the near-duplicate rule does; nothing is stored. */
     compareWording(domainUuid: string, body: SiteWordingCompareRequest, options?: SiteDomainRequestOptions): Promise<SiteWordingCompare>;
+    /** Compares two stored page observations on a verified domain without fetching either URL. */
+    comparePageWording(domainUuid: string, { firstUrl, secondUrl }: SitePageWordingQuery, options?: SiteDomainRequestOptions): Promise<SiteObservedWording>;
     /** Tests a URL against a pasted robots.txt, or the domain's live file when robotsTxt is omitted. */
     testRobots(domainUuid: string, body: SiteRobotsTestRequest, options?: SiteDomainRequestOptions): Promise<SiteRobotsTestResponse>;
     /** Pages through one dimension of the domain's imported search rows; `unavailable` names providers without it. */
@@ -393,6 +518,8 @@ export declare class SiteDomainAdminClient {
     getProjectContext(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteProjectContext>;
     /** Replaces a Site's project context; an omitted list is sent empty and clears it. */
     setProjectContext(body: SiteProjectContextRequest, options?: SiteDomainRequestOptions): Promise<SiteProjectContext>;
+    /** Reads public trends matching a Site's audience and saved terms. A site token may omit siteUuid. */
+    getRegionalTrends(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteRegionalTrends>;
     /** Reads the domain's status and its most important next actions, most important first. */
     getNextActions(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteNextActions>;
     /** Reads every domain's status, open findings and first action, worst first (only its own Site's for a site-bound credential). */

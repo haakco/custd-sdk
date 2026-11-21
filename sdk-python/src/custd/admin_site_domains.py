@@ -15,7 +15,17 @@ from datetime import UTC, datetime
 from typing import Any, Literal, NotRequired, TypedDict, cast
 
 from .admin_site_access_logs import SiteAccessLogHourReplay, SiteAIVisibility, SiteTraffic
+from .admin_site_ai import (
+    SiteAIConsentRequest,
+    SiteAIPlatformUsage,
+    SiteAISettings,
+    SiteAISettingsRequest,
+    SiteAITenantUsage,
+    SiteAIUsagePeriod,
+)
+from .admin_site_analytics import SiteAnalyticsConnection, SiteAnalyticsReport
 from .admin_site_campaign_links import SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest
+from .admin_site_export import SiteInsightsExport, SiteSearchMetricPage
 from .admin_site_insights import (
     SavedSiteReport,
     SavedSiteReportList,
@@ -26,9 +36,11 @@ from .admin_site_insights import (
     SiteIndexNowSubmission,
     SiteLighthouseHistory,
     SiteLighthousePages,
+    SiteObservedWording,
     SitePageCheckResponse,
     SitePageFacts,
     SitePageRecheck,
+    SitePageRecheckList,
     SiteProjectContext,
     SiteProjectContextRequest,
     SiteRemedy,
@@ -46,15 +58,18 @@ from .admin_site_insights import (
 )
 from .admin_site_links import SiteReferringDomains
 from .admin_site_next_actions import SiteNextActions, SitePortfolioSummary
+from .admin_site_page_queries import SitePageSearchQueries
 from .admin_site_rankings import SiteRankings, SiteTrackedKeyword, SiteTrackKeywordRequest
 from .admin_site_search_pool import SearchPoolQueryPage, SearchPoolSetting
 from .admin_site_search_value import SiteFindingImpact, SiteSearchValue
+from .admin_site_tasks import SiteInsightsTaskList
 from .admin_site_web_data import (
     SiteContentGap,
     SiteKeywordClusters,
     SiteKeywordList,
     SiteKeywordListRequest,
     SiteKeywordLists,
+    SiteRegionalTrends,
     SiteTopicTrends,
     SiteWebDomains,
     SiteWebPages,
@@ -67,6 +82,7 @@ SITE_PROJECT_CONTEXT_PATH = SITE_DOMAINS_PATH + "/project-context"
 SITE_WEB_DOMAINS_PATH = SITE_DOMAINS_PATH + "/web-domains"
 SITE_WEB_PAGES_PATH = SITE_DOMAINS_PATH + "/web-pages"
 SITE_TOPIC_TRENDS_PATH = SITE_DOMAINS_PATH + "/topic-trends"
+SITE_REGIONAL_TRENDS_PATH = SITE_DOMAINS_PATH + "/regional-trends"
 SITE_CONTENT_GAP_PATH = SITE_DOMAINS_PATH + "/content-gap"
 SITE_KEYWORD_LISTS_PATH = SITE_DOMAINS_PATH + "/keyword-lists"
 SITE_KEYWORD_CLUSTERS_PATH = SITE_DOMAINS_PATH + "/keyword-clusters"
@@ -74,6 +90,8 @@ SITE_REFERRING_DOMAINS_PATH = SITE_DOMAINS_PATH + "/referring-domains"
 SITE_SEARCH_POOL_PATH = SITE_DOMAINS_PATH + "/search-pool"
 # Platform-wide, not under site-domains: only a system administrator may replay an hour.
 ACCESS_LOG_HOUR_REPLAY_PATH = "/admin/access-log-hours/replay"
+# Platform-wide: only a system administrator may read every tenant's Site Insights task backlog.
+SITE_INSIGHTS_TASKS_PATH = "/admin/site-insights/tasks"
 
 # Problem codes a caller branches on through RequestError.code.
 # A 409 on request_audit: the tenant has not yet proven control of the domain.
@@ -84,8 +102,14 @@ SITE_SEARCH_NOT_CONFIGURED_CODE = "site_search_not_configured"
 SITE_SEARCH_CONNECTION_NOT_FOUND_CODE = "site_search_connection_not_found"
 # A 400 on get_page_facts, request_page_recheck or check_page: the URL is not on the domain's host.
 SITE_PAGE_NOT_ON_DOMAIN_CODE = "site_page_not_on_domain"
+# A 404 on get_page_facts: no audit or recheck has read the page yet; request_page_recheck reads it.
+SITE_PAGE_NOT_READ_CODE = "site_page_not_read"
 # A 429 on request_page_recheck: the domain has used its hourly page rechecks.
 SITE_PAGE_RECHECK_LIMIT_CODE = "site_page_recheck_limit"
+# How many rechecks list_page_rechecks reads in one call.
+SITE_PAGE_RECHECK_READ_LIMIT = 30
+# A 422 on create without a siteUuid: no one Site holds the host; name the Site.
+SITE_CHOICE_REQUIRED_CODE = "site_choice_required"
 # A 400 on request_search_inspection: the URL is not an http(s) URL on the domain's host.
 SITE_SEARCH_INSPECTION_URL_INVALID_CODE = "site_search_inspection_url_invalid"
 # A 409 on request_search_inspection: the domain is unverified or not connected to Google.
@@ -132,6 +156,12 @@ SITE_SEARCH_POOL_SITE_BOUND_CODE = "site_search_pool_site_bound"
 SITE_SEARCH_POOL_SETTING_INVALID_CODE = "site_search_pool_setting_invalid"
 # A 400 on list_search_pool_queries: search is at most 100 characters and limit 1 to 200.
 SITE_SEARCH_POOL_QUERY_INVALID_CODE = "site_search_pool_query_invalid"
+# A 409 on retry_search_import: only a failing connection can be retried; reconnect a revoked one.
+SITE_SEARCH_RETRY_NOT_FAILING_CODE = "site_search_retry_not_failing"
+# A 400 on connect_analytics: propertyId is not a GA4 property's numeric ID (or properties/ID).
+SITE_ANALYTICS_PROPERTY_INVALID_CODE = "site_analytics_property_invalid"
+# A 404 on disconnect_analytics: the domain is not connected to GA4.
+SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE = "site_analytics_connection_not_found"
 
 # SiteFindingState selects which findings list_findings returns; the server defaults to open.
 SiteFindingState = Literal["open", "fixed", "all"]
@@ -239,6 +269,7 @@ SITE_RULE_UPTIME_SLOW = "uptime.slow"
 SITE_RULE_TLS_INVALID = "tls.invalid"
 SITE_RULE_TLS_EXPIRING = "tls.expiring"
 SITE_RULE_TLS_EXPIRING_SOON = "tls.expiring-soon"
+SITE_RULE_REGISTRATION_EXPIRING = "registration.expiring"
 SITE_RULE_SEARCH_LOW_CTR = "search.low-ctr"
 SITE_RULE_SEARCH_POSITION_DROP = "search.position-drop"
 SITE_RULE_LIGHTHOUSE_DESKTOP_DROP = "lighthouse.desktop-score-drop"
@@ -317,6 +348,7 @@ SITE_RULE_IDS: tuple[str, ...] = (
     SITE_RULE_TLS_INVALID,
     SITE_RULE_TLS_EXPIRING,
     SITE_RULE_TLS_EXPIRING_SOON,
+    SITE_RULE_REGISTRATION_EXPIRING,
     SITE_RULE_SEARCH_LOW_CTR,
     SITE_RULE_SEARCH_POSITION_DROP,
     SITE_RULE_LIGHTHOUSE_DESKTOP_DROP,
@@ -333,6 +365,7 @@ SITE_CHECK_RULE_IDS: tuple[str, ...] = (
     SITE_RULE_TLS_INVALID,
     SITE_RULE_TLS_EXPIRING,
     SITE_RULE_TLS_EXPIRING_SOON,
+    SITE_RULE_REGISTRATION_EXPIRING,
 )
 
 
@@ -340,6 +373,10 @@ class SiteDomainCreateRequest(TypedDict):
     """Claims a host for one of the tenant's Sites.
 
     A site-bound credential (site_domains.manage) may omit ``siteUuid`` and gets its own Site.
+    Anyone else may omit it too: Custd places the host on the Site holding it with or without
+    www., else the Site named after it, else the only Site, and answers SITE_CHOICE_REQUIRED_CODE
+    when that decides no one Site. A tenant with no Site gets one named after the host, which
+    needs tenant-admin access.
     """
 
     host: str
@@ -400,6 +437,54 @@ class SiteDomainAudit(TypedDict, total=False):
     lastFailure: str
 
 
+class SiteProbeSpec(TypedDict):
+    kind: Literal["ping", "tcp", "dns", "http-delivery"]
+    port: NotRequired[int]
+    expectedAddresses: NotRequired[list[str]]
+    protocol: NotRequired[Literal["http1.1", "http2"]]
+
+
+class SiteProbeTimings(TypedDict):
+    dnsMs: NotRequired[int]
+    connectMs: NotRequired[int]
+    tlsMs: NotRequired[int]
+    firstByteMs: NotRequired[int]
+    totalMs: int
+
+
+class SiteProbeCache(TypedDict, total=False):
+    cacheControl: str
+    age: str
+    cacheStatus: str
+    server: str
+    via: str
+
+
+class SiteProbeDetail(TypedDict, total=False):
+    resolvedIp: str
+    addresses: list[str]
+    missingAddresses: list[str]
+    unexpectedAddresses: list[str]
+    statusCode: int
+    negotiatedProtocol: str
+    tlsVersion: str
+    bytesRead: int
+    timings: SiteProbeTimings
+    cache: SiteProbeCache
+
+
+class SiteProbe(SiteProbeSpec):
+    status: Literal["unknown", "up", "down", "paused"]
+    lastCheckedAt: NotRequired[str]
+    responseMs: NotRequired[int]
+    lastFailure: NotRequired[str]
+    detail: NotRequired[SiteProbeDetail]
+
+
+class SiteProbeList(TypedDict):
+    probes: list[SiteProbe]
+
+
 class SiteUptime(TypedDict):
     """The latest home page check."""
 
@@ -445,6 +530,32 @@ class SiteIncidentList(TypedDict):
     incidents: list[SiteIncident]
 
 
+class SiteChromeUXObservation(TypedDict):
+    """The field collection period and available 75th-percentile Web Vitals."""
+
+    firstDate: str
+    lastDate: str
+    lcpMs: NotRequired[float]
+    inpMs: NotRequired[float]
+    cls: NotRequired[float]
+
+
+class SiteChromeUX(TypedDict):
+    """A lookup without an observation returned no field data for the origin."""
+
+    checkedAt: str
+    observation: NotRequired[SiteChromeUXObservation]
+
+
+class SiteRegistration(TypedDict):
+    """Registry lookup. An absent expiry date means the registry did not supply one."""
+
+    domain: str
+    source: NotRequired[str]
+    readAt: str
+    expiresAt: NotRequired[str]
+
+
 class SiteDomainChecks(TypedDict):
     """Uptime, certificate and warming state. Their problems are also uptime.* and tls.* findings."""
 
@@ -453,6 +564,8 @@ class SiteDomainChecks(TypedDict):
     tls: SiteTLS
     warming: SiteWarming
     openIncident: NotRequired[SiteIncident]
+    chromeUx: NotRequired[SiteChromeUX]
+    registration: NotRequired[SiteRegistration]
 
 
 class SiteDomain(TypedDict):
@@ -482,6 +595,13 @@ class SiteFindingHistory(TypedDict):
     fixedAt: NotRequired[str]
 
 
+class SiteFindingSuggestion(TypedDict):
+    """Cached AI explanation and next step for an active finding."""
+
+    explanation: str
+    nextStep: str
+
+
 class SiteFinding(TypedDict):
     """One problem an audit or check found, with the advice to fix it and a source to read.
 
@@ -498,6 +618,10 @@ class SiteFinding(TypedDict):
     source: str
     remedy: SiteRemedy
     history: SiteFindingHistory
+    # A one-page recheck decides this rule, so request_page_recheck can confirm the fix.
+    # Absent from a server before 3.51.
+    recheckable: NotRequired[bool]
+    suggestion: NotRequired[SiteFindingSuggestion]
 
 
 class SiteFindingList(TypedDict):
@@ -698,9 +822,22 @@ class SiteDomainAdminClient:
         """Return whether the tenant has joined the shared search pool and the pool's rules."""
         return cast(SearchPoolSetting, self._request("GET", SITE_SEARCH_POOL_PATH, {}, company_slug))
 
-    def set_search_pool(self, joined: bool, *, company_slug: str | None = None) -> SearchPoolSetting:
-        """Join (True) or leave (False) the shared search pool."""
-        payload = {"joined": joined}
+    def set_search_pool(
+        self, joined: bool, terms_version: str | None = None, *, company_slug: str | None = None
+    ) -> SearchPoolSetting:
+        """Join (True) or leave (False) the shared search pool for the whole tenant.
+
+        Joining shares the tenant's Search Console queries, pooled anonymously, and is the
+        organisation's acceptance of the pool terms: ``terms_version`` is required to join (the
+        setting's ``termsVersion``, or SITE_SEARCH_POOL_TERMS_VERSION) and ignored when leaving. A
+        join without it raises ValueError before any request; the server refuses a stale one with
+        a 400.
+        """
+        payload: dict[str, Any] = {"joined": joined}
+        if joined:
+            if not terms_version or not terms_version.strip():
+                raise ValueError("custd: joining the shared search pool requires the terms version the caller accepts")
+            payload["termsVersion"] = terms_version
         return cast(SearchPoolSetting, self._request("PUT", SITE_SEARCH_POOL_PATH, {}, company_slug, payload))
 
     def list_search_pool_queries(
@@ -754,8 +891,69 @@ class SiteDomainAdminClient:
         """
         self._request("DELETE", _search_connection_path(domain_uuid, provider), {}, company_slug)
 
+    def retry_search_import(
+        self, domain_uuid: str, provider: SiteSearchProvider, *, company_slug: str | None = None
+    ) -> SiteSearchConnection:
+        """Make a failing provider import due on the scheduler's next tick.
+
+        A connection that is not failing answers 409 with SITE_SEARCH_RETRY_NOT_FAILING_CODE;
+        reconnect a revoked one with connect_search.
+        """
+        path = _search_connection_path(domain_uuid, provider) + "/retry"
+        return cast(SiteSearchConnection, self._request("POST", path, {}, company_slug))
+
+    def get_analytics(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteAnalyticsReport:
+        """Return the domain's imported GA4 landing pages, key events and channels."""
+        return cast(SiteAnalyticsReport, self._request("GET", _analytics_path(domain_uuid), {}, company_slug))
+
+    def connect_analytics(
+        self, domain_uuid: str, property_id: str, *, company_slug: str | None = None
+    ) -> SiteAnalyticsConnection:
+        """Connect the domain to a GA4 property, or replace it; ``property_id`` is its numeric ID.
+
+        An ID that is not a GA4 property's answers 400 with SITE_ANALYTICS_PROPERTY_INVALID_CODE.
+        """
+        path = _analytics_path(domain_uuid) + "/ga4"
+        payload = {"propertyId": property_id}
+        return cast(SiteAnalyticsConnection, self._request("PUT", path, {}, company_slug, payload))
+
+    def disconnect_analytics(self, domain_uuid: str, *, company_slug: str | None = None) -> None:
+        """Remove the GA4 connection; one that is not there answers SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE."""
+        self._request("DELETE", _analytics_path(domain_uuid) + "/ga4", {}, company_slug)
+
+    def export(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteInsightsExport:
+        """Return everything Site Insights keeps for the domain; page its search metrics with export_search_metrics."""
+        return cast(SiteInsightsExport, self._request("GET", _domain_path(domain_uuid) + "/export", {}, company_slug))
+
+    def export_search_metrics(
+        self,
+        domain_uuid: str,
+        offset: int | None = None,
+        limit: int | None = None,
+        *,
+        company_slug: str | None = None,
+    ) -> SiteSearchMetricPage:
+        """Page through the domain's stored daily search metrics.
+
+        The server defaults to offset 0 and SITE_INSIGHTS_EXPORT_SEARCH_METRICS_MAX_LIMIT rows (limit
+        1..10000); outside that range it answers a plain 400.
+        """
+        query = {name: str(value) for name, value in (("offset", offset), ("limit", limit)) if value is not None}
+        path = _domain_path(domain_uuid) + "/export/search-metrics"
+        return cast(SiteSearchMetricPage, self._request("GET", path, query, company_slug))
+
+    def get_page_search_queries(
+        self, domain_uuid: str, url: str, *, company_slug: str | None = None
+    ) -> SitePageSearchQueries:
+        """Return the Google queries one page ranks for, title options from them and pages mentioning them."""
+        path = _domain_path(domain_uuid) + "/page-search-queries"
+        return cast(SitePageSearchQueries, self._request("GET", path, {"url": url}, company_slug))
+
     def get_page_facts(self, domain_uuid: str, url: str, *, company_slug: str | None = None) -> SitePageFacts:
-        """Return what the latest audit or recheck read from one page of the domain."""
+        """Return what the latest audit or recheck read from one page of the domain.
+
+        A page nothing has read yet answers 404 with SITE_PAGE_NOT_READ_CODE; request a recheck.
+        """
         path = _domain_path(domain_uuid) + "/page-facts"
         return cast(SitePageFacts, self._request("GET", path, {"url": url}, company_slug))
 
@@ -776,6 +974,14 @@ class SiteDomainAdminClient:
         path = _domain_path(domain_uuid) + "/page-rechecks/" + quote_path(recheck_uuid)
         return cast(SitePageRecheck, self._request("GET", path, {}, company_slug))
 
+    def list_page_rechecks(
+        self, domain_uuid: str, recheck_uuids: Sequence[str], *, company_slug: str | None = None
+    ) -> SitePageRecheckList:
+        """Read up to SITE_PAGE_RECHECK_READ_LIMIT of the domain's rechecks at once; unknown ids are left out."""
+        path = _domain_path(domain_uuid) + "/page-rechecks"
+        query = {"ids": ",".join(recheck_uuids)}
+        return cast(SitePageRecheckList, self._request("GET", path, query, company_slug))
+
     def check_page(
         self,
         domain_uuid: str,
@@ -784,13 +990,16 @@ class SiteDomainAdminClient:
         *,
         previous_url: str | None = None,
         phrase: str | None = None,
+        scope: str | None = None,
         company_slug: str | None = None,
     ) -> SitePageCheckResponse:
         """Run the one-page checks on draft HTML (at most 512 KiB) as if ``url`` served it.
 
         ``previous_url``, the page's current address on the same host, asks for the redirect a move
-        needs; ``phrase`` (at most 100 characters) asks where it appears. The draft is never
-        fetched, stored or logged.
+        needs; ``phrase`` (at most 100 characters) asks where it appears. ``scope``
+        SITE_PAGE_CHECK_SCOPE_CONTENT checks body content only and lists the rules it checked in
+        ``checkedRules``; omitted, the server checks the whole page. The draft is never fetched,
+        stored or logged.
         """
         path = _domain_path(domain_uuid) + "/page-check"
         payload = {"url": url, "html": html}
@@ -798,10 +1007,24 @@ class SiteDomainAdminClient:
             payload["previousUrl"] = previous_url
         if phrase:
             payload["phrase"] = phrase
+        if scope:
+            payload["scope"] = scope
         check = cast(SitePageCheckResponse, self._request("POST", path, {}, company_slug, payload))
         if "phrase" in check and check["phrase"]["wordCount"] == 0:
             check["phrase"].pop("densityPercent", None)
         return check
+
+    def compare_page_wording(
+        self, domain_uuid: str, first_url: str, second_url: str, *, company_slug: str | None = None
+    ) -> SiteObservedWording:
+        """Compare the latest saved observations of two URLs on one verified domain. No pages are fetched."""
+        path = _domain_path(domain_uuid) + "/page-wording"
+        query = {"firstUrl": first_url, "secondUrl": second_url}
+        result = cast(SiteObservedWording, self._request("GET", path, query, company_slug))
+        comparison = result.get("comparison")
+        if comparison is not None:
+            _normalize_wording_comparison(comparison)
+        return result
 
     def compare_wording(
         self, domain_uuid: str, first: str, second: str, *, company_slug: str | None = None
@@ -811,8 +1034,7 @@ class SiteDomainAdminClient:
         result = cast(
             SiteWordingCompare, self._request("POST", path, {}, company_slug, {"first": first, "second": second})
         )
-        if not result["compared"]:
-            result.pop("sharedPercent", None)
+        _normalize_wording_comparison(result)
         return result
 
     def list_campaign_links(
@@ -932,6 +1154,8 @@ class SiteDomainAdminClient:
                 for market in request.get("markets", [])
             ],
         }
+        if "hackerNewsEnabled" in request:
+            payload["hackerNewsEnabled"] = request["hackerNewsEnabled"]
         result = self._request("PUT", SITE_PROJECT_CONTEXT_PATH, query, company_slug, payload)
         return cast(SiteProjectContext, result)
 
@@ -1015,6 +1239,18 @@ class SiteDomainAdminClient:
         """Return the findings the latest audit opened, reopened and fixed."""
         path = _domain_path(domain_uuid) + "/audit-delta"
         return cast(SiteAuditDelta, self._request("GET", path, {}, company_slug))
+
+    def list_probes(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteProbeList:
+        """Return the configured network probes and their latest results."""
+        path = _domain_path(domain_uuid) + "/probes"
+        return cast(SiteProbeList, self._request("GET", path, {}, company_slug))
+
+    def set_probes(
+        self, domain_uuid: str, probes: Sequence[SiteProbeSpec], *, company_slug: str | None = None
+    ) -> SiteProbeList:
+        """Replace the network probes. An empty sequence disables them."""
+        path = _domain_path(domain_uuid) + "/probes"
+        return cast(SiteProbeList, self._request("PUT", path, {}, company_slug, {"probes": list(probes)}))
 
     def get_uptime_history(
         self, domain_uuid: str, response_days: int | None = None, *, company_slug: str | None = None
@@ -1134,6 +1370,13 @@ class SiteDomainAdminClient:
         query = {"domain": domain, **_site_query(site_uuid)}
         return cast(SiteReferringDomains, self._request("GET", SITE_REFERRING_DOMAINS_PATH, query, company_slug))
 
+    def get_regional_trends(
+        self, site_uuid: str | None = None, *, company_slug: str | None = None
+    ) -> SiteRegionalTrends:
+        """Read saved-term matches from regional feeds and the Site's optional Hacker News source."""
+        query = {"siteUuid": site_uuid} if site_uuid else {}
+        return cast(SiteRegionalTrends, self._request("GET", SITE_REGIONAL_TRENDS_PATH, query, company_slug))
+
     def get_topic_trends(self, site_uuid: str | None = None, *, company_slug: str | None = None) -> SiteTopicTrends:
         """Return monthly Wikipedia page views for the Site's brand names and keyword-list seeds."""
         query = _site_query(site_uuid)
@@ -1214,6 +1457,36 @@ class SiteDomainAdminClient:
         """
         payload = {"hourStart": _rfc3339_utc(hour_start)}
         return cast(SiteAccessLogHourReplay, self._request("POST", ACCESS_LOG_HOUR_REPLAY_PATH, {}, None, payload))
+
+    def get_ai_settings(self) -> SiteAISettings:
+        """Read the tenant’s AI settings without returning the provider key."""
+        path = SITE_DOMAINS_PATH + "/ai-settings"
+        return cast(SiteAISettings, self._request("GET", path, {}, None))
+
+    def set_ai_settings(self, request: SiteAISettingsRequest) -> SiteAISettings:
+        """Replace AI mode and cap. Omitting the key may keep an existing own key."""
+        path = SITE_DOMAINS_PATH + "/ai-settings"
+        return cast(SiteAISettings, self._request("PUT", path, {}, None, dict(request)))
+
+    def set_ai_consent(self, request: SiteAIConsentRequest) -> SiteAISettings:
+        """Grant consent for the accepted terms version, or revoke it."""
+        path = SITE_DOMAINS_PATH + "/ai-settings/consent"
+        return cast(SiteAISettings, self._request("PUT", path, {}, None, dict(request)))
+
+    def get_ai_usage(self) -> SiteAITenantUsage:
+        """Read the tenant’s current UTC month of AI usage in USD micros."""
+        path = SITE_DOMAINS_PATH + "/ai-usage"
+        return cast(SiteAITenantUsage, self._request("GET", path, {}, None))
+
+    def get_platform_ai_usage(self, period: SiteAIUsagePeriod | None = None) -> SiteAIPlatformUsage:
+        """Read the platform’s AI usage. System administrators only. The default is the current UTC month."""
+        query = {"period": period} if period is not None else {}
+        path = "/admin/site-insights/ai-usage"
+        return cast(SiteAIPlatformUsage, self._request("GET", path, query, None))
+
+    def list_site_insights_tasks(self) -> SiteInsightsTaskList:
+        """Return every Site Insights scheduler task's state and backlog across tenants. System administrators only."""
+        return cast(SiteInsightsTaskList, self._request("GET", SITE_INSIGHTS_TASKS_PATH, {}, None))
 
     def get_rankings(
         self, domain_uuid: str, days: int | None = None, *, company_slug: str | None = None
@@ -1302,12 +1575,21 @@ class SiteDomainAdminClient:
         return dict(decoded)
 
 
+def _normalize_wording_comparison(comparison: SiteWordingCompare) -> None:
+    if not comparison["compared"]:
+        comparison.pop("sharedPercent", None)
+
+
 def _domain_path(domain_uuid: str) -> str:
     return SITE_DOMAINS_PATH + "/" + quote_path(domain_uuid)
 
 
 def _search_connection_path(domain_uuid: str, provider: SiteSearchProvider) -> str:
     return _domain_path(domain_uuid) + "/search/" + quote_path(provider)
+
+
+def _analytics_path(domain_uuid: str) -> str:
+    return _domain_path(domain_uuid) + "/analytics"
 
 
 def _indexnow_path(domain_uuid: str) -> str:

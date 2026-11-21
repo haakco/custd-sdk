@@ -7,7 +7,7 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 use HaakCo\Custd\Fields;
 
 /**
- * SiteWordingCompare is how much wording two drafts share, measured as the content.near-duplicate
+ * SiteWordingCompare is how much wording two texts share, measured as the content.near-duplicate
  * rule does; wording overlap, not plagiarism. Texts under minWords are not compared: compared is
  * false and sharedPercent null.
  */

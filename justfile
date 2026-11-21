@@ -1,6 +1,6 @@
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
-test: infisical-test test-go test-js test-python test-php test-release-mirrors
+test: infisical-test test-go test-js test-python test-php test-rust test-release-mirrors
 
 check: test sdk-version-identity lint-workflows lint-markdown diff-check
 
@@ -58,6 +58,11 @@ test-php:
   cd laravel-package && composer test
   cd wordpress-plugin && composer update --no-interaction --no-progress
   cd wordpress-plugin && composer test
+
+test-rust:
+  cd sdk-rust && cargo fmt --check
+  cd sdk-rust && cargo clippy --all-targets -- -D warnings
+  cd sdk-rust && cargo test
 
 test-release-mirrors:
   bash scripts/test-publish-release-mirror.sh

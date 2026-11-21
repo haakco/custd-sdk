@@ -7,6 +7,7 @@ import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SiteDomainAdminClient } from "./admin-site-domains.js";
+import { SiteInsightsAdminClient } from "./admin-site-insights-tasks.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 import { TimePlanAdminClient } from "./admin-timeplans.js";
@@ -36,6 +37,21 @@ export type {
   AppReleaseSummary,
   AppReleaseUploadedFile,
 } from "./admin-app-releases.js";
+export {
+  APP_ERROR_CODES,
+  APP_REASON_CODES,
+  APP_STATUSES,
+  type AppCreateRequest,
+  type AppCreation,
+  type AppDeployCredential,
+  type AppListResponse,
+  type AppOverview,
+  type AppReason,
+  type AppReasonCode,
+  type AppStatus,
+  type AppSummary,
+  type AppTrafficReporting,
+} from "./admin-apps.js";
 export {
   type ApplicationIdentityTrait,
   type ApplicationIdentityTraitsStatus,
@@ -249,6 +265,31 @@ export {
   type RetentionRunPreview,
   type RetentionRunsListResponse,
 } from "./admin-retention.js";
+export type {
+  SiteAIConsentRequest,
+  SiteAIMode,
+  SiteAIOwnerHandoff,
+  SiteAIOwnerHandoffRequest,
+  SiteAIPlatformUsage,
+  SiteAIProduct,
+  SiteAISettings,
+  SiteAISettingsRequest,
+  SiteAITenantUsage,
+  SiteAIUsage,
+  SiteAIUsagePeriod,
+  SiteAIUsageRow,
+} from "./admin-site-ai.js";
+export {
+  SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE,
+  SITE_ANALYTICS_PROPERTY_INVALID_CODE,
+  SITE_ANALYTICS_PROVIDER_GA4,
+  type SiteAnalyticsConnection,
+  type SiteAnalyticsConnectionRequest,
+  type SiteAnalyticsReport,
+  type SiteAnalyticsRow,
+  type SiteAnalyticsUnavailable,
+  SiteAnalyticsUnavailableReport,
+} from "./admin-site-analytics.js";
 export {
   SITE_AUDIT_PAGES_DEFAULT_LIMIT,
   SITE_AUDIT_PAGES_MAX_LIMIT,
@@ -274,10 +315,13 @@ export {
   SITE_DOMAIN_NOT_VERIFIED_CODE,
   SITE_SEARCH_CONNECTION_NOT_FOUND_CODE,
   SITE_SEARCH_NOT_CONFIGURED_CODE,
+  SITE_SEARCH_RETRY_NOT_FAILING_CODE,
   type SiteAlertDestination,
   type SiteAlertDestinationRequest,
   type SiteAuditSummary,
   type SiteCheckMode,
+  type SiteChromeUX,
+  type SiteChromeUXObservation,
   type SiteDomain,
   SiteDomainAdminClient,
   type SiteDomainAttestation,
@@ -294,8 +338,14 @@ export {
   type SiteFindingList,
   type SiteFindingSeverity,
   type SiteFindingState,
+  type SiteFindingSuggestion,
   type SiteIncident,
   type SiteIncidentList,
+  type SiteProbe,
+  type SiteProbeDetail,
+  type SiteProbeList,
+  type SiteProbeSpec,
+  type SiteRegistration,
   SiteRule,
   type SiteRuleId,
   type SiteSearchAccount,
@@ -314,17 +364,33 @@ export {
   type SiteWarming,
 } from "./admin-site-domains.js";
 export {
+  SITE_INSIGHTS_EXPORT_SCHEMA,
+  SITE_INSIGHTS_EXPORT_SEARCH_METRICS_MAX_LIMIT,
+  type SiteInsightsExport,
+  type SiteInsightsMonitoringExport,
+  type SiteInsightsReportsExport,
+  type SiteInsightsSearchExport,
+  type SiteInsightsSiteExport,
+  type SiteSearchMetricDay,
+  SiteSearchMetricDimension,
+  type SiteSearchMetricPage,
+  type SiteSearchMetricsQuery,
+} from "./admin-site-export.js";
+export {
   type IndexNowState,
   type IndexNowSubmission,
   type IndexNowSubmissionRequest,
   IndexNowSubmissionStatus,
+  SITE_CHOICE_REQUIRED_CODE,
   SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE,
   SITE_INDEXNOW_KEY_UNVERIFIED_CODE,
   SITE_INDEXNOW_LIMIT_CODE,
   SITE_INDEXNOW_NOT_ENABLED_CODE,
   SITE_INDEXNOW_URLS_INVALID_CODE,
   SITE_PAGE_NOT_ON_DOMAIN_CODE,
+  SITE_PAGE_NOT_READ_CODE,
   SITE_PAGE_RECHECK_LIMIT_CODE,
+  SITE_PAGE_RECHECK_READ_LIMIT,
   SITE_SEARCH_INSPECTION_LIMIT_CODE,
   SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE,
   SITE_SEARCH_INSPECTION_URL_INVALID_CODE,
@@ -338,17 +404,21 @@ export {
   type SiteLighthouseRun,
   type SiteLighthouseScores,
   type SiteMarket,
+  type SiteObservedWording,
   type SitePageCheckRequest,
   type SitePageCheckResponse,
+  SitePageCheckScope,
   type SitePageFacts,
   type SitePageFinding,
   type SitePageHeading,
   type SitePageOpenGraph,
   type SitePageReadability,
   type SitePageRecheck,
+  type SitePageRecheckList,
   SitePageRecheckState,
   type SitePageRobots,
   type SitePageTwitter,
+  type SitePageWordingQuery,
   type SitePhraseUse,
   type SiteProjectContext,
   type SiteProjectContextRequest,
@@ -382,7 +452,16 @@ export {
   type SiteUptimeWindows,
   type SiteWordingCompare,
   type SiteWordingCompareRequest,
+  type SiteWordingObservation,
+  type SiteWordingObservationState,
 } from "./admin-site-insights.js";
+export {
+  SiteInsightsAdminClient,
+  type SiteInsightsBacklog,
+  type SiteInsightsTaskList,
+  SiteInsightsTaskName,
+  type SiteInsightsTaskStatus,
+} from "./admin-site-insights-tasks.js";
 export {
   type SiteDomainAuthority,
   SiteLinkSource,
@@ -405,6 +484,16 @@ export {
   type SitePortfolioDomain,
   type SitePortfolioSummary,
 } from "./admin-site-next-actions.js";
+export {
+  type SitePageLinkSource,
+  SitePageLinkSourceWhere,
+  SitePageQueriesState,
+  type SitePageQuery,
+  type SitePageQueryWindow,
+  type SitePageSearchQueries,
+  type SiteTitleOption,
+  SiteTitleTemplate,
+} from "./admin-site-page-queries.js";
 export {
   SITE_RANKINGS_DAYS_INVALID_CODE,
   SITE_RANKINGS_DEFAULT_DAYS,
@@ -443,6 +532,7 @@ export {
   SEARCH_POOL_QUERIES_DEFAULT_LIMIT,
   SEARCH_POOL_QUERIES_MAX_LIMIT,
   SEARCH_POOL_SEARCH_MAX_LENGTH,
+  SEARCH_POOL_TERMS_VERSION,
   SEARCH_POOL_WINDOW_DAYS,
   SearchPoolAccess,
   type SearchPoolBand,
@@ -494,6 +584,7 @@ export {
   TRAFFIC_OTHER_KEY,
 } from "./admin-site-traffic.js";
 export {
+  SITE_KEYWORD_DEMAND_SOURCE_BING,
   SITE_KEYWORD_LIST_LIMIT_CODE,
   SITE_KEYWORD_LIST_NOT_FOUND_CODE,
   type SiteContentGap,
@@ -503,9 +594,14 @@ export {
   type SiteContentGapTopic,
   type SiteKeywordCluster,
   type SiteKeywordClusters,
+  type SiteKeywordDemand,
+  type SiteKeywordDemandSet,
+  SiteKeywordDemandState,
   type SiteKeywordList,
   type SiteKeywordListRequest,
   type SiteKeywordLists,
+  type SiteRelatedKeyword,
+  type SiteRelatedKeywords,
   type SiteStrikingKeyword,
   type SiteTopicTrend,
   type SiteTopicTrendMonth,
@@ -910,7 +1006,8 @@ export type ProducerProvisionCreate = {
     | "managed-audit-reporting-subject-insight"
     | "managed-audit-event-read"
     | "site-insights"
-    | "site-insights-read";
+    | "site-insights-read"
+    | "site-ai-read";
   metadata?: Record<string, string>;
 };
 
@@ -1243,6 +1340,11 @@ export type AdminSchemaDryRunResult = {
   failed: number;
   issues: AdminSchemaIssue[];
 };
+
+/** A 404 on schema audit: the named tenant does not exist. */
+export const SCHEMA_AUDIT_TENANT_NOT_FOUND_CODE = "schema_audit_tenant_not_found";
+/** A 400 on schema audit: the request names no tenantSlug. */
+export const SCHEMA_AUDIT_TENANT_SLUG_REQUIRED_CODE = "schema_audit_tenant_slug_required";
 
 export type AdminSchemaAuditEntry = {
   eventId: string;
@@ -3229,6 +3331,7 @@ class AdminNamespace {
   readonly oauthClients: AdminOAuthClientNamespace;
   readonly sites: AdminSiteNamespace;
   readonly siteDomains: SiteDomainAdminClient;
+  readonly siteInsights: SiteInsightsAdminClient;
   readonly schemas: AdminSchemaNamespace;
   readonly measurement: AdminMeasurementNamespace;
   readonly predictions: PredictionAdminClient;
@@ -3259,6 +3362,7 @@ class AdminNamespace {
     this.oauthClients = new AdminOAuthClientNamespace(request);
     this.sites = new AdminSiteNamespace(request);
     this.siteDomains = new SiteDomainAdminClient(nonAdminRequest);
+    this.siteInsights = new SiteInsightsAdminClient(request);
     this.schemas = new AdminSchemaNamespace(request);
     this.measurement = new AdminMeasurementNamespace(request);
     this.predictions = new PredictionAdminClient(request);
@@ -4398,6 +4502,12 @@ function randomUUID(): string {
   );
 }
 
+export type {
+  SiteRegionalTrendMarket,
+  SiteRegionalTrendMatch,
+  SiteRegionalTrends,
+  SiteTechnicalTrends,
+} from "./admin-site-regional-trends.js";
 export {
   type CaptureExceptionRequest,
   createErrorCaptureEvent,

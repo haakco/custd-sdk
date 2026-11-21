@@ -2,8 +2,14 @@ import type { SiteAuditSummary, SiteFindingSeverity, SiteSearchProvider, SiteSea
 import type { SiteNextAction } from "./admin-site-next-actions.js";
 /** A 400 on page tools: the URL is not on the domain's own host. */
 export declare const SITE_PAGE_NOT_ON_DOMAIN_CODE = "site_page_not_on_domain";
+/** A 404 on getPageFacts: no audit or recheck has read the page yet; ask for a page recheck. */
+export declare const SITE_PAGE_NOT_READ_CODE = "site_page_not_read";
 /** A 429 on requestPageRecheck: the domain's hourly page rechecks are used up. */
 export declare const SITE_PAGE_RECHECK_LIMIT_CODE = "site_page_recheck_limit";
+/** How many rechecks listPageRechecks reads in one call. */
+export declare const SITE_PAGE_RECHECK_READ_LIMIT = 30;
+/** A 422 on create without a siteUuid: no one Site holds the host; name the Site. */
+export declare const SITE_CHOICE_REQUIRED_CODE = "site_choice_required";
 /** A 400 on requestSearchInspection: the URL is not an http(s) URL on the domain's host. */
 export declare const SITE_SEARCH_INSPECTION_URL_INVALID_CODE = "site_search_inspection_url_invalid";
 /** A 409 on requestSearchInspection: the domain is not verified and connected to Google. */
@@ -124,6 +130,15 @@ export type SitePageRecheck = {
     openRules: string[];
     fixedRules: string[];
 };
+/** The rechecks listPageRechecks found, in the order asked. */
+export type SitePageRecheckList = {
+    rechecks: SitePageRecheck[];
+};
+/** How much of a page a checkPage draft is: the whole page, or only its body content. */
+export declare const SitePageCheckScope: {
+    readonly Page: "page";
+    readonly Content: "content";
+};
 export type SitePageCheckRequest = {
     /** The address the draft will be published at, on the domain's host. */
     url: string;
@@ -133,6 +148,8 @@ export type SitePageCheckRequest = {
     previousUrl?: string;
     /** A search phrase, at most 100 characters, to find in the draft. */
     phrase?: string;
+    /** A SitePageCheckScope value; omitted, the server checks the whole page. */
+    scope?: string;
 };
 /** Where one phrase appears in a draft and how often, with no target or verdict. */
 export type SitePhraseUse = {
@@ -155,6 +172,10 @@ export type SitePageCheckResponse = {
     /** The permanent redirect from previousUrl, format SiteGeneratedFormat.Redirect. */
     redirect?: SiteGeneratedFix;
     phrase?: SitePhraseUse;
+    /** The draft's SitePageCheckScope; absent from a recheck or an older server. */
+    scope?: string;
+    /** Set only for scope content: the rules checked, so a rule here and not in findings passed. */
+    checkedRules?: string[];
 };
 /** Two drafts, as HTML or plain text (each at most 512 KiB), to compare. Nothing is stored. */
 export type SiteWordingCompareRequest = {
@@ -162,7 +183,7 @@ export type SiteWordingCompareRequest = {
     second: string;
 };
 /**
- * How much wording two drafts share, measured as the content.near-duplicate rule does; wording
+ * How much wording two texts share, measured as the content.near-duplicate rule does; wording
  * overlap, not plagiarism. Texts under minWords are not compared: compared is false and
  * sharedPercent absent.
  */
@@ -174,6 +195,23 @@ export type SiteWordingCompare = {
     sharedPercent?: number;
     thresholdPercent: number;
     nearDuplicate: boolean;
+};
+/** Two distinct absolute URLs on the same verified domain. */
+export type SitePageWordingQuery = {
+    firstUrl: string;
+    secondUrl: string;
+};
+export type SiteWordingObservationState = "unread" | "unavailable" | "short" | "ready";
+/** The latest stored check of a page. An unread page has no observation timestamp. */
+export type SiteWordingObservation = {
+    state: SiteWordingObservationState;
+    observedAt?: string;
+};
+/** Comparison is absent for unread or unavailable evidence. Short observations keep the word counts. */
+export type SiteObservedWording = {
+    first: SiteWordingObservation;
+    second: SiteWordingObservation;
+    comparison?: SiteWordingCompare;
 };
 export type SiteRobotsTestRequest = {
     /** A path such as /blog/post?id=1, or an http(s) URL. */
@@ -269,6 +307,7 @@ export type SiteProjectContext = {
     brandNames: string[];
     competitorDomains: string[];
     markets: SiteMarket[];
+    hackerNewsEnabled?: boolean;
     updatedAt?: string;
 };
 export type SiteProjectContextRequest = {
@@ -277,6 +316,8 @@ export type SiteProjectContextRequest = {
     brandNames?: string[];
     competitorDomains?: string[];
     markets?: SiteMarket[];
+    /** Omit to keep the saved choice. False disables technical discussion trends. */
+    hackerNewsEnabled?: boolean;
 };
 /** upPercent is absent for a window without checks. */
 export type SiteUptimeWindow = {

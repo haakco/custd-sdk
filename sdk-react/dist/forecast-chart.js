@@ -1,5 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, } from "react";
 import { DAY_MS, domainOf, formatNumber, formatUtcDate, panDomain, parseTime, sameDomain, scaleLinear, ticksOf, usePrefersReducedMotion, useTweenedDomain, zoomDomain, } from "./chart-scale.js";
 const DEFAULT_LABELS = {
     zoomIn: "Zoom in",
@@ -39,12 +39,11 @@ export function ForecastChart({ data, title, summary, labels: labelOverrides, fo
 }
 function ForecastChartView({ data, domains, labels, formatDate, ...props }) {
     const { full } = domains;
-    const [view, setView] = useState(full);
+    const [selection, setSelection] = useState(null);
+    const view = selection ? zoomDomain(selection, 1, full, MIN_SPAN_MS) : full;
     const [fullScreen, setFullScreen] = useState(false);
     const reducedMotion = usePrefersReducedMotion();
     const shown = useTweenedDomain(view, reducedMotion);
-    // New data with the same extent keeps the reader's zoom; a changed extent resets it.
-    useEffect(() => setView({ start: full.start, end: full.end }), [full.start, full.end]);
     useEffect(() => {
         if (!fullScreen)
             return;
@@ -52,10 +51,17 @@ function ForecastChartView({ data, domains, labels, formatDate, ...props }) {
         document.addEventListener("keydown", exit);
         return () => document.removeEventListener("keydown", exit);
     }, [fullScreen]);
-    const zoom = (factor) => setView((current) => zoomDomain(current, factor, full, MIN_SPAN_MS));
-    const pan = (fraction) => setView((current) => panDomain(current, fraction, full));
+    const changeView = (update) => {
+        setSelection((current) => {
+            const bounded = current ? zoomDomain(current, 1, full, MIN_SPAN_MS) : full;
+            const next = update(bounded);
+            return sameDomain(next, full) ? null : next;
+        });
+    };
+    const zoom = (factor) => changeView((current) => zoomDomain(current, factor, full, MIN_SPAN_MS));
+    const pan = (fraction) => changeView((current) => panDomain(current, fraction, full));
     const atFull = sameDomain(view, full);
-    return (_jsxs("div", { className: props.className, style: fullScreen ? { ...props.style, ...FULL_SCREEN_STYLE } : props.style, "data-custd-chart": "forecast", "data-custd-chart-fullscreen": fullScreen, "data-reduced-motion": reducedMotion, children: [_jsxs("fieldset", { "data-custd-chart-controls": "", style: { border: 0, margin: 0, padding: 0 }, children: [_jsx("legend", { style: VISUALLY_HIDDEN, children: labels.controls }), _jsx(ChartButton, { label: labels.zoomIn, onClick: () => zoom(ZOOM_FACTOR), disabled: view.end - view.start <= MIN_SPAN_MS }), _jsx(ChartButton, { label: labels.zoomOut, onClick: () => zoom(1 / ZOOM_FACTOR), disabled: atFull }), _jsx(ChartButton, { label: labels.panEarlier, onClick: () => pan(-PAN_FRACTION), disabled: view.start <= full.start }), _jsx(ChartButton, { label: labels.panLater, onClick: () => pan(PAN_FRACTION), disabled: view.end >= full.end }), _jsx(ChartButton, { label: labels.reset, onClick: () => setView(full), disabled: atFull }), _jsx(ChartButton, { label: labels.zoomToData, onClick: () => setView(domains.observed) }), _jsx(ChartButton, { label: labels.fullScreen, pressed: fullScreen, onClick: () => setFullScreen((on) => !on) })] }), _jsx("p", { role: "status", "aria-live": "polite", style: VISUALLY_HIDDEN, children: labels.range(formatDate(view.start), formatDate(view.end)) }), _jsx(ForecastPlot, { data: data, x: shown, y: domains.y, formatDate: formatDate, onPan: pan, ...props }), data.completionMedian === undefined && data.completionInterval === undefined ? _jsx("p", { children: labels.noForecast }) : null] }));
+    return (_jsxs("div", { className: props.className, style: fullScreen ? { ...props.style, ...FULL_SCREEN_STYLE } : props.style, "data-custd-chart": "forecast", "data-custd-chart-fullscreen": fullScreen, "data-reduced-motion": reducedMotion, children: [_jsxs("fieldset", { "data-custd-chart-controls": "", style: { border: 0, margin: 0, padding: 0 }, children: [_jsx("legend", { style: VISUALLY_HIDDEN, children: labels.controls }), _jsx(ChartButton, { label: labels.zoomIn, onClick: () => zoom(ZOOM_FACTOR), disabled: view.end - view.start <= MIN_SPAN_MS }), _jsx(ChartButton, { label: labels.zoomOut, onClick: () => zoom(1 / ZOOM_FACTOR), disabled: atFull }), _jsx(ChartButton, { label: labels.panEarlier, onClick: () => pan(-PAN_FRACTION), disabled: view.start <= full.start }), _jsx(ChartButton, { label: labels.panLater, onClick: () => pan(PAN_FRACTION), disabled: view.end >= full.end }), _jsx(ChartButton, { label: labels.reset, onClick: () => setSelection(null), disabled: atFull }), _jsx(ChartButton, { label: labels.zoomToData, onClick: () => changeView(() => domains.observed), disabled: sameDomain(view, domains.observed) }), _jsx(ChartButton, { label: labels.fullScreen, pressed: fullScreen, onClick: () => setFullScreen((on) => !on) })] }), _jsx("p", { role: "status", "aria-live": "polite", style: VISUALLY_HIDDEN, children: labels.range(formatDate(view.start), formatDate(view.end)) }), _jsx(ForecastPlot, { data: data, x: shown, y: domains.y, formatDate: formatDate, onPan: pan, ...props }), data.completionMedian === undefined && data.completionInterval === undefined ? _jsx("p", { children: labels.noForecast }) : null] }));
 }
 function ChartButton({ label, onClick, disabled, pressed, }) {
     return (_jsx("button", { type: "button", "data-custd-chart-action": "", onClick: onClick, disabled: disabled, "aria-pressed": pressed, children: label }));
@@ -75,6 +81,15 @@ function ForecastPlot({ data, x, y, title, summary, width, height, formatDate, f
         if (rendered > 0)
             drag.current = { clientX: event.clientX, width: rendered };
     };
+    const onWheel = (event) => {
+        const delta = event.shiftKey && event.deltaX === 0 ? event.deltaY : event.deltaX;
+        if (delta === 0 || (!event.shiftKey && Math.abs(delta) < Math.abs(event.deltaY)))
+            return;
+        const distance = event.deltaMode === 1 ? delta * 16 : delta;
+        const rendered = event.currentTarget.getBoundingClientRect().width;
+        if (rendered > 0)
+            onPan(event.deltaMode === 2 ? delta : distance / rendered);
+    };
     const endDrag = () => {
         drag.current = undefined;
     };
@@ -86,7 +101,7 @@ function ForecastPlot({ data, x, y, title, summary, width, height, formatDate, f
         const plotShare = (width - MARGIN.left - MARGIN.right) / width;
         onPan((start.clientX - event.clientX) / (start.width * plotShare));
     };
-    return (_jsxs("svg", { role: "img", "aria-label": summary, viewBox: `0 0 ${width} ${height}`, width: "100%", style: { display: "block", touchAction: "pan-y" }, onPointerDown: onPointerDown, onPointerUp: onPointerUp, onPointerLeave: endDrag, onPointerCancel: endDrag, children: [_jsx("title", { children: title }), _jsx("defs", { children: _jsx("clipPath", { id: clipId, children: _jsx("rect", { x: MARGIN.left, y: 0, width: width - MARGIN.left - MARGIN.right, height: height }) }) }), _jsx(Axes, { x: x, y: y, width: width, height: height, formatDate: formatDate, formatValue: formatValue }), _jsxs("g", { clipPath: `url(#${clipId})`, children: [(data.earlierRuns ?? []).map((run) => (_jsx("polyline", { "data-custd-chart-layer": "trail", points: line(run.points), style: trailStyle, children: _jsx("title", { children: run.label }) }, run.label))), last && data.target !== undefined && data.completionInterval ? (_jsx("polygon", { "data-custd-chart-layer": "band", points: line([
+    return (_jsxs("svg", { role: "img", "aria-label": summary, viewBox: `0 0 ${width} ${height}`, width: "100%", style: { display: "block", touchAction: "pan-y" }, onWheel: onWheel, onPointerDown: onPointerDown, onPointerUp: onPointerUp, onPointerLeave: endDrag, onPointerCancel: endDrag, children: [_jsx("title", { children: title }), _jsx("defs", { children: _jsx("clipPath", { id: clipId, children: _jsx("rect", { x: MARGIN.left, y: 0, width: width - MARGIN.left - MARGIN.right, height: height }) }) }), _jsx(Axes, { x: x, y: y, width: width, height: height, formatDate: formatDate, formatValue: formatValue }), _jsxs("g", { clipPath: `url(#${clipId})`, children: [(data.earlierRuns ?? []).map((run) => (_jsx("polyline", { "data-custd-chart-layer": "trail", points: line(run.points), style: trailStyle, children: _jsx("title", { children: run.label }) }, run.label))), last && data.target !== undefined && data.completionInterval ? (_jsx("polygon", { "data-custd-chart-layer": "band", points: line([
                             last,
                             { at: data.completionInterval.lower, value: data.target },
                             { at: data.completionInterval.upper, value: data.target },

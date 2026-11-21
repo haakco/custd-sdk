@@ -12,6 +12,8 @@ use HaakCo\Custd\Admin\SiteDomain\SiteAuditDelta;
 use HaakCo\Custd\Admin\SiteDomain\SiteAuditPageList;
 use HaakCo\Custd\Admin\SiteDomain\SiteLighthousePages;
 use HaakCo\Custd\Admin\SiteDomain\SiteAlertDestination;
+use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollector;
+use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollectorRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
 use HaakCo\Custd\Admin\SiteDomain\SiteDomain;
 use HaakCo\Custd\Admin\SiteDomain\SiteDomainList;
@@ -26,6 +28,8 @@ use HaakCo\Custd\Admin\SiteDomain\SiteSearchConnection;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchPerformance;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchProvider;
 use HaakCo\Custd\Admin\SiteDomain\SiteReport;
+use HaakCo\Custd\Admin\SiteDomain\SiteProbeList;
+use HaakCo\Custd\Admin\SiteDomain\SiteProbeSpec;
 use HaakCo\Custd\Admin\SiteDomain\SiteReportShareRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteReportShareCreated;
 use HaakCo\Custd\Admin\SiteDomain\SiteReportShareList;
@@ -34,7 +38,10 @@ use HaakCo\Custd\Admin\SiteDomain\SiteLighthouseHistory;
 use HaakCo\Custd\Admin\SiteDomain\SitePageCheckRequest;
 use HaakCo\Custd\Admin\SiteDomain\SitePageCheckResponse;
 use HaakCo\Custd\Admin\SiteDomain\SitePageFacts;
+use HaakCo\Custd\Admin\SiteDomain\SitePageSearchQueries;
+use HaakCo\Custd\Admin\SiteDomain\SiteInsightsTasks;
 use HaakCo\Custd\Admin\SiteDomain\SitePageRecheck;
+use HaakCo\Custd\Admin\SiteDomain\SitePageRecheckList;
 use HaakCo\Custd\Admin\SiteDomain\SiteProjectContext;
 use HaakCo\Custd\Admin\SiteDomain\SiteProjectContextRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteRobotsTestRequest;
@@ -44,6 +51,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspection;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspectionList;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchRowPage;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchValue;
+use HaakCo\Custd\Admin\SiteDomain\SiteObservedWording;
 use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompare;
 use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompareRequest;
 
@@ -71,6 +79,18 @@ final class SiteDomainClient
 
     /** The problem code of the 429 returned once the domain's hourly page rechecks are used up. */
     public const PAGE_RECHECK_LIMIT_CODE = 'site_page_recheck_limit';
+
+    /** The problem code of the 404 returned by getPageFacts when no audit or recheck has read the page yet. */
+    public const PAGE_NOT_READ_CODE = 'site_page_not_read';
+
+    /** The problem code of the 409 returned when retrying a search connection that is not failing. */
+    public const SEARCH_RETRY_NOT_FAILING_CODE = 'site_search_retry_not_failing';
+
+    /** How many rechecks listPageRechecks reads in one call. */
+    public const PAGE_RECHECK_READ_LIMIT = 30;
+
+    /** The problem code of the 422 returned when a domain created without a Site matches no one Site. */
+    public const SITE_CHOICE_REQUIRED_CODE = 'site_choice_required';
 
     /** The problem code of the 400 returned when a URL to inspect is not an http(s) URL on the domain's host. */
     public const SEARCH_INSPECTION_URL_INVALID_CODE = 'site_search_inspection_url_invalid';
@@ -150,6 +170,30 @@ final class SiteDomainClient
         return new SiteSearchPoolClient($this->http);
     }
 
+    /** Connect a domain to GA4 and read its imported numbers. */
+    public function analytics(): SiteAnalyticsClient
+    {
+        return new SiteAnalyticsClient($this->http);
+    }
+
+    /** Export everything Custd keeps about a domain. */
+    public function export(): SiteExportClient
+    {
+        return new SiteExportClient($this->http);
+    }
+
+    /** Manage Site Insights AI settings and read billing usage. */
+    public function ai(): SiteAIClient
+    {
+        return new SiteAIClient($this->http);
+    }
+
+    /** Read the state of every Site Insights scheduled task. System administrators only. */
+    public function getSiteInsightsTasks(): SiteInsightsTasks
+    {
+        return SiteInsightsTasks::fromPayload($this->send('GET', '/admin/site-insights/tasks', [], null));
+    }
+
     /** Claim a host for a site. The result carries the verification instructions. */
     public function create(CreateSiteDomainRequest $request, ?string $companySlug = null): SiteDomain
     {
@@ -192,6 +236,14 @@ final class SiteDomainClient
     public function attest(string $domainUuid): SiteDomain
     {
         return SiteDomain::fromPayload($this->send('POST', self::item($domainUuid) . '/attestation', [], null));
+    }
+
+    /** Converge the browser collector of the verified domain owned by this Site credential. */
+    public function convergeBrowserCollector(string $domainUuid, SiteBrowserCollectorRequest $request): SiteBrowserCollector
+    {
+        return SiteBrowserCollector::fromPayload(
+            $this->send('PUT', self::item($domainUuid) . '/browser-collector', [], null, $request->serialise())
+        );
     }
 
     /** Withdraw this credential's attestation; the domain stays verified only by its own proof or a verified parent. */
@@ -328,6 +380,21 @@ final class SiteDomainClient
     }
 
     /**
+     * Import a failing search connection again now instead of waiting for its retry. A connection
+     * that is not failing throws AdminProblemException with {@see self::SEARCH_RETRY_NOT_FAILING_CODE};
+     * reconnect a revoked one with connectSearch().
+     */
+    public function retrySearch(
+        string $domainUuid,
+        SiteSearchProvider $provider,
+        ?string $companySlug = null,
+    ): SiteSearchConnection {
+        return SiteSearchConnection::fromPayload(
+            $this->send('POST', self::searchConnection($domainUuid, $provider) . '/retry', [], $companySlug)
+        );
+    }
+
+    /**
      * Page through one dimension of a domain's imported search rows. Null arguments let the server
      * default to the query dimension, every provider, 28 days, offset 0 and 100 rows (limit 1..1000).
      */
@@ -373,11 +440,26 @@ final class SiteDomainClient
         );
     }
 
-    /** Read what the latest audit or recheck read from one page of the domain. */
+    /**
+     * Read what the latest audit or recheck read from one page of the domain. A page nothing has
+     * read yet throws AdminProblemException with {@see self::PAGE_NOT_READ_CODE}; ask for a
+     * requestPageRecheck().
+     */
     public function getPageFacts(string $domainUuid, string $url, ?string $companySlug = null): SitePageFacts
     {
         return SitePageFacts::fromPayload(
             $this->send('GET', self::item($domainUuid) . '/page-facts', ['url' => $url], $companySlug)
+        );
+    }
+
+    /**
+     * Read the Search Console queries one page ranks for, title options built from them and the
+     * domain's pages that could link to it; state says why the lists are empty.
+     */
+    public function getPageSearchQueries(string $domainUuid, string $url, ?string $companySlug = null): SitePageSearchQueries
+    {
+        return SitePageSearchQueries::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/page-search-queries', ['url' => $url], $companySlug)
         );
     }
 
@@ -405,6 +487,22 @@ final class SiteDomainClient
     }
 
     /**
+     * Read up to {@see self::PAGE_RECHECK_READ_LIMIT} of the domain's rechecks at once; an id that
+     * is not one of the domain's is left out.
+     *
+     * @param list<string> $recheckUuids
+     */
+    public function listPageRechecks(string $domainUuid, array $recheckUuids, ?string $companySlug = null): SitePageRecheckList
+    {
+        return SitePageRecheckList::fromPayload($this->send(
+            'GET',
+            self::item($domainUuid) . '/page-rechecks',
+            ['ids' => implode(',', $recheckUuids)],
+            $companySlug
+        ));
+    }
+
+    /**
      * Run the one-page checks on draft HTML before it is published, and the draft tools the request
      * asks for. Nothing is fetched or stored.
      */
@@ -426,6 +524,21 @@ final class SiteDomainClient
     ): SiteWordingCompare {
         return SiteWordingCompare::fromPayload(
             $this->send('POST', self::item($domainUuid) . '/wording-compare', [], $companySlug, $request->serialise())
+        );
+    }
+
+    /** Compare the latest saved observations of two URLs on a verified domain. No pages are fetched. */
+    public function comparePageWording(
+        string $domainUuid,
+        string $firstUrl,
+        string $secondUrl,
+        ?string $companySlug = null,
+    ): SiteObservedWording {
+        return SiteObservedWording::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/page-wording', [
+                'firstUrl' => $firstUrl,
+                'secondUrl' => $secondUrl,
+            ], $companySlug)
         );
     }
 
@@ -675,6 +788,24 @@ final class SiteDomainClient
         return SiteLighthousePages::fromPayload(
             $this->send('PUT', self::lighthousePages($domainUuid), [], $companySlug, ['urls' => array_values($urls)])
         );
+    }
+
+    /** Read the configured network probes and their latest results. */
+    public function listProbes(string $domainUuid, ?string $companySlug = null): SiteProbeList
+    {
+        return SiteProbeList::fromPayload($this->send('GET', self::item($domainUuid) . '/probes', [], $companySlug));
+    }
+
+    /**
+     * Replace the configured network probes. An empty list disables them.
+     *
+     * @param list<SiteProbeSpec> $probes
+     */
+    public function setProbes(string $domainUuid, array $probes, ?string $companySlug = null): SiteProbeList
+    {
+        $body = ['probes' => array_map(static fn (SiteProbeSpec $probe): array => $probe->toPayload(), $probes)];
+
+        return SiteProbeList::fromPayload($this->send('PUT', self::item($domainUuid) . '/probes', [], $companySlug, $body));
     }
 
     /** List safe metadata for live report shares. Tokens are returned only on creation. */

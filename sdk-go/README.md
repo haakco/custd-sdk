@@ -230,9 +230,11 @@ carry the `SiteSearchInspection*Code` constants.
 refusals carry the `SiteIndexNow*Code` constants.
 
 Each finding carries a `Remedy`: what the fix changes (`Kind`, `Element`) and,
-for some rules, `Generated` code to copy. The page tools work on one page:
+for some rules, `Generated` code to copy, and `Recheckable` when a one-page
+recheck can confirm the fix. The page tools work on one page:
 `GetPageFacts` returns what the last audit read, `RequestPageRecheck` queues a
-recheck (poll `GetPageRecheck`; `SitePageRecheckLimitCode` past the hourly
+recheck (poll `GetPageRecheck`, or `ListPageRechecks` for up to
+`SitePageRecheckReadLimit` at once; `SitePageRecheckLimitCode` past the hourly
 allowance, `SitePageNotOnDomainCode` for another host), `CheckPage` checks draft
 HTML without storing it, and `TestRobots` answers whether a crawler may fetch a
 URL under a pasted or the live robots.txt. `GetProjectContext` and
@@ -275,17 +277,37 @@ Site's domains: each source's totals with status, scope and date, the domain's
 Common Crawl authority, the referring domains with their source labels, and the
 domains lost since the previous release. A source with no number has `nil`
 counts, never 0. The tenant-wide shared search pool uses `GetSearchPool`,
-`SetSearchPool(ctx, joined)` and `ListSearchPoolQueries`; `GetRankings` reports
-`Pool` and, for a member, each keyword's pool band (`nil` otherwise, and from a
-server that predates the pool).
+`SetSearchPool(ctx, joined, termsVersion)` and `ListSearchPoolQueries`. Joining
+accepts the pool terms for the organisation, so it must name the terms version
+(the setting's `TermsVersion`, or `AdminSiteSearchPoolTermsVersion`); leaving
+ignores it. `GetRankings` reports `Pool` and, for a member, each keyword's pool
+band (`nil` otherwise, and from a server that predates the pool).
 
 `CheckPage` takes an optional `PreviousURL` and `Phrase` and then returns the
 draft's `Slug`, the `Redirect` a move needs (format `redirect`) and the phrase's
 `Phrase` use; page facts carry `ShareImage` and `FAQSchema`. `CompareWording`
 measures two drafts as the `content.near-duplicate` rule does (`SharedPercent`
-is `nil` when the texts were too short to compare). `ListCampaignLinks`,
+is `nil` when the texts were too short to compare). `ComparePageWording` compares
+the latest stored observations of two URLs on the verified domain without
+fetching either URL. Each page has an evidence state and an observation time
+when checked. `ListCampaignLinks`,
 `CreateCampaignLink` and `ArchiveCampaignLink` keep a domain's saved UTM links
 (409 `SiteCampaignLinkTakenCode` or `SiteCampaignLinkLimitCode`).
+
+`CheckPage` with `Scope: AdminSitePageCheckScopeContent` checks body content only
+(the template supplies the head and h1) and lists the rules it checked in
+`CheckedRules`; `GetPageFacts` answers 404 `SitePageNotReadCode` for a page
+nothing has read yet. `GetPageSearchQueries` returns one page's Search Console
+queries with title options and pages that could link to it. Keyword clusters
+carry Bing keyword research in `Demand` (`nil` from an older server) and lists
+carry Bing's `Related` keywords; a number Bing did not report is `nil`.
+`GetAnalytics`, `ConnectAnalytics` and `DisconnectAnalytics` read a domain's
+GA4 property (`SiteAnalytics*Code` refusals; a measure GA4 did not report is
+`nil`). `ExportSiteInsights` returns the domain's whole Site Insights data and
+`ExportSearchMetrics` pages its daily search metrics. `RetrySearchImport` makes
+a failing import due now (409 `SiteSearchRetryNotFailingCode` otherwise), and
+`Admin.System.ListSiteInsightsTasks` shows the Site Insights scheduler tasks to a
+system administrator.
 
 `NextActions` returns a domain's status, one plain `Headline`, what is not
 checked yet and its three most important actions in Custd's fixed order
@@ -409,6 +431,11 @@ application principals a directory holds, through `/api/v1/admin/auth-projects`:
 - `CreateEnvironment`
 - `ListPrincipalSessions`, `RevokePrincipalSession`, `RevokePrincipalSessions`
 - `RevokePrincipalMembership`
+- Apps (`/api/v1/admin/apps`): `CreateApp` creates the project, its hosted
+  environment and ingest destination in one call and requires `IdempotencyKey`
+  (repeat it to finish `app_setup_incomplete`); `ListApps` and `GetApp` report one
+  `AppStatus` per app; `CreateAppDeployCredential` returns a CI client that can
+  deploy only that app (its secret is shown once) and `DeleteAppDeployCredential`
 - Hosted app releases: `CreateAppRelease` (manifest files and routing),
   `UploadAppReleaseFile` (one file's raw bytes, sent as `application/octet-stream`),
   `VerifyAppRelease`, `PromoteAppRelease` and `ListAppReleases`
@@ -417,6 +444,16 @@ An environment is served as a hosted app by the optional `Hosting` field of
 `AuthProjectDesiredState`; a nil value keeps the stored section.
 `AuthProjectStatus.Hosting` reports the derived host, origin and, with the
 `sign_in` capability, the sign-in client.
+The optional `SocialSignIn` field turns Google and GitHub sign-in on per
+environment, with Custd's shared provider app (`AuthProjectSocialModeShared`)
+or the owner's own (`AuthProjectSocialModeOwn`, whose `ClientSecret` is sent once
+and kept while `ClientID` is unchanged); a nil value keeps the stored providers.
+Its read-only `Status` lists the callback URLs to register with an own app.
+
+`Admin.Webhooks.Create` takes `Kind`: `NotificationWebhookKindWebhook` (signed
+JSON, the default) or `NotificationWebhookKindSlack`, whose endpoint is the Slack
+incoming-webhook URL. That URL is the secret: it is sealed, only a hint is read
+back and `SigningSecret` is empty.
 
 Every call takes a `custd.AuthProjectRequestOptions`. A machine credential must
 name the platform user it acts for in `OwningUserUUID`, sent as

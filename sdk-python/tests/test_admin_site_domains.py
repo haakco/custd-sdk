@@ -13,6 +13,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from custd import (
+    SITE_CHOICE_REQUIRED_CODE,
     SITE_DOMAIN_NOT_VERIFIED_CODE,
     SITE_GENERATED_FORMAT_HTML,
     SITE_INDEXNOW_ACCEPTED,
@@ -26,6 +27,7 @@ from custd import (
     SITE_PAGE_NOT_ON_DOMAIN_CODE,
     SITE_PAGE_RECHECK_CHECKED,
     SITE_PAGE_RECHECK_LIMIT_CODE,
+    SITE_PAGE_RECHECK_READ_LIMIT,
     SITE_REMEDY_KIND_CONTENT,
     SITE_REMEDY_KIND_MARKUP,
     SITE_REMEDY_KIND_SERVER,
@@ -71,6 +73,21 @@ def site_domains(status: int, body: Any) -> tuple[Any, RecordingTransport]:
 
 
 class SiteDomainRoutesTest(unittest.TestCase):
+    def test_probe_configuration_and_dns_mismatch(self) -> None:
+        spec = {"kind": "dns", "expectedAddresses": ["192.0.2.1"]}
+        detail = {"missingAddresses": ["192.0.2.1"], "unexpectedAddresses": ["192.0.2.2"]}
+        domains, transport = site_domains(200, {"probes": [{**spec, "status": "down", "detail": detail}]})
+        url = f"{BASE}/{DOMAIN}/probes?companySlug=acme"
+
+        domains.set_probes(DOMAIN, [{"kind": "dns", "expectedAddresses": ["192.0.2.1"]}], company_slug="acme")
+        self.assertEqual(domains.list_probes(DOMAIN, company_slug="acme")["probes"][0]["detail"], detail)
+        transport.body = {"probes": []}
+        self.assertEqual(domains.set_probes(DOMAIN, [], company_slug="acme"), {"probes": []})
+        self.assertEqual(
+            transport.calls,
+            [("PUT", url, {"probes": [spec]}), ("GET", url, None), ("PUT", url, {"probes": []})],
+        )
+
     def test_domain_operations_send_their_routes_and_acting_company(self) -> None:
         domains, transport = site_domains(200, FIXTURES["domain"])
 
@@ -293,6 +310,31 @@ class SitePageToolsTest(unittest.TestCase):
         domains, _ = site_domains(200, PAGE_TOOLS["pageRecheckFailed"])
         self.assertEqual("the page answered HTTP 503", domains.get_page_recheck(DOMAIN, "r")["failure"])
 
+    def test_reads_several_rechecks_in_one_call_with_comma_joined_ids(self) -> None:
+        domains, transport = site_domains(200, PAGE_TOOLS["pageRecheckList"])
+
+        listed = domains.list_page_rechecks(DOMAIN, ["r-1", "r-2"])
+
+        self.assertEqual(["checked", "failed"], [recheck["state"] for recheck in listed["rechecks"]])
+        self.assertEqual([("GET", f"{BASE}/{DOMAIN}/page-rechecks?ids=r-1%2Cr-2", None)], transport.calls)
+        self.assertEqual(30, SITE_PAGE_RECHECK_READ_LIMIT)
+
+    def test_findings_say_which_rules_a_recheck_confirms(self) -> None:
+        domains, _ = site_domains(200, FIXTURES["findingList"])
+
+        findings = domains.list_findings(DOMAIN)["findings"]
+
+        self.assertEqual([True, False], [finding.get("recheckable", False) for finding in findings])
+
+    def test_create_without_a_site_surfaces_the_choice_needed(self) -> None:
+        domains, transport = site_domains(422, FIXTURES["siteChoiceRequiredProblem"])
+
+        with self.assertRaises(RequestError) as raised:
+            domains.create({"host": "blog.example.com"})
+
+        self.assertEqual((422, SITE_CHOICE_REQUIRED_CODE), (raised.exception.status, raised.exception.code))
+        self.assertEqual([("POST", BASE, {"host": "blog.example.com"})], transport.calls)
+
     def test_decodes_draft_findings_with_remedies(self) -> None:
         domains, _ = site_domains(200, PAGE_TOOLS["pageCheck"])
 
@@ -425,6 +467,31 @@ class SiteProjectContextTest(unittest.TestCase):
         self.assertNotIn("updatedAt", empty)
 
 
+    def test_hacker_news_option_and_trend_evidence(self) -> None:
+        domains, transport = site_domains(200, {**PAGE_TOOLS["projectContext"], "hackerNewsEnabled": True})
+        enabled = domains.set_project_context(
+            {"brandNames": [], "competitorDomains": [], "markets": [], "hackerNewsEnabled": True}
+        )
+        domains.set_project_context(
+            {"brandNames": [], "competitorDomains": [], "markets": [], "hackerNewsEnabled": False}
+        )
+        self.assertIs(enabled["hackerNewsEnabled"], True)
+        self.assertIs(transport.calls[0][2]["hackerNewsEnabled"], True)
+        self.assertIs(transport.calls[1][2]["hackerNewsEnabled"], False)
+
+        web_data = json.loads((CONTRACT_FIXTURES / "site-web-data.json").read_text())
+        domains, transport = site_domains(200, web_data["regionalTrends"])
+        trends = domains.get_regional_trends(SITE, company_slug="acme")
+        self.assertEqual([("GET", f"{BASE}/regional-trends?siteUuid={SITE}&companySlug=acme", None)], transport.calls)
+        self.assertEqual("ZA", trends["markets"][0]["country"])
+        self.assertEqual("Hacker News", trends["technical"]["source"])
+        self.assertEqual(
+            "https://news.ycombinator.com/item?id=123", trends["technical"]["matches"][0]["discussionUrl"]
+        )
+        domains, _ = site_domains(200, web_data["regionalTrendsWithoutTechnical"])
+        self.assertNotIn("technical", domains.get_regional_trends())
+
+
 class SiteReportingTest(unittest.TestCase):
     def test_reporting_reads_send_their_routes(self) -> None:
         domains, transport = site_domains(200, REPORTING["created"])
@@ -552,7 +619,7 @@ class SiteIndexNowTest(unittest.TestCase):
 
 class SiteRuleIdsTest(unittest.TestCase):
     def test_rule_ids_are_unique_and_cover_check_rules(self) -> None:
-        self.assertEqual(76, len(SITE_RULE_IDS))
+        self.assertEqual(77, len(SITE_RULE_IDS))
         self.assertEqual(len(SITE_RULE_IDS), len(set(SITE_RULE_IDS)))
         self.assertIn("tls.expiring-soon", SITE_RULE_IDS)
         self.assertIn("lighthouse.mobile-score-drop", SITE_RULE_IDS)

@@ -6,14 +6,14 @@ Ingestion client with retry, batching, and optional offline queueing.
 
 The supported 3.x SDK sends events to `POST /api/v1/events` and batches to
 `POST /api/v1/events/batch`. Installation examples below were verified against
-release **3.45.0** on 2026-11-17, including Node 26, pnpm 12 and Expo 58 consumers.
+release **3.52.0** on 2026-11-17, including Node 26, pnpm 12 and Expo 58 consumers.
 
 ## Install
 
 Use the GitHub package path when installing into HaakCo apps:
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.45.0&path:/sdk-js'
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.52.0&path:/sdk-js'
 ```
 
 Pin the tag to the SDK version you want. The package is no longer published to
@@ -355,6 +355,115 @@ if (started.status === "ready") {
 in `app.problems` while the others keep running. App events must be registered
 event types with flat scalar properties; `trackAppEvent` never rejects either.
 
+### App items
+
+With `app_data` enabled, `app.appItems` is an `AppItemsClient` for the app's
+items. Creating one needs only the Site key; every other call takes the item's
+owner link token (reads and changes) or share link token (reads only). Tokens
+travel only in the `Authorization` header and are never logged.
+
+```ts
+import { appItemOwnerUrl, appItemShareUrl, parseAppItemLink } from "@haakco/custd-sdk/browser";
+
+const items = app.appItems!; // or AppItemsClient.fromDiscovery(discovery)
+const created = await items.createItem({
+  kind: "measurement_project",
+  measurementProject: { kind: "deadline_forecast", name: "Launch", series: [series], target },
+});
+const ownerUrl = appItemOwnerUrl({ host: app.discovery.host, kindPath: "c", token: created.ownerToken });
+const shareUrl = appItemShareUrl({ host: app.discovery.host, kindPath: "c", token: created.shareToken });
+
+await items.addMeasurements(created.ownerToken, { rows: [{ observedAt: new Date().toISOString(), value: 12 }] });
+await items.runForecast(created.ownerToken);
+
+const pasted = parseAppItemLink(input); // owner URL, share URL or bare token; null otherwise
+const watch = items.watchItem(created.shareToken); // { getState, subscribe, refresh }
+const stop = watch.subscribe(() => render(watch.getState()));
+```
+
+Reads (`readItem`, `latestForecast`, `forecastRun`, `forecastStory`) take
+`{ item, etag }` and return `{ status: "modified", data, etag }` or
+`{ status: "not_modified", etag }`. `item` reads an entry of a dashboard through
+the dashboard's own link. Failures throw `AppItemError` with the server's
+`code` (`APP_ITEM_ERROR_CODES`); `terminal` is true when retrying cannot help.
+
+`watchItem`, `watchLatestForecast` and `watchForecastStory` poll with
+`If-None-Match` every 5 s (`intervalMs`), pause while the tab is hidden, poll at
+once when it is shown or the browser comes back online, and back off up to 60 s
+while requests fail. Watchers of the same read and link share one poller. State
+is `loading`, `fresh`, `stale` (earlier data, the last poll failed), `offline`
+or `error` (`retrying: false` once the link or key is refused, until
+`refresh()`); `lastUpdatedAt` is when the server last confirmed the data,
+including an unchanged answer. A write through the client polls that link's
+watchers at once. The latest forecast is `empty` until a first run exists.
+Watchers share a poller on the same client. A Site key refused for the page's
+origin gets no CORS header, so the browser reports it as `network`/`offline`.
+
+Watched reads also listen on one realtime WebSocket per client
+(`/api/v1/realtime`): a pushed `item.changed` polls that read at once, and while
+push carries a read its timer stays quiet. The socket reconnects with backoff
+and resubscribes; while it is down or refused, reads poll as above. It uses the
+global `WebSocket` unless you pass your own `fetch`; then pass `webSocket` too,
+or `null` for polling only.
+
+A signed-in user's access token travels in `X-Custd-User-Token` beside the
+link: `startHostedApp` wires it from `app.signIn`, or pass `userToken` to the
+client. `listMyItems()` reads "my items", `claim(ownerToken)` takes ownership of
+an unowned item, and `{ item: itemUuid }` in place of a token reaches an item
+the user owns without a link. Reads carry `item.ownership` (`unowned`, `yours`,
+`other`). `error.signInNeeded` means sign in again; `app_user_check_unavailable`
+is retried and keeps the session.
+
+Model items add `addModelVersion`, `copyModel`, `runModel`, `latestModelRun`,
+`watchLatestModelRun` and `calculateModel(token, { versionNumber, inputs,
+outputs })`, which any link may call and which stores nothing.
+
+Meeting items are created with `{ kind: "meeting", meeting: { name, blocks:
+[{ title, predictedMs }] } }`. The owner calls `startMeeting`,
+`advanceMeeting(token, { blockUuid })` and `endMeeting`; each returns the item
+read, whose `meeting` holds `status`, `currentBlockUuid`, every block's
+`predictedMs`, `allocatedMs` (rebalanced after an overrun) and `actualMs`, and
+the `summary`. `blockUuid` names the block being finished, so a retried
+advance is a no-op; a stale one fails with 409
+`APP_MEETING_ERROR_CODES.stepRefused` and the client's watchers poll at once.
+
+Alerts manage the item with the owner link or the owning user:
+`alertSettings`, `addAlertRule(token, { type, threshold?, staleDays? })`,
+`removeAlertRule`, `addAlertWebhook(token, { endpoint })` (its
+`signingSecret` is shown once), `addAlertSlack(token, { webhookUrl })` (a Slack
+incoming webhook; the URL is sealed and only a hint comes back, `kind:
+"slack"`), `removeAlertWebhook` (either kind), `alertDeliveries`, and
+for a signed-in user `subscribeAlertEmail` and `unsubscribeAlertEmail`.
+`error.verifiedEmailNeeded` means the user has no verified address
+(`app_alert_no_verified_email`); `app_alert_email_check_unavailable` is
+retryable. The codes are in `APP_ALERT_ERROR_CODES`.
+
+### Testing apps without Custd
+
+`@haakco/custd-sdk/testing` is an in-memory Custd for an app's tests. It serves
+the discovery file, the app item, link, measurement, estimate, forecast,
+model, alert and meeting routes, and a PKCE sign-in, with deterministic,
+deliberately simple results (a straight-line forecast, model midpoints). Its
+answers are built from this SDK's DTOs, so a contract change fails your
+typecheck. `fake.requests` records every request for assertions. Every
+capability starts: tracking and error capture are recorders that touch no page
+globals and send nothing, so `fake.trackedEvents` and `fake.capturedErrors` hold
+what the app tracked and captured.
+
+```ts
+import { startHostedApp } from "@haakco/custd-sdk/browser";
+import { FakeCustd, signInWithFake } from "@haakco/custd-sdk/testing";
+
+const fake = new FakeCustd({ now: () => Date.parse("2026-01-01T00:00:00Z") });
+const start = await startHostedApp(fake.hostedAppOptions());
+if (start.status === "ready" && start.app.signIn) await signInWithFake(fake, start.app.signIn, "alice");
+const items = fake.appItemsClient({ userToken: "alice" });
+```
+
+In a browser test, route the page's requests to `fake.handle({ method, url,
+headers, body })` and serve its `{ status, headers, body }`; the API lives under
+`/__custd` and sign-in under `/__auth` on the fake's `origin`.
+
 ## Browser app user sign-in
 
 `BrowserSignIn` signs a hosted app's users in through the environment's Custd
@@ -405,6 +514,7 @@ address and connect Google or Bing search numbers. The routes are under
 import { SITE_DOMAIN_NOT_VERIFIED_CODE, SiteRule } from "@haakco/custd-sdk";
 
 const domain = await client.admin.siteDomains.create({ siteUuid, host: "example.com" });
+// Or omit siteUuid: Custd places the host (SITE_CHOICE_REQUIRED_CODE when it cannot tell).
 // Publish domain.ownership.instructions (DNS TXT or well-known file), then:
 await client.admin.siteDomains.verify(domain.domainUuid);
 await client.admin.siteDomains.requestAudit(domain.domainUuid);
@@ -418,8 +528,10 @@ client-side fix on them. A refused audit of an unverified domain is a
 `CustdRequestError` whose `code` is `SITE_DOMAIN_NOT_VERIFIED_CODE`.
 
 Each finding carries a `remedy` (`kind`, `element`, and ready-to-copy
-`generated` code for some rules). The page tools are `getPageFacts`,
-`requestPageRecheck` / `getPageRecheck` (refusals: `SITE_PAGE_NOT_ON_DOMAIN_CODE`,
+`generated` code for some rules) and `recheckable` when a one-page recheck can
+confirm the fix. The page tools are `getPageFacts`,
+`requestPageRecheck` / `getPageRecheck` / `listPageRechecks` (up to
+`SITE_PAGE_RECHECK_READ_LIMIT` at once; refusals: `SITE_PAGE_NOT_ON_DOMAIN_CODE`,
 `SITE_PAGE_RECHECK_LIMIT_CODE`), `checkPage` for draft HTML and `testRobots`.
 Search adds `listSearchRows` (its `unavailable` list names providers that cannot
 report a dimension) and Search Console URL inspection
@@ -450,13 +562,26 @@ More reads and controls on the same client:
   of the Site's web domains per source (`SiteLinkSource` bing, commoncrawl, crawl), its Common
   Crawl authority and lost links. A count a source did not report is absent, never `0`.
 - Shared search pool (tenant-wide; a site-bound credential is refused with
-  `SITE_SEARCH_POOL_SITE_BOUND_CODE`): `getSearchPool`, `setSearchPool(joined)` and
+  `SITE_SEARCH_POOL_SITE_BOUND_CODE`): `getSearchPool`, `setSearchPool(joined, termsVersion?)` and
   `listSearchPoolQueries(search?, limit?)` (refused with `SITE_SEARCH_POOL_NOT_JOINED_CODE`
   before joining). `getRankings` then carries `pool` and each keyword's pooled `pool` band.
+  Joining is audited consent: pass the `termsVersion` the caller accepted (the setting's
+  `termsVersion`; `SEARCH_POOL_TERMS_VERSION` names the one current at this release). Joining
+  without it is refused locally before any request; leaving sends only `{ joined: false }`.
+- Page search queries: `getPageSearchQueries(domainUuid, url)` returns one page's queries, title
+  options and pages to link from. `checkPage` takes `scope` (`SitePageCheckScope`); a content
+  check returns `checkedRules`. `getPageFacts` answers 404 `SITE_PAGE_NOT_READ_CODE` for a page
+  nothing has read yet. Keyword clusters carry Bing `demand`, and keyword lists `related` keywords.
+- GA4: `getAnalytics`, `connectAnalytics(domainUuid, { propertyId })` and `disconnectAnalytics`.
+  `retrySearchImport(domainUuid, provider)` retries a failing search import.
+- Export: `getExport(domainUuid)` and `listExportSearchMetrics(domainUuid, { offset, limit })`.
+- Operators: `client.admin.siteInsights.listTasks()` reads the Site Insights tasks' state.
 - Draft tools: `checkPage` takes optional `previousUrl` and `phrase` and returns `slug`,
   `redirect` (format `redirect`) and `phrase`; page facts carry `shareImage` and `faqSchema`.
   `compareWording(domainUuid, { first, second })` measures shared wording as the
   `content.near-duplicate` rule does; `sharedPercent` is absent when the texts were not compared.
+  `comparePageWording(domainUuid, { firstUrl, secondUrl })` compares two stored checks from
+  one verified domain and returns each page's evidence state. Neither URL is fetched.
 - Campaign links: `listCampaignLinks(domainUuid, includeArchived?)`, `createCampaignLink` and
   `archiveCampaignLink` keep a domain's saved UTM links (409 `SITE_CAMPAIGN_LINK_TAKEN_CODE` or
   `SITE_CAMPAIGN_LINK_LIMIT_CODE`).
@@ -676,6 +801,13 @@ application principals a directory holds, through `/api/v1/admin/auth-projects`:
 - `createEnvironment`
 - `listPrincipalSessions`, `revokePrincipalSession`, `revokePrincipalSessions`
 - `revokePrincipalMembership`
+- Apps (`/api/v1/admin/apps`): `createApp({ name, signIn? })` creates the
+  project, its hosted environment and ingest destination in one call and
+  requires `idempotencyKey` (repeat it to finish `app_setup_incomplete`);
+  `listApps(after?)` and `getApp(slug)` report one `status` per app (codes in
+  `APP_STATUSES`, `APP_REASON_CODES`, `APP_ERROR_CODES`);
+  `createAppDeployCredential(slug)` returns a CI client that can deploy only that
+  app (its secret is shown once) and `deleteAppDeployCredential(slug, clientId)`
 - Hosted app releases: `createAppRelease` (manifest files and routing),
   `uploadAppReleaseFile` (one file's raw bytes, sent as `application/octet-stream`),
   `verifyAppRelease`, `promoteAppRelease` and `listAppReleases`

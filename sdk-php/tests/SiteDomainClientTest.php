@@ -6,8 +6,13 @@ namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\AdminProblemException;
 use HaakCo\Custd\Admin\SiteDomain\CreateSiteDomainRequest;
+use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollectorMode;
+use HaakCo\Custd\Admin\SiteDomain\SiteBrowserCollectorRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteCheckMode;
+use HaakCo\Custd\Admin\SiteDomain\SiteDomainChecks;
+use HaakCo\Custd\Admin\SiteDomain\SiteChromeUx;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingState;
+use HaakCo\Custd\Admin\SiteDomain\SiteProbeSpec;
 use HaakCo\Custd\Admin\SiteDomain\SiteRule;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchConnectionStatus;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchProvider;
@@ -19,6 +24,74 @@ use PHPUnit\Framework\TestCase;
 final class SiteDomainClientTest extends TestCase
 {
     private const BASE = "http://localhost:8080/api/v1/site-domains";
+
+    public function testNetworkProbeSettingsAndDnsMismatch(): void
+    {
+        $calls = [];
+        $address = '192.0.2.1';
+        $dns = new SiteProbeSpec(SiteProbeSpec::DNS, expectedAddresses: [$address]);
+        $transport = static function (string $method, string $url, ?array $request) use (&$calls, $address): array {
+            $calls[] = [$method, $url, $request];
+            $probes = $request === ['probes' => []] ? [] : [[
+                'kind' => 'dns',
+                'expectedAddresses' => [$address],
+                'status' => 'down',
+                'detail' => ['missingAddresses' => [$address], 'unexpectedAddresses' => ['192.0.2.2']],
+            ]];
+
+            return ['status' => 200, 'body' => json_encode(['probes' => $probes], JSON_THROW_ON_ERROR)];
+        };
+        $domains = (new CustdClient('http://localhost:8080', 'token', ['admin_http_client' => $transport]))
+            ->adminSiteDomains();
+        $url = self::BASE . '/d-1/probes?companySlug=acme';
+
+        $domains->setProbes('d-1', [$dns], 'acme');
+        $result = $domains->listProbes('d-1', 'acme')->probes[0];
+        self::assertNotNull($result->detail);
+        self::assertSame([$address], $result->detail->missingAddresses);
+        self::assertSame(['192.0.2.2'], $result->detail->unexpectedAddresses);
+        self::assertSame([], $domains->setProbes('d-1', [], 'acme')->probes);
+        self::assertSame([
+            ['PUT', $url, ['probes' => [['kind' => 'dns', 'expectedAddresses' => [$address]]]]],
+            ['GET', $url, null],
+            ['PUT', $url, ['probes' => []]],
+        ], $calls);
+    }
+
+    public function testRegistrationWithUnknownExpiryKeepsRegistryEvidence(): void
+    {
+        $fixture = json_decode((string) file_get_contents(__DIR__ . '/../../contract-fixtures/site-insights.json'));
+        self::assertInstanceOf(\stdClass::class, $fixture);
+        $checks = $fixture->domain->checks;
+        $checks->registration = (object) [
+            'domain' => 'example.com',
+            'source' => 'rdap.example.com',
+            'readAt' => '2026-11-20T07:00:00Z',
+        ];
+
+        $registration = SiteDomainChecks::fromPayload($checks)->registration;
+        self::assertNotNull($registration);
+        self::assertSame('rdap.example.com', $registration->source);
+        self::assertSame('2026-11-20T07:00:00Z', $registration->readAt);
+        self::assertNull($registration->expiresAt);
+    }
+
+    public function testChromeUxKeepsZeroSeparateFromMissingMetrics(): void
+    {
+        $fieldData = SiteChromeUx::fromPayload((object) [
+            "checkedAt" => "2026-11-20T07:00:00Z",
+            "observation" => (object) [
+                "firstDate" => "2026-10-21T00:00:00Z",
+                "lastDate" => "2026-11-17T00:00:00Z",
+                "cls" => 0,
+            ],
+        ]);
+
+        self::assertNotNull($fieldData->observation);
+        self::assertSame(0.0, $fieldData->observation->cls);
+        self::assertNull($fieldData->observation->inpMs);
+        self::assertNull(SiteChromeUx::fromPayload((object) ["checkedAt" => $fieldData->checkedAt])->observation);
+    }
 
     public function testOperationsSendTheirRoutesAndCompanySlug(): void
     {
@@ -59,6 +132,29 @@ final class SiteDomainClientTest extends TestCase
 
         self::assertSame(["host" => "shop.example.com"], $calls[0]["body"]);
         self::assertSame("GET " . self::BASE, $calls[1]["method"] . " " . $calls[1]["url"]);
+    }
+
+    public function testBrowserCollectorConvergesWithTheSiteCredential(): void
+    {
+        $calls = [];
+        $domains = $this->client($calls)->adminSiteDomains();
+        $enabled = $domains->convergeBrowserCollector("d-1", SiteBrowserCollectorRequest::enable("production"));
+        $disabled = $domains->convergeBrowserCollector("d-1", SiteBrowserCollectorRequest::disable());
+
+        self::assertSame(
+            [
+                ["method" => "PUT", "url" => self::BASE . "/d-1/browser-collector", "body" => ["mode" => "enabled", "environment" => "production"]],
+                ["method" => "PUT", "url" => self::BASE . "/d-1/browser-collector", "body" => ["mode" => "disabled"]],
+            ],
+            $calls,
+        );
+        self::assertSame("s-1", $enabled->siteUuid);
+        self::assertSame(SiteBrowserCollectorMode::Enabled, $enabled->mode);
+        self::assertSame("site_pk_example", $enabled->browserKey);
+        self::assertSame("production", $enabled->environment);
+        self::assertSame("https://www.example.com", $enabled->allowedOrigin);
+        self::assertSame(SiteBrowserCollectorMode::Disabled, $disabled->mode);
+        self::assertNull($disabled->browserKey);
     }
 
     /** A reseller emails one Site's alerts to its customer, and clears it again. */
@@ -186,7 +282,7 @@ final class SiteDomainClientTest extends TestCase
 
     public function testSiteRuleNamesEveryCatalogueRuleAndTheFixtureFindings(): void
     {
-        self::assertCount(76, SiteRule::cases());
+        self::assertCount(77, SiteRule::cases());
         $fixture = json_decode(
             (string) file_get_contents(__DIR__ . "/../../contract-fixtures/site-insights.json"),
             true,
@@ -345,6 +441,9 @@ final class SiteDomainClientTest extends TestCase
             }
             $payload = match (true) {
                 str_ends_with($path, "/attestation") => $this->attestedDomain(),
+                str_ends_with($path, "/browser-collector") => ($body["mode"] ?? null) === "enabled"
+                    ? ["siteUuid" => "s-1", "mode" => "enabled", "browserKey" => "site_pk_example", "environment" => "production", "allowedOrigin" => "https://www.example.com"]
+                    : ["siteUuid" => "s-1", "mode" => "disabled"],
                 str_ends_with($path, "/alert-destination") => ["siteUuid" => "s-1"],
                 str_ends_with($path, "/search-account") => [
                     "googleConfigured" => true,

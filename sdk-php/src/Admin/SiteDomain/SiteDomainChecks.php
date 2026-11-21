@@ -18,12 +18,16 @@ final readonly class SiteDomainChecks
         public SiteTls $tls,
         public SiteWarming $warming,
         public ?SiteIncident $openIncident = null,
+        public ?SiteChromeUx $chromeUx = null,
+        public ?SiteRegistration $registration = null,
     ) {
     }
 
     public static function fromPayload(\stdClass $payload): self
     {
         $incident = Fields::optionalObject($payload, 'openIncident');
+        $chromeUx = Fields::optionalObject($payload, 'chromeUx');
+        $registration = Fields::optionalObject($payload, 'registration');
 
         return new self(
             SiteCheckMode::from(Fields::string($payload, 'mode')),
@@ -31,6 +35,8 @@ final readonly class SiteDomainChecks
             SiteTls::fromPayload(Fields::object($payload, 'tls')),
             SiteWarming::fromPayload(Fields::object($payload, 'warming')),
             $incident === null ? null : SiteIncident::fromPayload($incident),
+            $chromeUx === null ? null : SiteChromeUx::fromPayload($chromeUx),
+            $registration === null ? null : SiteRegistration::fromPayload($registration),
         );
     }
 }

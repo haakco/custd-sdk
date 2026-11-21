@@ -27,6 +27,15 @@ final class SiteSearchPoolClient
     /** The problem code of the 400 returned for a search over SearchPoolQueryPage::MAX_SEARCH_LENGTH or a bad limit. */
     public const SEARCH_POOL_QUERY_INVALID_CODE = 'site_search_pool_query_invalid';
 
+    /**
+     * The shared search pool terms version current when this SDK was released
+     * (https://custd.com/docs/terms/shared-search-pool/). A join must name the version the server
+     * requires now, which getSearchPool() reports as SearchPoolSetting::$termsVersion; prefer that
+     * live value, since this constant goes stale when the terms change. A missing or stale version is
+     * refused with a plain 400 that carries no code.
+     */
+    public const SEARCH_POOL_TERMS_VERSION = '2026-11-18';
+
     private const PATH = SiteDomainHttp::COLLECTION . '/search-pool';
 
     public function __construct(private readonly SiteDomainHttp $http)
@@ -39,12 +48,22 @@ final class SiteSearchPoolClient
         return SearchPoolSetting::fromPayload($this->http->send('GET', self::PATH, [], $companySlug));
     }
 
-    /** Join (true) or leave (false) the pool. */
-    public function setSearchPool(bool $joined, ?string $companySlug = null): SearchPoolSetting
+    /**
+     * Join (true) or leave (false) the pool. Joining is consent the caller gives to the pool terms,
+     * so it must name the $termsVersion it accepts; joining without one throws
+     * \InvalidArgumentException before any request. Leaving sends no version.
+     */
+    public function setSearchPool(bool $joined, ?string $termsVersion, ?string $companySlug = null): SearchPoolSetting
     {
-        return SearchPoolSetting::fromPayload(
-            $this->http->send('PUT', self::PATH, [], $companySlug, ['joined' => $joined])
-        );
+        $body = ['joined' => $joined];
+        if ($joined) {
+            if ($termsVersion === null || trim($termsVersion) === '') {
+                throw new \InvalidArgumentException('custd: joining the shared search pool requires the accepted termsVersion');
+            }
+            $body['termsVersion'] = $termsVersion;
+        }
+
+        return SearchPoolSetting::fromPayload($this->http->send('PUT', self::PATH, [], $companySlug, $body));
     }
 
     /**

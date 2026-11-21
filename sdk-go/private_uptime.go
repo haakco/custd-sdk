@@ -1,17 +1,15 @@
 package custd
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
 )
 
-// PrivateUptimeReport is one observation from a probe inside the monitored network.
+// PrivateUptimeReport is an observation from a probe inside the monitored network.
 type PrivateUptimeReport struct {
 	ReportUUID string    `json:"reportUuid"`
 	ObservedAt time.Time `json:"observedAt"`
@@ -20,58 +18,57 @@ type PrivateUptimeReport struct {
 	Failure    string    `json:"failure,omitempty"`
 }
 
-// PrivateUptimeDestination identifies one monitor and its write credential.
-// Configure it through trusted deployment settings. Never log the token.
+// PrivateUptimeDestination holds the API origin and the monitor's report path and write token.
 type PrivateUptimeDestination struct {
 	BaseURL    string
 	ReportPath string
 	WriteToken string
 }
 
-// SubmitPrivateUptime sends an observation using only the monitor's write credential.
+const privateUptimeReportPrefix = "/api/v1/site-private-uptime-reports/"
+
+// SubmitPrivateUptime sends a report using only the monitor's write credential.
 func SubmitPrivateUptime(ctx context.Context, destination PrivateUptimeDestination, report PrivateUptimeReport) error {
-	endpoint, err := privateUptimeEndpoint(destination)
+	body, err := json.Marshal(report)
+	if err != nil {
+		return fmt.Errorf("custd: encode uptime report: %w", err)
+	}
+	response, err := submitSiteMonitorRequest(ctx, siteMonitorDestination(destination), privateUptimeReportPrefix, http.MethodPost, body)
 	if err != nil {
 		return err
 	}
-	body, err := json.Marshal(report)
-	if err != nil {
-		return fmt.Errorf("custd: encode private uptime observation: %w", err)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("custd: build private uptime upload: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+destination.WriteToken)
-	req.Header.Set("X-Custd-Sdk", sdkIdentity)
-	client := &http.Client{
-		Timeout:       defaultHTTPTimeout,
-		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-	}
-	response, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("custd: upload private uptime observation: %w", err)
-	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("custd: private uptime upload returned HTTP %d", response.StatusCode)
+		return fmt.Errorf("custd: uptime report returned HTTP %d", response.StatusCode)
 	}
 	return nil
 }
 
-func privateUptimeEndpoint(destination PrivateUptimeDestination) (string, error) {
-	base, err := url.Parse(destination.BaseURL)
-	if err != nil || base.Hostname() == "" || base.User != nil || base.RawQuery != "" ||
-		base.ForceQuery || base.Fragment != "" || (base.Path != "" && base.Path != "/") ||
-		!isSecureOrLocalHTTP(destination.BaseURL) {
-		return "", fmt.Errorf("custd: private uptime requires an HTTPS API origin")
+// PrivateUptimeWork is the pending check for the configured monitor, if any.
+type PrivateUptimeWork struct {
+	RequestedAt *time.Time `json:"requestedAt,omitempty"`
+}
+
+// GetPrivateUptimeWork reads pending check work using the monitor credential.
+func GetPrivateUptimeWork(ctx context.Context, destination PrivateUptimeDestination) (PrivateUptimeWork, error) {
+	var work PrivateUptimeWork
+	response, err := submitSiteMonitorRequest(ctx, siteMonitorDestination(destination), privateUptimeReportPrefix, http.MethodGet, nil)
+	if err != nil {
+		return work, err
 	}
-	const prefix = "/api/v1/site-private-uptime-reports/"
-	tenant, monitor, ok := strings.Cut(strings.TrimPrefix(destination.ReportPath, prefix), "/")
-	if !strings.HasPrefix(destination.ReportPath, prefix) || !ok || tenant == "" ||
-		monitor == "" || strings.ContainsAny(tenant+monitor, "/?#") || len(destination.WriteToken) != 64 {
-		return "", fmt.Errorf("custd: private uptime requires a report path and write credential")
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return work, fmt.Errorf("custd: uptime work returned HTTP %d", response.StatusCode)
 	}
-	return strings.TrimRight(destination.BaseURL, "/") + destination.ReportPath, nil
+	body, err := io.ReadAll(io.LimitReader(response.Body, 1025))
+	if err != nil {
+		return work, fmt.Errorf("custd: read uptime work: %w", err)
+	}
+	if len(body) > 1024 {
+		return work, fmt.Errorf("custd: uptime work exceeds 1024 bytes")
+	}
+	if err := json.Unmarshal(body, &work); err != nil {
+		return work, fmt.Errorf("custd: decode uptime work: %w", err)
+	}
+	return work, nil
 }

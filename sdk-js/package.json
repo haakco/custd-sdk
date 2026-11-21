@@ -1,6 +1,6 @@
 {
   "name": "@haakco/custd-sdk",
-  "version": "3.48.0",
+  "version": "3.64.4",
   "type": "module",
   "engines": {
     "node": ">=24 <27"
@@ -23,6 +23,11 @@
       "types": "./dist/browser-script.d.ts",
       "import": "./dist/browser-script.js",
       "default": "./dist/browser-script.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
     }
   },
   "files": [
@@ -39,9 +44,9 @@
     "smoke:dev": "pnpm run build && node scripts/smoke-dev.js"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.15",
+    "@biomejs/biome": "^2.6.8",
     "typescript": "^7.0.2",
-    "vite": "8.3.4",
-    "vitest": "^5.0.5"
+    "vite": "8.3.8",
+    "vitest": "^5.1.0"
   }
 }

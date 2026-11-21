@@ -1,0 +1,11 @@
+{
+  "notFoundPage": "404.html",
+  "spaFallbacks": [{ "prefix": "/c/", "file": "index.html" }, { "prefix": "/edit/", "file": "index.html" }],
+  "headers": [
+    {
+      "route": "/edit/**",
+      "headers": [{ "name": "Referrer-Policy", "value": "no-referrer" }]
+    }
+  ],
+  "cache": [{ "match": "assets/**", "mode": "immutable" }]
+}

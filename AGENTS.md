@@ -14,6 +14,7 @@ Improve the shared SDKs instead of creating one-off clients in product repositor
 | `sdk-js/` | TypeScript SDK package `@haakco/custd-sdk`. |
 | `sdk-python/` | Python package `custd-sdk`. |
 | `sdk-php/` | Composer package `haakco/custd-sdk`. |
+| `sdk-rust/` | Rust crate `custd-sdk`, consumed as a git dependency at the release tag (not on crates.io). |
 | `contract-fixtures/` | Shared JSON fixtures used by all SDK tests. |
 | `.github/workflows/` | CI for all SDK packages. Use self-hosted runners only. |
 
@@ -34,7 +35,7 @@ created by the subtree split inherit that same tag.
 
 - **Bump every package together.** When you change `VERSION`, update the same value
   in every package that hardcodes it: `sdk-js/package.json`, `sdk-react/package.json`,
-  `sdk-python/pyproject.toml`, `sdk-php/composer.json`, and `sdk-go/VERSION`.
+  `sdk-python/pyproject.toml`, `sdk-php/composer.json`, `sdk-go/VERSION`, and `sdk-rust/Cargo.toml`.
   `sdk-php/tests/VersionSyncTest.php` holds the enforced list — update that test in the
   same change when a published package is added or removed, and keep this list equal to it.
 - **Never hardcode a version in the Packagist-derived manifests.** The root

@@ -28,6 +28,9 @@ final class Client
      */
     public const SCOPE_TEMPLATE_SITE_INSIGHTS_READ = 'site-insights-read';
 
+    /** Read a tenant’s Site Insights AI settings and usage. */
+    public const SCOPE_TEMPLATE_SITE_AI_READ = 'site-ai-read';
+
     public function __construct(
         private readonly string $baseUrl,
         private readonly string $token,

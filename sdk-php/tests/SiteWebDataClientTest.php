@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\SiteDomain\SiteContentGap;
+use HaakCo\Custd\Admin\SiteDomain\SiteKeywordDemandSet;
 use HaakCo\Custd\Admin\SiteDomain\SiteKeywordListRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteTopicTrend;
 use HaakCo\Custd\Admin\SiteDomain\SiteWebDomain;
@@ -50,6 +51,22 @@ final class SiteWebDataClientTest extends TestCase
             'GET ' . self::BASE . '/web-domains',
             'GET ' . self::BASE . '/web-pages?siteUuid=' . self::SITE . '&domain=rival.example&limit=2',
             'GET ' . self::BASE . '/web-pages?domain=rival.example&after=https%3A%2F%2Frival.example%2Fpricing&companySlug=acme',
+        ], array_column($calls, 'route'));
+    }
+
+    public function testRegionalTrendsKeepHackerNewsSeparateAndOptional(): void
+    {
+        $trends = $this->replay($calls, 'regionalTrends')->webData()->getRegionalTrends(self::SITE, 'acme');
+        $older = $this->replay($calls, 'regionalTrendsWithoutTechnical')->webData()->getRegionalTrends();
+
+        self::assertSame('ZA', $trends->markets[0]->country);
+        self::assertNotNull($trends->technical);
+        self::assertSame('Hacker News', $trends->technical->source);
+        self::assertSame('https://news.ycombinator.com/item?id=123', $trends->technical->matches[0]->discussionUrl);
+        self::assertNull($older->technical);
+        self::assertSame([
+            'GET ' . self::BASE . '/regional-trends?siteUuid=' . self::SITE . '&companySlug=acme',
+            'GET ' . self::BASE . '/regional-trends',
         ], array_column($calls, 'route'));
     }
 
@@ -103,6 +120,34 @@ final class SiteWebDataClientTest extends TestCase
             'GET ' . self::BASE . '/keyword-clusters?name=Pricing',
         ], array_column($calls, 'route'));
         self::assertSame([null, self::fixtureArray('keywordListRequest'), null, null], array_column($calls, 'body'));
+    }
+
+    public function testKeywordResearchDecodesBingDemandAndRelatedKeywords(): void
+    {
+        $older = $this->replay($calls, 'keywordClusters')->webData()->getKeywordClusters('Pricing');
+        $demand = $this->replay($calls, 'keywordClustersWithDemand')->webData()->getKeywordClusters('Pricing');
+        $noMarket = $this->replay($calls, 'keywordClustersNoMarket')->webData()->getKeywordClusters('Pricing');
+        $list = $this->replay($calls, 'keywordListWithRelated')->webData()->saveKeywordList(
+            new SiteKeywordListRequest('Pricing', ['pricing tool'], 'pricing'),
+        );
+
+        self::assertNull($older->demand);
+        self::assertNull($older->clusters[0]->bingWeeklyImpressions);
+        self::assertSame(1400, $demand->clusters[0]->bingWeeklyImpressions);
+        self::assertNull($demand->clusters[1]->bingWeeklyImpressions);
+        self::assertSame(SiteKeywordDemandSet::STATE_AVAILABLE, $demand->demand?->state);
+        self::assertSame('en-ZA', $demand->demand->market);
+        [$tool, $checker, $audit] = $demand->demand->keywords;
+        self::assertSame(3200, $tool->broadImpressions);
+        self::assertNull($checker->broadImpressions);
+        self::assertNull($audit->weeklyImpressions);
+        self::assertNull($audit->weekOf);
+        self::assertSame('bing keyword research: the service answered 503', $audit->lastFailure);
+        self::assertSame(SiteKeywordDemandSet::STATE_NO_MARKET, $noMarket->demand?->state);
+        self::assertNull($noMarket->demand->market);
+        self::assertSame([], $noMarket->demand->keywords);
+        self::assertSame(SiteKeywordDemandSet::SOURCE_BING_KEYWORD_RESEARCH, $list->related?->source);
+        self::assertSame(12000, $list->related->keywords[0]->broadImpressions);
     }
 
     public function testKeywordListRefusalsCarryNamedCodes(): void

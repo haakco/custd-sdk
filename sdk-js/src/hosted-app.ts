@@ -2,6 +2,8 @@
 // start tracking, error capture and sign-in as the file enables them. Starting
 // never throws; every failure comes back as a typed state the app can show.
 
+import { AppItemsClient } from "./app-items.js";
+import type { AppWebSocketFactory } from "./app-push.js";
 import {
   BrowserSignIn,
   type CustdDiscoveryDocument,
@@ -10,6 +12,8 @@ import {
   signInConfigFromDiscovery,
 } from "./browser-sign-in.js";
 import {
+  type BrowserIdentityMode,
+  type BrowserSiteConfig,
   type BrowserTracker,
   type BrowserTrackerConfig,
   createBrowserTracker,
@@ -18,7 +22,7 @@ import {
   fetchBrowserSiteConfig,
   siteConfigSchemaVersion,
 } from "./browser-tracker.js";
-import { ErrorCaptureClient, installBrowserErrorCapture } from "./error-capture.js";
+import { ErrorCaptureClient, type ErrorCaptureConfig, installBrowserErrorCapture } from "./error-capture.js";
 
 export const HOSTED_APP_DISCOVERY_PATH = "/.well-known/custd.json";
 
@@ -48,6 +52,10 @@ export type HostedAppDiscovery = CustdDiscoveryDocument & {
   /** Capabilities this SDK knows; unknown values from a newer backend are dropped. */
   capabilities: HostedAppCapability[];
   signIn?: HostedAppDiscoverySignIn;
+  /** The Site's public config; when both are present the tracker starts without fetching it. */
+  identityMode?: BrowserIdentityMode;
+  allowedOrigins?: string[];
+  pageViewSchemaVersion?: string;
 };
 
 export const HOSTED_APP_ERROR_CODES = {
@@ -89,12 +97,20 @@ export const APP_EVENT_OUTCOMES = {
 
 export type AppEventOutcome = (typeof APP_EVENT_OUTCOMES)[keyof typeof APP_EVENT_OUTCOMES];
 
+/** What a hosted app's error capture offers: report one error. Always resolves. */
+export type HostedAppErrorCapture = Pick<ErrorCaptureClient, "captureException">;
+
+/** Started error capture and how to remove the page handlers it installed. */
+export type HostedAppErrorCaptureStart = { client: HostedAppErrorCapture; uninstall: () => void };
+
 export type HostedApp<TEvents extends AppEventMap = AppEventMap> = {
   discovery: HostedAppDiscovery;
   tracker?: BrowserTracker;
-  errorCapture?: ErrorCaptureClient;
+  errorCapture?: HostedAppErrorCapture;
   /** Present when sign-in is enabled. Call `restore()` on page load (the React provider does). */
   signIn?: BrowserSignIn;
+  /** Present when app data is enabled: create, read and change the app's items. */
+  appItems?: AppItemsClient;
   /** Capabilities the discovery file enabled that could not start. The app keeps working. */
   problems: HostedAppError[];
   /** Sends a typed app event through the tracker. Never rejects. */
@@ -120,6 +136,8 @@ export type HostedAppOptions = {
   discoveryUrl?: string;
   /** Used for discovery, site config, error capture and sign-in; the tracker uses the global fetch. */
   fetch?: typeof fetch;
+  /** Opens the realtime socket for watched app reads; see `AppItemsClientConfig.webSocket`. */
+  webSocket?: AppWebSocketFactory | null;
   /** Release reported with captured errors, such as the build's commit. */
   release?: string;
   /** Overrides the consent default the Site's identity mode sets. */
@@ -127,6 +145,10 @@ export type HostedAppOptions = {
   pageContext?: BrowserTrackerConfig["pageContext"];
   signInScopes?: string[];
   signInStorage?: SignInStorage;
+  /** Builds the tracker; defaults to the browser tracker. `@haakco/custd-sdk/testing` records instead. */
+  createTracker?: (config: BrowserTrackerConfig) => BrowserTracker;
+  /** Starts error capture; defaults to the page's error handlers. `@haakco/custd-sdk/testing` records instead. */
+  startErrorCapture?: (config: ErrorCaptureConfig) => HostedAppErrorCaptureStart;
 };
 
 /** Reads the hosted app's discovery file and starts what it enables. Never rejects. */
@@ -154,17 +176,28 @@ export async function startHostedApp<TEvents extends AppEventMap = AppEventMap>(
         return undefined;
       })
     : undefined;
+  const appItems = enabled.has(HOSTED_APP_CAPABILITIES.appData)
+    ? AppItemsClient.fromDiscovery(discovery, {
+        fetch: options.fetch,
+        userToken: () => liveAccessToken(signIn),
+        webSocket: options.webSocket,
+      })
+    : undefined;
+  // Ownership is part of every read, so a sign-in, refresh or sign-out re-reads what is watched.
+  const unwatchSignIn = appItems && signIn?.subscribe(() => appItems.refreshAll());
   return {
     status: HOSTED_APP_STATUSES.ready,
-    app: hostedApp<TEvents>({ discovery, tracker, errorCapture, signIn, problems }),
+    app: hostedApp<TEvents>({ discovery, tracker, errorCapture, signIn, appItems, unwatchSignIn, problems }),
   };
 }
 
 type StartedPieces = {
   discovery: HostedAppDiscovery;
   tracker?: BrowserTracker;
-  errorCapture?: { client: ErrorCaptureClient; uninstall: () => void };
+  errorCapture?: HostedAppErrorCaptureStart;
   signIn?: BrowserSignIn;
+  appItems?: AppItemsClient;
+  unwatchSignIn?: () => void;
   problems: HostedAppError[];
 };
 
@@ -176,6 +209,7 @@ function hostedApp<TEvents extends AppEventMap>(pieces: StartedPieces): HostedAp
     tracker,
     errorCapture: errorCapture?.client,
     signIn: pieces.signIn,
+    appItems: pieces.appItems,
     problems: pieces.problems,
     trackAppEvent: async (name, properties) => {
       if (!tracker || stopped) return APP_EVENT_OUTCOMES.trackingOff;
@@ -191,6 +225,7 @@ function hostedApp<TEvents extends AppEventMap>(pieces: StartedPieces): HostedAp
       stopped = true;
       tracker?.close();
       errorCapture?.uninstall();
+      pieces.unwatchSignIn?.();
     },
   };
 }
@@ -233,6 +268,13 @@ function parseHostedAppDiscovery(body: unknown): HostedAppDiscovery {
   };
   const signIn = parseSignIn(body.signIn);
   if (signIn) discovery.signIn = signIn;
+  if (body.identityMode === "cookieless" || body.identityMode === "extended")
+    discovery.identityMode = body.identityMode;
+  if (Array.isArray(body.allowedOrigins) && body.allowedOrigins.every((origin) => typeof origin === "string")) {
+    discovery.allowedOrigins = body.allowedOrigins;
+  }
+  if (typeof body.pageViewSchemaVersion === "string" && body.pageViewSchemaVersion !== "")
+    discovery.pageViewSchemaVersion = body.pageViewSchemaVersion;
   return discovery;
 }
 
@@ -249,6 +291,7 @@ function parseSignIn(value: unknown): HostedAppDiscoverySignIn | undefined {
     redirectUri: value.redirectUri as string,
   };
   if (nonEmptyString(value.endSessionEndpoint)) signIn.endSessionEndpoint = value.endSessionEndpoint;
+  if (nonEmptyString(value.postLogoutRedirectUri)) signIn.postLogoutRedirectUri = value.postLogoutRedirectUri;
   return signIn;
 }
 
@@ -257,14 +300,8 @@ async function startTracking(
   options: HostedAppOptions,
   fetchImpl: typeof fetch,
 ): Promise<BrowserTracker> {
-  const siteConfig = await fetchBrowserSiteConfig(discovery.apiBaseUrl, discovery.siteUuid, fetchImpl).catch(() => {
-    throw new HostedAppError(
-      HOSTED_APP_ERROR_CODES.siteConfigUnavailable,
-      "site config could not be read",
-      HOSTED_APP_CAPABILITIES.tracking,
-    );
-  });
-  const tracker = createBrowserTracker({
+  const siteConfig = await hostedSiteConfig(discovery, fetchImpl);
+  const tracker = (options.createTracker ?? createBrowserTracker)({
     baseUrl: discovery.apiBaseUrl,
     siteUuid: discovery.siteUuid,
     writeKey: discovery.browserKey,
@@ -280,18 +317,54 @@ async function startTracking(
   return tracker;
 }
 
+/** The discovery file's copy of the Site config, or the Site config route for an older backend. */
+async function hostedSiteConfig(discovery: HostedAppDiscovery, fetchImpl: typeof fetch): Promise<BrowserSiteConfig> {
+  if (discovery.identityMode && discovery.allowedOrigins && discovery.pageViewSchemaVersion) {
+    return {
+      identityMode: discovery.identityMode,
+      allowedOrigins: discovery.allowedOrigins,
+      pageViewSchemaVersion: discovery.pageViewSchemaVersion,
+    };
+  }
+  return fetchBrowserSiteConfig(discovery.apiBaseUrl, discovery.siteUuid, fetchImpl).catch(() => {
+    throw new HostedAppError(
+      HOSTED_APP_ERROR_CODES.siteConfigUnavailable,
+      "site config could not be read",
+      HOSTED_APP_CAPABILITIES.tracking,
+    );
+  });
+}
+
+/** Starts a refresh this long before the access token expires, so long-open pages stay signed in. */
+const ACCESS_TOKEN_REFRESH_MS = 30_000;
+
+/**
+ * The signed-in user's access token while it is still valid. Near expiry it starts `restore()`,
+ * which refreshes the session (one shared request) or signs out with a visible error state.
+ */
+function liveAccessToken(signIn: BrowserSignIn | undefined): string | undefined {
+  const session = signIn?.currentSession();
+  if (!signIn || !session) return undefined;
+  if (session.expiresAtMs - ACCESS_TOKEN_REFRESH_MS <= Date.now()) void signIn.restore();
+  return session.expiresAtMs > Date.now() ? session.accessToken : undefined;
+}
+
 function startErrorCapture(
   discovery: HostedAppDiscovery,
   options: HostedAppOptions,
   fetchImpl: typeof fetch,
-): { client: ErrorCaptureClient; uninstall: () => void } {
-  const client = new ErrorCaptureClient({
+): HostedAppErrorCaptureStart {
+  return (options.startErrorCapture ?? startBrowserErrorCapture)({
     baseUrl: discovery.apiBaseUrl,
     writeKey: discovery.browserKey,
     environment: discovery.environment,
     release: options.release,
     fetch: fetchImpl,
   });
+}
+
+function startBrowserErrorCapture(config: ErrorCaptureConfig): HostedAppErrorCaptureStart {
+  const client = new ErrorCaptureClient(config);
   return { client, uninstall: installBrowserErrorCapture(client) };
 }
 

@@ -1,3 +1,16 @@
+export * from "./app-alerts.js";
+export * from "./app-items.js";
+export {
+  APP_LIVE_DEFAULT_INTERVAL_MS,
+  APP_LIVE_STATUSES,
+  type AppLiveState,
+  type AppLiveStatus,
+  type AppLiveWatch,
+  type AppLiveWatchOptions,
+} from "./app-live.js";
+export * from "./app-meetings.js";
+export * from "./app-models.js";
+export { APP_REALTIME_PATH, type AppWebSocket, type AppWebSocketFactory } from "./app-push.js";
 export * from "./browser-tracker.js";
 export {
   type CaptureExceptionRequest,
@@ -20,6 +33,8 @@ export {
   type HostedAppDiscovery,
   type HostedAppDiscoverySignIn,
   HostedAppError,
+  type HostedAppErrorCapture,
+  type HostedAppErrorCaptureStart,
   type HostedAppErrorCode,
   type HostedAppOptions,
   type HostedAppStart,

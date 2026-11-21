@@ -216,6 +216,12 @@ class SitePageRecheck(TypedDict):
     fixedRules: list[str]
 
 
+class SitePageRecheckList(TypedDict):
+    """The rechecks list_page_rechecks found, in the order asked."""
+
+    rechecks: list[SitePageRecheck]
+
+
 class SitePhraseUse(TypedDict):
     """Where one phrase appears in a draft and how often, with no target or verdict.
 
@@ -231,11 +237,20 @@ class SitePhraseUse(TypedDict):
     densityPercent: NotRequired[float]
 
 
+# How much of a page a draft is: the whole page (the server's default) or only its body content,
+# for an editor that owns the body and not the head.
+SITE_PAGE_CHECK_SCOPE_PAGE = "page"
+SITE_PAGE_CHECK_SCOPE_CONTENT = "content"
+
+
 class SitePageCheckResponse(TypedDict):
     """What the page checks found on draft HTML: the page's facts and its own findings.
 
     The draft tools are absent unless asked for: ``slug`` from the draft's first h1, else its
     title; ``redirect`` from previous_url (format SITE_GENERATED_FORMAT_REDIRECT); ``phrase``.
+    ``scope`` echoes the requested scope. ``checkedRules`` is set only for the content scope: the
+    rules checked, so a rule listed there and absent from ``findings`` passed; head rules are not
+    among them.
     """
 
     page: SitePageFacts
@@ -243,10 +258,12 @@ class SitePageCheckResponse(TypedDict):
     slug: NotRequired[str]
     redirect: NotRequired[SiteGeneratedFix]
     phrase: NotRequired[SitePhraseUse]
+    scope: NotRequired[str]
+    checkedRules: NotRequired[list[str]]
 
 
 class SiteWordingCompare(TypedDict):
-    """How much wording two drafts share, measured as the content.near-duplicate rule does.
+    """How much wording two texts share, measured as the content.near-duplicate rule does.
 
     It is wording overlap, not plagiarism. Texts under ``minWords`` are not compared:
     ``compared`` is False and ``sharedPercent`` absent.
@@ -259,6 +276,24 @@ class SiteWordingCompare(TypedDict):
     sharedPercent: NotRequired[int]
     thresholdPercent: int
     nearDuplicate: bool
+
+
+WordingObservationState = Literal["unread", "unavailable", "short", "ready"]
+
+
+class SiteWordingObservation(TypedDict):
+    """Availability and time of the latest checked copy of a page."""
+
+    state: WordingObservationState
+    observedAt: NotRequired[str]
+
+
+class SiteObservedWording(TypedDict):
+    """Wording overlap of two saved observations. Comparison is absent if either is unavailable."""
+
+    first: SiteWordingObservation
+    second: SiteWordingObservation
+    comparison: NotRequired[SiteWordingCompare]
 
 
 class SiteRobotsRule(TypedDict):
@@ -350,6 +385,7 @@ class SiteProjectContextRequest(TypedDict):
     brandNames: list[str]
     competitorDomains: list[str]
     markets: list[SiteMarket]
+    hackerNewsEnabled: NotRequired[bool]
 
 
 class SiteProjectContext(TypedDict):
@@ -360,6 +396,7 @@ class SiteProjectContext(TypedDict):
     competitorDomains: list[str]
     markets: list[SiteMarket]
     updatedAt: NotRequired[str]
+    hackerNewsEnabled: NotRequired[bool]
 
 
 class SiteUptimeWindow(TypedDict):

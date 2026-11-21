@@ -16,6 +16,14 @@ import type {
   AppReleasePromotion,
   AppReleaseUploadedFile,
 } from "./admin-app-releases.js";
+import {
+  type AppCreateRequest,
+  type AppCreation,
+  type AppDeployCredential,
+  type AppListResponse,
+  type AppOverview,
+  appPath,
+} from "./admin-apps.js";
 import type { RequestOptions } from "./index.js";
 
 /** How an environment's identity boundary is shared. Custd owns both values. */
@@ -984,6 +992,37 @@ export class AuthProjectAdminClient {
   ): Promise<AppReleasePromotion> {
     const path = `${appReleasePath(projectId, environmentId, releaseId)}/promote`;
     return this.request<AppReleasePromotion>("POST", path, undefined, options);
+  }
+
+  /**
+   * Create an app with hosting, traffic, error capture and app data on; `signIn` also turns on
+   * invite-only sign-in. Repeating the same body and Idempotency-Key finishes a create that did
+   * not complete (`app_setup_incomplete`) or reads the same app back, so the key is required.
+   */
+  async createApp(body: AppCreateRequest, options?: RequestOptions): Promise<AppCreation> {
+    return this.request<AppCreation>("POST", "/apps", body, requireIdempotencyKey(options));
+  }
+
+  /** List one page of the caller's apps, worst status first. Pass the previous `nextAfter` as `after`. */
+  listApps(after?: string, options?: RequestOptions): Promise<AppListResponse> {
+    const path = after ? `/apps?after=${encodeURIComponent(after)}` : "/apps";
+    return this.request<AppListResponse>("GET", path, undefined, options);
+  }
+
+  /** Read one app by its slug, with its latest release and link counts. */
+  getApp(slug: string, options?: RequestOptions): Promise<AppOverview> {
+    return this.request<AppOverview>("GET", appPath(slug), undefined, options);
+  }
+
+  /** Create a CI credential that can deploy only this app, acting for the caller. Its secret is shown once. */
+  createAppDeployCredential(slug: string, options?: RequestOptions): Promise<AppDeployCredential> {
+    return this.request<AppDeployCredential>("POST", `${appPath(slug)}/deploy-credentials`, undefined, options);
+  }
+
+  /** Remove a deploy credential. Repeating a delete that failed part-way finishes it. */
+  async deleteAppDeployCredential(slug: string, clientId: string, options?: RequestOptions): Promise<void> {
+    const path = `${appPath(slug)}/deploy-credentials/${encodeURIComponent(clientId)}`;
+    await this.request<null>("DELETE", path, undefined, options);
   }
 
   /** Read the environment's supported auth configuration. */

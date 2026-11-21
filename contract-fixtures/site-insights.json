@@ -175,6 +175,11 @@
           "firstSeenAt": "2026-11-10T09:10:00Z",
           "lastSeenAt": "2026-11-17T06:10:00Z",
           "fixed": false
+        },
+        "recheckable": true,
+        "suggestion": {
+          "explanation": "The page has no title.",
+          "nextStep": "Add a title that describes the page."
         }
       },
       {
@@ -195,7 +200,8 @@
           "lastSeenAt": "2026-11-12T01:20:00Z",
           "fixed": true,
           "fixedAt": "2026-11-12T01:20:00Z"
-        }
+        },
+        "recheckable": false
       }
     ]
   },
@@ -370,6 +376,17 @@
     "status": 409,
     "detail": "site domain: verify the domain before asking for an audit",
     "code": "site_domain_not_verified",
+    "retryability": "none",
+    "nextAction": {
+      "action": "none"
+    }
+  },
+  "siteChoiceRequiredProblem": {
+    "type": "unprocessable",
+    "title": "Unprocessable Entity",
+    "status": 422,
+    "detail": "site domain: several Sites could hold this host; name the Site with siteUuid",
+    "code": "site_choice_required",
     "retryability": "none",
     "nextAction": {
       "action": "none"

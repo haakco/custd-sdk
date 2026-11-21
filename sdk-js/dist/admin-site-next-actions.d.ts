@@ -1,3 +1,4 @@
+import type { SiteAIMode } from "./admin-site-ai.js";
 /** A next-actions read returns at most this many actions. */
 export declare const SITE_NEXT_ACTIONS_MAX = 3;
 /**
@@ -52,6 +53,7 @@ export type SiteNextAction = {
     recheckable: boolean;
 };
 export type SiteNextActions = {
+    aiMode?: SiteAIMode;
     domainUuid: string;
     host: string;
     /** unknown, up, failing, down or paused. */

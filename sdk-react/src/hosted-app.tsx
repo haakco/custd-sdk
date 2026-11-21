@@ -54,6 +54,11 @@ export function useCustdHostedApp<TEvents extends AppEventMap = AppEventMap>(): 
   return state as unknown as CustdHostedAppState<TEvents>;
 }
 
+/** The hosted app's state, or null outside `CustdHostedAppProvider`. */
+export function useOptionalCustdHostedApp(): CustdHostedAppState | null {
+  return useContext(HostedAppContext);
+}
+
 /**
  * Starts the app and reports its result while active. The returned cleanup
  * stops the app, including one that resolves after cleanup.

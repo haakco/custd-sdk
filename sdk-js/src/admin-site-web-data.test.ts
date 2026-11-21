@@ -3,9 +3,11 @@ import web from "../../contract-fixtures/site-web-data.json";
 import {
   CustdClient,
   CustdRequestError,
+  SITE_KEYWORD_DEMAND_SOURCE_BING,
   SITE_KEYWORD_LIST_LIMIT_CODE,
   SITE_KEYWORD_LIST_NOT_FOUND_CODE,
   SiteContentGapCoverage,
+  SiteKeywordDemandState,
   SiteTopicTrendStatus,
   SiteTrancoBand,
   SiteWebDomainRole,
@@ -100,6 +102,8 @@ describe("site keyword lists", () => {
     expect(clusters.clusters[0]?.avgPosition).toBe(6.5);
     expect(clusters.clusters[1]?.measuredKeywords).toBe(0);
     expect(clusters.clusters[1]?.clicks).toBeUndefined();
+    expect(clusters.demand).toBeUndefined();
+    expect(clusters.clusters[0]?.bingWeeklyImpressions).toBeUndefined();
     await expect(domains.deleteKeywordList("Pricing")).resolves.toBeUndefined();
 
     const sent = calls();
@@ -110,6 +114,32 @@ describe("site keyword lists", () => {
       `DELETE ${base}/keyword-lists?name=Pricing`,
     ]);
     expect(sent[1]?.body).toEqual(web.keywordListRequest);
+  });
+
+  it("decodes Bing demand and related keywords without inventing zeros", async () => {
+    const { domains } = newDomains(
+      respond(200, web.keywordClustersWithDemand),
+      respond(200, web.keywordClustersNoMarket),
+      respond(200, web.keywordListWithRelated),
+    );
+
+    const withDemand = await domains.getKeywordClusters("Pricing");
+    expect(withDemand).toEqual(web.keywordClustersWithDemand);
+    expect(withDemand.clusters[0]?.bingWeeklyImpressions).toBe(1400);
+    expect(withDemand.clusters[1]?.bingWeeklyImpressions).toBeUndefined();
+    expect(withDemand.demand?.state).toBe(SiteKeywordDemandState.Available);
+    expect(withDemand.demand?.source).toBe(SITE_KEYWORD_DEMAND_SOURCE_BING);
+    expect(withDemand.demand?.keywords[1]?.broadImpressions).toBeUndefined();
+    expect(withDemand.demand?.keywords[2]?.weeklyImpressions).toBeUndefined();
+    expect(withDemand.demand?.keywords[2]?.lastFailure).toContain("503");
+    const noMarket = await domains.getKeywordClusters("Pricing");
+    expect(noMarket.demand?.state).toBe(SiteKeywordDemandState.NoMarket);
+    expect(noMarket.demand?.market).toBeUndefined();
+    expect(noMarket.demand?.keywords).toEqual([]);
+    const saved = await domains.saveKeywordList(web.keywordListRequest);
+    expect(saved.related?.keywords[0]?.impressions).toBe(5400);
+    expect(saved.related?.market).toBe("en-ZA");
+    expect(web.keywordList).not.toHaveProperty("related");
   });
 
   it("leaves an empty seed term out of the saved list", async () => {

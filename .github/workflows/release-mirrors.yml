@@ -83,7 +83,7 @@ jobs:
           MISE_GITHUB_TOKEN: ${{ github.token }}
         run: |
           curl -fsSL https://mise.run | sh
-          "$HOME/.local/bin/mise" install infisical@0.43.84
+          "$HOME/.local/bin/mise" install infisical@0.45.12
       - name: Split subtree and push to mirror
         env:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -93,7 +93,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           domain="https://secrets.k8.haak.co/api"
-          infisical() { "$HOME/.local/bin/mise" exec infisical@0.43.84 -- infisical "$@"; }
+          infisical() { "$HOME/.local/bin/mise" exec infisical@0.45.12 -- infisical "$@"; }
           token="$(infisical login --method=universal-auth \
             --client-id="$INFISICAL_CLIENT_ID" --client-secret="$INFISICAL_CLIENT_SECRET" \
             --domain="$domain" --plain --silent)"

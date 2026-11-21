@@ -160,6 +160,7 @@ from custd import SITE_DOMAIN_NOT_VERIFIED_CODE, SITE_RULE_TITLE_MISSING, Reques
 
 domains = client.admin.site_domains
 domain = domains.create({"siteUuid": site_uuid, "host": "example.com"})
+# Or omit siteUuid: Custd places the host (SITE_CHOICE_REQUIRED_CODE when it cannot tell).
 # Publish domain["ownership"]["instructions"] (DNS TXT or well-known file), then:
 domains.verify(domain["domainUuid"])
 try:
@@ -175,10 +176,12 @@ missing_titles = [f for f in findings if f["rule"] == SITE_RULE_TITLE_MISSING]
 `SITE_RULE_*` constants (all of them in `SITE_RULE_IDS`) are the stable rule
 IDs a finding carries in `rule`; key any client-side fix on them. Each finding's
 `remedy` says what the fix changes (`kind`, `element`) and, for some rules,
-carries ready-to-copy `generated` code.
+carries ready-to-copy `generated` code; `recheckable` says a one-page recheck
+can confirm the fix.
 
-Page tools: `get_page_facts`, `request_page_recheck` / `get_page_recheck`
-(one-page rechecks, `SITE_PAGE_RECHECK_LIMIT_CODE` past the hourly allowance),
+Page tools: `get_page_facts`, `request_page_recheck` / `get_page_recheck` /
+`list_page_rechecks` (one-page rechecks, up to `SITE_PAGE_RECHECK_READ_LIMIT`
+read at once, `SITE_PAGE_RECHECK_LIMIT_CODE` past the hourly allowance),
 `check_page` (draft HTML, never stored) and `test_robots` (pasted or live
 robots.txt). Search: `list_search_rows` pages one dimension and names
 providers that cannot report it in `unavailable`; `request_search_inspection`
@@ -213,14 +216,38 @@ rank has no `position`. Search value: `get_finding_search_impact(domain,
 finding, days)` compares a fixed finding's page before and after the fix, and
 `get_search_value(domain, goals, days)` credits goal events to search landing
 pages. Shared search pool (tenant-wide; a site-bound credential is refused):
-`get_search_pool`, `set_search_pool(joined)` to join or leave, and
+`get_search_pool`, `set_search_pool(joined, terms_version)` to join or leave, and
 `list_search_pool_queries(search, limit)` for pooled queries' demand and
-position bands (403 `SITE_SEARCH_POOL_NOT_JOINED_CODE` before joining).
+position bands (403 `SITE_SEARCH_POOL_NOT_JOINED_CODE` before joining). Joining
+is the organisation's acceptance of the pool terms: pass the setting's
+`termsVersion` (or `SITE_SEARCH_POOL_TERMS_VERSION`, current at this release);
+a join without one raises `ValueError` before any request, a stale one is a
+plain 400, and leaving sends only `{"joined": false}`.
 `get_rankings` carries the rankings' `pool` state and each keyword's pool
 band when there is one. Draft tools: `check_page(..., previous_url=, phrase=)`
 adds `slug`, `redirect` and `phrase`, page facts carry `shareImage` and
 `faqSchema`, and `compare_wording(domain, first, second)` measures shared wording
-(`sharedPercent` absent when not compared). Campaign links:
+(`sharedPercent` absent when not compared). `check_page(..., scope=SITE_PAGE_CHECK_SCOPE_CONTENT)`
+checks body content only and lists the rules it ran in `checkedRules` (a listed
+rule without a finding passed); `get_page_facts` answers 404
+`SITE_PAGE_NOT_READ_CODE` until an audit or recheck has read the page.
+`compare_page_wording(domain, first_url, second_url)` compares two saved page observations on the
+verified domain, with their observation states and times. Unread or unavailable pages have no
+comparison.
+`get_page_search_queries(domain, url)` returns the Google queries a page ranks
+for, title options built from them and the Site's pages that mention them
+(`window` absent until an import). Keyword research: `get_keyword_clusters`
+carries Bing `demand` and each cluster's `bingWeeklyImpressions`, and a keyword
+list its `related` keywords; a number Bing did not report is absent, and an older
+server omits `demand`. GA4: `get_analytics`, `connect_analytics(domain,
+property_id)` and `disconnect_analytics` (`SITE_ANALYTICS_PROPERTY_INVALID_CODE`,
+`SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE`). Export: `export(domain)` returns
+everything Site Insights keeps for a domain (`SITE_INSIGHTS_EXPORT_SCHEMA`) and
+`export_search_metrics(domain, offset, limit)` pages its daily search metrics
+(limit 1 to 10000). `retry_search_import(domain, provider)` makes a failing
+import due now (409 `SITE_SEARCH_RETRY_NOT_FAILING_CODE`), and system
+administrators read every task's state and backlog with
+`list_site_insights_tasks()` (`SITE_INSIGHTS_TASK_*`). Campaign links:
 `list_campaign_links(domain, include_archived)`, `create_campaign_link` and
 `archive_campaign_link` (409 `SITE_CAMPAIGN_LINK_TAKEN_CODE` or
 `SITE_CAMPAIGN_LINK_LIMIT_CODE`). Next actions: `get_next_actions(domain)`

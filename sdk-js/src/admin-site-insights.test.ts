@@ -6,15 +6,21 @@ import tools from "../../contract-fixtures/site-page-tools.json";
 import {
   CustdClient,
   CustdRequestError,
+  SITE_CHOICE_REQUIRED_CODE,
   SITE_PAGE_NOT_ON_DOMAIN_CODE,
+  SITE_PAGE_NOT_READ_CODE,
   SITE_PAGE_RECHECK_LIMIT_CODE,
+  SITE_PAGE_RECHECK_READ_LIMIT,
   SITE_SEARCH_INSPECTION_LIMIT_CODE,
   SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE,
   SITE_SEARCH_INSPECTION_URL_INVALID_CODE,
   type SiteFinding,
   SiteGeneratedFormat,
+  SitePageCheckScope,
+  type SiteRegionalTrends,
   type SiteRemedy,
   SiteRemedyKind,
+  SiteRule,
 } from "./index";
 
 const base = "http://localhost:8080/api/v1";
@@ -106,6 +112,54 @@ describe("site insights page tools", () => {
     expect(sent[5]?.body).toEqual({ url: "/", userAgent: "GPTBot" });
   });
 
+  it("reads several rechecks in one call with the ids comma-joined, and says which findings a recheck confirms", async () => {
+    const { domains, calls } = newDomains(
+      respond(200, tools.pageRecheckList),
+      respond(200, recorded.findingList),
+      respond(422, recorded.siteChoiceRequiredProblem),
+    );
+
+    const list = await domains.listPageRechecks(domainUuid, ["r-1", "r-2"]);
+    expect(list.rechecks.map((recheck) => recheck.state)).toEqual(["checked", "failed"]);
+    const findings = (await domains.listFindings(domainUuid)).findings;
+    expect(findings.map((finding) => finding.recheckable)).toEqual([true, false]);
+    const refused = await domains.create({ host: "blog.example.com" }).catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(CustdRequestError);
+    expect((refused as CustdRequestError).code).toBe(SITE_CHOICE_REQUIRED_CODE);
+    expect(SITE_PAGE_RECHECK_READ_LIMIT).toBe(30);
+    const sent = calls();
+    expect(sent[0]?.route).toBe(`GET ${item}/page-rechecks?ids=r-1%2Cr-2`);
+    expect(sent[2]?.body).toEqual({ host: "blog.example.com" });
+  });
+
+  it("compares two stored page observations, preserving missing and short evidence", async () => {
+    const { domains, calls } = newDomains(
+      respond(200, tools.observedWording),
+      respond(200, tools.observedWordingUnavailable),
+      respond(200, tools.observedWordingShort),
+    );
+    const query = {
+      firstUrl: "https://example.com/plans?locale=en&view=full",
+      secondUrl: "https://example.com/support",
+    };
+    const ready = await domains.comparePageWording(domainUuid, query, { companySlug: "acme" });
+    const unavailable = await domains.comparePageWording(domainUuid, query);
+    const short = await domains.comparePageWording(domainUuid, query);
+    expect(ready).toEqual(tools.observedWording);
+    expect(unavailable).toEqual(tools.observedWordingUnavailable);
+    expect(short.first.state).toBe("short");
+    expect(short.comparison).toMatchObject({ firstWords: 80, compared: false });
+    expect(short.comparison).not.toHaveProperty("sharedPercent");
+    const route =
+      `GET ${item}/page-wording?firstUrl=${encodeURIComponent(query.firstUrl)}` +
+      `&secondUrl=${encodeURIComponent(query.secondUrl)}`;
+    expect(calls()).toEqual([
+      { route: `${route}&companySlug=acme`, body: undefined },
+      { route, body: undefined },
+      { route, body: undefined },
+    ]);
+  });
+
   it("sends the draft tools and wording compare and decodes their recorded answers", async () => {
     const { domains, calls } = newDomains(
       respond(200, tools.pageCheckDraftTools),
@@ -152,6 +206,34 @@ describe("site insights page tools", () => {
     expect(sent[4]?.body).toEqual({ url: "https://example.com/plans", html: "<p></p>", phrase: "x" });
     expect(tools.pageCheck).not.toHaveProperty("slug");
     expect(tools.pageFacts).not.toHaveProperty("shareImage");
+  });
+
+  it("sends a content-scope draft check and names the rules it checked", async () => {
+    const { domains, calls } = newDomains(
+      respond(200, tools.pageCheckContent),
+      respond(200, tools.pageCheckDraftTools),
+    );
+
+    const check = await domains.checkPage(domainUuid, tools.pageCheckContentRequest);
+    expect(check).toEqual(tools.pageCheckContent);
+    expect(check.scope).toBe(SitePageCheckScope.Content);
+    expect(check.checkedRules).toContain(SiteRule.ImageNotLazy);
+    expect(check.findings.map((finding) => finding.rule)).not.toContain(SiteRule.ImageNotLazy);
+    const whole = await domains.checkPage(domainUuid, tools.pageCheckDraftToolsRequest);
+    expect(whole.scope).toBeUndefined();
+    expect(whole.checkedRules).toBeUndefined();
+
+    const sent = calls();
+    expect(sent[0]?.body).toEqual(tools.pageCheckContentRequest);
+    expect(sent[1]?.body).not.toHaveProperty("scope");
+  });
+
+  it("surfaces the recorded page-not-read problem code from getPageFacts", async () => {
+    const problem = tools.pageNotReadProblem;
+    const { domains } = newDomains(respond(problem.status, problem));
+    const refusal = domains.getPageFacts(domainUuid, "https://example.com/new");
+    await expect(refusal).rejects.toBeInstanceOf(CustdRequestError);
+    await expect(refusal).rejects.toMatchObject({ status: 404, code: SITE_PAGE_NOT_READ_CODE });
   });
 
   it("decodes absent readability and recheck failures without inventing zeros", () => {
@@ -215,6 +297,47 @@ describe("site insights search rows, inspections and project context", () => {
       route: `PUT ${base}/site-domains/project-context?siteUuid=${siteUuid}`,
       body: tools.projectContextRequest,
     });
+  });
+
+  it("sets or clears technical discovery and reads optional Hacker News evidence", async () => {
+    const regional = { siteUuid, source: "Google Trends", hasSavedTerms: true, markets: [] };
+    const technical: SiteRegionalTrends = {
+      ...regional,
+      technical: {
+        source: "Hacker News",
+        checkedAt: "2026-11-18T13:05:00Z",
+        stale: false,
+        matches: [
+          {
+            topic: "Database testing",
+            sourceUrl: "https://example.com/testing",
+            discussionUrl: "https://news.ycombinator.com/item?id=1",
+            publishedAt: "2026-11-18T13:00:00Z",
+            matchedTerm: "database",
+          },
+        ],
+      },
+    };
+    const { domains, calls } = newDomains(
+      respond(200, { ...tools.projectContext, hackerNewsEnabled: true }),
+      respond(200, tools.projectContext),
+      respond(200, technical),
+      respond(200, regional),
+    );
+    expect((await domains.setProjectContext({ siteUuid, hackerNewsEnabled: true })).hackerNewsEnabled).toBe(true);
+    await domains.setProjectContext({ hackerNewsEnabled: false });
+    expect(await domains.getRegionalTrends(siteUuid, { companySlug: "acme" })).toEqual(technical);
+    expect((await domains.getRegionalTrends()).technical).toBeUndefined();
+    const emptyContext = { brandNames: [], competitorDomains: [], markets: [] };
+    expect(calls()).toEqual([
+      {
+        route: `PUT ${base}/site-domains/project-context?siteUuid=${siteUuid}`,
+        body: { ...emptyContext, hackerNewsEnabled: true },
+      },
+      { route: `PUT ${base}/site-domains/project-context`, body: { ...emptyContext, hackerNewsEnabled: false } },
+      { route: `GET ${base}/site-domains/regional-trends?siteUuid=${siteUuid}&companySlug=acme`, body: undefined },
+      { route: `GET ${base}/site-domains/regional-trends`, body: undefined },
+    ]);
   });
 
   it.each([

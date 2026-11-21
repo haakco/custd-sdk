@@ -19,7 +19,7 @@ final class ComposerMetadataTest extends TestCase
     {
         $composer = $this->loadComposerJson(__DIR__ . "/../composer.json");
 
-        $this->assertSame("^12.0", $composer["require-dev"]["phpunit/phpunit"]);
+        $this->assertSame("^12.5", $composer["require-dev"]["phpunit/phpunit"]);
         $this->assertSame("8.3.0", $composer["config"]["platform"]["php"]);
     }
 
@@ -34,7 +34,7 @@ final class ComposerMetadataTest extends TestCase
     {
         $composer = $this->loadComposerJson(__DIR__ . "/../../composer.json");
 
-        $this->assertSame("^12.0", $composer["require-dev"]["phpunit/phpunit"]);
+        $this->assertSame("^12.5", $composer["require-dev"]["phpunit/phpunit"]);
         $this->assertSame("8.3.0", $composer["config"]["platform"]["php"]);
     }
 
@@ -43,7 +43,7 @@ final class ComposerMetadataTest extends TestCase
         $workflow = file_get_contents(__DIR__ . "/../../.github/workflows/ci.yml");
         $this->assertIsString($workflow);
 
-        $this->assertStringContainsString('php-version: ["8.3.36", "8.4.27", "8.5.12"]', $workflow);
+        $this->assertStringContainsString('php-version: ["8.3.37", "8.4.28", "8.5.13"]', $workflow);
         $this->assertStringContainsString('php-version: "${{ matrix.php-version }}"', $workflow);
     }
 

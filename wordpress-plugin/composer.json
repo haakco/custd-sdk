@@ -19,7 +19,7 @@
     "haakco/custd-sdk": "^3.0"
   },
   "require-dev": {
-    "phpunit/phpunit": "^12.0"
+    "phpunit/phpunit": "^12.5"
   },
   "config": {
     "platform": {

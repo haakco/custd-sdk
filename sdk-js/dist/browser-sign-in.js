@@ -49,6 +49,8 @@ export function signInConfigFromDiscovery(document, options) {
     };
     if (signIn.endSessionEndpoint)
         config.endSessionEndpoint = signIn.endSessionEndpoint;
+    if (signIn.postLogoutRedirectUri)
+        config.postLogoutRedirectUri = signIn.postLogoutRedirectUri;
     if (signIn.audience)
         config.audience = signIn.audience;
     if (options.scopes)
@@ -179,8 +181,9 @@ export class BrowserSignIn {
         url.searchParams.set("client_id", this.config.clientId);
         if (idToken)
             url.searchParams.set("id_token_hint", idToken);
-        if (options.postLogoutRedirectUri)
-            url.searchParams.set("post_logout_redirect_uri", options.postLogoutRedirectUri);
+        const postLogoutRedirectUri = options.postLogoutRedirectUri ?? this.config.postLogoutRedirectUri;
+        if (postLogoutRedirectUri)
+            url.searchParams.set("post_logout_redirect_uri", postLogoutRedirectUri);
         const endSessionUrl = url.toString();
         this.navigate(endSessionUrl);
         return { endSessionUrl };
@@ -309,6 +312,8 @@ function validateEndpoints(config) {
     }
     if (config.endSessionEndpoint)
         assertSecureOrLocalHTTP(config.endSessionEndpoint, "endSessionEndpoint");
+    if (config.postLogoutRedirectUri)
+        assertSecureOrLocalHTTP(config.postLogoutRedirectUri, "postLogoutRedirectUri");
 }
 function assertSecureOrLocalHTTP(rawUrl, field) {
     const parsed = new URL(rawUrl);

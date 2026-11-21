@@ -4,6 +4,8 @@ export type CustdDiscoverySignIn = {
     authorizationEndpoint: string;
     tokenEndpoint: string;
     endSessionEndpoint?: string;
+    /** Where the provider returns the browser after sign-out; `signOut` uses it by default. */
+    postLogoutRedirectUri?: string;
     clientId: string;
     /** The API audience the access token is issued for; sent as the authorize `audience` parameter. */
     audience?: string;

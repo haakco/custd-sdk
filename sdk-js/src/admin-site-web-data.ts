@@ -8,6 +8,16 @@ export const SITE_KEYWORD_LIST_NOT_FOUND_CODE = "site_keyword_list_not_found";
 /** A 409 on saveKeywordList: the Site keeps the most lists; delete one first. */
 export const SITE_KEYWORD_LIST_LIMIT_CODE = "site_keyword_list_limit";
 
+/** Where keyword demand and related keywords come from. */
+export const SITE_KEYWORD_DEMAND_SOURCE_BING = "bing_keyword_research";
+
+/** Why a keyword list has demand numbers or not; newer values may appear. */
+export const SiteKeywordDemandState = {
+  Available: "available",
+  NoMarket: "no_market",
+  NoBing: "no_bing",
+} as const;
+
 /** Whether an inventoried domain is the Site's own or a named competitor; newer values may appear. */
 export const SiteWebDomainRole = {
   Own: "own",
@@ -166,12 +176,32 @@ export type SiteContentGap = {
   topics: SiteContentGapTopic[];
 };
 
+/** One keyword Bing relates to a list's seed term, with its searches over the period. */
+export type SiteRelatedKeyword = {
+  keyword: string;
+  impressions: number;
+  broadImpressions: number;
+};
+
+/** What Bing relates to a list's seed term in the Site's first market, from..to (YYYY-MM-DD). */
+export type SiteRelatedKeywords = {
+  /** SITE_KEYWORD_DEMAND_SOURCE_BING. */
+  source: string;
+  market: string;
+  from: string;
+  to: string;
+  checkedAt: string;
+  keywords: SiteRelatedKeyword[];
+};
+
 export type SiteKeywordList = {
   name: string;
   seedTerm?: string;
   keywords: string[];
   createdAt: string;
   updatedAt: string;
+  /** Absent until Bing has been asked about the seed term, without a seed, or from an older server. */
+  related?: SiteRelatedKeywords;
 };
 
 export type SiteKeywordLists = {
@@ -195,6 +225,8 @@ export type SiteKeywordCluster = {
   clicks?: number;
   impressions?: number;
   avgPosition?: number;
+  /** Bing's latest weekly searches for the cluster's keywords, summed; absent when Bing reported none. */
+  bingWeeklyImpressions?: number;
 };
 
 export type SiteStrikingKeyword = {
@@ -212,4 +244,27 @@ export type SiteKeywordClusters = {
   totalKeywords: number;
   clusters: SiteKeywordCluster[];
   strikingDistance: SiteStrikingKeyword[];
+  /** Bing demand for the list's keywords; absent from an older server. */
+  demand?: SiteKeywordDemandSet;
+};
+
+/** One keyword's Bing searches in the latest week Bing reported. A number Bing did not report is absent, never 0. */
+export type SiteKeywordDemand = {
+  keyword: string;
+  weeklyImpressions?: number;
+  broadImpressions?: number;
+  /** YYYY-MM-DD. */
+  weekOf?: string;
+  checkedAt: string;
+  lastFailure?: string;
+};
+
+/** Holds only keywords Bing has been asked about; state says why it is empty. */
+export type SiteKeywordDemandSet = {
+  /** A SiteKeywordDemandState value. */
+  state: string;
+  /** SITE_KEYWORD_DEMAND_SOURCE_BING. */
+  source: string;
+  market?: string;
+  keywords: SiteKeywordDemand[];
 };

@@ -80,6 +80,7 @@ enum SiteRule: string
     case TLSInvalid = 'tls.invalid';
     case TLSExpiring = 'tls.expiring';
     case TLSExpiringSoon = 'tls.expiring-soon';
+    case RegistrationExpiring = 'registration.expiring';
     case LighthouseDesktopDrop = 'lighthouse.desktop-score-drop';
     case LighthouseMobileDrop = 'lighthouse.mobile-score-drop';
     case SearchLowCTR = 'search.low-ctr';

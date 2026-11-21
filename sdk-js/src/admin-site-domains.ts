@@ -5,21 +5,38 @@
 // a site-bound credential (site_domains.manage) reaches its own Site only.
 
 import type {
+  SiteAIConsentRequest,
+  SiteAIOwnerHandoff,
+  SiteAIOwnerHandoffRequest,
+  SiteAISettings,
+  SiteAISettingsRequest,
+  SiteAITenantUsage,
+} from "./admin-site-ai.js";
+import type {
+  SiteAnalyticsConnection,
+  SiteAnalyticsConnectionRequest,
+  SiteAnalyticsReport,
+} from "./admin-site-analytics.js";
+import type {
   SiteAuditDelta,
   SiteAuditPageList,
   SiteLighthousePages,
   SiteLighthouseRequestOptions,
 } from "./admin-site-audit-pages.js";
 import type { SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest } from "./admin-site-campaign-links.js";
+import type { SiteInsightsExport, SiteSearchMetricPage, SiteSearchMetricsQuery } from "./admin-site-export.js";
 import type {
   IndexNowState,
   IndexNowSubmission,
   IndexNowSubmissionRequest,
   SiteLighthouseHistory,
+  SiteObservedWording,
   SitePageCheckRequest,
   SitePageCheckResponse,
   SitePageFacts,
   SitePageRecheck,
+  SitePageRecheckList,
+  SitePageWordingQuery,
   SiteProjectContext,
   SiteProjectContextRequest,
   SiteRemedy,
@@ -39,12 +56,14 @@ import type {
 } from "./admin-site-insights.js";
 import type { SiteReferringDomains } from "./admin-site-links.js";
 import type { SiteNextActions, SitePortfolioSummary } from "./admin-site-next-actions.js";
+import type { SitePageSearchQueries } from "./admin-site-page-queries.js";
 import type {
   SiteRankings,
   SiteTrackedKeyword,
   SiteTrackedKeywordUpdate,
   SiteTrackKeywordRequest,
 } from "./admin-site-rankings.js";
+import type { SiteRegionalTrends } from "./admin-site-regional-trends.js";
 import type {
   SavedSiteReport,
   SavedSiteReportList,
@@ -73,6 +92,8 @@ export const SITE_DOMAIN_NOT_VERIFIED_CODE = "site_domain_not_verified";
 export const SITE_SEARCH_NOT_CONFIGURED_CODE = "site_search_not_configured";
 /** A 404 on disconnectSearch: the domain is not connected to that provider. */
 export const SITE_SEARCH_CONNECTION_NOT_FOUND_CODE = "site_search_connection_not_found";
+/** A 409 on retrySearchImport: only a failing connection retries now; reconnect a revoked one. */
+export const SITE_SEARCH_RETRY_NOT_FAILING_CODE = "site_search_retry_not_failing";
 
 /**
  * The stable rule IDs a SiteFinding carries in `rule`, from Custd's siteaudit
@@ -149,6 +170,7 @@ export const SiteRule = {
   TLSInvalid: "tls.invalid",
   TLSExpiring: "tls.expiring",
   TLSExpiringSoon: "tls.expiring-soon",
+  RegistrationExpiring: "registration.expiring",
   LighthouseDesktopDrop: "lighthouse.desktop-score-drop",
   LighthouseMobileDrop: "lighthouse.mobile-score-drop",
   SearchLowCTR: "search.low-ctr",
@@ -164,7 +186,12 @@ export type SiteRuleId = (typeof SiteRule)[keyof typeof SiteRule];
 export type SiteDomainRequestOptions = RequestOptions & { companySlug?: string };
 
 export type SiteDomainCreateRequest = {
-  /** The Site the host belongs to; a site-bound credential may omit it. */
+  /**
+   * The Site the host belongs to. Omitted, a site-bound credential gets its own Site and anyone
+   * else the Site Custd places the host on: the Site holding it with or without www., else the
+   * Site named after it, else the only Site, or SITE_CHOICE_REQUIRED_CODE when none is decided. A
+   * tenant with no Site gets one named after the host, which needs tenant-admin access.
+   */
   siteUuid?: string;
   host: string;
 };
@@ -225,6 +252,47 @@ export type SiteCheckMode = "paused" | "uptime" | "warm";
 /** failing is one failed check; down is an open incident (two or more in a row). */
 export type SiteUptimeStatus = "unknown" | "up" | "failing" | "down" | "paused";
 
+export type SiteProbeSpec =
+  | { kind: "ping" }
+  | { kind: "tcp"; port: number }
+  | { kind: "dns"; expectedAddresses?: string[] }
+  | { kind: "http-delivery"; protocol?: "http1.1" | "http2" };
+
+export type SiteProbeDetail = {
+  resolvedIp?: string;
+  addresses?: string[];
+  missingAddresses?: string[];
+  unexpectedAddresses?: string[];
+  statusCode?: number;
+  negotiatedProtocol?: string;
+  tlsVersion?: string;
+  bytesRead?: number;
+  timings?: {
+    dnsMs?: number;
+    connectMs?: number;
+    tlsMs?: number;
+    firstByteMs?: number;
+    totalMs: number;
+  };
+  cache?: {
+    cacheControl?: string;
+    age?: string;
+    cacheStatus?: string;
+    server?: string;
+    via?: string;
+  };
+};
+
+export type SiteProbe = SiteProbeSpec & {
+  status: SiteUptimeStatus;
+  lastCheckedAt?: string;
+  responseMs?: number;
+  lastFailure?: string;
+  detail?: SiteProbeDetail;
+};
+
+export type SiteProbeList = { probes: SiteProbe[] };
+
 export type SiteUptime = {
   status: SiteUptimeStatus;
   lastCheckedAt?: string;
@@ -262,12 +330,37 @@ export type SiteIncidentList = {
   incidents: SiteIncident[];
 };
 
+/** The field collection period and available 75th-percentile Web Vitals. */
+export type SiteChromeUXObservation = {
+  firstDate: string;
+  lastDate: string;
+  lcpMs?: number;
+  inpMs?: number;
+  cls?: number;
+};
+
+/** A lookup without an observation returned no field data for the origin. */
+export type SiteChromeUX = {
+  checkedAt: string;
+  observation?: SiteChromeUXObservation;
+};
+
+/** Registry lookup. An absent expiry date means the registry did not supply one. */
+export type SiteRegistration = {
+  domain: string;
+  source?: string;
+  readAt: string;
+  expiresAt?: string;
+};
+
 export type SiteDomainChecks = {
   mode: SiteCheckMode;
   uptime: SiteUptime;
   tls: SiteTLS;
   warming: SiteWarming;
   openIncident?: SiteIncident;
+  chromeUx?: SiteChromeUX;
+  registration?: SiteRegistration;
 };
 
 /** A host a Site has claimed. Only a verified domain is audited or checked. */
@@ -296,6 +389,11 @@ export type SiteFindingHistory = {
   fixedAt?: string;
 };
 
+export type SiteFindingSuggestion = {
+  explanation: string;
+  nextStep: string;
+};
+
 /** One problem found on a verified domain, with the advice to fix it. `rule` is a SiteRule ID. */
 export type SiteFinding = {
   findingUuid: string;
@@ -308,6 +406,9 @@ export type SiteFinding = {
   source: string;
   remedy: SiteRemedy;
   history: SiteFindingHistory;
+  /** A one-page recheck decides this rule, so requestPageRecheck can confirm the fix. Absent before 3.51. */
+  recheckable?: boolean;
+  suggestion?: SiteFindingSuggestion;
 };
 
 /** A domain's findings, most severe first. */
@@ -411,11 +512,26 @@ type NonAdminRequester = <T>(method: string, path: string, body?: unknown, optio
 type QueryValues = Record<string, string | string[] | undefined>;
 
 const siteDomainsPath = "/site-domains";
+const siteAISettingsPath = `${siteDomainsPath}/ai-settings`;
 const searchPoolPath = `${siteDomainsPath}/search-pool`;
 const keywordListsPath = `${siteDomainsPath}/keyword-lists`;
 
 export class SiteDomainAdminClient {
   constructor(private readonly request: NonAdminRequester) {}
+
+  /** Reads the domain's network checks and their latest results. */
+  listProbes(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteProbeList> {
+    return this.send("GET", `${domainPath(domainUuid)}/probes`, {}, undefined, options);
+  }
+
+  /** Replaces the domain's network checks. Pass an empty array to disable them. */
+  setProbes(
+    domainUuid: string,
+    probes: readonly SiteProbeSpec[],
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteProbeList> {
+    return this.send("PUT", `${domainPath(domainUuid)}/probes`, {}, { probes }, options);
+  }
 
   /** Claims a host for a Site and returns the verification instructions. */
   create(body: SiteDomainCreateRequest, options?: SiteDomainRequestOptions): Promise<SiteDomain> {
@@ -506,14 +622,51 @@ export class SiteDomainAdminClient {
     return this.send("GET", `${siteDomainsPath}/search-account`, {}, undefined, options);
   }
 
+  /** Reads the tenant's AI policy and current provider terms version. */
+  getAISettings(options?: SiteDomainRequestOptions): Promise<SiteAISettings> {
+    return this.send("GET", siteAISettingsPath, {}, undefined, options);
+  }
+
+  /** Replaces the tenant's AI mode and cap. The API key is write-only. */
+  setAISettings(body: SiteAISettingsRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings> {
+    return this.send("PUT", siteAISettingsPath, {}, body, options);
+  }
+
+  /** Records explicit acceptance of the supplied terms version or revokes consent. */
+  setAIConsent(body: SiteAIConsentRequest, options?: SiteDomainRequestOptions): Promise<SiteAISettings> {
+    return this.send("PUT", `${siteAISettingsPath}/consent`, {}, body, options);
+  }
+
+  /** Creates a one-time code the tenant owner redeems by form POST to manage AI settings. */
+  createAIOwnerHandoff(body: SiteAIOwnerHandoffRequest, options?: RequestOptions): Promise<SiteAIOwnerHandoff> {
+    return this.send("POST", `${siteDomainsPath}/ai-owner-handoffs`, {}, body, options);
+  }
+
+  /** Reads the tenant's current UTC month's AI usage. */
+  getAIUsage(options?: SiteDomainRequestOptions): Promise<SiteAITenantUsage> {
+    return this.send("GET", `${siteDomainsPath}/ai-usage`, {}, undefined, options);
+  }
+
   /** Reads whether the tenant takes part in the shared search pool, and the pool's rules. */
   getSearchPool(options?: SiteDomainRequestOptions): Promise<SearchPoolSetting> {
     return this.send("GET", searchPoolPath, {}, undefined, options);
   }
 
   /** Joins (true) or leaves (false) the shared search pool for the whole tenant. */
-  setSearchPool(joined: boolean, options?: SiteDomainRequestOptions): Promise<SearchPoolSetting> {
-    return this.send("PUT", searchPoolPath, {}, { joined }, options);
+  /**
+   * Joins (with the terms version the caller accepted) or leaves the shared search pool.
+   * Joining without a termsVersion is refused before any request; leaving sends only joined.
+   */
+  setSearchPool(
+    joined: boolean,
+    termsVersion?: string,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SearchPoolSetting> {
+    if (!joined) return this.send("PUT", searchPoolPath, {}, { joined }, options);
+    if (typeof termsVersion !== "string" || termsVersion.trim() === "") {
+      return Promise.reject(new Error("custd: joining the shared search pool needs the accepted termsVersion"));
+    }
+    return this.send("PUT", searchPoolPath, {}, { joined, termsVersion }, options);
   }
 
   /**
@@ -558,6 +711,60 @@ export class SiteDomainAdminClient {
   }
 
   /** Reads what the latest audit or recheck read from one page of the domain. */
+  /** Retries a failing search import now; anything else is refused with SITE_SEARCH_RETRY_NOT_FAILING_CODE. */
+  retrySearchImport(
+    domainUuid: string,
+    provider: SiteSearchProvider,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteSearchConnection> {
+    return this.send("POST", `${searchConnectionPath(domainUuid, provider)}/retry`, {}, undefined, options);
+  }
+
+  /** Reads the searches one page shows for, with title options and pages that could link to it. */
+  getPageSearchQueries(
+    domainUuid: string,
+    url: string,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SitePageSearchQueries> {
+    return this.send("GET", `${domainPath(domainUuid)}/page-search-queries`, { url }, undefined, options);
+  }
+
+  /** Reads the domain's GA4 landing pages, key events and channels; empty until connected and imported. */
+  getAnalytics(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteAnalyticsReport> {
+    return this.send("GET", analyticsPath(domainUuid), {}, undefined, options);
+  }
+
+  /** Connects the domain to a GA4 property; a bad ID is refused with SITE_ANALYTICS_PROPERTY_INVALID_CODE. */
+  connectAnalytics(
+    domainUuid: string,
+    body: SiteAnalyticsConnectionRequest,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteAnalyticsConnection> {
+    const request: SiteAnalyticsConnectionRequest = { propertyId: body.propertyId };
+    return this.send("PUT", `${analyticsPath(domainUuid)}/ga4`, {}, request, options);
+  }
+
+  /** Disconnects GA4; an unconnected domain is refused with SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE. */
+  disconnectAnalytics(domainUuid: string, options?: SiteDomainRequestOptions): Promise<void> {
+    return this.send("DELETE", `${analyticsPath(domainUuid)}/ga4`, {}, undefined, options);
+  }
+
+  /** Exports everything Site Insights holds for the domain and its Site, except the daily search metrics. */
+  getExport(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteInsightsExport> {
+    return this.send("GET", exportPath(domainUuid), {}, undefined, options);
+  }
+
+  /** Pages through the domain's daily search metrics; the export's search.metricRows is the total. */
+  listExportSearchMetrics(
+    domainUuid: string,
+    query: SiteSearchMetricsQuery = {},
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteSearchMetricPage> {
+    const values = { offset: query.offset?.toString(), limit: query.limit?.toString() };
+    return this.send("GET", `${exportPath(domainUuid)}/search-metrics`, values, undefined, options);
+  }
+
+  /** Reads what the last audit or recheck saw on a page; an unread page is refused with SITE_PAGE_NOT_READ_CODE. */
   getPageFacts(domainUuid: string, url: string, options?: SiteDomainRequestOptions): Promise<SitePageFacts> {
     return this.send("GET", `${domainPath(domainUuid)}/page-facts`, { url }, undefined, options);
   }
@@ -580,6 +787,21 @@ export class SiteDomainAdminClient {
     return this.send("GET", path, {}, undefined, options);
   }
 
+  /** Reads up to SITE_PAGE_RECHECK_READ_LIMIT of the domain's rechecks at once; unknown ids are left out. */
+  listPageRechecks(
+    domainUuid: string,
+    recheckUuids: readonly string[],
+    options?: SiteDomainRequestOptions,
+  ): Promise<SitePageRecheckList> {
+    return this.send(
+      "GET",
+      `${domainPath(domainUuid)}/page-rechecks`,
+      { ids: recheckUuids.join(",") },
+      undefined,
+      options,
+    );
+  }
+
   /** Runs the one-page checks on draft HTML, and the draft tools it asks for; nothing is fetched or stored. */
   async checkPage(
     domainUuid: string,
@@ -589,6 +811,7 @@ export class SiteDomainAdminClient {
     const request: SitePageCheckRequest = { url: body.url, html: body.html };
     if (body.previousUrl) request.previousUrl = body.previousUrl;
     if (body.phrase) request.phrase = body.phrase;
+    if (body.scope) request.scope = body.scope;
     const check = await this.send<SitePageCheckResponse>(
       "POST",
       `${domainPath(domainUuid)}/page-check`,
@@ -610,6 +833,18 @@ export class SiteDomainAdminClient {
     const path = `${domainPath(domainUuid)}/wording-compare`;
     const result = await this.send<SiteWordingCompare>("POST", path, {}, request, options);
     if (!result.compared) delete result.sharedPercent;
+    return result;
+  }
+
+  /** Compares two stored page observations on a verified domain without fetching either URL. */
+  async comparePageWording(
+    domainUuid: string,
+    { firstUrl, secondUrl }: SitePageWordingQuery,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteObservedWording> {
+    const path = `${domainPath(domainUuid)}/page-wording`;
+    const result = await this.send<SiteObservedWording>("GET", path, { firstUrl, secondUrl }, undefined, options);
+    if (result.comparison && !result.comparison.compared) delete result.comparison.sharedPercent;
     return result;
   }
 
@@ -668,8 +903,14 @@ export class SiteDomainAdminClient {
       brandNames: body.brandNames ?? [],
       competitorDomains: body.competitorDomains ?? [],
       markets: body.markets ?? [],
+      hackerNewsEnabled: body.hackerNewsEnabled,
     };
     return this.send("PUT", `${siteDomainsPath}/project-context`, { siteUuid: body.siteUuid }, request, options);
+  }
+
+  /** Reads public trends matching a Site's audience and saved terms. A site token may omit siteUuid. */
+  getRegionalTrends(siteUuid?: string, options?: SiteDomainRequestOptions): Promise<SiteRegionalTrends> {
+    return this.send("GET", `${siteDomainsPath}/regional-trends`, { siteUuid }, undefined, options);
   }
 
   /** Reads the domain's status and its most important next actions, most important first. */
@@ -1072,6 +1313,14 @@ function rankingKeywordPath(domainUuid: string, keywordUuid: string): string {
 /** RFC 3339 UTC to the second, as the server documents hour starts. */
 function utcSeconds(value: Date): string {
   return value.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+function analyticsPath(domainUuid: string): string {
+  return `${domainPath(domainUuid)}/analytics`;
+}
+
+function exportPath(domainUuid: string): string {
+  return `${domainPath(domainUuid)}/export`;
 }
 
 function indexNowPath(domainUuid: string): string {

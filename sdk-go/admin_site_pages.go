@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -41,6 +42,24 @@ const (
 // SitePageNotOnDomainCode is the problem code a 400 carries when a page tool is given a URL on
 // another host than the domain's own.
 const SitePageNotOnDomainCode = "site_page_not_on_domain"
+
+// SitePageNotReadCode is the problem code a 404 from GetPageFacts carries when the page is on the
+// tenant's verified domain but no audit or recheck has read it yet; RequestPageRecheck reads it.
+const SitePageNotReadCode = "site_page_not_read"
+
+// The scopes of AdminSitePageCheckRequest.Scope: the whole page, or only the body content an
+// editor writes, which the site's template wraps in its own head, navigation and h1.
+const (
+	AdminSitePageCheckScopePage    = "page"
+	AdminSitePageCheckScopeContent = "content"
+)
+
+// SitePageRecheckReadLimit bounds how many rechecks ListPageRechecks reads in one call.
+const SitePageRecheckReadLimit = 30
+
+// SiteChoiceRequiredCode is the problem code a 422 carries when a domain created without a Site
+// matches no one Site; name the Site with AdminSiteDomainCreate.SiteUUID.
+const SiteChoiceRequiredCode = "site_choice_required"
 
 // SitePageRecheckLimitCode is the problem code a 429 carries once the domain has used its hourly
 // page rechecks.
@@ -145,6 +164,12 @@ type AdminSitePageRecheck struct {
 	FixedRules  []string   `json:"fixedRules"`
 }
 
+// AdminSitePageRecheckList is the rechecks ListPageRechecks found, in the order asked. An id that
+// is not one of the domain's rechecks is left out.
+type AdminSitePageRecheckList struct {
+	Rechecks []AdminSitePageRecheck `json:"rechecks"`
+}
+
 // AdminSitePageFinding is one problem a draft check found on a page. Unlike AdminSiteFinding it is
 // not stored, so it has no UUID or history.
 type AdminSitePageFinding struct {
@@ -161,13 +186,17 @@ type AdminSitePageFinding struct {
 // AdminSitePageCheck is what the page checks found on draft HTML, and the page's facts. The draft
 // tools are empty when not asked for or from an older server: Slug is made from the draft's first
 // h1, else its title; Redirect is the permanent redirect from PreviousURL (format redirect);
-// Phrase says where the requested phrase appears.
+// Phrase says where the requested phrase appears. Scope echoes the draft's scope (empty from an
+// older server); with scope content, CheckedRules lists the only rules checked, so a rule absent
+// from Findings passed rather than went unchecked, and the head facts of Page are empty.
 type AdminSitePageCheck struct {
-	Page     AdminSitePageFacts     `json:"page"`
-	Findings []AdminSitePageFinding `json:"findings"`
-	Slug     string                 `json:"slug,omitempty"`
-	Redirect *AdminSiteGeneratedFix `json:"redirect,omitempty"`
-	Phrase   *AdminSitePhraseUse    `json:"phrase,omitempty"`
+	Page         AdminSitePageFacts     `json:"page"`
+	Findings     []AdminSitePageFinding `json:"findings"`
+	Slug         string                 `json:"slug,omitempty"`
+	Redirect     *AdminSiteGeneratedFix `json:"redirect,omitempty"`
+	Phrase       *AdminSitePhraseUse    `json:"phrase,omitempty"`
+	Scope        string                 `json:"scope,omitempty"`
+	CheckedRules []string               `json:"checkedRules,omitempty"`
 }
 
 // AdminSitePhraseUse is where one phrase appears in a draft and how often, with no target or
@@ -197,12 +226,14 @@ func (p *AdminSitePhraseUse) UnmarshalJSON(data []byte) error {
 // AdminSitePageCheckRequest checks HTML as if URL, on the domain's host, served it. HTML is the
 // full page, at most 512 KiB; it is never stored. PreviousURL, the page's current address on the
 // same host, asks for the redirect a move needs; Phrase (at most 100 characters) asks where it
-// appears. Both are left out when empty.
+// appears. Both are left out when empty. Scope AdminSitePageCheckScopeContent checks body content
+// only (the template supplies the head and h1); empty is the whole page.
 type AdminSitePageCheckRequest struct {
 	URL         string `json:"url"`
 	HTML        string `json:"html"`
 	PreviousURL string `json:"previousUrl,omitempty"`
 	Phrase      string `json:"phrase,omitempty"`
+	Scope       string `json:"scope,omitempty"`
 }
 
 // AdminSiteWordingCompareRequest is two drafts, as HTML or plain text (each at most 512 KiB), to
@@ -212,7 +243,7 @@ type AdminSiteWordingCompareRequest struct {
 	Second string `json:"second"`
 }
 
-// AdminSiteWordingCompare is how much wording two drafts share, measured as the crawl's
+// AdminSiteWordingCompare is how much wording two texts share, measured as the crawl's
 // content.near-duplicate rule measures it; wording overlap, not plagiarism. Texts under MinWords
 // are not compared: Compared is false and SharedPercent nil.
 type AdminSiteWordingCompare struct {
@@ -235,6 +266,36 @@ func (w *AdminSiteWordingCompare) UnmarshalJSON(data []byte) error {
 		w.SharedPercent = nil
 	}
 	return nil
+}
+
+// AdminSitePageWordingQuery names two distinct absolute URLs on the same verified domain.
+type AdminSitePageWordingQuery struct {
+	FirstURL  string
+	SecondURL string
+}
+
+// AdminSiteWordingObservationState describes the available stored wording evidence for one page.
+type AdminSiteWordingObservationState string
+
+const (
+	AdminSiteWordingUnread      AdminSiteWordingObservationState = "unread"
+	AdminSiteWordingUnavailable AdminSiteWordingObservationState = "unavailable"
+	AdminSiteWordingShort       AdminSiteWordingObservationState = "short"
+	AdminSiteWordingReady       AdminSiteWordingObservationState = "ready"
+)
+
+// AdminSiteWordingObservation describes the latest stored page check. Unread pages have no timestamp.
+type AdminSiteWordingObservation struct {
+	State      AdminSiteWordingObservationState `json:"state"`
+	ObservedAt *time.Time                       `json:"observedAt,omitempty"`
+}
+
+// AdminSiteObservedWording compares two stored observations. Comparison is nil when an
+// observation is unread or unavailable. A short observation keeps the counts without a score.
+type AdminSiteObservedWording struct {
+	First      AdminSiteWordingObservation `json:"first"`
+	Second     AdminSiteWordingObservation `json:"second"`
+	Comparison *AdminSiteWordingCompare    `json:"comparison,omitempty"`
 }
 
 // AdminSiteRobotsTestRequest asks whether UserAgent may crawl URL (a path or an http(s) URL).
@@ -270,7 +331,8 @@ type adminSitePageRecheckRequest struct {
 	URL string `json:"url"`
 }
 
-// GetPageFacts returns what the latest audit or recheck read from one page of the domain.
+// GetPageFacts returns what the latest audit or recheck read from one page of the domain. A page
+// nothing has read yet is a 404 with SitePageNotReadCode.
 func (c *SiteDomainAdminClient) GetPageFacts(ctx context.Context, domainUUID, pageURL string) (*AdminSitePageFacts, error) {
 	var facts AdminSitePageFacts
 	path := siteDomainPath(domainUUID) + "/page-facts?" + url.Values{"url": {pageURL}}.Encode()
@@ -300,6 +362,17 @@ func (c *SiteDomainAdminClient) GetPageRecheck(
 	return &recheck, err
 }
 
+// ListPageRechecks reads up to SitePageRecheckReadLimit of the domain's rechecks in one call, to
+// follow a group of pages with one poll. More ids, or none, is a 400.
+func (c *SiteDomainAdminClient) ListPageRechecks(
+	ctx context.Context, domainUUID string, recheckUUIDs []string,
+) (*AdminSitePageRecheckList, error) {
+	var list AdminSitePageRecheckList
+	query := url.Values{"ids": {strings.Join(recheckUUIDs, ",")}}.Encode()
+	err := c.request(ctx, http.MethodGet, siteDomainPath(domainUUID)+"/page-rechecks?"+query, nil, &list)
+	return &list, err
+}
+
 // CheckPage runs the one-page checks on draft HTML without fetching or storing anything, and the
 // draft tools the request asks for.
 func (c *SiteDomainAdminClient) CheckPage(
@@ -316,6 +389,17 @@ func (c *SiteDomainAdminClient) CompareWording(
 ) (*AdminSiteWordingCompare, error) {
 	var result AdminSiteWordingCompare
 	err := c.request(ctx, http.MethodPost, siteDomainPath(domainUUID)+"/wording-compare", req, &result)
+	return &result, err
+}
+
+// ComparePageWording compares the latest stored observations of two pages on a verified domain
+// without fetching either URL.
+func (c *SiteDomainAdminClient) ComparePageWording(
+	ctx context.Context, domainUUID string, query AdminSitePageWordingQuery,
+) (*AdminSiteObservedWording, error) {
+	var result AdminSiteObservedWording
+	values := url.Values{"firstUrl": {query.FirstURL}, "secondUrl": {query.SecondURL}}
+	err := c.request(ctx, http.MethodGet, siteDomainPath(domainUUID)+"/page-wording?"+values.Encode(), nil, &result)
 	return &result, err
 }
 

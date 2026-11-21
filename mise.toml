@@ -1,13 +1,17 @@
 [tools]
-go = "1.27.3"
-node = "26.13.0"
-pnpm = "latest"
+go = "1.27.4"
+node = "26.13.1"
+# Pinned, not "latest": package.json's packageManager field and the CI
+# corepack step must resolve the same pnpm, and corepack ignores mise.
+pnpm = "10.34.9"
 python = "3.15.2"
 uv = "latest"
-php = "8.5.12"
+php = "8.5.13"
 just = "latest"
 actionlint = "latest"
 ripgrep = "latest"
+# sdk-rust: clippy and rustfmt ship in the default rustup profile.
+rust = "1.100.0"
 # Declared because the release-mirror job resolves it as `mise which infisical`
 # before invoking it by path. Undeclared, mise installs the bin but reports
 # "infisical is a mise bin however it is not currently active" and the job fails
@@ -18,18 +22,19 @@ infisical = "latest"
 # change findings). Biome is intentionally absent: it is pinned via sdk-js's
 # package.json + pnpm-lock.yaml, the JS-native version source.
 #
-# 2.14.0 is a floor, not a preference: it links golang.org/x/tools v0.50.0,
-# which understands Go 1.27 export data. 2.13.2 links v0.49.0, which stops one
-# version short and fails on untouched files with "export data version 5 is
-# greater than maximum supported version 4" once this repo's Go is 1.27.2. Keep
-# this in step with the go pin above and with the CI install step.
+# Must be new enough to read this repo's Go export data: golangci-lint 2.14.0
+# links golang.org/x/tools v0.50.0 for that, and 2.13.2 links v0.49.0, which
+# fails on untouched files with "export data version 5 is greater than maximum
+# supported version 4". Keep this in step with the go pin above and the CI
+# install step.
 golangci-lint = "2.15.0"
-ruff = "0.17.3"
-"pipx:mypy" = { version = "2.4.0", uvx = "true" }
+ruff = "0.17.6"
+"pipx:mypy" = { version = "2.4.1", uvx = "true" }
 shellcheck = "latest"
 rumdl = "latest"
+# powershell-core is the same tool; mise resolves it to powershell, so one
+# declaration covers both and mise.lock never holds a separate entry.
 powershell = "latest"
-powershell-core = "latest"
 
 [plugins]
 php = "https://github.com/haakco/mise-php#096907cce61149ccb0dc6a061a3efcd8d1ee9d14"
@@ -66,6 +71,10 @@ run = "just test-python"
 [tasks.test-php]
 description = "Run PHP SDK tests"
 run = "just test-php"
+
+[tasks.test-rust]
+description = "Run Rust SDK format, lint and tests"
+run = "just test-rust"
 
 [tasks.lint-workflows]
 description = "Lint GitHub Actions workflows"

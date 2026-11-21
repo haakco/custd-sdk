@@ -1,4 +1,5 @@
 import type { AppRelease, AppReleaseCreateRequest, AppReleaseList, AppReleasePromotion, AppReleaseUploadedFile } from "./admin-app-releases.js";
+import { type AppCreateRequest, type AppCreation, type AppDeployCredential, type AppListResponse, type AppOverview } from "./admin-apps.js";
 import type { RequestOptions } from "./index.js";
 /** How an environment's identity boundary is shared. Custd owns both values. */
 export type AuthProjectIdentityMode = "isolated" | "shared";
@@ -752,6 +753,20 @@ export declare class AuthProjectAdminClient {
     verifyAppRelease(projectId: string, environmentId: string, releaseId: string, options?: RequestOptions): Promise<AppRelease>;
     /** Make a verified release the one the environment's host serves. */
     promoteAppRelease(projectId: string, environmentId: string, releaseId: string, options?: RequestOptions): Promise<AppReleasePromotion>;
+    /**
+     * Create an app with hosting, traffic, error capture and app data on; `signIn` also turns on
+     * invite-only sign-in. Repeating the same body and Idempotency-Key finishes a create that did
+     * not complete (`app_setup_incomplete`) or reads the same app back, so the key is required.
+     */
+    createApp(body: AppCreateRequest, options?: RequestOptions): Promise<AppCreation>;
+    /** List one page of the caller's apps, worst status first. Pass the previous `nextAfter` as `after`. */
+    listApps(after?: string, options?: RequestOptions): Promise<AppListResponse>;
+    /** Read one app by its slug, with its latest release and link counts. */
+    getApp(slug: string, options?: RequestOptions): Promise<AppOverview>;
+    /** Create a CI credential that can deploy only this app, acting for the caller. Its secret is shown once. */
+    createAppDeployCredential(slug: string, options?: RequestOptions): Promise<AppDeployCredential>;
+    /** Remove a deploy credential. Repeating a delete that failed part-way finishes it. */
+    deleteAppDeployCredential(slug: string, clientId: string, options?: RequestOptions): Promise<void>;
     /** Read the environment's supported auth configuration. */
     getEnvironmentCapability(projectId: string, environmentId: string, options?: RequestOptions): Promise<AuthProjectCapability>;
     /** Report every directory in the environment and whether it is fully stored. */

@@ -23,6 +23,10 @@ export function useCustdHostedApp() {
         throw new Error("custd: useCustdHostedApp must be used inside CustdHostedAppProvider");
     return state;
 }
+/** The hosted app's state, or null outside `CustdHostedAppProvider`. */
+export function useOptionalCustdHostedApp() {
+    return useContext(HostedAppContext);
+}
 /**
  * Starts the app and reports its result while active. The returned cleanup
  * stops the app, including one that resolves after cleanup.

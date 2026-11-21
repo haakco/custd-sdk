@@ -1,0 +1,20 @@
+[package]
+name = "custd-sdk"
+version = "3.64.4"
+edition = "2024"
+description = "Typed Custd API client: measurement projects, app item links and device-code login."
+license = "MIT"
+repository = "https://github.com/haakco/custd-sdk"
+# Consumed as a git dependency at a release tag; never published to crates.io.
+publish = false
+
+[lib]
+name = "custd_sdk"
+
+[dependencies]
+base64 = "0.23.1"
+ring = "0.17.14"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+ureq = { version = "3.5.2", default-features = false, features = ["rustls"] }
+url = "2.5.8"

@@ -82,6 +82,20 @@ describe("ForecastChart", () => {
     expect(view()).toBe("Showing 2026-07-01 to 2026-07-11");
   });
 
+  it("pans on sideways scroll while leaving vertical scroll alone", () => {
+    reduceMotion(true);
+    render(<ForecastChart data={data} title="Signups" />);
+    const plot = screen.getByRole("img");
+    vi.spyOn(plot, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 400, 200));
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    fireEvent.wheel(plot, { deltaY: 100 });
+    expect(view()).toBe("Showing 2026-07-11 to 2026-07-31");
+    fireEvent.wheel(plot, { deltaX: 100 });
+    expect(view()).toBe("Showing 2026-07-16 to 2026-08-05");
+    fireEvent.wheel(plot, { deltaY: -100, shiftKey: true });
+    expect(view()).toBe("Showing 2026-07-11 to 2026-07-31");
+  });
+
   it("toggles full screen and leaves it on Escape", () => {
     reduceMotion(true);
     const { container } = render(<ForecastChart data={data} title="Signups" />);
@@ -110,12 +124,14 @@ describe("ForecastChart", () => {
     expect(drawnEnd()).toBe("2026-07-31");
   });
 
-  it("keeps the reader's zoom when equal data arrives again", () => {
+  it("keeps the reader's zoom when a new forecast moves the end date", () => {
     reduceMotion(true);
     const { rerender } = render(<ForecastChart data={data} title="Signups" />);
     fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
-    rerender(<ForecastChart data={{ ...data, observations: [...data.observations] }} title="Signups" />);
+    rerender(<ForecastChart data={{ ...data, completionMedian: "2026-09-15T00:00:00Z" }} title="Signups" />);
     expect(view()).toBe("Showing 2026-07-11 to 2026-07-31");
+    fireEvent.click(screen.getByRole("button", { name: "Reset view" }));
+    expect(view()).toBe("Showing 2026-07-01 to 2026-09-15");
   });
 
   it("shows partial and empty states in the client's wording", () => {

@@ -8,6 +8,7 @@
 // validates the named user as a live member of the machine caller's own
 // company. A human administrator's own token subject is the actor and leaves
 // the option unset.
+import { appPath, } from "./admin-apps.js";
 /**
  * Raised when every step ran but the provider registrations are not known to
  * describe the environment's current configuration: the honest answer for a
@@ -157,6 +158,32 @@ export class AuthProjectAdminClient {
     promoteAppRelease(projectId, environmentId, releaseId, options) {
         const path = `${appReleasePath(projectId, environmentId, releaseId)}/promote`;
         return this.request("POST", path, undefined, options);
+    }
+    /**
+     * Create an app with hosting, traffic, error capture and app data on; `signIn` also turns on
+     * invite-only sign-in. Repeating the same body and Idempotency-Key finishes a create that did
+     * not complete (`app_setup_incomplete`) or reads the same app back, so the key is required.
+     */
+    async createApp(body, options) {
+        return this.request("POST", "/apps", body, requireIdempotencyKey(options));
+    }
+    /** List one page of the caller's apps, worst status first. Pass the previous `nextAfter` as `after`. */
+    listApps(after, options) {
+        const path = after ? `/apps?after=${encodeURIComponent(after)}` : "/apps";
+        return this.request("GET", path, undefined, options);
+    }
+    /** Read one app by its slug, with its latest release and link counts. */
+    getApp(slug, options) {
+        return this.request("GET", appPath(slug), undefined, options);
+    }
+    /** Create a CI credential that can deploy only this app, acting for the caller. Its secret is shown once. */
+    createAppDeployCredential(slug, options) {
+        return this.request("POST", `${appPath(slug)}/deploy-credentials`, undefined, options);
+    }
+    /** Remove a deploy credential. Repeating a delete that failed part-way finishes it. */
+    async deleteAppDeployCredential(slug, clientId, options) {
+        const path = `${appPath(slug)}/deploy-credentials/${encodeURIComponent(clientId)}`;
+        await this.request("DELETE", path, undefined, options);
     }
     /** Read the environment's supported auth configuration. */
     getEnvironmentCapability(projectId, environmentId, options) {

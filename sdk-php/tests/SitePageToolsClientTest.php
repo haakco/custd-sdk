@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\AdminProblemException;
+use HaakCo\Custd\Admin\SiteDomain\CreateSiteDomainRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteFinding;
 use HaakCo\Custd\Admin\SiteDomain\SiteGeneratedFix;
 use HaakCo\Custd\Admin\SiteDomain\SiteMarket;
@@ -20,6 +21,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteSearchDimension;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchInspectionStatus;
 use HaakCo\Custd\Admin\SiteDomain\SiteSearchProvider;
 use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompareRequest;
+use HaakCo\Custd\Admin\SiteDomain\WordingObservationState;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use HaakCo\Custd\CustdClient;
 use PHPUnit\Framework\TestCase;
@@ -43,6 +45,35 @@ final class SitePageToolsClientTest extends TestCase
         self::assertSame(SiteRemedy::KIND_CONTENT, $listed[0]->remedy->kind);
         self::assertSame(SiteRemedy::KIND_SERVER, $listed[1]->remedy->kind);
         self::assertNull($listed[1]->remedy->generated);
+        self::assertSame('The page has no title.', $listed[0]->suggestion?->explanation);
+        self::assertSame('Add a title that describes the page.', $listed[0]->suggestion->nextStep);
+        self::assertNull($listed[1]->suggestion);
+        self::assertTrue($generated->recheckable);
+        self::assertSame([true, false], [$listed[0]->recheckable, $listed[1]->recheckable]);
+    }
+
+    public function testSeveralRechecksAreReadInOneCallWithCommaJoinedIds(): void
+    {
+        $list = $this->client($calls, 'pageRecheckList')->listPageRechecks('d-1', ['r-1', 'r-2']);
+
+        self::assertSame(
+            [SitePageRecheckState::Checked, SitePageRecheckState::Failed],
+            array_map(static fn ($recheck) => $recheck->state, $list->rechecks),
+        );
+        self::assertSame(['GET ' . self::BASE . '/d-1/page-rechecks?ids=r-1%2Cr-2'], array_column($calls, 'route'));
+        self::assertSame(30, SiteDomainClient::PAGE_RECHECK_READ_LIMIT);
+    }
+
+    public function testCreateWithoutASiteSurfacesTheChoiceNeeded(): void
+    {
+        try {
+            $this->client($calls, 'siteChoiceRequiredProblem', 'site-insights.json', 422)
+                ->create(CreateSiteDomainRequest::forOwnSite('blog.example.com'));
+            self::fail('expected the create to be refused');
+        } catch (AdminProblemException $error) {
+            self::assertSame(SiteDomainClient::SITE_CHOICE_REQUIRED_CODE, $error->problem->code);
+        }
+        self::assertSame(['host' => 'blog.example.com'], $calls[0]['body']);
     }
 
     public function testPageFactsAndDraftCheck(): void
@@ -76,6 +107,24 @@ final class SitePageToolsClientTest extends TestCase
             'GET ' . self::BASE . '/d-1/page-facts?url=https%3A%2F%2Fexample.com%2Faf%2Fplanne',
             'POST ' . self::BASE . '/d-1/page-check',
         ], array_column($calls, 'route'));
+    }
+
+    public function testContentScopeListsTheRulesCheckedAndAPageCheckHasNone(): void
+    {
+        $request = $this->fixture('pageCheckContentRequest');
+        $check = $this->client($calls, 'pageCheckContent')->checkPage('d-1', new SitePageCheckRequest(
+            (string) $request->url,
+            (string) $request->html,
+            scope: SitePageCheckRequest::SCOPE_CONTENT,
+        ));
+        $page = $this->client($calls, 'pageCheck')->checkPage('d-1', new SitePageCheckRequest('https://example.com/', '<p>x</p>'));
+
+        self::assertSame(SitePageCheckRequest::SCOPE_CONTENT, $check->scope);
+        self::assertContains('image.not-lazy', $check->checkedRules ?? []);
+        self::assertNotContains('image.not-lazy', array_map(static fn ($finding): string => $finding->rule, $check->findings));
+        self::assertSame(['url' => $request->url, 'html' => $request->html, 'scope' => 'content'], $calls[0]['body']);
+        self::assertNull($page->scope);
+        self::assertNull($page->checkedRules);
     }
 
     public function testDraftToolsSendPreviousUrlAndPhraseAndDecodeTheirAnswers(): void
@@ -121,6 +170,34 @@ final class SitePageToolsClientTest extends TestCase
             ['POST ' . self::BASE . '/d-1/wording-compare', 'POST ' . self::BASE . '/d-1/wording-compare'],
             array_column($calls, 'route'),
         );
+    }
+
+    public function testObservedWordingUsesSavedPagesAndDistinguishesUnavailableAndShort(): void
+    {
+        $first = 'https://example.com/plans';
+        $second = 'https://example.com/support';
+        $ready = $this->client($calls, 'observedWording')->comparePageWording('d-1', $first, $second, 'acme');
+        self::assertSame(WordingObservationState::Ready, $ready->first->state);
+        self::assertSame('2026-11-18T11:00:00Z', $ready->first->observedAt);
+        self::assertSame(96, $ready->comparison?->sharedPercent);
+        self::assertSame([null], array_column($calls, 'body'));
+        self::assertSame(
+            ['GET ' . self::BASE . '/d-1/page-wording?firstUrl=https%3A%2F%2Fexample.com%2Fplans'
+                . '&secondUrl=https%3A%2F%2Fexample.com%2Fsupport&companySlug=acme'],
+            array_column($calls, 'route')
+        );
+
+        $missing = $this->client($calls, 'observedWordingUnavailable')->comparePageWording('d-1', $first, $second);
+        self::assertSame(WordingObservationState::Unavailable, $missing->first->state);
+        self::assertSame(WordingObservationState::Unread, $missing->second->state);
+        self::assertNull($missing->second->observedAt);
+        self::assertNull($missing->comparison);
+
+        $short = $this->client($calls, 'observedWordingShort')->comparePageWording('d-1', $first, $second);
+        self::assertSame(WordingObservationState::Short, $short->first->state);
+        self::assertNotNull($short->comparison);
+        self::assertSame(80, $short->comparison->firstWords);
+        self::assertNull($short->comparison->sharedPercent);
     }
 
     public function testPageRechecksQueueAndPoll(): void
@@ -237,6 +314,20 @@ final class SitePageToolsClientTest extends TestCase
         ], array_column($calls, 'route'));
     }
 
+    public function testProjectContextSendsExplicitHackerNewsChoice(): void
+    {
+        $domains = $this->client($calls, 'projectContextEmpty');
+        $domains->setProjectContext(null, new SiteProjectContextRequest(hackerNewsEnabled: true));
+        $disabled = $domains->setProjectContext(null, new SiteProjectContextRequest(hackerNewsEnabled: false));
+        $payload = $this->fixture('projectContext');
+        $payload->hackerNewsEnabled = true;
+
+        self::assertSame(true, $calls[0]['body']['hackerNewsEnabled']);
+        self::assertSame(false, $calls[1]['body']['hackerNewsEnabled']);
+        self::assertFalse($disabled->hackerNewsEnabled);
+        self::assertTrue(\HaakCo\Custd\Admin\SiteDomain\SiteProjectContext::fromPayload($payload)->hackerNewsEnabled);
+    }
+
     public function testRefusalsCarryNamedProblemCodes(): void
     {
         $cases = [
@@ -246,6 +337,14 @@ final class SitePageToolsClientTest extends TestCase
             'searchInspectionNotConnectedProblem' => SiteDomainClient::SEARCH_INSPECTION_NOT_CONNECTED_CODE,
             'searchInspectionLimitProblem' => SiteDomainClient::SEARCH_INSPECTION_LIMIT_CODE,
         ];
+        $problem = $this->fixture('pageNotReadProblem');
+        try {
+            $this->client($calls, 'pageNotReadProblem', status: (int) $problem->status)->getPageFacts('d-1', 'https://example.com/');
+            self::fail('expected pageNotReadProblem to be refused');
+        } catch (AdminProblemException $error) {
+            self::assertSame(404, $error->status);
+            self::assertSame(SiteDomainClient::PAGE_NOT_READ_CODE, $error->problem->code);
+        }
         foreach ($cases as $key => $code) {
             $problem = $this->fixture($key);
             try {

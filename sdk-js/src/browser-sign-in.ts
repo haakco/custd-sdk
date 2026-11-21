@@ -10,6 +10,8 @@ export type CustdDiscoverySignIn = {
   authorizationEndpoint: string;
   tokenEndpoint: string;
   endSessionEndpoint?: string;
+  /** Where the provider returns the browser after sign-out; `signOut` uses it by default. */
+  postLogoutRedirectUri?: string;
   clientId: string;
   /** The API audience the access token is issued for; sent as the authorize `audience` parameter. */
   audience?: string;
@@ -159,6 +161,7 @@ export function signInConfigFromDiscovery(
     redirectUri: options.redirectUri,
   };
   if (signIn.endSessionEndpoint) config.endSessionEndpoint = signIn.endSessionEndpoint;
+  if (signIn.postLogoutRedirectUri) config.postLogoutRedirectUri = signIn.postLogoutRedirectUri;
   if (signIn.audience) config.audience = signIn.audience;
   if (options.scopes) config.scopes = options.scopes;
   validateEndpoints(config);
@@ -298,7 +301,8 @@ export class BrowserSignIn {
     const url = new URL(this.config.endSessionEndpoint);
     url.searchParams.set("client_id", this.config.clientId);
     if (idToken) url.searchParams.set("id_token_hint", idToken);
-    if (options.postLogoutRedirectUri) url.searchParams.set("post_logout_redirect_uri", options.postLogoutRedirectUri);
+    const postLogoutRedirectUri = options.postLogoutRedirectUri ?? this.config.postLogoutRedirectUri;
+    if (postLogoutRedirectUri) url.searchParams.set("post_logout_redirect_uri", postLogoutRedirectUri);
     const endSessionUrl = url.toString();
     this.navigate(endSessionUrl);
     return { endSessionUrl };
@@ -450,6 +454,7 @@ function validateEndpoints(config: BrowserSignInEndpoints): void {
     assertSecureOrLocalHTTP(config[field], field);
   }
   if (config.endSessionEndpoint) assertSecureOrLocalHTTP(config.endSessionEndpoint, "endSessionEndpoint");
+  if (config.postLogoutRedirectUri) assertSecureOrLocalHTTP(config.postLogoutRedirectUri, "postLogoutRedirectUri");
 }
 
 function assertSecureOrLocalHTTP(rawUrl: string, field: string): void {

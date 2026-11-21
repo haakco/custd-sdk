@@ -1,0 +1,108 @@
+// Meeting items (Admin API /api/v1/app/item/meeting): an agenda of blocks, each with a predicted
+// time. The owner starts it, advances block by block and ends it; an overrun block takes its extra
+// time from the blocks after it. Every step returns the item read with the meeting as it runs.
+
+export const APP_MEETING_STATUSES = {
+  /** Created, not started. */
+  ready: "ready",
+  running: "running",
+  completed: "completed",
+  cancelled: "cancelled",
+} as const;
+
+export type AppMeetingStatus = (typeof APP_MEETING_STATUSES)[keyof typeof APP_MEETING_STATUSES];
+
+export const APP_MEETING_BLOCK_STATUSES = {
+  pending: "pending",
+  active: "active",
+  completed: "completed",
+  skipped: "skipped",
+  /** The meeting ended before the block was reached. */
+  notRun: "not_run",
+} as const;
+
+export type AppMeetingBlockStatus = (typeof APP_MEETING_BLOCK_STATUSES)[keyof typeof APP_MEETING_BLOCK_STATUSES];
+
+/** Problem codes the meeting routes answer with. */
+export const APP_MEETING_ERROR_CODES = {
+  /**
+   * 409: the meeting cannot take this step now, such as advancing a block that is neither on nor
+   * the one that last finished. Read the meeting again and act on its `currentBlockUuid`.
+   */
+  stepRefused: "app_item_meeting_step_refused",
+} as const;
+
+export type AppMeetingBlockCreate = {
+  /** At most 200 bytes. */
+  title: string;
+  /** Milliseconds, at least 1000. */
+  predictedMs: number;
+};
+
+/** A meeting item's agenda: 1 to 128 blocks lasting at most 28 days in all. */
+export type AppMeetingCreate = { name: string; blocks: AppMeetingBlockCreate[] };
+
+/** Names the block an advance finishes: a repeat is a no-op, any other block a stale 409. */
+export type AppMeetingAdvanceRequest = { blockUuid: string };
+
+export type AppMeetingBlock = {
+  blockUuid: string;
+  position: number;
+  title: string;
+  status: AppMeetingBlockStatus;
+  /** The time the agenda predicted. */
+  predictedMs: number;
+  /** The time it has now: an overrun earlier block shrinks the blocks after it. */
+  allocatedMs: number;
+  /** The time it took, once it is done. */
+  actualMs: number;
+  startedAt?: string;
+  endedAt?: string;
+};
+
+/** The agenda's predicted time against the time its finished blocks took. */
+export type AppMeetingSummary = {
+  predictedMs: number;
+  finishedPredictedMs: number;
+  finishedActualMs: number;
+  finishedBlocks: number;
+  /** How far the meeting ran past its planned end. */
+  overrunMs: number;
+};
+
+/** A meeting as it runs. `startedAt` and `endsAt` are set once it starts. */
+export type AppMeeting = {
+  name: string;
+  status: AppMeetingStatus;
+  startedAt?: string;
+  /** When the agenda is planned to finish. */
+  endsAt?: string;
+  /** The block that is on now, if any. */
+  currentBlockUuid?: string;
+  blocks: AppMeetingBlock[] | null;
+  summary: AppMeetingSummary;
+};
+
+export type AppMeetingAction = {
+  description: string;
+  partUuid?: string;
+};
+
+export type AppMeetingMinutes = {
+  planUuid?: string;
+  minutes: string;
+  decisions: string;
+  sharedSummary?: string;
+  actions: AppMeetingAction[];
+};
+
+export type AppMeetingMinutesUpdate = AppMeetingMinutes & {
+  expectedRevision: number;
+  planLinkToken?: string;
+};
+
+export type AppPlanMeetingSummary = {
+  meetingUuid: string;
+  name: string;
+  summary: string;
+};

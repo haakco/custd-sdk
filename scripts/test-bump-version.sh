@@ -6,7 +6,7 @@ tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
 mkdir -p "$tmpdir/sdk-go" "$tmpdir/sdk-js/src" "$tmpdir/sdk-react" "$tmpdir/sdk-python/src/custd" \
-  "$tmpdir/sdk-php/src" "$tmpdir/wordpress-plugin"
+  "$tmpdir/sdk-php/src" "$tmpdir/wordpress-plugin" "$tmpdir/sdk-rust"
 cp "$repo_root/VERSION" "$tmpdir/VERSION"
 cp "$repo_root/sdk-go/VERSION" "$tmpdir/sdk-go/VERSION"
 cp "$repo_root/sdk-go/version.go" "$tmpdir/sdk-go/version.go"
@@ -18,6 +18,7 @@ cp "$repo_root/sdk-python/src/custd/version.py" "$tmpdir/sdk-python/src/custd/ve
 cp "$repo_root/sdk-php/composer.json" "$tmpdir/sdk-php/composer.json"
 cp "$repo_root/sdk-php/src/CustdClient.php" "$tmpdir/sdk-php/src/CustdClient.php"
 cp "$repo_root/wordpress-plugin/custd.php" "$tmpdir/wordpress-plugin/custd.php"
+cp "$repo_root/sdk-rust/Cargo.toml" "$tmpdir/sdk-rust/Cargo.toml"
 
 REPO_ROOT="$tmpdir" "$repo_root/scripts/bump-version.sh" 9.8.7
 
@@ -34,3 +35,4 @@ grep -q 'const Version = "9.8.7"' "$tmpdir/sdk-go/version.go"
 grep -q 'public const VERSION = "9.8.7";' "$tmpdir/sdk-php/src/CustdClient.php"
 grep -q 'export const SDK_VERSION = "9.8.7";' "$tmpdir/sdk-js/src/version.ts"
 grep -qx 'VERSION = "9.8.7"' "$tmpdir/sdk-python/src/custd/version.py"
+grep -qx 'version = "9.8.7"' "$tmpdir/sdk-rust/Cargo.toml"

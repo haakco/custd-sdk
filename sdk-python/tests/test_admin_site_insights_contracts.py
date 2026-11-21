@@ -31,6 +31,9 @@ from custd import (
     SITE_INDEXABILITY_ERROR,
     SITE_INDEXABILITY_REDIRECTED,
     SITE_INVENTORY_PENDING,
+    SITE_KEYWORD_DEMAND_AVAILABLE,
+    SITE_KEYWORD_DEMAND_NO_MARKET,
+    SITE_KEYWORD_DEMAND_SOURCE_BING,
     SITE_KEYWORD_LIST_LIMIT_CODE,
     SITE_KEYWORD_LIST_NOT_FOUND_CODE,
     SITE_LIGHTHOUSE_PAGE_NOT_EXTRA_CODE,
@@ -39,6 +42,8 @@ from custd import (
     SITE_LINK_SOURCE_STATUS_FAILED,
     SITE_LINK_SOURCE_STATUS_PENDING,
     SITE_LINK_SOURCE_STATUS_UNAVAILABLE,
+    SITE_PAGE_CHECK_SCOPE_CONTENT,
+    SITE_PAGE_NOT_READ_CODE,
     SITE_RANK_COUNTRY_ALL,
     SITE_RANK_STATE_NOT_RANKING,
     SITE_RANK_STATE_RANKING,
@@ -61,6 +66,7 @@ from custd import (
     SITE_SEARCH_POOL_QUERY_INVALID_CODE,
     SITE_SEARCH_POOL_SETTING_INVALID_CODE,
     SITE_SEARCH_POOL_SITE_BOUND_CODE,
+    SITE_SEARCH_POOL_TERMS_VERSION,
     SITE_SEARCH_VALUE_GOALS_PARTIAL,
     SITE_SEARCH_VALUE_GOALS_UNAVAILABLE,
     SITE_TRACKED_KEYWORD_DUPLICATE_CODE,
@@ -144,6 +150,7 @@ class ProblemCodesTest(unittest.TestCase):
             (POOL, "queryInvalidProblem", SITE_SEARCH_POOL_QUERY_INVALID_CODE),
             (CAMPAIGNS, "campaignLinkTakenProblem", SITE_CAMPAIGN_LINK_TAKEN_CODE),
             (CAMPAIGNS, "campaignLinkLimitProblem", SITE_CAMPAIGN_LINK_LIMIT_CODE),
+            (TOOLS, "pageNotReadProblem", SITE_PAGE_NOT_READ_CODE),
         ]
         for fixtures, key, code in cases:
             problem = fixtures[key]
@@ -380,6 +387,37 @@ class WebDataTest(unittest.TestCase):
         self.assertEqual(6.5, measured["avgPosition"])
         self.assertEqual(0, unmeasured["measuredKeywords"])
         self.assertNotIn("clicks", unmeasured)
+        self.assertNotIn("bingWeeklyImpressions", measured)
+        self.assertNotIn("demand", clusters)
+
+    def test_decodes_bing_keyword_demand_keeping_unread_numbers_absent(self) -> None:
+        domains, _ = site_domains(200, WEB["keywordClustersWithDemand"])
+        clusters = domains.get_keyword_clusters("Pricing")
+        measured, unmeasured = clusters["clusters"]
+        self.assertEqual(1400, measured.get("bingWeeklyImpressions"))
+        self.assertNotIn("bingWeeklyImpressions", unmeasured)
+        demand = clusters["demand"]
+        self.assertEqual(
+            (SITE_KEYWORD_DEMAND_AVAILABLE, SITE_KEYWORD_DEMAND_SOURCE_BING, "en-ZA"),
+            (demand["state"], demand["source"], demand.get("market")),
+        )
+        exact, narrow, failed = demand["keywords"]
+        self.assertEqual((1100, 3200), (exact.get("weeklyImpressions"), exact.get("broadImpressions")))
+        self.assertIsNone(narrow.get("broadImpressions"))
+        self.assertIsNone(failed.get("weeklyImpressions"))
+        self.assertIn("503", failed.get("lastFailure", ""))
+
+        domains, _ = site_domains(200, WEB["keywordClustersNoMarket"])
+        no_market = domains.get_keyword_clusters("Pricing")["demand"]
+        self.assertEqual((SITE_KEYWORD_DEMAND_NO_MARKET, []), (no_market["state"], no_market["keywords"]))
+        self.assertNotIn("market", no_market)
+
+        domains, _ = site_domains(200, WEB["keywordListWithRelated"])
+        related = domains.save_keyword_list(WEB["keywordListRequest"])["related"]
+        self.assertEqual(("2026-08-17", "2026-11-15"), (related["from"], related["to"]))
+        first = related["keywords"][0]
+        self.assertEqual((5400, 12000), (first["impressions"], first["broadImpressions"]))
+        self.assertNotIn("related", WEB["keywordList"])
 
 
 class ReferringDomainsTest(unittest.TestCase):
@@ -437,8 +475,8 @@ class SearchPoolTest(unittest.TestCase):
         domains, transport = site_domains(200, POOL["settingJoined"])
 
         domains.get_search_pool()
-        domains.set_search_pool(True)
-        domains.set_search_pool(False, company_slug="acme")
+        domains.set_search_pool(True, SITE_SEARCH_POOL_TERMS_VERSION)
+        domains.set_search_pool(False, SITE_SEARCH_POOL_TERMS_VERSION, company_slug="acme")
         domains.list_search_pool_queries()
         domains.list_search_pool_queries("pricing", 10)
 
@@ -454,15 +492,32 @@ class SearchPoolTest(unittest.TestCase):
             transport.calls,
         )
 
+    def test_joining_without_a_terms_version_is_refused_before_any_request(self) -> None:
+        domains, transport = site_domains(200, POOL["settingJoined"])
+        for missing in (None, "", "  "):
+            with self.subTest(missing), self.assertRaises(ValueError):
+                domains.set_search_pool(True, missing)
+        self.assertEqual([], transport.calls)
+
+        problem = POOL["termsNotAcceptedProblem"]
+        domains, _ = site_domains(problem["status"], problem)
+        with self.assertRaises(RequestError) as raised:
+            domains.set_search_pool(True, "2020-01-01")
+        self.assertEqual((400, None), (raised.exception.status, raised.exception.code))
+
     def test_decodes_pool_settings_and_queries_keeping_real_zeros(self) -> None:
         domains, _ = site_domains(200, POOL["settingNotJoined"])
         not_joined = domains.get_search_pool()
         self.assertIs(False, not_joined["joined"])
         self.assertIsNone(not_joined.get("joinedAt"))
+        self.assertIsNone(not_joined.get("acceptedTermsVersion"))
+        self.assertEqual(SITE_SEARCH_POOL_TERMS_VERSION, not_joined.get("termsVersion"))
         rules = (not_joined["minContributors"], not_joined["minImpressions"], not_joined["windowDays"])
         self.assertEqual((5, 100, 28), rules)
         domains, _ = site_domains(200, POOL["settingJoined"])
-        self.assertEqual("2026-11-17T09:30:00Z", domains.set_search_pool(True).get("joinedAt"))
+        joined = domains.set_search_pool(True, not_joined["termsVersion"])
+        self.assertEqual("2026-11-18T09:00:00Z", joined.get("joinedAt"))
+        self.assertEqual(SITE_SEARCH_POOL_TERMS_VERSION, joined.get("acceptedTermsVersion"))
 
         domains, _ = site_domains(200, POOL["queries"])
         page = domains.list_search_pool_queries()
@@ -715,6 +770,19 @@ class DraftToolsTest(unittest.TestCase):
         self.assertNotIn("densityPercent", domains.check_page(DOMAIN, request["url"], "<p></p>", phrase="x")["phrase"])
         self.assertEqual({"url": request["url"], "html": "<p></p>", "phrase": "x"}, transport.calls[0][2])
 
+    def test_content_scope_lists_the_rules_it_checked(self) -> None:
+        domains, transport = site_domains(200, TOOLS["pageCheckContent"])
+        request = TOOLS["pageCheckContentRequest"]
+
+        check = domains.check_page(DOMAIN, request["url"], request["html"], scope=SITE_PAGE_CHECK_SCOPE_CONTENT)
+
+        self.assertEqual([("POST", f"{D}/page-check", request)], transport.calls)
+        self.assertEqual(SITE_PAGE_CHECK_SCOPE_CONTENT, check.get("scope"))
+        failed = {finding["rule"] for finding in check["findings"]}
+        passed = [rule for rule in check.get("checkedRules", []) if rule not in failed]
+        self.assertEqual(["heading.order-skip", "image.not-lazy"], passed)
+        self.assertNotIn("checkedRules", TOOLS["pageCheck"])
+
     def test_compare_wording_drops_the_share_of_texts_it_did_not_compare(self) -> None:
         domains, transport = site_domains(200, TOOLS["wordingCompare"])
         request = TOOLS["wordingCompareRequest"]
@@ -727,6 +795,30 @@ class DraftToolsTest(unittest.TestCase):
         short = domains.compare_wording(DOMAIN, "a", "b")
         self.assertFalse(short["compared"])
         self.assertNotIn("sharedPercent", short)
+
+    def test_compare_page_wording_preserves_observation_states(self) -> None:
+        first = "https://example.com/plans"
+        second = "https://example.com/support"
+        domains, transport = site_domains(200, TOOLS["observedWording"])
+        observed = domains.compare_page_wording(DOMAIN, first, second, company_slug="acme")
+        self.assertEqual([(
+            "GET", f"{D}/page-wording?firstUrl=https%3A%2F%2Fexample.com%2Fplans"
+            "&secondUrl=https%3A%2F%2Fexample.com%2Fsupport&companySlug=acme", None,
+        )], transport.calls)
+        self.assertEqual("2026-11-18T11:00:00Z", observed["first"]["observedAt"])
+        self.assertEqual(96, observed["comparison"]["sharedPercent"])
+
+        domains, _ = site_domains(200, TOOLS["observedWordingUnavailable"])
+        unavailable = domains.compare_page_wording(DOMAIN, first, second)
+        self.assertEqual("unavailable", unavailable["first"]["state"])
+        self.assertEqual({"state": "unread"}, unavailable["second"])
+        self.assertNotIn("comparison", unavailable)
+
+        domains, _ = site_domains(200, TOOLS["observedWordingShort"])
+        short = domains.compare_page_wording(DOMAIN, first, second)
+        self.assertEqual("short", short["first"]["state"])
+        self.assertEqual(80, short["comparison"]["firstWords"])
+        self.assertNotIn("sharedPercent", short["comparison"])
 
 
 if __name__ == "__main__":

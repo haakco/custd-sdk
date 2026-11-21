@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Tests;
 
+use HaakCo\Custd\Admin\AdminProblemException;
 use HaakCo\Custd\Admin\SiteDomain\SearchPoolBand;
 use HaakCo\Custd\Admin\SiteDomain\SearchPoolSetting;
 use HaakCo\Custd\Admin\SiteDomainClient;
@@ -22,19 +23,23 @@ final class SiteSearchPoolClientTest extends TestCase
         return 'site-search-pool.json';
     }
 
-    public function testJoinAndLeaveAlwaysSendJoined(): void
+    public function testJoinSendsTheAcceptedTermsAndLeaveSendsOnlyJoined(): void
     {
         $notJoined = $this->replay($calls, 'settingNotJoined')->searchPool()->getSearchPool();
-        $joined = $this->replay($calls, 'settingJoined')->searchPool()->setSearchPool(true, 'acme');
-        $this->replay($calls, 'settingNotJoined')->searchPool()->setSearchPool(false);
+        $joined = $this->replay($calls, 'settingJoined')->searchPool()
+            ->setSearchPool(true, SiteSearchPoolClient::SEARCH_POOL_TERMS_VERSION, 'acme');
+        $this->replay($calls, 'settingNotJoined')->searchPool()->setSearchPool(false, 'ignored-on-leave');
 
         self::assertFalse($notJoined->joined);
         self::assertNull($notJoined->joinedAt);
+        self::assertNull($notJoined->acceptedTermsVersion);
+        self::assertSame(SiteSearchPoolClient::SEARCH_POOL_TERMS_VERSION, $notJoined->termsVersion);
+        self::assertSame(SiteSearchPoolClient::SEARCH_POOL_TERMS_VERSION, $joined->acceptedTermsVersion);
         self::assertSame(SearchPoolSetting::MIN_CONTRIBUTORS, $notJoined->minContributors);
         self::assertSame(SearchPoolSetting::MIN_IMPRESSIONS, $notJoined->minImpressions);
         self::assertSame(SearchPoolSetting::WINDOW_DAYS, $notJoined->windowDays);
         self::assertTrue($joined->joined);
-        self::assertSame('2026-11-17T09:30:00Z', $joined->joinedAt);
+        self::assertSame('2026-11-18T09:00:00Z', $joined->joinedAt);
         self::assertSame([
             'GET ' . self::BASE,
             'PUT ' . self::BASE . '?companySlug=acme',
@@ -44,6 +49,27 @@ final class SiteSearchPoolClientTest extends TestCase
             [null, self::fixtureArray('joinRequest'), self::fixtureArray('leaveRequest')],
             array_column($calls, 'body')
         );
+    }
+
+    public function testJoinWithoutTermsIsRefusedBeforeAnyRequest(): void
+    {
+        foreach ([null, ''] as $termsVersion) {
+            $calls = null;
+            try {
+                $this->replay($calls, 'settingJoined')->searchPool()->setSearchPool(true, $termsVersion);
+                self::fail('expected the join to be refused');
+            } catch (\InvalidArgumentException) {
+                self::assertSame([], $calls);
+            }
+        }
+        $calls = null;
+        try {
+            $this->replay($calls, 'termsNotAcceptedProblem', 400)->searchPool()->setSearchPool(true, '2020-01-01');
+            self::fail('expected a stale version to be refused');
+        } catch (AdminProblemException $error) {
+            self::assertSame(400, $error->status);
+            self::assertSame('', $error->problem->code);
+        }
     }
 
     public function testQueriesKeepZeroPositionsAndAbsentWindow(): void

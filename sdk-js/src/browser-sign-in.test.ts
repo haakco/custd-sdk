@@ -270,6 +270,7 @@ describe("signInConfigFromDiscovery", () => {
           authorizationEndpoint: "https://auth.example.com/oauth2/auth",
           tokenEndpoint: "https://auth.example.com/oauth2/token",
           endSessionEndpoint: "https://auth.example.com/oauth2/sessions/logout",
+          postLogoutRedirectUri: "https://app.example.com/signed-out",
           clientId: "app-client",
           audience: "app-web",
         },
@@ -282,10 +283,14 @@ describe("signInConfigFromDiscovery", () => {
       authorizationEndpoint: "https://auth.example.com/oauth2/auth",
       tokenEndpoint: "https://auth.example.com/oauth2/token",
       endSessionEndpoint: "https://auth.example.com/oauth2/sessions/logout",
+      postLogoutRedirectUri: "https://app.example.com/signed-out",
       clientId: "app-client",
       audience: "app-web",
       redirectUri: REDIRECT_URI,
     });
+    const signIn = new BrowserSignIn({ ...config, storage: memoryStorage(), navigate: vi.fn() });
+    const url = new URL(signIn.signOut().endSessionUrl ?? "");
+    expect(url.searchParams.get("post_logout_redirect_uri")).toBe("https://app.example.com/signed-out");
   });
 
   it("refuses a discovery document without sign-in or with an insecure endpoint", () => {

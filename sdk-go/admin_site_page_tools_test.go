@@ -52,6 +52,9 @@ func TestSiteRemedyDecodesGeneratedAndUnknown(t *testing.T) {
 		generated.Format != AdminSiteGeneratedFormatHTML || generated.Code != `<link rel="canonical" href="https://example.com/plans">` {
 		t.Fatalf("remedy = %+v", finding.Remedy)
 	}
+	if !finding.Recheckable {
+		t.Fatal("canonical.missing finding is not recheckable")
+	}
 	var unknown AdminSiteRemedy
 	if err := json.Unmarshal([]byte(sitePageToolsFixture(t, "remedyUnknownRule")), &unknown); err != nil ||
 		unknown != (AdminSiteRemedy{}) {
@@ -117,6 +120,19 @@ func TestSitePageRecheckRoutesAndStates(t *testing.T) {
 	doer.status, doer.body = http.StatusBadRequest, sitePageToolsFixture(t, "pageNotOnDomainProblem")
 	_, err = domains.RequestPageRecheck(ctx, "d-1", "https://other.example/")
 	assertSiteProblemCode(t, err, http.StatusBadRequest, SitePageNotOnDomainCode)
+}
+
+// ListPageRechecks sends the ids comma-joined, as the server reads them, and decodes the list.
+func TestSitePageRechecksReadSendsCommaJoinedIDs(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, sitePageToolsFixture(t, "pageRecheckList"))
+	domains := newAdminTestClient(t, doer, "http://localhost:8080").Admin.SiteDomains
+
+	list, err := domains.ListPageRechecks(context.Background(), "d-1", []string{"r-1", "r-2"})
+	if err != nil || len(list.Rechecks) != 2 || list.Rechecks[0].State != AdminSitePageRecheckChecked ||
+		list.Rechecks[1].State != AdminSitePageRecheckFailed {
+		t.Fatalf("list = %+v, %v", list, err)
+	}
+	assertSiteRequests(t, doer.requests, []string{"GET " + siteTestBase + "/page-rechecks?ids=r-1%2Cr-2"})
 }
 
 func TestSitePageCheckSendsDraftAndDecodesFindings(t *testing.T) {
@@ -235,4 +251,59 @@ func TestSiteWordingCompareRouteAndNotCompared(t *testing.T) {
 	assertSiteRequests(t, doer.requests, []string{
 		"POST " + siteTestBase + "/wording-compare", "POST " + siteTestBase + "/wording-compare",
 	})
+}
+
+func TestSiteObservedWordingRouteAndEvidenceStates(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, sitePageToolsFixture(t, "observedWording"))
+	domains := newAdminTestClient(t, doer, "http://localhost:8080").Admin.SiteDomains
+	query := AdminSitePageWordingQuery{
+		FirstURL: "https://example.com/plans?locale=en&view=full", SecondURL: "https://example.com/support",
+	}
+	ctx := context.Background()
+	ready, err := domains.ComparePageWording(ctx, "d-1", query)
+	if err != nil || ready.First.State != AdminSiteWordingReady || ready.First.ObservedAt == nil ||
+		ready.Second.State != AdminSiteWordingReady || ready.Second.ObservedAt == nil ||
+		ready.Comparison == nil || !ready.Comparison.Compared || ready.Comparison.SharedPercent == nil ||
+		*ready.Comparison.SharedPercent != 96 {
+		t.Fatalf("ready evidence = %+v, %v", ready, err)
+	}
+
+	doer.body = sitePageToolsFixture(t, "observedWordingUnavailable")
+	unavailable, err := domains.ComparePageWording(ctx, "d-1", query)
+	if err != nil || unavailable.First.State != AdminSiteWordingUnavailable || unavailable.First.ObservedAt == nil ||
+		unavailable.Second.State != AdminSiteWordingUnread || unavailable.Second.ObservedAt != nil ||
+		unavailable.Comparison != nil {
+		t.Fatalf("unavailable evidence = %+v, %v", unavailable, err)
+	}
+
+	doer.body = sitePageToolsFixture(t, "observedWordingShort")
+	short, err := domains.ComparePageWording(ctx, "d-1", query)
+	if err != nil || short.First.State != AdminSiteWordingShort || short.Comparison == nil || short.Comparison.Compared ||
+		short.Comparison.SharedPercent != nil || short.Comparison.FirstWords != 80 {
+		t.Fatalf("short evidence = %+v, %v", short, err)
+	}
+	route := "GET " + siteTestBase + "/page-wording?firstUrl=https%3A%2F%2Fexample.com%2Fplans%3Flocale%3Den%26view%3Dfull&secondUrl=https%3A%2F%2Fexample.com%2Fsupport"
+	assertSiteRequests(t, doer.requests, []string{route, route, route})
+}
+
+// A content-scope draft sends its scope and lists the rules it checked; a page nothing has read is
+// a 404 the client can tell from a missing domain.
+func TestSitePageCheckContentScopeAndPageNotRead(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, sitePageToolsFixture(t, "pageCheckContent"))
+	domains := newAdminTestClient(t, doer, "http://localhost:8080").Admin.SiteDomains
+	ctx := context.Background()
+	req := AdminSitePageCheckRequest{
+		URL:   "https://shop.example.com/blog/pricing-guide",
+		HTML:  `<h2>Pricing guide</h2><p>Short body copy about pricing.</p><img src="/chart.png">`,
+		Scope: AdminSitePageCheckScopeContent,
+	}
+	check, err := domains.CheckPage(ctx, "d-1", req)
+	if err != nil || check.Scope != AdminSitePageCheckScopeContent || len(check.CheckedRules) != 6 ||
+		check.CheckedRules[0] != SiteRuleHeadingSkip || check.Page.Title != "" || len(check.Findings) != 4 {
+		t.Fatalf("check = %+v, %v", check, err)
+	}
+	assertSiteBody(t, doer.requests[0], sitePageToolsFixture(t, "pageCheckContentRequest"))
+	doer.status, doer.body = http.StatusNotFound, sitePageToolsFixture(t, "pageNotReadProblem")
+	_, err = domains.GetPageFacts(ctx, "d-1", "https://shop.example.com/new")
+	assertSiteProblemCode(t, err, http.StatusNotFound, SitePageNotReadCode)
 }
