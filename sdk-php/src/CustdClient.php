@@ -148,6 +148,11 @@ final class CustdClient
         return $value;
     }
 
+    public function adminCampaignEmailRevisions(): Admin\CampaignEmailRevisionClient
+    {
+        return new Admin\CampaignEmailRevisionClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
     public function adminTenants(): Admin\TenantClient
     {
         return new Admin\TenantClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
