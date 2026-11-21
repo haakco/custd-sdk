@@ -14,12 +14,30 @@ use HaakCo\Custd\Fields;
  * binding, and the remaining fields carry the rest. The legal scalar
  * vocabularies are read from the environment's capability operation, not fixed
  * here. It is both a desired-state input and part of the status output.
+ *
+ * `displayName` is the customer-facing application name shown on invitations,
+ * hosted sign-in and hosted account settings. `displayNameSource` records which
+ * surface owns that name: `application` when the client edits it in Custd's
+ * realm branding, `hosting` when the Hosting platform's application label is
+ * the source of truth and Custd only mirrors it, so a Custd editor must not
+ * overwrite it. Both are null when the caller does not know the field, which
+ * leaves the stored value alone.
  */
 final readonly class DesiredState
 {
     /**
+     * The closed set of surfaces that can own the application display name.
+     *
+     * @var list<string>
+     */
+    private const DISPLAY_NAME_SOURCES = ["application", "hosting"];
+
+    /**
      * @param list<AudienceBinding>|null $audiences
      * @param list<ProfileField>|null $profileFields
+     * @param string|null $displayName Customer-facing application name; `""` clears it and null
+     *                                 keeps the stored name.
+     * @param string|null $displayNameSource `application` or `hosting`.
      */
     public function __construct(
         public string $identityMode,
@@ -27,6 +45,8 @@ final readonly class DesiredState
         public bool $loginPaused,
         public ?array $audiences = null,
         public ?array $profileFields = null,
+        public ?string $displayName = null,
+        public ?string $displayNameSource = null,
     ) {
         AuthProjectClient::assertIdentityMode($identityMode);
         if (trim($registrationPolicy) === "") {
@@ -34,12 +54,15 @@ final readonly class DesiredState
         }
         self::assertDtoList($audiences, AudienceBinding::class, "audiences");
         self::assertDtoList($profileFields, ProfileField::class, "profileFields");
+        if ($displayNameSource !== null) {
+            self::assertDisplayNameSource($displayNameSource);
+        }
     }
 
     /** @return array<string, mixed> */
     public function toPayload(): array
     {
-        return [
+        $payload = [
             "identityMode" => $this->identityMode,
             "registrationPolicy" => $this->registrationPolicy,
             "loginPaused" => $this->loginPaused,
@@ -50,6 +73,16 @@ final readonly class DesiredState
                 ? null
                 : array_map(static fn (ProfileField $field): array => $field->toPayload(), $this->profileFields),
         ];
+        // Both fields are omitted when unknown, so a consumer that has not been
+        // taught the display name sends nothing and the stored name survives.
+        if ($this->displayName !== null) {
+            $payload["displayName"] = $this->displayName;
+        }
+        if ($this->displayNameSource !== null) {
+            $payload["displayNameSource"] = $this->displayNameSource;
+        }
+
+        return $payload;
     }
 
     public static function fromPayload(\stdClass $payload): self
@@ -63,7 +96,18 @@ final readonly class DesiredState
             Fields::boolean($payload, "loginPaused"),
             $audiences === null ? null : array_map(AudienceBinding::fromPayload(...), $audiences),
             $profileFields === null ? null : array_map(ProfileField::fromPayload(...), $profileFields),
+            Fields::optionalString($payload, "displayName"),
+            Fields::optionalString($payload, "displayNameSource"),
         );
+    }
+
+    private static function assertDisplayNameSource(string $source): void
+    {
+        if (!in_array($source, self::DISPLAY_NAME_SOURCES, true)) {
+            throw new \InvalidArgumentException(
+                "custd: desired-state displayNameSource must be application or hosting"
+            );
+        }
     }
 
     /**

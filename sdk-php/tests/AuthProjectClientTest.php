@@ -517,6 +517,56 @@ final class AuthProjectClientTest extends TestCase
         self::assertSame("custd-app-environment-1-hosting-edge", $registrations[0]->clientId);
     }
 
+    public function testCarriesTheApplicationDisplayNameAndTheSurfaceThatOwnsIt(): void
+    {
+        $desiredState = DesiredState::fromPayload((object) [
+            "identityMode" => "isolated",
+            "registrationPolicy" => "invite_only",
+            "loginPaused" => false,
+            "audiences" => [],
+            "profileFields" => [],
+            "displayName" => "Acme Portal",
+            "displayNameSource" => "application",
+        ]);
+
+        self::assertSame("Acme Portal", $desiredState->displayName);
+        self::assertSame("application", $desiredState->displayNameSource);
+        $payload = $desiredState->toPayload();
+        self::assertSame("Acme Portal", $payload["displayName"]);
+        self::assertSame("application", $payload["displayNameSource"]);
+    }
+
+    public function testOmitsAnUnknownDisplayNameSoTheStoredNameSurvives(): void
+    {
+        $desiredState = DesiredState::fromPayload((object) [
+            "identityMode" => "isolated",
+            "registrationPolicy" => "invite_only",
+            "loginPaused" => false,
+            "audiences" => [],
+            "profileFields" => [],
+        ]);
+
+        self::assertNull($desiredState->displayName);
+        self::assertNull($desiredState->displayNameSource);
+        $payload = $desiredState->toPayload();
+        self::assertArrayNotHasKey("displayName", $payload);
+        self::assertArrayNotHasKey("displayNameSource", $payload);
+    }
+
+    public function testRejectsAnUnknownDisplayNameSource(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("displayNameSource must be application or hosting");
+
+        new DesiredState(
+            identityMode: "isolated",
+            registrationPolicy: "invite_only",
+            loginPaused: false,
+            displayName: "Acme Portal",
+            displayNameSource: "marketing",
+        );
+    }
+
     public function testRejectsAMissingIdempotencyKeyOnApply(): void
     {
         $calls = [];
