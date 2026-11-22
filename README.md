@@ -455,6 +455,16 @@ PHP consumers can call
 to read the branded issuer, DNS proof and observed lifecycle state. Treat only an
 `active` binding for the requested environment as eligible for issuer adoption.
 
+A realm that is reserved but holds no installed capacity yet is admitted with
+`admitEnvironmentAuthDomain` (Go: `AdmitEnvironmentAuthDomain`). Admission repeats
+safely and returns the stored claim, so an operator who is unsure whether an admit
+landed simply repeats it. The binding reports `slotRef`, `lifecycle`,
+`intentRevision` and `images` (expected, running and convergence), so a consumer can
+tell a drifted realm from one that runs no container at all. Refusals carry stable
+problem codes: catalogued as `AuthProjectDomain…Code` in Go and as
+`AuthProjectClient::AUTH_DOMAIN_…_CODE` in PHP, so a caller branches on the code
+rather than the detail text.
+
 The desired-state operations address one environment
 (`/api/v1/admin/auth-projects/{projectId}/environments/{environmentId}`):
 

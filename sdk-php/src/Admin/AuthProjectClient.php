@@ -93,6 +93,45 @@ final class AuthProjectClient
 
     public const DIRECTORY_RELEASE = "release";
 
+    /**
+     * The problem codes the authentication-domain admission and lifecycle routes
+     * answer with. Each is stable, so a caller catches {@see AdminProblemException}
+     * and branches on `$error->problem->code` instead of the detail text.
+     */
+
+    /**
+     * Every installed realm slot is claimed by a live realm or quarantined by a retirement, so
+     * repeating the admit changes nothing: free capacity or raise it instead.
+     */
+    public const AUTH_DOMAIN_CAPACITY_EXHAUSTED_CODE = "auth_domain_capacity_exhausted";
+
+    /** An operator hold. Admission never clears it. */
+    public const AUTH_DOMAIN_PAUSED_CODE = "auth_domain_paused";
+
+    /** The realm is being retired, so it accepts no further mutation. */
+    public const AUTH_DOMAIN_RETIRING_CODE = "auth_domain_retiring";
+
+    /** Terminal: a retired realm never binds or admits again. */
+    public const AUTH_DOMAIN_RETIRED_CODE = "auth_domain_retired";
+
+    /** The stored claim names a realm slot this deployment no longer installs; it is not moved. */
+    public const AUTH_DOMAIN_SLOT_UNINSTALLED_CODE = "auth_domain_slot_uninstalled";
+
+    /** The environment holds no reservation. */
+    public const AUTH_DOMAIN_NOT_BOUND_CODE = "auth_domain_not_bound";
+
+    /** The reservation conflicts with another binding, or the stored claim disagrees with it. */
+    public const AUTH_DOMAIN_CONFLICT_CODE = "auth_domain_conflict";
+
+    /** Reconciliation is already running; read the domain again once it finishes. */
+    public const AUTH_DOMAIN_BUSY_CODE = "auth_domain_busy";
+
+    /** The named Site domain's control is not proven, so it cannot source a hostname. */
+    public const AUTH_DOMAIN_UNVERIFIED_CODE = "auth_domain_unverified";
+
+    /** This deployment cannot provision authentication domains at all. */
+    public const AUTH_DOMAIN_UNAVAILABLE_CODE = "auth_domain_unavailable";
+
     /** @var list<string> */
     private const IDENTITY_MODES = [self::IDENTITY_ISOLATED, self::IDENTITY_SHARED];
 
@@ -374,6 +413,26 @@ final class AuthProjectClient
         $path = self::environmentPath($projectId, $environmentId) . "/domain";
 
         return AuthDomainBinding::fromPayload($this->call("GET", $path, null, $options));
+    }
+
+    /**
+     * Claim installed capacity for the environment's already reserved realm and
+     * return the stored claim.
+     *
+     * This changes no hostname, so it is the operation an operator repeats: a
+     * replay returns the same claim without advancing the intent revision. A
+     * deployment with no free slot throws {@see AdminProblemException} with
+     * {@see self::AUTH_DOMAIN_CAPACITY_EXHAUSTED_CODE}; a paused or retiring realm
+     * is refused with its own code rather than re-admitted.
+     */
+    public function admitEnvironmentAuthDomain(
+        string $projectId,
+        string $environmentId,
+        ?RequestOptions $options = null,
+    ): AuthDomainBinding {
+        $path = self::environmentPath($projectId, $environmentId) . "/domain/admit";
+
+        return AuthDomainBinding::fromPayload($this->call("POST", $path, null, $options));
     }
 
     /** Read the environment's supported auth configuration. */

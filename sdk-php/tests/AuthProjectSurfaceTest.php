@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Tests;
 
+use HaakCo\Custd\Admin\AdminProblemException;
+use HaakCo\Custd\Admin\AuthProject\AuthDomainBinding;
+use HaakCo\Custd\Admin\AuthProjectClient;
 use HaakCo\Custd\Admin\AuthProject\Capability;
 use HaakCo\Custd\Admin\AuthProject\ClientSyncReport;
 use HaakCo\Custd\Admin\AuthProject\ClientSyncRequest;
@@ -35,6 +38,7 @@ use HaakCo\Custd\Admin\AuthProject\RealmProvisionRequest;
 use HaakCo\Custd\Admin\AuthProject\RealmProvisionStep;
 use HaakCo\Custd\Admin\AuthProject\RequestOptions;
 use HaakCo\Custd\CustdClient;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class AuthProjectSurfaceTest extends TestCase
@@ -122,6 +126,88 @@ final class AuthProjectSurfaceTest extends TestCase
         self::assertSame("active", $binding->status);
         self::assertSame("_custd-auth.auth.example.test", $binding->dnsProof->recordName);
         self::assertNull($binding->certificateExpiresAt);
+        // An older Custd that publishes no admission leaves every new field null
+        // rather than failing the read.
+        self::assertNull($binding->slotRef);
+        self::assertNull($binding->lifecycle);
+        self::assertNull($binding->intentRevision);
+        self::assertNull($binding->images);
+    }
+
+    public function testAdmitsEnvironmentAuthDomainAndReadsAdmission(): void
+    {
+        $calls = [];
+        $client = $this->clientWithResponse([
+            "environmentId" => "environment-1",
+            "slotRef" => "slot-a",
+            "host" => "auth.example.test",
+            "issuer" => "https://auth.example.test/",
+            "status" => "active",
+            "lifecycle" => "admitted",
+            "intentRevision" => 7,
+            "images" => [
+                "expected" => ["gateway" => "registry.example.test/gateway:1", "hydra" => "registry.example.test/hydra:1"],
+                "running" => ["gateway" => "registry.example.test/gateway:0", "hydra" => "registry.example.test/hydra:0"],
+                "convergence" => "drifted",
+            ],
+            "dnsProof" => ["recordName" => "_custd-auth.auth.example.test", "recordValue" => "ownership-proof"],
+            "createdAt" => "2026-11-20T00:00:00Z",
+        ], $calls);
+
+        $binding = $client->adminAuthProjects()->admitEnvironmentAuthDomain(
+            "project-1",
+            "environment-1",
+            new RequestOptions(self::OWNING_USER),
+        );
+
+        self::assertSame("POST", $calls[0]["method"]);
+        self::assertSame(self::BASE . "/domain/admit", $calls[0]["url"]);
+        self::assertSame(self::OWNING_USER, $calls[0]["headers"][self::OWNING_USER_HEADER]);
+        self::assertNull($calls[0]["body"]);
+        self::assertSame("slot-a", $binding->slotRef);
+        self::assertSame(AuthDomainBinding::LIFECYCLE_ADMITTED, $binding->lifecycle);
+        self::assertSame(7, $binding->intentRevision);
+        self::assertNotNull($binding->images);
+        self::assertSame("registry.example.test/gateway:1", $binding->images->expected->gateway);
+        self::assertSame("registry.example.test/hydra:1", $binding->images->expected->hydra);
+        self::assertSame("registry.example.test/gateway:0", $binding->images->running->gateway);
+        self::assertSame("registry.example.test/hydra:0", $binding->images->running->hydra);
+        self::assertSame("drifted", $binding->images->convergence);
+    }
+
+    #[DataProvider("admissionRefusalCodes")]
+    public function testAdmissionRefusalCarriesTypedProblemCode(string $code, int $status): void
+    {
+        $calls = [];
+        $client = $this->clientWithQueue([[
+            "status" => $status,
+            "body" => ["title" => "refused", "status" => $status, "detail" => "admin: refused", "code" => $code],
+        ]], $calls);
+
+        try {
+            $client->adminAuthProjects()->admitEnvironmentAuthDomain("project-1", "environment-1");
+            self::fail("expected the admission to be refused");
+        } catch (AdminProblemException $error) {
+            self::assertSame($status, $error->status);
+            self::assertSame($code, $error->problem->code);
+        }
+    }
+
+    /** @return array<string, array{string, int}> */
+    public static function admissionRefusalCodes(): array
+    {
+        return [
+            "capacity exhausted" => [AuthProjectClient::AUTH_DOMAIN_CAPACITY_EXHAUSTED_CODE, 409],
+            "paused" => [AuthProjectClient::AUTH_DOMAIN_PAUSED_CODE, 409],
+            "retiring" => [AuthProjectClient::AUTH_DOMAIN_RETIRING_CODE, 409],
+            "retired" => [AuthProjectClient::AUTH_DOMAIN_RETIRED_CODE, 409],
+            "slot uninstalled" => [AuthProjectClient::AUTH_DOMAIN_SLOT_UNINSTALLED_CODE, 409],
+            "not bound" => [AuthProjectClient::AUTH_DOMAIN_NOT_BOUND_CODE, 404],
+            "conflict" => [AuthProjectClient::AUTH_DOMAIN_CONFLICT_CODE, 409],
+            "busy" => [AuthProjectClient::AUTH_DOMAIN_BUSY_CODE, 409],
+            "unverified" => [AuthProjectClient::AUTH_DOMAIN_UNVERIFIED_CODE, 422],
+            "unavailable" => [AuthProjectClient::AUTH_DOMAIN_UNAVAILABLE_CODE, 503],
+        ];
     }
 
     public function testReadsCapability(): void
