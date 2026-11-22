@@ -553,6 +553,35 @@ final class AuthProjectClientTest extends TestCase
         self::assertArrayNotHasKey("displayNameSource", $payload);
     }
 
+    public function testSendsWithdrawalOnlyWhenAsked(): void
+    {
+        $read = DesiredState::fromPayload((object) [
+            "identityMode" => "isolated",
+            "registrationPolicy" => "invite_only",
+            "loginPaused" => false,
+            "audiences" => [],
+            "profileFields" => [],
+            "displayNameSource" => "hosting",
+        ]);
+
+        self::assertArrayNotHasKey("withdrawDisplayName", $read->toPayload());
+
+        $withdrawing = new DesiredState(
+            identityMode: "isolated",
+            registrationPolicy: "invite_only",
+            loginPaused: false,
+            audiences: [],
+            profileFields: [],
+            displayNameSource: "hosting",
+            withdrawDisplayName: true,
+        );
+
+        $payload = $withdrawing->toPayload();
+        self::assertTrue($payload["withdrawDisplayName"]);
+        self::assertSame("hosting", $payload["displayNameSource"]);
+        self::assertArrayNotHasKey("displayName", $payload);
+    }
+
     public function testRejectsAnUnknownDisplayNameSource(): void
     {
         $this->expectException(\InvalidArgumentException::class);

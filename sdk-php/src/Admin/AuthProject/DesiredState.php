@@ -38,6 +38,10 @@ final readonly class DesiredState
      * @param string|null $displayName Customer-facing application name; `""` clears it and null
      *                                 keeps the stored name.
      * @param string|null $displayNameSource `application` or `hosting`.
+     * @param bool $withdrawDisplayName Give the name back: with an empty `$displayName` and a
+     *                                 declared `$displayNameSource`, clears the name and releases
+     *                                 the owner only when that surface holds it. Another surface's
+     *                                 name is left untouched.
      */
     public function __construct(
         public string $identityMode,
@@ -47,6 +51,7 @@ final readonly class DesiredState
         public ?array $profileFields = null,
         public ?string $displayName = null,
         public ?string $displayNameSource = null,
+        public bool $withdrawDisplayName = false,
     ) {
         AuthProjectClient::assertIdentityMode($identityMode);
         if (trim($registrationPolicy) === "") {
@@ -80,6 +85,11 @@ final readonly class DesiredState
         }
         if ($this->displayNameSource !== null) {
             $payload["displayNameSource"] = $this->displayNameSource;
+        }
+        // Omitted when false, so no existing payload changes shape and an older
+        // Custd simply ignores an instruction it has not been taught.
+        if ($this->withdrawDisplayName) {
+            $payload["withdrawDisplayName"] = true;
         }
 
         return $payload;
