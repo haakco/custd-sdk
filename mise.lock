@@ -130,7 +130,7 @@ url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/6
 provenance = "github-attestations"
 
 [[tools.infisical]]
-version = "0.45.12"
+version = "0.45.14"
 backend = "github:Infisical/cli"
 specifiers = ["latest"]
 
@@ -138,46 +138,45 @@ specifiers = ["latest"]
 asset_pattern = "cli_{{ version }}_{{ os(macos='darwin') }}_{{ arch(x64='amd64') }}.tar.gz"
 
 [tools.infisical."platforms.linux-arm64"]
-checksum = "sha256:dce804996682c25d777a291a5fe4f6c61b28e004c17c9e94c143dc93757f3e26"
+checksum = "sha256:7e21226fed397501a2f0734450c9caf3087d99b10e9035a8a1cc71fe2141131a"
 checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.45.12/cli_0.45.12_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/765781632"
+url = "https://github.com/Infisical/cli/releases/download/v0.45.14/cli_0.45.14_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/774073246"
 
 [tools.infisical."platforms.linux-arm64-musl"]
-checksum = "sha256:dce804996682c25d777a291a5fe4f6c61b28e004c17c9e94c143dc93757f3e26"
+checksum = "sha256:7e21226fed397501a2f0734450c9caf3087d99b10e9035a8a1cc71fe2141131a"
 checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.45.12/cli_0.45.12_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/765781632"
+url = "https://github.com/Infisical/cli/releases/download/v0.45.14/cli_0.45.14_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/774073246"
 
 [tools.infisical."platforms.linux-x64"]
-checksum = "sha256:279e30a8824deacf462b479c440be7043f0b54a2b8023e4de42f16c149bfbfc2"
-checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.45.12/cli_0.45.12_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/765781647"
+checksum = "sha256:aee706dfee561432cf85ed4d33a2ab8d3576cec55a34e0ae92c2350f35929b1e"
+url = "https://github.com/Infisical/cli/releases/download/v0.45.14/cli_0.45.14_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/774073334"
 
 [tools.infisical."platforms.linux-x64-musl"]
-checksum = "sha256:279e30a8824deacf462b479c440be7043f0b54a2b8023e4de42f16c149bfbfc2"
+checksum = "sha256:aee706dfee561432cf85ed4d33a2ab8d3576cec55a34e0ae92c2350f35929b1e"
 checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.45.12/cli_0.45.12_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/765781647"
+url = "https://github.com/Infisical/cli/releases/download/v0.45.14/cli_0.45.14_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/774073334"
 
 [tools.infisical."platforms.macos-arm64"]
-checksum = "sha256:6a79845aeed422ffa6b9be7716533ef463c0c2c48ed6ce7c092e4dd6e56f054f"
+checksum = "sha256:67a7f6147f40c2482ce8ca3e3344a087c69eb7d4642699b6eb9bb22beee6db3e"
 checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.45.12/cli_0.45.12_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/765758834"
+url = "https://github.com/Infisical/cli/releases/download/v0.45.14/cli_0.45.14_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/774059142"
 
 [tools.infisical."platforms.macos-x64"]
-checksum = "sha256:449f4ac1606207e3f16a288049aaedca7e47704e5ef4ff7e26cb48d2aef26842"
+checksum = "sha256:3587350a5f4c0eb1a88fa5f2e45a2caa28226d602afd845cae7fbdb4b89a042a"
 checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.45.12/cli_0.45.12_darwin_amd64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/765758837"
+url = "https://github.com/Infisical/cli/releases/download/v0.45.14/cli_0.45.14_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/774059138"
 
 [tools.infisical."platforms.windows-x64"]
-checksum = "sha256:6aabf78d438ca79f5c3cfbc9e59ad265c28db4297ae38cbb779fdc680f7565db"
+checksum = "sha256:05c963fb59826b3adeb3fa8f8ed4bc2acc76d3d8ef3a45e2d64c56a5c2b4a3bc"
 checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.45.12/cli_0.45.12_windows_amd64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/765773775"
+url = "https://github.com/Infisical/cli/releases/download/v0.45.14/cli_0.45.14_windows_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/774064979"
 
 [[tools.just]]
 version = "1.59.0"
@@ -253,33 +252,33 @@ checksum = "sha256:e2edda75bfb089654705cf65a13b58933bfd5f57148e8ebda916f58a2474f
 url = "https://nodejs.org/dist/v26.13.1/node-v26.13.1-win-x64.zip"
 
 [[tools.php]]
-version = "8.5.13"
+version = "8.6.0"
 backend = "vfox:php"
-specifiers = ["8.5.13"]
+specifiers = ["8.6.0"]
 
 [tools.php."platforms.linux-arm64"]
-checksum = "sha256:2ca41e53ffb89b448e134a428a421ed7415450e7fb0063ff405690337fdc6bd9"
-url = "https://github.com/php/php-src/archive/php-8.5.13.tar.gz"
+checksum = "sha256:62e7fff0a082ec813d6728a3201b0c00bc4124743eb8a8772ba6a5fd3cf4f72c"
+url = "https://github.com/php/php-src/archive/php-8.6.0.tar.gz"
 
 [tools.php."platforms.linux-arm64-musl"]
-checksum = "sha256:2ca41e53ffb89b448e134a428a421ed7415450e7fb0063ff405690337fdc6bd9"
-url = "https://github.com/php/php-src/archive/php-8.5.13.tar.gz"
+checksum = "sha256:62e7fff0a082ec813d6728a3201b0c00bc4124743eb8a8772ba6a5fd3cf4f72c"
+url = "https://github.com/php/php-src/archive/php-8.6.0.tar.gz"
 
 [tools.php."platforms.linux-x64"]
-checksum = "sha256:2ca41e53ffb89b448e134a428a421ed7415450e7fb0063ff405690337fdc6bd9"
-url = "https://github.com/php/php-src/archive/php-8.5.13.tar.gz"
+checksum = "sha256:62e7fff0a082ec813d6728a3201b0c00bc4124743eb8a8772ba6a5fd3cf4f72c"
+url = "https://github.com/php/php-src/archive/php-8.6.0.tar.gz"
 
 [tools.php."platforms.linux-x64-musl"]
-checksum = "sha256:2ca41e53ffb89b448e134a428a421ed7415450e7fb0063ff405690337fdc6bd9"
-url = "https://github.com/php/php-src/archive/php-8.5.13.tar.gz"
+checksum = "sha256:62e7fff0a082ec813d6728a3201b0c00bc4124743eb8a8772ba6a5fd3cf4f72c"
+url = "https://github.com/php/php-src/archive/php-8.6.0.tar.gz"
 
 [tools.php."platforms.macos-arm64"]
-checksum = "sha256:2ca41e53ffb89b448e134a428a421ed7415450e7fb0063ff405690337fdc6bd9"
-url = "https://github.com/php/php-src/archive/php-8.5.13.tar.gz"
+checksum = "sha256:62e7fff0a082ec813d6728a3201b0c00bc4124743eb8a8772ba6a5fd3cf4f72c"
+url = "https://github.com/php/php-src/archive/php-8.6.0.tar.gz"
 
 [tools.php."platforms.macos-x64"]
-checksum = "sha256:2ca41e53ffb89b448e134a428a421ed7415450e7fb0063ff405690337fdc6bd9"
-url = "https://github.com/php/php-src/archive/php-8.5.13.tar.gz"
+checksum = "sha256:62e7fff0a082ec813d6728a3201b0c00bc4124743eb8a8772ba6a5fd3cf4f72c"
+url = "https://github.com/php/php-src/archive/php-8.6.0.tar.gz"
 
 [[tools."pipx:mypy"]]
 version = "2.4.1"
@@ -290,51 +289,51 @@ specifiers = ["2.4.1"]
 uvx = "true"
 
 [[tools.pnpm]]
-version = "10.34.9"
+version = "12.23.0"
 backend = "aqua:pnpm/pnpm"
-specifiers = ["10.34.9"]
+specifiers = ["12.23.0"]
 
 [tools.pnpm."platforms.linux-arm64"]
-checksum = "sha256:85abd31b96964e6510cecb3b366ba024287191e0ee5978e5a9e2d3beb4a377d1"
-checksum_source = "mise-versions"
-url = "https://github.com/pnpm/pnpm/releases/download/v10.34.9/pnpm-linux-arm64"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/675654767"
+checksum = "sha256:dd03f7616625ff8f13d952f641f0864a2300d73d0a751a682737615bd9f9a7a2"
+url = "https://github.com/pnpm/pnpm/releases/download/v12.23.0/pnpm-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/779077152"
+provenance = "github-attestations"
 
 [tools.pnpm."platforms.linux-arm64-musl"]
-checksum = "sha256:85abd31b96964e6510cecb3b366ba024287191e0ee5978e5a9e2d3beb4a377d1"
-checksum_source = "mise-versions"
-url = "https://github.com/pnpm/pnpm/releases/download/v10.34.9/pnpm-linux-arm64"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/675654767"
+checksum = "sha256:9b250672fd320ecd349510dc1ec60c3f1f21216b2b5dae637c2e228bf4f8fdd5"
+url = "https://github.com/pnpm/pnpm/releases/download/v12.23.0/pnpm-linux-arm64-musl.tar.gz"
+url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/779077162"
+provenance = "github-attestations"
 
 [tools.pnpm."platforms.linux-x64"]
-checksum = "sha256:3ec79240658f0ee4e8977f21ee2c598c7a8b8d06b86dc564f2ec6cb099fd8ac2"
-checksum_source = "mise-versions"
-url = "https://github.com/pnpm/pnpm/releases/download/v10.34.9/pnpm-linux-x64"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/675654765"
+checksum = "sha256:b515e29f2ac1adc0fbe63173414a6682827baff24f17e7ad3476821bdef236ac"
+url = "https://github.com/pnpm/pnpm/releases/download/v12.23.0/pnpm-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/779077165"
+provenance = "github-attestations"
 
 [tools.pnpm."platforms.linux-x64-musl"]
-checksum = "sha256:3ec79240658f0ee4e8977f21ee2c598c7a8b8d06b86dc564f2ec6cb099fd8ac2"
-checksum_source = "mise-versions"
-url = "https://github.com/pnpm/pnpm/releases/download/v10.34.9/pnpm-linux-x64"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/675654765"
+checksum = "sha256:bd5ccafed63753322371d24b6676fe9a773ef5f9961d22ea225c1b287be28d57"
+url = "https://github.com/pnpm/pnpm/releases/download/v12.23.0/pnpm-linux-x64-musl.tar.gz"
+url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/779077157"
+provenance = "github-attestations"
 
 [tools.pnpm."platforms.macos-arm64"]
-checksum = "sha256:984b2f4316de371dc314243649e5f9ea392195d541dedbfdb990dc24d6c6e1a2"
-checksum_source = "mise-versions"
-url = "https://github.com/pnpm/pnpm/releases/download/v10.34.9/pnpm-macos-arm64"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/675654768"
+checksum = "sha256:52bb314bf0d48928fc15126ccce42aa199275e29018bef112a04ae8acdcaaf14"
+url = "https://github.com/pnpm/pnpm/releases/download/v12.23.0/pnpm-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/779077158"
+provenance = "github-attestations"
 
 [tools.pnpm."platforms.macos-x64"]
-checksum = "sha256:58b35a997d2d5167ef60e24b6ac0d71b76a5e1a4b3346cb1075b1dface50bd32"
-checksum_source = "mise-versions"
-url = "https://github.com/pnpm/pnpm/releases/download/v10.34.9/pnpm-macos-x64"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/675654760"
+checksum = "sha256:9655877c63f33bbb64508871e443fc05a5e4a87641c1becd83a45717a4b15d90"
+url = "https://github.com/pnpm/pnpm/releases/download/v12.23.0/pnpm-darwin-x64.tar.gz"
+url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/779077167"
+provenance = "github-attestations"
 
 [tools.pnpm."platforms.windows-x64"]
-checksum = "sha256:e0af8d34dd5319f7e9a6c9838779e7e85caf9cfdedf99a7a4106aa1fdcf16d5c"
-checksum_source = "mise-versions"
-url = "https://github.com/pnpm/pnpm/releases/download/v10.34.9/pnpm-win-x64.exe"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/675654769"
+checksum = "sha256:1a954bdc1b15ff036294279391d01a09407b7d46ff972a59d81f23becce96c1c"
+url = "https://github.com/pnpm/pnpm/releases/download/v12.23.0/pnpm-win32-x64.zip"
+url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/779077146"
+provenance = "github-attestations"
 
 [[tools.powershell]]
 version = "7.7.0"
@@ -355,7 +354,6 @@ url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/73
 
 [tools.powershell."platforms.linux-x64"]
 checksum = "sha256:c89d9c682d2c403dfe726f3df948e359675235a5bd6fab535776de69729ca0cb"
-checksum_source = "mise-versions"
 url = "https://github.com/PowerShell/PowerShell/releases/download/v7.7.0/powershell-7.7.0-linux-x64.tar.gz"
 url_api = "https://api.github.com/repos/PowerShell/PowerShell/releases/assets/732755786"
 
@@ -399,8 +397,8 @@ url = "https://github.com/astral-sh/python-build-standalone/releases/download/20
 provenance = "github-attestations"
 
 [tools.python."platforms.linux-x64"]
-checksum = "sha256:7b03163a980c607ba8194709d4a4086735a7a9c488cc475b098157306927b36b"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.15.2+20261026-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
+checksum = "blake3:9662b09ce8fe04f5ad4111ad0f4d741936f6c45c353c7ac6085207cf5de2497c"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261124/cpython-3.15.2+20261124-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
 [tools.python."platforms.linux-x64-musl"]
@@ -424,44 +422,50 @@ url = "https://github.com/astral-sh/python-build-standalone/releases/download/20
 provenance = "github-attestations"
 
 [[tools.ripgrep]]
-version = "15.2.0"
+version = "16.0.0"
 backend = "aqua:BurntSushi/ripgrep"
 specifiers = ["latest"]
 
 [tools.ripgrep."platforms.linux-arm64"]
-checksum = "sha256:a740b91c82eaf9914cfedd353572f2791cbe0162c84101ee0951058f4dcbc90d"
-url = "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/BurntSushi/ripgrep/releases/assets/478119579"
+checksum = "sha256:0b0bddcfaf42be1f3c56bf929d70defd1a2d96f2577aecbd7029a3734ddb4740"
+checksum_source = "mise-versions"
+url = "https://github.com/BurntSushi/ripgrep/releases/download/16.0.0/ripgrep-16.0.0-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/BurntSushi/ripgrep/releases/assets/780739969"
 
 [tools.ripgrep."platforms.linux-arm64-musl"]
-checksum = "sha256:a740b91c82eaf9914cfedd353572f2791cbe0162c84101ee0951058f4dcbc90d"
-url = "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/BurntSushi/ripgrep/releases/assets/478119579"
+checksum = "sha256:0b0bddcfaf42be1f3c56bf929d70defd1a2d96f2577aecbd7029a3734ddb4740"
+checksum_source = "mise-versions"
+url = "https://github.com/BurntSushi/ripgrep/releases/download/16.0.0/ripgrep-16.0.0-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/BurntSushi/ripgrep/releases/assets/780739969"
 
 [tools.ripgrep."platforms.linux-x64"]
-checksum = "sha256:33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c"
-url = "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/BurntSushi/ripgrep/releases/assets/478120097"
+checksum = "sha256:165451eaf35f977c0bd6cff1fb93e4fcce0ebd87e90a4b5e976507baf50f4a03"
+url = "https://github.com/BurntSushi/ripgrep/releases/download/16.0.0/ripgrep-16.0.0-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/BurntSushi/ripgrep/releases/assets/780739448"
 
 [tools.ripgrep."platforms.linux-x64-musl"]
-checksum = "sha256:33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c"
-url = "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/BurntSushi/ripgrep/releases/assets/478120097"
+checksum = "sha256:54268ab4643c00a290a29b0086066d64b3f56236dd805ec64629a86f9bd29fd0"
+checksum_source = "mise-versions"
+url = "https://github.com/BurntSushi/ripgrep/releases/download/16.0.0/ripgrep-16.0.0-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/BurntSushi/ripgrep/releases/assets/780740424"
 
 [tools.ripgrep."platforms.macos-arm64"]
-checksum = "sha256:3750b2e93f37e0c692657da574d7019a101c0084da05a790c83fd335bad973e4"
-url = "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/BurntSushi/ripgrep/releases/assets/478118851"
+checksum = "sha256:5a145656d5067144001bfce6648767fd3254599aa736f1ffdb7fb907760b8ca1"
+checksum_source = "mise-versions"
+url = "https://github.com/BurntSushi/ripgrep/releases/download/16.0.0/ripgrep-16.0.0-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/BurntSushi/ripgrep/releases/assets/780739338"
 
 [tools.ripgrep."platforms.macos-x64"]
-checksum = "sha256:af7825fcc69a2afc7a7aea55fc9af90e26421d8f20fe59df32e233c0b8a231c1"
-url = "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/BurntSushi/ripgrep/releases/assets/478119585"
+checksum = "sha256:aa9183b0e0bfac03c5818895ad18b75001c402d230063898abfe5a58cd413caa"
+checksum_source = "mise-versions"
+url = "https://github.com/BurntSushi/ripgrep/releases/download/16.0.0/ripgrep-16.0.0-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/BurntSushi/ripgrep/releases/assets/780739975"
 
 [tools.ripgrep."platforms.windows-x64"]
-checksum = "sha256:71b2fef860abe467217a538ff31de02f5258807c0129f771846f87bd029aafc5"
-url = "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/BurntSushi/ripgrep/releases/assets/478119643"
+checksum = "sha256:f418ae83e63046a94a7b5f3a44bf3a169f66e689164856ecee02547131c73931"
+checksum_source = "mise-versions"
+url = "https://github.com/BurntSushi/ripgrep/releases/download/16.0.0/ripgrep-16.0.0-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/BurntSushi/ripgrep/releases/assets/780739355"
 
 [[tools.ruff]]
 version = "0.17.6"
