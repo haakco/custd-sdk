@@ -40,6 +40,7 @@ export { SITE_RANKINGS_DAYS_INVALID_CODE, SITE_RANKINGS_DEFAULT_DAYS, SITE_RANKI
 export { SAVED_SITE_REPORT_LIMIT_CODE, SAVED_SITE_REPORT_NAME_TAKEN_CODE, type SavedSiteReport, type SavedSiteReportList, type SavedSiteReportRequest, type SavedSiteReportSummary, SITE_SAVED_REPORTS_MAX, type SiteReportRequestOptions, SiteReportTemplate, } from "./admin-site-saved-reports.js";
 export { SEARCH_POOL_MIN_CONTRIBUTORS, SEARCH_POOL_MIN_IMPRESSIONS, SEARCH_POOL_QUERIES_DEFAULT_LIMIT, SEARCH_POOL_QUERIES_MAX_LIMIT, SEARCH_POOL_SEARCH_MAX_LENGTH, SEARCH_POOL_TERMS_VERSION, SEARCH_POOL_WINDOW_DAYS, SearchPoolAccess, type SearchPoolBand, SearchPoolDemandBand, type SearchPoolPositions, type SearchPoolQuery, type SearchPoolQueryPage, type SearchPoolSetting, SITE_SEARCH_POOL_NOT_JOINED_CODE, SITE_SEARCH_POOL_QUERY_INVALID_CODE, SITE_SEARCH_POOL_SETTING_INVALID_CODE, SITE_SEARCH_POOL_SITE_BOUND_CODE, } from "./admin-site-search-pool.js";
 export { SITE_FINDING_IMPACT_DEFAULT_DAYS, SITE_FINDING_IMPACT_MAX_DAYS, SITE_FINDING_IMPACT_MIN_DAYS, SITE_SEARCH_VALUE_DEFAULT_DAYS, SITE_SEARCH_VALUE_MAX_DAYS, SITE_SEARCH_VALUE_MAX_GOALS, SITE_SEARCH_VALUE_MAX_PAGES, type SiteFindingImpact, type SiteFindingImpactPeriod, type SiteFindingImpactSource, SiteFindingImpactStatus, type SiteFindingImpactWindow, SiteSearchGoalStatus, type SiteSearchValue, type SiteSearchValuePage, } from "./admin-site-search-value.js";
+export { type SiteStatusComponent, type SiteStatusComponentStatus, type SiteStatusPage, type SiteStatusPageDraft, type SiteStatusPagePublication, type SiteStatusPageSelection, type SiteStatusPageSettings, type SiteStatusUpdate, type SiteStatusUpdateHistory, type SiteStatusUpdateRequest, siteStatusPagePublicUrl, } from "./admin-site-status-page.js";
 export { ACCESS_LOG_HOUR_INVALID_CODE, type AccessLogHourReplay, AccessLogHourStatus, type SiteAIPage, type SiteAIVisibility, SiteCrawlerIdentity, SiteReferrerClass, type SiteTraffic, type SiteTrafficCount, type SiteTrafficCoverage, type SiteTrafficCrawler, type SiteTrafficDay, SiteTrafficDayCoverage, type SiteTrafficReferrer, type SiteTrafficReferrerClass, type SiteTrafficSlowPath, type SiteTrafficTotals, TRAFFIC_OTHER_KEY, } from "./admin-site-traffic.js";
 export { SITE_KEYWORD_DEMAND_SOURCE_BING, SITE_KEYWORD_LIST_LIMIT_CODE, SITE_KEYWORD_LIST_NOT_FOUND_CODE, type SiteContentGap, type SiteContentGapCompetitor, SiteContentGapCoverage, type SiteContentGapPage, type SiteContentGapTopic, type SiteKeywordCluster, type SiteKeywordClusters, type SiteKeywordDemand, type SiteKeywordDemandSet, SiteKeywordDemandState, type SiteKeywordList, type SiteKeywordListRequest, type SiteKeywordLists, type SiteRelatedKeyword, type SiteRelatedKeywords, type SiteStrikingKeyword, type SiteTopicTrend, type SiteTopicTrendMonth, SiteTopicTrendSource, SiteTopicTrendStatus, SiteTrancoBand, type SiteWebDomain, SiteWebDomainRole, type SiteWebDomains, SiteWebInventoryStatus, type SiteWebPage, SiteWebPageSource, type SiteWebPages, type SiteWebPagesQuery, } from "./admin-site-web-data.js";
 export { type SubjectExport, SubjectExportClient, type SubjectExportCreateRequest, type SubjectExportDownloadResponse, type SubjectExportListResponse, type SubjectExportState, type SubjectExportSubject, } from "./admin-subject-exports.js";
@@ -1057,18 +1058,9 @@ export type ReportingPackPreviewRequest = {
     tenantSlug: string;
     query: ReportingPackPreviewQueryHint;
 };
-export type ReportingPackPreviewBucket = {
-    date: string;
-    value: RenderedMetricValue;
-    source: string;
-    queryDurationMs: number;
-    parquetUriCount?: number;
-    message?: string;
-    secondary?: RenderedMetricValue;
-};
+/** The preview envelope: the rendered widget under `data`, aggregate-only with no raw rows. */
 export type ReportingPackPreviewResponse = {
-    buckets?: ReportingPackPreviewBucket[];
-    value: RenderedMetricValue;
+    data: RenderedWidgetData;
 };
 export type ReportingPackGeneration = {
     id: number;

@@ -250,7 +250,11 @@ administrators read every task's state and backlog with
 `list_site_insights_tasks()` (`SITE_INSIGHTS_TASK_*`). Campaign links:
 `list_campaign_links(domain, include_archived)`, `create_campaign_link` and
 `archive_campaign_link` (409 `SITE_CAMPAIGN_LINK_TAKEN_CODE` or
-`SITE_CAMPAIGN_LINK_LIMIT_CODE`). Next actions: `get_next_actions(domain)`
+`SITE_CAMPAIGN_LINK_LIMIT_CODE`). Status page: `get_status_page_settings(domain)`,
+`preview_status_page(domain, draft)`, `publish_status_page(domain, draft)`,
+`unpublish_status_page(domain)` and `post_status_page_update(domain, request)`;
+`site_status_page_public_url(publication, "https://custd.com")` builds the
+customer link. Next actions: `get_next_actions(domain)`
 returns the status, one plain `headline` and the three most important actions in
 Custd's fixed order (`SITE_NEXT_ACTION_*`; show an unknown kind by its `title`
 and `why`), `get_portfolio_summary()` every domain's status and `firstAction`,

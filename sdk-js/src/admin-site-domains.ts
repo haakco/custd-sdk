@@ -72,6 +72,14 @@ import type {
 } from "./admin-site-saved-reports.js";
 import type { SearchPoolQueryPage, SearchPoolSetting } from "./admin-site-search-pool.js";
 import type { SiteFindingImpact, SiteSearchValue } from "./admin-site-search-value.js";
+import type {
+  SiteStatusPage,
+  SiteStatusPageDraft,
+  SiteStatusPagePublication,
+  SiteStatusPageSettings,
+  SiteStatusUpdateHistory,
+  SiteStatusUpdateRequest,
+} from "./admin-site-status-page.js";
 import type { AccessLogHourReplay, SiteAIVisibility, SiteTraffic } from "./admin-site-traffic.js";
 import type {
   SiteContentGap,
@@ -1057,6 +1065,43 @@ export class SiteDomainAdminClient {
     return this.send("POST", path, {}, undefined, options);
   }
 
+  /** Reads the Site's saved status-page draft and current publication, if any. */
+  getStatusPageSettings(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteStatusPageSettings> {
+    return this.send("GET", statusPagePath(domainUuid), {}, undefined, options);
+  }
+
+  /** Shows the selected components as customers would see them, without publishing. */
+  previewStatusPage(
+    domainUuid: string,
+    draft: SiteStatusPageDraft,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteStatusPage> {
+    return this.send("POST", `${statusPagePath(domainUuid)}/preview`, {}, draft, options);
+  }
+
+  /** Publishes the selected components; build the customer link with siteStatusPagePublicUrl. */
+  publishStatusPage(
+    domainUuid: string,
+    draft: SiteStatusPageDraft,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteStatusPagePublication> {
+    return this.send("PUT", statusPagePath(domainUuid), {}, draft, options);
+  }
+
+  /** Removes public access and keeps the draft. */
+  unpublishStatusPage(domainUuid: string, options?: SiteDomainRequestOptions): Promise<void> {
+    return this.send("DELETE", statusPagePath(domainUuid), {}, undefined, options);
+  }
+
+  /** Publishes a reviewed message and notifies confirmed subscribers; requestUuid makes a retry safe. */
+  postStatusPageUpdate(
+    domainUuid: string,
+    request: SiteStatusUpdateRequest,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteStatusUpdateHistory> {
+    return this.send("POST", `${statusPagePath(domainUuid)}/updates`, {}, request, options);
+  }
+
   /** Lists live report shares. Tokens are returned only on creation. */
   listReportShares(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteReportShareList> {
     return this.send("GET", `${domainPath(domainUuid)}/report-shares`, {}, undefined, options);
@@ -1300,6 +1345,10 @@ function savedReportBody(body: SavedSiteReportRequest): SavedSiteReportRequest {
 
 function campaignLinksPath(domainUuid: string): string {
   return `${domainPath(domainUuid)}/campaign-links`;
+}
+
+function statusPagePath(domainUuid: string): string {
+  return `${domainPath(domainUuid)}/status-page`;
 }
 
 function rankingKeywordsPath(domainUuid: string): string {

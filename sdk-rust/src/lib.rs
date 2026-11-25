@@ -1,6 +1,7 @@
 //! Typed client for the Custd API.
 //!
 //! - [`CustdClient`] calls the signed-in measurement routes with a bearer access token.
+//! - [`CustdClient`] also manages a Site's public status page by domain UUID.
 //! - [`AppClient`] calls the hosted-app item routes (`/api/v1/app/`) with an app's Site key and a
 //!   link token, the signed-in user's token, or both: items, meetings, alerts and forecasts.
 //! - [`read_hosted_app_discovery`] reads a hosted app's `/.well-known/custd.json`.
@@ -20,6 +21,7 @@ mod device;
 mod discovery;
 mod error;
 mod measurement;
+mod site_status_page;
 mod transport;
 
 pub use app::{
@@ -72,6 +74,11 @@ pub use measurement::{
     MeasurementProjectList, MeasurementProjectRun, MeasurementSeries, MeasurementSeriesCreate,
     MeasurementTarget, MeasurementTargetCreate, ProjectComplete, ProjectEstimate,
     ProjectEstimateCreate, ProjectEstimateList, ProjectEstimateStatus,
+};
+pub use site_status_page::{
+    SiteStatusComponent, SiteStatusComponentStatus, SiteStatusDraft, SiteStatusPage,
+    SiteStatusPublication, SiteStatusSelection, SiteStatusSettings, SiteStatusUpdate,
+    SiteStatusUpdateHistory, SiteStatusUpdateRequest,
 };
 
 /// This SDK's released version, taken from `Cargo.toml` (which `scripts/bump-version.sh` moves).

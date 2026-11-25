@@ -6,7 +6,10 @@ namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
 
-/** ReportingPackPreviewResponse is the result of POST /reporting-packs/preview. */
+/**
+ * ReportingPackPreviewResponse is the result of POST /reporting-packs/preview: the rendered value
+ * and buckets the route returns under `data`.
+ */
 final readonly class ReportingPackPreviewResponse
 {
     /** @param list<RenderedWidgetBucket>|null $buckets */
@@ -18,7 +21,7 @@ final readonly class ReportingPackPreviewResponse
 
     public static function fromPayload(mixed $payload): self
     {
-        $object = Fields::jsonObject($payload, 'reporting pack preview response');
+        $object = Fields::object(Fields::jsonObject($payload, 'reporting pack preview response'), 'data');
         $buckets = Fields::optionalObjects($object, 'buckets');
 
         return new self(

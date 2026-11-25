@@ -16,7 +16,7 @@ Improve the shared SDKs instead of creating one-off clients in product repositor
 | `sdk-php/` | Composer package `haakco/custd-sdk`. |
 | `sdk-rust/` | Rust crate `custd-sdk`, consumed as a git dependency at the release tag (not on crates.io). |
 | `contract-fixtures/` | Shared JSON fixtures used by all SDK tests. |
-| `.github/workflows/` | CI for all SDK packages. Use self-hosted runners only. |
+| `.github/workflows/` | CI for all SDK packages. Jobs run on the `haakco-build` self-hosted runner group. |
 
 ## Development Rules
 
@@ -38,7 +38,7 @@ created by the subtree split inherit that same tag.
   `sdk-python/pyproject.toml`, `sdk-php/composer.json`, `sdk-go/VERSION`, and `sdk-rust/Cargo.toml`.
   `sdk-php/tests/VersionSyncTest.php` holds the enforced list — update that test in the
   same change when a published package is added or removed, and keep this list equal to it.
-- **Never hardcode a version in the Packagist-derived manifests.** The root
+- **Never hardcode a version in the tag-derived Composer manifests.** The root
   `composer.json`, `laravel-package/composer.json`, and `wordpress-plugin/composer.json`
   take their version from the git tag on their split mirror — adding a `version` key
   there reintroduces drift.
@@ -60,4 +60,4 @@ just test
 git diff --check
 ```
 
-For CI changes, all GitHub Actions jobs must use `runs-on: self-hosted`.
+For CI changes, all GitHub Actions jobs must use `runs-on: haakco-build`.

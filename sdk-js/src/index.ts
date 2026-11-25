@@ -564,6 +564,19 @@ export {
   type SiteSearchValuePage,
 } from "./admin-site-search-value.js";
 export {
+  type SiteStatusComponent,
+  type SiteStatusComponentStatus,
+  type SiteStatusPage,
+  type SiteStatusPageDraft,
+  type SiteStatusPagePublication,
+  type SiteStatusPageSelection,
+  type SiteStatusPageSettings,
+  type SiteStatusUpdate,
+  type SiteStatusUpdateHistory,
+  type SiteStatusUpdateRequest,
+  siteStatusPagePublicUrl,
+} from "./admin-site-status-page.js";
+export {
   ACCESS_LOG_HOUR_INVALID_CODE,
   type AccessLogHourReplay,
   AccessLogHourStatus,
@@ -1923,19 +1936,9 @@ export type ReportingPackPreviewRequest = {
   query: ReportingPackPreviewQueryHint;
 };
 
-export type ReportingPackPreviewBucket = {
-  date: string;
-  value: RenderedMetricValue;
-  source: string;
-  queryDurationMs: number;
-  parquetUriCount?: number;
-  message?: string;
-  secondary?: RenderedMetricValue;
-};
-
+/** The preview envelope: the rendered widget under `data`, aggregate-only with no raw rows. */
 export type ReportingPackPreviewResponse = {
-  buckets?: ReportingPackPreviewBucket[];
-  value: RenderedMetricValue;
+  data: RenderedWidgetData;
 };
 
 export type ReportingPackGeneration = {

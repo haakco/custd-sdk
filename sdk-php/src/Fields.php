@@ -120,12 +120,9 @@ final class Fields
      */
     public static function strings(\stdClass $payload, string $key): array
     {
-        $value = self::optionalStrings($payload, $key);
-        if ($value === null) {
-            throw new \UnexpectedValueException("custd: response field {$key} is required");
-        }
+        self::requiredList($payload, $key);
 
-        return $value;
+        return self::optionalStrings($payload, $key) ?? [];
     }
 
     /** @param \stdClass $payload */
@@ -241,7 +238,7 @@ final class Fields
      */
     public static function objects(\stdClass $payload, string $key): array
     {
-        $value = self::required($payload, $key);
+        $value = self::requiredList($payload, $key);
         if (!is_array($value) || !array_is_list($value)) {
             throw new \UnexpectedValueException("custd: response field {$key} must be a list");
         }
@@ -354,6 +351,20 @@ final class Fields
     }
 
     /** @param \stdClass $payload */
+    /**
+     * requiredList reads a list the contract always sends. Custd's Go server encodes an empty
+     * nil slice as `null`, so a present null is the empty list; only a missing field fails.
+     */
+    private static function requiredList(\stdClass $payload, string $key): mixed
+    {
+        $values = get_object_vars($payload);
+        if (!array_key_exists($key, $values)) {
+            throw new \UnexpectedValueException("custd: response field {$key} is required");
+        }
+
+        return $values[$key] ?? [];
+    }
+
     private static function optional(\stdClass $payload, string $key): mixed
     {
         $values = get_object_vars($payload);

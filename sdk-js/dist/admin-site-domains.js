@@ -450,6 +450,26 @@ export class SiteDomainAdminClient {
         const path = `${campaignLinksPath(domainUuid)}/${encodeURIComponent(linkUuid)}/archive`;
         return this.send("POST", path, {}, undefined, options);
     }
+    /** Reads the Site's saved status-page draft and current publication, if any. */
+    getStatusPageSettings(domainUuid, options) {
+        return this.send("GET", statusPagePath(domainUuid), {}, undefined, options);
+    }
+    /** Shows the selected components as customers would see them, without publishing. */
+    previewStatusPage(domainUuid, draft, options) {
+        return this.send("POST", `${statusPagePath(domainUuid)}/preview`, {}, draft, options);
+    }
+    /** Publishes the selected components; build the customer link with siteStatusPagePublicUrl. */
+    publishStatusPage(domainUuid, draft, options) {
+        return this.send("PUT", statusPagePath(domainUuid), {}, draft, options);
+    }
+    /** Removes public access and keeps the draft. */
+    unpublishStatusPage(domainUuid, options) {
+        return this.send("DELETE", statusPagePath(domainUuid), {}, undefined, options);
+    }
+    /** Publishes a reviewed message and notifies confirmed subscribers; requestUuid makes a retry safe. */
+    postStatusPageUpdate(domainUuid, request, options) {
+        return this.send("POST", `${statusPagePath(domainUuid)}/updates`, {}, request, options);
+    }
     /** Lists live report shares. Tokens are returned only on creation. */
     listReportShares(domainUuid, options) {
         return this.send("GET", `${domainPath(domainUuid)}/report-shares`, {}, undefined, options);
@@ -618,6 +638,9 @@ function savedReportBody(body) {
 }
 function campaignLinksPath(domainUuid) {
     return `${domainPath(domainUuid)}/campaign-links`;
+}
+function statusPagePath(domainUuid) {
+    return `${domainPath(domainUuid)}/status-page`;
 }
 function rankingKeywordsPath(domainUuid) {
     return `${domainPath(domainUuid)}/rankings/keywords`;

@@ -9,7 +9,6 @@ name: Release Mirrors
 #                      matching custd/cb) and passed via http.extraheader so it
 #                      never lands in argv/process list or logs.
 #   publish-js         attach the npm package tarball to the tagged GitHub release.
-#   publish-packagist  the Packagist notify, when its secrets are configured.
 #
 # Publishing lived in ci.yml behind `needs:` on the test jobs. That meant one
 # failing runner could withhold a release that had already been tagged and
@@ -171,30 +170,3 @@ jobs:
           else
             gh release upload "$TAG" "$asset"
           fi
-
-  publish-packagist:
-    needs: [release-guard]
-    runs-on: haakco-build
-    container:
-      image: ghcr.io/haakco/actions-runner:2
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-      options: --user root
-    steps:
-      - name: Notify Packagist
-        env:
-          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
-          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
-        run: |
-          if [ -z "$PACKAGIST_USERNAME" ] || [ -z "$PACKAGIST_TOKEN" ]; then
-            echo "Packagist secrets are not configured; skipping."
-            exit 0
-          fi
-          curl -fsS --config - <<EOF
-          request = "POST"
-          header = "Content-Type: application/json"
-          header = "Authorization: Bearer ${PACKAGIST_USERNAME}:${PACKAGIST_TOKEN}"
-          url = "https://packagist.org/api/update-package"
-          data = "{\"repository\":{\"url\":\"https://github.com/haakco/custd-sdk\"}}"
-          EOF

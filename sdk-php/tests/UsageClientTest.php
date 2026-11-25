@@ -155,7 +155,7 @@ final class UsageClientTest extends TestCase
             "missing completeness flag" => array_diff_key($base, ["containsIncomplete" => true]),
             "missing rows" => array_diff_key($base, ["rows" => true]),
             "rows not a list" => array_merge($base, ["rows" => ["unexpected" => $base["rows"]]]),
-            "totals null" => array_merge($base, ["totals" => null]),
+            "totals not a list" => array_merge($base, ["totals" => ["unexpected" => true]]),
             "wrong field type" => array_merge($base, ["containsProvisional" => "false"]),
         ];
 

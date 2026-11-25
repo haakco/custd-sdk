@@ -12,6 +12,7 @@ import type { SiteRegionalTrends } from "./admin-site-regional-trends.js";
 import type { SavedSiteReport, SavedSiteReportList, SavedSiteReportRequest, SiteReportRequestOptions } from "./admin-site-saved-reports.js";
 import type { SearchPoolQueryPage, SearchPoolSetting } from "./admin-site-search-pool.js";
 import type { SiteFindingImpact, SiteSearchValue } from "./admin-site-search-value.js";
+import type { SiteStatusPage, SiteStatusPageDraft, SiteStatusPagePublication, SiteStatusPageSettings, SiteStatusUpdateHistory, SiteStatusUpdateRequest } from "./admin-site-status-page.js";
 import type { AccessLogHourReplay, SiteAIVisibility, SiteTraffic } from "./admin-site-traffic.js";
 import type { SiteContentGap, SiteKeywordClusters, SiteKeywordList, SiteKeywordListRequest, SiteKeywordLists, SiteTopicTrends, SiteWebDomains, SiteWebPages, SiteWebPagesQuery } from "./admin-site-web-data.js";
 import type { RequestOptions } from "./index.js";
@@ -559,6 +560,16 @@ export declare class SiteDomainAdminClient {
     createCampaignLink(domainUuid: string, body: SiteCampaignLinkRequest, options?: SiteDomainRequestOptions): Promise<SiteCampaignLink>;
     /** Archives a link: it stays listed with archived links and its tagged URL is free again. */
     archiveCampaignLink(domainUuid: string, linkUuid: string, options?: SiteDomainRequestOptions): Promise<SiteCampaignLink>;
+    /** Reads the Site's saved status-page draft and current publication, if any. */
+    getStatusPageSettings(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteStatusPageSettings>;
+    /** Shows the selected components as customers would see them, without publishing. */
+    previewStatusPage(domainUuid: string, draft: SiteStatusPageDraft, options?: SiteDomainRequestOptions): Promise<SiteStatusPage>;
+    /** Publishes the selected components; build the customer link with siteStatusPagePublicUrl. */
+    publishStatusPage(domainUuid: string, draft: SiteStatusPageDraft, options?: SiteDomainRequestOptions): Promise<SiteStatusPagePublication>;
+    /** Removes public access and keeps the draft. */
+    unpublishStatusPage(domainUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Publishes a reviewed message and notifies confirmed subscribers; requestUuid makes a retry safe. */
+    postStatusPageUpdate(domainUuid: string, request: SiteStatusUpdateRequest, options?: SiteDomainRequestOptions): Promise<SiteStatusUpdateHistory>;
     /** Lists live report shares. Tokens are returned only on creation. */
     listReportShares(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteReportShareList>;
     /** Creates a public report share. Copy the token once; creation is never retried automatically. */

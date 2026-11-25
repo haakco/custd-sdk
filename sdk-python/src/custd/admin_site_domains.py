@@ -62,6 +62,14 @@ from .admin_site_page_queries import SitePageSearchQueries
 from .admin_site_rankings import SiteRankings, SiteTrackedKeyword, SiteTrackKeywordRequest
 from .admin_site_search_pool import SearchPoolQueryPage, SearchPoolSetting
 from .admin_site_search_value import SiteFindingImpact, SiteSearchValue
+from .admin_site_status_page import (
+    SiteStatusDraft,
+    SiteStatusPage,
+    SiteStatusPublication,
+    SiteStatusSettings,
+    SiteStatusUpdateHistory,
+    SiteStatusUpdateRequest,
+)
 from .admin_site_tasks import SiteInsightsTaskList
 from .admin_site_web_data import (
     SiteContentGap,
@@ -1066,6 +1074,35 @@ class SiteDomainAdminClient:
         path = _campaign_links_path(domain_uuid) + "/" + quote_path(link_uuid) + "/archive"
         return cast(SiteCampaignLink, self._request("POST", path, {}, company_slug))
 
+    def get_status_page_settings(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteStatusSettings:
+        """Read the saved status-page draft and current publication, if any."""
+        return cast(SiteStatusSettings, self._request("GET", _status_page_path(domain_uuid), {}, company_slug))
+
+    def preview_status_page(
+        self, domain_uuid: str, draft: SiteStatusDraft, *, company_slug: str | None = None
+    ) -> SiteStatusPage:
+        """Show the selected components as customers would see them, without publishing."""
+        path = _status_page_path(domain_uuid) + "/preview"
+        return cast(SiteStatusPage, self._request("POST", path, {}, company_slug, dict(draft)))
+
+    def publish_status_page(
+        self, domain_uuid: str, draft: SiteStatusDraft, *, company_slug: str | None = None
+    ) -> SiteStatusPublication:
+        """Publish the selected components; site_status_page_public_url builds the customer link."""
+        path = _status_page_path(domain_uuid)
+        return cast(SiteStatusPublication, self._request("PUT", path, {}, company_slug, dict(draft)))
+
+    def unpublish_status_page(self, domain_uuid: str, *, company_slug: str | None = None) -> None:
+        """Remove public access (204); the draft stays available."""
+        self._request("DELETE", _status_page_path(domain_uuid), {}, company_slug)
+
+    def post_status_page_update(
+        self, domain_uuid: str, request: SiteStatusUpdateRequest, *, company_slug: str | None = None
+    ) -> SiteStatusUpdateHistory:
+        """Publish a reviewed message, notify confirmed subscribers and return the latest updates."""
+        path = _status_page_path(domain_uuid) + "/updates"
+        return cast(SiteStatusUpdateHistory, self._request("POST", path, {}, company_slug, dict(request)))
+
     def test_robots(
         self,
         domain_uuid: str,
@@ -1619,6 +1656,10 @@ def _day_range_query(from_day: str | None, to_day: str | None) -> dict[str, str]
 
 def _campaign_links_path(domain_uuid: str) -> str:
     return _domain_path(domain_uuid) + "/campaign-links"
+
+
+def _status_page_path(domain_uuid: str) -> str:
+    return _domain_path(domain_uuid) + "/status-page"
 
 
 def _saved_report_payload(request: SavedSiteReportRequest) -> dict[str, Any]:

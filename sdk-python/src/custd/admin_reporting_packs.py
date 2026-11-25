@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict, cast
 
-from .client import AdminClient, RenderedMetricValue, RenderedWidgetBucket, quote_path
+from .client import AdminClient, RenderedWidgetData, quote_path
 
 
 class MetricDefinition(TypedDict):
@@ -480,9 +480,10 @@ class ReportingPackPreviewRequest(TypedDict):
     query: QueryHint
 
 
-class ReportingPackPreviewResponse(TypedDict, total=False):
-    buckets: list[RenderedWidgetBucket]
-    value: RenderedMetricValue
+class ReportingPackPreviewResponse(TypedDict):
+    """The preview envelope: the rendered widget under ``data``, aggregate-only with no raw rows."""
+
+    data: RenderedWidgetData
 
 
 class ReportingPackGeneration(TypedDict, total=False):

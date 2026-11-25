@@ -72,6 +72,8 @@ jobs:
         run: pnpm -C sdk-js run build
       - name: Check committed JS dist is current
         run: git diff --exit-code -- sdk-js/dist
+      - name: Check JS source archive
+        run: bash scripts/check-js-source-archive.sh
       - name: Lint React SDK
         run: pnpm -C sdk-react run lint
       - name: Typecheck React SDK
@@ -310,11 +312,15 @@ jobs:
       - name: Lint GitHub Actions workflows
         run: PATH="$(go env GOPATH)/bin:$PATH" actionlint
       - name: Lint Markdown
-        run: pnpm exec markdownlint-cli2 '**/*.md' '#node_modules' '#vendor' '#sdk-js/node_modules' '#sdk-react/node_modules' '#sdk-php/vendor' '#laravel-package/vendor' '#wordpress-plugin/vendor'
+        run: pnpm exec markdownlint-cli2 '**/*.md' '#**/node_modules' '#vendor' '#sdk-php/vendor' '#laravel-package/vendor' '#wordpress-plugin/vendor' '#.opencode' '#docs/tmp'
       - name: Check diff whitespace
         run: git diff-tree --check --no-commit-id --root -r HEAD
       - name: Check SDK identity constants
         run: bash scripts/check-sdk-version-identity.sh
+      - name: Test release mirror publisher
+        run: bash scripts/test-publish-release-mirror.sh
+      - name: Test Infisical Docker wrapper
+        run: node --test scripts/test-infisical-docker.mjs
 
 # Release publishing is not here on purpose. The publish jobs used to need these
 # test jobs, so a runner failure in any of them silently withheld a tagged

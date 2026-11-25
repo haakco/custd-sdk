@@ -516,7 +516,13 @@ describe("admin reporting packs", () => {
       {
         status: 200,
         body: JSON.stringify({
-          value: { value: 1, unit: "count", sampleCount: 1, dataSufficiency: "complete", complete: true },
+          data: {
+            buckets: [],
+            value: { value: 1, unit: "count", sampleCount: 1, dataSufficiency: "complete", complete: true },
+            queryDurationMs: 1,
+            snapshotAgeMs: 0,
+            eventLagP95Ms: 0,
+          },
         }),
       },
       {
@@ -594,7 +600,7 @@ describe("admin reporting packs", () => {
       tenantSlug: "acme",
       query: { template: "count", metrics: ["events"] },
     });
-    expect(previewed.value.value).toBe(1);
+    expect(previewed.data.value.value).toBe(1);
     const published = await client.admin.reportingPacks.publish("43");
     expect(published.state).toBe("publishing");
     const restarted = await client.admin.reportingPacks.restart("43");

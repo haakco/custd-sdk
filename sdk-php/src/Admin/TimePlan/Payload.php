@@ -101,7 +101,8 @@ final class Payload
             return null;
         }
         $value = $payload[$key];
-        if (!is_array($value) || array_is_list($value)) {
+        // Responses decode as arrays, so an empty JSON object arrives as [] and is an empty map.
+        if (!is_array($value) || ($value !== [] && array_is_list($value))) {
             throw new \UnexpectedValueException("custd: time-plan {$key} must be an object");
         }
         /** @var array<string, mixed> $value */

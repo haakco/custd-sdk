@@ -253,6 +253,21 @@ final class WorkflowTimingClientTest extends TestCase
         );
     }
 
+    public function testRunWithoutDimensionsReadsAsAnEmptyMap(): void
+    {
+        $calls = [];
+        $client = $this->client($calls, function (): array {
+            $response = $this->ok('workflow-timing-run-read-response.json');
+            $run = json_decode($response['body'], false, 512, JSON_THROW_ON_ERROR);
+            $this->assertInstanceOf(\stdClass::class, $run);
+            $run->dimensions = new \stdClass();
+
+            return ['status' => 200, 'body' => json_encode($run, JSON_THROW_ON_ERROR)];
+        });
+
+        $this->assertSame([], $client->adminWorkflowTimings()->getRun('acme', 'run-1')->dimensions);
+    }
+
     public function testConformanceKeepsColdStartDistinctFromReady(): void
     {
         $coldCalls = [];
