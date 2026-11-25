@@ -85,6 +85,9 @@ heuristic script. People cannot keep five SDKs and about 540 admin operations al
 - Give consumers a Renovate rule (or the existing Dependabot setup) for the SDK tag.
 - Give them a fixture check: their fakes replay `contract-fixtures/` at the pinned tag, so a fake that
   disagrees with Custd fails their CI, not production.
+- `contract-fixtures/` is `export-ignore`d, so it is not in the Composer dist. Ship the fixtures a consumer
+  replays in a form the package manager delivers (for example under `sdk-php/fixtures/`), or give consumers
+  a pinned fetch command. Until then, Hosting copies `site-status-page.json` at `v3.65.1`.
 - Pin first: Hosting PHP `^3.65`. Vorrent JS is at `v3.43.3`, Vorrent media cache Go at `v3.59.0`, and
   done-when-app at `v3.64.4`.
 - **Proof:** Hosting's CI fails on a deliberately wrong fake and passes on the released fixture.
