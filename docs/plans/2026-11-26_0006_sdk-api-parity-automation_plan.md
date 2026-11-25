@@ -4,9 +4,34 @@
 or a recorded reason it is excluded, and a machine check on each side catches the next gap or drift
 before a consumer does.
 
-**Status (2026-11-26):** Active. Nothing in M1-M6 is implemented. The release that preceded this plan is
-[archived](../../archive/docs/plans/2026-11-26_0006_2026-11-25_2300_review-fixes-and-status-page-parity_plan.md)
-(`v3.65.1`).
+**Status (2026-11-26, checkpoint 1):** Active.
+
+- **M1 is built:** `contract-fixtures/api/operations.json` (701 operations, 623 required) and
+  `examples/` come from `just sync-api-contract`. `just surface-check` runs in `just check` and CI.
+- **M2 and M3 baselines** exist in every SDK: route conformance plus example decode tests, each owning
+  `contract-fixtures/api/coverage/<sdk>.json`.
+- **Baseline coverage of the 623 required operations:** Go 440, JS 378, PHP 308, Python 290, Rust 50.
+- **Running:** gap batches G1 (Go, everything), J1 (JS, Site and account areas), P1 (Python
+  fixes plus Site and account areas) and R1 (Rust site-domains), plus Custd OpenAPI enum
+  declarations.
+- **Resume:** `just surface-check`, then the next batch for each SDK from
+  `python3 scripts/check-sdk-surface.py --missing <sdk>`.
+- **Found by the baselines and being fixed:**
+  - methods in Go, JS, Python and PHP that call routes no service serves (`/api/v1/admin/schemas`,
+    prediction `rollbackVersion`);
+  - null-list decoders in every SDK;
+  - Go envelope and type drift (prediction lists, privacy mappings, tenant storage, workflow
+    rebuild);
+  - the Go webhook replay and rotate URL bug;
+  - Python's tenant-storage and schemas paths;
+  - Custd's OpenAPI has no enums for closed string sets.
+- **Custd catalogue gaps to fix:** `docs/api/api-parity.json` misses the public monitor routes
+  (`/api/v1/site-heartbeat-reports/…`, `/api/v1/site-private-uptime-reports/…`,
+  `/api/v1/public-status-pages/{key}` and its subscribe, confirm and unsubscribe routes), and both it
+  and the OpenAPI miss `POST /api/v1/site-domains/ai-owner-handoffs`.
+- **The release this plan follows** is
+  [archived](../../archive/docs/plans/2026-11-26_0006_2026-11-25_2300_review-fixes-and-status-page-parity_plan.md)
+  (`v3.65.1`).
 
 **Rule:** a change to any SDK lands in every SDK in the same release. A route present in one SDK and
 absent or different in another is a defect, not a backlog preference.
