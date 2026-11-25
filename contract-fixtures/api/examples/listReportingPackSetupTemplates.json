@@ -1,0 +1,106 @@
+{
+  "maximal": {
+    "templates": [
+      {
+        "bindings": [
+          {
+            "key": "example",
+            "label": "example",
+            "required": true
+          }
+        ],
+        "definition": {
+          "accounting": {
+            "allocations": [],
+            "schedules": [],
+            "usageMetric": "example",
+            "version": 1
+          },
+          "activationRules": [
+            {}
+          ],
+          "activityRules": [
+            {}
+          ],
+          "assetHierarchy": {
+            "edges": [],
+            "maxDepth": 1,
+            "nodes": [],
+            "tenantKey": "example",
+            "version": 1
+          },
+          "dashboards": [
+            {}
+          ],
+          "dimensions": [
+            {}
+          ],
+          "displayName": "example",
+          "enabled": true,
+          "eventTypes": [
+            "example"
+          ],
+          "exportFormats": [
+            "example"
+          ],
+          "flowRules": [
+            {}
+          ],
+          "identity": {
+            "cohort": {},
+            "correlation": {},
+            "entity": {},
+            "session": {},
+            "subject": {}
+          },
+          "key": "example",
+          "metrics": [
+            {}
+          ],
+          "observation": {
+            "assets": [],
+            "series": [],
+            "sources": [],
+            "version": 1
+          },
+          "owner": "example",
+          "proof": {
+            "forbiddenFields": [],
+            "key": "example",
+            "outputLayout": "example",
+            "safeMetadataFields": [],
+            "templates": []
+          },
+          "reconciliations": [
+            {}
+          ],
+          "redactionRules": [
+            {}
+          ],
+          "retentionRules": [
+            {}
+          ],
+          "rollupRules": [
+            {}
+          ],
+          "templates": [
+            {}
+          ],
+          "transitionRules": [
+            {}
+          ],
+          "trust": {
+            "redactionGuard": [],
+            "safeFields": []
+          },
+          "version": 1
+        },
+        "displayName": "example",
+        "kind": "example"
+      }
+    ]
+  },
+  "minimal": {
+    "templates": null
+  }
+}

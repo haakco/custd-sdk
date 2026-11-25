@@ -1,0 +1,40 @@
+{
+  "maximal": {
+    "transitions": [
+      {
+        "actorKind": "example",
+        "actorRef": "example",
+        "allocatorVersion": "example",
+        "clientOccurredAt": "2026-11-20T06:00:00Z",
+        "commandId": "example",
+        "currentStatus": "example",
+        "previousStatus": "example",
+        "reason": "example",
+        "receipt": {
+          "allocatorVersion": "example",
+          "changes": [
+            {}
+          ],
+          "reason": "example",
+          "result": [
+            {}
+          ],
+          "source": [
+            {}
+          ],
+          "summary": "example"
+        },
+        "runUuid": "example",
+        "schemaVersion": "example",
+        "serverReceivedAt": "2026-11-20T06:00:00Z",
+        "streamVersion": 1,
+        "supersedesTransitionUuid": "example",
+        "type": "example",
+        "uuid": "example"
+      }
+    ]
+  },
+  "minimal": {
+    "transitions": null
+  }
+}

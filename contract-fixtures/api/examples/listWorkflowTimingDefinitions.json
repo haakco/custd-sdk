@@ -1,0 +1,30 @@
+{
+  "maximal": {
+    "items": [
+      {
+        "currentRevision": {
+          "allowOverlap": true,
+          "dimensions": [
+            {}
+          ],
+          "hash": "example",
+          "number": 1,
+          "predictionVersionUuid": "example",
+          "steps": [
+            {}
+          ],
+          "uuid": "example"
+        },
+        "description": "example",
+        "name": "example",
+        "revisionCount": 1,
+        "status": "example",
+        "uuid": "example",
+        "workflowKey": "example"
+      }
+    ]
+  },
+  "minimal": {
+    "items": null
+  }
+}

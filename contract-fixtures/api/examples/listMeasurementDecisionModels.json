@@ -1,0 +1,40 @@
+{
+  "maximal": {
+    "decisions": [
+      {
+        "choices": [
+          {
+            "choiceCode": "example",
+            "choiceUuid": "example",
+            "description": "example",
+            "expression": {},
+            "name": "example"
+          }
+        ],
+        "createdAt": "2026-11-20T06:00:00Z",
+        "decisionCode": "example",
+        "decisionUuid": "example",
+        "description": "example",
+        "name": "example",
+        "objective": "example",
+        "projectCode": "example",
+        "status": "example",
+        "updatedAt": "2026-11-20T06:00:00Z",
+        "variables": [
+          {
+            "distributionSlug": "example",
+            "measurementCost": 1.5,
+            "name": "example",
+            "parameters": {},
+            "unitSlug": "example",
+            "variableCode": "example",
+            "variableUuid": "example"
+          }
+        ]
+      }
+    ]
+  },
+  "minimal": {
+    "decisions": null
+  }
+}

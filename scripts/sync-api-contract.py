@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+"""Refresh the SDK API contract snapshot from a Custd checkout.
+
+Writes contract-fixtures/api/operations.json (every public operation and whether the SDKs must
+cover it) and contract-fixtures/api/examples/<operationId>.json (a minimal and a maximal success
+response generated from the OpenAPI schema, for the SDK decode tests).
+
+Run: uv run --with pyyaml python scripts/sync-api-contract.py --custd ../custd
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import shutil
+import subprocess
+from pathlib import Path
+
+import yaml
+
+SERVICES = ("admin-api", "analytics-api", "ingest-api", "schema-registry")
+OPENAPI = {
+    "admin-api": "docs/api/generated/admin-api.openapi.yaml",
+    "analytics-api": "docs/api/generated/analytics-api.openapi.yaml",
+}
+INFRASTRUCTURE = re.compile(r"^/(debug|internal|metrics|health|healthz|readyz|ready|mcp)(/|$)")
+METHODS = ("get", "post", "put", "patch", "delete")
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "contract-fixtures" / "api"
+
+
+def exclusion(method: str, path: str) -> str | None:
+    """The reason an operation is not an SDK call, or None when every SDK must cover it."""
+    if method == "OPTIONS":
+        return "browser CORS preflight"
+    if INFRASTRUCTURE.match(path) or path == "/api/v1/health":
+        return "infrastructure, debug or private internal transport"
+    if path.startswith(("/oauth/", "/admin/identities")):
+        return "identity-provider callback or gateway hook"
+    if path.startswith("/.well-known/oauth"):
+        return "OAuth discovery protocol"
+    return None
+
+
+class Examples:
+    """Builds example values from OpenAPI schemas; minimal sends required fields with null lists."""
+
+    def __init__(self, schemas: dict) -> None:
+        self.schemas = schemas
+
+    def value(self, schema: dict, minimal: bool, depth: int = 0) -> object:
+        if "$ref" in schema:
+            name = schema["$ref"].rsplit("/", 1)[-1]
+            return self.value(self.schemas[name], minimal, depth + 1) if depth < 8 else {}
+        types = schema.get("type", "object")
+        types = types if isinstance(types, list) else [types]
+        nullable = "null" in types
+        kind = next((t for t in types if t != "null"), "object")
+        if minimal and nullable and kind == "array":
+            return None
+        if "enum" in schema:
+            return schema["enum"][0]
+        if kind == "object":
+            return self.object(schema, minimal, depth)
+        if kind == "array":
+            item = schema.get("items", {})
+            return [] if minimal or depth >= 8 else [self.value(item, minimal, depth + 1)]
+        return self.scalar(kind, schema.get("format"))
+
+    def object(self, schema: dict, minimal: bool, depth: int) -> dict:
+        properties = schema.get("properties", {})
+        required = set(schema.get("required", []))
+        names = [n for n in properties if n != "$schema" and (not minimal or n in required)]
+        if not properties and isinstance(schema.get("additionalProperties"), dict) and not minimal:
+            return {"key": self.value(schema["additionalProperties"], minimal, depth + 1)}
+        return {n: self.value(properties[n], minimal, depth + 1) for n in names}
+
+    @staticmethod
+    def scalar(kind: str, fmt: str | None) -> object:
+        if kind == "integer":
+            return 1
+        if kind == "number":
+            return 1.5
+        if kind == "boolean":
+            return True
+        return {
+            "date-time": "2026-11-20T06:00:00Z",
+            "date": "2026-11-20",
+            "uuid": "0198a3b2-0000-7000-8000-000000000001",
+            "uri": "https://example.com/",
+            "email": "person@example.com",
+        }.get(fmt or "", "example")
+
+
+def openapi_operations(custd: Path) -> tuple[dict, dict]:
+    """Maps (service, METHOD, path) to the OpenAPI operation, and the schemas by service."""
+    operations, schemas = {}, {}
+    for service, rel in OPENAPI.items():
+        document = yaml.safe_load((custd / rel).read_text(encoding="utf-8"))
+        schemas[service] = document.get("components", {}).get("schemas", {})
+        for path, item in document.get("paths", {}).items():
+            for method in METHODS:
+                if method in item:
+                    operations[(service, method.upper(), path)] = item[method]
+    return operations, schemas
+
+
+def success_schema(operation: dict) -> dict | None:
+    for status, response in sorted(operation.get("responses", {}).items()):
+        if status.startswith("2"):
+            content = response.get("content", {})
+            for media in ("application/json", "application/problem+json"):
+                if media in content:
+                    return content[media].get("schema")
+            return None
+    return None
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--custd", required=True, type=Path)
+    custd = parser.parse_args().custd.resolve()
+    catalogue_path = custd / "docs/api/api-parity.json"
+    catalogue = json.loads(catalogue_path.read_text(encoding="utf-8"))
+    by_route, schemas = openapi_operations(custd)
+
+    examples_dir = OUT / "examples"
+    shutil.rmtree(examples_dir, ignore_errors=True)
+    examples_dir.mkdir(parents=True)
+
+    entries = []
+    for op in catalogue["operations"]:
+        if op["service"] not in SERVICES:
+            continue
+        entry = {"id": f"{op['service']} {op['method']} {op['path']}", "service": op["service"],
+                 "method": op["method"], "path": op["path"]}
+        reason = exclusion(op["method"], op["path"])
+        entry["sdk"] = "excluded" if reason else "required"
+        if reason:
+            entry["reason"] = reason
+        spec = by_route.get((op["service"], op["method"], op["path"]))
+        if spec and spec.get("operationId"):
+            entry["operationId"] = spec["operationId"]
+            schema = success_schema(spec)
+            if schema and not reason:
+                builder = Examples(schemas[op["service"]])
+                example = {"minimal": builder.value(schema, True), "maximal": builder.value(schema, False)}
+                (examples_dir / f"{spec['operationId']}.json").write_text(
+                    json.dumps(example, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+                entry["example"] = f"examples/{spec['operationId']}.json"
+        entries.append(entry)
+
+    entries.sort(key=lambda e: e["id"])
+    commit = subprocess.run(["git", "-C", str(custd), "rev-parse", "HEAD"], check=True,
+                            capture_output=True, text=True).stdout.strip()
+    snapshot = {
+        "source": {
+            "custdCommit": commit,
+            "apiParityReviewedAt": catalogue.get("reviewed_at", ""),
+            "apiParitySha256": hashlib.sha256(catalogue_path.read_bytes()).hexdigest(),
+        },
+        "operations": entries,
+    }
+    (OUT / "operations.json").write_text(json.dumps(snapshot, indent=2) + "\n", encoding="utf-8")
+    required = sum(e["sdk"] == "required" for e in entries)
+    print(f"{len(entries)} operations, {required} required, {len(entries) - required} excluded")
+
+
+if __name__ == "__main__":
+    main()

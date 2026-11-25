@@ -1,0 +1,25 @@
+{
+  "maximal": {
+    "active_version_uuid": "example",
+    "candidate_version_count": 1,
+    "candidate_version_uuid": "example",
+    "default_horizon_seconds": 1,
+    "definition_key": "example",
+    "description": "example",
+    "display_name": "example",
+    "is_paused": true,
+    "project_kind": "example",
+    "schedule_kind": "example",
+    "status": "example",
+    "uuid": "example"
+  },
+  "minimal": {
+    "definition_key": "example",
+    "display_name": "example",
+    "is_paused": true,
+    "project_kind": "example",
+    "schedule_kind": "example",
+    "status": "example",
+    "uuid": "example"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "maximal": {
+    "audienceConstraints": "example",
+    "identityModes": [
+      "example"
+    ],
+    "profileFieldKeys": [
+      "example"
+    ],
+    "registrationPolicies": [
+      "example"
+    ],
+    "subjectUniqueness": "example"
+  },
+  "minimal": {
+    "audienceConstraints": "example",
+    "identityModes": null,
+    "profileFieldKeys": null,
+    "registrationPolicies": null,
+    "subjectUniqueness": "example"
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "maximal": {
+    "defaultRange": "example",
+    "description": "example",
+    "executive": {
+      "actions": [
+        "example"
+      ],
+      "comparisonBasis": "example",
+      "comparisonLabel": "example",
+      "findings": [
+        "example"
+      ],
+      "primaryLabel": "example",
+      "primaryMetricKey": "example",
+      "primaryUnit": "example",
+      "primaryWidgetKey": "example",
+      "recipe": "example",
+      "scopeLabel": "example",
+      "supportingWidgetKeys": [
+        "example"
+      ],
+      "targetUnit": "example",
+      "targetValue": 1.5
+    },
+    "exportFormats": [
+      "example"
+    ],
+    "group": "example",
+    "interactions": [
+      {
+        "action": "example",
+        "comparisonPreset": "example",
+        "dimension": "example",
+        "key": "example",
+        "linkedFilterGroup": "example",
+        "resetBehavior": "example",
+        "sourceWidget": "example",
+        "targetWidget": "example"
+      }
+    ],
+    "key": "example",
+    "packKey": "example",
+    "refreshSeconds": 1,
+    "requiredScopes": [
+      "example"
+    ],
+    "sections": [
+      {
+        "columnSpan": 1,
+        "key": "example",
+        "layout": "example",
+        "narrative": [
+          {
+            "references": [],
+            "text": "example"
+          }
+        ],
+        "title": "example",
+        "widgetKeys": [
+          "example"
+        ]
+      }
+    ],
+    "sharePolicy": {
+      "comparisonPresets": [
+        "example"
+      ],
+      "relativeRanges": [
+        "example"
+      ]
+    },
+    "title": "example",
+    "widgets": [
+      {
+        "dimensions": [
+          "example"
+        ],
+        "key": "example",
+        "kind": "example",
+        "metrics": [
+          "example"
+        ],
+        "presentation": {
+          "nonColorEncoding": "example",
+          "presetId": "example",
+          "summaryTemplateId": "example",
+          "version": 1
+        },
+        "template": "example",
+        "title": "example"
+      }
+    ]
+  },
+  "minimal": {
+    "defaultRange": "example",
+    "key": "example",
+    "refreshSeconds": 1,
+    "requiredScopes": null,
+    "title": "example",
+    "widgets": null
+  }
+}

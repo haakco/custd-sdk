@@ -2,12 +2,21 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
 test: infisical-test test-go test-js test-python test-php test-rust test-release-mirrors
 
-check: test sdk-version-identity lint-workflows lint-markdown diff-check
+check: test sdk-version-identity surface-check lint-workflows lint-markdown diff-check
 
 # The X-Custd-Sdk identity constants must equal VERSION, or a release ships a
 # client that misreports itself.
 sdk-version-identity:
   bash scripts/check-sdk-version-identity.sh
+
+# Compare each SDK's proven route coverage with the Custd operation snapshot. Pass --complete to fail
+# while any required operation is missing, or --missing <sdk> to list one SDK's gaps.
+surface-check *args:
+  python3 scripts/check-sdk-surface.py {{args}}
+
+# Refresh the operation snapshot and generated examples from a Custd checkout (default ../custd).
+sync-api-contract custd="../custd":
+  uv run --with pyyaml python scripts/sync-api-contract.py --custd {{custd}}
 
 diff-check:
   git diff --check

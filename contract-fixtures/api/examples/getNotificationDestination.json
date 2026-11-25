@@ -1,0 +1,15 @@
+{
+  "maximal": {
+    "channel": "example",
+    "configured": true,
+    "emailRecipient": "example",
+    "enabled": true,
+    "eventSlug": "example"
+  },
+  "minimal": {
+    "channel": "example",
+    "configured": true,
+    "enabled": true,
+    "eventSlug": "example"
+  }
+}

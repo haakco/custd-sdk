@@ -1,0 +1,49 @@
+{
+  "maximal": {
+    "createdAt": "2026-11-20T06:00:00Z",
+    "description": "example",
+    "latestVersion": 1,
+    "modelUuid": "example",
+    "name": "example",
+    "queuedRunFailure": {
+      "attempts": 1,
+      "error": "example",
+      "failedAt": "2026-11-20T06:00:00Z"
+    },
+    "updatedAt": "2026-11-20T06:00:00Z",
+    "version": {
+      "createdAt": "2026-11-20T06:00:00Z",
+      "note": "example",
+      "quantities": [
+        {
+          "description": "example",
+          "formula": "example",
+          "input": {
+            "distribution": "normal",
+            "high": 1.5,
+            "low": 1.5,
+            "samples": [],
+            "shape": "point",
+            "source": {},
+            "successes": 1,
+            "trials": 1,
+            "value": 1.5
+          },
+          "kind": "input",
+          "name": "example",
+          "unit": "example"
+        }
+      ],
+      "versionNumber": 1,
+      "versionUuid": "example"
+    }
+  },
+  "minimal": {
+    "createdAt": "2026-11-20T06:00:00Z",
+    "description": "example",
+    "latestVersion": 1,
+    "modelUuid": "example",
+    "name": "example",
+    "updatedAt": "2026-11-20T06:00:00Z"
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "maximal": {
+    "drafts": [
+      {
+        "createdAt": "2026-11-20T06:00:00Z",
+        "definition": {
+          "accounting": {
+            "allocations": [],
+            "schedules": [],
+            "usageMetric": "example",
+            "version": 1
+          },
+          "activationRules": [
+            {}
+          ],
+          "activityRules": [
+            {}
+          ],
+          "assetHierarchy": {
+            "edges": [],
+            "maxDepth": 1,
+            "nodes": [],
+            "tenantKey": "example",
+            "version": 1
+          },
+          "dashboards": [
+            {}
+          ],
+          "dimensions": [
+            {}
+          ],
+          "displayName": "example",
+          "enabled": true,
+          "eventTypes": [
+            "example"
+          ],
+          "exportFormats": [
+            "example"
+          ],
+          "flowRules": [
+            {}
+          ],
+          "identity": {
+            "cohort": {},
+            "correlation": {},
+            "entity": {},
+            "session": {},
+            "subject": {}
+          },
+          "key": "example",
+          "metrics": [
+            {}
+          ],
+          "observation": {
+            "assets": [],
+            "series": [],
+            "sources": [],
+            "version": 1
+          },
+          "owner": "example",
+          "proof": {
+            "forbiddenFields": [],
+            "key": "example",
+            "outputLayout": "example",
+            "safeMetadataFields": [],
+            "templates": []
+          },
+          "reconciliations": [
+            {}
+          ],
+          "redactionRules": [
+            {}
+          ],
+          "retentionRules": [
+            {}
+          ],
+          "rollupRules": [
+            {}
+          ],
+          "templates": [
+            {}
+          ],
+          "transitionRules": [
+            {}
+          ],
+          "trust": {
+            "redactionGuard": [],
+            "safeFields": []
+          },
+          "version": 1
+        },
+        "id": 1,
+        "revision": 1,
+        "updatedAt": "2026-11-20T06:00:00Z",
+        "validationError": "example"
+      }
+    ]
+  },
+  "minimal": {
+    "drafts": null
+  }
+}

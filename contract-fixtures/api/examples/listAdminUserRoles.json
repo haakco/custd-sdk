@@ -1,0 +1,14 @@
+{
+  "maximal": {
+    "roles": [
+      {
+        "description": "example",
+        "name": "example",
+        "slug": "example"
+      }
+    ]
+  },
+  "minimal": {
+    "roles": null
+  }
+}

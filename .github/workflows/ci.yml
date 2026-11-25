@@ -317,6 +317,8 @@ jobs:
         run: git diff-tree --check --no-commit-id --root -r HEAD
       - name: Check SDK identity constants
         run: bash scripts/check-sdk-version-identity.sh
+      - name: Check SDK route coverage against the Custd snapshot
+        run: python3 scripts/check-sdk-surface.py
       - name: Test release mirror publisher
         run: bash scripts/test-publish-release-mirror.sh
       - name: Test Infisical Docker wrapper

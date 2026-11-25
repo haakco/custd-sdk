@@ -1,0 +1,22 @@
+{
+  "maximal": {
+    "audienceEntitlementMode": "example",
+    "companyUuid": "0198a3b2-0000-7000-8000-000000000001",
+    "environmentId": "example",
+    "environmentSlug": "example",
+    "identityMode": "example",
+    "name": "example",
+    "projectId": "example",
+    "slug": "example"
+  },
+  "minimal": {
+    "audienceEntitlementMode": "example",
+    "companyUuid": "0198a3b2-0000-7000-8000-000000000001",
+    "environmentId": "example",
+    "environmentSlug": "example",
+    "identityMode": "example",
+    "name": "example",
+    "projectId": "example",
+    "slug": "example"
+  }
+}

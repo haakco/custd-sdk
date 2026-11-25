@@ -1,0 +1,398 @@
+{
+  "maximal": {
+    "definition": {
+      "accounting": {
+        "allocations": [
+          {
+            "key": "example",
+            "rounding": {},
+            "sourceSeriesKey": "example",
+            "targets": []
+          }
+        ],
+        "schedules": [
+          {
+            "billingBoundary": "example",
+            "currency": "example",
+            "effectiveFrom": "2026-11-20T06:00:00Z",
+            "effectiveTo": "2026-11-20T06:00:00Z",
+            "key": "example",
+            "rounding": {},
+            "tiers": [],
+            "timezone": "example",
+            "usageMetric": "example",
+            "usageUnit": "example"
+          }
+        ],
+        "usageMetric": "example",
+        "version": 1
+      },
+      "activationRules": [
+        {
+          "cohortWindowDays": 1,
+          "identity": "example",
+          "key": "example",
+          "predicate": {
+            "anyOf": [],
+            "exact": "example",
+            "nonEmpty": true,
+            "pattern": "example",
+            "selector": "example"
+          }
+        }
+      ],
+      "activityRules": [
+        {
+          "bucketDays": 1,
+          "identity": "example",
+          "key": "example"
+        }
+      ],
+      "assetHierarchy": {
+        "edges": [
+          {
+            "childKey": "example",
+            "mode": "example",
+            "parentKey": "example",
+            "tenantKey": "example"
+          }
+        ],
+        "maxDepth": 1,
+        "nodes": [
+          {
+            "key": "example",
+            "label": "example",
+            "tenantKey": "example"
+          }
+        ],
+        "tenantKey": "example",
+        "version": 1
+      },
+      "dashboards": [
+        {
+          "defaultRange": "example",
+          "description": "example",
+          "executive": {
+            "actions": [],
+            "comparisonBasis": "example",
+            "comparisonLabel": "example",
+            "findings": [],
+            "primaryLabel": "example",
+            "primaryMetricKey": "example",
+            "primaryUnit": "example",
+            "primaryWidgetKey": "example",
+            "recipe": "example",
+            "scopeLabel": "example",
+            "supportingWidgetKeys": [],
+            "targetUnit": "example",
+            "targetValue": 1.5
+          },
+          "exportFormats": [
+            "example"
+          ],
+          "group": "example",
+          "interactions": [
+            {}
+          ],
+          "key": "example",
+          "packKey": "example",
+          "refreshSeconds": 1,
+          "requiredScopes": [
+            "example"
+          ],
+          "sections": [
+            {}
+          ],
+          "sharePolicy": {
+            "comparisonPresets": [],
+            "relativeRanges": []
+          },
+          "title": "example",
+          "widgets": [
+            {}
+          ]
+        }
+      ],
+      "dimensions": [
+        {
+          "allowedValuePattern": "example",
+          "description": "example",
+          "fallback": "example",
+          "key": "example",
+          "label": "example",
+          "labelDefinitionKey": "example",
+          "labelDefinitionUuid": "example",
+          "labelValueUuids": [
+            "example"
+          ],
+          "maxCardinality": 1,
+          "selector": "example"
+        }
+      ],
+      "displayName": "example",
+      "enabled": true,
+      "eventTypes": [
+        "example"
+      ],
+      "exportFormats": [
+        "example"
+      ],
+      "flowRules": [
+        {
+          "completionMarkers": [
+            "example"
+          ],
+          "correlationSelector": "example",
+          "familySelector": "example",
+          "familyValue": "example",
+          "includeUncorrelated": true,
+          "key": "example",
+          "startMarkers": [
+            "example"
+          ],
+          "stepSelector": "example"
+        }
+      ],
+      "identity": {
+        "cohort": {
+          "selector": "example",
+          "type": "example"
+        },
+        "correlation": {
+          "selector": "example",
+          "type": "example"
+        },
+        "entity": {
+          "selector": "example",
+          "type": "example"
+        },
+        "session": {
+          "selector": "example",
+          "type": "example"
+        },
+        "subject": {
+          "selector": "example",
+          "type": "example"
+        }
+      },
+      "key": "example",
+      "metrics": [
+        {
+          "calculation": "example",
+          "canonicalUnit": "example",
+          "denominatorMetric": "example",
+          "description": "example",
+          "distinct": {
+            "selector": "example",
+            "type": "example"
+          },
+          "flowResult": "example",
+          "hierarchyRootKey": "example",
+          "key": "example",
+          "kind": "example",
+          "label": "example",
+          "match": [
+            {}
+          ],
+          "maximumGapSeconds": 1,
+          "measurementKind": "example",
+          "numeratorMetric": "example",
+          "numeric": {
+            "selector": "example",
+            "type": "example",
+            "unit": "example"
+          },
+          "percentile": 1,
+          "resetPolicy": "example",
+          "rolloverAt": 1.5,
+          "seriesKey": "example",
+          "unit": "example"
+        }
+      ],
+      "observation": {
+        "assets": [
+          {
+            "key": "example",
+            "label": "example"
+          }
+        ],
+        "series": [
+          {
+            "allowedSourceUnits": [],
+            "assetKey": "example",
+            "assetKeys": [],
+            "canonicalUnit": "example",
+            "expectedCadenceSeconds": 1,
+            "key": "example",
+            "maximumGapSeconds": 1,
+            "measurementKind": "example",
+            "sources": []
+          }
+        ],
+        "sources": [
+          {
+            "key": "example",
+            "label": "example"
+          }
+        ],
+        "version": 1
+      },
+      "owner": "example",
+      "proof": {
+        "forbiddenFields": [
+          "example"
+        ],
+        "key": "example",
+        "outputLayout": "example",
+        "safeMetadataFields": [
+          "example"
+        ],
+        "templates": [
+          "example"
+        ]
+      },
+      "reconciliations": [
+        {
+          "absoluteTolerance": 1.5,
+          "canonicalUnit": "example",
+          "maxAgeSeconds": 1,
+          "mode": "example",
+          "relativeTolerance": 1.5,
+          "seriesKey": "example",
+          "sources": [
+            {}
+          ],
+          "tenantKey": "example",
+          "version": 1
+        }
+      ],
+      "redactionRules": [
+        {
+          "allowedFields": [
+            "example"
+          ],
+          "reasonClasses": [
+            "example"
+          ],
+          "resultShape": "example",
+          "selectorFields": [
+            "example"
+          ],
+          "sourceEventType": "example",
+          "sourceSystem": "example"
+        }
+      ],
+      "retentionRules": [
+        {
+          "activationRule": "example",
+          "key": "example",
+          "returnPredicate": {
+            "anyOf": [],
+            "exact": "example",
+            "nonEmpty": true,
+            "pattern": "example",
+            "selector": "example"
+          },
+          "returnWindowDays": [
+            1
+          ]
+        }
+      ],
+      "rollupRules": [
+        {
+          "completenessRequired": true,
+          "dimensions": [
+            {}
+          ],
+          "family": "example",
+          "match": [
+            {}
+          ],
+          "metric": "example",
+          "sourceEventType": "example",
+          "templates": [
+            "example"
+          ]
+        }
+      ],
+      "templates": [
+        {
+          "aggregation": "example",
+          "allowedDimensions": [
+            "example"
+          ],
+          "allowedFilters": [
+            {}
+          ],
+          "allowedMetrics": [
+            "example"
+          ],
+          "compositionRules": [
+            "example"
+          ],
+          "defaultRange": "example",
+          "eventTypes": [
+            "example"
+          ],
+          "flowRule": "example",
+          "maxRows": 1,
+          "name": "example",
+          "sourceModes": [
+            "example"
+          ],
+          "subjectScope": {
+            "dimension": "example",
+            "required": true
+          }
+        }
+      ],
+      "transitionRules": [
+        {
+          "identity": "example",
+          "key": "example",
+          "maxDurationMs": 1,
+          "maxEvents": 1,
+          "stepSelector": "example",
+          "steps": [
+            "example"
+          ]
+        }
+      ],
+      "trust": {
+        "redactionGuard": [
+          "example"
+        ],
+        "safeFields": [
+          "example"
+        ]
+      },
+      "version": 1
+    },
+    "kind": "example"
+  },
+  "minimal": {
+    "definition": {
+      "dimensions": null,
+      "displayName": "example",
+      "enabled": true,
+      "eventTypes": null,
+      "key": "example",
+      "metrics": null,
+      "owner": "example",
+      "proof": {
+        "forbiddenFields": null,
+        "key": "example",
+        "outputLayout": "example",
+        "safeMetadataFields": null,
+        "templates": null
+      },
+      "templates": null,
+      "trust": {
+        "redactionGuard": null,
+        "safeFields": null
+      },
+      "version": 1
+    },
+    "kind": "example"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "maximal": {
+    "action": "example",
+    "principal": {
+      "clientId": "example",
+      "kind": "example",
+      "userUuid": "example"
+    },
+    "target": {
+      "kind": "example",
+      "resourceUuid": "example",
+      "scopeUuid": "example"
+    }
+  },
+  "minimal": {
+    "action": "example",
+    "principal": {
+      "kind": "example"
+    },
+    "target": {
+      "kind": "example"
+    }
+  }
+}

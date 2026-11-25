@@ -1,0 +1,230 @@
+{
+  "maximal": {
+    "data": {
+      "buckets": [
+        {
+          "date": "example",
+          "message": "example",
+          "parquetUriCount": 1,
+          "queryDurationMs": 1,
+          "secondary": {
+            "complete": true,
+            "currency": "example",
+            "dataSufficiency": "example",
+            "sampleCount": 1,
+            "truncated": true,
+            "trust": {},
+            "unit": "example",
+            "value": 1.5
+          },
+          "source": "example",
+          "value": {
+            "complete": true,
+            "currency": "example",
+            "dataSufficiency": "example",
+            "sampleCount": 1,
+            "truncated": true,
+            "trust": {},
+            "unit": "example",
+            "value": 1.5
+          }
+        }
+      ],
+      "delta": {
+        "complete": true,
+        "currency": "example",
+        "dataSufficiency": "example",
+        "sampleCount": 1,
+        "truncated": true,
+        "trust": {
+          "calculationVersion": "example",
+          "coverageEnd": "2026-11-20T06:00:00Z",
+          "coverageStart": "2026-11-20T06:00:00Z",
+          "freshnessMs": 1,
+          "reconciliation": {},
+          "sourceRange": {},
+          "warnings": [],
+          "windowCoverage": 1.5
+        },
+        "unit": "example",
+        "value": 1.5
+      },
+      "deltaLabel": "example",
+      "deltaPercent": 1.5,
+      "emailDelivery": {
+        "complete": true,
+        "recipients": [
+          {
+            "occurredAt": "2026-11-20T06:00:00Z",
+            "outcome": "deferred",
+            "recipientId": "example"
+          }
+        ]
+      },
+      "eventLagP95Ms": 1,
+      "labelMetadata": [
+        {
+          "definitionUuid": "example",
+          "displayName": "example",
+          "key": "example",
+          "sensitivity": "example",
+          "values": [
+            {}
+          ]
+        }
+      ],
+      "metadata": {
+        "coveredWindows": 1,
+        "effectiveMaxRows": 1,
+        "rangeEnd": "example",
+        "rangeStart": "example",
+        "resolvedTemplate": "example",
+        "returnedBuckets": 1,
+        "returnedRows": 1
+      },
+      "parquetUriCount": 1,
+      "queryDurationMs": 1,
+      "secondaryLabel": "example",
+      "snapshotAgeMs": 1,
+      "sources": [
+        {
+          "completeness": "example",
+          "count": 1,
+          "coverageEnd": "example",
+          "coverageStart": "example",
+          "kind": "example"
+        }
+      ],
+      "trust": {
+        "captureState": "example",
+        "consentState": "example",
+        "contractVersion": "example",
+        "coverage": "example",
+        "dataFreshness": "example",
+        "exportState": "example",
+        "lastExport": "example",
+        "nextAction": {
+          "action": "none",
+          "maxRetries": 1,
+          "pollAfterSeconds": 1
+        },
+        "partialReason": "example",
+        "permissionClass": "example",
+        "queryWarnings": [
+          "example"
+        ],
+        "retryability": "none",
+        "rollupState": "example",
+        "schemaVersion": "example",
+        "status": "example",
+        "unavailableReason": "example"
+      },
+      "value": {
+        "complete": true,
+        "currency": "example",
+        "dataSufficiency": "example",
+        "sampleCount": 1,
+        "truncated": true,
+        "trust": {
+          "calculationVersion": "example",
+          "coverageEnd": "2026-11-20T06:00:00Z",
+          "coverageStart": "2026-11-20T06:00:00Z",
+          "freshnessMs": 1,
+          "reconciliation": {},
+          "sourceRange": {},
+          "warnings": [],
+          "windowCoverage": 1.5
+        },
+        "unit": "example",
+        "value": 1.5
+      },
+      "visual": {
+        "anomalies": [
+          {
+            "at": "example",
+            "lower": 1.5,
+            "upper": 1.5,
+            "value": {}
+          }
+        ],
+        "calibration": [
+          {
+            "observed": {},
+            "predictedLower": 1.5,
+            "predictedUpper": 1.5
+          }
+        ],
+        "cohorts": [
+          {
+            "cohort": "example",
+            "population": 1,
+            "suppressed": true,
+            "value": {},
+            "window": "example"
+          }
+        ],
+        "distribution": [
+          {
+            "lower": 1.5,
+            "upper": 1.5,
+            "value": {}
+          }
+        ],
+        "drivers": [
+          {
+            "contribution": {},
+            "key": "example",
+            "label": "example",
+            "method": "example",
+            "rank": 1
+          }
+        ],
+        "intervals": [
+          {
+            "estimate": {},
+            "label": "example",
+            "lower": {},
+            "upper": {}
+          }
+        ],
+        "kind": "example",
+        "lifecycle": [
+          {
+            "converted": {},
+            "dropOff": {},
+            "entered": {},
+            "key": "example",
+            "label": "example",
+            "order": 1
+          }
+        ],
+        "method": "example",
+        "quantiles": [
+          {
+            "quantile": 1.5,
+            "value": {}
+          }
+        ],
+        "summary": "example"
+      },
+      "warnings": [
+        "example"
+      ]
+    }
+  },
+  "minimal": {
+    "data": {
+      "buckets": null,
+      "eventLagP95Ms": 1,
+      "queryDurationMs": 1,
+      "snapshotAgeMs": 1,
+      "value": {
+        "complete": true,
+        "dataSufficiency": "example",
+        "sampleCount": 1,
+        "unit": "example",
+        "value": 1.5
+      }
+    }
+  }
+}

@@ -1,0 +1,455 @@
+{
+  "maximal": {
+    "domain": {
+      "audit": {
+        "lastAuditedAt": "2026-11-20T06:00:00Z",
+        "lastFailure": "example",
+        "lastSummary": {
+          "high": 1,
+          "info": 1,
+          "low": 1,
+          "medium": 1,
+          "pagesChecked": 1,
+          "requests": 1,
+          "truncated": true
+        },
+        "requestedAt": "2026-11-20T06:00:00Z"
+      },
+      "checks": {
+        "chromeUx": {
+          "checkedAt": "2026-11-20T06:00:00Z",
+          "observation": {}
+        },
+        "httpExpectations": {
+          "bodyContains": "example",
+          "json": {},
+          "maxResponseMs": 1,
+          "statusCode": 1
+        },
+        "mode": "paused",
+        "openIncident": {
+          "acknowledgedAt": "2026-11-20T06:00:00Z",
+          "cause": "example",
+          "failedChecks": 1,
+          "incidentUuid": "example",
+          "openedAt": "2026-11-20T06:00:00Z",
+          "resolvedAt": "2026-11-20T06:00:00Z",
+          "startedAt": "2026-11-20T06:00:00Z"
+        },
+        "registration": {
+          "domain": "example",
+          "expiresAt": "2026-11-20T06:00:00Z",
+          "readAt": "2026-11-20T06:00:00Z",
+          "source": "example"
+        },
+        "tls": {
+          "issuer": "example",
+          "lastCheckedAt": "2026-11-20T06:00:00Z",
+          "lastFailure": "example",
+          "validTo": "2026-11-20T06:00:00Z"
+        },
+        "uptime": {
+          "consecutiveFailures": 1,
+          "lastCheckedAt": "2026-11-20T06:00:00Z",
+          "lastFailure": "example",
+          "responseMs": 1,
+          "status": "unknown",
+          "statusCode": 1
+        },
+        "warming": {
+          "lastWarmedAt": "2026-11-20T06:00:00Z",
+          "unwarmedResponseMs": 1,
+          "warmedResponseMs": 1
+        }
+      },
+      "createdAt": "2026-11-20T06:00:00Z",
+      "domainUuid": "example",
+      "host": "example",
+      "ownership": {
+        "attestation": {
+          "attestedAt": "2026-11-20T06:00:00Z",
+          "clientId": "example"
+        },
+        "instructions": {
+          "dnsRecordName": "example",
+          "dnsRecordValue": "example",
+          "fileContent": "example",
+          "fileUrl": "example"
+        },
+        "lastCheckFailure": "example",
+        "lastCheckedAt": "2026-11-20T06:00:00Z",
+        "verified": true,
+        "verifiedAt": "2026-11-20T06:00:00Z",
+        "verifiedBy": "example",
+        "verifiedViaDomainUuid": "example"
+      },
+      "siteUuid": "example"
+    },
+    "exportedAt": "2026-11-20T06:00:00Z",
+    "monitoring": {
+      "findingRows": 1,
+      "findings": {
+        "findings": [
+          {
+            "dismissible": true,
+            "evidence": "example",
+            "findingUuid": "example",
+            "fix": "example",
+            "history": {},
+            "recheckable": true,
+            "remedy": {},
+            "rule": "example",
+            "severity": "example",
+            "source": "example",
+            "suggestion": {},
+            "title": "example",
+            "url": "example"
+          }
+        ]
+      },
+      "incidents": {
+        "incidents": [
+          {
+            "acknowledgedAt": "2026-11-20T06:00:00Z",
+            "cause": "example",
+            "failedChecks": 1,
+            "incidentUuid": "example",
+            "openedAt": "2026-11-20T06:00:00Z",
+            "resolvedAt": "2026-11-20T06:00:00Z",
+            "startedAt": "2026-11-20T06:00:00Z"
+          }
+        ]
+      },
+      "lighthouse": [
+        {
+          "days": 1,
+          "domainUuid": "example",
+          "pages": [
+            {}
+          ],
+          "runs": [
+            {}
+          ],
+          "url": "example"
+        }
+      ],
+      "uptime": {
+        "days": [
+          {
+            "checks": 1,
+            "date": "example",
+            "upChecks": 1,
+            "upPercent": 1.5
+          }
+        ],
+        "domainUuid": "example",
+        "generatedAt": "2026-11-20T06:00:00Z",
+        "hours": [
+          {
+            "avgMs": 1,
+            "checks": 1,
+            "hourStart": "2026-11-20T06:00:00Z",
+            "maxMs": 1,
+            "upChecks": 1
+          }
+        ],
+        "monitoredSince": "2026-11-20T06:00:00Z",
+        "responseDays": 1,
+        "windows": {
+          "last24h": {},
+          "last30d": {},
+          "last7d": {}
+        }
+      }
+    },
+    "reports": {
+      "campaignLinks": {
+        "links": [
+          {
+            "archivedAt": "2026-11-20T06:00:00Z",
+            "campaign": "example",
+            "content": "example",
+            "createdAt": "2026-11-20T06:00:00Z",
+            "linkUuid": "example",
+            "medium": "example",
+            "source": "example",
+            "taggedUrl": "example",
+            "term": "example",
+            "url": "example"
+          }
+        ],
+        "maxLinks": 1,
+        "suggestedMediums": [
+          "example"
+        ],
+        "suggestedSources": [
+          "example"
+        ]
+      },
+      "savedReports": [
+        {
+          "createdAt": "2026-11-20T06:00:00Z",
+          "days": 1,
+          "generatedAt": "2026-11-20T06:00:00Z",
+          "liveShares": 1,
+          "name": "example",
+          "report": {
+            "audit": {},
+            "certificate": {},
+            "generatedAt": "2026-11-20T06:00:00Z",
+            "host": "example",
+            "nextActions": [],
+            "search": {},
+            "speed": [],
+            "template": "executive",
+            "uptime": {}
+          },
+          "reportUuid": "example",
+          "template": "executive"
+        }
+      ]
+    },
+    "schema": "example",
+    "search": {
+      "indexNow": {
+        "dailyUrlLimit": 1,
+        "enabled": true,
+        "key": "example",
+        "keyLocation": "example",
+        "lastCheckFailure": "example",
+        "submissions": [
+          {
+            "failure": "example",
+            "providerStatus": 1,
+            "requestedAt": "2026-11-20T06:00:00Z",
+            "status": "queued",
+            "submissionUuid": "example",
+            "submittedAt": "2026-11-20T06:00:00Z",
+            "urls": []
+          }
+        ],
+        "urlsToday": 1,
+        "verified": true,
+        "verifiedAt": "2026-11-20T06:00:00Z"
+      },
+      "inspections": {
+        "dailyLimit": 1,
+        "inspections": [
+          {
+            "coverageState": "example",
+            "crawledAs": "example",
+            "failure": "example",
+            "googleCanonical": "example",
+            "indexingState": "example",
+            "inspectedAt": "2026-11-20T06:00:00Z",
+            "inspectionUuid": "example",
+            "lastCrawlAt": "2026-11-20T06:00:00Z",
+            "mobileUsabilityVerdict": "example",
+            "pageFetchState": "example",
+            "requestedAt": "2026-11-20T06:00:00Z",
+            "resultLink": "example",
+            "robotsTxtState": "example",
+            "status": "queued",
+            "url": "example",
+            "userCanonical": "example",
+            "verdict": "example"
+          }
+        ],
+        "usedToday": 1
+      },
+      "metricRows": 1,
+      "rankings": {
+        "from": "example",
+        "keywords": [
+          {
+            "country": "example",
+            "createdAt": "2026-11-20T06:00:00Z",
+            "device": "example",
+            "keyword": "example",
+            "keywordUuid": "example",
+            "latest": {},
+            "notifyPosition": 1,
+            "observations": [],
+            "pool": {},
+            "status": "active"
+          }
+        ],
+        "maxKeywords": 1,
+        "pool": "joined",
+        "source": "not_connected",
+        "sourceFailure": "example",
+        "to": "example"
+      }
+    },
+    "site": {
+      "keywordLists": {
+        "lists": [
+          {
+            "createdAt": "2026-11-20T06:00:00Z",
+            "keywords": [],
+            "marketSample": {},
+            "marketSampleEnabled": true,
+            "name": "example",
+            "related": {},
+            "seedTerm": "example",
+            "updatedAt": "2026-11-20T06:00:00Z"
+          }
+        ],
+        "siteUuid": "example"
+      },
+      "projectContext": {
+        "brandNames": [
+          "example"
+        ],
+        "competitorDomains": [
+          "example"
+        ],
+        "hackerNewsEnabled": true,
+        "markets": [
+          {
+            "country": "example",
+            "language": "example"
+          }
+        ],
+        "siteUuid": "example",
+        "updatedAt": "2026-11-20T06:00:00Z"
+      },
+      "topicTrends": {
+        "siteUuid": "example",
+        "trends": [
+          {
+            "article": "example",
+            "checkedAt": "2026-11-20T06:00:00Z",
+            "lastFailure": "example",
+            "months": [],
+            "project": "example",
+            "source": "brand",
+            "status": "pending",
+            "term": "example"
+          }
+        ]
+      },
+      "webDomains": {
+        "domains": [
+          {
+            "domain": "example",
+            "inventoryAt": "2026-11-20T06:00:00Z",
+            "lastFailure": "example",
+            "nextInventoryAt": "2026-11-20T06:00:00Z",
+            "pageCount": 1,
+            "role": "own",
+            "sitemapStatus": "pending",
+            "trancoBand": "top-1k",
+            "trancoListDay": "example",
+            "trancoRank": 1,
+            "waybackStatus": "pending"
+          }
+        ],
+        "siteUuid": "example"
+      }
+    }
+  },
+  "minimal": {
+    "domain": {
+      "audit": {},
+      "checks": {
+        "mode": "paused",
+        "tls": {},
+        "uptime": {
+          "consecutiveFailures": 1,
+          "status": "unknown"
+        },
+        "warming": {}
+      },
+      "createdAt": "2026-11-20T06:00:00Z",
+      "domainUuid": "example",
+      "host": "example",
+      "ownership": {
+        "instructions": {
+          "dnsRecordName": "example",
+          "dnsRecordValue": "example",
+          "fileContent": "example",
+          "fileUrl": "example"
+        },
+        "verified": true
+      },
+      "siteUuid": "example"
+    },
+    "exportedAt": "2026-11-20T06:00:00Z",
+    "monitoring": {
+      "findingRows": 1,
+      "findings": {
+        "findings": null
+      },
+      "incidents": {
+        "incidents": null
+      },
+      "lighthouse": null,
+      "uptime": {
+        "days": null,
+        "domainUuid": "example",
+        "generatedAt": "2026-11-20T06:00:00Z",
+        "hours": null,
+        "responseDays": 1,
+        "windows": {
+          "last24h": {},
+          "last30d": {},
+          "last7d": {}
+        }
+      }
+    },
+    "reports": {
+      "campaignLinks": {
+        "links": null,
+        "maxLinks": 1,
+        "suggestedMediums": null,
+        "suggestedSources": null
+      },
+      "savedReports": null
+    },
+    "schema": "example",
+    "search": {
+      "indexNow": {
+        "dailyUrlLimit": 1,
+        "enabled": true,
+        "submissions": null,
+        "urlsToday": 1,
+        "verified": true
+      },
+      "inspections": {
+        "dailyLimit": 1,
+        "inspections": null,
+        "usedToday": 1
+      },
+      "metricRows": 1,
+      "rankings": {
+        "from": "example",
+        "keywords": null,
+        "maxKeywords": 1,
+        "pool": "joined",
+        "source": "not_connected",
+        "to": "example"
+      }
+    },
+    "site": {
+      "keywordLists": {
+        "lists": null,
+        "siteUuid": "example"
+      },
+      "projectContext": {
+        "brandNames": null,
+        "competitorDomains": null,
+        "markets": null,
+        "siteUuid": "example"
+      },
+      "topicTrends": {
+        "siteUuid": "example",
+        "trends": null
+      },
+      "webDomains": {
+        "domains": null,
+        "siteUuid": "example"
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "maximal": {
+    "locations": [
+      {
+        "bucket": "example",
+        "code": "example",
+        "companyId": 1,
+        "endpoint": "example",
+        "id": 1,
+        "isolationTier": "example",
+        "provider": "example",
+        "region": "example",
+        "rootPrefix": "example",
+        "uuid": "example",
+        "validationStatus": "example",
+        "writeEnabled": true
+      }
+    ]
+  },
+  "minimal": {
+    "locations": null
+  }
+}
