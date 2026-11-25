@@ -4,16 +4,27 @@
 or a recorded reason it is excluded, and a machine check on each side catches the next gap or drift
 before a consumer does.
 
-**Status (2026-11-26, checkpoint 1):** Active.
+**Status (2026-11-26, checkpoint 2):** Active.
 
 - **M1 is built:** `contract-fixtures/api/operations.json` (701 operations, 623 required) and
   `examples/` come from `just sync-api-contract`. `just surface-check` runs in `just check` and CI.
-- **M2 and M3 baselines** exist in every SDK: route conformance plus example decode tests, each owning
+- **M2 and M3** route and example-decode conformance tests exist in every SDK, each owning
   `contract-fixtures/api/coverage/<sdk>.json`.
-- **Baseline coverage of the 623 required operations:** Go 440, JS 378, PHP 308, Python 290, Rust 50.
-- **Running:** gap batches G1 (Go, everything), J1 (JS, Site and account areas), P1 (Python
-  fixes plus Site and account areas) and R1 (Rust site-domains), plus Custd OpenAPI enum
-  declarations.
+- **Coverage now (of 623):** Go 622, JS 622, Python 445, Rust 264, PHP 308.
+  - The last Go and JS gap, `POST …/cleanup/jobs/{uuid}/proof`, was a Custd routing bug: it
+    cancelled the job. It is fixed in Custd and the phantom operation is removed from the catalogue.
+- **Running:**
+  - Python P3: everything left.
+  - PHP PH1: fixes, typed provisioning, Site and account areas.
+  - Rust R3: measurement and reporting.
+  - Go G2 and JS J3: small defect fixes.
+  - Custd: route sources derived instead of hand-listed, so served routes cannot go missing from
+    the catalogue, plus OpenAPI gaps.
+- **Next after the batches:**
+  - Resync the snapshot from Custd, which now has enums and the newly catalogued routes.
+  - Drop the example placeholder limits that the enums make obsolete.
+  - Fill the new public routes in every SDK.
+  - Run `just check`, then release.
 - **Resume:** `just surface-check`, then the next batch for each SDK from
   `python3 scripts/check-sdk-surface.py --missing <sdk>`.
 - **Found by the baselines and being fixed:**
