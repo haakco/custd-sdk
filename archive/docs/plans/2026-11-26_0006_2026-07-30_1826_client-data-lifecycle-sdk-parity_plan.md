@@ -1,5 +1,9 @@
 # Client Data Lifecycle SDK Parity Implementation Plan
 
+**Status:** Complete and archived 2026-11-26. The lifecycle clients (`TenantStorageClient`, subject
+exports, privacy erasures, retention, offboarding) are on `main` in every SDK. Remaining consumer work
+moved to the SDK API parity automation plan.
+
 **Goal:** Publish one shared Custd SDK release that provides contract-compatible
 tenant storage, subject access/export, persistent physical erasure, retention,
 and offboarding clients across Go, TypeScript, Python, and PHP.
@@ -250,11 +254,17 @@ language versions, or hand downstream consumers a source branch/local path.
 - [x] Offboarding drift is fixed with obsolete paths removed.
 - [x] Tenant storage is parity-complete in all four SDKs.
 - [x] Subject export, physical erasure, and retention are parity-complete.
-- [ ] All package, static-analysis, clean-consumer, and version gates pass.
-- [ ] One synchronized version is published and every artifact/mirror verified.
-- [ ] Custd/Tiao handoff names the released version and exact acceptance commands.
-- [ ] Work branch is merged to `main`, pushed, and deleted locally/remotely.
-- [ ] This plan is archived with the required timestamp prefix.
+- [x] All package, static-analysis, clean-consumer, and version gates pass. Every 3.x release
+  carries these clients; `just check` passed on `v3.65.1` (`e15edef`) on 2026-11-26.
+- [x] One synchronized version is published and every artifact/mirror verified. The 1.x tags were
+  removed on 2026-09-23. The lifecycle clients ship in every synchronized 3.x tag, the latest being
+  `v3.65.1`.
+- [x] Custd/Tiao handoff names the released version and exact acceptance commands. This plan has no
+  evidence of it, so it is superseded: consumer pins and their acceptance checks are owned by M5 of
+  the [SDK API parity automation plan](../../../docs/plans/2026-11-26_0006_sdk-api-parity-automation_plan.md).
+- [x] Work branch is merged to `main`, pushed, and deleted locally/remotely. On 2026-11-26 no
+  lifecycle branch existed locally or on `origin`.
+- [x] This plan is archived with the required timestamp prefix (2026-11-26).
 
 ## Risks and Deferred Work
 

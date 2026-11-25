@@ -4,17 +4,26 @@ Central tracker for active implementation plans. Link every active plan here wit
 
 ## Active
 
-- [Client Data Lifecycle SDK Parity](./2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md) — blocked on the corresponding merged Custd server contracts; then fixes offboarding drift and adds tenant-storage, subject export, physical-erasure, and retention parity across all four SDKs.
+- [SDK API Parity Automation](./2026-11-26_0006_sdk-api-parity-automation_plan.md). Every public Custd
+  operation gets the same typed call in all five SDKs, or a recorded exclusion. Machine checks on both
+  sides catch the next gap: a surface manifest, generated route and response-shape tests, automatic
+  snapshot pull requests from Custd, and consumer fixture checks. M1-M6 are open.
 
 ## AI Execution Order
 
-1. Do not start this repository until Custd Phase D2 and lifecycle Milestones
-   0-4 are merged.
-2. Execute
-   [Client Data Lifecycle SDK Parity](./2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md)
-   from Milestone 1 through release verification.
-3. Return to the Custd lifecycle plan for consumer pinning and shared
-   acceptance; do not start Tiao directly from this repository.
+1. Execute the [SDK API Parity Automation](./2026-11-26_0006_sdk-api-parity-automation_plan.md) plan in
+   milestone order. M1-M3 come before M6, so every new call ships with its conformance tests.
+2. Every SDK change lands in Go, TypeScript, Python, PHP and Rust in the same release.
+
+## Archived (2026-11-26)
+
+- [Review Fixes and Status-Page Parity](../../archive/docs/plans/2026-11-26_0006_2026-11-25_2300_review-fixes-and-status-page-parity_plan.md):
+  released as `v3.65.0` and `v3.65.1`. It added status-page calls to every SDK and fixed the PHP decode
+  drift (empty dimensions, the preview envelope, null lists), the JS and Python preview types, the Go
+  request fields, the dead Packagist job and the CI gaps.
+- [Client Data Lifecycle SDK Parity](../../archive/docs/plans/2026-11-26_0006_2026-07-30_1826_client-data-lifecycle-sdk-parity_plan.md):
+  the lifecycle clients ship in every 3.x release. The consumer handoff moved to the parity
+  automation plan.
 
 ## Archived (2026-07-19)
 
