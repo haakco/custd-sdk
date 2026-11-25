@@ -158,6 +158,12 @@ final class SiteDomainClient
         return new SiteCampaignLinkClient($this->http);
     }
 
+    /** Publish, preview and withdraw the public status page of a domain's Site, and post updates to it. */
+    public function statusPage(): SiteStatusPageClient
+    {
+        return new SiteStatusPageClient($this->http);
+    }
+
     /** Read what to do next for one domain, and every domain's status and first action. */
     public function nextActions(): SiteNextActionClient
     {
