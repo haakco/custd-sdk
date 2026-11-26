@@ -2,7 +2,7 @@
 
 A day the keyword did not rank has no ``position``: it is absent from the dict, never 0. A keyword's
 ``pool`` band is absent when the tenant has not joined the search pool or the keyword is below its
-threshold; the rankings' ``pool`` (SITE_SEARCH_POOL_JOINED or _NOT_JOINED) is absent from older servers.
+threshold; the rankings' ``pool`` is SITE_SEARCH_POOL_JOINED or _NOT_JOINED.
 Closed string sets are Literal aliases; a value a newer server adds still decodes.
 """
 
@@ -92,4 +92,4 @@ class SiteRankings(_SiteRankingsWindow):
     maxKeywords: int
     keywords: list[SiteTrackedKeyword]
     sourceFailure: NotRequired[str]
-    pool: NotRequired[SearchPoolAccess]
+    pool: SearchPoolAccess

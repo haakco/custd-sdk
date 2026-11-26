@@ -1065,10 +1065,7 @@ class SiteDomainAdminClient:
             payload["phrase"] = phrase
         if scope:
             payload["scope"] = scope
-        check = cast(SitePageCheckResponse, self._request("POST", path, {}, company_slug, payload))
-        if "phrase" in check and check["phrase"]["wordCount"] == 0:
-            check["phrase"].pop("densityPercent", None)
-        return check
+        return cast(SitePageCheckResponse, self._request("POST", path, {}, company_slug, payload))
 
     def compare_page_wording(
         self, domain_uuid: str, first_url: str, second_url: str, *, company_slug: str | None = None
@@ -1076,22 +1073,16 @@ class SiteDomainAdminClient:
         """Compare the latest saved observations of two URLs on one verified domain. No pages are fetched."""
         path = _domain_path(domain_uuid) + "/page-wording"
         query = {"firstUrl": first_url, "secondUrl": second_url}
-        result = cast(SiteObservedWording, self._request("GET", path, query, company_slug))
-        comparison = result.get("comparison")
-        if comparison is not None:
-            _normalize_wording_comparison(comparison)
-        return result
+        return cast(SiteObservedWording, self._request("GET", path, query, company_slug))
 
     def compare_wording(
         self, domain_uuid: str, first: str, second: str, *, company_slug: str | None = None
     ) -> SiteWordingCompare:
         """Measure how much wording two drafts (HTML or text, each at most 512 KiB) share; nothing is stored."""
         path = _domain_path(domain_uuid) + "/wording-compare"
-        result = cast(
+        return cast(
             SiteWordingCompare, self._request("POST", path, {}, company_slug, {"first": first, "second": second})
         )
-        _normalize_wording_comparison(result)
-        return result
 
     def list_campaign_links(
         self, domain_uuid: str, include_archived: bool = False, *, company_slug: str | None = None
@@ -1493,6 +1484,8 @@ class SiteDomainAdminClient:
         if request.get("seedTerm"):
             payload["seedTerm"] = request["seedTerm"]
         payload["keywords"] = list(request["keywords"])
+        if "marketSampleEnabled" in request:
+            payload["marketSampleEnabled"] = request["marketSampleEnabled"]
         result = self._request("PUT", SITE_KEYWORD_LISTS_PATH, _site_query(site_uuid), company_slug, payload)
         return cast(SiteKeywordList, result)
 
@@ -1770,11 +1763,6 @@ class SiteDomainAdminClient:
         if not isinstance(decoded, Mapping):
             raise ValueError("custd: site domain response must be a JSON object")
         return dict(decoded)
-
-
-def _normalize_wording_comparison(comparison: SiteWordingCompare) -> None:
-    if not comparison["compared"]:
-        comparison.pop("sharedPercent", None)
 
 
 def _domain_path(domain_uuid: str) -> str:

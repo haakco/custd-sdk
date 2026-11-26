@@ -320,6 +320,7 @@ class WebDataTest(unittest.TestCase):
         domains.list_keyword_lists(SITE)
         domains.save_keyword_list(WEB["keywordListRequest"], SITE)
         domains.save_keyword_list({"name": "Brand", "keywords": []})
+        domains.save_keyword_list({"name": "Market", "keywords": [], "seedTerm": "seo", "marketSampleEnabled": True})
         domains.get_keyword_clusters("Pricing", SITE)
         domains.get_referring_domains("example.com", SITE)
         domains.get_referring_domains("example.com")
@@ -341,6 +342,11 @@ class WebDataTest(unittest.TestCase):
                 ("GET", f"{BASE}/keyword-lists?siteUuid={SITE}", None),
                 ("PUT", f"{BASE}/keyword-lists?siteUuid={SITE}", WEB["keywordListRequest"]),
                 ("PUT", f"{BASE}/keyword-lists", {"name": "Brand", "keywords": []}),
+                (
+                    "PUT",
+                    f"{BASE}/keyword-lists",
+                    {"name": "Market", "seedTerm": "seo", "keywords": [], "marketSampleEnabled": True},
+                ),
                 ("GET", f"{BASE}/keyword-clusters?siteUuid={SITE}&name=Pricing", None),
                 ("GET", f"{BASE}/referring-domains?domain=example.com&siteUuid={SITE}", None),
                 ("GET", f"{BASE}/referring-domains?domain=example.com", None),
@@ -767,7 +773,8 @@ class DraftToolsTest(unittest.TestCase):
         no_words = {"phrase": "x", "count": 0, "wordCount": 0, "densityPercent": 0}
         wordless = dict(TOOLS["pageCheckDraftTools"], phrase=no_words)
         domains, transport = site_domains(200, wordless)
-        self.assertNotIn("densityPercent", domains.check_page(DOMAIN, request["url"], "<p></p>", phrase="x")["phrase"])
+        wordless_check = domains.check_page(DOMAIN, request["url"], "<p></p>", phrase="x")
+        self.assertEqual(0, wordless_check["phrase"]["densityPercent"])
         self.assertEqual({"url": request["url"], "html": "<p></p>", "phrase": "x"}, transport.calls[0][2])
 
     def test_content_scope_lists_the_rules_it_checked(self) -> None:
@@ -783,7 +790,7 @@ class DraftToolsTest(unittest.TestCase):
         self.assertEqual(["heading.order-skip", "image.not-lazy"], passed)
         self.assertNotIn("checkedRules", TOOLS["pageCheck"])
 
-    def test_compare_wording_drops_the_share_of_texts_it_did_not_compare(self) -> None:
+    def test_compare_wording_keeps_the_zero_share_of_texts_it_did_not_compare(self) -> None:
         domains, transport = site_domains(200, TOOLS["wordingCompare"])
         request = TOOLS["wordingCompareRequest"]
 
@@ -794,7 +801,7 @@ class DraftToolsTest(unittest.TestCase):
         domains, _ = site_domains(200, TOOLS["wordingCompareNotCompared"])
         short = domains.compare_wording(DOMAIN, "a", "b")
         self.assertFalse(short["compared"])
-        self.assertNotIn("sharedPercent", short)
+        self.assertEqual(0, short["sharedPercent"])
 
     def test_compare_page_wording_preserves_observation_states(self) -> None:
         first = "https://example.com/plans"
@@ -818,7 +825,7 @@ class DraftToolsTest(unittest.TestCase):
         short = domains.compare_page_wording(DOMAIN, first, second)
         self.assertEqual("short", short["first"]["state"])
         self.assertEqual(80, short["comparison"]["firstWords"])
-        self.assertNotIn("sharedPercent", short["comparison"])
+        self.assertEqual(0, short["comparison"]["sharedPercent"])
 
 
 if __name__ == "__main__":

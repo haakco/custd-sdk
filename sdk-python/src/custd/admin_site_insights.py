@@ -271,7 +271,7 @@ class SitePageFacts(TypedDict):
 
     ``shareImage`` is the og:image a fix would name (the largest declared image, else the first
     unsized one; never fetched). ``faqSchema`` is FAQPage JSON-LD from the page's question
-    headings; Google shows no FAQ rich results since 7 May 2026. Both are absent from older servers.
+    headings, absent when the page has none; Google shows no FAQ rich results since 7 May 2026.
     """
 
     url: str
@@ -288,7 +288,7 @@ class SitePageFacts(TypedDict):
     headings: list[SitePageHeading]
     wordCount: int
     readability: SitePageReadability
-    shareImage: NotRequired[str]
+    shareImage: str
     faqSchema: NotRequired[SiteGeneratedFix]
 
 
@@ -314,7 +314,7 @@ class SitePageRecheckList(TypedDict):
 class SitePhraseUse(TypedDict):
     """Where one phrase appears in a draft and how often, with no target or verdict.
 
-    ``densityPercent`` is count over wordCount as a percentage, absent when the draft has no words.
+    ``densityPercent`` is count over wordCount as a percentage, 0 when the draft has no words.
     """
 
     phrase: str
@@ -323,7 +323,7 @@ class SitePhraseUse(TypedDict):
     inH1: bool
     count: int
     wordCount: int
-    densityPercent: NotRequired[float]
+    densityPercent: float
 
 
 # How much of a page a draft is: the whole page (the server's default) or only its body content,
@@ -356,14 +356,14 @@ class SiteWordingCompare(TypedDict):
     """How much wording two texts share, measured as the content.near-duplicate rule does.
 
     It is wording overlap, not plagiarism. Texts under ``minWords`` are not compared:
-    ``compared`` is False and ``sharedPercent`` absent.
+    ``compared`` is False and ``sharedPercent`` 0.
     """
 
     firstWords: int
     secondWords: int
     minWords: int
     compared: bool
-    sharedPercent: NotRequired[int]
+    sharedPercent: int
     thresholdPercent: int
     nearDuplicate: bool
 
@@ -583,17 +583,13 @@ class SiteLighthousePageComparison(TypedDict):
 
 
 class SiteLighthouseHistory(TypedDict):
-    """The runs of ``url`` (the home page unless an extra page was asked for) and every page's latest score.
-
-    ``url`` and ``pages`` are absent on servers before extra Lighthouse pages; an absent ``pages``
-    means no page comparisons.
-    """
+    """The runs of ``url`` (the home page unless an extra page was asked for) and every page's latest score."""
 
     domainUuid: str
     days: int
     runs: list[SiteLighthouseRun]
-    url: NotRequired[str]
-    pages: NotRequired[list[SiteLighthousePageComparison]]
+    url: str
+    pages: list[SiteLighthousePageComparison]
 
 
 class SiteLighthousePages(TypedDict):
@@ -697,14 +693,13 @@ class SiteReportAudit(TypedDict):
 class SiteReport(TypedDict):
     """One domain's client report, without verification tokens or connection details.
 
-    ``template`` is absent on servers before the template field; the server's default template is full.
     ``nextActions`` (the first three of get_next_actions) is absent from reports built or saved before
     servers sent them.
     """
 
     host: str
     generatedAt: str
-    template: NotRequired[SiteReportTemplate]
+    template: SiteReportTemplate
     uptime: SiteReportUptime
     certificate: SiteReportCertificate
     speed: list[SiteReportSpeed]

@@ -43,8 +43,8 @@ SITE_SEARCH_POOL_TERMS_VERSION = "2026-11-18"
 class SearchPoolSetting(TypedDict):
     """The tenant's pool membership, the pool's rules and the terms a join accepts.
 
-    ``joinedAt`` and ``acceptedTermsVersion`` are absent when not joined; ``termsVersion``, the
-    version a join must name, is absent from an older server.
+    ``joinedAt`` and ``acceptedTermsVersion`` are absent when not joined; ``termsVersion`` is the
+    version a join must name.
     """
 
     joined: bool
@@ -52,7 +52,7 @@ class SearchPoolSetting(TypedDict):
     minImpressions: int
     windowDays: int
     joinedAt: NotRequired[str]
-    termsVersion: NotRequired[str]
+    termsVersion: str
     acceptedTermsVersion: NotRequired[str]
 
 
