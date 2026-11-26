@@ -40,11 +40,7 @@ UNSHOWN_FIELDS: dict[str, str] = {
 
 # Literal fields whose example value the SDK rightly does not admit. Keyed by "<DTO>.<field>".
 LITERAL_EXAMPLES: dict[str, str] = {
-    "SiteDomainOwnership.verifiedBy": "siteaudit's verifiedBy carries no enum tag, so the example is \"example\"",
     "SiteAITenantUsage.period": "the tenant read is always the current month; the shared enum also has day",
-    "AuthProjectStoredDesiredState.displayNameSource": (
-        "the snapshot predates the enum; the current OpenAPI lists \"\", application and hosting"
-    ),
 }
 
 # Operations whose example is not the body the SDK method decodes. Each is reported to the owner.

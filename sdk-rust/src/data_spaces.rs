@@ -136,6 +136,27 @@ impl ProducerReservationStatus {
     }
 }
 
+/// The erasure request for one data space and how far it has got.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DataSpaceErasure {
+    pub data_space_slug: String,
+    pub parent_company_slug: String,
+    pub request_uuid: String,
+    pub requested_at: String,
+    pub status: DataSpaceErasureStatus,
+}
+
+/// Where a data space erasure is in its life.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DataSpaceErasureStatus {
+    Requested,
+    Erasing,
+    Completed,
+    Failed,
+}
+
 impl CustdClient {
     /// List data spaces.
     pub fn list_data_spaces(
@@ -185,6 +206,32 @@ impl CustdClient {
             None,
         );
         self.call(Method::Delete, &path, NO_BODY)
+    }
+
+    /// Ask Custd to erase everything a data space holds. The answer is the accepted request.
+    pub fn erase_data_space(
+        &self,
+        slug: &str,
+        parent_company_slug: Option<&str>,
+    ) -> Result<DataSpaceErasure> {
+        self.call(
+            Method::Post,
+            &erasure_path(slug, parent_company_slug),
+            NO_BODY,
+        )
+    }
+
+    /// Read the erasure request of a data space.
+    pub fn get_data_space_erasure(
+        &self,
+        slug: &str,
+        parent_company_slug: Option<&str>,
+    ) -> Result<DataSpaceErasure> {
+        self.call(
+            Method::Get,
+            &erasure_path(slug, parent_company_slug),
+            NO_BODY,
+        )
     }
 
     /// List producer reservations for a data space.
@@ -260,4 +307,12 @@ impl CustdClient {
         );
         self.call(Method::Delete, &path, NO_BODY)
     }
+}
+
+fn erasure_path(slug: &str, parent_company_slug: Option<&str>) -> String {
+    api_path(
+        format!("/api/v1/data-spaces/{}/erasure", percent_encode(slug)),
+        &[("parentCompanySlug", parent_company_slug.map(str::to_owned))],
+        None,
+    )
 }

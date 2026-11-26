@@ -327,6 +327,7 @@ impl CustdClient {
                 ("start", start.map(str::to_owned)),
                 ("end", end.map(str::to_owned)),
                 ("limit", limit.map(|v| v.to_string())),
+                ("format", Some("json".to_owned())),
             ],
             company_slug,
         );

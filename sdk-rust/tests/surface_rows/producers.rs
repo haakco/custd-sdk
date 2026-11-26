@@ -1,6 +1,7 @@
 use custd_sdk::{
     ProducerEnvironmentUpdateRequest, ProducerProvisionListResponse, ProducerProvisionPublicClient,
     ProducerProvisionRequest, ProducerProvisionResponse, ProducerSecretRotationResponse,
+    ProducerSigningKeysResponse, ProducerSigningKeysUpdateRequest,
 };
 
 use super::{body, round_trip};
@@ -51,6 +52,17 @@ pub fn rows() -> Vec<Row> {
             "/api/v1/producer-provisioning/c-1/rotate-secret",
             |c| drop(c.custd.rotate_producer_secret("c-1")),
             round_trip::<ProducerSecretRotationResponse>,
+        ),
+        row(
+            "admin-api PUT /api/v1/producer-provisioning/{clientId}/signing-keys",
+            "/api/v1/producer-provisioning/c-1/signing-keys",
+            |c| {
+                drop(c.custd.set_producer_signing_keys(
+                    "c-1",
+                    &body::<ProducerSigningKeysUpdateRequest>(r#"{"publicKeys":["AAAA"]}"#),
+                ))
+            },
+            round_trip::<ProducerSigningKeysResponse>,
         ),
     ]
 }

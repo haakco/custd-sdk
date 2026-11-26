@@ -248,6 +248,23 @@ const baselineRows: Row[] = [
     call: (c) => c.custd.provisioning.dataSpaces.revoke("slug-1", "acme"),
   },
   {
+    id: "admin-api POST /api/v1/data-spaces/{slug}/erasure",
+    params: { slug: "slug-1" },
+    query: { parentCompanySlug: "acme" },
+    call: (c) => c.custd.provisioning.dataSpaces.erase("slug-1", "acme"),
+  },
+  {
+    id: "admin-api GET /api/v1/data-spaces/{slug}/erasure",
+    params: { slug: "slug-1" },
+    query: { parentCompanySlug: "acme" },
+    call: (c) => c.custd.provisioning.dataSpaces.getErasure("slug-1", "acme"),
+  },
+  {
+    id: "admin-api PUT /api/v1/producer-provisioning/{clientId}/signing-keys",
+    params: { clientId: "clientId-1" },
+    call: (c) => c.custd.provisioning.producers.setSigningKeys("clientId-1", { publicKeys: ["AAAA"] }),
+  },
+  {
     id: "admin-api DELETE /api/v1/data-spaces/{slug}/producer-reservations/{producerSlug}",
     params: { slug: "dataSpaceSlug-1", producerSlug: "producerSlug-1" },
     query: { parentCompanySlug: "acme" },
@@ -455,12 +472,14 @@ const baselineRows: Row[] = [
   {
     id: "admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/outcomes",
     params: { definitionUuid: "definitionUuid-1" },
-    call: (c) => c.custd.admin.predictions.listOutcomes("companySlug-1", "definitionUuid-1"),
+    query: { pageSize: "10" },
+    call: (c) => c.custd.admin.predictions.listOutcomes("companySlug-1", "definitionUuid-1", 10),
   },
   {
     id: "admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/runs",
     params: { definitionUuid: "definitionUuid-1" },
-    call: (c) => c.custd.admin.predictions.listRuns("companySlug-1", "definitionUuid-1"),
+    query: { pageSize: "10" },
+    call: (c) => c.custd.admin.predictions.listRuns("companySlug-1", "definitionUuid-1", 10),
   },
   {
     id: "admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/threshold-events",

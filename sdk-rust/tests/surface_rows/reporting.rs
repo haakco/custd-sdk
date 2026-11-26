@@ -62,8 +62,8 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "analytics-api GET /api/v1/reporting/exports",
-            "/api/v1/reporting/exports",
-            |c| drop(c.custd.list_report_exports()),
+            "/api/v1/reporting/exports?limit=5",
+            |c| drop(c.custd.list_report_exports(Some(5))),
             round_trip::<ReportExportJobList>,
         ),
         row(

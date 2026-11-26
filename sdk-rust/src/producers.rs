@@ -98,6 +98,23 @@ pub struct ProducerSecretRotationResponse {
     pub token_url: String,
 }
 
+/// Replaces a signing producer's Ed25519 public keys: one or two base64 keys, two while rotating.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProducerSigningKeysUpdateRequest {
+    pub public_keys: Vec<String>,
+}
+
+/// The public keys Custd now verifies a producer's signed events with.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProducerSigningKeysResponse {
+    pub client_id: String,
+    pub company_slug: String,
+    #[serde(default, deserialize_with = "null_as_empty")]
+    pub public_keys: Vec<String>,
+}
+
 impl CustdClient {
     /// List producers.
     pub fn list_producers(
@@ -178,5 +195,22 @@ impl CustdClient {
             None,
         );
         self.call(Method::Post, &path, NO_BODY)
+    }
+
+    /// Replace the public keys a hosting-email-delivery producer's events are verified with.
+    pub fn set_producer_signing_keys(
+        &self,
+        client_id: &str,
+        request: &ProducerSigningKeysUpdateRequest,
+    ) -> Result<ProducerSigningKeysResponse> {
+        let path = api_path(
+            format!(
+                "/api/v1/producer-provisioning/{}/signing-keys",
+                percent_encode(client_id)
+            ),
+            &[],
+            None,
+        );
+        self.call(Method::Put, &path, Some(request))
     }
 }

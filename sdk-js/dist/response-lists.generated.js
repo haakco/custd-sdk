@@ -1609,6 +1609,7 @@ export const API_RESPONSE_LISTS = {
         "definition.currentRevision.dimensions",
         "definition.currentRevision.steps",
     ],
+    "PUT /api/v1/producer-provisioning/{clientId}/signing-keys": ["publicKeys"],
     "PUT /api/v1/site-domains/{domainUuid}/indexnow": ["submissions", "submissions[].urls"],
     "PUT /api/v1/site-domains/{domainUuid}/lighthouse/pages": ["urls"],
     "PUT /api/v1/site-domains/{domainUuid}/probes": [

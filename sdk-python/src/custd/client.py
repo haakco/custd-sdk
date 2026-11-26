@@ -1626,6 +1626,40 @@ class ProducerReservationCreateRequest(TypedDict):
     ttlSeconds: int
 
 
+SCOPE_TEMPLATE_HOSTING_EMAIL_DELIVERY = "hosting-email-delivery"
+"""Writes only hosting-email-delivery events into an owned data space, each verified with the keys
+set by ``ProducerProvisioningClient.set_signing_keys``."""
+
+SCOPE_TEMPLATE_HOSTING_PANEL_READ = "hosting-panel-read"
+"""The read-only credential a parent's panel reads one data space's reporting and Site Insights with."""
+
+DataSpaceErasureStatus = Literal["requested", "erasing", "completed", "failed"]
+
+
+class DataSpaceErasure(TypedDict):
+    """The erasure request for one data space and how far it has got."""
+
+    requestUuid: str
+    dataSpaceSlug: str
+    parentCompanySlug: str
+    status: DataSpaceErasureStatus
+    requestedAt: str
+
+
+class ProducerSigningKeysUpdateRequest(TypedDict):
+    """One or two base64 Ed25519 public keys; two while a key is being rotated."""
+
+    publicKeys: list[str]
+
+
+class ProducerSigningKeys(TypedDict):
+    """The public keys Custd now verifies a producer's signed events with."""
+
+    clientId: str
+    companySlug: str
+    publicKeys: list[str]
+
+
 class ProducerReservationClaimRequest(TypedDict):
     claimedByClientId: str
 
@@ -1645,6 +1679,15 @@ class DataSpaceProvisioningClient:
     def revoke(self, slug: str, parent_company_slug: str | None = None) -> None:
         path = f"/data-spaces/{quote_path(slug)}" + _parent_company_query(parent_company_slug)
         self._provisioning.request("DELETE", path)
+
+    def erase(self, slug: str, parent_company_slug: str | None = None) -> DataSpaceErasure:
+        """Ask Custd to erase everything the data space holds; the answer is the accepted request."""
+        path = f"/data-spaces/{quote_path(slug)}/erasure" + _parent_company_query(parent_company_slug)
+        return _decode_dto(DataSpaceErasure, self._provisioning.request("POST", path))
+
+    def get_erasure(self, slug: str, parent_company_slug: str | None = None) -> DataSpaceErasure:
+        path = f"/data-spaces/{quote_path(slug)}/erasure" + _parent_company_query(parent_company_slug)
+        return _decode_dto(DataSpaceErasure, self._provisioning.request("GET", path))
 
     def get_usage(self, parent_company_slug: str | None = None) -> DataSpaceUsageSummary:
         """Report the retained storage of every data space the caller owns."""
@@ -1685,6 +1728,11 @@ class ProducerProvisioningClient:
         path = f"/producer-provisioning/{quote_path(client_id)}/environment"
         response = self._provisioning.request("PATCH", path, {"environment": environment})
         return _decode_dto(ProducerProvisionPublicClient, response)
+
+    def set_signing_keys(self, client_id: str, request: ProducerSigningKeysUpdateRequest) -> ProducerSigningKeys:
+        """Replace the public keys a hosting-email-delivery producer's events are verified with."""
+        path = f"/producer-provisioning/{quote_path(client_id)}/signing-keys"
+        return _decode_dto(ProducerSigningKeys, self._provisioning.request("PUT", path, dict(request)))
 
     def get(self, client_id: str) -> ProducerProvisionPublicClient:
         producer = self._provisioning.request("GET", f"/producer-provisioning/{quote_path(client_id)}")

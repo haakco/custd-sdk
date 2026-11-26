@@ -27,10 +27,12 @@ final class SystemUsageClient
         return Report::fromPayload($this->http->object('GET', self::path('/api/v1/admin/usage', $query, $companySlug)));
     }
 
-    /** Export the same usage window as {@see list} for reconciliation. */
+    /** Export the same usage window as {@see list} for reconciliation, as the JSON report. */
     public function export(?Query $query = null, ?string $companySlug = null): Report
     {
-        return Report::fromPayload($this->http->object('GET', self::path('/api/v1/admin/usage/export', $query, $companySlug)));
+        $path = self::path('/api/v1/admin/usage/export', $query, $companySlug);
+
+        return Report::fromPayload($this->http->object('GET', $path . (str_contains($path, '?') ? '&' : '?') . 'format=json'));
     }
 
     private static function path(string $route, ?Query $query, ?string $companySlug): string

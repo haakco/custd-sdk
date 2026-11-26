@@ -393,10 +393,10 @@ pub use data_scopes::{
     DataScopeResourceUpdateRequest, DataScopeUpdateRequest, DataScopeUpdateRequestStatus,
 };
 pub use data_spaces::{
-    DataSpace, DataSpaceCreateRequest, DataSpaceEntitlementState, DataSpaceListResponse,
-    DataSpaceStorageMeasurementState, DataSpaceUsageRow, DataSpaceUsageSummary,
-    ProducerReservation, ProducerReservationClaimRequest, ProducerReservationCreateRequest,
-    ProducerReservationListResponse, ProducerReservationStatus,
+    DataSpace, DataSpaceCreateRequest, DataSpaceEntitlementState, DataSpaceErasure,
+    DataSpaceErasureStatus, DataSpaceListResponse, DataSpaceStorageMeasurementState,
+    DataSpaceUsageRow, DataSpaceUsageSummary, ProducerReservation, ProducerReservationClaimRequest,
+    ProducerReservationCreateRequest, ProducerReservationListResponse, ProducerReservationStatus,
 };
 pub use error_issues::{
     ErrorIssue, ErrorIssueDetail, ErrorIssueEvent, ErrorIssueException, ErrorIssueFrame,
@@ -511,6 +511,7 @@ pub use privacy::{
 pub use producers::{
     ProducerEnvironmentUpdateRequest, ProducerProvisionListResponse, ProducerProvisionPublicClient,
     ProducerProvisionRequest, ProducerProvisionResponse, ProducerSecretRotationResponse,
+    ProducerSigningKeysResponse, ProducerSigningKeysUpdateRequest,
 };
 pub use public_routes::{
     AppAlertUnsubscribePage, AuthDomainMonitoringInventory, SiteStatusSubscriptionRequest,

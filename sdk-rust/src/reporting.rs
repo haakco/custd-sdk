@@ -1904,8 +1904,12 @@ impl CustdClient {
     }
 
     /// List report exports.
-    pub fn list_report_exports(&self) -> Result<ReportExportJobList> {
-        let path = api_path("/api/v1/reporting/exports".to_owned(), &[], None);
+    pub fn list_report_exports(&self, limit: Option<i64>) -> Result<ReportExportJobList> {
+        let path = api_path(
+            "/api/v1/reporting/exports".to_owned(),
+            &[("limit", limit.map(|v| v.to_string()))],
+            None,
+        );
         self.call(Method::Get, &path, NO_BODY)
     }
 

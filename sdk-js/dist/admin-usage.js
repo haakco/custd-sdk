@@ -35,9 +35,9 @@ export class UsageAdminClient {
     listUsage(query = {}, options) {
         return this.adminUsage("/usage", query, options);
     }
-    /** System administrators: the same rows as `listUsage`, as a billing export. */
+    /** System administrators: the same rows as `listUsage`, as a JSON billing export. */
     exportUsage(query = {}, options) {
-        return this.adminUsage("/usage/export", query, options);
+        return this.adminUsage("/usage/export", query, options, { format: "json" });
     }
     /** System administrators: retained storage for every tenant. */
     async listStorageUsage(options) {
@@ -48,7 +48,7 @@ export class UsageAdminClient {
     getRetainedUsage(options) {
         return this.request("GET", "/storage-usage/me", undefined, options);
     }
-    adminUsage(path, query, options) {
+    adminUsage(path, query, options, fixed = {}) {
         const { companySlug, ...window } = query;
         let params;
         try {
@@ -59,6 +59,8 @@ export class UsageAdminClient {
         }
         if (companySlug)
             params.set("companySlug", companySlug);
+        for (const [name, value] of Object.entries(fixed))
+            params.set(name, value);
         const encoded = params.toString();
         return this.request("GET", encoded ? `${path}?${encoded}` : path, undefined, options).then(assertUsageReport);
     }

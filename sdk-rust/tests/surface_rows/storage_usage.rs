@@ -61,7 +61,7 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api GET /api/v1/admin/usage/export",
-            "/api/v1/admin/usage/export?meter=m-1&start=s-1&end=e-1&limit=7&companySlug=acme",
+            "/api/v1/admin/usage/export?meter=m-1&start=s-1&end=e-1&limit=7&format=json&companySlug=acme",
             |c| {
                 drop(c.custd.export_usage(
                     Some("m-1"),
