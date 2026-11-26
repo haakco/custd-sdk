@@ -23,6 +23,10 @@ pub struct OAuthClientListResponse {
 pub struct OAuthClient {
     pub client_id: String,
     pub company_slug: String,
+    /// When the client was created; an override saved for an earlier client of the same ID does
+    /// not apply to it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub environment: Option<String>,
     pub profile: String,

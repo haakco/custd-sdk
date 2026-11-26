@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::fmt;
 use std::sync::Arc;
 
@@ -127,6 +128,7 @@ impl CustdClient {
         let transport_error =
             |error: crate::transport::TransportError| Error::Transport(error.message().to_owned());
         let stream = self.transport.stream(&request).map_err(transport_error)?;
+        record_request_id(stream.header(REQUEST_ID_HEADER));
         let status = stream.status;
         if (200..300).contains(&status) {
             return Ok(stream);
@@ -200,7 +202,59 @@ pub(crate) fn execute(transport: &dyn Transport, request: &HttpRequest) -> Resul
     let response = transport
         .send(request)
         .map_err(|error| Error::Transport(error.message().to_owned()))?;
+    record_request_id(response.header(REQUEST_ID_HEADER));
     checked(response)
+}
+
+/// The response header carrying the server's request identifier.
+const REQUEST_ID_HEADER: &str = "x-request-id";
+
+/// The server-side identifiers of the answers [`record_metadata`] saw.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ResponseMetadata {
+    /// The last answer's `X-Request-Id`, refusals included; `None` when the server sent none.
+    pub request_id: Option<String>,
+}
+
+thread_local! {
+    static RECORDERS: RefCell<Vec<ResponseMetadata>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Runs `call` and returns its result with the request ID of the last answer it received, so a
+/// caller can quote the request the server logged without any method returning metadata:
+///
+/// ```no_run
+/// # let client = custd_sdk::CustdClient::new("https://api.custd.com", "token");
+/// let (policy, metadata) = custd_sdk::record_metadata(|| client.get_machine_access(None));
+/// println!("{:?} {:?}", policy.is_ok(), metadata.request_id);
+/// ```
+///
+/// Recording is per thread; nested calls record into the innermost one.
+pub fn record_metadata<T>(call: impl FnOnce() -> T) -> (T, ResponseMetadata) {
+    RECORDERS.with(|recorders| recorders.borrow_mut().push(ResponseMetadata::default()));
+    struct Pop;
+    impl Drop for Pop {
+        fn drop(&mut self) {
+            RECORDERS.with(|recorders| recorders.borrow_mut().pop());
+        }
+    }
+    let pop = Pop;
+    let result = call();
+    let metadata =
+        RECORDERS.with(|recorders| recorders.borrow().last().cloned().unwrap_or_default());
+    drop(pop);
+    (result, metadata)
+}
+
+fn record_request_id(request_id: Option<&str>) {
+    let Some(request_id) = request_id.filter(|id| !id.is_empty()) else {
+        return;
+    };
+    RECORDERS.with(|recorders| {
+        if let Some(current) = recorders.borrow_mut().last_mut() {
+            current.request_id = Some(request_id.to_owned());
+        }
+    });
 }
 
 /// A 2xx or 304 answer as is; anything else becomes [`Error::Api`].

@@ -21,6 +21,7 @@ mod error_issues;
 mod event_types;
 mod hand_written;
 mod ingest;
+mod machine_access;
 mod measurement_predictions;
 mod measurement_projects;
 mod measurement_reads;
@@ -179,6 +180,7 @@ pub fn platform_admin_rows() -> Vec<Row> {
     rows.extend(admin_users::rows());
     rows.extend(oauth_clients::rows());
     rows.extend(support_access::rows());
+    rows.extend(machine_access::rows());
     rows.extend(system_operations::rows());
     rows.extend(storage_usage::rows());
     rows.extend(audit_accounting::rows());

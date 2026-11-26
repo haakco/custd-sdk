@@ -66,6 +66,7 @@ mod error;
 mod error_issues;
 mod event_types;
 mod ingest;
+mod machine_access;
 mod measurement;
 mod measurement_predictions;
 mod measurement_projects;
@@ -377,6 +378,7 @@ pub use campaign_email::{
     CampaignTestSelection, CampaignWelcomeActivation, CampaignWelcomeDefinition,
     CampaignWelcomeEnrollment, CampaignWelcomePause, CampaignWelcomeSignup, CampaignWelcomeState,
 };
+pub use client::{ResponseMetadata, record_metadata};
 pub use data_labels::{
     DataLabelAssignmentListResponse, DataLabelCatalogueAssignment, DataLabelCatalogueDataset,
     DataLabelCataloguePack, DataLabelCatalogueResponse, DataLabelDefinition,
@@ -433,6 +435,18 @@ pub use ingest::{
     ManagedAuditRedactionResult, PageContext, RawIngestRequest, RawIngestResult, RawSourceTarget,
     SendEventsRequest, SendEventsResponse, SystemMonitoringSummary, SystemMonitoringTenant,
     SystemMonitoringTotals,
+};
+pub use machine_access::{
+    MACHINE_ACCESS_ALLOWED, MACHINE_ACCESS_AREA_DESTRUCTIVE_JOBS,
+    MACHINE_ACCESS_AREA_INGEST_SCHEMAS, MACHINE_ACCESS_AREA_PRIVACY_ERASURE,
+    MACHINE_ACCESS_AREA_PROVISIONING_CREDENTIALS, MACHINE_ACCESS_AREA_REPORTING,
+    MACHINE_ACCESS_AREA_SITES, MACHINE_ACCESS_AREA_USAGE_BILLING, MACHINE_ACCESS_AREA_USERS_ACCESS,
+    MACHINE_ACCESS_BLOCKED, MACHINE_ACCESS_BLOCKED_CODE, MACHINE_ACCESS_DECIDED_BY_COMPANY,
+    MACHINE_ACCESS_DECIDED_BY_MACHINE, MACHINE_ACCESS_DECIDED_BY_SUPPORT_AUTOMATION,
+    MACHINE_ACCESS_INHERIT, MACHINE_ACCESS_UNAVAILABLE_CODE, MachineAccessAreaSetting,
+    MachineAccessBlock, MachineAccessCompanyPolicy, MachineAccessCompanyUpdateRequest,
+    MachineAccessEffective, MachineAccessEffectiveArea, MachineAccessMachinePolicy,
+    MachineAccessMachineUpdateRequest,
 };
 pub use measurement_predictions::{
     DurationForecastDefinition, DurationForecastDefinitionMethod, DurationForecastEvaluation,

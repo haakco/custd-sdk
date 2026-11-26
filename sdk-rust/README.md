@@ -111,6 +111,27 @@ the results. Observation imports check that every row has a result and that ever
 has an `observationUuid`. An HTTP 202 on its own is not treated as success. A non-success answer
 becomes `Error::Api`, carrying its RFC 9457 problem details.
 
+### Machine access and request IDs
+
+The `*_machine_access*` calls set what the company's machine credentials may do per feature area.
+The policy only narrows a client's scopes, never widens them. `record_metadata` returns the
+`X-Request-Id` of the last answer its closure received, refusals included:
+
+```rust
+use custd_sdk::{Error, MACHINE_ACCESS_BLOCKED_CODE, MachineAccessAreaSetting, MachineAccessCompanyUpdateRequest, record_metadata};
+
+let block = MachineAccessAreaSetting { area: "privacy_erasure".into(), state: "blocked".into() };
+client.update_machine_access(&MachineAccessCompanyUpdateRequest { areas: Some(vec![block]), ..Default::default() }, None)?;
+
+let (result, metadata) = record_metadata(|| client.get_effective_machine_access("ci-deploy"));
+if let Err(Error::Api(api)) = &result {
+    if api.code() == Some(MACHINE_ACCESS_BLOCKED_CODE) {
+        println!("{:?}", api.machine_access()); // area, blocked_by: company, machine or support_automation
+    }
+    println!("{:?} {:?}", api.trace_id(), metadata.request_id); // quote either in a support request
+}
+```
+
 ## Develop
 
 ```bash

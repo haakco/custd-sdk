@@ -3,6 +3,7 @@ use std::fmt;
 use serde::Deserialize;
 
 use crate::device::DeviceLoginError;
+use crate::machine_access::MachineAccessBlock;
 
 /// Why a call failed.
 #[derive(Debug)]
@@ -41,15 +42,30 @@ pub struct Problem {
     pub detail: Option<String>,
     pub code: Option<String>,
     pub instance: Option<String>,
+    /// The identifier the server logged the request under; quote it in a support request.
     pub trace_id: Option<String>,
+    /// The flat error envelope's request identifier, on the routes that send one.
+    pub request_id: Option<String>,
     /// `none` or `bounded`: whether repeating the same request can succeed.
     pub retryability: Option<String>,
+    /// Set when a machine access setting refused the request (code `machine_access_blocked`).
+    pub machine_access: Option<MachineAccessBlock>,
 }
 
 impl ApiError {
     /// The problem's `code`, such as `app_item_meeting_step_refused`, when Custd sent one.
     pub fn code(&self) -> Option<&str> {
         self.problem.as_ref()?.code.as_deref()
+    }
+
+    /// The problem's `traceId`: the identifier to quote in a support request.
+    pub fn trace_id(&self) -> Option<&str> {
+        self.problem.as_ref()?.trace_id.as_deref()
+    }
+
+    /// The area and setting that refused a machine, when a machine access setting did.
+    pub fn machine_access(&self) -> Option<&MachineAccessBlock> {
+        self.problem.as_ref()?.machine_access.as_ref()
     }
 }
 
