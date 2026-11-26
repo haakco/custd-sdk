@@ -112,16 +112,16 @@ const (
 	SubjectExportScopeBoth        SubjectExportScope = "both"
 )
 
-// SubjectExportState is where a subject export request stands.
-type SubjectExportState string
+// SubjectExportStatus is where a subject export request stands.
+type SubjectExportStatus string
 
 const (
-	SubjectExportStateQueued    SubjectExportState = "queued"
-	SubjectExportStateRunning   SubjectExportState = "running"
-	SubjectExportStateComplete  SubjectExportState = "complete"
-	SubjectExportStateFailed    SubjectExportState = "failed"
-	SubjectExportStateCancelled SubjectExportState = "cancelled"
-	SubjectExportStateExpired   SubjectExportState = "expired"
+	SubjectExportStatusQueued    SubjectExportStatus = "queued"
+	SubjectExportStatusRunning   SubjectExportStatus = "running"
+	SubjectExportStatusComplete  SubjectExportStatus = "complete"
+	SubjectExportStatusFailed    SubjectExportStatus = "failed"
+	SubjectExportStatusCancelled SubjectExportStatus = "cancelled"
+	SubjectExportStatusExpired   SubjectExportStatus = "expired"
 )
 
 // SubjectExport is the status of one subject export request. Scope is access,
@@ -131,7 +131,7 @@ type SubjectExport struct {
 	ID                 string                       `json:"id"`
 	OpaqueSubjectID    string                       `json:"opaqueSubjectId"`
 	Scope              SubjectExportScope           `json:"scope"`
-	State              SubjectExportState           `json:"state"`
+	State              SubjectExportStatus          `json:"state"`
 	IdempotencyKey     string                       `json:"idempotencyKey"`
 	RequestedAt        string                       `json:"requestedAt"`
 	ExpiresAt          string                       `json:"expiresAt"`

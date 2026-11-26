@@ -58,25 +58,25 @@ type PreparedDataBootstrapSubmitRequest struct {
 	Proofs       []PreparedDataBootstrapProof `json:"proofs,omitempty"`
 }
 
-// PreparedDataBootstrapState is whether a client's prepared-data bootstrap can be used.
-type PreparedDataBootstrapState string
+// ClientBootstrapState is whether a client's prepared-data bootstrap can be used.
+type ClientBootstrapState string
 
 const (
-	PreparedDataBootstrapStateReady             PreparedDataBootstrapState = "ready"
-	PreparedDataBootstrapStateAttentionRequired PreparedDataBootstrapState = "attention_required"
-	PreparedDataBootstrapStateSuspended         PreparedDataBootstrapState = "suspended"
+	ClientBootstrapStateReady             ClientBootstrapState = "ready"
+	ClientBootstrapStateAttentionRequired ClientBootstrapState = "attention_required"
+	ClientBootstrapStateSuspended         ClientBootstrapState = "suspended"
 )
 
 // PreparedDataBootstrapStatus is the bootstrap projection of one tenant: where
 // the tenant stands, what Custd produced it from, and the next safe action.
 type PreparedDataBootstrapStatus struct {
-	TenantSlug   string                     `json:"tenantSlug"`
-	State        PreparedDataBootstrapState `json:"state"`
-	ObservedAt   string                     `json:"observedAt"`
-	Provenance   PreparedDataProvenance     `json:"provenance"`
-	Retryability Retryability               `json:"retryability"`
-	Warnings     []PreparedDataWarning      `json:"warnings,omitempty"`
-	NextAction   PreparedDataNextAction     `json:"nextAction"`
+	TenantSlug   string                 `json:"tenantSlug"`
+	State        ClientBootstrapState   `json:"state"`
+	ObservedAt   string                 `json:"observedAt"`
+	Provenance   PreparedDataProvenance `json:"provenance"`
+	Retryability Retryability           `json:"retryability"`
+	Warnings     []PreparedDataWarning  `json:"warnings,omitempty"`
+	NextAction   PreparedDataNextAction `json:"nextAction"`
 }
 
 const (

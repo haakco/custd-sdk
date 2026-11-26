@@ -169,9 +169,9 @@ type AdminSiteAIVisibility struct {
 // AdminSiteAIAnswerSample is one sampled AI assistant answer. An empty Answer
 // means no answer was received.
 type AdminSiteAIAnswerSample struct {
-	Product    string    `json:"product"`
-	ObservedAt time.Time `json:"observedAt"`
-	Answer     string    `json:"answer,omitempty"`
+	Product    SiteAIProduct `json:"product"`
+	ObservedAt time.Time     `json:"observedAt"`
+	Answer     string        `json:"answer,omitempty"`
 }
 
 // AdminAccessLogHourReplay is a queued replay of one access-log hour and that hour's state before.

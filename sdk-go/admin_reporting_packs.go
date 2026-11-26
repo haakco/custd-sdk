@@ -62,7 +62,7 @@ type ReportingPackPreviewResponse struct {
 
 // ExecutiveReport is the optional executive view of the same preview.
 type ExecutiveReport struct {
-	Recipe            string                    `json:"recipe"`
+	Recipe            ExecutiveRecipe           `json:"recipe"`
 	TenantDisplayName string                    `json:"tenantDisplayName"`
 	Title             string                    `json:"title"`
 	Period            ExecutivePeriod           `json:"period"`
@@ -91,12 +91,12 @@ type ExecutivePrimaryResult struct {
 }
 
 type ExecutiveComparisonResult struct {
-	Basis         string               `json:"basis"`
-	Label         string               `json:"label"`
-	Available     bool                 `json:"available"`
-	Value         *RenderedMetricValue `json:"value,omitempty"`
-	PercentChange *float64             `json:"percentChange,omitempty"`
-	TargetValue   *float64             `json:"targetValue,omitempty"`
+	Basis         ExecutiveComparisonBasis `json:"basis"`
+	Label         string                   `json:"label"`
+	Available     bool                     `json:"available"`
+	Value         *RenderedMetricValue     `json:"value,omitempty"`
+	PercentChange *float64                 `json:"percentChange,omitempty"`
+	TargetValue   *float64                 `json:"targetValue,omitempty"`
 }
 
 type ExecutiveConfidence struct {

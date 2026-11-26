@@ -152,9 +152,9 @@ type ReportingDashboardCatalogueTrust struct {
 type ReportingDashboardCatalogueEntry struct {
 	DefaultRange   string                           `json:"defaultRange"`
 	Description    string                           `json:"description"`
-	ExportFormats  []string                         `json:"exportFormats"`
+	ExportFormats  []ExportFormat                   `json:"exportFormats"`
 	Group          string                           `json:"group"`
-	Interactions   []string                         `json:"interactions"`
+	Interactions   []DashboardInteraction           `json:"interactions"`
 	Key            string                           `json:"key"`
 	RefreshSeconds int64                            `json:"refreshSeconds"`
 	Title          string                           `json:"title"`

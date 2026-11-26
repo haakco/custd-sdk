@@ -31,16 +31,16 @@ type ReportExportCreateRequest struct {
 }
 
 type ReportExportArtifact struct {
-	ID                string   `json:"id"`
-	ArtifactKey       string   `json:"artifactKey"`
-	Format            string   `json:"format"`
-	Filename          string   `json:"filename"`
-	MediaType         string   `json:"mediaType"`
-	ObjectBytes       int64    `json:"objectBytes"`
-	ObjectSHA256      string   `json:"objectSha256"`
-	Warnings          []string `json:"warnings,omitempty"`
-	FallbackForFormat string   `json:"fallbackForFormat,omitempty"`
-	RendererVersion   string   `json:"rendererVersion,omitempty"`
+	ID                string       `json:"id"`
+	ArtifactKey       string       `json:"artifactKey"`
+	Format            ExportFormat `json:"format"`
+	Filename          string       `json:"filename"`
+	MediaType         string       `json:"mediaType"`
+	ObjectBytes       int64        `json:"objectBytes"`
+	ObjectSHA256      string       `json:"objectSha256"`
+	Warnings          []string     `json:"warnings,omitempty"`
+	FallbackForFormat ExportFormat `json:"fallbackForFormat,omitempty"`
+	RendererVersion   string       `json:"rendererVersion,omitempty"`
 }
 
 type ReportExportJob struct {
@@ -48,7 +48,7 @@ type ReportExportJob struct {
 	PackKey            string                 `json:"packKey"`
 	PackGeneration     int                    `json:"packGeneration"`
 	DashboardKey       string                 `json:"dashboardKey"`
-	Formats            []string               `json:"formats"`
+	Formats            []ExportFormat         `json:"formats"`
 	ParametersDigest   string                 `json:"parametersDigest"`
 	SnapshotSHA256     string                 `json:"snapshotSha256,omitempty"`
 	State              string                 `json:"state"`

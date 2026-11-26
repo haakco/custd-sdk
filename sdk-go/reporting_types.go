@@ -45,7 +45,7 @@ type ReconciliationResult struct {
 	SelectedSourceSeries string                     `json:"selectedSourceSeries,omitempty"`
 	ObservedAt           string                     `json:"observedAt,omitempty"`
 	Value                *float64                   `json:"value,omitempty"`
-	Unit                 string                     `json:"unit,omitempty"`
+	Unit                 Unit                       `json:"unit,omitempty"`
 	Availability         ReconciliationAvailability `json:"availability"`
 	Status               ReconciliationStatus       `json:"status"`
 	ContributingSources  []SourceContribution       `json:"contributingSources,omitempty"`
@@ -58,7 +58,7 @@ type SourceContribution struct {
 	SourceSeriesKey  string                     `json:"sourceSeriesKey"`
 	ObservedAt       string                     `json:"observedAt,omitempty"`
 	Value            *float64                   `json:"value,omitempty"`
-	Unit             string                     `json:"unit,omitempty"`
+	Unit             Unit                       `json:"unit,omitempty"`
 	Availability     ReconciliationAvailability `json:"availability"`
 	FreshnessSeconds int64                      `json:"freshnessSeconds,omitempty"`
 	Stale            bool                       `json:"stale,omitempty"`

@@ -248,7 +248,7 @@ type AccountingEvidence struct {
 	TargetID           string                 `json:"targetId,omitempty"`
 	TargetKind         AccountingEvidenceKind `json:"targetKind,omitempty"`
 	TenantKey          string                 `json:"tenantKey"`
-	Unit               string                 `json:"unit"`
+	Unit               Unit                   `json:"unit"`
 }
 
 type AccountingEvidenceListResponse struct {

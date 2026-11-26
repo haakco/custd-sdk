@@ -596,11 +596,11 @@ type ErrorIssueStateRequest struct {
 }
 
 type PublicSiteConfig struct {
-	AllowedOrigins        []string         `json:"allowedOrigins"`
-	Environment           string           `json:"environment"`
-	IdentityMode          SiteIdentityMode `json:"identityMode"`
-	PageViewSchemaVersion string           `json:"pageViewSchemaVersion,omitempty"`
-	SiteUUID              string           `json:"siteUuid"`
+	AllowedOrigins        []string            `json:"allowedOrigins"`
+	Environment           string              `json:"environment"`
+	IdentityMode          BrowserIdentityMode `json:"identityMode"`
+	PageViewSchemaVersion string              `json:"pageViewSchemaVersion,omitempty"`
+	SiteUUID              string              `json:"siteUuid"`
 }
 
 // REUSED existing: AppSummary ProducerProvisionPublicClient
