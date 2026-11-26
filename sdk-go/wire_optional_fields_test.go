@@ -20,6 +20,10 @@ func TestOptionalWireFieldsMatchServerOmission(t *testing.T) {
 		{"remedy without shape", AdminSiteRemedy{Element: "x"}, "kind", ""},
 		{"last audit page", AuditListCursor{}, "cursor", ""},
 		{"site create default identity", AdminSiteCreate{CompanySlug: "acme"}, "identityMode", ""},
+		{"zero progress point", PresentationPoint{X: "d1", Value: &zero}, "value", "0"},
+		{"zero interval bound", PresentationPoint{X: "d1", LowerValue: &zero, UpperValue: &zero}, "lowerValue", "0"},
+		{"temporal point", PresentationPoint{X: "d1", Date: "2026-11-26"}, "value", ""},
+		{"zero reference", PresentationReference{Label: "target", Value: &zero}, "value", "0"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
