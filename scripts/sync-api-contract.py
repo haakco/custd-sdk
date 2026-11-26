@@ -31,8 +31,14 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "contract-fixtures" / "api"
 
 
-def exclusion(method: str, path: str) -> str | None:
+BARE_PREFIX_MOUNT = "Bare-prefix mount"
+
+
+def exclusion(method: str, path: str, cli_note: str = "") -> str | None:
     """The reason an operation is not an SDK call, or None when every SDK must cover it."""
+    if cli_note.startswith(BARE_PREFIX_MOUNT):
+        # Custd catalogues a router mount so its validator sees it; nothing is served at that path.
+        return "router mount prefix with no operation at this exact path"
     if method == "OPTIONS":
         return "browser CORS preflight"
     if INFRASTRUCTURE.match(path) or path == "/api/v1/health":
@@ -166,7 +172,7 @@ def main() -> None:
             continue
         entry = {"id": f"{op['service']} {op['method']} {op['path']}", "service": op["service"],
                  "method": op["method"], "path": op["path"]}
-        reason = exclusion(op["method"], op["path"])
+        reason = exclusion(op["method"], op["path"], op.get("cli", {}).get("note", ""))
         entry["sdk"] = "excluded" if reason else "required"
         if reason:
             entry["reason"] = reason

@@ -8,9 +8,7 @@
             "choiceUuid": "example",
             "description": "example",
             "expression": {
-              "children": [
-                null
-              ],
+              "children": [],
               "kind": "example",
               "value": 1.5,
               "variableCode": "example"

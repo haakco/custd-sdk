@@ -3,7 +3,7 @@
     "checkedAt": "2026-11-20T06:00:00Z",
     "clients": [
       {
-        "action": "example",
+        "action": "created",
         "audience": "example",
         "clientId": "example",
         "reason": "example"

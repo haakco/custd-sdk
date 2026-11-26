@@ -17,14 +17,14 @@
       "predictionVersionUuid": "example",
       "sampleCount": 1,
       "seriesKey": "example",
-      "state": "example",
+      "state": "ready",
       "stepKey": "example",
       "warnings": [
         "example"
       ]
     },
     "runUuid": "example",
-    "state": "example",
+    "state": "running",
     "steps": [
       {
         "attempt": 1,
@@ -40,7 +40,7 @@
         "predictionVersionUuid": "example",
         "sampleCount": 1,
         "seriesKey": "example",
-        "state": "example",
+        "state": "ready",
         "stepKey": "example",
         "warnings": [
           "example"
@@ -62,11 +62,11 @@
       "methodVersion": "example",
       "sampleCount": 1,
       "seriesKey": "example",
-      "state": "example",
+      "state": "ready",
       "warnings": null
     },
     "runUuid": "example",
-    "state": "example",
+    "state": "running",
     "steps": null,
     "workflowKey": "example"
   }

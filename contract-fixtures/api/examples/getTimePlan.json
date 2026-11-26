@@ -12,7 +12,7 @@
       "autoAdvance": true,
       "blocks": [
         {
-          "basis": "example",
+          "basis": "absolute",
           "category": "example",
           "denominator": 1,
           "description": "example",

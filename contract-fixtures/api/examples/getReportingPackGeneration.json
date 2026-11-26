@@ -8,7 +8,7 @@
             "key": "example",
             "rounding": {
               "decimalPlaces": 1,
-              "mode": "example"
+              "mode": "half_up"
             },
             "sourceSeriesKey": "example",
             "targets": [
@@ -21,14 +21,14 @@
         ],
         "schedules": [
           {
-            "billingBoundary": "example",
+            "billingBoundary": "calendar_month",
             "currency": "example",
             "effectiveFrom": "2026-11-20T06:00:00Z",
             "effectiveTo": "2026-11-20T06:00:00Z",
             "key": "example",
             "rounding": {
               "decimalPlaces": 1,
-              "mode": "example"
+              "mode": "half_up"
             },
             "tiers": [
               {
@@ -39,7 +39,7 @@
             ],
             "timezone": "example",
             "usageMetric": "example",
-            "usageUnit": "example"
+            "usageUnit": "W"
           }
         ],
         "usageMetric": "example",
@@ -48,7 +48,7 @@
       "activationRules": [
         {
           "cohortWindowDays": 1,
-          "identity": "example",
+          "identity": "subject",
           "key": "example",
           "predicate": {
             "anyOf": [
@@ -64,7 +64,7 @@
       "activityRules": [
         {
           "bucketDays": 1,
-          "identity": "example",
+          "identity": "subject",
           "key": "example"
         }
       ],
@@ -72,7 +72,7 @@
         "edges": [
           {
             "childKey": "example",
-            "mode": "example",
+            "mode": "inclusive",
             "parentKey": "example",
             "tenantKey": "example"
           }
@@ -96,7 +96,7 @@
             "actions": [
               "example"
             ],
-            "comparisonBasis": "example",
+            "comparisonBasis": "none",
             "comparisonLabel": "example",
             "findings": [
               "example"
@@ -105,7 +105,7 @@
             "primaryMetricKey": "example",
             "primaryUnit": "example",
             "primaryWidgetKey": "example",
-            "recipe": "example",
+            "recipe": "blank",
             "scopeLabel": "example",
             "supportingWidgetKeys": [
               "example"
@@ -114,17 +114,17 @@
             "targetValue": 1.5
           },
           "exportFormats": [
-            "example"
+            "csv"
           ],
           "group": "example",
           "interactions": [
             {
-              "action": "example",
-              "comparisonPreset": "example",
+              "action": "filter",
+              "comparisonPreset": "previous_period",
               "dimension": "example",
               "key": "example",
               "linkedFilterGroup": "example",
-              "resetBehavior": "example",
+              "resetBehavior": "interaction",
               "sourceWidget": "example",
               "targetWidget": "example"
             }
@@ -139,12 +139,12 @@
             {
               "columnSpan": 1,
               "key": "example",
-              "layout": "example",
+              "layout": "lead",
               "narrative": [
                 {
                   "references": [
                     {
-                      "value": "example",
+                      "value": "primary",
                       "widgetKey": "example"
                     }
                   ],
@@ -159,10 +159,10 @@
           ],
           "sharePolicy": {
             "comparisonPresets": [
-              "example"
+              "previous_period"
             ],
             "relativeRanges": [
-              "example"
+              "1d"
             ]
           },
           "title": "example",
@@ -172,14 +172,14 @@
                 "example"
               ],
               "key": "example",
-              "kind": "example",
+              "kind": "stat_tile",
               "metrics": [
                 "example"
               ],
               "presentation": {
-                "nonColorEncoding": "example",
-                "presetId": "example",
-                "summaryTemplateId": "example",
+                "nonColorEncoding": "line_symbol_label",
+                "presetId": "forecast_convergence_v1",
+                "summaryTemplateId": "forecast_window_evidence",
                 "version": 1
               },
               "template": "example",
@@ -210,7 +210,7 @@
         "example"
       ],
       "exportFormats": [
-        "example"
+        "csv"
       ],
       "flowRules": [
         {
@@ -231,40 +231,40 @@
       "identity": {
         "cohort": {
           "selector": "example",
-          "type": "example"
+          "type": "string"
         },
         "correlation": {
           "selector": "example",
-          "type": "example"
+          "type": "string"
         },
         "entity": {
           "selector": "example",
-          "type": "example"
+          "type": "string"
         },
         "session": {
           "selector": "example",
-          "type": "example"
+          "type": "string"
         },
         "subject": {
           "selector": "example",
-          "type": "example"
+          "type": "string"
         }
       },
       "key": "example",
       "metrics": [
         {
-          "calculation": "example",
-          "canonicalUnit": "example",
+          "calculation": "usage_charge",
+          "canonicalUnit": "W",
           "denominatorMetric": "example",
           "description": "example",
           "distinct": {
             "selector": "example",
-            "type": "example"
+            "type": "string"
           },
-          "flowResult": "example",
+          "flowResult": "steps",
           "hierarchyRootKey": "example",
           "key": "example",
-          "kind": "example",
+          "kind": "count",
           "label": "example",
           "match": [
             {
@@ -278,15 +278,15 @@
             }
           ],
           "maximumGapSeconds": 1,
-          "measurementKind": "example",
+          "measurementKind": "gauge",
           "numeratorMetric": "example",
           "numeric": {
             "selector": "example",
-            "type": "example",
-            "unit": "example"
+            "type": "string",
+            "unit": "currency_per_unit"
           },
           "percentile": 1,
-          "resetPolicy": "example",
+          "resetPolicy": "as_increment",
           "rolloverAt": 1.5,
           "seriesKey": "example",
           "unit": "example"
@@ -302,17 +302,17 @@
         "series": [
           {
             "allowedSourceUnits": [
-              "example"
+              "W"
             ],
             "assetKey": "example",
             "assetKeys": [
               "example"
             ],
-            "canonicalUnit": "example",
+            "canonicalUnit": "W",
             "expectedCadenceSeconds": 1,
             "key": "example",
             "maximumGapSeconds": 1,
-            "measurementKind": "example",
+            "measurementKind": "gauge",
             "sources": [
               {
                 "priority": 1,
@@ -347,9 +347,9 @@
       "reconciliations": [
         {
           "absoluteTolerance": 1.5,
-          "canonicalUnit": "example",
+          "canonicalUnit": "W",
           "maxAgeSeconds": 1,
-          "mode": "example",
+          "mode": "priority",
           "relativeTolerance": 1.5,
           "seriesKey": "example",
           "sources": [
@@ -429,7 +429,7 @@
       ],
       "templates": [
         {
-          "aggregation": "example",
+          "aggregation": "count",
           "allowedDimensions": [
             "example"
           ],
@@ -437,7 +437,7 @@
             {
               "dimension": "example",
               "operators": [
-                "example"
+                "eq"
               ]
             }
           ],
@@ -455,7 +455,7 @@
           "maxRows": 1,
           "name": "example",
           "sourceModes": [
-            "example"
+            "auto"
           ],
           "subjectScope": {
             "dimension": "example",
@@ -465,7 +465,7 @@
       ],
       "transitionRules": [
         {
-          "identity": "example",
+          "identity": "subject",
           "key": "example",
           "maxDurationMs": 1,
           "maxEvents": 1,

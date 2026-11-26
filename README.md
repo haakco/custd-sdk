@@ -373,13 +373,12 @@ old key.
 
 ## Schema Admin Helpers
 
-Go, TypeScript, Python, and PHP expose schema admin helpers so producer repositories do
-not need raw `curl` scripts for `POST /api/v1/admin/schemas`:
+Every SDK exposes the schema calls, so producer repositories need no raw `curl` scripts:
 
-- list: `GET /api/v1/admin/schemas`
-- get: `GET /api/v1/admin/schemas/{eventTypeSlug}`
-- register: `POST /api/v1/admin/schemas`
-- create version: `POST /api/v1/admin/schemas/{eventTypeSlug}/versions`
+- admin-api, per tenant and event type: `POST /api/v1/admin/schema/{tenantSlug}/{eventType}/register`,
+  `…/enable`, `…/dry-run`, plus `POST /api/v1/admin/schema/validate` and `GET /api/v1/admin/schema/audit`;
+- the schema registry service, `/api/v1/schemas`: list event types and versions, read a version,
+  register one, activate or disable it, and validate, infer or dry-run a payload.
 
 The setup CLI can also register a directory of schema JSON files after producer
 credential creation:

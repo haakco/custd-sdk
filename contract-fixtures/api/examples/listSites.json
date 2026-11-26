@@ -11,7 +11,7 @@
         "companySlug": "example",
         "enabled": true,
         "environment": "example",
-        "identityMode": "example",
+        "identityMode": "cookieless",
         "ingestTarget": {
           "resourceCode": "example",
           "resourceUuid": "example",

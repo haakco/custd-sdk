@@ -5,11 +5,11 @@
         "defaultRange": "example",
         "description": "example",
         "exportFormats": [
-          "example"
+          "csv"
         ],
         "group": "example",
         "interactions": [
-          "example"
+          "filter"
         ],
         "key": "example",
         "refreshSeconds": 1,

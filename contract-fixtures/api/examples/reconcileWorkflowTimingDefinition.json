@@ -26,7 +26,7 @@
       "description": "example",
       "name": "example",
       "revisionCount": 1,
-      "status": "example",
+      "status": "active",
       "uuid": "example",
       "workflowKey": "example"
     },
@@ -46,7 +46,7 @@
       "description": "example",
       "name": "example",
       "revisionCount": 1,
-      "status": "example",
+      "status": "active",
       "uuid": "example",
       "workflowKey": "example"
     },

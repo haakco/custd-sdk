@@ -10,7 +10,7 @@
     "recordCount": 1,
     "requestId": "example",
     "s3Key": "example",
-    "scope": "example"
+    "scope": "access"
   },
   "minimal": {
     "byteSize": 1,
@@ -23,6 +23,6 @@
     "recordCount": 1,
     "requestId": "example",
     "s3Key": "example",
-    "scope": "example"
+    "scope": "access"
   }
 }

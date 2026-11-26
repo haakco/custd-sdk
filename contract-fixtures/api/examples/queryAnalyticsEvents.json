@@ -13,7 +13,7 @@
         "fresh": true,
         "freshnessLagMs": 1,
         "message": "example",
-        "name": "example",
+        "name": "auto",
         "parquetUriCount": 1,
         "queryDurationMs": 1
       }

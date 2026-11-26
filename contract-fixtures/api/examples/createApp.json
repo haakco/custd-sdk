@@ -14,7 +14,7 @@
       "signIn": true,
       "siteUuid": "example",
       "slug": "example",
-      "status": "example",
+      "status": "needs_attention",
       "url": "example"
     },
     "replayed": true,
@@ -28,7 +28,7 @@
       "name": "example",
       "signIn": true,
       "slug": "example",
-      "status": "example",
+      "status": "needs_attention",
       "url": "example"
     },
     "replayed": true,

@@ -6,8 +6,8 @@
         "lastFailure": "example",
         "lastImportedAt": "2026-11-20T06:00:00Z",
         "property": "example",
-        "provider": "example",
-        "status": "example"
+        "provider": "google",
+        "status": "pending"
       }
     ],
     "days": 1,
@@ -23,7 +23,7 @@
         ],
         "days": 1,
         "from": "example",
-        "granularity": "example",
+        "granularity": "daily",
         "importedAt": "2026-11-20T06:00:00Z",
         "previous": {
           "clicks": 1,
@@ -31,7 +31,7 @@
           "impressions": 1,
           "position": 1.5
         },
-        "provider": "example",
+        "provider": "google",
         "source": "example",
         "to": "example",
         "totals": {
@@ -45,7 +45,7 @@
     "strikingDistance": [
       {
         "key": "example",
-        "provider": "example",
+        "provider": "google",
         "totals": {
           "clicks": 1,
           "ctr": 1.5,
@@ -57,7 +57,7 @@
     "topPages": [
       {
         "key": "example",
-        "provider": "example",
+        "provider": "google",
         "totals": {
           "clicks": 1,
           "ctr": 1.5,
@@ -69,7 +69,7 @@
     "topQueries": [
       {
         "key": "example",
-        "provider": "example",
+        "provider": "google",
         "totals": {
           "clicks": 1,
           "ctr": 1.5,

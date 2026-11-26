@@ -9,7 +9,7 @@
         "secondary": {
           "complete": true,
           "currency": "example",
-          "dataSufficiency": "example",
+          "dataSufficiency": "unknown",
           "sampleCount": 1,
           "truncated": true,
           "trust": {
@@ -18,17 +18,17 @@
             "coverageStart": "2026-11-20T06:00:00Z",
             "freshnessMs": 1,
             "reconciliation": {
-              "availability": "example",
+              "availability": "available",
               "contributingSources": [
                 {
-                  "availability": "example",
+                  "availability": "available",
                   "freshnessSeconds": 1,
                   "observedAt": "2026-11-20T06:00:00Z",
                   "selected": true,
                   "sourceKey": "example",
                   "sourceSeriesKey": "example",
                   "stale": true,
-                  "unit": "example",
+                  "unit": "W",
                   "value": 1.5
                 }
               ],
@@ -41,9 +41,9 @@
               "selectedSourceKey": "example",
               "selectedSourceSeries": "example",
               "seriesKey": "example",
-              "status": "example",
+              "status": "available",
               "tenantKey": "example",
-              "unit": "example",
+              "unit": "W",
               "value": 1.5
             },
             "sourceRange": {
@@ -55,14 +55,14 @@
             ],
             "windowCoverage": 1.5
           },
-          "unit": "example",
+          "unit": "currency_per_unit",
           "value": 1.5
         },
         "source": "example",
         "value": {
           "complete": true,
           "currency": "example",
-          "dataSufficiency": "example",
+          "dataSufficiency": "unknown",
           "sampleCount": 1,
           "truncated": true,
           "trust": {
@@ -71,17 +71,17 @@
             "coverageStart": "2026-11-20T06:00:00Z",
             "freshnessMs": 1,
             "reconciliation": {
-              "availability": "example",
+              "availability": "available",
               "contributingSources": [
                 {
-                  "availability": "example",
+                  "availability": "available",
                   "freshnessSeconds": 1,
                   "observedAt": "2026-11-20T06:00:00Z",
                   "selected": true,
                   "sourceKey": "example",
                   "sourceSeriesKey": "example",
                   "stale": true,
-                  "unit": "example",
+                  "unit": "W",
                   "value": 1.5
                 }
               ],
@@ -94,9 +94,9 @@
               "selectedSourceKey": "example",
               "selectedSourceSeries": "example",
               "seriesKey": "example",
-              "status": "example",
+              "status": "available",
               "tenantKey": "example",
-              "unit": "example",
+              "unit": "W",
               "value": 1.5
             },
             "sourceRange": {
@@ -108,7 +108,7 @@
             ],
             "windowCoverage": 1.5
           },
-          "unit": "example",
+          "unit": "currency_per_unit",
           "value": 1.5
         }
       }
@@ -116,7 +116,7 @@
     "delta": {
       "complete": true,
       "currency": "example",
-      "dataSufficiency": "example",
+      "dataSufficiency": "unknown",
       "sampleCount": 1,
       "truncated": true,
       "trust": {
@@ -125,17 +125,17 @@
         "coverageStart": "2026-11-20T06:00:00Z",
         "freshnessMs": 1,
         "reconciliation": {
-          "availability": "example",
+          "availability": "available",
           "contributingSources": [
             {
-              "availability": "example",
+              "availability": "available",
               "freshnessSeconds": 1,
               "observedAt": "2026-11-20T06:00:00Z",
               "selected": true,
               "sourceKey": "example",
               "sourceSeriesKey": "example",
               "stale": true,
-              "unit": "example",
+              "unit": "W",
               "value": 1.5
             }
           ],
@@ -148,9 +148,9 @@
           "selectedSourceKey": "example",
           "selectedSourceSeries": "example",
           "seriesKey": "example",
-          "status": "example",
+          "status": "available",
           "tenantKey": "example",
-          "unit": "example",
+          "unit": "W",
           "value": 1.5
         },
         "sourceRange": {
@@ -162,7 +162,7 @@
         ],
         "windowCoverage": 1.5
       },
-      "unit": "example",
+      "unit": "currency_per_unit",
       "value": 1.5
     },
     "deltaLabel": "example",
@@ -219,7 +219,7 @@
       "consentState": "example",
       "contractVersion": "example",
       "coverage": "example",
-      "dataFreshness": "example",
+      "dataFreshness": "unknown",
       "exportState": "example",
       "lastExport": "example",
       "nextAction": {
@@ -235,13 +235,13 @@
       "retryability": "none",
       "rollupState": "example",
       "schemaVersion": "example",
-      "status": "example",
+      "status": "healthy",
       "unavailableReason": "example"
     },
     "value": {
       "complete": true,
       "currency": "example",
-      "dataSufficiency": "example",
+      "dataSufficiency": "unknown",
       "sampleCount": 1,
       "truncated": true,
       "trust": {
@@ -250,17 +250,17 @@
         "coverageStart": "2026-11-20T06:00:00Z",
         "freshnessMs": 1,
         "reconciliation": {
-          "availability": "example",
+          "availability": "available",
           "contributingSources": [
             {
-              "availability": "example",
+              "availability": "available",
               "freshnessSeconds": 1,
               "observedAt": "2026-11-20T06:00:00Z",
               "selected": true,
               "sourceKey": "example",
               "sourceSeriesKey": "example",
               "stale": true,
-              "unit": "example",
+              "unit": "W",
               "value": 1.5
             }
           ],
@@ -273,9 +273,9 @@
           "selectedSourceKey": "example",
           "selectedSourceSeries": "example",
           "seriesKey": "example",
-          "status": "example",
+          "status": "available",
           "tenantKey": "example",
-          "unit": "example",
+          "unit": "W",
           "value": 1.5
         },
         "sourceRange": {
@@ -287,7 +287,7 @@
         ],
         "windowCoverage": 1.5
       },
-      "unit": "example",
+      "unit": "currency_per_unit",
       "value": 1.5
     },
     "visual": {
@@ -299,7 +299,7 @@
           "value": {
             "complete": true,
             "currency": "example",
-            "dataSufficiency": "example",
+            "dataSufficiency": "unknown",
             "sampleCount": 1,
             "truncated": true,
             "trust": {
@@ -308,17 +308,17 @@
               "coverageStart": "2026-11-20T06:00:00Z",
               "freshnessMs": 1,
               "reconciliation": {
-                "availability": "example",
+                "availability": "available",
                 "contributingSources": [
                   {
-                    "availability": "example",
+                    "availability": "available",
                     "freshnessSeconds": 1,
                     "observedAt": "2026-11-20T06:00:00Z",
                     "selected": true,
                     "sourceKey": "example",
                     "sourceSeriesKey": "example",
                     "stale": true,
-                    "unit": "example",
+                    "unit": "W",
                     "value": 1.5
                   }
                 ],
@@ -331,9 +331,9 @@
                 "selectedSourceKey": "example",
                 "selectedSourceSeries": "example",
                 "seriesKey": "example",
-                "status": "example",
+                "status": "available",
                 "tenantKey": "example",
-                "unit": "example",
+                "unit": "W",
                 "value": 1.5
               },
               "sourceRange": {
@@ -345,7 +345,7 @@
               ],
               "windowCoverage": 1.5
             },
-            "unit": "example",
+            "unit": "currency_per_unit",
             "value": 1.5
           }
         }
@@ -355,7 +355,7 @@
           "observed": {
             "complete": true,
             "currency": "example",
-            "dataSufficiency": "example",
+            "dataSufficiency": "unknown",
             "sampleCount": 1,
             "truncated": true,
             "trust": {
@@ -364,17 +364,17 @@
               "coverageStart": "2026-11-20T06:00:00Z",
               "freshnessMs": 1,
               "reconciliation": {
-                "availability": "example",
+                "availability": "available",
                 "contributingSources": [
                   {
-                    "availability": "example",
+                    "availability": "available",
                     "freshnessSeconds": 1,
                     "observedAt": "2026-11-20T06:00:00Z",
                     "selected": true,
                     "sourceKey": "example",
                     "sourceSeriesKey": "example",
                     "stale": true,
-                    "unit": "example",
+                    "unit": "W",
                     "value": 1.5
                   }
                 ],
@@ -387,9 +387,9 @@
                 "selectedSourceKey": "example",
                 "selectedSourceSeries": "example",
                 "seriesKey": "example",
-                "status": "example",
+                "status": "available",
                 "tenantKey": "example",
-                "unit": "example",
+                "unit": "W",
                 "value": 1.5
               },
               "sourceRange": {
@@ -401,7 +401,7 @@
               ],
               "windowCoverage": 1.5
             },
-            "unit": "example",
+            "unit": "currency_per_unit",
             "value": 1.5
           },
           "predictedLower": 1.5,
@@ -416,7 +416,7 @@
           "value": {
             "complete": true,
             "currency": "example",
-            "dataSufficiency": "example",
+            "dataSufficiency": "unknown",
             "sampleCount": 1,
             "truncated": true,
             "trust": {
@@ -425,17 +425,17 @@
               "coverageStart": "2026-11-20T06:00:00Z",
               "freshnessMs": 1,
               "reconciliation": {
-                "availability": "example",
+                "availability": "available",
                 "contributingSources": [
                   {
-                    "availability": "example",
+                    "availability": "available",
                     "freshnessSeconds": 1,
                     "observedAt": "2026-11-20T06:00:00Z",
                     "selected": true,
                     "sourceKey": "example",
                     "sourceSeriesKey": "example",
                     "stale": true,
-                    "unit": "example",
+                    "unit": "W",
                     "value": 1.5
                   }
                 ],
@@ -448,9 +448,9 @@
                 "selectedSourceKey": "example",
                 "selectedSourceSeries": "example",
                 "seriesKey": "example",
-                "status": "example",
+                "status": "available",
                 "tenantKey": "example",
-                "unit": "example",
+                "unit": "W",
                 "value": 1.5
               },
               "sourceRange": {
@@ -462,7 +462,7 @@
               ],
               "windowCoverage": 1.5
             },
-            "unit": "example",
+            "unit": "currency_per_unit",
             "value": 1.5
           },
           "window": "example"
@@ -475,7 +475,7 @@
           "value": {
             "complete": true,
             "currency": "example",
-            "dataSufficiency": "example",
+            "dataSufficiency": "unknown",
             "sampleCount": 1,
             "truncated": true,
             "trust": {
@@ -484,17 +484,17 @@
               "coverageStart": "2026-11-20T06:00:00Z",
               "freshnessMs": 1,
               "reconciliation": {
-                "availability": "example",
+                "availability": "available",
                 "contributingSources": [
                   {
-                    "availability": "example",
+                    "availability": "available",
                     "freshnessSeconds": 1,
                     "observedAt": "2026-11-20T06:00:00Z",
                     "selected": true,
                     "sourceKey": "example",
                     "sourceSeriesKey": "example",
                     "stale": true,
-                    "unit": "example",
+                    "unit": "W",
                     "value": 1.5
                   }
                 ],
@@ -507,9 +507,9 @@
                 "selectedSourceKey": "example",
                 "selectedSourceSeries": "example",
                 "seriesKey": "example",
-                "status": "example",
+                "status": "available",
                 "tenantKey": "example",
-                "unit": "example",
+                "unit": "W",
                 "value": 1.5
               },
               "sourceRange": {
@@ -521,7 +521,7 @@
               ],
               "windowCoverage": 1.5
             },
-            "unit": "example",
+            "unit": "currency_per_unit",
             "value": 1.5
           }
         }
@@ -531,7 +531,7 @@
           "contribution": {
             "complete": true,
             "currency": "example",
-            "dataSufficiency": "example",
+            "dataSufficiency": "unknown",
             "sampleCount": 1,
             "truncated": true,
             "trust": {
@@ -540,17 +540,17 @@
               "coverageStart": "2026-11-20T06:00:00Z",
               "freshnessMs": 1,
               "reconciliation": {
-                "availability": "example",
+                "availability": "available",
                 "contributingSources": [
                   {
-                    "availability": "example",
+                    "availability": "available",
                     "freshnessSeconds": 1,
                     "observedAt": "2026-11-20T06:00:00Z",
                     "selected": true,
                     "sourceKey": "example",
                     "sourceSeriesKey": "example",
                     "stale": true,
-                    "unit": "example",
+                    "unit": "W",
                     "value": 1.5
                   }
                 ],
@@ -563,9 +563,9 @@
                 "selectedSourceKey": "example",
                 "selectedSourceSeries": "example",
                 "seriesKey": "example",
-                "status": "example",
+                "status": "available",
                 "tenantKey": "example",
-                "unit": "example",
+                "unit": "W",
                 "value": 1.5
               },
               "sourceRange": {
@@ -577,7 +577,7 @@
               ],
               "windowCoverage": 1.5
             },
-            "unit": "example",
+            "unit": "currency_per_unit",
             "value": 1.5
           },
           "key": "example",
@@ -591,7 +591,7 @@
           "estimate": {
             "complete": true,
             "currency": "example",
-            "dataSufficiency": "example",
+            "dataSufficiency": "unknown",
             "sampleCount": 1,
             "truncated": true,
             "trust": {
@@ -600,17 +600,17 @@
               "coverageStart": "2026-11-20T06:00:00Z",
               "freshnessMs": 1,
               "reconciliation": {
-                "availability": "example",
+                "availability": "available",
                 "contributingSources": [
                   {
-                    "availability": "example",
+                    "availability": "available",
                     "freshnessSeconds": 1,
                     "observedAt": "2026-11-20T06:00:00Z",
                     "selected": true,
                     "sourceKey": "example",
                     "sourceSeriesKey": "example",
                     "stale": true,
-                    "unit": "example",
+                    "unit": "W",
                     "value": 1.5
                   }
                 ],
@@ -623,9 +623,9 @@
                 "selectedSourceKey": "example",
                 "selectedSourceSeries": "example",
                 "seriesKey": "example",
-                "status": "example",
+                "status": "available",
                 "tenantKey": "example",
-                "unit": "example",
+                "unit": "W",
                 "value": 1.5
               },
               "sourceRange": {
@@ -637,14 +637,14 @@
               ],
               "windowCoverage": 1.5
             },
-            "unit": "example",
+            "unit": "currency_per_unit",
             "value": 1.5
           },
           "label": "example",
           "lower": {
             "complete": true,
             "currency": "example",
-            "dataSufficiency": "example",
+            "dataSufficiency": "unknown",
             "sampleCount": 1,
             "truncated": true,
             "trust": {
@@ -653,17 +653,17 @@
               "coverageStart": "2026-11-20T06:00:00Z",
               "freshnessMs": 1,
               "reconciliation": {
-                "availability": "example",
+                "availability": "available",
                 "contributingSources": [
                   {
-                    "availability": "example",
+                    "availability": "available",
                     "freshnessSeconds": 1,
                     "observedAt": "2026-11-20T06:00:00Z",
                     "selected": true,
                     "sourceKey": "example",
                     "sourceSeriesKey": "example",
                     "stale": true,
-                    "unit": "example",
+                    "unit": "W",
                     "value": 1.5
                   }
                 ],
@@ -676,9 +676,9 @@
                 "selectedSourceKey": "example",
                 "selectedSourceSeries": "example",
                 "seriesKey": "example",
-                "status": "example",
+                "status": "available",
                 "tenantKey": "example",
-                "unit": "example",
+                "unit": "W",
                 "value": 1.5
               },
               "sourceRange": {
@@ -690,13 +690,13 @@
               ],
               "windowCoverage": 1.5
             },
-            "unit": "example",
+            "unit": "currency_per_unit",
             "value": 1.5
           },
           "upper": {
             "complete": true,
             "currency": "example",
-            "dataSufficiency": "example",
+            "dataSufficiency": "unknown",
             "sampleCount": 1,
             "truncated": true,
             "trust": {
@@ -705,17 +705,17 @@
               "coverageStart": "2026-11-20T06:00:00Z",
               "freshnessMs": 1,
               "reconciliation": {
-                "availability": "example",
+                "availability": "available",
                 "contributingSources": [
                   {
-                    "availability": "example",
+                    "availability": "available",
                     "freshnessSeconds": 1,
                     "observedAt": "2026-11-20T06:00:00Z",
                     "selected": true,
                     "sourceKey": "example",
                     "sourceSeriesKey": "example",
                     "stale": true,
-                    "unit": "example",
+                    "unit": "W",
                     "value": 1.5
                   }
                 ],
@@ -728,9 +728,9 @@
                 "selectedSourceKey": "example",
                 "selectedSourceSeries": "example",
                 "seriesKey": "example",
-                "status": "example",
+                "status": "available",
                 "tenantKey": "example",
-                "unit": "example",
+                "unit": "W",
                 "value": 1.5
               },
               "sourceRange": {
@@ -742,18 +742,18 @@
               ],
               "windowCoverage": 1.5
             },
-            "unit": "example",
+            "unit": "currency_per_unit",
             "value": 1.5
           }
         }
       ],
-      "kind": "example",
+      "kind": "lifecycle",
       "lifecycle": [
         {
           "converted": {
             "complete": true,
             "currency": "example",
-            "dataSufficiency": "example",
+            "dataSufficiency": "unknown",
             "sampleCount": 1,
             "truncated": true,
             "trust": {
@@ -762,17 +762,17 @@
               "coverageStart": "2026-11-20T06:00:00Z",
               "freshnessMs": 1,
               "reconciliation": {
-                "availability": "example",
+                "availability": "available",
                 "contributingSources": [
                   {
-                    "availability": "example",
+                    "availability": "available",
                     "freshnessSeconds": 1,
                     "observedAt": "2026-11-20T06:00:00Z",
                     "selected": true,
                     "sourceKey": "example",
                     "sourceSeriesKey": "example",
                     "stale": true,
-                    "unit": "example",
+                    "unit": "W",
                     "value": 1.5
                   }
                 ],
@@ -785,9 +785,9 @@
                 "selectedSourceKey": "example",
                 "selectedSourceSeries": "example",
                 "seriesKey": "example",
-                "status": "example",
+                "status": "available",
                 "tenantKey": "example",
-                "unit": "example",
+                "unit": "W",
                 "value": 1.5
               },
               "sourceRange": {
@@ -799,13 +799,13 @@
               ],
               "windowCoverage": 1.5
             },
-            "unit": "example",
+            "unit": "currency_per_unit",
             "value": 1.5
           },
           "dropOff": {
             "complete": true,
             "currency": "example",
-            "dataSufficiency": "example",
+            "dataSufficiency": "unknown",
             "sampleCount": 1,
             "truncated": true,
             "trust": {
@@ -814,17 +814,17 @@
               "coverageStart": "2026-11-20T06:00:00Z",
               "freshnessMs": 1,
               "reconciliation": {
-                "availability": "example",
+                "availability": "available",
                 "contributingSources": [
                   {
-                    "availability": "example",
+                    "availability": "available",
                     "freshnessSeconds": 1,
                     "observedAt": "2026-11-20T06:00:00Z",
                     "selected": true,
                     "sourceKey": "example",
                     "sourceSeriesKey": "example",
                     "stale": true,
-                    "unit": "example",
+                    "unit": "W",
                     "value": 1.5
                   }
                 ],
@@ -837,9 +837,9 @@
                 "selectedSourceKey": "example",
                 "selectedSourceSeries": "example",
                 "seriesKey": "example",
-                "status": "example",
+                "status": "available",
                 "tenantKey": "example",
-                "unit": "example",
+                "unit": "W",
                 "value": 1.5
               },
               "sourceRange": {
@@ -851,13 +851,13 @@
               ],
               "windowCoverage": 1.5
             },
-            "unit": "example",
+            "unit": "currency_per_unit",
             "value": 1.5
           },
           "entered": {
             "complete": true,
             "currency": "example",
-            "dataSufficiency": "example",
+            "dataSufficiency": "unknown",
             "sampleCount": 1,
             "truncated": true,
             "trust": {
@@ -866,17 +866,17 @@
               "coverageStart": "2026-11-20T06:00:00Z",
               "freshnessMs": 1,
               "reconciliation": {
-                "availability": "example",
+                "availability": "available",
                 "contributingSources": [
                   {
-                    "availability": "example",
+                    "availability": "available",
                     "freshnessSeconds": 1,
                     "observedAt": "2026-11-20T06:00:00Z",
                     "selected": true,
                     "sourceKey": "example",
                     "sourceSeriesKey": "example",
                     "stale": true,
-                    "unit": "example",
+                    "unit": "W",
                     "value": 1.5
                   }
                 ],
@@ -889,9 +889,9 @@
                 "selectedSourceKey": "example",
                 "selectedSourceSeries": "example",
                 "seriesKey": "example",
-                "status": "example",
+                "status": "available",
                 "tenantKey": "example",
-                "unit": "example",
+                "unit": "W",
                 "value": 1.5
               },
               "sourceRange": {
@@ -903,7 +903,7 @@
               ],
               "windowCoverage": 1.5
             },
-            "unit": "example",
+            "unit": "currency_per_unit",
             "value": 1.5
           },
           "key": "example",
@@ -918,7 +918,7 @@
           "value": {
             "complete": true,
             "currency": "example",
-            "dataSufficiency": "example",
+            "dataSufficiency": "unknown",
             "sampleCount": 1,
             "truncated": true,
             "trust": {
@@ -927,17 +927,17 @@
               "coverageStart": "2026-11-20T06:00:00Z",
               "freshnessMs": 1,
               "reconciliation": {
-                "availability": "example",
+                "availability": "available",
                 "contributingSources": [
                   {
-                    "availability": "example",
+                    "availability": "available",
                     "freshnessSeconds": 1,
                     "observedAt": "2026-11-20T06:00:00Z",
                     "selected": true,
                     "sourceKey": "example",
                     "sourceSeriesKey": "example",
                     "stale": true,
-                    "unit": "example",
+                    "unit": "W",
                     "value": 1.5
                   }
                 ],
@@ -950,9 +950,9 @@
                 "selectedSourceKey": "example",
                 "selectedSourceSeries": "example",
                 "seriesKey": "example",
-                "status": "example",
+                "status": "available",
                 "tenantKey": "example",
-                "unit": "example",
+                "unit": "W",
                 "value": 1.5
               },
               "sourceRange": {
@@ -964,7 +964,7 @@
               ],
               "windowCoverage": 1.5
             },
-            "unit": "example",
+            "unit": "currency_per_unit",
             "value": 1.5
           }
         }
@@ -982,9 +982,9 @@
     "snapshotAgeMs": 1,
     "value": {
       "complete": true,
-      "dataSufficiency": "example",
+      "dataSufficiency": "unknown",
       "sampleCount": 1,
-      "unit": "example",
+      "unit": "currency_per_unit",
       "value": 1.5
     }
   }

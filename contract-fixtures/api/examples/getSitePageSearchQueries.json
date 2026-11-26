@@ -34,7 +34,7 @@
     "window": {
       "from": "example",
       "importedAt": "2026-11-20T06:00:00Z",
-      "provider": "example",
+      "provider": "google",
       "to": "example"
     }
   },

@@ -5,7 +5,7 @@
     "fields": [
       {
         "editable": true,
-        "editableBy": "example",
+        "editableBy": "user",
         "fieldKey": "example",
         "present": true,
         "required": true,

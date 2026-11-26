@@ -5,7 +5,7 @@
       "excluded": [
         {
           "attempt": 1,
-          "outcome": "example",
+          "outcome": "completed",
           "stepKey": "example"
         }
       ],
@@ -43,7 +43,7 @@
           "occurredAt": "2026-11-20T06:00:00Z",
           "receiptAt": "2026-11-20T06:00:00Z",
           "startedAt": "2026-11-20T06:00:00Z",
-          "state": "example",
+          "state": "running",
           "stepKey": "example"
         }
       ],
@@ -57,7 +57,7 @@
       "receiptAt": "2026-11-20T06:00:00Z",
       "runUuid": "example",
       "startedAt": "2026-11-20T06:00:00Z",
-      "state": "example"
+      "state": "running"
     },
     "runUuid": "example",
     "status": {
@@ -97,7 +97,7 @@
       "openAttempts": 1,
       "receiptAt": "2026-11-20T06:00:00Z",
       "runUuid": "example",
-      "state": "example"
+      "state": "running"
     },
     "runUuid": "example",
     "status": {

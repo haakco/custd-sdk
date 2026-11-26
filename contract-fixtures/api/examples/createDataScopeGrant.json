@@ -1,24 +1,24 @@
 {
   "maximal": {
-    "action": "example",
+    "action": "read",
     "principal": {
       "clientId": "example",
-      "kind": "example",
+      "kind": "human",
       "userUuid": "example"
     },
     "target": {
-      "kind": "example",
+      "kind": "parent",
       "resourceUuid": "example",
       "scopeUuid": "example"
     }
   },
   "minimal": {
-    "action": "example",
+    "action": "read",
     "principal": {
-      "kind": "example"
+      "kind": "human"
     },
     "target": {
-      "kind": "example"
+      "kind": "parent"
     }
   }
 }

@@ -1,10 +1,34 @@
 {
   "source": {
-    "custdCommit": "7c8adaccaf06028f1dc15c7cffbed25aadcc2d9d",
-    "apiParityReviewedAt": "2026-11-21",
-    "apiParitySha256": "53fb85b3152233f226c9f11ababbcc8c5c1e8131151cce71f5eaf8d222381965"
+    "custdCommit": "82873e00c6ff0ac02de8eb1f7eef3763aafa0245",
+    "apiParityReviewedAt": "2026-11-26",
+    "apiParitySha256": "367a6b4f07fc97e537da5b0ec5bf07b984aa2d6cc1296bfc74ac539bb75d5662"
   },
   "operations": [
+    {
+      "id": "admin-api ANY /api/v1/admin/measurement/predictions",
+      "service": "admin-api",
+      "method": "ANY",
+      "path": "/api/v1/admin/measurement/predictions",
+      "sdk": "excluded",
+      "reason": "router mount prefix with no operation at this exact path"
+    },
+    {
+      "id": "admin-api ANY /api/v1/admin/workflow-timings",
+      "service": "admin-api",
+      "method": "ANY",
+      "path": "/api/v1/admin/workflow-timings",
+      "sdk": "excluded",
+      "reason": "router mount prefix with no operation at this exact path"
+    },
+    {
+      "id": "admin-api ANY /api/v1/notification-destinations",
+      "service": "admin-api",
+      "method": "ANY",
+      "path": "/api/v1/notification-destinations",
+      "sdk": "excluded",
+      "reason": "router mount prefix with no operation at this exact path"
+    },
     {
       "id": "admin-api ANY /debug/pprof/",
       "service": "admin-api",
@@ -100,7 +124,13 @@
       "method": "DELETE",
       "path": "/api/v1/admin/data-label-assignments/schema-fields/{assignmentUuid}",
       "sdk": "required",
-      "operationId": "removeSchemaFieldDataLabelAssignment"
+      "operationId": "removeSchemaFieldDataLabelAssignment",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/admin/email-relay/{tenantSlug}",
@@ -116,7 +146,13 @@
       "method": "DELETE",
       "path": "/api/v1/admin/event-types/{slug}/data-label-defaults/{definitionUuid}",
       "sdk": "required",
-      "operationId": "removeEventTypeDataLabelDefault"
+      "operationId": "removeEventTypeDataLabelDefault",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/admin/measurement/projects/{projectUuid}/decisions/{decisionUuid}",
@@ -124,7 +160,13 @@
       "method": "DELETE",
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/decisions/{decisionUuid}",
       "sdk": "required",
-      "operationId": "archiveMeasurementDecisionModel"
+      "operationId": "archiveMeasurementDecisionModel",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/admin/notification-webhooks/{uuid}",
@@ -149,6 +191,20 @@
       "path": "/api/v1/admin/privacy/consent/{subjectId}",
       "sdk": "required",
       "operationId": "revokePrivacyConsent",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "purpose",
+          "required": true
+        },
+        {
+          "name": "source",
+          "required": false
+        }
+      ],
       "example": "examples/revokePrivacyConsent.json"
     },
     {
@@ -197,7 +253,13 @@
       "method": "DELETE",
       "path": "/api/v1/admin/uncertainty-models/{modelUuid}",
       "sdk": "required",
-      "operationId": "deleteUncertaintyModel"
+      "operationId": "deleteUncertaintyModel",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/app/item/alerts/rules/{ruleUuid}",
@@ -205,7 +267,13 @@
       "method": "DELETE",
       "path": "/api/v1/app/item/alerts/rules/{ruleUuid}",
       "sdk": "required",
-      "operationId": "deleteAppItemAlertRule"
+      "operationId": "deleteAppItemAlertRule",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/app/item/alerts/subscription",
@@ -213,7 +281,13 @@
       "method": "DELETE",
       "path": "/api/v1/app/item/alerts/subscription",
       "sdk": "required",
-      "operationId": "unsubscribeAppItemAlerts"
+      "operationId": "unsubscribeAppItemAlerts",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/app/item/alerts/webhooks/{webhookUuid}",
@@ -221,7 +295,13 @@
       "method": "DELETE",
       "path": "/api/v1/app/item/alerts/webhooks/{webhookUuid}",
       "sdk": "required",
-      "operationId": "deleteAppItemAlertWebhook"
+      "operationId": "deleteAppItemAlertWebhook",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/app/item/entries/{entryUuid}",
@@ -229,7 +309,13 @@
       "method": "DELETE",
       "path": "/api/v1/app/item/entries/{entryUuid}",
       "sdk": "required",
-      "operationId": "removeAppItemEntry"
+      "operationId": "removeAppItemEntry",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/app/item/links/{linkUuid}",
@@ -237,7 +323,13 @@
       "method": "DELETE",
       "path": "/api/v1/app/item/links/{linkUuid}",
       "sdk": "required",
-      "operationId": "revokeAppItemLink"
+      "operationId": "revokeAppItemLink",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/app/profile/photo",
@@ -254,7 +346,13 @@
       "method": "DELETE",
       "path": "/api/v1/data-spaces/{slug}",
       "sdk": "required",
-      "operationId": "revokeDataSpace"
+      "operationId": "revokeDataSpace",
+      "query": [
+        {
+          "name": "parentCompanySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/data-spaces/{slug}/producer-reservations/{producerSlug}",
@@ -262,7 +360,13 @@
       "method": "DELETE",
       "path": "/api/v1/data-spaces/{slug}/producer-reservations/{producerSlug}",
       "sdk": "required",
-      "operationId": "releaseProducerReservation"
+      "operationId": "releaseProducerReservation",
+      "query": [
+        {
+          "name": "parentCompanySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/producer-provisioning/{clientId}",
@@ -278,7 +382,21 @@
       "method": "DELETE",
       "path": "/api/v1/site-domains/keyword-lists",
       "sdk": "required",
-      "operationId": "deleteSiteKeywordList"
+      "operationId": "deleteSiteKeywordList",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        },
+        {
+          "name": "name",
+          "required": true
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/site-domains/{domainUuid}",
@@ -286,7 +404,13 @@
       "method": "DELETE",
       "path": "/api/v1/site-domains/{domainUuid}",
       "sdk": "required",
-      "operationId": "deleteSiteDomain"
+      "operationId": "deleteSiteDomain",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/site-domains/{domainUuid}/analytics/ga4",
@@ -294,7 +418,13 @@
       "method": "DELETE",
       "path": "/api/v1/site-domains/{domainUuid}/analytics/ga4",
       "sdk": "required",
-      "operationId": "disconnectSiteAnalytics"
+      "operationId": "disconnectSiteAnalytics",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/site-domains/{domainUuid}/approval",
@@ -303,6 +433,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/approval",
       "sdk": "required",
       "operationId": "withdrawSiteDomainApproval",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/withdrawSiteDomainApproval.json"
     },
     {
@@ -312,6 +448,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/attestation",
       "sdk": "required",
       "operationId": "unattestSiteDomain",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/unattestSiteDomain.json"
     },
     {
@@ -320,7 +462,13 @@
       "method": "DELETE",
       "path": "/api/v1/site-domains/{domainUuid}/finding-dismissals/{dismissalUuid}",
       "sdk": "required",
-      "operationId": "restoreSiteFinding"
+      "operationId": "restoreSiteFinding",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/site-domains/{domainUuid}/heartbeats/{monitorUuid}",
@@ -328,7 +476,13 @@
       "method": "DELETE",
       "path": "/api/v1/site-domains/{domainUuid}/heartbeats/{monitorUuid}",
       "sdk": "required",
-      "operationId": "deleteSiteHeartbeat"
+      "operationId": "deleteSiteHeartbeat",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/site-domains/{domainUuid}/indexnow",
@@ -336,7 +490,13 @@
       "method": "DELETE",
       "path": "/api/v1/site-domains/{domainUuid}/indexnow",
       "sdk": "required",
-      "operationId": "disableSiteIndexNow"
+      "operationId": "disableSiteIndexNow",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/site-domains/{domainUuid}/maintenance/{windowUuid}",
@@ -345,6 +505,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/maintenance/{windowUuid}",
       "sdk": "required",
       "operationId": "cancelSiteMaintenance",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/cancelSiteMaintenance.json"
     },
     {
@@ -353,7 +519,13 @@
       "method": "DELETE",
       "path": "/api/v1/site-domains/{domainUuid}/private-uptime/{monitorUuid}",
       "sdk": "required",
-      "operationId": "deletePrivateUptime"
+      "operationId": "deletePrivateUptime",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/site-domains/{domainUuid}/rankings/keywords/{keywordUuid}",
@@ -361,7 +533,13 @@
       "method": "DELETE",
       "path": "/api/v1/site-domains/{domainUuid}/rankings/keywords/{keywordUuid}",
       "sdk": "required",
-      "operationId": "untrackSiteKeyword"
+      "operationId": "untrackSiteKeyword",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/site-domains/{domainUuid}/report-shares/{shareUuid}",
@@ -369,7 +547,13 @@
       "method": "DELETE",
       "path": "/api/v1/site-domains/{domainUuid}/report-shares/{shareUuid}",
       "sdk": "required",
-      "operationId": "revokeSiteReportShare"
+      "operationId": "revokeSiteReportShare",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/site-domains/{domainUuid}/saved-reports/{reportUuid}",
@@ -377,7 +561,13 @@
       "method": "DELETE",
       "path": "/api/v1/site-domains/{domainUuid}/saved-reports/{reportUuid}",
       "sdk": "required",
-      "operationId": "deleteSavedSiteReport"
+      "operationId": "deleteSavedSiteReport",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/site-domains/{domainUuid}/search/{provider}",
@@ -385,7 +575,13 @@
       "method": "DELETE",
       "path": "/api/v1/site-domains/{domainUuid}/search/{provider}",
       "sdk": "required",
-      "operationId": "disconnectSiteSearch"
+      "operationId": "disconnectSiteSearch",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/site-domains/{domainUuid}/status-page",
@@ -393,7 +589,13 @@
       "method": "DELETE",
       "path": "/api/v1/site-domains/{domainUuid}/status-page",
       "sdk": "required",
-      "operationId": "unpublishSiteStatusPage"
+      "operationId": "unpublishSiteStatusPage",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api DELETE /api/v1/tenant-storage-locations/{id}",
@@ -418,6 +620,16 @@
       "path": "/api/v1/admin/accounting/evidence",
       "sdk": "required",
       "operationId": "listAccountingEvidence",
+      "query": [
+        {
+          "name": "asOf",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listAccountingEvidence.json"
     },
     {
@@ -427,6 +639,12 @@
       "path": "/api/v1/admin/apps",
       "sdk": "required",
       "operationId": "listApps",
+      "query": [
+        {
+          "name": "after",
+          "required": false
+        }
+      ],
       "example": "examples/listApps.json"
     },
     {
@@ -454,6 +672,64 @@
       "path": "/api/v1/admin/audit/events",
       "sdk": "required",
       "operationId": "listAuditEvents",
+      "query": [
+        {
+          "name": "scope",
+          "required": false
+        },
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "affectedTenantSlug",
+          "required": false
+        },
+        {
+          "name": "since",
+          "required": false
+        },
+        {
+          "name": "until",
+          "required": false
+        },
+        {
+          "name": "actorKind",
+          "required": false
+        },
+        {
+          "name": "actorReference",
+          "required": false
+        },
+        {
+          "name": "action",
+          "required": false
+        },
+        {
+          "name": "resourceType",
+          "required": false
+        },
+        {
+          "name": "resourceId",
+          "required": false
+        },
+        {
+          "name": "outcome",
+          "required": false
+        },
+        {
+          "name": "correlationId",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        },
+        {
+          "name": "cursor",
+          "required": false
+        }
+      ],
       "example": "examples/listAuditEvents.json"
     },
     {
@@ -463,6 +739,60 @@
       "path": "/api/v1/admin/audit/events/export",
       "sdk": "required",
       "operationId": "exportAuditEvents",
+      "query": [
+        {
+          "name": "scope",
+          "required": false
+        },
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "affectedTenantSlug",
+          "required": false
+        },
+        {
+          "name": "since",
+          "required": false
+        },
+        {
+          "name": "until",
+          "required": false
+        },
+        {
+          "name": "actorKind",
+          "required": false
+        },
+        {
+          "name": "actorReference",
+          "required": false
+        },
+        {
+          "name": "action",
+          "required": false
+        },
+        {
+          "name": "resourceType",
+          "required": false
+        },
+        {
+          "name": "resourceId",
+          "required": false
+        },
+        {
+          "name": "outcome",
+          "required": false
+        },
+        {
+          "name": "correlationId",
+          "required": false
+        },
+        {
+          "name": "format",
+          "required": false
+        }
+      ],
       "example": "examples/exportAuditEvents.json"
     },
     {
@@ -472,6 +802,16 @@
       "path": "/api/v1/admin/audit/events/{eventId}",
       "sdk": "required",
       "operationId": "getAuditEvent",
+      "query": [
+        {
+          "name": "scope",
+          "required": false
+        },
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getAuditEvent.json"
     },
     {
@@ -481,6 +821,12 @@
       "path": "/api/v1/admin/auth-projects",
       "sdk": "required",
       "operationId": "listAuthProjects",
+      "query": [
+        {
+          "name": "after",
+          "required": false
+        }
+      ],
       "example": "examples/listAuthProjects.json"
     },
     {
@@ -580,6 +926,16 @@
       "path": "/api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/principals",
       "sdk": "required",
       "operationId": "listApplicationPrincipals",
+      "query": [
+        {
+          "name": "limit",
+          "required": false
+        },
+        {
+          "name": "cursor",
+          "required": false
+        }
+      ],
       "example": "examples/listApplicationPrincipals.json"
     },
     {
@@ -589,6 +945,12 @@
       "path": "/api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/principals/{providerSubject}/audiences",
       "sdk": "required",
       "operationId": "listPrincipalAudiences",
+      "query": [
+        {
+          "name": "directoryId",
+          "required": true
+        }
+      ],
       "example": "examples/listPrincipalAudiences.json"
     },
     {
@@ -598,6 +960,12 @@
       "path": "/api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/releases",
       "sdk": "required",
       "operationId": "listAuthProjectAppReleases",
+      "query": [
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listAuthProjectAppReleases.json"
     },
     {
@@ -625,6 +993,12 @@
       "path": "/api/v1/admin/campaign-email-revisions/{revision}",
       "sdk": "required",
       "operationId": "readCampaignEmailRevision",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/readCampaignEmailRevision.json"
     },
     {
@@ -634,6 +1008,12 @@
       "path": "/api/v1/admin/campaign-email-runs/{runId}",
       "sdk": "required",
       "operationId": "getCampaignEmailRun",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getCampaignEmailRun.json"
     },
     {
@@ -643,6 +1023,12 @@
       "path": "/api/v1/admin/campaign-email-welcome/contacts/{contactId}",
       "sdk": "required",
       "operationId": "getCampaignWelcomeEnrollment",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getCampaignWelcomeEnrollment.json"
     },
     {
@@ -652,6 +1038,12 @@
       "path": "/api/v1/admin/data-label-assignments",
       "sdk": "required",
       "operationId": "listDataLabelAssignments",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listDataLabelAssignments.json"
     },
     {
@@ -661,6 +1053,16 @@
       "path": "/api/v1/admin/data-labels",
       "sdk": "required",
       "operationId": "listDataLabels",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "includeDisabled",
+          "required": false
+        }
+      ],
       "example": "examples/listDataLabels.json"
     },
     {
@@ -670,6 +1072,16 @@
       "path": "/api/v1/admin/data-labels/catalogue",
       "sdk": "required",
       "operationId": "getDataLabelCatalogue",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "includeDisabled",
+          "required": false
+        }
+      ],
       "example": "examples/getDataLabelCatalogue.json"
     },
     {
@@ -679,6 +1091,12 @@
       "path": "/api/v1/admin/data-labels/usage",
       "sdk": "required",
       "operationId": "listDataLabelUsage",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listDataLabelUsage.json"
     },
     {
@@ -688,6 +1106,16 @@
       "path": "/api/v1/admin/data-labels/{definitionUuid}",
       "sdk": "required",
       "operationId": "getDataLabel",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "includeDisabled",
+          "required": false
+        }
+      ],
       "example": "examples/getDataLabel.json"
     },
     {
@@ -697,6 +1125,24 @@
       "path": "/api/v1/admin/data-scope-grants",
       "sdk": "required",
       "operationId": "listDataScopeGrants",
+      "query": [
+        {
+          "name": "kind",
+          "required": false
+        },
+        {
+          "name": "userUuid",
+          "required": false
+        },
+        {
+          "name": "clientId",
+          "required": false
+        },
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listDataScopeGrants.json"
     },
     {
@@ -706,6 +1152,16 @@
       "path": "/api/v1/admin/data-scopes",
       "sdk": "required",
       "operationId": "listDataScopes",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "includeDisabled",
+          "required": false
+        }
+      ],
       "example": "examples/listDataScopes.json"
     },
     {
@@ -715,6 +1171,12 @@
       "path": "/api/v1/admin/data-scopes/{scopeUuid}",
       "sdk": "required",
       "operationId": "getDataScope",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getDataScope.json"
     },
     {
@@ -724,6 +1186,16 @@
       "path": "/api/v1/admin/data-scopes/{scopeUuid}/resources",
       "sdk": "required",
       "operationId": "listDataScopeResources",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "includeDisabled",
+          "required": false
+        }
+      ],
       "example": "examples/listDataScopeResources.json"
     },
     {
@@ -733,6 +1205,12 @@
       "path": "/api/v1/admin/data-scopes/{scopeUuid}/resources/{resourceUuid}",
       "sdk": "required",
       "operationId": "getDataScopeResource",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getDataScopeResource.json"
     },
     {
@@ -751,6 +1229,12 @@
       "path": "/api/v1/admin/environment-policy",
       "sdk": "required",
       "operationId": "getEnvironmentPolicy",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getEnvironmentPolicy.json"
     },
     {
@@ -786,6 +1270,12 @@
       "path": "/api/v1/admin/ingest/claims/{tenantSlug}",
       "sdk": "required",
       "operationId": "listIngestClaims",
+      "query": [
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listIngestClaims.json"
     },
     {
@@ -804,6 +1294,20 @@
       "path": "/api/v1/admin/measurement/predictions/definitions",
       "sdk": "required",
       "operationId": "listPredictionDefinitions",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "pageSize",
+          "required": false
+        },
+        {
+          "name": "pageToken",
+          "required": false
+        }
+      ],
       "example": "examples/listPredictionDefinitions.json"
     },
     {
@@ -813,6 +1317,12 @@
       "path": "/api/v1/admin/measurement/predictions/definitions/{definitionUuid}",
       "sdk": "required",
       "operationId": "getPredictionDefinition",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getPredictionDefinition.json"
     },
     {
@@ -822,6 +1332,12 @@
       "path": "/api/v1/admin/measurement/predictions/definitions/{definitionUuid}/evaluations",
       "sdk": "required",
       "operationId": "getPredictionEvaluation",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getPredictionEvaluation.json"
     },
     {
@@ -831,6 +1347,12 @@
       "path": "/api/v1/admin/measurement/predictions/definitions/{definitionUuid}/outcomes",
       "sdk": "required",
       "operationId": "listPredictionOutcomes",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listPredictionOutcomes.json"
     },
     {
@@ -840,6 +1362,12 @@
       "path": "/api/v1/admin/measurement/predictions/definitions/{definitionUuid}/runs",
       "sdk": "required",
       "operationId": "listPredictionRuns",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listPredictionRuns.json"
     },
     {
@@ -849,6 +1377,16 @@
       "path": "/api/v1/admin/measurement/predictions/definitions/{definitionUuid}/threshold-events",
       "sdk": "required",
       "operationId": "listPredictionThresholdEvents",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "pageSize",
+          "required": false
+        }
+      ],
       "example": "examples/listPredictionThresholdEvents.json"
     },
     {
@@ -858,6 +1396,12 @@
       "path": "/api/v1/admin/measurement/predictions/definitions/{definitionUuid}/versions/{versionUuid}",
       "sdk": "required",
       "operationId": "getPredictionVersion",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getPredictionVersion.json"
     },
     {
@@ -867,6 +1411,20 @@
       "path": "/api/v1/admin/measurement/predictions/sources",
       "sdk": "required",
       "operationId": "listPredictionSources",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "pageSize",
+          "required": false
+        },
+        {
+          "name": "pageToken",
+          "required": false
+        }
+      ],
       "example": "examples/listPredictionSources.json"
     },
     {
@@ -876,6 +1434,12 @@
       "path": "/api/v1/admin/measurement/predictions/sources/{sourceUuid}",
       "sdk": "required",
       "operationId": "getPredictionSource",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getPredictionSource.json"
     },
     {
@@ -885,6 +1449,12 @@
       "path": "/api/v1/admin/measurement/projects",
       "sdk": "required",
       "operationId": "listMeasurementProjects",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listMeasurementProjects.json"
     },
     {
@@ -894,6 +1464,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}",
       "sdk": "required",
       "operationId": "getMeasurementProject",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getMeasurementProject.json"
     },
     {
@@ -903,6 +1479,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/decisions",
       "sdk": "required",
       "operationId": "listMeasurementDecisionModels",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listMeasurementDecisionModels.json"
     },
     {
@@ -912,6 +1494,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/decisions/{decisionUuid}",
       "sdk": "required",
       "operationId": "getMeasurementDecisionModel",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getMeasurementDecisionModel.json"
     },
     {
@@ -921,6 +1509,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/estimates",
       "sdk": "required",
       "operationId": "listMeasurementEstimates",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listMeasurementEstimates.json"
     },
     {
@@ -930,6 +1524,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/imports/{importUuid}",
       "sdk": "required",
       "operationId": "getMeasurementImport",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getMeasurementImport.json"
     },
     {
@@ -939,6 +1539,12 @@
       "path": "/api/v1/admin/notification-deliveries/{uuid}",
       "sdk": "required",
       "operationId": "getNotificationDelivery",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getNotificationDelivery.json"
     },
     {
@@ -957,6 +1563,12 @@
       "path": "/api/v1/admin/oauth-client-admissions",
       "sdk": "required",
       "operationId": "listOAuthClientAdmissions",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": true
+        }
+      ],
       "example": "examples/listOAuthClientAdmissions.json"
     },
     {
@@ -1028,6 +1640,16 @@
       "path": "/api/v1/admin/privacy/consent",
       "sdk": "required",
       "operationId": "listPrivacyConsents",
+      "query": [
+        {
+          "name": "subjectId",
+          "required": true
+        },
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listPrivacyConsents.json"
     },
     {
@@ -1037,6 +1659,12 @@
       "path": "/api/v1/admin/privacy/erasures",
       "sdk": "required",
       "operationId": "listPrivacyErasures",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listPrivacyErasures.json"
     },
     {
@@ -1046,6 +1674,12 @@
       "path": "/api/v1/admin/privacy/erasures/{requestUuid}",
       "sdk": "required",
       "operationId": "getPrivacyErasure",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getPrivacyErasure.json"
     },
     {
@@ -1064,6 +1698,12 @@
       "path": "/api/v1/admin/privacy/rules",
       "sdk": "required",
       "operationId": "getPrivacyRules",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getPrivacyRules.json"
     },
     {
@@ -1073,6 +1713,12 @@
       "path": "/api/v1/admin/reporting-packs/audit-events",
       "sdk": "required",
       "operationId": "listReportingPackAuditEvents",
+      "query": [
+        {
+          "name": "packKey",
+          "required": true
+        }
+      ],
       "example": "examples/listReportingPackAuditEvents.json"
     },
     {
@@ -1162,7 +1808,18 @@
       "method": "GET",
       "path": "/api/v1/admin/retention/policies/{tenantSlug}/runs",
       "sdk": "required",
-      "operationId": "listRetentionRuns"
+      "operationId": "listRetentionRuns",
+      "query": [
+        {
+          "name": "limit",
+          "required": false
+        },
+        {
+          "name": "offset",
+          "required": false
+        }
+      ],
+      "example": "examples/listRetentionRuns.json"
     },
     {
       "id": "admin-api GET /api/v1/admin/rls/reconciliation-plans/{planUuid}/proof",
@@ -1206,6 +1863,12 @@
       "path": "/api/v1/admin/schema/audit",
       "sdk": "required",
       "operationId": "auditSchemas",
+      "query": [
+        {
+          "name": "tenantSlug",
+          "required": true
+        }
+      ],
       "example": "examples/auditSchemas.json"
     },
     {
@@ -1224,6 +1887,12 @@
       "path": "/api/v1/admin/site-insights/ai-usage",
       "sdk": "required",
       "operationId": "getSiteAIPlatformUsage",
+      "query": [
+        {
+          "name": "period",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteAIPlatformUsage.json"
     },
     {
@@ -1296,6 +1965,16 @@
       "path": "/api/v1/admin/subject-exports",
       "sdk": "required",
       "operationId": "listSubjectExports",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listSubjectExports.json"
     },
     {
@@ -1305,6 +1984,12 @@
       "path": "/api/v1/admin/subject-exports/{requestId}",
       "sdk": "required",
       "operationId": "getSubjectExport",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getSubjectExport.json"
     },
     {
@@ -1314,6 +1999,16 @@
       "path": "/api/v1/admin/subject-exports/{requestId}/download",
       "sdk": "required",
       "operationId": "downloadSubjectExport",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "scope",
+          "required": true
+        }
+      ],
       "example": "examples/downloadSubjectExport.json"
     },
     {
@@ -1323,6 +2018,12 @@
       "path": "/api/v1/admin/support-access",
       "sdk": "required",
       "operationId": "listSupportAccessGrants",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listSupportAccessGrants.json"
     },
     {
@@ -1377,6 +2078,16 @@
       "path": "/api/v1/admin/time-plans",
       "sdk": "required",
       "operationId": "listTimePlans",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listTimePlans.json"
     },
     {
@@ -1386,6 +2097,12 @@
       "path": "/api/v1/admin/time-plans/operations/definition-math",
       "sdk": "required",
       "operationId": "getTimePlanDefinitionMathProof",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getTimePlanDefinitionMathProof.json"
     },
     {
@@ -1395,6 +2112,12 @@
       "path": "/api/v1/admin/time-plans/operations/status",
       "sdk": "required",
       "operationId": "getTimePlanOperationalStatus",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getTimePlanOperationalStatus.json"
     },
     {
@@ -1404,6 +2127,12 @@
       "path": "/api/v1/admin/time-plans/plans/{planUuid}/versions/{versionUuid}",
       "sdk": "required",
       "operationId": "getPublishedTimePlanVersion",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getPublishedTimePlanVersion.json"
     },
     {
@@ -1413,6 +2142,12 @@
       "path": "/api/v1/admin/time-plans/runs/{runUuid}",
       "sdk": "required",
       "operationId": "getTimePlanRun",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getTimePlanRun.json"
     },
     {
@@ -1422,6 +2157,16 @@
       "path": "/api/v1/admin/time-plans/runs/{runUuid}/annotations",
       "sdk": "required",
       "operationId": "listTimePlanAnnotations",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listTimePlanAnnotations.json"
     },
     {
@@ -1431,6 +2176,12 @@
       "path": "/api/v1/admin/time-plans/runs/{runUuid}/duration-observations",
       "sdk": "required",
       "operationId": "listTimePlanDurationObservations",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listTimePlanDurationObservations.json"
     },
     {
@@ -1440,6 +2191,16 @@
       "path": "/api/v1/admin/time-plans/runs/{runUuid}/history",
       "sdk": "required",
       "operationId": "listTimePlanHistory",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listTimePlanHistory.json"
     },
     {
@@ -1449,6 +2210,16 @@
       "path": "/api/v1/admin/time-plans/runs/{runUuid}/predictions",
       "sdk": "required",
       "operationId": "listTimePlanPredictionSnapshots",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listTimePlanPredictionSnapshots.json"
     },
     {
@@ -1458,6 +2229,12 @@
       "path": "/api/v1/admin/time-plans/runs/{runUuid}/report",
       "sdk": "required",
       "operationId": "getTimePlanRunReport",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getTimePlanRunReport.json"
     },
     {
@@ -1467,6 +2244,12 @@
       "path": "/api/v1/admin/time-plans/{planUuid}",
       "sdk": "required",
       "operationId": "getTimePlan",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getTimePlan.json"
     },
     {
@@ -1476,6 +2259,16 @@
       "path": "/api/v1/admin/uncertainty-models",
       "sdk": "required",
       "operationId": "listUncertaintyModels",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "source",
+          "required": false
+        }
+      ],
       "example": "examples/listUncertaintyModels.json"
     },
     {
@@ -1485,6 +2278,12 @@
       "path": "/api/v1/admin/uncertainty-models/{modelUuid}",
       "sdk": "required",
       "operationId": "getUncertaintyModel",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getUncertaintyModel.json"
     },
     {
@@ -1494,6 +2293,12 @@
       "path": "/api/v1/admin/uncertainty-models/{modelUuid}/versions",
       "sdk": "required",
       "operationId": "listUncertaintyModelVersions",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listUncertaintyModelVersions.json"
     },
     {
@@ -1503,6 +2308,12 @@
       "path": "/api/v1/admin/uncertainty-models/{modelUuid}/versions/{versionNumber}",
       "sdk": "required",
       "operationId": "getUncertaintyModelVersion",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getUncertaintyModelVersion.json"
     },
     {
@@ -1512,6 +2323,28 @@
       "path": "/api/v1/admin/usage",
       "sdk": "required",
       "operationId": "listUsage",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "meter",
+          "required": false
+        },
+        {
+          "name": "start",
+          "required": false
+        },
+        {
+          "name": "end",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listUsage.json"
     },
     {
@@ -1521,6 +2354,28 @@
       "path": "/api/v1/admin/usage/export",
       "sdk": "required",
       "operationId": "exportUsage",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "meter",
+          "required": false
+        },
+        {
+          "name": "start",
+          "required": false
+        },
+        {
+          "name": "end",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/exportUsage.json"
     },
     {
@@ -1530,6 +2385,28 @@
       "path": "/api/v1/admin/usage/me",
       "sdk": "required",
       "operationId": "getCurrentTenantUsage",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "meter",
+          "required": false
+        },
+        {
+          "name": "start",
+          "required": false
+        },
+        {
+          "name": "end",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/getCurrentTenantUsage.json"
     },
     {
@@ -1548,6 +2425,36 @@
       "path": "/api/v1/admin/users",
       "sdk": "required",
       "operationId": "listAdminUsers",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "role",
+          "required": false
+        },
+        {
+          "name": "globalState",
+          "required": false
+        },
+        {
+          "name": "membershipState",
+          "required": false
+        },
+        {
+          "name": "welcomeStatus",
+          "required": false
+        },
+        {
+          "name": "includeEnded",
+          "required": false
+        },
+        {
+          "name": "includeDeleted",
+          "required": false
+        }
+      ],
       "example": "examples/listAdminUsers.json"
     },
     {
@@ -1557,6 +2464,16 @@
       "path": "/api/v1/admin/users/{userUuid}",
       "sdk": "required",
       "operationId": "getAdminUser",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "includeEnded",
+          "required": false
+        }
+      ],
       "example": "examples/getAdminUser.json"
     },
     {
@@ -1566,6 +2483,16 @@
       "path": "/api/v1/admin/workflow-timings/definitions",
       "sdk": "required",
       "operationId": "listWorkflowTimingDefinitions",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listWorkflowTimingDefinitions.json"
     },
     {
@@ -1575,6 +2502,12 @@
       "path": "/api/v1/admin/workflow-timings/definitions/{workflowKey}",
       "sdk": "required",
       "operationId": "getWorkflowTimingDefinition",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getWorkflowTimingDefinition.json"
     },
     {
@@ -1584,6 +2517,16 @@
       "path": "/api/v1/admin/workflow-timings/definitions/{workflowKey}/duration-history",
       "sdk": "required",
       "operationId": "getWorkflowTimingDurationHistory",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/getWorkflowTimingDurationHistory.json"
     },
     {
@@ -1593,6 +2536,16 @@
       "path": "/api/v1/admin/workflow-timings/definitions/{workflowKey}/evaluation",
       "sdk": "required",
       "operationId": "getWorkflowTimingEvaluation",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "seriesKey",
+          "required": false
+        }
+      ],
       "example": "examples/getWorkflowTimingEvaluation.json"
     },
     {
@@ -1602,6 +2555,20 @@
       "path": "/api/v1/admin/workflow-timings/runs",
       "sdk": "required",
       "operationId": "listWorkflowTimingRuns",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "workflowKey",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listWorkflowTimingRuns.json"
     },
     {
@@ -1611,6 +2578,12 @@
       "path": "/api/v1/admin/workflow-timings/runs/{runUuid}",
       "sdk": "required",
       "operationId": "getWorkflowTimingRun",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getWorkflowTimingRun.json"
     },
     {
@@ -1620,6 +2593,12 @@
       "path": "/api/v1/admin/workflow-timings/runs/{runUuid}/prediction",
       "sdk": "required",
       "operationId": "getWorkflowTimingPrediction",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getWorkflowTimingPrediction.json"
     },
     {
@@ -1636,6 +2615,12 @@
       "path": "/api/v1/app/item",
       "sdk": "required",
       "operationId": "getAppItem",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/getAppItem.json"
     },
     {
@@ -1645,6 +2630,12 @@
       "path": "/api/v1/app/item/alerts",
       "sdk": "required",
       "operationId": "getAppItemAlerts",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/getAppItemAlerts.json"
     },
     {
@@ -1654,6 +2645,12 @@
       "path": "/api/v1/app/item/alerts/deliveries",
       "sdk": "required",
       "operationId": "listAppItemAlertDeliveries",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/listAppItemAlertDeliveries.json"
     },
     {
@@ -1662,7 +2659,13 @@
       "method": "GET",
       "path": "/api/v1/app/item/alerts/unsubscribe",
       "sdk": "required",
-      "operationId": "getAppAlertUnsubscribePage"
+      "operationId": "getAppAlertUnsubscribePage",
+      "query": [
+        {
+          "name": "token",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api GET /api/v1/app/item/measurements",
@@ -1671,6 +2674,24 @@
       "path": "/api/v1/app/item/measurements",
       "sdk": "required",
       "operationId": "listAppItemMeasurements",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        },
+        {
+          "name": "after",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        },
+        {
+          "name": "run",
+          "required": false
+        }
+      ],
       "example": "examples/listAppItemMeasurements.json"
     },
     {
@@ -1680,6 +2701,12 @@
       "path": "/api/v1/app/item/plan/forecast",
       "sdk": "required",
       "operationId": "getAppPlanForecast",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/getAppPlanForecast.json"
     },
     {
@@ -1689,6 +2716,20 @@
       "path": "/api/v1/app/item/runs",
       "sdk": "required",
       "operationId": "listAppItemRuns",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        },
+        {
+          "name": "after",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listAppItemRuns.json"
     },
     {
@@ -1731,6 +2772,12 @@
       "path": "/api/v1/data-spaces",
       "sdk": "required",
       "operationId": "listDataSpaces",
+      "query": [
+        {
+          "name": "parentCompanySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listDataSpaces.json"
     },
     {
@@ -1740,6 +2787,12 @@
       "path": "/api/v1/data-spaces/usage",
       "sdk": "required",
       "operationId": "getDataSpaceUsage",
+      "query": [
+        {
+          "name": "parentCompanySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getDataSpaceUsage.json"
     },
     {
@@ -1749,6 +2802,12 @@
       "path": "/api/v1/data-spaces/{slug}/producer-reservations",
       "sdk": "required",
       "operationId": "listProducerReservations",
+      "query": [
+        {
+          "name": "parentCompanySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listProducerReservations.json"
     },
     {
@@ -1758,6 +2817,32 @@
       "path": "/api/v1/error-issues",
       "sdk": "required",
       "operationId": "listErrorIssues",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        },
+        {
+          "name": "state",
+          "required": false
+        },
+        {
+          "name": "sort",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        },
+        {
+          "name": "cursor",
+          "required": false
+        }
+      ],
       "example": "examples/listErrorIssues.json"
     },
     {
@@ -1767,6 +2852,12 @@
       "path": "/api/v1/error-issues/{issueUuid}",
       "sdk": "required",
       "operationId": "getErrorIssue",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getErrorIssue.json"
     },
     {
@@ -1776,6 +2867,12 @@
       "path": "/api/v1/notification-destinations/{eventSlug}",
       "sdk": "required",
       "operationId": "getNotificationDestination",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getNotificationDestination.json"
     },
     {
@@ -1785,6 +2882,12 @@
       "path": "/api/v1/producer-provisioning",
       "sdk": "required",
       "operationId": "listProducers",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listProducers.json"
     },
     {
@@ -1797,10 +2900,24 @@
       "example": "examples/getProducer.json"
     },
     {
+      "id": "admin-api GET /api/v1/public-status-pages/{key}",
+      "service": "admin-api",
+      "method": "GET",
+      "path": "/api/v1/public-status-pages/{key}",
+      "sdk": "required"
+    },
+    {
       "id": "admin-api GET /api/v1/shared-site-reports/{token}",
       "service": "admin-api",
       "method": "GET",
       "path": "/api/v1/shared-site-reports/{token}",
+      "sdk": "required"
+    },
+    {
+      "id": "admin-api GET /api/v1/site-ai-owner/settings",
+      "service": "admin-api",
+      "method": "GET",
+      "path": "/api/v1/site-ai-owner/settings",
       "sdk": "required"
     },
     {
@@ -1810,6 +2927,16 @@
       "path": "/api/v1/site-domains",
       "sdk": "required",
       "operationId": "listSiteDomains",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteDomains.json"
     },
     {
@@ -1837,6 +2964,16 @@
       "path": "/api/v1/site-domains/alert-destination",
       "sdk": "required",
       "operationId": "getSiteAlertDestination",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteAlertDestination.json"
     },
     {
@@ -1846,6 +2983,20 @@
       "path": "/api/v1/site-domains/content-gap",
       "sdk": "required",
       "operationId": "getSiteContentGap",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        },
+        {
+          "name": "seed",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteContentGap.json"
     },
     {
@@ -1855,6 +3006,20 @@
       "path": "/api/v1/site-domains/keyword-clusters",
       "sdk": "required",
       "operationId": "getSiteKeywordClusters",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        },
+        {
+          "name": "name",
+          "required": true
+        }
+      ],
       "example": "examples/getSiteKeywordClusters.json"
     },
     {
@@ -1864,6 +3029,16 @@
       "path": "/api/v1/site-domains/keyword-lists",
       "sdk": "required",
       "operationId": "listSiteKeywordLists",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteKeywordLists.json"
     },
     {
@@ -1873,6 +3048,12 @@
       "path": "/api/v1/site-domains/portfolio-summary",
       "sdk": "required",
       "operationId": "getSitePortfolioSummary",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getSitePortfolioSummary.json"
     },
     {
@@ -1882,6 +3063,16 @@
       "path": "/api/v1/site-domains/project-context",
       "sdk": "required",
       "operationId": "getSiteProjectContext",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteProjectContext.json"
     },
     {
@@ -1891,6 +3082,20 @@
       "path": "/api/v1/site-domains/referring-domains",
       "sdk": "required",
       "operationId": "getSiteReferringDomains",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        },
+        {
+          "name": "domain",
+          "required": true
+        }
+      ],
       "example": "examples/getSiteReferringDomains.json"
     },
     {
@@ -1900,6 +3105,16 @@
       "path": "/api/v1/site-domains/regional-trends",
       "sdk": "required",
       "operationId": "getSiteRegionalTrends",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteRegionalTrends.json"
     },
     {
@@ -1909,6 +3124,12 @@
       "path": "/api/v1/site-domains/search-account",
       "sdk": "required",
       "operationId": "getSiteSearchAccount",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteSearchAccount.json"
     },
     {
@@ -1918,6 +3139,12 @@
       "path": "/api/v1/site-domains/search-pool",
       "sdk": "required",
       "operationId": "getSiteSearchPool",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteSearchPool.json"
     },
     {
@@ -1927,6 +3154,20 @@
       "path": "/api/v1/site-domains/search-pool/queries",
       "sdk": "required",
       "operationId": "listSiteSearchPoolQueries",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "search",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteSearchPoolQueries.json"
     },
     {
@@ -1936,6 +3177,16 @@
       "path": "/api/v1/site-domains/topic-trends",
       "sdk": "required",
       "operationId": "getSiteTopicTrends",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteTopicTrends.json"
     },
     {
@@ -1945,6 +3196,16 @@
       "path": "/api/v1/site-domains/web-domains",
       "sdk": "required",
       "operationId": "getSiteWebDomains",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteWebDomains.json"
     },
     {
@@ -1954,6 +3215,28 @@
       "path": "/api/v1/site-domains/web-pages",
       "sdk": "required",
       "operationId": "listSiteWebPages",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        },
+        {
+          "name": "domain",
+          "required": true
+        },
+        {
+          "name": "after",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteWebPages.json"
     },
     {
@@ -1963,6 +3246,12 @@
       "path": "/api/v1/site-domains/{domainUuid}",
       "sdk": "required",
       "operationId": "getSiteDomain",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteDomain.json"
     },
     {
@@ -1972,6 +3261,20 @@
       "path": "/api/v1/site-domains/{domainUuid}/ai-visibility",
       "sdk": "required",
       "operationId": "getSiteAIVisibility",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "from",
+          "required": false
+        },
+        {
+          "name": "to",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteAIVisibility.json"
     },
     {
@@ -1981,6 +3284,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/analytics",
       "sdk": "required",
       "operationId": "getSiteAnalytics",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteAnalytics.json"
     },
     {
@@ -1990,6 +3299,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/audit-delta",
       "sdk": "required",
       "operationId": "getSiteAuditDelta",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteAuditDelta.json"
     },
     {
@@ -1999,6 +3314,20 @@
       "path": "/api/v1/site-domains/{domainUuid}/audit-pages",
       "sdk": "required",
       "operationId": "listSiteAuditPages",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "offset",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteAuditPages.json"
     },
     {
@@ -2008,6 +3337,16 @@
       "path": "/api/v1/site-domains/{domainUuid}/campaign-links",
       "sdk": "required",
       "operationId": "listSiteCampaignLinks",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "archived",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteCampaignLinks.json"
     },
     {
@@ -2017,6 +3356,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/export",
       "sdk": "required",
       "operationId": "exportSiteInsights",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/exportSiteInsights.json"
     },
     {
@@ -2026,6 +3371,20 @@
       "path": "/api/v1/site-domains/{domainUuid}/export/search-metrics",
       "sdk": "required",
       "operationId": "exportSiteSearchMetrics",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "offset",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/exportSiteSearchMetrics.json"
     },
     {
@@ -2035,6 +3394,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/finding-dismissals",
       "sdk": "required",
       "operationId": "listSiteFindingDismissals",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteFindingDismissals.json"
     },
     {
@@ -2044,6 +3409,16 @@
       "path": "/api/v1/site-domains/{domainUuid}/findings",
       "sdk": "required",
       "operationId": "listSiteFindings",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "state",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteFindings.json"
     },
     {
@@ -2053,6 +3428,16 @@
       "path": "/api/v1/site-domains/{domainUuid}/findings/{findingUuid}/search-impact",
       "sdk": "required",
       "operationId": "getSiteFindingSearchImpact",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "days",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteFindingSearchImpact.json"
     },
     {
@@ -2062,6 +3447,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/heartbeats",
       "sdk": "required",
       "operationId": "listSiteHeartbeats",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteHeartbeats.json"
     },
     {
@@ -2071,6 +3462,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/incidents",
       "sdk": "required",
       "operationId": "listSiteIncidents",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteIncidents.json"
     },
     {
@@ -2080,6 +3477,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/indexnow",
       "sdk": "required",
       "operationId": "getSiteIndexNow",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteIndexNow.json"
     },
     {
@@ -2089,6 +3492,20 @@
       "path": "/api/v1/site-domains/{domainUuid}/lighthouse",
       "sdk": "required",
       "operationId": "getSiteLighthouseHistory",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "days",
+          "required": false
+        },
+        {
+          "name": "url",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteLighthouseHistory.json"
     },
     {
@@ -2098,6 +3515,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/lighthouse/pages",
       "sdk": "required",
       "operationId": "getSiteLighthousePages",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteLighthousePages.json"
     },
     {
@@ -2107,6 +3530,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/maintenance",
       "sdk": "required",
       "operationId": "listSiteMaintenance",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteMaintenance.json"
     },
     {
@@ -2116,6 +3545,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/next-actions",
       "sdk": "required",
       "operationId": "getSiteNextActions",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteNextActions.json"
     },
     {
@@ -2125,6 +3560,16 @@
       "path": "/api/v1/site-domains/{domainUuid}/page-facts",
       "sdk": "required",
       "operationId": "getSitePageFacts",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "url",
+          "required": true
+        }
+      ],
       "example": "examples/getSitePageFacts.json"
     },
     {
@@ -2134,6 +3579,16 @@
       "path": "/api/v1/site-domains/{domainUuid}/page-rechecks",
       "sdk": "required",
       "operationId": "listSitePageRechecks",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "ids",
+          "required": true
+        }
+      ],
       "example": "examples/listSitePageRechecks.json"
     },
     {
@@ -2143,6 +3598,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/page-rechecks/{recheckUuid}",
       "sdk": "required",
       "operationId": "getSitePageRecheck",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getSitePageRecheck.json"
     },
     {
@@ -2152,6 +3613,16 @@
       "path": "/api/v1/site-domains/{domainUuid}/page-search-queries",
       "sdk": "required",
       "operationId": "getSitePageSearchQueries",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "url",
+          "required": true
+        }
+      ],
       "example": "examples/getSitePageSearchQueries.json"
     },
     {
@@ -2161,6 +3632,20 @@
       "path": "/api/v1/site-domains/{domainUuid}/page-wording",
       "sdk": "required",
       "operationId": "compareSitePageWording",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "firstUrl",
+          "required": true
+        },
+        {
+          "name": "secondUrl",
+          "required": true
+        }
+      ],
       "example": "examples/compareSitePageWording.json"
     },
     {
@@ -2170,6 +3655,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/private-uptime",
       "sdk": "required",
       "operationId": "getPrivateUptime",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getPrivateUptime.json"
     },
     {
@@ -2179,6 +3670,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/probes",
       "sdk": "required",
       "operationId": "listSiteProbes",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteProbes.json"
     },
     {
@@ -2188,6 +3685,16 @@
       "path": "/api/v1/site-domains/{domainUuid}/rankings",
       "sdk": "required",
       "operationId": "getSiteRankings",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "days",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteRankings.json"
     },
     {
@@ -2197,6 +3704,20 @@
       "path": "/api/v1/site-domains/{domainUuid}/report",
       "sdk": "required",
       "operationId": "getSiteReport",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "template",
+          "required": false
+        },
+        {
+          "name": "days",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteReport.json"
     },
     {
@@ -2206,6 +3727,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/report-shares",
       "sdk": "required",
       "operationId": "listSiteReportShares",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteReportShares.json"
     },
     {
@@ -2215,6 +3742,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/saved-reports",
       "sdk": "required",
       "operationId": "listSavedSiteReports",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listSavedSiteReports.json"
     },
     {
@@ -2224,6 +3757,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/saved-reports/{reportUuid}",
       "sdk": "required",
       "operationId": "getSavedSiteReport",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getSavedSiteReport.json"
     },
     {
@@ -2233,6 +3772,16 @@
       "path": "/api/v1/site-domains/{domainUuid}/search",
       "sdk": "required",
       "operationId": "getSiteSearchPerformance",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "days",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteSearchPerformance.json"
     },
     {
@@ -2242,6 +3791,20 @@
       "path": "/api/v1/site-domains/{domainUuid}/search-value",
       "sdk": "required",
       "operationId": "getSiteSearchValue",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "days",
+          "required": false
+        },
+        {
+          "name": "goal",
+          "required": true
+        }
+      ],
       "example": "examples/getSiteSearchValue.json"
     },
     {
@@ -2251,6 +3814,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/search/inspections",
       "sdk": "required",
       "operationId": "listSiteSearchInspections",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteSearchInspections.json"
     },
     {
@@ -2260,6 +3829,32 @@
       "path": "/api/v1/site-domains/{domainUuid}/search/rows",
       "sdk": "required",
       "operationId": "listSiteSearchRows",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "dimension",
+          "required": false
+        },
+        {
+          "name": "provider",
+          "required": false
+        },
+        {
+          "name": "days",
+          "required": false
+        },
+        {
+          "name": "offset",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "required": false
+        }
+      ],
       "example": "examples/listSiteSearchRows.json"
     },
     {
@@ -2269,6 +3864,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/status-page",
       "sdk": "required",
       "operationId": "getSiteStatusPageSettings",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteStatusPageSettings.json"
     },
     {
@@ -2278,6 +3879,20 @@
       "path": "/api/v1/site-domains/{domainUuid}/traffic",
       "sdk": "required",
       "operationId": "getSiteTraffic",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "from",
+          "required": false
+        },
+        {
+          "name": "to",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteTraffic.json"
     },
     {
@@ -2287,7 +3902,24 @@
       "path": "/api/v1/site-domains/{domainUuid}/uptime-history",
       "sdk": "required",
       "operationId": "getSiteUptimeHistory",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "responseDays",
+          "required": false
+        }
+      ],
       "example": "examples/getSiteUptimeHistory.json"
+    },
+    {
+      "id": "admin-api GET /api/v1/site-private-uptime-reports/{companySlug}/{monitorUuid}",
+      "service": "admin-api",
+      "method": "GET",
+      "path": "/api/v1/site-private-uptime-reports/{companySlug}/{monitorUuid}",
+      "sdk": "required"
     },
     {
       "id": "admin-api GET /api/v1/sites/{siteUuid}/config",
@@ -2333,6 +3965,14 @@
       "reason": "infrastructure, debug or private internal transport"
     },
     {
+      "id": "admin-api GET /internal/auth-directory-stores/{slot}/social-sign-in",
+      "service": "admin-api",
+      "method": "GET",
+      "path": "/internal/auth-directory-stores/{slot}/social-sign-in",
+      "sdk": "excluded",
+      "reason": "infrastructure, debug or private internal transport"
+    },
+    {
       "id": "admin-api GET /internal/bootstrap/identity-diagnostics",
       "service": "admin-api",
       "method": "GET",
@@ -2365,6 +4005,30 @@
       "reason": "infrastructure, debug or private internal transport"
     },
     {
+      "id": "admin-api OPTIONS /api/v1/app/",
+      "service": "admin-api",
+      "method": "OPTIONS",
+      "path": "/api/v1/app/",
+      "sdk": "excluded",
+      "reason": "browser CORS preflight"
+    },
+    {
+      "id": "admin-api OPTIONS /api/v1/app/item/alerts",
+      "service": "admin-api",
+      "method": "OPTIONS",
+      "path": "/api/v1/app/item/alerts",
+      "sdk": "excluded",
+      "reason": "browser CORS preflight"
+    },
+    {
+      "id": "admin-api OPTIONS /api/v1/app/item/alerts/",
+      "service": "admin-api",
+      "method": "OPTIONS",
+      "path": "/api/v1/app/item/alerts/",
+      "sdk": "excluded",
+      "reason": "browser CORS preflight"
+    },
+    {
       "id": "admin-api OPTIONS /api/v1/app/profile",
       "service": "admin-api",
       "method": "OPTIONS",
@@ -2395,6 +4059,12 @@
       "path": "/api/v1/admin/data-label-values/{valueUuid}",
       "sdk": "required",
       "operationId": "updateDataLabelValue",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/updateDataLabelValue.json"
     },
     {
@@ -2404,6 +4074,12 @@
       "path": "/api/v1/admin/data-labels/{definitionUuid}",
       "sdk": "required",
       "operationId": "updateDataLabel",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/updateDataLabel.json"
     },
     {
@@ -2413,6 +4089,12 @@
       "path": "/api/v1/admin/data-scopes/{scopeUuid}",
       "sdk": "required",
       "operationId": "updateDataScope",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/updateDataScope.json"
     },
     {
@@ -2422,6 +4104,12 @@
       "path": "/api/v1/admin/data-scopes/{scopeUuid}/resources/{resourceUuid}",
       "sdk": "required",
       "operationId": "updateDataScopeResource",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/updateDataScopeResource.json"
     },
     {
@@ -2431,6 +4119,12 @@
       "path": "/api/v1/admin/environment-policy",
       "sdk": "required",
       "operationId": "updateEnvironmentPolicy",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/updateEnvironmentPolicy.json"
     },
     {
@@ -2456,6 +4150,12 @@
       "path": "/api/v1/admin/measurement/predictions/definitions/{definitionUuid}",
       "sdk": "required",
       "operationId": "updatePredictionDefinition",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/updatePredictionDefinition.json"
     },
     {
@@ -2465,6 +4165,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}",
       "sdk": "required",
       "operationId": "updateMeasurementProject",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/updateMeasurementProject.json"
     },
     {
@@ -2474,6 +4180,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/decisions/{decisionUuid}",
       "sdk": "required",
       "operationId": "updateMeasurementDecisionModel",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/updateMeasurementDecisionModel.json"
     },
     {
@@ -2483,6 +4195,12 @@
       "path": "/api/v1/admin/notification-webhooks/{uuid}",
       "sdk": "required",
       "operationId": "updateNotificationWebhook",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/updateNotificationWebhook.json"
     },
     {
@@ -2510,6 +4228,12 @@
       "path": "/api/v1/admin/time-plans/{planUuid}",
       "sdk": "required",
       "operationId": "reviseTimePlan",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/reviseTimePlan.json"
     },
     {
@@ -2519,6 +4243,12 @@
       "path": "/api/v1/app/item",
       "sdk": "required",
       "operationId": "updateAppItem",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/updateAppItem.json"
     },
     {
@@ -2528,6 +4258,12 @@
       "path": "/api/v1/app/item/meeting/minutes",
       "sdk": "required",
       "operationId": "updateAppMeetingMinutes",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/updateAppMeetingMinutes.json"
     },
     {
@@ -2537,6 +4273,12 @@
       "path": "/api/v1/app/item/plan",
       "sdk": "required",
       "operationId": "updateAppPlan",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/updateAppPlan.json"
     },
     {
@@ -2897,6 +4639,12 @@
       "path": "/api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/releases/{releaseId}/files",
       "sdk": "required",
       "operationId": "uploadAuthProjectAppReleaseFile",
+      "query": [
+        {
+          "name": "path",
+          "required": true
+        }
+      ],
       "example": "examples/uploadAuthProjectAppReleaseFile.json"
     },
     {
@@ -2933,6 +4681,12 @@
       "path": "/api/v1/admin/campaign-email-permissions/check",
       "sdk": "required",
       "operationId": "checkCampaignEmailPermission",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/checkCampaignEmailPermission.json"
     },
     {
@@ -2942,6 +4696,12 @@
       "path": "/api/v1/admin/campaign-email-permissions/confirm",
       "sdk": "required",
       "operationId": "confirmCampaignEmailPermission",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/confirmCampaignEmailPermission.json"
     },
     {
@@ -2951,6 +4711,12 @@
       "path": "/api/v1/admin/campaign-email-permissions/withdraw",
       "sdk": "required",
       "operationId": "withdrawCampaignEmailPermission",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/withdrawCampaignEmailPermission.json"
     },
     {
@@ -2960,6 +4726,12 @@
       "path": "/api/v1/admin/campaign-email-revisions",
       "sdk": "required",
       "operationId": "publishCampaignEmailRevision",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/publishCampaignEmailRevision.json"
     },
     {
@@ -2978,6 +4750,12 @@
       "path": "/api/v1/admin/campaign-email-runs",
       "sdk": "required",
       "operationId": "scheduleCampaignEmailRun",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/scheduleCampaignEmailRun.json"
     },
     {
@@ -2987,6 +4765,12 @@
       "path": "/api/v1/admin/campaign-email-runs/{runId}/cancel",
       "sdk": "required",
       "operationId": "cancelCampaignEmailRun",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/cancelCampaignEmailRun.json"
     },
     {
@@ -2996,6 +4780,12 @@
       "path": "/api/v1/admin/campaign-email-welcome/activation",
       "sdk": "required",
       "operationId": "recordCampaignWelcomeActivation",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/recordCampaignWelcomeActivation.json"
     },
     {
@@ -3005,6 +4795,12 @@
       "path": "/api/v1/admin/campaign-email-welcome/confirmed-signup",
       "sdk": "required",
       "operationId": "recordCampaignWelcomeSignup",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/recordCampaignWelcomeSignup.json"
     },
     {
@@ -3013,7 +4809,13 @@
       "method": "POST",
       "path": "/api/v1/admin/data-label-values/{valueUuid}/disable",
       "sdk": "required",
-      "operationId": "disableDataLabelValue"
+      "operationId": "disableDataLabelValue",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/data-labels",
@@ -3022,6 +4824,12 @@
       "path": "/api/v1/admin/data-labels",
       "sdk": "required",
       "operationId": "createDataLabel",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createDataLabel.json"
     },
     {
@@ -3030,7 +4838,13 @@
       "method": "POST",
       "path": "/api/v1/admin/data-labels/{definitionUuid}/disable",
       "sdk": "required",
-      "operationId": "disableDataLabel"
+      "operationId": "disableDataLabel",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/data-labels/{definitionUuid}/values",
@@ -3039,6 +4853,12 @@
       "path": "/api/v1/admin/data-labels/{definitionUuid}/values",
       "sdk": "required",
       "operationId": "createDataLabelValue",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createDataLabelValue.json"
     },
     {
@@ -3048,6 +4868,12 @@
       "path": "/api/v1/admin/data-scope-grants",
       "sdk": "required",
       "operationId": "createDataScopeGrant",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createDataScopeGrant.json"
     },
     {
@@ -3056,7 +4882,13 @@
       "method": "POST",
       "path": "/api/v1/admin/data-scope-grants/revoke",
       "sdk": "required",
-      "operationId": "revokeDataScopeGrant"
+      "operationId": "revokeDataScopeGrant",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/data-scopes",
@@ -3065,6 +4897,12 @@
       "path": "/api/v1/admin/data-scopes",
       "sdk": "required",
       "operationId": "createDataScope",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createDataScope.json"
     },
     {
@@ -3073,7 +4911,13 @@
       "method": "POST",
       "path": "/api/v1/admin/data-scopes/{scopeUuid}/disable",
       "sdk": "required",
-      "operationId": "disableDataScope"
+      "operationId": "disableDataScope",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/data-scopes/{scopeUuid}/resources",
@@ -3082,6 +4926,12 @@
       "path": "/api/v1/admin/data-scopes/{scopeUuid}/resources",
       "sdk": "required",
       "operationId": "createDataScopeResource",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createDataScopeResource.json"
     },
     {
@@ -3090,7 +4940,13 @@
       "method": "POST",
       "path": "/api/v1/admin/data-scopes/{scopeUuid}/resources/{resourceUuid}/disable",
       "sdk": "required",
-      "operationId": "disableDataScopeResource"
+      "operationId": "disableDataScopeResource",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/email-relay/{tenantSlug}/test-send",
@@ -3159,6 +5015,12 @@
       "path": "/api/v1/admin/measurement/predictions/definitions",
       "sdk": "required",
       "operationId": "createPredictionDefinition",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createPredictionDefinition.json"
     },
     {
@@ -3168,6 +5030,12 @@
       "path": "/api/v1/admin/measurement/predictions/definitions/{definitionUuid}/activate",
       "sdk": "required",
       "operationId": "activatePredictionVersion",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/activatePredictionVersion.json"
     },
     {
@@ -3176,7 +5044,13 @@
       "method": "POST",
       "path": "/api/v1/admin/measurement/predictions/definitions/{definitionUuid}/archive",
       "sdk": "required",
-      "operationId": "archivePredictionDefinition"
+      "operationId": "archivePredictionDefinition",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/duration-evaluations",
@@ -3185,6 +5059,12 @@
       "path": "/api/v1/admin/measurement/predictions/definitions/{definitionUuid}/duration-evaluations",
       "sdk": "required",
       "operationId": "evaluateDurationHistory",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/evaluateDurationHistory.json"
     },
     {
@@ -3193,7 +5073,13 @@
       "method": "POST",
       "path": "/api/v1/admin/measurement/predictions/definitions/{definitionUuid}/pause",
       "sdk": "required",
-      "operationId": "pausePredictionDefinition"
+      "operationId": "pausePredictionDefinition",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/publish",
@@ -3202,6 +5088,12 @@
       "path": "/api/v1/admin/measurement/predictions/definitions/{definitionUuid}/publish",
       "sdk": "required",
       "operationId": "publishPredictionDefinition",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/publishPredictionDefinition.json"
     },
     {
@@ -3210,7 +5102,13 @@
       "method": "POST",
       "path": "/api/v1/admin/measurement/predictions/definitions/{definitionUuid}/resume",
       "sdk": "required",
-      "operationId": "resumePredictionDefinition"
+      "operationId": "resumePredictionDefinition",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/run-now",
@@ -3218,7 +5116,13 @@
       "method": "POST",
       "path": "/api/v1/admin/measurement/predictions/definitions/{definitionUuid}/run-now",
       "sdk": "required",
-      "operationId": "runPredictionNow"
+      "operationId": "runPredictionNow",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/measurement/predictions/sources",
@@ -3227,6 +5131,12 @@
       "path": "/api/v1/admin/measurement/predictions/sources",
       "sdk": "required",
       "operationId": "createPredictionSource",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createPredictionSource.json"
     },
     {
@@ -3235,7 +5145,13 @@
       "method": "POST",
       "path": "/api/v1/admin/measurement/predictions/sources/{sourceUuid}/activate",
       "sdk": "required",
-      "operationId": "activatePredictionSource"
+      "operationId": "activatePredictionSource",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/measurement/predictions/sources/{sourceUuid}/archive",
@@ -3243,7 +5159,13 @@
       "method": "POST",
       "path": "/api/v1/admin/measurement/predictions/sources/{sourceUuid}/archive",
       "sdk": "required",
-      "operationId": "archivePredictionSource"
+      "operationId": "archivePredictionSource",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/measurement/projects",
@@ -3252,6 +5174,12 @@
       "path": "/api/v1/admin/measurement/projects",
       "sdk": "required",
       "operationId": "createMeasurementProject",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createMeasurementProject.json"
     },
     {
@@ -3261,6 +5189,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/calibration-exercises",
       "sdk": "required",
       "operationId": "createMeasurementCalibrationExercise",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createMeasurementCalibrationExercise.json"
     },
     {
@@ -3270,6 +5204,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/cancel",
       "sdk": "required",
       "operationId": "cancelMeasurementProject",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/cancelMeasurementProject.json"
     },
     {
@@ -3279,6 +5219,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/complete",
       "sdk": "required",
       "operationId": "completeMeasurementProject",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/completeMeasurementProject.json"
     },
     {
@@ -3288,6 +5234,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/decisions",
       "sdk": "required",
       "operationId": "createMeasurementDecisionModel",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createMeasurementDecisionModel.json"
     },
     {
@@ -3297,6 +5249,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/estimates",
       "sdk": "required",
       "operationId": "createMeasurementEstimate",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createMeasurementEstimate.json"
     },
     {
@@ -3306,6 +5264,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/observations:bulk",
       "sdk": "required",
       "operationId": "importMeasurementObservations",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/importMeasurementObservations.json"
     },
     {
@@ -3315,6 +5279,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/observations:csv",
       "sdk": "required",
       "operationId": "importMeasurementObservationsCSV",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/importMeasurementObservationsCSV.json"
     },
     {
@@ -3324,6 +5294,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/runs",
       "sdk": "required",
       "operationId": "createMeasurementRun",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createMeasurementRun.json"
     },
     {
@@ -3333,6 +5309,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/series",
       "sdk": "required",
       "operationId": "createMeasurementSeries",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createMeasurementSeries.json"
     },
     {
@@ -3342,6 +5324,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/targets",
       "sdk": "required",
       "operationId": "createMeasurementTarget",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createMeasurementTarget.json"
     },
     {
@@ -3351,6 +5339,12 @@
       "path": "/api/v1/admin/measurement/projects/{projectUuid}/targets/{targetUuid}/reopen",
       "sdk": "required",
       "operationId": "reopenMeasurementTarget",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/reopenMeasurementTarget.json"
     },
     {
@@ -3359,7 +5353,13 @@
       "method": "POST",
       "path": "/api/v1/admin/notification-deliveries/{uuid}/replay",
       "sdk": "required",
-      "operationId": "replayNotificationDelivery"
+      "operationId": "replayNotificationDelivery",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/notification-webhooks",
@@ -3377,6 +5377,12 @@
       "path": "/api/v1/admin/notification-webhooks/{uuid}/rotate-secret",
       "sdk": "required",
       "operationId": "rotateNotificationWebhookSecret",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/rotateNotificationWebhookSecret.json"
     },
     {
@@ -3547,7 +5553,13 @@
       "method": "POST",
       "path": "/api/v1/admin/privacy/erasures/{requestUuid}/force",
       "sdk": "required",
-      "operationId": "forcePrivacyErasure"
+      "operationId": "forcePrivacyErasure",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/privacy/identifiers/{companySlug}/map",
@@ -3627,7 +5639,8 @@
       "method": "POST",
       "path": "/api/v1/admin/retention/policies/{tenantSlug}/apply",
       "sdk": "required",
-      "operationId": "applyRetentionRun"
+      "operationId": "applyRetentionRun",
+      "example": "examples/applyRetentionRun.json"
     },
     {
       "id": "admin-api POST /api/v1/admin/retention/policies/{tenantSlug}/preview",
@@ -3635,7 +5648,8 @@
       "method": "POST",
       "path": "/api/v1/admin/retention/policies/{tenantSlug}/preview",
       "sdk": "required",
-      "operationId": "previewRetentionRun"
+      "operationId": "previewRetentionRun",
+      "example": "examples/previewRetentionRun.json"
     },
     {
       "id": "admin-api POST /api/v1/admin/rls/reconciliation-plans",
@@ -3756,6 +5770,12 @@
       "path": "/api/v1/admin/subject-exports",
       "sdk": "required",
       "operationId": "createSubjectExport",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createSubjectExport.json"
     },
     {
@@ -3765,6 +5785,12 @@
       "path": "/api/v1/admin/subject-exports/{requestId}/cancel",
       "sdk": "required",
       "operationId": "cancelSubjectExport",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/cancelSubjectExport.json"
     },
     {
@@ -3774,6 +5800,12 @@
       "path": "/api/v1/admin/subject-exports/{requestId}/force",
       "sdk": "required",
       "operationId": "forceSubjectExport",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": true
+        }
+      ],
       "example": "examples/forceSubjectExport.json"
     },
     {
@@ -3808,7 +5840,13 @@
       "method": "POST",
       "path": "/api/v1/admin/tenants/{slug}/finalize",
       "sdk": "required",
-      "operationId": "finalizeTenant"
+      "operationId": "finalizeTenant",
+      "query": [
+        {
+          "name": "companyId",
+          "required": true
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/tenants/{slug}/historical-cleanup",
@@ -3817,6 +5855,12 @@
       "path": "/api/v1/admin/tenants/{slug}/historical-cleanup",
       "sdk": "required",
       "operationId": "historicalCleanupTenant",
+      "query": [
+        {
+          "name": "companyId",
+          "required": true
+        }
+      ],
       "example": "examples/historicalCleanupTenant.json"
     },
     {
@@ -3826,6 +5870,12 @@
       "path": "/api/v1/admin/time-plans",
       "sdk": "required",
       "operationId": "createTimePlan",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createTimePlan.json"
     },
     {
@@ -3835,6 +5885,12 @@
       "path": "/api/v1/admin/time-plans/operations/outbox/replay",
       "sdk": "required",
       "operationId": "replayTimePlanOutbox",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/replayTimePlanOutbox.json"
     },
     {
@@ -3844,6 +5900,12 @@
       "path": "/api/v1/admin/time-plans/preview",
       "sdk": "required",
       "operationId": "previewTimePlan",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/previewTimePlan.json"
     },
     {
@@ -3853,6 +5915,12 @@
       "path": "/api/v1/admin/time-plans/runs",
       "sdk": "required",
       "operationId": "createTimePlanRun",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createTimePlanRun.json"
     },
     {
@@ -3862,6 +5930,12 @@
       "path": "/api/v1/admin/time-plans/runs/{runUuid}/annotations",
       "sdk": "required",
       "operationId": "createTimePlanAnnotation",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createTimePlanAnnotation.json"
     },
     {
@@ -3871,6 +5945,12 @@
       "path": "/api/v1/admin/time-plans/runs/{runUuid}/annotations/{annotationUuid}/corrections",
       "sdk": "required",
       "operationId": "correctTimePlanAnnotation",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/correctTimePlanAnnotation.json"
     },
     {
@@ -3879,7 +5959,13 @@
       "method": "POST",
       "path": "/api/v1/admin/time-plans/runs/{runUuid}/annotations/{annotationUuid}/redact",
       "sdk": "required",
-      "operationId": "redactTimePlanAnnotation"
+      "operationId": "redactTimePlanAnnotation",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/time-plans/runs/{runUuid}/commands",
@@ -3888,6 +5974,12 @@
       "path": "/api/v1/admin/time-plans/runs/{runUuid}/commands",
       "sdk": "required",
       "operationId": "executeTimePlanCommand",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/executeTimePlanCommand.json"
     },
     {
@@ -3897,6 +5989,12 @@
       "path": "/api/v1/admin/time-plans/runs/{runUuid}/projection-loss",
       "sdk": "required",
       "operationId": "deleteTimePlanRunProjection",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/deleteTimePlanRunProjection.json"
     },
     {
@@ -3906,6 +6004,12 @@
       "path": "/api/v1/admin/time-plans/runs/{runUuid}/repair",
       "sdk": "required",
       "operationId": "repairTimePlanRun",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/repairTimePlanRun.json"
     },
     {
@@ -3915,6 +6019,12 @@
       "path": "/api/v1/admin/time-plans/{planUuid}/publish",
       "sdk": "required",
       "operationId": "publishTimePlan",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/publishTimePlan.json"
     },
     {
@@ -3924,6 +6034,12 @@
       "path": "/api/v1/admin/time-plans/{planUuid}/retire",
       "sdk": "required",
       "operationId": "retireTimePlan",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/retireTimePlan.json"
     },
     {
@@ -3933,6 +6049,12 @@
       "path": "/api/v1/admin/uncertainty-models",
       "sdk": "required",
       "operationId": "createUncertaintyModel",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createUncertaintyModel.json"
     },
     {
@@ -3942,6 +6064,12 @@
       "path": "/api/v1/admin/uncertainty-models/{modelUuid}/copy",
       "sdk": "required",
       "operationId": "copyUncertaintyModel",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/copyUncertaintyModel.json"
     },
     {
@@ -3951,6 +6079,12 @@
       "path": "/api/v1/admin/uncertainty-models/{modelUuid}/versions",
       "sdk": "required",
       "operationId": "createUncertaintyModelVersion",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createUncertaintyModelVersion.json"
     },
     {
@@ -3968,7 +6102,17 @@
       "method": "POST",
       "path": "/api/v1/admin/users/{userUuid}/disable",
       "sdk": "required",
-      "operationId": "disableAdminUser"
+      "operationId": "disableAdminUser",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "globalUser",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/users/{userUuid}/enable",
@@ -3976,7 +6120,17 @@
       "method": "POST",
       "path": "/api/v1/admin/users/{userUuid}/enable",
       "sdk": "required",
-      "operationId": "enableAdminUser"
+      "operationId": "enableAdminUser",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "globalUser",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/users/{userUuid}/memberships",
@@ -3994,6 +6148,12 @@
       "path": "/api/v1/admin/users/{userUuid}/reset-password",
       "sdk": "required",
       "operationId": "resetAdminUserPassword",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/resetAdminUserPassword.json"
     },
     {
@@ -4003,6 +6163,12 @@
       "path": "/api/v1/admin/users/{userUuid}/restore",
       "sdk": "required",
       "operationId": "restoreAdminUser",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": true
+        }
+      ],
       "example": "examples/restoreAdminUser.json"
     },
     {
@@ -4011,7 +6177,13 @@
       "method": "POST",
       "path": "/api/v1/admin/users/{userUuid}/retry-welcome",
       "sdk": "required",
-      "operationId": "retryAdminUserWelcome"
+      "operationId": "retryAdminUserWelcome",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api POST /api/v1/admin/users/{userUuid}/soft-delete",
@@ -4020,6 +6192,12 @@
       "path": "/api/v1/admin/users/{userUuid}/soft-delete",
       "sdk": "required",
       "operationId": "softDeleteAdminUser",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": true
+        }
+      ],
       "example": "examples/softDeleteAdminUser.json"
     },
     {
@@ -4029,6 +6207,12 @@
       "path": "/api/v1/admin/workflow-timings/corrections",
       "sdk": "required",
       "operationId": "correctWorkflowTimingObservation",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/correctWorkflowTimingObservation.json"
     },
     {
@@ -4038,6 +6222,12 @@
       "path": "/api/v1/admin/workflow-timings/observations",
       "sdk": "required",
       "operationId": "appendWorkflowTimingObservation",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/appendWorkflowTimingObservation.json"
     },
     {
@@ -4047,6 +6237,12 @@
       "path": "/api/v1/admin/workflow-timings/observations:batch",
       "sdk": "required",
       "operationId": "appendWorkflowTimingObservations",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/appendWorkflowTimingObservations.json"
     },
     {
@@ -4056,6 +6252,12 @@
       "path": "/api/v1/admin/workflow-timings/runs/{runUuid}/rebuild",
       "sdk": "required",
       "operationId": "rebuildWorkflowTimingRun",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/rebuildWorkflowTimingRun.json"
     },
     {
@@ -4065,6 +6267,12 @@
       "path": "/api/v1/app/item/alerts/rules",
       "sdk": "required",
       "operationId": "createAppItemAlertRule",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/createAppItemAlertRule.json"
     },
     {
@@ -4074,6 +6282,12 @@
       "path": "/api/v1/app/item/alerts/slack",
       "sdk": "required",
       "operationId": "createAppItemAlertSlackDestination",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/createAppItemAlertSlackDestination.json"
     },
     {
@@ -4091,6 +6305,12 @@
       "path": "/api/v1/app/item/alerts/webhooks",
       "sdk": "required",
       "operationId": "createAppItemAlertWebhook",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/createAppItemAlertWebhook.json"
     },
     {
@@ -4100,6 +6320,12 @@
       "path": "/api/v1/app/item/cancel",
       "sdk": "required",
       "operationId": "cancelAppItem",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/cancelAppItem.json"
     },
     {
@@ -4109,6 +6335,12 @@
       "path": "/api/v1/app/item/claim",
       "sdk": "required",
       "operationId": "claimAppItem",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/claimAppItem.json"
     },
     {
@@ -4118,6 +6350,12 @@
       "path": "/api/v1/app/item/complete",
       "sdk": "required",
       "operationId": "completeAppItem",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/completeAppItem.json"
     },
     {
@@ -4127,6 +6365,12 @@
       "path": "/api/v1/app/item/entries",
       "sdk": "required",
       "operationId": "addAppItemEntry",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/addAppItemEntry.json"
     },
     {
@@ -4136,6 +6380,12 @@
       "path": "/api/v1/app/item/estimates",
       "sdk": "required",
       "operationId": "createAppItemEstimate",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/createAppItemEstimate.json"
     },
     {
@@ -4145,6 +6395,12 @@
       "path": "/api/v1/app/item/links/{linkUuid}/rotate",
       "sdk": "required",
       "operationId": "rotateAppItemLink",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/rotateAppItemLink.json"
     },
     {
@@ -4154,6 +6410,12 @@
       "path": "/api/v1/app/item/measurements",
       "sdk": "required",
       "operationId": "addAppItemMeasurements",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/addAppItemMeasurements.json"
     },
     {
@@ -4163,6 +6425,12 @@
       "path": "/api/v1/app/item/measurements/csv",
       "sdk": "required",
       "operationId": "importAppItemMeasurementsCSV",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/importAppItemMeasurementsCSV.json"
     },
     {
@@ -4172,6 +6440,12 @@
       "path": "/api/v1/app/item/meeting/advance",
       "sdk": "required",
       "operationId": "advanceAppItemMeeting",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/advanceAppItemMeeting.json"
     },
     {
@@ -4181,6 +6455,12 @@
       "path": "/api/v1/app/item/meeting/end",
       "sdk": "required",
       "operationId": "endAppItemMeeting",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/endAppItemMeeting.json"
     },
     {
@@ -4190,6 +6470,12 @@
       "path": "/api/v1/app/item/meeting/start",
       "sdk": "required",
       "operationId": "startAppItemMeeting",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/startAppItemMeeting.json"
     },
     {
@@ -4199,6 +6485,12 @@
       "path": "/api/v1/app/item/model/copy",
       "sdk": "required",
       "operationId": "copyAppItemModel",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/copyAppItemModel.json"
     },
     {
@@ -4208,6 +6500,12 @@
       "path": "/api/v1/app/item/model/versions",
       "sdk": "required",
       "operationId": "addAppItemModelVersion",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/addAppItemModelVersion.json"
     },
     {
@@ -4217,6 +6515,12 @@
       "path": "/api/v1/app/item/reopen",
       "sdk": "required",
       "operationId": "reopenAppItem",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/reopenAppItem.json"
     },
     {
@@ -4226,6 +6530,12 @@
       "path": "/api/v1/app/item/runs",
       "sdk": "required",
       "operationId": "startAppItemRun",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/startAppItemRun.json"
     },
     {
@@ -4262,6 +6572,12 @@
       "path": "/api/v1/data-spaces",
       "sdk": "required",
       "operationId": "createDataSpace",
+      "query": [
+        {
+          "name": "parentCompanySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createDataSpace.json"
     },
     {
@@ -4271,6 +6587,12 @@
       "path": "/api/v1/data-spaces/{slug}/producer-reservations",
       "sdk": "required",
       "operationId": "reserveProducerReservation",
+      "query": [
+        {
+          "name": "parentCompanySlug",
+          "required": false
+        }
+      ],
       "example": "examples/reserveProducerReservation.json"
     },
     {
@@ -4280,6 +6602,12 @@
       "path": "/api/v1/data-spaces/{slug}/producer-reservations/{producerSlug}/claim",
       "sdk": "required",
       "operationId": "claimProducerReservation",
+      "query": [
+        {
+          "name": "parentCompanySlug",
+          "required": false
+        }
+      ],
       "example": "examples/claimProducerReservation.json"
     },
     {
@@ -4289,6 +6617,12 @@
       "path": "/api/v1/error-issues/{issueUuid}/state",
       "sdk": "required",
       "operationId": "updateErrorIssueState",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/updateErrorIssueState.json"
     },
     {
@@ -4318,13 +6652,56 @@
       "example": "examples/rotateProducerSecret.json"
     },
     {
+      "id": "admin-api POST /api/v1/public-status-pages/{key}/confirm-subscription",
+      "service": "admin-api",
+      "method": "POST",
+      "path": "/api/v1/public-status-pages/{key}/confirm-subscription",
+      "sdk": "required"
+    },
+    {
+      "id": "admin-api POST /api/v1/public-status-pages/{key}/subscribe",
+      "service": "admin-api",
+      "method": "POST",
+      "path": "/api/v1/public-status-pages/{key}/subscribe",
+      "sdk": "required"
+    },
+    {
+      "id": "admin-api POST /api/v1/public-status-pages/{key}/unsubscribe",
+      "service": "admin-api",
+      "method": "POST",
+      "path": "/api/v1/public-status-pages/{key}/unsubscribe",
+      "sdk": "required"
+    },
+    {
+      "id": "admin-api POST /api/v1/site-ai-owner/redeem",
+      "service": "admin-api",
+      "method": "POST",
+      "path": "/api/v1/site-ai-owner/redeem",
+      "sdk": "required"
+    },
+    {
       "id": "admin-api POST /api/v1/site-domains",
       "service": "admin-api",
       "method": "POST",
       "path": "/api/v1/site-domains",
       "sdk": "required",
       "operationId": "createSiteDomain",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createSiteDomain.json"
+    },
+    {
+      "id": "admin-api POST /api/v1/site-domains/ai-owner-handoffs",
+      "service": "admin-api",
+      "method": "POST",
+      "path": "/api/v1/site-domains/ai-owner-handoffs",
+      "sdk": "required",
+      "operationId": "createSiteAIOwnerHandoff",
+      "example": "examples/createSiteAIOwnerHandoff.json"
     },
     {
       "id": "admin-api POST /api/v1/site-domains/{domainUuid}/approval",
@@ -4333,6 +6710,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/approval",
       "sdk": "required",
       "operationId": "approveSiteDomain",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/approveSiteDomain.json"
     },
     {
@@ -4342,6 +6725,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/attestation",
       "sdk": "required",
       "operationId": "attestSiteDomain",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/attestSiteDomain.json"
     },
     {
@@ -4351,6 +6740,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/audit",
       "sdk": "required",
       "operationId": "requestSiteAudit",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/requestSiteAudit.json"
     },
     {
@@ -4360,6 +6755,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/campaign-links",
       "sdk": "required",
       "operationId": "createSiteCampaignLink",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createSiteCampaignLink.json"
     },
     {
@@ -4369,6 +6770,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/campaign-links/{linkUuid}/archive",
       "sdk": "required",
       "operationId": "archiveSiteCampaignLink",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/archiveSiteCampaignLink.json"
     },
     {
@@ -4378,6 +6785,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/finding-dismissals",
       "sdk": "required",
       "operationId": "dismissSiteFinding",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/dismissSiteFinding.json"
     },
     {
@@ -4387,6 +6800,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/heartbeats",
       "sdk": "required",
       "operationId": "createSiteHeartbeat",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createSiteHeartbeat.json"
     },
     {
@@ -4396,6 +6815,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/heartbeats/{monitorUuid}/credential",
       "sdk": "required",
       "operationId": "rotateSiteHeartbeat",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/rotateSiteHeartbeat.json"
     },
     {
@@ -4405,6 +6830,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/incidents/{incidentUuid}/acknowledgment",
       "sdk": "required",
       "operationId": "acknowledgeSiteIncident",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/acknowledgeSiteIncident.json"
     },
     {
@@ -4414,6 +6845,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/indexnow/submissions",
       "sdk": "required",
       "operationId": "submitSiteIndexNow",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/submitSiteIndexNow.json"
     },
     {
@@ -4423,6 +6860,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/indexnow/verify",
       "sdk": "required",
       "operationId": "verifySiteIndexNowKey",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/verifySiteIndexNowKey.json"
     },
     {
@@ -4432,6 +6875,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/maintenance",
       "sdk": "required",
       "operationId": "scheduleSiteMaintenance",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/scheduleSiteMaintenance.json"
     },
     {
@@ -4441,6 +6890,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/page-check",
       "sdk": "required",
       "operationId": "checkSitePage",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/checkSitePage.json"
     },
     {
@@ -4450,6 +6905,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/page-rechecks",
       "sdk": "required",
       "operationId": "requestSitePageRecheck",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/requestSitePageRecheck.json"
     },
     {
@@ -4459,6 +6920,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/private-uptime",
       "sdk": "required",
       "operationId": "createPrivateUptime",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createPrivateUptime.json"
     },
     {
@@ -4468,6 +6935,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/private-uptime/check",
       "sdk": "required",
       "operationId": "requestPrivateUptime",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/requestPrivateUptime.json"
     },
     {
@@ -4477,6 +6950,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/private-uptime/{monitorUuid}/credential",
       "sdk": "required",
       "operationId": "rotatePrivateUptime",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/rotatePrivateUptime.json"
     },
     {
@@ -4486,6 +6965,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/rankings/keywords",
       "sdk": "required",
       "operationId": "trackSiteKeyword",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/trackSiteKeyword.json"
     },
     {
@@ -4495,6 +6980,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/report-shares",
       "sdk": "required",
       "operationId": "createSiteReportShare",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/createSiteReportShare.json"
     },
     {
@@ -4504,6 +6995,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/robots-test",
       "sdk": "required",
       "operationId": "testSiteRobots",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/testSiteRobots.json"
     },
     {
@@ -4513,6 +7010,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/saved-reports",
       "sdk": "required",
       "operationId": "saveSiteReport",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/saveSiteReport.json"
     },
     {
@@ -4522,6 +7025,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/search/inspections",
       "sdk": "required",
       "operationId": "requestSiteSearchInspection",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/requestSiteSearchInspection.json"
     },
     {
@@ -4531,6 +7040,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/search/{provider}/retry",
       "sdk": "required",
       "operationId": "retrySiteSearchImport",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/retrySiteSearchImport.json"
     },
     {
@@ -4540,6 +7055,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/status-page/preview",
       "sdk": "required",
       "operationId": "previewSiteStatusPage",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/previewSiteStatusPage.json"
     },
     {
@@ -4549,6 +7070,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/status-page/updates",
       "sdk": "required",
       "operationId": "postSiteStatusPageUpdate",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/postSiteStatusPageUpdate.json"
     },
     {
@@ -4558,6 +7085,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/uptime-check",
       "sdk": "required",
       "operationId": "requestSiteUptimeCheck",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/requestSiteUptimeCheck.json"
     },
     {
@@ -4567,6 +7100,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/verify",
       "sdk": "required",
       "operationId": "verifySiteDomain",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/verifySiteDomain.json"
     },
     {
@@ -4576,7 +7115,27 @@
       "path": "/api/v1/site-domains/{domainUuid}/wording-compare",
       "sdk": "required",
       "operationId": "compareSiteWording",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/compareSiteWording.json"
+    },
+    {
+      "id": "admin-api POST /api/v1/site-heartbeat-reports/{companySlug}/{monitorUuid}",
+      "service": "admin-api",
+      "method": "POST",
+      "path": "/api/v1/site-heartbeat-reports/{companySlug}/{monitorUuid}",
+      "sdk": "required"
+    },
+    {
+      "id": "admin-api POST /api/v1/site-private-uptime-reports/{companySlug}/{monitorUuid}",
+      "service": "admin-api",
+      "method": "POST",
+      "path": "/api/v1/site-private-uptime-reports/{companySlug}/{monitorUuid}",
+      "sdk": "required"
     },
     {
       "id": "admin-api POST /api/v1/tenant-storage-locations",
@@ -4748,6 +7307,14 @@
       "reason": "identity-provider callback or gateway hook"
     },
     {
+      "id": "admin-api POST /oauth/open-registration",
+      "service": "admin-api",
+      "method": "POST",
+      "path": "/oauth/open-registration",
+      "sdk": "excluded",
+      "reason": "identity-provider callback or gateway hook"
+    },
+    {
       "id": "admin-api POST /oauth/token-hook",
       "service": "admin-api",
       "method": "POST",
@@ -4780,6 +7347,12 @@
       "path": "/api/v1/admin/campaign-email-welcome/definition",
       "sdk": "required",
       "operationId": "configureCampaignWelcome",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/configureCampaignWelcome.json"
     },
     {
@@ -4789,6 +7362,12 @@
       "path": "/api/v1/admin/campaign-email-welcome/pause",
       "sdk": "required",
       "operationId": "pauseCampaignWelcome",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/pauseCampaignWelcome.json"
     },
     {
@@ -4806,7 +7385,13 @@
       "method": "PUT",
       "path": "/api/v1/admin/event-schemas/{schemaUuid}/field-data-labels",
       "sdk": "required",
-      "operationId": "setSchemaFieldDataLabelAssignment"
+      "operationId": "setSchemaFieldDataLabelAssignment",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api PUT /api/v1/admin/event-types/{slug}/data-label-defaults/{definitionUuid}",
@@ -4814,7 +7399,13 @@
       "method": "PUT",
       "path": "/api/v1/admin/event-types/{slug}/data-label-defaults/{definitionUuid}",
       "sdk": "required",
-      "operationId": "setEventTypeDataLabelDefault"
+      "operationId": "setEventTypeDataLabelDefault",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ]
     },
     {
       "id": "admin-api PUT /api/v1/admin/privacy/rules",
@@ -4886,6 +7477,12 @@
       "path": "/api/v1/admin/users/{userUuid}",
       "sdk": "required",
       "operationId": "updateAdminUser",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/updateAdminUser.json"
     },
     {
@@ -4895,6 +7492,12 @@
       "path": "/api/v1/admin/workflow-timings/definitions/{workflowKey}",
       "sdk": "required",
       "operationId": "reconcileWorkflowTimingDefinition",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/reconcileWorkflowTimingDefinition.json"
     },
     {
@@ -4904,6 +7507,12 @@
       "path": "/api/v1/app/item/alerts/subscription",
       "sdk": "required",
       "operationId": "subscribeAppItemAlerts",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/subscribeAppItemAlerts.json"
     },
     {
@@ -4922,7 +7531,27 @@
       "path": "/api/v1/notification-destinations/{eventSlug}",
       "sdk": "required",
       "operationId": "putNotificationDestination",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/putNotificationDestination.json"
+    },
+    {
+      "id": "admin-api PUT /api/v1/site-ai-owner/consent",
+      "service": "admin-api",
+      "method": "PUT",
+      "path": "/api/v1/site-ai-owner/consent",
+      "sdk": "required"
+    },
+    {
+      "id": "admin-api PUT /api/v1/site-ai-owner/settings",
+      "service": "admin-api",
+      "method": "PUT",
+      "path": "/api/v1/site-ai-owner/settings",
+      "sdk": "required"
     },
     {
       "id": "admin-api PUT /api/v1/site-domains/ai-settings",
@@ -4949,6 +7578,16 @@
       "path": "/api/v1/site-domains/alert-destination",
       "sdk": "required",
       "operationId": "setSiteAlertDestination",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        }
+      ],
       "example": "examples/setSiteAlertDestination.json"
     },
     {
@@ -4958,6 +7597,16 @@
       "path": "/api/v1/site-domains/keyword-lists",
       "sdk": "required",
       "operationId": "saveSiteKeywordList",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        }
+      ],
       "example": "examples/saveSiteKeywordList.json"
     },
     {
@@ -4967,6 +7616,16 @@
       "path": "/api/v1/site-domains/project-context",
       "sdk": "required",
       "operationId": "setSiteProjectContext",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        },
+        {
+          "name": "siteUuid",
+          "required": false
+        }
+      ],
       "example": "examples/setSiteProjectContext.json"
     },
     {
@@ -4976,6 +7635,12 @@
       "path": "/api/v1/site-domains/search-pool",
       "sdk": "required",
       "operationId": "setSiteSearchPool",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/setSiteSearchPool.json"
     },
     {
@@ -4985,6 +7650,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/analytics/ga4",
       "sdk": "required",
       "operationId": "connectSiteAnalytics",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/connectSiteAnalytics.json"
     },
     {
@@ -5003,6 +7674,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/checks",
       "sdk": "required",
       "operationId": "setSiteCheckMode",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/setSiteCheckMode.json"
     },
     {
@@ -5012,6 +7689,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/indexnow",
       "sdk": "required",
       "operationId": "enableSiteIndexNow",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/enableSiteIndexNow.json"
     },
     {
@@ -5021,6 +7704,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/lighthouse/pages",
       "sdk": "required",
       "operationId": "setSiteLighthousePages",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/setSiteLighthousePages.json"
     },
     {
@@ -5030,6 +7719,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/probes",
       "sdk": "required",
       "operationId": "setSiteProbes",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/setSiteProbes.json"
     },
     {
@@ -5039,6 +7734,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/rankings/keywords/{keywordUuid}",
       "sdk": "required",
       "operationId": "updateSiteTrackedKeyword",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/updateSiteTrackedKeyword.json"
     },
     {
@@ -5048,6 +7749,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/saved-reports/{reportUuid}",
       "sdk": "required",
       "operationId": "replaceSavedSiteReport",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/replaceSavedSiteReport.json"
     },
     {
@@ -5057,6 +7764,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/search/{provider}",
       "sdk": "required",
       "operationId": "connectSiteSearch",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/connectSiteSearch.json"
     },
     {
@@ -5066,6 +7779,12 @@
       "path": "/api/v1/site-domains/{domainUuid}/status-page",
       "sdk": "required",
       "operationId": "publishSiteStatusPage",
+      "query": [
+        {
+          "name": "companySlug",
+          "required": false
+        }
+      ],
       "example": "examples/publishSiteStatusPage.json"
     },
     {
@@ -5177,14 +7896,24 @@
       "service": "analytics-api",
       "method": "GET",
       "path": "/api/v1/analytics/active-now",
-      "sdk": "required"
+      "sdk": "required",
+      "operationId": "getAnalyticsActiveNow",
+      "query": [
+        {
+          "name": "site",
+          "required": true
+        }
+      ],
+      "example": "examples/getAnalyticsActiveNow.json"
     },
     {
       "id": "analytics-api GET /api/v1/analytics/dashboard-summary",
       "service": "analytics-api",
       "method": "GET",
       "path": "/api/v1/analytics/dashboard-summary",
-      "sdk": "required"
+      "sdk": "required",
+      "operationId": "getAnalyticsDashboardSummary",
+      "example": "examples/getAnalyticsDashboardSummary.json"
     },
     {
       "id": "analytics-api GET /api/v1/app/forecast/latest",
@@ -5193,6 +7922,12 @@
       "path": "/api/v1/app/forecast/latest",
       "sdk": "required",
       "operationId": "getAppItemLatestForecast",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/getAppItemLatestForecast.json"
     },
     {
@@ -5202,6 +7937,12 @@
       "path": "/api/v1/app/forecast/runs/{runUuid}",
       "sdk": "required",
       "operationId": "getAppItemForecastRun",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/getAppItemForecastRun.json"
     },
     {
@@ -5211,6 +7952,12 @@
       "path": "/api/v1/app/forecast/story",
       "sdk": "required",
       "operationId": "getAppItemForecastStory",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/getAppItemForecastStory.json"
     },
     {
@@ -5220,6 +7967,12 @@
       "path": "/api/v1/app/models/latest",
       "sdk": "required",
       "operationId": "getAppItemLatestModelRun",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/getAppItemLatestModelRun.json"
     },
     {
@@ -5236,42 +7989,60 @@
       "service": "analytics-api",
       "method": "GET",
       "path": "/api/v1/measurement/predictions/definitions",
-      "sdk": "required"
+      "sdk": "required",
+      "operationId": "listMeasurementPredictionDefinitions",
+      "example": "examples/listMeasurementPredictionDefinitions.json"
     },
     {
       "id": "analytics-api GET /api/v1/measurement/predictions/definitions/{definitionUuid}",
       "service": "analytics-api",
       "method": "GET",
       "path": "/api/v1/measurement/predictions/definitions/{definitionUuid}",
-      "sdk": "required"
+      "sdk": "required",
+      "operationId": "getMeasurementPredictionDefinition",
+      "example": "examples/getMeasurementPredictionDefinition.json"
     },
     {
       "id": "analytics-api GET /api/v1/measurement/predictions/definitions/{definitionUuid}/evaluations",
       "service": "analytics-api",
       "method": "GET",
       "path": "/api/v1/measurement/predictions/definitions/{definitionUuid}/evaluations",
-      "sdk": "required"
+      "sdk": "required",
+      "operationId": "getMeasurementPredictionEvaluation",
+      "example": "examples/getMeasurementPredictionEvaluation.json"
     },
     {
       "id": "analytics-api GET /api/v1/measurement/predictions/definitions/{definitionUuid}/outcomes",
       "service": "analytics-api",
       "method": "GET",
       "path": "/api/v1/measurement/predictions/definitions/{definitionUuid}/outcomes",
-      "sdk": "required"
+      "sdk": "required",
+      "operationId": "listMeasurementPredictionOutcomes",
+      "example": "examples/listMeasurementPredictionOutcomes.json"
     },
     {
       "id": "analytics-api GET /api/v1/measurement/predictions/definitions/{definitionUuid}/runs",
       "service": "analytics-api",
       "method": "GET",
       "path": "/api/v1/measurement/predictions/definitions/{definitionUuid}/runs",
-      "sdk": "required"
+      "sdk": "required",
+      "operationId": "listMeasurementPredictionRuns",
+      "query": [
+        {
+          "name": "since",
+          "required": false
+        }
+      ],
+      "example": "examples/listMeasurementPredictionRuns.json"
     },
     {
       "id": "analytics-api GET /api/v1/measurement/projects/{projectUuid}/decisions/{decisionUuid}/simulation-runs/{runUuid}",
       "service": "analytics-api",
       "method": "GET",
       "path": "/api/v1/measurement/projects/{projectUuid}/decisions/{decisionUuid}/simulation-runs/{runUuid}",
-      "sdk": "required"
+      "sdk": "required",
+      "operationId": "getMeasurementSimulationRun",
+      "example": "examples/getMeasurementSimulationRun.json"
     },
     {
       "id": "analytics-api GET /api/v1/measurement/projects/{projectUuid}/forecast-runs/{runUuid}",
@@ -5385,7 +8156,35 @@
       "service": "analytics-api",
       "method": "GET",
       "path": "/api/v1/telemetry/event-count",
-      "sdk": "required"
+      "sdk": "required",
+      "operationId": "countTelemetryEvents",
+      "query": [
+        {
+          "name": "date",
+          "required": true
+        },
+        {
+          "name": "eventType",
+          "required": false
+        }
+      ],
+      "example": "examples/countTelemetryEvents.json"
+    },
+    {
+      "id": "analytics-api OPTIONS /api/v1/app/forecast/",
+      "service": "analytics-api",
+      "method": "OPTIONS",
+      "path": "/api/v1/app/forecast/",
+      "sdk": "excluded",
+      "reason": "browser CORS preflight"
+    },
+    {
+      "id": "analytics-api OPTIONS /api/v1/app/models/",
+      "service": "analytics-api",
+      "method": "OPTIONS",
+      "path": "/api/v1/app/models/",
+      "sdk": "excluded",
+      "reason": "browser CORS preflight"
     },
     {
       "id": "analytics-api POST /api/v1/analytics/query",
@@ -5412,6 +8211,12 @@
       "path": "/api/v1/app/forecast/runs",
       "sdk": "required",
       "operationId": "runAppItemForecast",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/runAppItemForecast.json"
     },
     {
@@ -5421,6 +8226,12 @@
       "path": "/api/v1/app/models/calculate",
       "sdk": "required",
       "operationId": "calculateAppItemModel",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/calculateAppItemModel.json"
     },
     {
@@ -5430,6 +8241,12 @@
       "path": "/api/v1/app/models/runs",
       "sdk": "required",
       "operationId": "runAppItemModel",
+      "query": [
+        {
+          "name": "item",
+          "required": false
+        }
+      ],
       "example": "examples/runAppItemModel.json"
     },
     {
@@ -5437,7 +8254,9 @@
       "service": "analytics-api",
       "method": "POST",
       "path": "/api/v1/measurement/projects/{projectUuid}/decisions/{decisionUuid}/simulation-runs",
-      "sdk": "required"
+      "sdk": "required",
+      "operationId": "createMeasurementSimulationRun",
+      "example": "examples/createMeasurementSimulationRun.json"
     },
     {
       "id": "analytics-api POST /api/v1/measurement/projects/{projectUuid}/forecast-runs",
@@ -5471,7 +8290,9 @@
       "service": "analytics-api",
       "method": "POST",
       "path": "/api/v1/reporting/draft-preview",
-      "sdk": "required"
+      "sdk": "required",
+      "operationId": "previewReportingDraft",
+      "example": "examples/previewReportingDraft.json"
     },
     {
       "id": "analytics-api POST /api/v1/reporting/exports",
@@ -5820,13 +8641,6 @@
       "service": "ingest-api",
       "method": "POST",
       "path": "/api/v1/cleanup/jobs/{uuid}",
-      "sdk": "required"
-    },
-    {
-      "id": "ingest-api POST /api/v1/cleanup/jobs/{uuid}/proof",
-      "service": "ingest-api",
-      "method": "POST",
-      "path": "/api/v1/cleanup/jobs/{uuid}/proof",
       "sdk": "required"
     },
     {

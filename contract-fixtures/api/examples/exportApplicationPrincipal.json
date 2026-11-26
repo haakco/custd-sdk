@@ -14,7 +14,7 @@
             "value": {}
           }
         ],
-        "traitsStatus": "example"
+        "traitsStatus": "included"
       }
     ],
     "memberships": [
@@ -24,7 +24,7 @@
         "organisationName": "example",
         "organisationSlug": "example",
         "removedAt": "example",
-        "role": "example"
+        "role": "administrator"
       }
     ],
     "principalId": "example",

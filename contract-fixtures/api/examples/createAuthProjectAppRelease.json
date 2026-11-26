@@ -19,12 +19,12 @@
         "cache": [
           {
             "match": "example",
-            "mode": "example"
+            "mode": "immutable"
           }
         ],
         "headers": [
           {
-            "framing": "example",
+            "framing": "deny",
             "headers": [
               {
                 "name": "example",
@@ -60,7 +60,7 @@
       "version": 1
     },
     "releaseId": "example",
-    "state": "example",
+    "state": "pending",
     "totalBytes": 1,
     "verifiedAt": "2026-11-20T06:00:00Z"
   },
@@ -76,7 +76,7 @@
       "version": 1
     },
     "releaseId": "example",
-    "state": "example",
+    "state": "pending",
     "totalBytes": 1
   }
 }

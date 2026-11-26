@@ -9,7 +9,7 @@
         "receiptAt": "2026-11-20T06:00:00Z",
         "runUuid": "example",
         "startedAt": "2026-11-20T06:00:00Z",
-        "state": "example",
+        "state": "running",
         "workflowKey": "example"
       }
     ]

@@ -9,7 +9,7 @@
     "companySlug": "example",
     "enabled": true,
     "environment": "example",
-    "identityMode": "example",
+    "identityMode": "cookieless",
     "ingestTarget": {
       "resourceCode": "example",
       "resourceUuid": "example",
@@ -27,7 +27,7 @@
     "companySlug": "example",
     "enabled": true,
     "environment": "example",
-    "identityMode": "example",
+    "identityMode": "cookieless",
     "name": "example",
     "rateLimitPerMinute": 1,
     "retentionDays": 1,

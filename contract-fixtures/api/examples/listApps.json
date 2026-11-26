@@ -15,7 +15,7 @@
         "signIn": true,
         "siteUuid": "example",
         "slug": "example",
-        "status": "example",
+        "status": "needs_attention",
         "url": "example"
       }
     ],

@@ -17,7 +17,7 @@
             "key": "example",
             "label": "example",
             "nullable": true,
-            "type": "example",
+            "type": "text",
             "unit": "example"
           }
         ],
@@ -30,12 +30,12 @@
     "mediaType": "example",
     "pollAfterSeconds": 1,
     "snapshotSha256": "example",
-    "state": "example",
+    "state": "building",
     "urlExpiresAt": "2026-11-20T06:00:00Z",
     "validUntil": "2026-11-20T06:00:00Z"
   },
   "minimal": {
     "generationId": "example",
-    "state": "example"
+    "state": "building"
   }
 }

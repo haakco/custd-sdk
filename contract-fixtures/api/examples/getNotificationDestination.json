@@ -1,15 +1,15 @@
 {
   "maximal": {
-    "channel": "example",
+    "channel": "email",
     "configured": true,
     "emailRecipient": "example",
     "enabled": true,
-    "eventSlug": "example"
+    "eventSlug": "email_relay_test_send"
   },
   "minimal": {
-    "channel": "example",
+    "channel": "email",
     "configured": true,
     "enabled": true,
-    "eventSlug": "example"
+    "eventSlug": "email_relay_test_send"
   }
 }

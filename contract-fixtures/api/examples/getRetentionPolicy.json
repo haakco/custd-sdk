@@ -17,8 +17,8 @@
         "maxAgeSeconds": 1,
         "nextRunAt": "2026-11-20T06:00:00Z",
         "precedence": 1,
-        "retentionClass": "example",
-        "scope": "example"
+        "retentionClass": "raw",
+        "scope": "tenant"
       }
     ]
   },

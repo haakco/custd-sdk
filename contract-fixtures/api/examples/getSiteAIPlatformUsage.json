@@ -1,7 +1,7 @@
 {
   "maximal": {
     "from": "2026-11-20T06:00:00Z",
-    "period": "example",
+    "period": "day",
     "rows": [
       {
         "attempts": 1,
@@ -33,7 +33,7 @@
   },
   "minimal": {
     "from": "2026-11-20T06:00:00Z",
-    "period": "example",
+    "period": "day",
     "rows": null,
     "samplingMonthlyCapUsdMicros": 1,
     "until": "2026-11-20T06:00:00Z"

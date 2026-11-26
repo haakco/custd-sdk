@@ -14,7 +14,7 @@
       "signIn": true,
       "siteUuid": "example",
       "slug": "example",
-      "status": "example",
+      "status": "needs_attention",
       "url": "example"
     },
     "latestRelease": {
@@ -23,7 +23,7 @@
       "fileCount": 1,
       "label": "example",
       "releaseId": "example",
-      "state": "example",
+      "state": "pending",
       "totalBytes": 1,
       "verifiedAt": "2026-11-20T06:00:00Z"
     },
@@ -39,7 +39,7 @@
       "name": "example",
       "signIn": true,
       "slug": "example",
-      "status": "example",
+      "status": "needs_attention",
       "url": "example"
     },
     "ownerLinks": 1,

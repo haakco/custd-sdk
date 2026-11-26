@@ -2,13 +2,13 @@
   "maximal": {
     "audienceConstraints": "example",
     "identityModes": [
-      "example"
+      "isolated"
     ],
     "profileFieldKeys": [
       "example"
     ],
     "registrationPolicies": [
-      "example"
+      "invite_only"
     ],
     "subjectUniqueness": "example"
   },

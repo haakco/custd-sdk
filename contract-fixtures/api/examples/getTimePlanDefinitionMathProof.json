@@ -3,11 +3,22 @@
     "adjustments": [
       {
         "actualMs": 1,
+        "allocations": [
+          {
+            "blockId": "example",
+            "durationMs": 1,
+            "sequence": 1
+          }
+        ],
         "elapsedMs": 1,
+        "exactConservation": true,
         "horizonMs": 1,
         "index": 1,
+        "markFutureNotRun": true,
+        "negativeAllocations": 1,
         "overrunMs": 1,
-        "reason": "example",
+        "passed": true,
+        "reason": "late_start",
         "remainingMs": 1,
         "unusedMs": 1,
         "vectorId": "example"

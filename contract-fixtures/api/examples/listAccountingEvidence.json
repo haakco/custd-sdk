@@ -8,15 +8,15 @@
         "delta": 1.5,
         "effectiveAt": "2026-11-20T06:00:00Z",
         "id": "example",
-        "kind": "example",
+        "kind": "purchase",
         "observedAt": "2026-11-20T06:00:00Z",
         "quantity": 1.5,
         "reason": "example",
         "supersedesId": "example",
         "targetId": "example",
-        "targetKind": "example",
+        "targetKind": "purchase",
         "tenantKey": "example",
-        "unit": "example"
+        "unit": "W"
       }
     ]
   },

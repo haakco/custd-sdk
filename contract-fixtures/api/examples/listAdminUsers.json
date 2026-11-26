@@ -8,9 +8,9 @@
         "deletedAt": "example",
         "deletedByUserUuid": "example",
         "email": "example",
-        "globalUserState": "example",
+        "globalUserState": "enabled",
         "lastLoginAt": "example",
-        "membershipState": "example",
+        "membershipState": "active",
         "roles": [
           "tenant_admin"
         ],

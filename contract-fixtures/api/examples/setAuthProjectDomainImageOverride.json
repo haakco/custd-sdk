@@ -10,7 +10,7 @@
     "environmentId": "example",
     "host": "example",
     "images": {
-      "convergence": "example",
+      "convergence": "converged",
       "expected": {
         "gateway": "example",
         "hydra": "example"
@@ -32,29 +32,29 @@
         "gateway": "example",
         "hydra": "example"
       },
-      "source": "example"
+      "source": "release-default"
     },
     "intentRevision": 1,
     "issuer": "example",
-    "lifecycle": "example",
+    "lifecycle": "unclaimed",
     "observedAt": "2026-11-20T06:00:00Z",
     "siteDomainId": "example",
     "slotRef": "example",
-    "status": "example"
+    "status": "pending"
   },
   "minimal": {
     "createdAt": "2026-11-20T06:00:00Z",
     "environmentId": "example",
     "host": "example",
     "images": {
-      "convergence": "example",
+      "convergence": "converged",
       "expected": {},
       "running": {},
-      "source": "example"
+      "source": "release-default"
     },
     "intentRevision": 1,
     "issuer": "example",
-    "lifecycle": "example",
-    "status": "example"
+    "lifecycle": "unclaimed",
+    "status": "pending"
   }
 }

@@ -5,7 +5,7 @@
       "evaluation": {
         "as_of": "2026-11-20T06:00:00Z",
         "definition": {
-          "method": "example",
+          "method": "nominal",
           "method_version": "example",
           "minimum_history": 1,
           "prior_weight": 1,
@@ -40,7 +40,7 @@
               "mean_width_ms": 1.5
             },
             "mean_absolute_error_ms": 1.5,
-            "method": "example"
+            "method": "nominal"
           },
           "shrinkage": {
             "evaluated_fold_count": 1,
@@ -51,7 +51,7 @@
               "mean_width_ms": 1.5
             },
             "mean_absolute_error_ms": 1.5,
-            "method": "example"
+            "method": "nominal"
           }
         },
         "minimum_training_history": 1,
@@ -80,7 +80,7 @@
     },
     "predictionVersionUuid": "example",
     "seriesKey": "example",
-    "state": "example",
+    "state": "ready",
     "workflowKey": "example",
     "workflowUuid": "example"
   },
@@ -100,7 +100,7 @@
       "skippedAttempts": 1
     },
     "seriesKey": "example",
-    "state": "example",
+    "state": "ready",
     "workflowKey": "example",
     "workflowUuid": "example"
   }

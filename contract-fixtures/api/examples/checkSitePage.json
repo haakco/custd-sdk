@@ -1,7 +1,7 @@
 {
   "maximal": {
     "checkedRules": [
-      "example"
+      "crawl.page-status"
     ],
     "findings": [
       {
@@ -15,8 +15,8 @@
           },
           "kind": "markup"
         },
-        "rule": "example",
-        "severity": "example",
+        "rule": "crawl.page-status",
+        "severity": "high",
         "source": "example",
         "title": "example",
         "url": "example"

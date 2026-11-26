@@ -2,7 +2,7 @@
   "maximal": {
     "events": [
       {
-        "channel": "example",
+        "channel": "email",
         "delivery": {
           "error": "example",
           "state": "example",

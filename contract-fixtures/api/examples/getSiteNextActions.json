@@ -17,7 +17,7 @@
         "why": "example"
       }
     ],
-    "aiMode": "example",
+    "aiMode": "off",
     "checkedAt": "2026-11-20T06:00:00Z",
     "domainUuid": "example",
     "headline": "example",

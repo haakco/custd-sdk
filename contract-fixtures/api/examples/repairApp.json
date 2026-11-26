@@ -13,7 +13,7 @@
     "signIn": true,
     "siteUuid": "example",
     "slug": "example",
-    "status": "example",
+    "status": "needs_attention",
     "url": "example"
   },
   "minimal": {
@@ -23,7 +23,7 @@
     "name": "example",
     "signIn": true,
     "slug": "example",
-    "status": "example",
+    "status": "needs_attention",
     "url": "example"
   }
 }

@@ -6,7 +6,7 @@
       "actions": [
         "example"
       ],
-      "comparisonBasis": "example",
+      "comparisonBasis": "none",
       "comparisonLabel": "example",
       "findings": [
         "example"
@@ -15,7 +15,7 @@
       "primaryMetricKey": "example",
       "primaryUnit": "example",
       "primaryWidgetKey": "example",
-      "recipe": "example",
+      "recipe": "blank",
       "scopeLabel": "example",
       "supportingWidgetKeys": [
         "example"
@@ -24,17 +24,17 @@
       "targetValue": 1.5
     },
     "exportFormats": [
-      "example"
+      "csv"
     ],
     "group": "example",
     "interactions": [
       {
-        "action": "example",
-        "comparisonPreset": "example",
+        "action": "filter",
+        "comparisonPreset": "previous_period",
         "dimension": "example",
         "key": "example",
         "linkedFilterGroup": "example",
-        "resetBehavior": "example",
+        "resetBehavior": "interaction",
         "sourceWidget": "example",
         "targetWidget": "example"
       }
@@ -49,12 +49,12 @@
       {
         "columnSpan": 1,
         "key": "example",
-        "layout": "example",
+        "layout": "lead",
         "narrative": [
           {
             "references": [
               {
-                "value": "example",
+                "value": "primary",
                 "widgetKey": "example"
               }
             ],
@@ -69,10 +69,10 @@
     ],
     "sharePolicy": {
       "comparisonPresets": [
-        "example"
+        "previous_period"
       ],
       "relativeRanges": [
-        "example"
+        "1d"
       ]
     },
     "title": "example",
@@ -82,14 +82,14 @@
           "example"
         ],
         "key": "example",
-        "kind": "example",
+        "kind": "stat_tile",
         "metrics": [
           "example"
         ],
         "presentation": {
-          "nonColorEncoding": "example",
-          "presetId": "example",
-          "summaryTemplateId": "example",
+          "nonColorEncoding": "line_symbol_label",
+          "presetId": "forecast_convergence_v1",
+          "summaryTemplateId": "forecast_window_evidence",
           "version": 1
         },
         "template": "example",

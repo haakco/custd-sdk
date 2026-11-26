@@ -1,15 +1,15 @@
 {
   "maximal": {
     "days": 1,
-    "dimension": "example",
+    "dimension": "page",
     "domainUuid": "example",
     "limit": 1,
     "offset": 1,
-    "provider": "example",
+    "provider": "google",
     "rows": [
       {
         "key": "example",
-        "provider": "example",
+        "provider": "google",
         "totals": {
           "clicks": 1,
           "ctr": 1.5,
@@ -21,14 +21,14 @@
     "total": 1,
     "unavailable": [
       {
-        "provider": "example",
+        "provider": "google",
         "reason": "example"
       }
     ]
   },
   "minimal": {
     "days": 1,
-    "dimension": "example",
+    "dimension": "page",
     "domainUuid": "example",
     "limit": 1,
     "offset": 1,

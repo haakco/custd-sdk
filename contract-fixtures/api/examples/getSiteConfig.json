@@ -4,14 +4,14 @@
       "example"
     ],
     "environment": "example",
-    "identityMode": "example",
+    "identityMode": "cookieless",
     "pageViewSchemaVersion": "example",
     "siteUuid": "example"
   },
   "minimal": {
     "allowedOrigins": null,
     "environment": "example",
-    "identityMode": "example",
+    "identityMode": "cookieless",
     "siteUuid": "example"
   }
 }

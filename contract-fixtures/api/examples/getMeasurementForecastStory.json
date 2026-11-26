@@ -111,8 +111,8 @@
               "x": "example"
             }
           ],
-          "role": "example",
-          "yKind": "example"
+          "role": "observed_progress",
+          "yKind": "numeric"
         }
       ],
       "nonColorEncoding": "example",

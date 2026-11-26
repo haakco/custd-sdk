@@ -140,19 +140,22 @@ if errors.As(err, &requestErr) && requestErr.Unavailable() {
 ## PHP
 
 ```php
-$dashboard = $client->reporting()->dashboard("security_operations");
-$widget = $client->reporting()->query([
-    "template" => "security_events",
-    "metrics" => ["event_count"],
-    "dimensions" => ["severity"],
-    "rangeDays" => 7,
-]);
+use HaakCo\Custd\Reporting\Data\ReportingQueryRequest;
+use HaakCo\Custd\Reporting\Data\SubjectInsightRequest;
 
-$insight = $client->reporting()->subjectInsight([
-    "template" => "subject_insight_subject",
-    "subject" => "subject-42",
-    "rangeDays" => 14,
-]);
+$dashboard = $client->reporting()->dashboard("security_operations");
+$widget = $client->reporting()->query(new ReportingQueryRequest(
+    metrics: ["event_count"],
+    template: "security_events",
+    dimensions: ["severity"],
+    rangeDays: 7,
+));
+
+$insight = $client->reporting()->subjectInsight(new SubjectInsightRequest(
+    subject: "subject-42",
+    template: "subject_insight_subject",
+    rangeDays: 14,
+));
 
 try {
     $client->reporting()->dashboard("security_operations");

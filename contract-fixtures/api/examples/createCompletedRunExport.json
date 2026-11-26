@@ -3,9 +3,9 @@
     "artifacts": [
       {
         "artifactKey": "example",
-        "fallbackForFormat": "example",
+        "fallbackForFormat": "csv",
         "filename": "example",
-        "format": "example",
+        "format": "csv",
         "id": "example",
         "mediaType": "example",
         "objectBytes": 1,
@@ -26,7 +26,7 @@
     "failureMessage": "example",
     "finishedAt": "2026-11-20T06:00:00Z",
     "formats": [
-      "example"
+      "csv"
     ],
     "id": "example",
     "nextAttemptAt": "2026-11-20T06:00:00Z",
