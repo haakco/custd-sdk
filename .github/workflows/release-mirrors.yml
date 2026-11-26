@@ -14,8 +14,9 @@ name: Release Mirrors
 # failing runner could withhold a release that had already been tagged and
 # verified. The guard is now a job of its own, and each artifact depends only on
 # it, so a failure in one can no longer withhold the others. The JS packages are
-# public on npmjs, published through its trusted publisher (GitHub OIDC), so the
-# job holds no npm token.
+# public on npmjs. npm's trusted publisher (OIDC) and provenance run only on
+# cloud-hosted runners, so the job publishes with the npm token from Infisical
+# /custd-sdk (Hosting's hostingctl publishes the same way).
 
 on:
   push:
@@ -137,9 +138,6 @@ jobs:
   publish-npm:
     needs: [release-guard]
     runs-on: haakco-build
-    permissions:
-      contents: read
-      id-token: write
     container:
       image: ghcr.io/haakco/actions-runner:2
       credentials:
@@ -155,30 +153,50 @@ jobs:
         with:
           node-version: 26.13.1
           package-manager-cache: false
+      - name: Install Infisical CLI
+        env:
+          MISE_GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsSL https://mise.run | sh
+          "$HOME/.local/bin/mise" install infisical@0.45.12
       - name: Check the checked-in JavaScript
         run: |
           bash scripts/check-sdk-version-identity.sh
           bash scripts/check-js-source-archive.sh
       # Each package is published only when npmjs does not already have the version, so a
-      # re-run completes a partial release instead of failing on the immutable version. The
-      # trusted publisher exchanges this job's OIDC identity for a short-lived credential;
-      # npm does that from 11.5.1. --@haakco:registry overrides any runner scope setting.
+      # re-run completes a partial release instead of failing on the immutable version.
+      # --@haakco:registry overrides any runner scope setting, which beats --registry.
       - name: Publish to npmjs
         shell: bash
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
         run: |
           set -euo pipefail
-          version="${VERSION_TAG#v}"
-          npm_version="$(npm --version)"
-          if [[ "$(printf '%s\n%s\n' 11.5.1 "$npm_version" | sort -V | head -n1)" != 11.5.1 ]]; then
-            echo "::error::npm $npm_version cannot use the trusted publisher; 11.5.1 or newer is required" >&2
+          domain="https://secrets.k8.haak.co/api"
+          infisical() { "$HOME/.local/bin/mise" exec infisical@0.45.12 -- infisical "$@"; }
+          token="$(infisical login --method=universal-auth \
+            --client-id="$INFISICAL_CLIENT_ID" --client-secret="$INFISICAL_CLIENT_SECRET" \
+            --domain="$domain" --plain --silent)"
+          npm_token="$(infisical secrets get NPM_TOKEN \
+            --token="$token" --projectId=952c94fb-3c39-4384-8087-2e459812bc3d \
+            --env=prod --path=/custd-sdk --domain="$domain" --plain --silent)"
+          if [[ -z "$npm_token" ]]; then
+            echo "::error::no npm token was loaded from Infisical /custd-sdk" >&2
             exit 1
           fi
-          registry_args=(--registry "$NPM_REGISTRY" --@haakco:registry="$NPM_REGISTRY")
+          echo "::add-mask::$npm_token"
+          umask 077
+          npmrc="$RUNNER_TEMP/npmrc"
+          trap 'rm -f "$npmrc"' EXIT
+          printf '//registry.npmjs.org/:_authToken=%s\n' "$npm_token" > "$npmrc"
+          version="${VERSION_TAG#v}"
+          registry_args=(--registry "$NPM_REGISTRY" --@haakco:registry="$NPM_REGISTRY" --userconfig "$npmrc")
           for dir in sdk-js sdk-react; do
             name="$(node -p "require('./$dir/package.json').name")"
             if npm view "$name@$version" version "${registry_args[@]}" >/dev/null 2>&1; then
               echo "$name@$version is already on npmjs; skipped."
               continue
             fi
-            (cd "$dir" && npm publish --ignore-scripts --access public --provenance "${registry_args[@]}")
+            (cd "$dir" && npm publish --ignore-scripts --access public "${registry_args[@]}")
           done
