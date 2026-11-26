@@ -228,6 +228,7 @@ impl DeviceLogin {
             return Err(Error::Api(crate::ApiError {
                 status: response.status,
                 problem: None,
+                request_id: None,
             }));
         }
         let metadata: AuthorizationServerMetadata = decode_bounded(&response.body)?;

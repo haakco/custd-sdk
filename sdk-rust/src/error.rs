@@ -27,6 +27,9 @@ pub enum Error {
 pub struct ApiError {
     pub status: u16,
     pub problem: Option<Box<Problem>>,
+    /// The identifier to quote in a support request: the answer's `X-Request-Id`, else the
+    /// problem's `requestId`, else its `traceId`.
+    pub request_id: Option<String>,
 }
 
 /// RFC 9457 problem details as Custd sends them.

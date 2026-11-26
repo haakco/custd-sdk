@@ -102,6 +102,7 @@ impl CustdClient {
             return Err(Error::Api(ApiError {
                 status: response.status,
                 problem: None,
+                request_id: None,
             }));
         }
         match serde_json::from_slice::<TicketResponse>(&response.body) {

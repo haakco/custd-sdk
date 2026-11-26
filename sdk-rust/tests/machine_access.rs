@@ -49,6 +49,7 @@ fn blocked_refusal_names_the_area_and_the_setting() {
         })
     );
     assert_eq!(metadata.request_id.as_deref(), Some("req-header-1"));
+    assert_eq!(api.request_id.as_deref(), Some("req-header-1"));
 }
 
 #[test]

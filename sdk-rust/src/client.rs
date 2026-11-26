@@ -202,7 +202,6 @@ pub(crate) fn execute(transport: &dyn Transport, request: &HttpRequest) -> Resul
     let response = transport
         .send(request)
         .map_err(|error| Error::Transport(error.message().to_owned()))?;
-    record_request_id(response.header(REQUEST_ID_HEADER));
     checked(response)
 }
 
@@ -258,15 +257,25 @@ fn record_request_id(request_id: Option<&str>) {
 }
 
 /// A 2xx or 304 answer as is; anything else becomes [`Error::Api`].
+/// Every answer's request ID is recorded for [`record_metadata`]; a refusal also carries it.
 pub(crate) fn checked(response: HttpResponse) -> Result<HttpResponse> {
+    let header = response.header(REQUEST_ID_HEADER).map(str::to_owned);
+    record_request_id(header.as_deref());
     if (200..300).contains(&response.status) || response.status == 304 {
         return Ok(response);
     }
+    let problem = serde_json::from_slice::<Problem>(&response.body).ok();
+    let request_id = header.filter(|id| !id.is_empty()).or_else(|| {
+        let problem = problem.as_ref()?;
+        problem
+            .request_id
+            .clone()
+            .or_else(|| problem.trace_id.clone())
+    });
     Err(Error::Api(ApiError {
         status: response.status,
-        problem: serde_json::from_slice::<Problem>(&response.body)
-            .ok()
-            .map(Box::new),
+        problem: problem.map(Box::new),
+        request_id,
     }))
 }
 
