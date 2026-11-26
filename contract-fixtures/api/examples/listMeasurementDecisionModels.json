@@ -7,7 +7,14 @@
             "choiceCode": "example",
             "choiceUuid": "example",
             "description": "example",
-            "expression": {},
+            "expression": {
+              "children": [
+                null
+              ],
+              "kind": "example",
+              "value": 1.5,
+              "variableCode": "example"
+            },
             "name": "example"
           }
         ],
@@ -25,7 +32,14 @@
             "distributionSlug": "example",
             "measurementCost": 1.5,
             "name": "example",
-            "parameters": {},
+            "parameters": {
+              "max": 1.5,
+              "mean": 1.5,
+              "min": 1.5,
+              "mode": 1.5,
+              "std-dev": 1.5,
+              "value": 1.5
+            },
             "unitSlug": "example",
             "variableCode": "example",
             "variableUuid": "example"

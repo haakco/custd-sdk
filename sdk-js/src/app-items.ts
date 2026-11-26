@@ -131,6 +131,7 @@ export type AppMeasurementSeriesCreate = {
   seriesCode: string;
   name: string;
   unitSlug: string;
+  unitLabel?: string;
   completionDirection: string;
   source: string;
 };
@@ -247,6 +248,26 @@ export type AppEstimateCreateRequest = {
 
 export type AppProjectCompleteRequest = { completedAt: string };
 
+/** A new run of a counter project: a sibling project sharing its series. */
+export type AppRunCreateRequest = { projectCode: string; name?: string; targetDate?: string };
+
+/** Keyset paging for an item's runs or measurements: `after` is the previous page's `nextCursor`. */
+export type AppItemPageOptions = { item?: string; after?: string; limit?: number };
+
+/** Measurement paging; `run` reads another run of the same series instead of the item's own. */
+export type AppItemMeasurementPageOptions = AppItemPageOptions & { run?: string };
+
+export type AppItemRun = { runUuid: string; name: string; status: string; createdAt: string };
+
+export type AppItemRunPage = { runs: AppItemRun[]; nextCursor?: string };
+
+export type AppItemMeasurement = { observationUuid: string; seriesUuid: string; observedAt: string; value: number };
+
+export type AppItemMeasurementPage = { runUuid: string; rows: AppItemMeasurement[]; nextCursor?: string };
+
+/** The token from an alert email's unsubscribe link. */
+export type AppAlertUnsubscribeRequest = { token: string };
+
 export type AppLinkCollectionEntryAddRequest = {
   /** A share (or owner) link token of another item of this app. */
   token: string;
@@ -268,6 +289,8 @@ export type AppItem = {
 export type AppItemLink = {
   linkUuid: string;
   role: AppLinkRole;
+  /** The share token again, for share links created or rotated since recovery was enabled. */
+  shareToken?: string;
   createdAt: string;
 };
 
@@ -276,6 +299,7 @@ export type AppMeasurementSeries = {
   seriesCode: string;
   name: string;
   unitSlug: string;
+  unitLabel?: string;
   completionDirection: string;
   source: string;
 };
@@ -329,7 +353,24 @@ export type AppLinkCollectionEntry = {
   itemUuid: string;
   kind: AppItemKind;
   position: number;
+  /** The entry's share token, when its stored link is recoverable. */
+  shareToken?: string;
   createdAt: string;
+};
+
+/** A counter item's progress toward its target. */
+export type AppItemCounterProgress = {
+  current?: number;
+  percent?: number;
+  forecastP50?: string;
+};
+
+/** A model item's headline quantity at its 5th, 50th and 95th percentiles. */
+export type AppModelPreview = {
+  quantity: string;
+  p5: number;
+  p50: number;
+  p95: number;
 };
 
 /** An item with its kind's content. `links` is listed for an owner link only. */
@@ -338,12 +379,15 @@ export type AppItemRead = {
   links?: AppItemLink[];
   measurementProject?: AppMeasurementProject;
   estimates?: AppProjectEstimateList;
-  linkCollection?: { entries: AppLinkCollectionEntry[] | null };
+  linkCollection?: { name?: string; entries: AppLinkCollectionEntry[] | null };
   meeting?: AppMeeting;
   meetingMinutes?: AppMeetingMinutes;
   planMeetingSummaries?: AppPlanMeetingSummary[];
   plan?: AppPlan;
   uncertaintyModel?: AppUncertaintyModel;
+  measurementRuns?: { runs: AppItemRun[] | null; nextCursor?: string };
+  counterProgress?: AppItemCounterProgress;
+  modelPreview?: AppModelPreview;
 };
 
 /** A new item and its two links. Each token is shown this once: keep it, Custd cannot. */
@@ -381,6 +425,8 @@ export type AppItemSummary = AppItem & {
   name: string;
   /** The project's or meeting run's status; empty for a link collection or a model. */
   status: string;
+  /** The code of a measurement project's first series. */
+  seriesCode?: string;
 };
 
 /** "My items": at most 200, most recently changed first. */
@@ -601,6 +647,7 @@ export type AppItemsClientConfig = {
 type AppRequest = {
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   path: string;
+  query?: Record<string, string | undefined>;
   credential?: AppItemCredential;
   item?: string;
   etag?: string;
@@ -664,8 +711,12 @@ export class AppItemsClient {
    * Makes the signed-in holder of an owner link the item's owner. A repeat by the same user
    * succeeds; an item another user owns is refused with `claimed`.
    */
-  claim(ownerToken: string): Promise<AppItemRead> {
-    return this.write<AppItemRead>(ownerToken, "POST", `${ITEM_PATH}/claim`);
+  /** Claims a link's item into the signed-in account; `item` names one item of a collection link. */
+  async claim(ownerToken: string, item?: string): Promise<AppItemRead> {
+    const { credential } = this.reach(ownerToken);
+    const result = await this.json<AppItemRead>({ method: "POST", path: `${ITEM_PATH}/claim`, credential, item });
+    this.live.refreshToken(accessKey(ownerToken));
+    return result;
   }
 
   readItem(access: AppItemAccess, options: AppReadOptions = {}): Promise<AppConditionalRead<AppItemRead>> {
@@ -698,6 +749,39 @@ export class AppItemsClient {
   /** Records measurements from a pasted CSV document. */
   importMeasurementsCsv(access: AppItemAccess, csv: string): Promise<AppMeasurementBulkResponse> {
     return this.write<AppMeasurementBulkResponse>(access, "POST", `${ITEM_PATH}/measurements/csv`, { csv });
+  }
+
+  /** The counter project's runs, newest first. */
+  async listRuns(access: AppItemAccess, options: AppItemPageOptions = {}): Promise<AppItemRunPage> {
+    const page = await this.page<{ runs: AppItemRun[] | null; nextCursor?: string }>(
+      `${ITEM_PATH}/runs`,
+      access,
+      options.item,
+      {
+        after: options.after,
+        limit: options.limit,
+      },
+    );
+    return { ...page, runs: page.runs ?? [] };
+  }
+
+  /** Starts a new run of the counter project. Owner only. */
+  startRun(access: AppItemAccess, request: AppRunCreateRequest): Promise<AppItemRead> {
+    return this.write<AppItemRead>(access, "POST", `${ITEM_PATH}/runs`, request);
+  }
+
+  /** The item's recorded measurements, oldest first. */
+  async listMeasurements(
+    access: AppItemAccess,
+    options: AppItemMeasurementPageOptions = {},
+  ): Promise<AppItemMeasurementPage> {
+    const page = await this.page<Omit<AppItemMeasurementPage, "rows"> & { rows: AppItemMeasurement[] | null }>(
+      `${ITEM_PATH}/measurements`,
+      access,
+      options.item,
+      { after: options.after, limit: options.limit, run: options.run },
+    );
+    return { ...page, rows: page.rows ?? [] };
   }
 
   createEstimate(access: AppItemAccess, request: AppEstimateCreateRequest): Promise<AppProjectEstimate> {
@@ -860,6 +944,17 @@ export class AppItemsClient {
     await this.json<null>({ method: "DELETE", path: `${ALERTS_PATH}/subscription`, ...this.reach(access) });
   }
 
+  /** The confirmation page an alert email's unsubscribe link opens, as HTML. It changes nothing. */
+  async getAlertUnsubscribePage(token: string): Promise<string> {
+    const response = await this.send({ method: "GET", path: `${ALERTS_PATH}/unsubscribe`, query: { token } });
+    return response.text();
+  }
+
+  /** Stops the alert email an unsubscribe link names; it needs no sign-in. Repeating it succeeds. */
+  async unsubscribeAlertEmailByToken(request: AppAlertUnsubscribeRequest): Promise<void> {
+    await this.json<null>({ method: "POST", path: `${ALERTS_PATH}/unsubscribe`, body: request });
+  }
+
   /** Starts the meeting item's first block. Owner only. */
   updateMeetingMinutes(access: AppItemAccess, request: AppMeetingMinutesUpdate): Promise<AppItemRead> {
     return this.write<AppItemRead>(access, "PATCH", `${ITEM_PATH}/meeting/minutes`, request);
@@ -1002,6 +1097,22 @@ export class AppItemsClient {
     return { status: "modified", data, etag: response.headers.get("etag") };
   }
 
+  private page<T>(
+    path: string,
+    access: AppItemAccess,
+    item: string | undefined,
+    query: Record<string, string | number | undefined>,
+  ): Promise<T> {
+    const reached = this.reach(access);
+    return this.json<T>({
+      method: "GET",
+      path,
+      credential: reached.credential,
+      item: item ?? reached.item,
+      query: Object.fromEntries(Object.entries(query).map(([name, value]) => [name, value?.toString()])),
+    });
+  }
+
   private async json<T>(request: AppRequest): Promise<T> {
     const response = await this.send(request);
     if (response.status === 204) return null as T;
@@ -1011,6 +1122,9 @@ export class AppItemsClient {
   private async send(request: AppRequest): Promise<Response> {
     const url = new URL(`${this.baseUrl}${request.path}`);
     if (request.item) url.searchParams.set("item", request.item);
+    for (const [name, value] of Object.entries(request.query ?? {})) {
+      if (value !== undefined) url.searchParams.set(name, value);
+    }
     // Only the headers the app routes' preflight allows.
     const headers: Record<string, string> = { [APP_ITEM_SITE_KEY_HEADER]: this.siteKey };
     if (request.credential?.linkToken) headers.Authorization = `Bearer ${request.credential.linkToken}`;

@@ -17,8 +17,9 @@ export class PrivacyErasureClient {
     create(body, options) {
         return classifiedRequest(() => this.request("POST", "/privacy/erasures", body, options), "create_request_failed");
     }
-    list(companySlug, options) {
-        return classifiedRequest(() => this.request("GET", `/privacy/erasures?companySlug=${encodeURIComponent(companySlug)}`, undefined, options), "list_request_failed");
+    async list(companySlug, options) {
+        const list = await classifiedRequest(() => this.request("GET", `/privacy/erasures?companySlug=${encodeURIComponent(companySlug)}`, undefined, options), "list_request_failed");
+        return { requests: list.requests ?? [] };
     }
     get(companySlug, requestUuid, options) {
         return classifiedRequest(() => this.request("GET", `/privacy/erasures/${encodeURIComponent(requestUuid)}?companySlug=${encodeURIComponent(companySlug)}`, undefined, options), "get_request_failed");

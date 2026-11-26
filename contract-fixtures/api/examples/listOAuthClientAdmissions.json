@@ -7,7 +7,9 @@
         "approvedGrants": [
           {
             "resourceUri": "example",
-            "scopes": []
+            "scopes": [
+              "example"
+            ]
           }
         ],
         "approvedSecurityRevision": "example",
@@ -16,7 +18,9 @@
         "requestedGrants": [
           {
             "resourceUri": "example",
-            "scopes": []
+            "scopes": [
+              "example"
+            ]
           }
         ],
         "requestedSecurityRevision": "example",

@@ -1,3 +1,4 @@
+import type { EventRollupDimensionProfile } from "./admin-event-types.js";
 import type { PackDefinition, RequestOptions } from "./index.js";
 
 export type ClientSetupOAuthPurposeProfile = "ingest" | "schema" | "reporting" | "lifecycle" | "broker";
@@ -8,6 +9,14 @@ export type ClientSetupOAuthClientDesiredState = {
   name?: string;
   clientId: string;
   purposeProfile: ClientSetupOAuthPurposeProfile;
+  /** The environment the client's events default to. */
+  environment?: string;
+};
+
+/** An event type's desired rollup dimensions. */
+export type ClientSetupEventTypeDesiredState = {
+  eventTypeSlug: string;
+  rollupDimensions: EventRollupDimensionProfile;
 };
 
 export type ClientSetupSchemaDesiredState = {
@@ -47,6 +56,7 @@ export type ClientSetupManifest = {
   retention?: ClientSetupRetentionDesiredState;
   reportingPacks?: ClientSetupReportingPackDesiredState[];
   oauthClients?: ClientSetupOAuthClientDesiredState[];
+  eventTypeConfigs?: ClientSetupEventTypeDesiredState[];
 };
 
 export type ClientSetupResourceStatus = {
@@ -56,6 +66,13 @@ export type ClientSetupResourceStatus = {
   ready: boolean;
   safeNextAction: string;
   safeNextActionCode: string;
+  detail?: string;
+};
+
+/** Why a pending operation is waiting, and when it tries again. */
+export type ClientSetupOperationPending = {
+  nextAttemptAt: string;
+  lastFailure?: { code: string; observedAt: string; resources: ClientSetupResourceStatus[] | null };
 };
 
 export type ClientSetupOperationStatus = {
@@ -63,6 +80,9 @@ export type ClientSetupOperationStatus = {
   idempotencyKey: string;
   state: string;
   errorCode?: string;
+  attemptCount: number;
+  leaseExpiresAt?: string;
+  pending?: ClientSetupOperationPending;
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
@@ -106,7 +126,14 @@ export type ClientSetupApplyAndWaitResult = {
   readiness: ClientSetupReadinessResponse;
 };
 
-const setupManifestKeys = new Set(["schemas", "privacy", "retention", "reportingPacks", "oauthClients"]);
+const setupManifestKeys = new Set([
+  "schemas",
+  "privacy",
+  "retention",
+  "reportingPacks",
+  "oauthClients",
+  "eventTypeConfigs",
+]);
 const setupPurposeProfiles: readonly ClientSetupOAuthPurposeProfile[] = [
   "ingest",
   "schema",
@@ -396,6 +423,9 @@ function validateSetupOAuthClients(clients: unknown): void {
     }
     if (client.name !== undefined && typeof client.name !== "string") {
       throw new Error(`custd: oauthClients[${index}].name must be a string`);
+    }
+    if (client.environment !== undefined && typeof client.environment !== "string") {
+      throw new Error(`custd: oauthClients[${index}].environment must be a string`);
     }
     if (Object.keys(client).includes("clientSecret")) {
       throw new Error("custd: client secrets are managed by Custd");

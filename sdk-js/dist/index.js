@@ -2,7 +2,7 @@ import { AuthProjectAdminClient } from "./admin-auth-projects.js";
 import { ClientSetupClient } from "./admin-client-setup.js";
 import { DataLabelAdminClient } from "./admin-data-labels.js";
 import { DataScopeAdminClient, validDataScopeCode } from "./admin-data-scopes.js";
-import { OffboardingClient } from "./admin-offboarding.js";
+import { OffboardingClient, } from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
@@ -10,14 +10,41 @@ import { SiteDomainAdminClient } from "./admin-site-domains.js";
 import { SiteInsightsAdminClient } from "./admin-site-insights-tasks.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+export { AUTH_PROJECT_DOMAIN_CONVERGENCES, AUTH_PROJECT_DOMAIN_IMAGE_COMPONENTS, AUTH_PROJECT_DOMAIN_IMAGE_SOURCES, AUTH_PROJECT_DOMAIN_LIFECYCLES, AUTH_PROJECT_DOMAIN_STATUSES, } from "./admin-auth-project-domain.js";
+export { ADMIN_USER_GLOBAL_STATES, ADMIN_USER_MEMBERSHIP_STATES, ADMIN_USER_ROLES, AdminUserAdminClient, } from "./admin-users.js";
+export { WORKFLOW_TIMING_FACT_KINDS, WORKFLOW_TIMING_STATES, WorkflowTimingAdminClient, } from "./admin-workflow-timings.js";
+import { AccountingEvidenceAdminClient } from "./admin-accounting-evidence.js";
+import { CampaignEmailAdminClient } from "./admin-campaign-email.js";
+import { EmailRelayAdminClient } from "./admin-email-relay.js";
+import { EnvironmentPolicyAdminClient } from "./admin-environment-policy.js";
+import { ErrorIssueAdminClient } from "./admin-error-issues.js";
+import { EventTypeAdminClient } from "./admin-event-types.js";
+import { ImpersonationAdminClient } from "./admin-impersonation.js";
+import { IngestClaimAdminClient } from "./admin-ingest-claims.js";
+import { ManagedAuditAdminClient } from "./admin-managed-audit.js";
+import { AdminMeasurementNamespace } from "./admin-measurement-projects.js";
+import { NotificationDestinationAdminClient } from "./admin-notification-destinations.js";
+import { NotificationWebhookAdminClient } from "./admin-notification-webhooks.js";
+import { OAuthClientAdmissionAdminClient } from "./admin-oauth-client-admissions.js";
+import { RlsAdminClient } from "./admin-rls.js";
+import { SdkUsageAdminClient } from "./admin-sdk-usage.js";
+import { SupportAccessAdminClient } from "./admin-support-access.js";
+import { SystemAdminClient } from "./admin-system.js";
 import { TimePlanAdminClient } from "./admin-timeplans.js";
+import { UncertaintyModelAdminClient } from "./admin-uncertainty-models.js";
 import { UsageAdminClient } from "./admin-usage.js";
+import { AdminUserAdminClient } from "./admin-users.js";
+import { WorkflowTimingAdminClient } from "./admin-workflow-timings.js";
 import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
+import { IngestOperationsClient } from "./ingest-operations.js";
+import { MeasurementClient } from "./measurement.js";
 import { basicAuthorization } from "./oauth.js";
 import { ParserClient } from "./parsers.js";
+import { PublicReadClient } from "./public-reads.js";
+import { eventSchemaPath, schemaRegistryPath, } from "./schema-registry.js";
 import { SDK_IDENTITY } from "./version.js";
-export { APP_ERROR_CODES, APP_REASON_CODES, APP_STATUSES, } from "./admin-apps.js";
+export { APP_ERROR_CODES, APP_REASON_CODES, APP_SIGN_IN_MODES, APP_STATUSES, } from "./admin-apps.js";
 export { AuthProjectAdminClient, AuthProjectRealmNotConvergedError, AuthProjectRealmProvisionError, } from "./admin-auth-projects.js";
 export { ClientSetupClient, validateClientSetupManifest, } from "./admin-client-setup.js";
 export { DataLabelAdminClient, } from "./admin-data-labels.js";
@@ -29,11 +56,12 @@ export { RetentionClient, } from "./admin-retention.js";
 export { SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE, SITE_ANALYTICS_PROPERTY_INVALID_CODE, SITE_ANALYTICS_PROVIDER_GA4, SiteAnalyticsUnavailableReport, } from "./admin-site-analytics.js";
 export { SITE_AUDIT_PAGES_DEFAULT_LIMIT, SITE_AUDIT_PAGES_MAX_LIMIT, SITE_LIGHTHOUSE_MAX_EXTRA_PAGES, SITE_LIGHTHOUSE_PAGE_NOT_EXTRA_CODE, SiteAuditPageIndexability, SiteAuditRun, } from "./admin-site-audit-pages.js";
 export { SITE_CAMPAIGN_LINK_LIMIT_CODE, SITE_CAMPAIGN_LINK_TAKEN_CODE, SITE_CAMPAIGN_LINKS_MAX, } from "./admin-site-campaign-links.js";
-export { SITE_DOMAIN_NOT_VERIFIED_CODE, SITE_SEARCH_CONNECTION_NOT_FOUND_CODE, SITE_SEARCH_NOT_CONFIGURED_CODE, SITE_SEARCH_RETRY_NOT_FAILING_CODE, SiteDomainAdminClient, SiteRule, } from "./admin-site-domains.js";
+export { SITE_BROWSER_COLLECTOR_MODES, SITE_DOMAIN_NOT_VERIFIED_CODE, SITE_FINDING_DISMISSAL_SCOPES, SITE_SEARCH_CONNECTION_NOT_FOUND_CODE, SITE_SEARCH_NOT_CONFIGURED_CODE, SITE_SEARCH_RETRY_NOT_FAILING_CODE, SiteDomainAdminClient, SiteRule, } from "./admin-site-domains.js";
 export { SITE_INSIGHTS_EXPORT_SCHEMA, SITE_INSIGHTS_EXPORT_SEARCH_METRICS_MAX_LIMIT, SiteSearchMetricDimension, } from "./admin-site-export.js";
 export { IndexNowSubmissionStatus, SITE_CHOICE_REQUIRED_CODE, SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE, SITE_INDEXNOW_KEY_UNVERIFIED_CODE, SITE_INDEXNOW_LIMIT_CODE, SITE_INDEXNOW_NOT_ENABLED_CODE, SITE_INDEXNOW_URLS_INVALID_CODE, SITE_PAGE_NOT_ON_DOMAIN_CODE, SITE_PAGE_NOT_READ_CODE, SITE_PAGE_RECHECK_LIMIT_CODE, SITE_PAGE_RECHECK_READ_LIMIT, SITE_SEARCH_INSPECTION_LIMIT_CODE, SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE, SITE_SEARCH_INSPECTION_URL_INVALID_CODE, SiteGeneratedFormat, SitePageCheckScope, SitePageRecheckState, SiteRemedyKind, } from "./admin-site-insights.js";
 export { SiteInsightsAdminClient, SiteInsightsTaskName, } from "./admin-site-insights-tasks.js";
 export { SiteLinkSource, SiteLinkSourceStatus, } from "./admin-site-links.js";
+export { PRIVATE_UPTIME_FAILURES, PRIVATE_UPTIME_STATUSES, SITE_HEARTBEAT_OUTCOMES, SITE_HEARTBEAT_STATUSES, } from "./admin-site-monitors.js";
 export { SITE_NEXT_ACTIONS_MAX, SiteNextActionKind, SiteNextActionPlace, SiteNotChecked, } from "./admin-site-next-actions.js";
 export { SitePageLinkSourceWhere, SitePageQueriesState, SiteTitleTemplate, } from "./admin-site-page-queries.js";
 export { SITE_RANKINGS_DAYS_INVALID_CODE, SITE_RANKINGS_DEFAULT_DAYS, SITE_RANKINGS_MAX_DAYS, SITE_TRACKED_KEYWORD_ALL, SITE_TRACKED_KEYWORD_DEFAULT_NOTIFY_POSITION, SITE_TRACKED_KEYWORD_DUPLICATE_CODE, SITE_TRACKED_KEYWORD_INVALID_CODE, SITE_TRACKED_KEYWORD_LIMIT_CODE, SITE_TRACKED_KEYWORD_NOT_FOUND_CODE, SITE_TRACKED_KEYWORDS_MAX, SiteRankDevice, SiteRankingsSource, SiteRankState, SiteTrackedKeywordStatus, } from "./admin-site-rankings.js";
@@ -127,7 +155,11 @@ export const SCHEMA_AUDIT_TENANT_NOT_FOUND_CODE = "schema_audit_tenant_not_found
 export const SCHEMA_AUDIT_TENANT_SLUG_REQUIRED_CODE = "schema_audit_tenant_slug_required";
 function publicAdminSite(site) {
     const { writeKey: _writeKey, ...safeSite } = site;
-    return safeSite;
+    return {
+        ...safeSite,
+        allowedOrigins: site.allowedOrigins ?? [],
+        allowedEnvironments: site.allowedEnvironments ?? [],
+    };
 }
 export class MemoryQueueStorage {
     constructor() {
@@ -204,6 +236,7 @@ export class CustdClient {
         // The SDK's own identity is authoritative: a caller may add default
         // headers, but cannot accidentally drop the release Custd records.
         this.defaultHeaders = { ...(config.defaultHeaders ?? {}), "X-Custd-Sdk": SDK_IDENTITY };
+        this.actingCompanySlug = config.actingCompanySlug?.trim() ?? "";
         this.retry = normalizeRetryOptions(config.retry);
         this.batch = config.batch;
         this.queueEnabled = config.queue?.enabled ?? config.batch != null;
@@ -218,6 +251,9 @@ export class CustdClient {
         this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
         this.analytics = new AnalyticsEventClient((method, path, body, options) => this.apiRequest(method, path, body, options));
         this.parsers = new ParserClient((method, path, body, options) => this.apiRequest(method, path, body, options));
+        this.measurement = new MeasurementClient((method, path, body, options) => this.apiRequest(method, path, body, options));
+        this.ingestOperations = new IngestOperationsClient((method, path, body, options, headers) => this.apiRequest(method, path, body, options, headers), this.actingCompanySlug);
+        this.publicReads = new PublicReadClient((path, headers, options) => this.publicRead(path, headers, options));
         if (this.queueEnabled) {
             this.queue = this.queueStorage.load();
         }
@@ -538,11 +574,25 @@ export class CustdClient {
         return `custd: batch rejected ${failed.length} of ${results?.length ?? failed.length} event(s): ${parts.join("; ")}`;
     }
     async adminRequest(method, path, body, options) {
-        return this.apiRequest(method, `/admin${path}`, body, options);
+        return this.apiRequest(method, `/admin${this.actingCompanyPath(path)}`, body, options);
+    }
+    // actingCompanyPath names the configured acting company in the `companySlug` query
+    // the admin routes read, keeping a selector the call already set.
+    actingCompanyPath(path) {
+        if (this.actingCompanySlug === "") {
+            return path;
+        }
+        const [route, query = ""] = path.split("?", 2);
+        const params = new URLSearchParams(query);
+        if (params.get("companySlug")) {
+            return path;
+        }
+        params.set("companySlug", this.actingCompanySlug);
+        return `${route}?${params.toString()}`;
     }
     async offboardingDownload(path, options) {
         const token = await this.getToken(options);
-        const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${path}`, {
+        const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${this.actingCompanyPath(path)}`, {
             method: "GET",
             headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
             signal: options?.signal,
@@ -574,7 +624,7 @@ export class CustdClient {
     }
     async auditExportDownload(path, options) {
         const token = await this.getToken(options);
-        const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${path}`, {
+        const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${this.actingCompanyPath(path)}`, {
             method: "GET",
             headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
             signal: options?.signal,
@@ -585,22 +635,21 @@ export class CustdClient {
         const bytes = await readBoundedResponse(response, maxAuditExportBytes, "audit export download");
         return { bytes, contentType: response.headers.get("content-type") ?? "" };
     }
-    async apiRequest(method, path, body, options) {
+    async apiRequest(method, path, body, options, headers) {
         const token = await this.getToken(options);
         let response;
         try {
-            // A byte body is a file upload and is sent as raw bytes; every other body is JSON.
-            const rawBody = body instanceof Uint8Array;
             response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
                 method,
                 headers: {
-                    "Content-Type": rawBody ? "application/octet-stream" : "application/json",
+                    ...requestContentType(body),
                     Authorization: `Bearer ${token}`,
                     ...this.defaultHeaders,
+                    ...headers,
                     ...(options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
                     ...(options?.owningUserUuid ? { "X-Custd-Owning-User-UUID": options.owningUserUuid } : {}),
                 },
-                body: body === undefined ? undefined : rawBody ? Uint8Array.from(body) : JSON.stringify(body),
+                body: requestBody(body),
                 signal: options?.signal,
             });
         }
@@ -644,6 +693,23 @@ export class CustdClient {
         }
         return (await response.json());
     }
+    // publicRead issues a GET that carries none of the client's own credentials.
+    async publicRead(path, headers, options) {
+        let response;
+        try {
+            response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
+                method: "GET",
+                headers: { ...headers, "X-Custd-Sdk": SDK_IDENTITY },
+                signal: options?.signal,
+            });
+        }
+        catch (error) {
+            throw transportRequestError(error);
+        }
+        if (!response.ok)
+            throw await responseRequestError(response, "request_failed");
+        return (await response.json());
+    }
     async apiDownload(path, options) {
         const token = await this.getToken(options);
         const response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
@@ -661,6 +727,22 @@ export class CustdClient {
             throw new Error("custd: report export download exceeds 64 MiB");
         return bytes;
     }
+}
+// A byte body is a file upload sent as raw bytes, a form is a multipart upload whose boundary fetch
+// sets, and every other body is JSON.
+function requestContentType(body) {
+    if (body instanceof FormData)
+        return {};
+    return { "Content-Type": body instanceof Uint8Array ? "application/octet-stream" : "application/json" };
+}
+function requestBody(body) {
+    if (body === undefined)
+        return undefined;
+    if (body instanceof FormData)
+        return body;
+    if (body instanceof Uint8Array)
+        return Uint8Array.from(body);
+    return JSON.stringify(body);
 }
 async function readBoundedResponse(response, maxBytes, operation) {
     if (!response.body) {
@@ -704,10 +786,11 @@ class ReportingNamespace {
             throw new Error("custd: report export requires a dashboard key and 1 to 8 formats");
         return this.request("POST", "/reporting/exports", input, options);
     }
-    listExports(limit = 50, options) {
+    async listExports(limit = 50, options) {
         if (!Number.isInteger(limit) || limit < 1 || limit > 100)
             throw new Error("custd: report export limit must be between 1 and 100");
-        return this.request("GET", `/reporting/exports?limit=${limit}`, undefined, options);
+        const list = await this.request("GET", `/reporting/exports?limit=${limit}`, undefined, options);
+        return { exports: list.exports ?? [] };
     }
     getExport(exportId, options) {
         assertUuid(exportId, "exportId");
@@ -721,6 +804,42 @@ class ReportingNamespace {
         assertUuid(exportId, "exportId");
         assertUuid(artifactId, "artifactId");
         return this.download(`/reporting/exports/${encodeURIComponent(exportId)}/artifacts/${encodeURIComponent(artifactId)}`, options);
+    }
+    /** Exports a completed time-plan run's frozen report source in one to eight formats. */
+    async createCompletedRunExport(input, options) {
+        if (input.formats.length < 1 || input.formats.length > 8)
+            throw new Error("custd: completed run export requires 1 to 8 formats");
+        const job = await this.request("POST", "/reporting/exports/completed-run", input, options);
+        return { ...job, formats: job.formats ?? [] };
+    }
+    /** Lists the dashboards the tenant can open. */
+    async dashboards(options) {
+        const response = await this.request("GET", "/reporting/dashboards", undefined, options);
+        return {
+            dashboards: (response.dashboards ?? []).map((entry) => ({
+                ...entry,
+                interactions: entry.interactions ?? [],
+                exportFormats: entry.exportFormats ?? [],
+            })),
+        };
+    }
+    /** Starts, or returns, the data generation that backs one dashboard view. */
+    async generateDashboardData(input, options) {
+        const generation = await this.request("POST", "/reporting/dashboard-data-generations", input, options);
+        return {
+            ...generation,
+            datasetRowCounts: generation.datasetRowCounts ?? [],
+            datasetSchemas: (generation.datasetSchemas ?? []).map((schema) => ({ ...schema, columns: schema.columns ?? [] })),
+        };
+    }
+    /** Renders one query against a pack definition that is not published. */
+    async previewDraft(input, options) {
+        const data = await this.request("POST", "/reporting/draft-preview", input, options);
+        emptyNullBuckets(data);
+        if (!isRenderedWidgetData(data)) {
+            throw new Error("custd: invalid reporting draft preview response");
+        }
+        return data;
     }
     dashboard(key, options) {
         return this.request("GET", `/reporting/dashboards/${encodeURIComponent(key)}`, undefined, options);
@@ -742,6 +861,7 @@ class ReportingNamespace {
     }
     async query(request, options) {
         const data = await this.request("POST", "/reporting/query", request, options);
+        emptyNullBuckets(data);
         if (!isRenderedWidgetData(data)) {
             throw new Error("custd: invalid reporting query response");
         }
@@ -755,6 +875,8 @@ class ReportingNamespace {
             throw new Error("custd: invalid subject insight request");
         }
         const response = await this.request("POST", "/reporting/insights/subject", request, options);
+        if (isRecord(response))
+            emptyNullBuckets(response.data);
         if (!isSubjectInsightResponse(response)) {
             throw new Error("custd: invalid subject insight response");
         }
@@ -822,6 +944,11 @@ function isValidRfc3339(value) {
         offsetHour <= 24 &&
         offsetMinute <= 59 &&
         (offsetHour !== 24 || offsetMinute === 0));
+}
+/** A JSON null bucket list decodes as empty. */
+function emptyNullBuckets(value) {
+    if (isRecord(value) && value.buckets === null)
+        value.buckets = [];
 }
 function isSubjectInsightResponse(value) {
     if (!isRecord(value) || !isRenderedWidgetData(value.data))
@@ -942,6 +1069,40 @@ class SchemaNamespace {
     infer(input) {
         return this.request("POST", "/schemas/infer", input);
     }
+    /** Lists the tenant's event types. */
+    async list() {
+        const eventTypes = await this.request("GET", schemaRegistryPath);
+        return { eventTypes: eventTypes ?? [] };
+    }
+    /** Lists an event type's schema versions. */
+    async listVersions(eventType) {
+        const versions = await this.request("GET", `${eventSchemaPath(eventType)}/versions`);
+        return { versions: versions ?? [] };
+    }
+    /** Returns one version's JSON Schema document. */
+    async get(eventType, version) {
+        return { schema: await this.request("GET", eventSchemaPath(eventType, version)) };
+    }
+    /** Stores a schema version, creating the event type when it is new, and returns the event type. */
+    register(input) {
+        return this.request("POST", schemaRegistryPath, input);
+    }
+    /** Makes one version the event type's active schema. */
+    activate(eventType, version) {
+        return this.request("POST", `${eventSchemaPath(eventType, version)}/active`);
+    }
+    /** Lets events validate against one version again. */
+    enable(eventType, version) {
+        return this.request("PUT", `${eventSchemaPath(eventType, version)}/enabled`);
+    }
+    /** Deprecates one version so new events no longer validate against it. */
+    disable(eventType, version) {
+        return this.request("DELETE", `${eventSchemaPath(eventType, version)}/enabled`);
+    }
+    /** Retires the tenant's event type. Its schemas and stored events stay readable. */
+    disableEventType(eventType) {
+        return this.request("DELETE", eventSchemaPath(eventType));
+    }
     async sendTestEvent(event) {
         const prepared = prepareEvent(event);
         validateEvent(prepared);
@@ -978,6 +1139,25 @@ class AdminNamespace {
         this.timePlans = new TimePlanAdminClient(request);
         this.usage = new UsageAdminClient(request);
         this.authProjects = new AuthProjectAdminClient(request);
+        this.workflowTimings = new WorkflowTimingAdminClient(request);
+        this.users = new AdminUserAdminClient(request);
+        this.uncertaintyModels = new UncertaintyModelAdminClient(request);
+        this.impersonation = new ImpersonationAdminClient(request);
+        this.supportAccess = new SupportAccessAdminClient(request);
+        this.system = new SystemAdminClient(request);
+        this.environmentPolicy = new EnvironmentPolicyAdminClient(request);
+        this.rls = new RlsAdminClient(request);
+        this.oauthClientAdmissions = new OAuthClientAdmissionAdminClient(request);
+        this.sdkUsage = new SdkUsageAdminClient(request);
+        this.ingestClaims = new IngestClaimAdminClient(request);
+        this.accountingEvidence = new AccountingEvidenceAdminClient(request);
+        this.webhooks = new NotificationWebhookAdminClient(request);
+        this.notificationDestinations = new NotificationDestinationAdminClient(nonAdminRequest);
+        this.emailRelay = new EmailRelayAdminClient(request);
+        this.campaignEmail = new CampaignEmailAdminClient(request);
+        this.eventTypes = new EventTypeAdminClient(request);
+        this.errorIssues = new ErrorIssueAdminClient(nonAdminRequest);
+        this.managedAudit = new ManagedAuditAdminClient(nonAdminRequest);
     }
 }
 class ProvisioningNamespace {
@@ -987,47 +1167,72 @@ class ProvisioningNamespace {
         this.reservations = new ProvisioningReservationsNamespace(request);
     }
 }
+/** Producer reservations under one data space. A system administrator names the parent tenant. */
 class ProvisioningReservationsNamespace {
     constructor(request) {
         this.request = request;
     }
-    reserve(dataSpaceSlug, body) {
-        return this.request("POST", `/data-spaces/${encodeURIComponent(dataSpaceSlug)}/producer-reservations`, body);
+    reserve(dataSpaceSlug, body, parentCompanySlug) {
+        return this.request("POST", reservationsPath(dataSpaceSlug, "", parentCompanySlug), body);
     }
-    list(dataSpaceSlug) {
-        return this.request("GET", `/data-spaces/${encodeURIComponent(dataSpaceSlug)}/producer-reservations`);
+    list(dataSpaceSlug, parentCompanySlug) {
+        return this.request("GET", reservationsPath(dataSpaceSlug, "", parentCompanySlug));
     }
-    claim(dataSpaceSlug, producerSlug, body) {
-        return this.request("POST", `/data-spaces/${encodeURIComponent(dataSpaceSlug)}/producer-reservations/${encodeURIComponent(producerSlug)}/claim`, body);
+    claim(dataSpaceSlug, producerSlug, body, parentCompanySlug) {
+        return this.request("POST", reservationsPath(dataSpaceSlug, `/${encodeURIComponent(producerSlug)}/claim`, parentCompanySlug), body);
     }
-    release(dataSpaceSlug, producerSlug) {
-        return this.request("DELETE", `/data-spaces/${encodeURIComponent(dataSpaceSlug)}/producer-reservations/${encodeURIComponent(producerSlug)}`);
+    release(dataSpaceSlug, producerSlug, parentCompanySlug) {
+        return this.request("DELETE", reservationsPath(dataSpaceSlug, `/${encodeURIComponent(producerSlug)}`, parentCompanySlug));
     }
+}
+function reservationsPath(dataSpaceSlug, suffix, parentCompanySlug) {
+    return `/data-spaces/${encodeURIComponent(dataSpaceSlug)}/producer-reservations${suffix}${parentQuery(parentCompanySlug)}`;
 }
 class ProvisioningDataSpaceNamespace {
     constructor(request) {
         this.request = request;
     }
-    create(dataSpace) {
-        return this.request("POST", "/data-spaces", dataSpace);
+    /** Creates a data space under the caller's company; a system administrator names the parent tenant. */
+    create(dataSpace, parentCompanySlug) {
+        return this.request("POST", `/data-spaces${parentQuery(parentCompanySlug)}`, dataSpace);
     }
-    list() {
-        return this.request("GET", "/data-spaces");
+    /** Lists the caller's data spaces; a system administrator names the parent tenant. */
+    list(parentCompanySlug) {
+        return this.request("GET", `/data-spaces${parentQuery(parentCompanySlug)}`);
     }
-    revoke(slug) {
-        return this.request("DELETE", `/data-spaces/${encodeURIComponent(slug)}`);
+    /** Reads retained storage per data space. A system administrator names the parent tenant. */
+    async usage(parentCompanySlug) {
+        const summary = await this.request("GET", `/data-spaces/usage${parentQuery(parentCompanySlug)}`);
+        return { ...summary, dataSpaces: summary.dataSpaces ?? [] };
     }
+    revoke(slug, parentCompanySlug) {
+        return this.request("DELETE", `/data-spaces/${encodeURIComponent(slug)}${parentQuery(parentCompanySlug)}`);
+    }
+}
+function parentQuery(parentCompanySlug) {
+    return parentCompanySlug ? `?${new URLSearchParams({ parentCompanySlug })}` : "";
+}
+function provisionedProducer(credentials) {
+    return {
+        ...credentials,
+        scopes: credentials.scopes ?? [],
+        allowedEnvironments: credentials.allowedEnvironments ?? [],
+    };
 }
 class ProvisioningProducerNamespace {
     constructor(request) {
         this.request = request;
     }
-    provision(request) {
-        return this.request("POST", "/producer-provisioning", request);
+    async provision(request) {
+        return provisionedProducer(await this.request("POST", "/producer-provisioning", request));
     }
-    list(companySlug) {
+    async list(companySlug) {
         const query = companySlug ? `?companySlug=${encodeURIComponent(companySlug)}` : "";
-        return this.request("GET", `/producer-provisioning${query}`).then((response) => response.producers);
+        const response = await this.request("GET", `/producer-provisioning${query}`);
+        return { producers: (response.producers ?? []).map(publicProducer) };
+    }
+    async get(clientId) {
+        return publicProducer(await this.request("GET", `/producer-provisioning/${encodeURIComponent(clientId)}`));
     }
     rotateSecret(clientId) {
         return this.request("POST", `/producer-provisioning/${encodeURIComponent(clientId)}/rotate-secret`);
@@ -1038,14 +1243,39 @@ class ProvisioningProducerNamespace {
      * credential: one producer is expected to carry every environment unless an
      * operator deliberately restricts it.
      */
-    updateEnvironment(clientId, environment) {
-        return this.request("PATCH", `/producer-provisioning/${encodeURIComponent(clientId)}/environment`, {
-            environment,
-        });
+    async updateEnvironment(clientId, environment) {
+        const path = `/producer-provisioning/${encodeURIComponent(clientId)}/environment`;
+        return publicProducer(await this.request("PATCH", path, { environment }));
     }
     revoke(clientId) {
         return this.request("DELETE", `/producer-provisioning/${encodeURIComponent(clientId)}`);
     }
+}
+function publicProducer(producer) {
+    return { ...producer, scopes: producer.scopes ?? [], allowedEnvironments: producer.allowedEnvironments ?? [] };
+}
+function historicalCleanupReceipt(wire) {
+    return {
+        companyId: wire.company_id,
+        requestedByKind: wire.requested_by_kind,
+        requestedAt: wire.requested_at,
+        completedAt: wire.completed_at,
+        finalState: wire.final_state,
+        perStore: (wire.per_store ?? []).map((store) => ({
+            store: store.store,
+            retentionClass: store.retention_class,
+            deletedCount: store.deleted_count,
+            retainedExceptionsCount: store.retained_exceptions_count,
+        })),
+        ...(wire.waiver ? { waiver: wire.waiver } : {}),
+        sha256: wire.sha256,
+    };
+}
+function tenantCompanyPath(slug, action, companyId) {
+    if (!Number.isInteger(companyId) || companyId <= 0) {
+        throw new Error("custd: company id must be a positive integer");
+    }
+    return `/tenants/${encodeURIComponent(slug)}/${action}?companyId=${companyId}`;
 }
 class AdminTenantNamespace {
     constructor(request) {
@@ -1063,6 +1293,34 @@ class AdminTenantNamespace {
     delete(slug) {
         return this.request("DELETE", `/tenants/${encodeURIComponent(slug)}`);
     }
+    /**
+     * Permanently removes an already deleted tenant once its cleanup is finished.
+     * The server refuses an unready tenant with a conflict.
+     */
+    finalize(slug, companyId) {
+        return this.request("POST", tenantCompanyPath(slug, "finalize", companyId));
+    }
+    /**
+     * Runs the credential-revoking, queue, database and object-storage cleanup for a
+     * deleted tenant. The idempotencyKey is required: repeat it to retry the same cleanup.
+     */
+    async historicalCleanup(slug, companyId, options = {}) {
+        const path = tenantCompanyPath(slug, "historical-cleanup", companyId);
+        if (!options.idempotencyKey?.trim()) {
+            throw new Error("custd: historical cleanup idempotency key is required");
+        }
+        const wire = await this.request("POST", path, undefined, options);
+        return historicalCleanupReceipt(wire);
+    }
+    getDataSpaceEntitlement(slug) {
+        return this.request("GET", `/tenants/${encodeURIComponent(slug)}/data-space-entitlement`);
+    }
+    updateDataSpaceEntitlement(slug, body) {
+        return this.request("PUT", `/tenants/${encodeURIComponent(slug)}/data-space-entitlement`, body);
+    }
+    updateStorageLimit(slug, body) {
+        return this.request("PUT", `/tenants/${encodeURIComponent(slug)}/storage-limit`, body);
+    }
 }
 // Custd requires a canonical UUIDv7 Idempotency-Key on every OAuth client
 // mutation, so one is generated when the caller does not supply it. A caller that
@@ -1072,8 +1330,18 @@ class AdminOAuthClientNamespace {
     constructor(request) {
         this.request = request;
     }
-    create(client, options = {}) {
-        return this.request("POST", "/oauth-clients", client, mutationOptions(options));
+    async create(client, options = {}) {
+        const created = await this.request("POST", "/oauth-clients", client, mutationOptions(options));
+        const { loginSetup } = created;
+        return {
+            ...created,
+            scopes: created.scopes ?? [],
+            ...(loginSetup
+                ? {
+                    loginSetup: { ...loginSetup, scopes: loginSetup.scopes ?? [], redirectUris: loginSetup.redirectUris ?? [] },
+                }
+                : {}),
+        };
     }
     list() {
         return this.request("GET", "/oauth-clients");
@@ -1086,6 +1354,13 @@ class AdminOAuthClientNamespace {
     }
     rotateSecret(clientId, options = {}) {
         return this.request("POST", `/oauth-clients/${encodeURIComponent(clientId)}/rotate-secret`, undefined, mutationOptions(options));
+    }
+    /**
+     * Issues a new secret for a client whose current secret nobody holds. The new secret is shown only
+     * in this response.
+     */
+    replaceUnknownSecret(clientId, options = {}) {
+        return this.request("POST", `/oauth-clients/${encodeURIComponent(clientId)}/replace-unknown-secret`, undefined, mutationOptions(options));
     }
     updateScopes(clientId, body, options = {}) {
         return this.request("PATCH", `/oauth-clients/${encodeURIComponent(clientId)}/scopes`, body, mutationOptions(options));
@@ -1103,10 +1378,14 @@ class AdminSiteNamespace {
     }
     async list() {
         const response = await this.request("GET", "/sites");
-        return { sites: response.sites.map(publicAdminSite) };
+        return { sites: (response.sites ?? []).map(publicAdminSite) };
     }
     async get(siteUuid) {
         const site = await this.request("GET", `/sites/${encodeURIComponent(siteUuid)}`);
+        return publicAdminSite(site);
+    }
+    async update(siteUuid, body) {
+        const site = await this.request("PATCH", `/sites/${encodeURIComponent(siteUuid)}`, body);
         return publicAdminSite(site);
     }
     delete(siteUuid) {
@@ -1120,46 +1399,72 @@ class AdminSchemaNamespace {
     constructor(request) {
         this.request = request;
     }
-    list() {
-        return this.request("GET", "/schemas");
-    }
-    get(eventTypeSlug) {
-        return this.request("GET", `/schemas/${encodeURIComponent(eventTypeSlug)}`);
-    }
-    register(schema) {
-        return this.request("POST", "/schemas", schema);
-    }
-    createVersion(eventTypeSlug, schema) {
-        return this.request("POST", `/schemas/${encodeURIComponent(eventTypeSlug)}/versions`, schema);
-    }
     validate(body) {
         return this.request("POST", "/schema/validate", body);
     }
     enableVersion(tenantSlug, eventTypeSlug, body) {
         return this.request("POST", `/schema/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(eventTypeSlug)}/enable`, body);
     }
+    register(tenantSlug, eventTypeSlug, body) {
+        return this.request("POST", `/schema/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(eventTypeSlug)}/register`, body);
+    }
     dryRun(tenantSlug, eventTypeSlug, body) {
         return this.request("POST", `/schema/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(eventTypeSlug)}/dry-run`, body);
     }
-    audit() {
-        return this.request("GET", "/schema/audit");
+    async audit(tenantSlug) {
+        const query = tenantSlug ? `?${new URLSearchParams({ tenantSlug })}` : "";
+        const audit = await this.request("GET", `/schema/audit${query}`);
+        return { ...audit, schemas: (audit.schemas ?? []).map(schemaAuditResult) };
     }
+}
+function schemaAuditResult(result) {
+    const compile = (pass) => ({ ...pass, issues: pass.issues ?? [] });
+    return {
+        ...result,
+        issueCodes: result.issueCodes ?? [],
+        legacyCompile: compile(result.legacyCompile),
+        sharedCompile: compile(result.sharedCompile),
+        exampleValidation: { ...result.exampleValidation, issueCodes: result.exampleValidation.issueCodes ?? [] },
+    };
+}
+function privacyRules(rules) {
+    return { ...rules, rules: rules.rules ?? [] };
 }
 class AdminPrivacyNamespace {
     constructor(request) {
         this.request = request;
     }
-    getRules() {
-        return this.request("GET", "/privacy/rules");
+    async getRules(companySlug) {
+        const query = companySlug ? `?${new URLSearchParams({ companySlug })}` : "";
+        return privacyRules(await this.request("GET", `/privacy/rules${query}`));
     }
-    setRules(body) {
-        return this.request("PUT", "/privacy/rules", body);
+    async setRules(body) {
+        return privacyRules(await this.request("PUT", "/privacy/rules", body));
     }
     mapIdentifier(companySlug, body) {
         return this.request("POST", `/privacy/identifiers/${encodeURIComponent(companySlug)}/map`, body);
     }
-    listIdentifierMappings(companySlug) {
-        return this.request("GET", `/privacy/identifiers/${encodeURIComponent(companySlug)}`);
+    async listIdentifierMappings(companySlug) {
+        const list = await this.request("GET", `/privacy/identifiers/${encodeURIComponent(companySlug)}`);
+        return { ...list, mappings: list.mappings ?? [] };
+    }
+    async listConsent(subjectId, companySlug) {
+        const params = new URLSearchParams({ subjectId });
+        if (companySlug)
+            params.set("companySlug", companySlug);
+        const response = await this.request("GET", `/privacy/consent?${params}`);
+        return { ...response, records: response.records ?? [] };
+    }
+    recordConsent(body) {
+        return this.request("POST", "/privacy/consent", body);
+    }
+    revokeConsent(subjectId, revoke) {
+        const params = new URLSearchParams({ purpose: revoke.purpose });
+        if (revoke.source)
+            params.set("source", revoke.source);
+        if (revoke.companySlug)
+            params.set("companySlug", revoke.companySlug);
+        return this.request("DELETE", `/privacy/consent/${encodeURIComponent(subjectId)}?${params}`);
     }
 }
 class AdminStorageAlertsNamespace {
@@ -1174,6 +1479,10 @@ class AdminStorageAlertsNamespace {
     }
     deleteRule(tenantSlug, ruleId) {
         return this.request("DELETE", `/storage/alerts/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(ruleId)}`);
+    }
+    async listEvents(tenantSlug) {
+        const response = await this.request("GET", `/storage/alerts/${encodeURIComponent(tenantSlug)}/events`);
+        return { events: response.events ?? [] };
     }
 }
 const auditDisclosureStates = new Set(["available", "redacted", "not_recorded"]);
@@ -1242,6 +1551,7 @@ function mapAdminAuditEvent(event) {
         ...(changes.length > 0 ? { changes } : {}),
         ...(details !== undefined && typeof details === "object" && !Array.isArray(details) ? { details } : {}),
         ...(network !== undefined ? { network } : {}),
+        ...(event.domainHistory !== undefined ? { domainHistory: event.domainHistory } : {}),
         createdAt: event.createdAt,
     };
 }
@@ -1251,7 +1561,6 @@ function mapAdminReportingPackAuditEvent(event) {
         ...(event.actorReference !== undefined ? { actorReference: event.actorReference } : {}),
         actorDisplayName: event.actorDisplayName,
         resourceType: event.resourceType,
-        resourceId: event.resourceId,
         packKey: event.packKey,
         createdAt: event.createdAt,
     };
@@ -1313,7 +1622,7 @@ class AdminAuditNamespace {
         const response = await this.request("GET", `/audit/events${this.auditQuery(options)}`);
         const retention = mapAdminAuditRetention(response.retention);
         return {
-            events: response.events.map(mapAdminAuditEvent),
+            events: (response.events ?? []).map(mapAdminAuditEvent),
             nextCursor: response.nextCursor ?? { cursor: "" },
             ...(typeof response.coverageBeginsAt === "string" ? { coverageBeginsAt: response.coverageBeginsAt } : {}),
             ...(retention === undefined ? {} : { retention }),
@@ -1333,7 +1642,7 @@ class AdminAuditNamespace {
     }
     async listReportingPackEvents(packKey) {
         const response = await this.request("GET", `/reporting-packs/audit-events?packKey=${encodeURIComponent(packKey)}`);
-        return { events: response.events.map(mapAdminReportingPackAuditEvent) };
+        return { events: (response.events ?? []).map(mapAdminReportingPackAuditEvent) };
     }
 }
 class AdminReportingPacksNamespace {
@@ -1386,51 +1695,13 @@ class AdminReportingPacksNamespace {
     rollbackGeneration(generationId) {
         return this.request("POST", `/reporting-packs/generations/${encodeURIComponent(generationId)}/rollback`);
     }
+    async listGenerationValidity() {
+        const response = await this.request("GET", "/reporting-packs/generation-validity");
+        return { generations: response.generations ?? [] };
+    }
     getRollupProvenance(generationId) {
         return this.request("GET", `/reporting-packs/generations/${encodeURIComponent(generationId)}/rollup-provenance`);
     }
-}
-class AdminMeasurementNamespace {
-    constructor(request) {
-        this.projects = new AdminMeasurementProjectNamespace(request);
-    }
-}
-class AdminMeasurementProjectNamespace {
-    constructor(request) {
-        this.request = request;
-    }
-    create(project) {
-        return this.request("POST", "/measurement/projects", project);
-    }
-    list() {
-        return this.request("GET", "/measurement/projects");
-    }
-    get(projectUuid) {
-        return this.request("GET", `/measurement/projects/${encodeURIComponent(projectUuid)}`);
-    }
-    submitObservation(projectUuid, observation) {
-        return this.submitObservations(projectUuid, { rows: [observation] });
-    }
-    async submitObservations(projectUuid, request) {
-        const response = await this.request("POST", `/measurement/projects/${encodeURIComponent(projectUuid)}/observations:bulk`, request);
-        validateMeasurementResults(response.results, request.rows.length);
-        return response;
-    }
-    async importCSVString(projectUuid, csv, expectedRows) {
-        const response = await this.request("POST", `/measurement/projects/${encodeURIComponent(projectUuid)}/observations:csv`, { csv });
-        validateMeasurementResults(response.results, expectedRows);
-        return response;
-    }
-}
-function validateMeasurementResults(results, submittedRows) {
-    if (results.length !== submittedRows) {
-        throw new Error(`custd: measurement result count ${results.length} does not match submitted row count ${submittedRows}`);
-    }
-    results.forEach((result, index) => {
-        if (result.success && !result.observationUuid) {
-            throw new Error(`custd: measurement result ${index} missing observationUuid`);
-        }
-    });
 }
 // redactedProvisionedProducer returns the display-safe view of a provisioned
 // producer bundle, omitting the client secret so it is safe for dashboards.
@@ -1904,5 +2175,28 @@ function randomUUID() {
     }
     return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => (Number(c) ^ ((Math.random() * 16) >> (Number(c) / 4))).toString(16));
 }
+export * from "./admin-accounting-evidence.js";
+export * from "./admin-campaign-email.js";
+export * from "./admin-email-relay.js";
+export * from "./admin-environment-policy.js";
+export * from "./admin-error-issues.js";
+export * from "./admin-event-types.js";
+export * from "./admin-impersonation.js";
+export * from "./admin-ingest-claims.js";
+export * from "./admin-managed-audit.js";
+export * from "./admin-measurement-projects.js";
+export * from "./admin-notification-destinations.js";
+export * from "./admin-notification-webhooks.js";
+export * from "./admin-oauth-client-admissions.js";
+export * from "./admin-rls.js";
+export * from "./admin-sdk-usage.js";
+export * from "./admin-support-access.js";
+export * from "./admin-system.js";
+export * from "./admin-uncertainty-models.js";
+export * from "./analytics-reads.js";
 export * from "./app-account.js";
 export { createErrorCaptureEvent, ErrorCaptureClient, installBrowserErrorCapture, installNativeErrorCapture, } from "./error-capture.js";
+export * from "./ingest-operations.js";
+export * from "./measurement.js";
+export * from "./public-reads.js";
+export * from "./reporting-catalogue.js";

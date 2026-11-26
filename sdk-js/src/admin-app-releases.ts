@@ -39,8 +39,25 @@ export type AppReleaseHeaderRule = {
 /** Applies a cache mode to the files `match` selects. */
 export type AppReleaseCacheRule = { match: string; mode: AppReleaseCacheMode };
 
-/** A route the host may serve with share previews. */
-export type AppReleaseShareableRoute = { route: string };
+/**
+ * A route the host serves with share previews. `route` has exactly one `*` segment, which carries the
+ * share token; `kind` is the item kind the link must open. `title` and `description` may use
+ * `{{field}}` placeholders, and `cardTemplate` names the release file the card renders from.
+ */
+export type AppReleaseShareableRoute = {
+  route: string;
+  kind: string;
+  cardTemplate: string;
+  title: string;
+  description?: string;
+};
+
+/** The app's own share card, required whenever the release declares shareable routes. */
+export type AppReleaseSiteCard = {
+  title: string;
+  description?: string;
+  cardTemplate: string;
+};
 
 /** How the host serves the release. `indexFile` defaults to `index.html` on the server. */
 export type AppReleaseRouting = {
@@ -50,12 +67,15 @@ export type AppReleaseRouting = {
   headers?: AppReleaseHeaderRule[];
   cache?: AppReleaseCacheRule[];
   shareableRoutes?: AppReleaseShareableRoute[];
+  siteCard?: AppReleaseSiteCard;
 };
 
 /** A new release's files and routing. The server assigns the identifier and creation time. */
 export type AppReleaseCreateRequest = {
   files: AppReleaseFile[];
   routing: AppReleaseRouting;
+  /** A short human label for the release. */
+  label?: string;
 };
 
 /** The stored manifest of one release. */

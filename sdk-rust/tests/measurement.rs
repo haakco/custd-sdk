@@ -3,7 +3,7 @@ mod support;
 use custd_sdk::{
     CustdClient, Error, MeasurementForecastRunRequest, MeasurementObservation,
     MeasurementObservationBulk, MeasurementProjectCreate, MeasurementSeriesCreate,
-    MeasurementTargetCreate, SDK_IDENTITY,
+    MeasurementSimulationRunRequest, MeasurementTargetCreate, SDK_IDENTITY,
 };
 use support::{FakeServer, answer};
 
@@ -32,6 +32,20 @@ fn project_create() -> MeasurementProjectCreate {
             state: "active".to_owned(),
         },
     }
+}
+
+#[test]
+fn project_series_carry_the_unit_label() {
+    let project = PROJECT.replace(
+        r#""series":null"#,
+        r#""series":[{"seriesUuid":"s-1","seriesCode":"done","name":"Done","unitSlug":"count","unitLabel":"tasks","completionDirection":"up","source":"manual"}]"#,
+    );
+    let server = FakeServer::start(vec![answer(200, &project)]);
+    let client = CustdClient::new(&server.base_url, "token-1");
+
+    let project = client.get_measurement_project("p-1").unwrap();
+
+    assert_eq!(project.series[0].unit_label.as_deref(), Some("tasks"));
 }
 
 #[test]
@@ -132,4 +146,24 @@ fn forecast_runs_use_the_analytics_route_and_decode_the_counter() {
         "/api/v1/measurement/projects/p-1/forecast-runs"
     );
     assert_eq!(received.body, r#"{"seed":7}"#);
+}
+
+#[test]
+fn simulation_runs_decode_the_server_null_lists_and_map_as_empty() {
+    let run = r#"{"simulationRunUuid":"s-1","projectUuid":"p-1","decisionUuid":"d-1","status":"completed",
+    "method":"monte_carlo","generatedAt":"2026-11-17T00:00:00Z","completedAt":"2026-11-17T00:00:01Z",
+    "sampleCount":1000,"seed":7,"variables":null,"provenance":null}"#;
+    let server = FakeServer::start(vec![answer(200, run)]);
+    let client = CustdClient::new(&server.base_url, "t");
+
+    let request = MeasurementSimulationRunRequest {
+        seed: Some(7),
+        ..Default::default()
+    };
+    let simulation = client
+        .create_measurement_simulation_run("p-1", "d-1", &request)
+        .unwrap();
+
+    assert!(simulation.variables.is_empty() && simulation.provenance.is_empty());
+    assert_eq!(server.next().body, r#"{"seed":7}"#);
 }

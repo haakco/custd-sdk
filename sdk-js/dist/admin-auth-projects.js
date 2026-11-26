@@ -180,10 +180,90 @@ export class AuthProjectAdminClient {
     createAppDeployCredential(slug, options) {
         return this.request("POST", `${appPath(slug)}/deploy-credentials`, undefined, options);
     }
+    /** List the app's deploy credentials, newest first. */
+    async listAppDeployCredentials(slug, options) {
+        const path = `${appPath(slug)}/deploy-credentials`;
+        const list = await this.request("GET", path, undefined, options);
+        return { credentials: list.credentials ?? [] };
+    }
+    /** Take the app offline, keeping its releases and data. The Idempotency-Key finishes an incomplete pause. */
+    pauseApp(slug, options) {
+        return this.request("POST", `${appPath(slug)}/pause`, undefined, requireIdempotencyKey(options));
+    }
+    /** Serve the app again, with its newest verified release when none is active. */
+    resumeApp(slug, options) {
+        return this.request("POST", `${appPath(slug)}/resume`, undefined, requireIdempotencyKey(options));
+    }
+    /** Retry the app's Site registration and sign-in setup from its saved hosting configuration. */
+    repairApp(slug, options) {
+        return this.request("POST", `${appPath(slug)}/repair`, undefined, requireIdempotencyKey(options));
+    }
+    /** Change who may sign in to the app. Only the project owner may. */
+    setAppSignIn(slug, body, options) {
+        return this.request("POST", `${appPath(slug)}/sign-in`, body, requireIdempotencyKey(options));
+    }
     /** Remove a deploy credential. Repeating a delete that failed part-way finishes it. */
     async deleteAppDeployCredential(slug, clientId, options) {
         const path = `${appPath(slug)}/deploy-credentials/${encodeURIComponent(clientId)}`;
         await this.request("DELETE", path, undefined, options);
+    }
+    /** Read the environment's authentication hostname, its state and the DNS records it needs. */
+    getEnvironmentAuthDomain(projectId, environmentId, options) {
+        return this.authDomainRequest("GET", projectId, environmentId, "", undefined, options);
+    }
+    /** Reserve a verified hostname for the environment. */
+    bindEnvironmentAuthDomain(projectId, environmentId, body, options) {
+        return this.authDomainRequest("PUT", projectId, environmentId, "", body, options);
+    }
+    /** Reserve a platform-generated issuer hostname for an installed environment. Operators only. */
+    mintEnvironmentAuthDomain(projectId, environmentId, body, options) {
+        return this.authDomainRequest("POST", projectId, environmentId, "/mint", body, options);
+    }
+    /** Claim installed capacity for a reserved realm. A replay returns the same claim. */
+    admitEnvironmentAuthDomain(projectId, environmentId, options) {
+        return this.authDomainRequest("POST", projectId, environmentId, "/admit", undefined, options);
+    }
+    /** Ask for the hostname to be reconciled again. */
+    retryEnvironmentAuthDomain(projectId, environmentId, options) {
+        return this.authDomainRequest("POST", projectId, environmentId, "/retry", undefined, options);
+    }
+    /** Disable the issuer while keeping the hostname reserved. */
+    disableEnvironmentAuthDomain(projectId, environmentId, options) {
+        return this.authDomainRequest("POST", projectId, environmentId, "/disable", undefined, options);
+    }
+    /** Start the cleanup that frees the hostname for a new binding. */
+    releaseEnvironmentAuthDomain(projectId, environmentId, options) {
+        return this.authDomainRequest("POST", projectId, environmentId, "/release", undefined, options);
+    }
+    /** Pin one realm component to an exact incident image until it expires. System operators only. */
+    setEnvironmentAuthDomainImageOverride(projectId, environmentId, body, options) {
+        return this.authDomainRequest("PUT", projectId, environmentId, "/image-override", body, options);
+    }
+    /** End the realm's incident image override. */
+    clearEnvironmentAuthDomainImageOverride(projectId, environmentId, options) {
+        return this.authDomainRequest("DELETE", projectId, environmentId, "/image-override", undefined, options);
+    }
+    /** Upload or replace the realm's brand logo. The server checks the image format from its bytes. */
+    setAuthProjectBrandLogo(projectId, environmentId, logo, filename = "logo", options) {
+        const form = new FormData();
+        form.append("logo", logo, filename);
+        const path = `${environmentDesiredStatePath(projectId, environmentId)}/brand/logo`;
+        return this.request("POST", path, form, options);
+    }
+    /** Remove the realm's brand logo. */
+    async clearAuthProjectBrandLogo(projectId, environmentId, options) {
+        const path = `${environmentDesiredStatePath(projectId, environmentId)}/brand/logo`;
+        await this.request("DELETE", path, undefined, options);
+    }
+    /** List the owner and share links to app items in the environment. */
+    async listEnvironmentAppLinks(projectId, environmentId, options) {
+        const path = `${environmentDesiredStatePath(projectId, environmentId)}/app-links`;
+        const list = await this.request("GET", path, undefined, options);
+        return { links: list.links ?? [] };
+    }
+    authDomainRequest(method, projectId, environmentId, action, body, options) {
+        const path = `${environmentDesiredStatePath(projectId, environmentId)}/domain${action}`;
+        return this.request(method, path, body, options);
     }
     /** Read the environment's supported auth configuration. */
     getEnvironmentCapability(projectId, environmentId, options) {

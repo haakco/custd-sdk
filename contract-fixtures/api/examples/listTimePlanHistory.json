@@ -13,14 +13,26 @@
         "receipt": {
           "allocatorVersion": "example",
           "changes": [
-            {}
+            {
+              "blockId": "example",
+              "fromMs": 1,
+              "toMs": 1
+            }
           ],
           "reason": "example",
           "result": [
-            {}
+            {
+              "blockId": "example",
+              "durationMs": 1,
+              "sequence": 1
+            }
           ],
           "source": [
-            {}
+            {
+              "blockId": "example",
+              "durationMs": 1,
+              "sequence": 1
+            }
           ],
           "summary": "example"
         },

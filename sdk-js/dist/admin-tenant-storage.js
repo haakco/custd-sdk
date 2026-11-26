@@ -1,25 +1,24 @@
-// TenantStorageClient owns tenant-scoped storage location registration.
-// Locations are server-prefixed: the SDK submits clientLocation and the
-// server returns a serverAssignedPrefix that the SDK must use for raw
-// landing writes. Tenant is derived from the auth context; wrong-tenant
-// reads collapse to an empty list indistinguishable from "no locations".
+// TenantStorageClient manages the caller tenant's storage locations. The server derives the tenant
+// from the credential and assigns every location's bucket, root prefix and isolation tier; the caller
+// chooses none of them.
 export class TenantStorageClient {
     constructor(request) {
         this.request = request;
     }
-    list(options) {
-        return this.request("GET", "/tenant-storage-locations", undefined, options);
+    /** Lists the caller tenant's locations; another tenant's are never visible. */
+    async list(options) {
+        const list = await this.request("GET", "/tenant-storage-locations", undefined, options);
+        return { locations: list.locations ?? [] };
     }
-    create(body, options) {
-        return this.request("POST", "/tenant-storage-locations", body, options);
+    /** Asks the server to assign the caller tenant a new location. */
+    create(options) {
+        return this.request("POST", "/tenant-storage-locations", {}, options);
     }
     get(id, options) {
-        return this.request("GET", `/tenant-storage-locations/${encodeURIComponent(id)}`, undefined, options);
+        return this.request("GET", `/tenant-storage-locations/${id}`, undefined, options);
     }
-    // Revoke removes a tenant storage location. The server is the authority for
-    // whether the prefix is immediately unusable; the SDK must not assume
-    // partial deletes are atomic.
+    /** Revokes a location. The server decides when its prefix stops being usable. */
     revoke(id, options) {
-        return this.request("DELETE", `/tenant-storage-locations/${encodeURIComponent(id)}`, undefined, options);
+        return this.request("DELETE", `/tenant-storage-locations/${id}`, undefined, options);
     }
 }

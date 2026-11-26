@@ -125,6 +125,13 @@ export type SiteAIVisibility = {
     /** Referral visits by AI-assistant domain. */
     assistants: SiteTrafficCount[];
     pages: SiteAIPage[];
+    /** The latest provider answer sample, independent of the date range. */
+    answerSample?: SiteAIAnswerSample;
+};
+export type SiteAIAnswerSample = {
+    product: "hosting" | "custd" | "cb" | "awthy";
+    answer?: string;
+    observedAt: string;
 };
 export type AccessLogHourReplay = {
     hourStart: string;

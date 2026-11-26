@@ -2,20 +2,157 @@ import { AuthProjectAdminClient } from "./admin-auth-projects.js";
 import { ClientSetupClient } from "./admin-client-setup.js";
 import { DataLabelAdminClient } from "./admin-data-labels.js";
 import { DataScopeAdminClient, validDataScopeCode } from "./admin-data-scopes.js";
-import { OffboardingClient, type OffboardingDownloadResponse } from "./admin-offboarding.js";
+import {
+  OffboardingClient,
+  type OffboardingDownloadResponse,
+  type OffboardingReceiptPerStore,
+} from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SiteDomainAdminClient } from "./admin-site-domains.js";
+
 import { SiteInsightsAdminClient } from "./admin-site-insights-tasks.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+
+export {
+  AUTH_PROJECT_DOMAIN_CONVERGENCES,
+  AUTH_PROJECT_DOMAIN_IMAGE_COMPONENTS,
+  AUTH_PROJECT_DOMAIN_IMAGE_SOURCES,
+  AUTH_PROJECT_DOMAIN_LIFECYCLES,
+  AUTH_PROJECT_DOMAIN_STATUSES,
+  type AuthProjectAppLink,
+  type AuthProjectAppLinkList,
+  type AuthProjectBrandLogo,
+  type AuthProjectDomainBinding,
+  type AuthProjectDomainBindRequest,
+  type AuthProjectDomainConvergence,
+  type AuthProjectDomainDNSProof,
+  type AuthProjectDomainImageComponent,
+  type AuthProjectDomainImageOverride,
+  type AuthProjectDomainImageOverrideRequest,
+  type AuthProjectDomainImageSet,
+  type AuthProjectDomainImageSource,
+  type AuthProjectDomainImages,
+  type AuthProjectDomainLifecycle,
+  type AuthProjectDomainMintRequest,
+  type AuthProjectDomainStatus,
+} from "./admin-auth-project-domain.js";
+export {
+  ADMIN_USER_GLOBAL_STATES,
+  ADMIN_USER_MEMBERSHIP_STATES,
+  ADMIN_USER_ROLES,
+  type AdminUser,
+  AdminUserAdminClient,
+  type AdminUserCreateRequest,
+  type AdminUserDisableRequest,
+  type AdminUserEnableRequest,
+  type AdminUserGlobalState,
+  type AdminUserListQuery,
+  type AdminUserListResponse,
+  type AdminUserMembershipCreateRequest,
+  type AdminUserMembershipState,
+  type AdminUserPasswordReset,
+  type AdminUserRemovalRequest,
+  type AdminUserRole,
+  type AdminUserScope,
+  type AdminUserUpdateRequest,
+} from "./admin-users.js";
+export {
+  WORKFLOW_TIMING_FACT_KINDS,
+  WORKFLOW_TIMING_STATES,
+  WorkflowTimingAdminClient,
+  type WorkflowTimingAttempt,
+  type WorkflowTimingBatchResult,
+  type WorkflowTimingContribution,
+  type WorkflowTimingDeclaration,
+  type WorkflowTimingDefinition,
+  type WorkflowTimingDefinitionList,
+  type WorkflowTimingDimensionDefinition,
+  type WorkflowTimingDurationHistory,
+  type WorkflowTimingDurationHistoryEntry,
+  type WorkflowTimingDurationProjection,
+  type WorkflowTimingEvaluation,
+  type WorkflowTimingEvaluationArtifact,
+  type WorkflowTimingExcludedStep,
+  type WorkflowTimingExpectation,
+  type WorkflowTimingFact,
+  type WorkflowTimingFactKind,
+  type WorkflowTimingObservation,
+  type WorkflowTimingObservationResult,
+  type WorkflowTimingOutcomeCounts,
+  type WorkflowTimingPrediction,
+  type WorkflowTimingProjectionStatus,
+  type WorkflowTimingProvenance,
+  type WorkflowTimingRebuildResult,
+  type WorkflowTimingReconcileResult,
+  type WorkflowTimingRevision,
+  type WorkflowTimingRun,
+  type WorkflowTimingRunDuration,
+  type WorkflowTimingRunFact,
+  type WorkflowTimingRunList,
+  type WorkflowTimingRunListQuery,
+  type WorkflowTimingRunProjection,
+  type WorkflowTimingRunSummary,
+  type WorkflowTimingRunTiming,
+  type WorkflowTimingState,
+  type WorkflowTimingStepDeclaration,
+  type WorkflowTimingStepDefinition,
+  type WorkflowTimingStepDuration,
+  type WorkflowTimingStepFact,
+} from "./admin-workflow-timings.js";
+
+import { AccountingEvidenceAdminClient } from "./admin-accounting-evidence.js";
+import { CampaignEmailAdminClient } from "./admin-campaign-email.js";
+import { EmailRelayAdminClient } from "./admin-email-relay.js";
+import { EnvironmentPolicyAdminClient } from "./admin-environment-policy.js";
+import { ErrorIssueAdminClient } from "./admin-error-issues.js";
+import { EventTypeAdminClient } from "./admin-event-types.js";
+import { ImpersonationAdminClient } from "./admin-impersonation.js";
+import { IngestClaimAdminClient } from "./admin-ingest-claims.js";
+import { ManagedAuditAdminClient } from "./admin-managed-audit.js";
+import { AdminMeasurementNamespace } from "./admin-measurement-projects.js";
+import { NotificationDestinationAdminClient } from "./admin-notification-destinations.js";
+import { NotificationWebhookAdminClient } from "./admin-notification-webhooks.js";
+import { OAuthClientAdmissionAdminClient } from "./admin-oauth-client-admissions.js";
+import { RlsAdminClient } from "./admin-rls.js";
+import { SdkUsageAdminClient } from "./admin-sdk-usage.js";
+import { SupportAccessAdminClient } from "./admin-support-access.js";
+import { SystemAdminClient } from "./admin-system.js";
 import { TimePlanAdminClient } from "./admin-timeplans.js";
+import { UncertaintyModelAdminClient } from "./admin-uncertainty-models.js";
 import { UsageAdminClient } from "./admin-usage.js";
+import { AdminUserAdminClient } from "./admin-users.js";
+import { WorkflowTimingAdminClient } from "./admin-workflow-timings.js";
 import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
+import { IngestOperationsClient } from "./ingest-operations.js";
+import { MeasurementClient } from "./measurement.js";
 import { basicAuthorization } from "./oauth.js";
 import { ParserClient } from "./parsers.js";
+import { PublicReadClient } from "./public-reads.js";
+import type {
+  CompletedRunExportRequest,
+  ReportingDashboardCatalogue,
+  ReportingDashboardCatalogueEntry,
+  ReportingDashboardGeneration,
+  ReportingDashboardGenerationRequest,
+  ReportingDraftPreviewRequest,
+  ReportingSnapshotColumn,
+  ReportingSnapshotDatasetSchema,
+} from "./reporting-catalogue.js";
+import {
+  type EventSchemaDocument,
+  type EventSchemaRegisterRequest,
+  type EventSchemaStateResult,
+  type EventSchemaVersion,
+  type EventSchemaVersionList,
+  eventSchemaPath,
+  type RegisteredEventType,
+  type RegisteredEventTypeList,
+  schemaRegistryPath,
+} from "./schema-registry.js";
 import { SDK_IDENTITY } from "./version.js";
 
 export type {
@@ -32,6 +169,7 @@ export type {
   AppReleaseResponseHeader,
   AppReleaseRouting,
   AppReleaseShareableRoute,
+  AppReleaseSiteCard,
   AppReleaseSpaFallback,
   AppReleaseState,
   AppReleaseSummary,
@@ -40,14 +178,19 @@ export type {
 export {
   APP_ERROR_CODES,
   APP_REASON_CODES,
+  APP_SIGN_IN_MODES,
   APP_STATUSES,
   type AppCreateRequest,
   type AppCreation,
   type AppDeployCredential,
+  type AppDeployCredentialList,
+  type AppDeployCredentialSummary,
   type AppListResponse,
   type AppOverview,
   type AppReason,
   type AppReasonCode,
+  type AppSignInMode,
+  type AppSignInRequest,
   type AppStatus,
   type AppSummary,
   type AppTrafficReporting,
@@ -83,8 +226,11 @@ export {
   type AudienceGrant,
   type AudienceGrantRequest,
   type AuthEnvironmentClientCleanup,
+  type AuthEnvironmentHostingRemoval,
+  type AuthEnvironmentHostingWithdrawal,
   type AuthEnvironmentRetainedResources,
   AuthProjectAdminClient,
+  type AuthProjectApplicationSessionPolicy,
   type AuthProjectAudienceBinding,
   type AuthProjectCapability,
   type AuthProjectChange,
@@ -117,6 +263,7 @@ export {
   type AuthProjectHostingCapability,
   type AuthProjectHostingIngestTarget,
   type AuthProjectHostingMode,
+  type AuthProjectHostingRemoval,
   type AuthProjectHostingStatus,
   type AuthProjectIdentityMode,
   type AuthProjectInvitation,
@@ -135,6 +282,10 @@ export {
   type AuthProjectRealmProvisionRequest,
   type AuthProjectRealmStep,
   type AuthProjectReleasedResources,
+  type AuthProjectSocialProvider,
+  type AuthProjectSocialProviderName,
+  type AuthProjectSocialSignIn,
+  type AuthProjectSocialSignInStatus,
   type AuthProjectStatus,
   type AuthProjectSummary,
   type PrincipalAudience,
@@ -146,9 +297,11 @@ export {
   type ClientSetupApplyOptions,
   type ClientSetupApplyResponse,
   ClientSetupClient,
+  type ClientSetupEventTypeDesiredState,
   type ClientSetupManifest,
   type ClientSetupOAuthClientDesiredState,
   type ClientSetupOAuthPurposeProfile,
+  type ClientSetupOperationPending,
   type ClientSetupOperationStatus,
   type ClientSetupPrivacyDesiredState,
   type ClientSetupPrivacyRule,
@@ -212,12 +365,14 @@ export {
   type OffboardingDownloadResponse,
   type OffboardingExecuteResponse,
   type OffboardingExportResponse,
+  type OffboardingPreviewExclusion,
   type OffboardingPreviewResponse,
   type OffboardingPreviewStore,
   type OffboardingReceiptPerStore,
   type OffboardingReceiptResponse,
   type OffboardingRequest,
   type OffboardingRequestCreate,
+  type OffboardingRequesterKind,
   type OffboardingRetryResponse,
   type OffboardingSchedule,
   type OffboardingScheduleListResponse,
@@ -232,14 +387,18 @@ export {
   type PredictionDefinitionListResponse,
   type PredictionDefinitionUpdateRequest,
   type PredictionEvaluationSummary,
+  type PredictionOutcomeListResponse,
   type PredictionOutcomeSummary,
   type PredictionPauseRequest,
-  type PredictionRollbackRequest,
+  type PredictionProjectKind,
+  type PredictionRunListResponse,
   type PredictionRunNowRequest,
   type PredictionRunSummary,
   type PredictionSignalSource,
   type PredictionSignalSourceCreateRequest,
+  type PredictionSignalSourceListResponse,
   type PredictionThresholdEvent,
+  type PredictionThresholdEventListResponse,
   type PredictionVersion,
   type PredictionVersionPublishRequest,
 } from "./admin-predictions.js";
@@ -252,18 +411,20 @@ export {
   type PrivacyErasureRetryClassification,
   type PrivacyErasureSelector,
   type PrivacyErasureState,
-  type PrivacyErasureStoreProgress,
   type PrivacyErasureWaitOptions,
 } from "./admin-privacy-erasures.js";
 export {
+  type RetentionClass,
   RetentionClient,
   type RetentionPolicy,
   type RetentionPolicyListResponse,
   type RetentionPolicyUpsertRequest,
   type RetentionRun,
-  type RetentionRunDeletion,
   type RetentionRunPreview,
   type RetentionRunsListResponse,
+  type RetentionRunsPage,
+  type RetentionScope,
+  type RetentionStoreBreakdown,
 } from "./admin-retention.js";
 export type {
   SiteAIConsentRequest,
@@ -312,13 +473,18 @@ export {
   type SiteCampaignLinkRequest,
 } from "./admin-site-campaign-links.js";
 export {
+  SITE_BROWSER_COLLECTOR_MODES,
   SITE_DOMAIN_NOT_VERIFIED_CODE,
+  SITE_FINDING_DISMISSAL_SCOPES,
   SITE_SEARCH_CONNECTION_NOT_FOUND_CODE,
   SITE_SEARCH_NOT_CONFIGURED_CODE,
   SITE_SEARCH_RETRY_NOT_FAILING_CODE,
   type SiteAlertDestination,
   type SiteAlertDestinationRequest,
   type SiteAuditSummary,
+  type SiteBrowserCollector,
+  type SiteBrowserCollectorMode,
+  type SiteBrowserCollectorRequest,
   type SiteCheckMode,
   type SiteChromeUX,
   type SiteChromeUXObservation,
@@ -334,6 +500,10 @@ export {
   type SiteDomainVerification,
   type SiteDomainVerifiedBy,
   type SiteFinding,
+  type SiteFindingDismissal,
+  type SiteFindingDismissalRequest,
+  type SiteFindingDismissalScope,
+  type SiteFindingDismissals,
   type SiteFindingHistory,
   type SiteFindingList,
   type SiteFindingSeverity,
@@ -472,6 +642,30 @@ export {
   type SiteReferringDomain,
   type SiteReferringDomains,
 } from "./admin-site-links.js";
+export {
+  PRIVATE_UPTIME_FAILURES,
+  PRIVATE_UPTIME_STATUSES,
+  type PrivateUptimeCredential,
+  type PrivateUptimeFailure,
+  type PrivateUptimeMonitor,
+  type PrivateUptimeReport,
+  type PrivateUptimeStatus,
+  type PrivateUptimeWork,
+  SITE_HEARTBEAT_OUTCOMES,
+  SITE_HEARTBEAT_STATUSES,
+  type SiteHeartbeatCreateRequest,
+  type SiteHeartbeatCredential,
+  type SiteHeartbeatList,
+  type SiteHeartbeatMonitor,
+  type SiteHeartbeatOutcome,
+  type SiteHeartbeatReceipt,
+  type SiteHeartbeatReport,
+  type SiteHeartbeatSchedule,
+  type SiteHeartbeatStatus,
+  type SiteMaintenanceWindow,
+  type SiteMaintenanceWindowRequest,
+  type SiteMaintenanceWindows,
+} from "./admin-site-monitors.js";
 export {
   SITE_NEXT_ACTIONS_MAX,
   type SiteFindingCounts,
@@ -632,16 +826,17 @@ export {
 } from "./admin-site-web-data.js";
 export {
   type SubjectExport,
+  type SubjectExportArtifactScope,
   SubjectExportClient,
   type SubjectExportCreateRequest,
   type SubjectExportDownloadResponse,
   type SubjectExportListResponse,
-  type SubjectExportState,
-  type SubjectExportSubject,
+  type SubjectExportScope,
+  type SubjectExportStatus,
+  type SubjectExportStoreProgress,
 } from "./admin-subject-exports.js";
 export {
   TenantStorageClient,
-  type TenantStorageCreateRequest,
   type TenantStorageListResponse,
   type TenantStorageLocation,
 } from "./admin-tenant-storage.js";
@@ -974,7 +1169,22 @@ export type ProvisionedProducerCredentials = {
   clientSecret: string;
   scopes?: string[];
   environment?: string;
-  metadata?: Record<string, string>;
+  producerSlug?: string;
+  /** The environments this producer may send; empty when it may send any. */
+  allowedEnvironments?: string[];
+};
+
+/** A rotated producer secret, with where to mint tokens with it. Shown once. */
+export type ProducerSecretRotation = {
+  clientId: string;
+  clientSecret: string;
+  baseUrl: string;
+  tokenUrl: string;
+  audience: string;
+};
+
+export type ProducerProvisionListResponse = {
+  producers: ProducerProvisionPublicClient[];
 };
 
 // RedactedProvisionedProducerCredentials is the display-safe view of a
@@ -1005,6 +1215,43 @@ export type DataSpaceListResponse = {
   entitlement: DataSpaceEntitlementState;
 };
 
+/** The tenant's new data-space limits. */
+export type DataSpaceEntitlementUpdateRequest = {
+  enabled: boolean;
+  maxActiveDataSpaces: number;
+  maxActiveProducersPerDataSpace: number;
+};
+
+/** How complete a stored-usage measurement is, and which calculation produced it. */
+export type StorageMeasurementState = {
+  sourceWatermark: number;
+  completenessState: string;
+  calculationVersion: number;
+};
+
+/** One data space's retained storage. */
+export type DataSpaceUsageRow = {
+  slug: string;
+  companyName: string;
+  enabled: boolean;
+  revokedAt?: string;
+  measuredAt: string;
+  retainedLogicalBytes: number;
+  retainedEventCount: number;
+  measurementState: StorageMeasurementState;
+};
+
+/** Retained storage across a parent tenant's data spaces. */
+export type DataSpaceUsageSummary = {
+  parentCompanySlug: string;
+  retainedLogicalBytes: number;
+  retainedEventCount: number;
+  measuredAt: string;
+  measurementState: StorageMeasurementState;
+  dataSpaceCount: number;
+  dataSpaces: DataSpaceUsageRow[];
+};
+
 export type ProducerProvisionCreate = {
   companySlug: string;
   producerSlug: string;
@@ -1021,16 +1268,19 @@ export type ProducerProvisionCreate = {
     | "site-insights"
     | "site-insights-read"
     | "site-ai-read";
-  metadata?: Record<string, string>;
+  /** Restricts the producer to these environments; omitted or empty allows every environment. */
+  allowedEnvironments?: string[];
 };
 
 export type ProducerProvisionPublicClient = {
   clientId: string;
   companySlug: string;
   producerSlug: string;
+  displayName?: string;
   scopes: string[];
   environment?: string;
-  metadata?: Record<string, string>;
+  /** The environments this producer may send; empty when it may send any. */
+  allowedEnvironments: string[];
 };
 
 export type ClientConfig = {
@@ -1045,6 +1295,15 @@ export type ClientConfig = {
   oauth?: ProducerOAuthConfig;
   fetch?: typeof fetch;
   defaultHeaders?: Record<string, string>;
+  /**
+   * The client company a system administrator's requests target. Admin routes
+   * receive it as the `companySlug` query parameter unless the call names its own;
+   * it never opens support context there. The ingest cleanup-job reads and cancel
+   * name their tenant only through `X-Custd-Effective-Company`, so those calls send
+   * it in that header, and the server then requires an active support grant for it.
+   * Ordinary tenant callers leave it unset.
+   */
+  actingCompanySlug?: string;
   retry?: RetryOptions;
   batch?: BatchOptions;
   queue?: QueueOptions;
@@ -1189,20 +1448,52 @@ export type QueueStorage = {
   clear: () => void;
 };
 
+/** Whether a tenant is a real customer or proof data that generated-data cleanup may remove. */
+export type AdminTenantPurpose = "customer" | "generated_proof";
+
 export type AdminTenantCreate = {
   slug: string;
   companyName: string;
+  purpose?: AdminTenantPurpose;
 };
 
 export type AdminTenant = {
   slug: string;
   companyName: string;
+  companyId: number;
+  companyUuid: string;
   enabled: boolean;
+  purpose: AdminTenantPurpose;
+  autoCreateEnvironments: boolean;
 };
 
 export type AdminTenantListResponse = {
   tenants: AdminTenant[];
 };
+
+/** A tenant's storage allowance. Writes are refused past it only when hardLimitEnabled is set. */
+export type StorageLimit = {
+  includedStorageBytes: number;
+  purchasedStorageBytes: number;
+  warnPercent: number;
+  hardLimitEnabled: boolean;
+};
+
+export type StorageLimitUpdateRequest = StorageLimit;
+
+/** The content-free receipt for a deleted tenant's historical cleanup. */
+export type TenantHistoricalCleanupReceipt = {
+  companyId: number;
+  requestedByKind: string;
+  requestedAt: string;
+  completedAt: string;
+  finalState: string;
+  perStore: OffboardingReceiptPerStore[];
+  waiver?: TenantHistoricalCleanupWaiver;
+  sha256: string;
+};
+
+export type TenantHistoricalCleanupWaiver = { role: string; timestamp: string };
 
 export type AdminOAuthClientCreate = {
   clientId: string;
@@ -1216,6 +1507,8 @@ export type AdminOAuthClientCreate = {
   environment?: string;
   profile?: string;
   purposeProfile?: string;
+  /** Binds a browser sign-in client to one Site. */
+  siteUuid?: string;
 };
 
 export type AdminOAuthClient = {
@@ -1227,8 +1520,27 @@ export type AdminOAuthClient = {
   purposeProfile?: string;
 };
 
-export type AdminOAuthClientCreateResponse = AdminOAuthClient & {
-  clientSecret: string;
+/** What a person needs to sign a CLI or app in with a newly created client. */
+export type AdminOAuthClientLoginSetup = {
+  profileName: string;
+  clientId: string;
+  issuerUrl: string;
+  apiUrl: string;
+  audience: string;
+  scopes: string[];
+  redirectUris: string[];
+  configInitCommand: string;
+};
+
+/** The created client. clientSecret is present once, for a confidential client only. */
+export type AdminOAuthClientCreateResponse = {
+  clientId: string;
+  companySlug: string;
+  scopes: string[];
+  profile: string;
+  purposeProfile?: string;
+  clientSecret?: string;
+  loginSetup?: AdminOAuthClientLoginSetup;
 };
 
 export type AdminOAuthClientListResponse = {
@@ -1256,6 +1568,10 @@ export type AdminSiteCreate = {
   name: string;
   identityMode: "cookieless" | "extended";
   allowedOrigins: string[];
+  /** The environment events default to when they do not declare one. */
+  environment?: string;
+  /** Restricts the Site to these environments; omitted or empty allows every environment. */
+  allowedEnvironments?: string[];
   rateLimitPerMinute?: number;
   retentionDays?: number;
   /** Required: a site whose write key cannot write anywhere is not a usable setup. */
@@ -1268,10 +1584,23 @@ export type AdminSite = {
   name: string;
   identityMode: "cookieless" | "extended";
   allowedOrigins: string[];
+  /** The environment the site's events default to. */
+  environment: string;
+  /** The environments the site may send; empty when it may send any. */
+  allowedEnvironments: string[];
   rateLimitPerMinute: number;
   retentionDays: number;
   enabled: boolean;
   /** Absent for a site created before destinations existed. */
+  ingestTarget?: AdminSiteIngestTarget;
+};
+
+/** Replaces a site's browser settings. Omit `allowedEnvironments` or `ingestTarget` to keep them. */
+export type AdminSiteUpdate = {
+  identityMode: "cookieless" | "extended";
+  allowedOrigins: string[];
+  environment: string;
+  allowedEnvironments?: string[];
   ingestTarget?: AdminSiteIngestTarget;
 };
 
@@ -1285,27 +1614,6 @@ export type AdminSiteListResponse = {
 
 export type AdminSiteWriteKeyResponse = {
   writeKey: string;
-};
-
-export type AdminSchemaRegister = {
-  eventTypeSlug: string;
-  version: string;
-  jsonSchema: Record<string, unknown>;
-};
-
-export type AdminSchemaVersionCreate = {
-  version: string;
-  jsonSchema: Record<string, unknown>;
-};
-
-export type AdminSchema = {
-  eventTypeSlug: string;
-  version: string;
-  jsonSchema?: Record<string, unknown>;
-};
-
-export type AdminSchemaListResponse = {
-  schemas: AdminSchema[];
 };
 
 export type AdminOAuthClientUpdateScopesRequest = {
@@ -1340,6 +1648,17 @@ export type AdminSchemaEnableRequest = {
   enabledAt?: string;
 };
 
+/** Registers one schema version for a tenant's event type; `checksum` is the schema's SHA-256 hex. */
+export type AdminSchemaRegisterRequest = {
+  tenantSlug: string;
+  eventTypeSlug: string;
+  version: string;
+  dialect: "jsonschema" | "avro";
+  schemaJson: string;
+  checksum: string;
+  enabled: boolean;
+};
+
 export type AdminSchemaDryRunRequest = {
   tenantSlug: string;
   eventTypeSlug: string;
@@ -1359,28 +1678,70 @@ export const SCHEMA_AUDIT_TENANT_NOT_FOUND_CODE = "schema_audit_tenant_not_found
 /** A 400 on schema audit: the request names no tenantSlug. */
 export const SCHEMA_AUDIT_TENANT_SLUG_REQUIRED_CODE = "schema_audit_tenant_slug_required";
 
-export type AdminSchemaAuditEntry = {
-  eventId: string;
+/** One compile pass of a schema under one validator. */
+export type AdminSchemaCompileResult = {
+  valid: boolean;
+  issues: string[];
+};
+
+/** How the schema's recorded examples validate under the shared validator. */
+export type AdminSchemaExampleValidation = {
+  discovered: number;
+  run: number;
+  sameAccept: number;
+  sameReject: number;
+  deltas: number;
+  issueCodes: string[];
+};
+
+/** One registered schema version's migration audit result. */
+export type AdminSchemaAuditResult = {
+  tenantSlug: string;
   eventTypeSlug: string;
   version: string;
-  action: "registered" | "enabled" | "rolled_back" | string;
-  registeredAt: string;
-  registeredBy: string;
+  dialect: string;
+  schemaChecksum: string;
+  class: string;
+  recommendedAction: string;
+  issueCodes: string[];
+  legacyCompile: AdminSchemaCompileResult;
+  sharedCompile: AdminSchemaCompileResult;
+  exampleValidation: AdminSchemaExampleValidation;
+};
+
+export type AdminSchemaAuditSummary = {
+  total: number;
+  compatible: number;
+  needsMigration: number;
+  blocked: number;
 };
 
 export type AdminSchemaAuditListResponse = {
-  entries: AdminSchemaAuditEntry[];
+  schemas: AdminSchemaAuditResult[];
+  summary: AdminSchemaAuditSummary;
+};
+
+/** One field rule: what the tenant's privacy pipeline does to fieldPath. */
+export type AdminPrivacyRule = {
+  fieldPath: string;
+  action: string;
+  enabled: boolean;
+  truncateLength?: number;
 };
 
 export type AdminPrivacyRulesResponse = {
-  tenantSlug: string;
-  purposes: string[];
-  hardDeleteAfterDays: number;
+  companySlug: string;
+  enabled: boolean;
+  applyMode: string;
+  rules: AdminPrivacyRule[];
 };
 
+/** Replaces the tenant's whole privacy rule set. */
 export type AdminPrivacyRuleUpdate = {
-  purposes: string[];
-  hardDeleteAfterDays?: number;
+  companySlug: string;
+  enabled: boolean;
+  applyMode: string;
+  rules: AdminPrivacyRule[];
 };
 
 export type AdminPrivacyIdentifierMapping = {
@@ -1388,7 +1749,12 @@ export type AdminPrivacyIdentifierMapping = {
   internalIdHash: string;
   internalIdHashPrefix: string;
   saltVersion: number;
-  createdAt?: string;
+  createdAt: string;
+};
+
+export type AdminPrivacyIdentifierMappingList = {
+  companySlug: string;
+  mappings: AdminPrivacyIdentifierMapping[];
 };
 
 // AdminPrivacyIdentifierMapRequest externalId is consumed once at the wire
@@ -1397,27 +1763,100 @@ export type AdminPrivacyIdentifierMapRequest = {
   externalId: string;
 };
 
+/** The purposes a subject's consent is recorded for. */
+export type AdminPrivacyConsentPurpose = "analytics" | "product_improvement" | "marketing";
+
+/** One subject's consent decision for one purpose and source. */
+export type AdminPrivacyConsentRecord = {
+  subjectId: string;
+  purpose: AdminPrivacyConsentPurpose;
+  source: string;
+  granted: boolean;
+  recordedAt: string;
+  grantedAt?: string;
+  revokedAt?: string;
+  expiresAt?: string;
+};
+
+export type AdminPrivacyConsentList = {
+  companySlug: string;
+  subjectId: string;
+  records: AdminPrivacyConsentRecord[];
+};
+
+export type AdminPrivacyConsentRecordRequest = {
+  companySlug: string;
+  subjectId: string;
+  purpose: AdminPrivacyConsentPurpose;
+  source: string;
+  granted: boolean;
+  expiresAt?: string;
+};
+
+/** Which consent a revoke ends. Leaving `source` out revokes the purpose from every source. */
+export type AdminPrivacyConsentRevokeRequest = {
+  purpose: AdminPrivacyConsentPurpose;
+  source?: string;
+  companySlug?: string;
+};
+
+/** The latest evaluation of a storage alert rule against measured usage. */
+export type AdminStorageAlertEvaluation = {
+  evaluatedAt: string;
+  measuredValue: number;
+  breached: boolean;
+  firedAt?: string;
+};
+
 export type AdminStorageAlertRule = {
   ruleId: string;
   tenantSlug: string;
   metric: string;
   thresholdPercent: number;
   channel: string;
+  emailRecipient?: string;
   enabled: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  evaluation?: AdminStorageAlertEvaluation;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type AdminStorageAlertRuleCreateRequest = {
   metric: string;
   thresholdPercent: number;
   channel: string;
+  /** Where an email-channel rule sends its alert. */
+  emailRecipient?: string;
   enabled: boolean;
 };
 
 export type AdminStorageAlertRuleListResponse = {
   rules: AdminStorageAlertRule[];
 };
+
+export type AdminStorageAlertDelivery = { state: string; updatedAt?: string; error?: string };
+
+export type AdminStorageAlertMeasurement = {
+  limitBytes: number;
+  measuredValue: number;
+  thresholdPercent: number;
+  warningState: string;
+};
+
+/** One storage alert that fired and how its delivery went. */
+export type AdminStorageAlertEvent = {
+  eventId: string;
+  tenantSlug: string;
+  ruleId?: string;
+  metric: string;
+  channel: "email" | "webhook";
+  emailRecipient?: string;
+  triggeredAt: string;
+  measurement: AdminStorageAlertMeasurement;
+  delivery: AdminStorageAlertDelivery;
+};
+
+export type AdminStorageAlertEventListResponse = { events: AdminStorageAlertEvent[] };
 
 export type AdminAuditEvent = {
   /** Stable public audit event UUID. */
@@ -1436,6 +1875,21 @@ export type AdminAuditEvent = {
   changes?: AdminAuditChange[];
   details?: Record<string, unknown>;
   network?: AdminAuditNetworkDisclosure;
+  domainHistory?: AdminAuditDomainHistory;
+  createdAt: string;
+};
+
+/** The domain state change an audit event recorded, from the resource's own history stream. */
+export type AdminAuditDomainHistory = {
+  source: string;
+  sourceId: string;
+  resourceType?: string;
+  resourceId?: string;
+  action?: string;
+  state?: string;
+  previousState?: string;
+  currentState?: string;
+  streamVersion?: number;
   createdAt: string;
 };
 
@@ -1500,7 +1954,6 @@ export type AdminReportingPackAuditEvent = {
   actorReference?: string;
   actorDisplayName: string;
   resourceType: string;
-  resourceId: string;
   packKey: string;
   createdAt: string;
 };
@@ -1586,6 +2039,9 @@ export type PackDimension = {
   allowedValuePattern?: string;
   fallback?: string;
   maxCardinality?: number;
+  labelDefinitionKey?: string;
+  labelDefinitionUuid?: string;
+  labelValueUuids?: string[];
 };
 
 export type PackTemplate = {
@@ -1875,6 +2331,17 @@ export type PackDefinition = {
 };
 
 /** One client-selectable binding descriptor a setup template renders. */
+/** Whether one published reporting-pack generation still validates against the current contracts. */
+export type ReportingPackGenerationValidity = {
+  id: number;
+  packKey: string;
+  generationNumber: number;
+  state: string;
+  validationError?: string;
+};
+
+export type ReportingPackGenerationValidityListResponse = { generations: ReportingPackGenerationValidity[] };
+
 export type ReportingPackSetupBindingField = { key: string; label: string; required: boolean };
 
 /** The typed log-observability bindings a client selects. Never a dictionary. */
@@ -1902,8 +2369,9 @@ export type ReportingPackDraft = {
   id: number;
   revision: number;
   definition: PackDefinition;
-  createdAt?: string;
-  updatedAt?: string;
+  validationError?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ReportingPackDraftCreateRequest = {
@@ -1923,12 +2391,8 @@ export type ReportingPackValidateResponse = {
   valid: boolean;
 };
 
-export type ReportingPackPreviewQueryHint = {
-  template: string;
-  metrics: string[];
-  dimensions?: string[];
-  rangeDays?: number;
-};
+/** The widget query a preview renders: the same request the analytics query endpoint takes. */
+export type ReportingPackPreviewQueryHint = ReportingQueryRequest;
 
 export type ReportingPackPreviewRequest = {
   definition: PackDefinition;
@@ -1939,6 +2403,42 @@ export type ReportingPackPreviewRequest = {
 /** The preview envelope: the rendered widget under `data`, aggregate-only with no raw rows. */
 export type ReportingPackPreviewResponse = {
   data: RenderedWidgetData;
+  executive?: ExecutiveReport;
+  presentation?: PresentationPresetSelection;
+};
+
+export type ExecutiveReport = {
+  recipe: "blank" | "weekly-performance" | "operations-health" | "forecast-decision";
+  title: string;
+  tenantDisplayName: string;
+  asOf: string;
+  generatedAt: string;
+  period: { label: string; from?: string; to?: string };
+  primary: {
+    label: string;
+    scope: string;
+    unit: string;
+    value: RenderedMetricValue;
+    periodTotal: RenderedMetricValue;
+  };
+  comparison: {
+    available: boolean;
+    basis: "none" | "previous-period" | "target";
+    label: string;
+    value?: RenderedMetricValue;
+    percentChange?: number;
+    targetValue?: number;
+  };
+  confidence: {
+    status: "healthy" | "partial" | "unavailable" | "unknown";
+    coverage: string;
+    freshness: string;
+    completeness: string;
+    warnings?: string[];
+  };
+  findings?: string[];
+  actions?: string[];
+  supportingWidgets?: string[];
 };
 
 export type ReportingPackGeneration = {
@@ -2008,10 +2508,12 @@ export type ProducerReservationClaimRequest = {
 };
 
 export type MeasurementProjectCreate = {
+  /** The tenant a system administrator creates the project for. */
+  companySlug?: string;
   projectCode: string;
   name: string;
-  kind: string;
   description?: string;
+  kind: string;
   series: MeasurementSeriesCreate[];
   target: MeasurementTargetCreate;
 };
@@ -2020,11 +2522,29 @@ export type MeasurementProject = {
   projectUuid: string;
   projectCode: string;
   name: string;
+  description: string;
   kind: string;
   status: string;
-  description?: string;
+  delivery: MeasurementProjectDelivery;
+  run: MeasurementProjectRun;
   series?: MeasurementSeries[];
   target?: MeasurementTarget;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** What done means for a project, and when it is due or was completed. */
+export type MeasurementProjectDelivery = {
+  definitionOfDone: string;
+  targetDate?: string;
+  completedAt?: string;
+};
+
+/** How the project forecasts, and the series root it forecasts from. */
+export type MeasurementProjectRun = {
+  forecastMethod?: string;
+  seriesRootUuid?: string;
+  similar: boolean;
 };
 
 export type MeasurementSeries = {
@@ -2032,6 +2552,7 @@ export type MeasurementSeries = {
   seriesCode: string;
   name: string;
   unitSlug: string;
+  unitLabel?: string;
   completionDirection: string;
   source: string;
 };
@@ -2042,6 +2563,7 @@ export type MeasurementTarget = {
   name: string;
   targetValue: number;
   targetDate?: string;
+  completedAt?: string;
   state: string;
 };
 
@@ -2053,6 +2575,7 @@ export type MeasurementSeriesCreate = {
   seriesCode: string;
   name: string;
   unitSlug: string;
+  unitLabel?: string;
   completionDirection: string;
   source: string;
 };
@@ -2087,19 +2610,16 @@ export type MeasurementObservationResult = {
   detail?: string;
 };
 
+/** Each row's outcome. completedTargetUuid names a target an accepted observation reached. */
 export type MeasurementObservationBulkResponse = {
   importId: string;
   accepted: number;
   rejected: number;
   results: MeasurementObservationResult[];
+  completedTargetUuid?: string;
 };
 
-export type MeasurementCSVImportResponse = {
-  importId: string;
-  accepted: number;
-  rejected: number;
-  results: MeasurementObservationResult[];
-};
+export type MeasurementCSVImportResponse = MeasurementObservationBulkResponse;
 
 export type SchemaValidationIssue = {
   path: string;
@@ -2166,24 +2686,10 @@ export type SendTestEventResponse = {
   eventUuid: string;
 };
 
-export type ReportingDashboard = {
-  key: string;
-  title: string;
-  hidden?: boolean;
-  defaultRange: string;
-  refreshSeconds: number;
-  requiredScopes: string[];
-  widgets: ReportingWidget[];
-};
+/** A dashboard as the analytics API serves it: the same definition a reporting pack declares. */
+export type ReportingDashboard = PackDashboardDefinition;
 
-export type ReportingWidget = {
-  key: string;
-  title: string;
-  kind: string;
-  template: string;
-  metrics: string[];
-  dimensions?: string[];
-};
+export type ReportingWidget = PackWidgetDefinition;
 
 export type ReportingQueryRequest = {
   dashboardKey?: string;
@@ -2221,6 +2727,8 @@ export type SubjectInsightResponse = {
 export type RenderedWidgetData = {
   buckets: RenderedWidgetBucket[];
   value: RenderedMetricValue;
+  emailDelivery?: ReportingEmailDelivery;
+  labelMetadata?: ReportingLabelMetadata[];
   metadata?: ReportingQueryMetadata;
   sources?: ReportingSourceSummary[];
   warnings?: string[];
@@ -2276,10 +2784,80 @@ export type RenderedWidgetBucket = {
 export type RenderedMetricValue = {
   value: number;
   unit: string;
+  currency?: string;
   sampleCount: number;
   dataSufficiency: string;
   complete: boolean;
   truncated?: boolean;
+  trust?: ReportingTemporalTrust;
+};
+
+/** One reporting source's reading in a reconciliation. */
+export type ReportingSourceContribution = {
+  sourceKey: string;
+  sourceSeriesKey: string;
+  availability: "available" | "unavailable";
+  value?: number;
+  unit?: string;
+  observedAt?: string;
+  freshnessSeconds?: number;
+  stale?: boolean;
+  selected?: boolean;
+};
+
+/** How far the reconciled sources disagree. */
+export type ReportingSourceDivergence = {
+  detected: boolean;
+  absoluteDifference?: number;
+  relativeDifference?: number;
+};
+
+/** Which source a reconciled value came from, and how its alternatives compared. */
+export type ReportingReconciliation = {
+  tenantKey: string;
+  seriesKey: string;
+  status: "available" | "stale" | "unavailable";
+  availability: "available" | "unavailable";
+  value?: number;
+  unit?: string;
+  observedAt?: string;
+  selectedSourceKey?: string;
+  selectedSourceSeries?: string;
+  contributingSources?: ReportingSourceContribution[];
+  divergence: ReportingSourceDivergence;
+};
+
+/** The time coverage and freshness behind one rendered value. */
+export type ReportingTemporalTrust = {
+  calculationVersion?: string;
+  coverageStart?: string;
+  coverageEnd?: string;
+  sourceRange?: { start: string; end: string };
+  windowCoverage?: number;
+  freshnessMs?: number;
+  reconciliation?: ReportingReconciliation;
+  warnings?: string[];
+};
+
+/** The delivery outcome of one email recipient, by opaque recipient id. */
+export type ReportingEmailDeliveryRecipient = {
+  recipientId: string;
+  outcome: "deferred" | "remote_accepted" | "terminal_failure";
+  occurredAt: string;
+};
+
+export type ReportingEmailDelivery = {
+  complete: boolean;
+  recipients: ReportingEmailDeliveryRecipient[];
+};
+
+/** The display names of one data label a widget grouped by. */
+export type ReportingLabelMetadata = {
+  definitionUuid: string;
+  key: string;
+  displayName: string;
+  sensitivity: string;
+  values: Array<{ uuid: string; displayName: string }>;
 };
 
 export type ReportingQueryMetadata = {
@@ -2303,9 +2881,19 @@ export type ReportingSourceSummary = {
 export type ReportingWidgetData = RenderedWidgetData;
 export type ReportingTrust = RenderedReportingTrust;
 
-function publicAdminSite(site: AdminSite & { writeKey?: unknown }): AdminSite {
+type AdminSiteWire = Omit<AdminSite, "allowedOrigins" | "allowedEnvironments"> & {
+  allowedOrigins: string[] | null;
+  allowedEnvironments: string[] | null;
+  writeKey?: unknown;
+};
+
+function publicAdminSite(site: AdminSiteWire): AdminSite {
   const { writeKey: _writeKey, ...safeSite } = site;
-  return safeSite;
+  return {
+    ...safeSite,
+    allowedOrigins: site.allowedOrigins ?? [],
+    allowedEnvironments: site.allowedEnvironments ?? [],
+  };
 }
 
 export class MemoryQueueStorage implements QueueStorage {
@@ -2372,10 +2960,14 @@ export class CustdClient {
   public readonly schemas: SchemaNamespace;
   public readonly analytics: AnalyticsEventClient;
   public readonly parsers: ParserClient;
+  public readonly measurement: MeasurementClient;
+  public readonly ingestOperations: IngestOperationsClient;
+  public readonly publicReads: PublicReadClient;
   private baseUrl: string;
   private getToken: (options?: RequestOptions) => string | Promise<string>;
   private fetchImpl: typeof fetch;
   private defaultHeaders: Record<string, string>;
+  private actingCompanySlug: string;
   private retry: Required<RetryOptions>;
   private batch: BatchOptions | undefined;
   private queueEnabled: boolean;
@@ -2409,6 +3001,7 @@ export class CustdClient {
     // The SDK's own identity is authoritative: a caller may add default
     // headers, but cannot accidentally drop the release Custd records.
     this.defaultHeaders = { ...(config.defaultHeaders ?? {}), "X-Custd-Sdk": SDK_IDENTITY };
+    this.actingCompanySlug = config.actingCompanySlug?.trim() ?? "";
     this.retry = normalizeRetryOptions(config.retry);
     this.batch = config.batch;
     this.queueEnabled = config.queue?.enabled ?? config.batch != null;
@@ -2435,6 +3028,14 @@ export class CustdClient {
       this.apiRequest(method, path, body, options),
     );
     this.parsers = new ParserClient((method, path, body, options) => this.apiRequest(method, path, body, options));
+    this.measurement = new MeasurementClient((method, path, body, options) =>
+      this.apiRequest(method, path, body, options),
+    );
+    this.ingestOperations = new IngestOperationsClient(
+      (method, path, body, options, headers) => this.apiRequest(method, path, body, options, headers),
+      this.actingCompanySlug,
+    );
+    this.publicReads = new PublicReadClient((path, headers, options) => this.publicRead(path, headers, options));
 
     if (this.queueEnabled) {
       this.queue = this.queueStorage.load();
@@ -2792,12 +3393,27 @@ export class CustdClient {
   }
 
   private async adminRequest<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
-    return this.apiRequest(method, `/admin${path}`, body, options);
+    return this.apiRequest(method, `/admin${this.actingCompanyPath(path)}`, body, options);
+  }
+
+  // actingCompanyPath names the configured acting company in the `companySlug` query
+  // the admin routes read, keeping a selector the call already set.
+  private actingCompanyPath(path: string): string {
+    if (this.actingCompanySlug === "") {
+      return path;
+    }
+    const [route, query = ""] = path.split("?", 2);
+    const params = new URLSearchParams(query);
+    if (params.get("companySlug")) {
+      return path;
+    }
+    params.set("companySlug", this.actingCompanySlug);
+    return `${route}?${params.toString()}`;
   }
 
   private async offboardingDownload(path: string, options?: RequestOptions): Promise<OffboardingDownloadResponse> {
     const token = await this.getToken(options);
-    const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${path}`, {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${this.actingCompanyPath(path)}`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
       signal: options?.signal,
@@ -2830,7 +3446,7 @@ export class CustdClient {
 
   private async auditExportDownload(path: string, options?: RequestOptions): Promise<AdminAuditExportResponse> {
     const token = await this.getToken(options);
-    const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${path}`, {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${this.actingCompanyPath(path)}`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
       signal: options?.signal,
@@ -2842,22 +3458,27 @@ export class CustdClient {
     return { bytes, contentType: response.headers.get("content-type") ?? "" };
   }
 
-  private async apiRequest<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+  private async apiRequest<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    options?: RequestOptions,
+    headers?: Record<string, string>,
+  ): Promise<T> {
     const token = await this.getToken(options);
     let response: Response;
     try {
-      // A byte body is a file upload and is sent as raw bytes; every other body is JSON.
-      const rawBody = body instanceof Uint8Array;
       response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
         method,
         headers: {
-          "Content-Type": rawBody ? "application/octet-stream" : "application/json",
+          ...requestContentType(body),
           Authorization: `Bearer ${token}`,
           ...this.defaultHeaders,
+          ...headers,
           ...(options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
           ...(options?.owningUserUuid ? { "X-Custd-Owning-User-UUID": options.owningUserUuid } : {}),
         },
-        body: body === undefined ? undefined : rawBody ? Uint8Array.from(body) : JSON.stringify(body),
+        body: requestBody(body),
         signal: options?.signal,
       });
     } catch (error) {
@@ -2910,6 +3531,22 @@ export class CustdClient {
     return (await response.json()) as T;
   }
 
+  // publicRead issues a GET that carries none of the client's own credentials.
+  private async publicRead<T>(path: string, headers: Record<string, string>, options?: RequestOptions): Promise<T> {
+    let response: Response;
+    try {
+      response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
+        method: "GET",
+        headers: { ...headers, "X-Custd-Sdk": SDK_IDENTITY },
+        signal: options?.signal,
+      });
+    } catch (error) {
+      throw transportRequestError(error);
+    }
+    if (!response.ok) throw await responseRequestError(response, "request_failed");
+    return (await response.json()) as T;
+  }
+
   private async apiDownload(path: string, options?: RequestOptions): Promise<Uint8Array> {
     const token = await this.getToken(options);
     const response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
@@ -2924,6 +3561,20 @@ export class CustdClient {
     if (bytes.byteLength > 64 * 1024 * 1024) throw new Error("custd: report export download exceeds 64 MiB");
     return bytes;
   }
+}
+
+// A byte body is a file upload sent as raw bytes, a form is a multipart upload whose boundary fetch
+// sets, and every other body is JSON.
+function requestContentType(body: unknown): Record<string, string> {
+  if (body instanceof FormData) return {};
+  return { "Content-Type": body instanceof Uint8Array ? "application/octet-stream" : "application/json" };
+}
+
+function requestBody(body: unknown): BodyInit | undefined {
+  if (body === undefined) return undefined;
+  if (body instanceof FormData) return body;
+  if (body instanceof Uint8Array) return Uint8Array.from(body);
+  return JSON.stringify(body);
 }
 
 async function readBoundedResponse(response: Response, maxBytes: number, operation: string): Promise<Uint8Array> {
@@ -2987,6 +3638,15 @@ export interface ReportExportArtifact {
   rendererVersion?: string;
 }
 
+export interface ReportExportProgressCounter {
+  key: string;
+  count: number;
+}
+
+export type ReportExportJobList = {
+  exports: ReportExportJob[];
+};
+
 export interface ReportExportJob {
   id: string;
   packKey: string;
@@ -2997,7 +3657,7 @@ export interface ReportExportJob {
   snapshotSha256?: string;
   state: string;
   progressStage: string;
-  progressCounters?: Record<string, number>;
+  progressCounters?: ReportExportProgressCounter[];
   queuedAt: string;
   startedAt?: string;
   finishedAt?: string;
@@ -3025,10 +3685,16 @@ class ReportingNamespace {
     return this.request("POST", "/reporting/exports", input, options);
   }
 
-  listExports(limit = 50, options?: RequestOptions): Promise<ReportExportJob[]> {
+  async listExports(limit = 50, options?: RequestOptions): Promise<ReportExportJobList> {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100)
       throw new Error("custd: report export limit must be between 1 and 100");
-    return this.request("GET", `/reporting/exports?limit=${limit}`, undefined, options);
+    const list = await this.request<ReportExportJobList>(
+      "GET",
+      `/reporting/exports?limit=${limit}`,
+      undefined,
+      options,
+    );
+    return { exports: list.exports ?? [] };
   }
 
   getExport(exportId: string, options?: RequestOptions): Promise<ReportExportJob> {
@@ -3048,6 +3714,70 @@ class ReportingNamespace {
       `/reporting/exports/${encodeURIComponent(exportId)}/artifacts/${encodeURIComponent(artifactId)}`,
       options,
     );
+  }
+
+  /** Exports a completed time-plan run's frozen report source in one to eight formats. */
+  async createCompletedRunExport(input: CompletedRunExportRequest, options?: RequestOptions): Promise<ReportExportJob> {
+    if (input.formats.length < 1 || input.formats.length > 8)
+      throw new Error("custd: completed run export requires 1 to 8 formats");
+    const job = await this.request<ReportExportJob & { formats: string[] | null }>(
+      "POST",
+      "/reporting/exports/completed-run",
+      input,
+      options,
+    );
+    return { ...job, formats: job.formats ?? [] };
+  }
+
+  /** Lists the dashboards the tenant can open. */
+  async dashboards(options?: RequestOptions): Promise<ReportingDashboardCatalogue> {
+    type EntryWire = Omit<ReportingDashboardCatalogueEntry, "interactions" | "exportFormats"> & {
+      interactions: ReportingDashboardCatalogueEntry["interactions"] | null;
+      exportFormats: ReportingDashboardCatalogueEntry["exportFormats"] | null;
+    };
+    const response = await this.request<{ dashboards: EntryWire[] | null }>(
+      "GET",
+      "/reporting/dashboards",
+      undefined,
+      options,
+    );
+    return {
+      dashboards: (response.dashboards ?? []).map((entry) => ({
+        ...entry,
+        interactions: entry.interactions ?? [],
+        exportFormats: entry.exportFormats ?? [],
+      })),
+    };
+  }
+
+  /** Starts, or returns, the data generation that backs one dashboard view. */
+  async generateDashboardData(
+    input: ReportingDashboardGenerationRequest,
+    options?: RequestOptions,
+  ): Promise<ReportingDashboardGeneration> {
+    const generation = await this.request<
+      Omit<ReportingDashboardGeneration, "datasetRowCounts" | "datasetSchemas"> & {
+        datasetRowCounts?: ReportingDashboardGeneration["datasetRowCounts"] | null;
+        datasetSchemas?: Array<
+          Omit<ReportingSnapshotDatasetSchema, "columns"> & { columns: ReportingSnapshotColumn[] | null }
+        > | null;
+      }
+    >("POST", "/reporting/dashboard-data-generations", input, options);
+    return {
+      ...generation,
+      datasetRowCounts: generation.datasetRowCounts ?? [],
+      datasetSchemas: (generation.datasetSchemas ?? []).map((schema) => ({ ...schema, columns: schema.columns ?? [] })),
+    };
+  }
+
+  /** Renders one query against a pack definition that is not published. */
+  async previewDraft(input: ReportingDraftPreviewRequest, options?: RequestOptions): Promise<RenderedWidgetData> {
+    const data = await this.request<RenderedWidgetData>("POST", "/reporting/draft-preview", input, options);
+    emptyNullBuckets(data);
+    if (!isRenderedWidgetData(data)) {
+      throw new Error("custd: invalid reporting draft preview response");
+    }
+    return data;
   }
 
   dashboard(key: string, options?: RequestOptions): Promise<ReportingDashboard> {
@@ -3079,6 +3809,7 @@ class ReportingNamespace {
 
   async query(request: ReportingQueryRequest, options?: RequestOptions): Promise<RenderedWidgetData> {
     const data = await this.request<RenderedWidgetData>("POST", "/reporting/query", request, options);
+    emptyNullBuckets(data);
     if (!isRenderedWidgetData(data)) {
       throw new Error("custd: invalid reporting query response");
     }
@@ -3093,6 +3824,7 @@ class ReportingNamespace {
       throw new Error("custd: invalid subject insight request");
     }
     const response = await this.request<unknown>("POST", "/reporting/insights/subject", request, options);
+    if (isRecord(response)) emptyNullBuckets(response.data);
     if (!isSubjectInsightResponse(response)) {
       throw new Error("custd: invalid subject insight response");
     }
@@ -3163,6 +3895,11 @@ function isValidRfc3339(value: string): boolean {
     offsetMinute <= 59 &&
     (offsetHour !== 24 || offsetMinute === 0)
   );
+}
+
+/** A JSON null bucket list decodes as empty. */
+function emptyNullBuckets(value: unknown): void {
+  if (isRecord(value) && value.buckets === null) value.buckets = [];
 }
 
 function isSubjectInsightResponse(value: unknown): value is SubjectInsightResponse {
@@ -3314,6 +4051,48 @@ class SchemaNamespace {
     return this.request("POST", "/schemas/infer", input);
   }
 
+  /** Lists the tenant's event types. */
+  async list(): Promise<RegisteredEventTypeList> {
+    const eventTypes = await this.request<RegisteredEventType[] | null>("GET", schemaRegistryPath);
+    return { eventTypes: eventTypes ?? [] };
+  }
+
+  /** Lists an event type's schema versions. */
+  async listVersions(eventType: string): Promise<EventSchemaVersionList> {
+    const versions = await this.request<EventSchemaVersion[] | null>("GET", `${eventSchemaPath(eventType)}/versions`);
+    return { versions: versions ?? [] };
+  }
+
+  /** Returns one version's JSON Schema document. */
+  async get(eventType: string, version: string): Promise<EventSchemaDocument> {
+    return { schema: await this.request<unknown>("GET", eventSchemaPath(eventType, version)) };
+  }
+
+  /** Stores a schema version, creating the event type when it is new, and returns the event type. */
+  register(input: EventSchemaRegisterRequest): Promise<RegisteredEventType> {
+    return this.request("POST", schemaRegistryPath, input);
+  }
+
+  /** Makes one version the event type's active schema. */
+  activate(eventType: string, version: string): Promise<EventSchemaStateResult> {
+    return this.request("POST", `${eventSchemaPath(eventType, version)}/active`);
+  }
+
+  /** Lets events validate against one version again. */
+  enable(eventType: string, version: string): Promise<EventSchemaStateResult> {
+    return this.request("PUT", `${eventSchemaPath(eventType, version)}/enabled`);
+  }
+
+  /** Deprecates one version so new events no longer validate against it. */
+  disable(eventType: string, version: string): Promise<EventSchemaStateResult> {
+    return this.request("DELETE", `${eventSchemaPath(eventType, version)}/enabled`);
+  }
+
+  /** Retires the tenant's event type. Its schemas and stored events stay readable. */
+  disableEventType(eventType: string): Promise<EventSchemaStateResult> {
+    return this.request("DELETE", eventSchemaPath(eventType));
+  }
+
   async sendTestEvent(event: EventEnvelope): Promise<SendTestEventResponse> {
     const prepared = prepareEvent(event);
     validateEvent(prepared);
@@ -3350,6 +4129,25 @@ class AdminNamespace {
   readonly timePlans: TimePlanAdminClient;
   readonly usage: UsageAdminClient;
   readonly authProjects: AuthProjectAdminClient;
+  readonly workflowTimings: WorkflowTimingAdminClient;
+  readonly users: AdminUserAdminClient;
+  readonly uncertaintyModels: UncertaintyModelAdminClient;
+  readonly impersonation: ImpersonationAdminClient;
+  readonly supportAccess: SupportAccessAdminClient;
+  readonly system: SystemAdminClient;
+  readonly environmentPolicy: EnvironmentPolicyAdminClient;
+  readonly rls: RlsAdminClient;
+  readonly oauthClientAdmissions: OAuthClientAdmissionAdminClient;
+  readonly sdkUsage: SdkUsageAdminClient;
+  readonly ingestClaims: IngestClaimAdminClient;
+  readonly accountingEvidence: AccountingEvidenceAdminClient;
+  readonly webhooks: NotificationWebhookAdminClient;
+  readonly notificationDestinations: NotificationDestinationAdminClient;
+  readonly emailRelay: EmailRelayAdminClient;
+  readonly campaignEmail: CampaignEmailAdminClient;
+  readonly eventTypes: EventTypeAdminClient;
+  readonly errorIssues: ErrorIssueAdminClient;
+  readonly managedAudit: ManagedAuditAdminClient;
 
   constructor(
     request: AdminRequester,
@@ -3381,6 +4179,25 @@ class AdminNamespace {
     this.timePlans = new TimePlanAdminClient(request);
     this.usage = new UsageAdminClient(request);
     this.authProjects = new AuthProjectAdminClient(request);
+    this.workflowTimings = new WorkflowTimingAdminClient(request);
+    this.users = new AdminUserAdminClient(request);
+    this.uncertaintyModels = new UncertaintyModelAdminClient(request);
+    this.impersonation = new ImpersonationAdminClient(request);
+    this.supportAccess = new SupportAccessAdminClient(request);
+    this.system = new SystemAdminClient(request);
+    this.environmentPolicy = new EnvironmentPolicyAdminClient(request);
+    this.rls = new RlsAdminClient(request);
+    this.oauthClientAdmissions = new OAuthClientAdmissionAdminClient(request);
+    this.sdkUsage = new SdkUsageAdminClient(request);
+    this.ingestClaims = new IngestClaimAdminClient(request);
+    this.accountingEvidence = new AccountingEvidenceAdminClient(request);
+    this.webhooks = new NotificationWebhookAdminClient(request);
+    this.notificationDestinations = new NotificationDestinationAdminClient(nonAdminRequest);
+    this.emailRelay = new EmailRelayAdminClient(request);
+    this.campaignEmail = new CampaignEmailAdminClient(request);
+    this.eventTypes = new EventTypeAdminClient(request);
+    this.errorIssues = new ErrorIssueAdminClient(nonAdminRequest);
+    this.managedAudit = new ManagedAuditAdminClient(nonAdminRequest);
   }
 }
 
@@ -3396,68 +4213,107 @@ class ProvisioningNamespace {
   }
 }
 
+/** Producer reservations under one data space. A system administrator names the parent tenant. */
 class ProvisioningReservationsNamespace {
   constructor(private readonly request: APIRequester) {}
 
-  reserve(dataSpaceSlug: string, body: ProducerReservationCreateRequest): Promise<ProducerReservation> {
-    return this.request("POST", `/data-spaces/${encodeURIComponent(dataSpaceSlug)}/producer-reservations`, body);
+  reserve(
+    dataSpaceSlug: string,
+    body: ProducerReservationCreateRequest,
+    parentCompanySlug?: string,
+  ): Promise<ProducerReservation> {
+    return this.request("POST", reservationsPath(dataSpaceSlug, "", parentCompanySlug), body);
   }
 
-  list(dataSpaceSlug: string): Promise<ProducerReservationListResponse> {
-    return this.request("GET", `/data-spaces/${encodeURIComponent(dataSpaceSlug)}/producer-reservations`);
+  list(dataSpaceSlug: string, parentCompanySlug?: string): Promise<ProducerReservationListResponse> {
+    return this.request("GET", reservationsPath(dataSpaceSlug, "", parentCompanySlug));
   }
 
   claim(
     dataSpaceSlug: string,
     producerSlug: string,
     body: ProducerReservationClaimRequest,
+    parentCompanySlug?: string,
   ): Promise<ProducerReservation> {
     return this.request(
       "POST",
-      `/data-spaces/${encodeURIComponent(dataSpaceSlug)}/producer-reservations/${encodeURIComponent(producerSlug)}/claim`,
+      reservationsPath(dataSpaceSlug, `/${encodeURIComponent(producerSlug)}/claim`, parentCompanySlug),
       body,
     );
   }
 
-  release(dataSpaceSlug: string, producerSlug: string): Promise<void> {
+  release(dataSpaceSlug: string, producerSlug: string, parentCompanySlug?: string): Promise<void> {
     return this.request(
       "DELETE",
-      `/data-spaces/${encodeURIComponent(dataSpaceSlug)}/producer-reservations/${encodeURIComponent(producerSlug)}`,
+      reservationsPath(dataSpaceSlug, `/${encodeURIComponent(producerSlug)}`, parentCompanySlug),
     );
   }
+}
+
+function reservationsPath(dataSpaceSlug: string, suffix: string, parentCompanySlug?: string): string {
+  return `/data-spaces/${encodeURIComponent(dataSpaceSlug)}/producer-reservations${suffix}${parentQuery(parentCompanySlug)}`;
 }
 
 class ProvisioningDataSpaceNamespace {
   constructor(private readonly request: APIRequester) {}
 
-  create(dataSpace: DataSpaceCreate): Promise<DataSpace> {
-    return this.request("POST", "/data-spaces", dataSpace);
+  /** Creates a data space under the caller's company; a system administrator names the parent tenant. */
+  create(dataSpace: DataSpaceCreate, parentCompanySlug?: string): Promise<DataSpace> {
+    return this.request("POST", `/data-spaces${parentQuery(parentCompanySlug)}`, dataSpace);
   }
 
-  list(): Promise<DataSpaceListResponse> {
-    return this.request("GET", "/data-spaces");
+  /** Lists the caller's data spaces; a system administrator names the parent tenant. */
+  list(parentCompanySlug?: string): Promise<DataSpaceListResponse> {
+    return this.request("GET", `/data-spaces${parentQuery(parentCompanySlug)}`);
   }
 
-  revoke(slug: string): Promise<void> {
-    return this.request("DELETE", `/data-spaces/${encodeURIComponent(slug)}`);
+  /** Reads retained storage per data space. A system administrator names the parent tenant. */
+  async usage(parentCompanySlug?: string): Promise<DataSpaceUsageSummary> {
+    const summary = await this.request<DataSpaceUsageSummary>(
+      "GET",
+      `/data-spaces/usage${parentQuery(parentCompanySlug)}`,
+    );
+    return { ...summary, dataSpaces: summary.dataSpaces ?? [] };
   }
+
+  revoke(slug: string, parentCompanySlug?: string): Promise<void> {
+    return this.request("DELETE", `/data-spaces/${encodeURIComponent(slug)}${parentQuery(parentCompanySlug)}`);
+  }
+}
+
+function parentQuery(parentCompanySlug?: string): string {
+  return parentCompanySlug ? `?${new URLSearchParams({ parentCompanySlug })}` : "";
+}
+
+function provisionedProducer(credentials: ProvisionedProducerCredentials): ProvisionedProducerCredentials {
+  return {
+    ...credentials,
+    scopes: credentials.scopes ?? [],
+    allowedEnvironments: credentials.allowedEnvironments ?? [],
+  };
 }
 
 class ProvisioningProducerNamespace {
   constructor(private readonly request: APIRequester) {}
 
-  provision(request: ProducerProvisionCreate): Promise<ProvisionedProducerCredentials> {
-    return this.request("POST", "/producer-provisioning", request);
+  async provision(request: ProducerProvisionCreate): Promise<ProvisionedProducerCredentials> {
+    return provisionedProducer(await this.request("POST", "/producer-provisioning", request));
   }
 
-  list(companySlug?: string): Promise<ProducerProvisionPublicClient[]> {
+  async list(companySlug?: string): Promise<ProducerProvisionListResponse> {
     const query = companySlug ? `?companySlug=${encodeURIComponent(companySlug)}` : "";
-    return this.request<{ producers: ProducerProvisionPublicClient[] }>("GET", `/producer-provisioning${query}`).then(
-      (response) => response.producers,
+    const response = await this.request<{ producers: ProducerProvisionPublicClient[] | null }>(
+      "GET",
+      `/producer-provisioning${query}`,
     );
+    return { producers: (response.producers ?? []).map(publicProducer) };
   }
 
-  rotateSecret(clientId: string): Promise<ProvisionedProducerCredentials> {
+  async get(clientId: string): Promise<ProducerProvisionPublicClient> {
+    return publicProducer(await this.request("GET", `/producer-provisioning/${encodeURIComponent(clientId)}`));
+  }
+
+  rotateSecret(clientId: string): Promise<ProducerSecretRotation> {
     return this.request("POST", `/producer-provisioning/${encodeURIComponent(clientId)}/rotate-secret`);
   }
 
@@ -3467,15 +4323,59 @@ class ProvisioningProducerNamespace {
    * credential: one producer is expected to carry every environment unless an
    * operator deliberately restricts it.
    */
-  updateEnvironment(clientId: string, environment: string): Promise<ProducerProvisionPublicClient> {
-    return this.request("PATCH", `/producer-provisioning/${encodeURIComponent(clientId)}/environment`, {
-      environment,
-    });
+  async updateEnvironment(clientId: string, environment: string): Promise<ProducerProvisionPublicClient> {
+    const path = `/producer-provisioning/${encodeURIComponent(clientId)}/environment`;
+    return publicProducer(await this.request("PATCH", path, { environment }));
   }
 
   revoke(clientId: string): Promise<void> {
     return this.request("DELETE", `/producer-provisioning/${encodeURIComponent(clientId)}`);
   }
+}
+
+function publicProducer(producer: ProducerProvisionPublicClient): ProducerProvisionPublicClient {
+  return { ...producer, scopes: producer.scopes ?? [], allowedEnvironments: producer.allowedEnvironments ?? [] };
+}
+
+type WireHistoricalCleanupReceipt = {
+  company_id: number;
+  requested_by_kind: string;
+  requested_at: string;
+  completed_at: string;
+  final_state: string;
+  per_store: Array<{
+    store: string;
+    retention_class: string;
+    deleted_count: number;
+    retained_exceptions_count: number;
+  }> | null;
+  waiver?: TenantHistoricalCleanupWaiver;
+  sha256: string;
+};
+
+function historicalCleanupReceipt(wire: WireHistoricalCleanupReceipt): TenantHistoricalCleanupReceipt {
+  return {
+    companyId: wire.company_id,
+    requestedByKind: wire.requested_by_kind,
+    requestedAt: wire.requested_at,
+    completedAt: wire.completed_at,
+    finalState: wire.final_state,
+    perStore: (wire.per_store ?? []).map((store) => ({
+      store: store.store,
+      retentionClass: store.retention_class,
+      deletedCount: store.deleted_count,
+      retainedExceptionsCount: store.retained_exceptions_count,
+    })),
+    ...(wire.waiver ? { waiver: wire.waiver } : {}),
+    sha256: wire.sha256,
+  };
+}
+
+function tenantCompanyPath(slug: string, action: string, companyId: number): string {
+  if (!Number.isInteger(companyId) || companyId <= 0) {
+    throw new Error("custd: company id must be a positive integer");
+  }
+  return `/tenants/${encodeURIComponent(slug)}/${action}?companyId=${companyId}`;
 }
 
 class AdminTenantNamespace {
@@ -3496,6 +4396,46 @@ class AdminTenantNamespace {
   delete(slug: string): Promise<void> {
     return this.request("DELETE", `/tenants/${encodeURIComponent(slug)}`);
   }
+
+  /**
+   * Permanently removes an already deleted tenant once its cleanup is finished.
+   * The server refuses an unready tenant with a conflict.
+   */
+  finalize(slug: string, companyId: number): Promise<void> {
+    return this.request("POST", tenantCompanyPath(slug, "finalize", companyId));
+  }
+
+  /**
+   * Runs the credential-revoking, queue, database and object-storage cleanup for a
+   * deleted tenant. The idempotencyKey is required: repeat it to retry the same cleanup.
+   */
+  async historicalCleanup(
+    slug: string,
+    companyId: number,
+    options: RequestOptions = {},
+  ): Promise<TenantHistoricalCleanupReceipt> {
+    const path = tenantCompanyPath(slug, "historical-cleanup", companyId);
+    if (!options.idempotencyKey?.trim()) {
+      throw new Error("custd: historical cleanup idempotency key is required");
+    }
+    const wire = await this.request<WireHistoricalCleanupReceipt>("POST", path, undefined, options);
+    return historicalCleanupReceipt(wire);
+  }
+
+  getDataSpaceEntitlement(slug: string): Promise<DataSpaceEntitlementState> {
+    return this.request("GET", `/tenants/${encodeURIComponent(slug)}/data-space-entitlement`);
+  }
+
+  updateDataSpaceEntitlement(
+    slug: string,
+    body: DataSpaceEntitlementUpdateRequest,
+  ): Promise<DataSpaceEntitlementState> {
+    return this.request("PUT", `/tenants/${encodeURIComponent(slug)}/data-space-entitlement`, body);
+  }
+
+  updateStorageLimit(slug: string, body: StorageLimitUpdateRequest): Promise<StorageLimit> {
+    return this.request("PUT", `/tenants/${encodeURIComponent(slug)}/storage-limit`, body);
+  }
 }
 
 // Custd requires a canonical UUIDv7 Idempotency-Key on every OAuth client
@@ -3505,8 +4445,23 @@ class AdminTenantNamespace {
 class AdminOAuthClientNamespace {
   constructor(private readonly request: AdminRequester) {}
 
-  create(client: AdminOAuthClientCreate, options: RequestOptions = {}): Promise<AdminOAuthClientCreateResponse> {
-    return this.request("POST", "/oauth-clients", client, mutationOptions(options));
+  async create(client: AdminOAuthClientCreate, options: RequestOptions = {}): Promise<AdminOAuthClientCreateResponse> {
+    const created = await this.request<AdminOAuthClientCreateResponse>(
+      "POST",
+      "/oauth-clients",
+      client,
+      mutationOptions(options),
+    );
+    const { loginSetup } = created;
+    return {
+      ...created,
+      scopes: created.scopes ?? [],
+      ...(loginSetup
+        ? {
+            loginSetup: { ...loginSetup, scopes: loginSetup.scopes ?? [], redirectUris: loginSetup.redirectUris ?? [] },
+          }
+        : {}),
+    };
   }
 
   list(): Promise<AdminOAuthClientListResponse> {
@@ -3530,6 +4485,19 @@ class AdminOAuthClientNamespace {
     return this.request(
       "POST",
       `/oauth-clients/${encodeURIComponent(clientId)}/rotate-secret`,
+      undefined,
+      mutationOptions(options),
+    );
+  }
+
+  /**
+   * Issues a new secret for a client whose current secret nobody holds. The new secret is shown only
+   * in this response.
+   */
+  replaceUnknownSecret(clientId: string, options: RequestOptions = {}): Promise<AdminOAuthClientSecretResponse> {
+    return this.request(
+      "POST",
+      `/oauth-clients/${encodeURIComponent(clientId)}/replace-unknown-secret`,
       undefined,
       mutationOptions(options),
     );
@@ -3561,18 +4529,17 @@ class AdminSiteNamespace {
   }
 
   async list(): Promise<AdminSiteListResponse> {
-    const response = await this.request<AdminSiteListResponse & { sites: Array<AdminSite & { writeKey?: unknown }> }>(
-      "GET",
-      "/sites",
-    );
-    return { sites: response.sites.map(publicAdminSite) };
+    const response = await this.request<{ sites: AdminSiteWire[] | null }>("GET", "/sites");
+    return { sites: (response.sites ?? []).map(publicAdminSite) };
   }
 
   async get(siteUuid: string): Promise<AdminSite> {
-    const site = await this.request<AdminSite & { writeKey?: unknown }>(
-      "GET",
-      `/sites/${encodeURIComponent(siteUuid)}`,
-    );
+    const site = await this.request<AdminSiteWire>("GET", `/sites/${encodeURIComponent(siteUuid)}`);
+    return publicAdminSite(site);
+  }
+
+  async update(siteUuid: string, body: AdminSiteUpdate): Promise<AdminSite> {
+    const site = await this.request<AdminSiteWire>("PATCH", `/sites/${encodeURIComponent(siteUuid)}`, body);
     return publicAdminSite(site);
   }
 
@@ -3588,22 +4555,6 @@ class AdminSiteNamespace {
 class AdminSchemaNamespace {
   constructor(private readonly request: AdminRequester) {}
 
-  list(): Promise<AdminSchemaListResponse> {
-    return this.request("GET", "/schemas");
-  }
-
-  get(eventTypeSlug: string): Promise<AdminSchema> {
-    return this.request("GET", `/schemas/${encodeURIComponent(eventTypeSlug)}`);
-  }
-
-  register(schema: AdminSchemaRegister): Promise<AdminSchema> {
-    return this.request("POST", "/schemas", schema);
-  }
-
-  createVersion(eventTypeSlug: string, schema: AdminSchemaVersionCreate): Promise<AdminSchema> {
-    return this.request("POST", `/schemas/${encodeURIComponent(eventTypeSlug)}/versions`, schema);
-  }
-
   validate(body: AdminSchemaValidateRequest): Promise<AdminSchemaValidateResult> {
     return this.request("POST", "/schema/validate", body);
   }
@@ -3616,6 +4567,14 @@ class AdminSchemaNamespace {
     );
   }
 
+  register(tenantSlug: string, eventTypeSlug: string, body: AdminSchemaRegisterRequest): Promise<void> {
+    return this.request(
+      "POST",
+      `/schema/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(eventTypeSlug)}/register`,
+      body,
+    );
+  }
+
   dryRun(tenantSlug: string, eventTypeSlug: string, body: AdminSchemaDryRunRequest): Promise<AdminSchemaDryRunResult> {
     return this.request(
       "POST",
@@ -3624,28 +4583,72 @@ class AdminSchemaNamespace {
     );
   }
 
-  audit(): Promise<AdminSchemaAuditListResponse> {
-    return this.request("GET", "/schema/audit");
+  async audit(tenantSlug?: string): Promise<AdminSchemaAuditListResponse> {
+    const query = tenantSlug ? `?${new URLSearchParams({ tenantSlug })}` : "";
+    const audit = await this.request<AdminSchemaAuditListResponse>("GET", `/schema/audit${query}`);
+    return { ...audit, schemas: (audit.schemas ?? []).map(schemaAuditResult) };
   }
+}
+
+function schemaAuditResult(result: AdminSchemaAuditResult): AdminSchemaAuditResult {
+  const compile = (pass: AdminSchemaCompileResult) => ({ ...pass, issues: pass.issues ?? [] });
+  return {
+    ...result,
+    issueCodes: result.issueCodes ?? [],
+    legacyCompile: compile(result.legacyCompile),
+    sharedCompile: compile(result.sharedCompile),
+    exampleValidation: { ...result.exampleValidation, issueCodes: result.exampleValidation.issueCodes ?? [] },
+  };
+}
+
+function privacyRules(rules: AdminPrivacyRulesResponse): AdminPrivacyRulesResponse {
+  return { ...rules, rules: rules.rules ?? [] };
 }
 
 class AdminPrivacyNamespace {
   constructor(private readonly request: AdminRequester) {}
 
-  getRules(): Promise<AdminPrivacyRulesResponse> {
-    return this.request("GET", "/privacy/rules");
+  async getRules(companySlug?: string): Promise<AdminPrivacyRulesResponse> {
+    const query = companySlug ? `?${new URLSearchParams({ companySlug })}` : "";
+    return privacyRules(await this.request("GET", `/privacy/rules${query}`));
   }
 
-  setRules(body: AdminPrivacyRuleUpdate): Promise<AdminPrivacyRulesResponse> {
-    return this.request("PUT", "/privacy/rules", body);
+  async setRules(body: AdminPrivacyRuleUpdate): Promise<AdminPrivacyRulesResponse> {
+    return privacyRules(await this.request("PUT", "/privacy/rules", body));
   }
 
   mapIdentifier(companySlug: string, body: AdminPrivacyIdentifierMapRequest): Promise<AdminPrivacyIdentifierMapping> {
     return this.request("POST", `/privacy/identifiers/${encodeURIComponent(companySlug)}/map`, body);
   }
 
-  listIdentifierMappings(companySlug: string): Promise<AdminPrivacyIdentifierMapping[]> {
-    return this.request("GET", `/privacy/identifiers/${encodeURIComponent(companySlug)}`);
+  async listIdentifierMappings(companySlug: string): Promise<AdminPrivacyIdentifierMappingList> {
+    const list = await this.request<AdminPrivacyIdentifierMappingList>(
+      "GET",
+      `/privacy/identifiers/${encodeURIComponent(companySlug)}`,
+    );
+    return { ...list, mappings: list.mappings ?? [] };
+  }
+
+  async listConsent(subjectId: string, companySlug?: string): Promise<AdminPrivacyConsentList> {
+    const params = new URLSearchParams({ subjectId });
+    if (companySlug) params.set("companySlug", companySlug);
+    const response = await this.request<
+      Omit<AdminPrivacyConsentList, "records"> & {
+        records: AdminPrivacyConsentRecord[] | null;
+      }
+    >("GET", `/privacy/consent?${params}`);
+    return { ...response, records: response.records ?? [] };
+  }
+
+  recordConsent(body: AdminPrivacyConsentRecordRequest): Promise<AdminPrivacyConsentRecord> {
+    return this.request("POST", "/privacy/consent", body);
+  }
+
+  revokeConsent(subjectId: string, revoke: AdminPrivacyConsentRevokeRequest): Promise<AdminPrivacyConsentRecord> {
+    const params = new URLSearchParams({ purpose: revoke.purpose });
+    if (revoke.source) params.set("source", revoke.source);
+    if (revoke.companySlug) params.set("companySlug", revoke.companySlug);
+    return this.request("DELETE", `/privacy/consent/${encodeURIComponent(subjectId)}?${params}`);
   }
 }
 
@@ -3663,11 +4666,19 @@ class AdminStorageAlertsNamespace {
   deleteRule(tenantSlug: string, ruleId: string): Promise<void> {
     return this.request("DELETE", `/storage/alerts/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(ruleId)}`);
   }
+
+  async listEvents(tenantSlug: string): Promise<AdminStorageAlertEventListResponse> {
+    const response = await this.request<{ events: AdminStorageAlertEvent[] | null }>(
+      "GET",
+      `/storage/alerts/${encodeURIComponent(tenantSlug)}/events`,
+    );
+    return { events: response.events ?? [] };
+  }
 }
 
 type AdminAuditEventWire = AdminAuditEvent & Record<string, unknown>;
 type AdminAuditListResponseWire = {
-  events: AdminAuditEventWire[];
+  events: AdminAuditEventWire[] | null;
   nextCursor?: AdminAuditListCursor;
   coverageBeginsAt?: unknown;
   retention?: unknown;
@@ -3745,6 +4756,7 @@ function mapAdminAuditEvent(event: AdminAuditEventWire): AdminAuditEvent {
     ...(changes.length > 0 ? { changes } : {}),
     ...(details !== undefined && typeof details === "object" && !Array.isArray(details) ? { details } : {}),
     ...(network !== undefined ? { network } : {}),
+    ...(event.domainHistory !== undefined ? { domainHistory: event.domainHistory } : {}),
     createdAt: event.createdAt,
   };
 }
@@ -3755,7 +4767,6 @@ function mapAdminReportingPackAuditEvent(event: AdminReportingPackAuditEventWire
     ...(event.actorReference !== undefined ? { actorReference: event.actorReference } : {}),
     actorDisplayName: event.actorDisplayName,
     resourceType: event.resourceType,
-    resourceId: event.resourceId,
     packKey: event.packKey,
     createdAt: event.createdAt,
   };
@@ -3805,7 +4816,7 @@ class AdminAuditNamespace {
     const response = await this.request<AdminAuditListResponseWire>("GET", `/audit/events${this.auditQuery(options)}`);
     const retention = mapAdminAuditRetention(response.retention);
     return {
-      events: response.events.map(mapAdminAuditEvent),
+      events: (response.events ?? []).map(mapAdminAuditEvent),
       nextCursor: response.nextCursor ?? { cursor: "" },
       ...(typeof response.coverageBeginsAt === "string" ? { coverageBeginsAt: response.coverageBeginsAt } : {}),
       ...(retention === undefined ? {} : { retention }),
@@ -3830,11 +4841,11 @@ class AdminAuditNamespace {
   }
 
   async listReportingPackEvents(packKey: string): Promise<AdminReportingPackAuditListResponse> {
-    const response = await this.request<{ events: AdminReportingPackAuditEventWire[] }>(
+    const response = await this.request<{ events: AdminReportingPackAuditEventWire[] | null }>(
       "GET",
       `/reporting-packs/audit-events?packKey=${encodeURIComponent(packKey)}`,
     );
-    return { events: response.events.map(mapAdminReportingPackAuditEvent) };
+    return { events: (response.events ?? []).map(mapAdminReportingPackAuditEvent) };
   }
 }
 
@@ -3887,7 +4898,7 @@ class AdminReportingPacksNamespace {
     return this.request("POST", `/reporting-packs/drafts/${encodeURIComponent(draftId)}/publish`);
   }
 
-  restart(draftId: string): Promise<ReportingPackGeneration> {
+  restart(draftId: string): Promise<ReportingPackDraft> {
     return this.request("POST", `/reporting-packs/drafts/${encodeURIComponent(draftId)}/restart`);
   }
 
@@ -3899,80 +4910,21 @@ class AdminReportingPacksNamespace {
     return this.request("GET", `/reporting-packs/generations/${encodeURIComponent(generationId)}/status`);
   }
 
-  rollbackGeneration(generationId: string): Promise<void> {
+  rollbackGeneration(generationId: string): Promise<ReportingPackGeneration> {
     return this.request("POST", `/reporting-packs/generations/${encodeURIComponent(generationId)}/rollback`);
+  }
+
+  async listGenerationValidity(): Promise<ReportingPackGenerationValidityListResponse> {
+    const response = await this.request<{ generations: ReportingPackGenerationValidity[] | null }>(
+      "GET",
+      "/reporting-packs/generation-validity",
+    );
+    return { generations: response.generations ?? [] };
   }
 
   getRollupProvenance(generationId: string): Promise<ReportingPackRollupProvenance> {
     return this.request("GET", `/reporting-packs/generations/${encodeURIComponent(generationId)}/rollup-provenance`);
   }
-}
-
-class AdminMeasurementNamespace {
-  readonly projects: AdminMeasurementProjectNamespace;
-
-  constructor(request: AdminRequester) {
-    this.projects = new AdminMeasurementProjectNamespace(request);
-  }
-}
-
-class AdminMeasurementProjectNamespace {
-  constructor(private readonly request: AdminRequester) {}
-
-  create(project: MeasurementProjectCreate): Promise<MeasurementProject> {
-    return this.request("POST", "/measurement/projects", project);
-  }
-
-  list(): Promise<MeasurementProjectListResponse> {
-    return this.request("GET", "/measurement/projects");
-  }
-
-  get(projectUuid: string): Promise<MeasurementProject> {
-    return this.request("GET", `/measurement/projects/${encodeURIComponent(projectUuid)}`);
-  }
-
-  submitObservation(
-    projectUuid: string,
-    observation: MeasurementObservationInput,
-  ): Promise<MeasurementObservationBulkResponse> {
-    return this.submitObservations(projectUuid, { rows: [observation] });
-  }
-
-  async submitObservations(
-    projectUuid: string,
-    request: MeasurementObservationBulkRequest,
-  ): Promise<MeasurementObservationBulkResponse> {
-    const response = await this.request<MeasurementObservationBulkResponse>(
-      "POST",
-      `/measurement/projects/${encodeURIComponent(projectUuid)}/observations:bulk`,
-      request,
-    );
-    validateMeasurementResults(response.results, request.rows.length);
-    return response;
-  }
-
-  async importCSVString(projectUuid: string, csv: string, expectedRows: number): Promise<MeasurementCSVImportResponse> {
-    const response = await this.request<MeasurementCSVImportResponse>(
-      "POST",
-      `/measurement/projects/${encodeURIComponent(projectUuid)}/observations:csv`,
-      { csv },
-    );
-    validateMeasurementResults(response.results, expectedRows);
-    return response;
-  }
-}
-
-function validateMeasurementResults(results: MeasurementObservationResult[], submittedRows: number): void {
-  if (results.length !== submittedRows) {
-    throw new Error(
-      `custd: measurement result count ${results.length} does not match submitted row count ${submittedRows}`,
-    );
-  }
-  results.forEach((result, index) => {
-    if (result.success && !result.observationUuid) {
-      throw new Error(`custd: measurement result ${index} missing observationUuid`);
-    }
-  });
 }
 
 export type PrepareEventMode = "producer" | "browser-cookieless";
@@ -4505,12 +5457,31 @@ function randomUUID(): string {
   );
 }
 
+export * from "./admin-accounting-evidence.js";
+export * from "./admin-campaign-email.js";
+export * from "./admin-email-relay.js";
+export * from "./admin-environment-policy.js";
+export * from "./admin-error-issues.js";
+export * from "./admin-event-types.js";
+export * from "./admin-impersonation.js";
+export * from "./admin-ingest-claims.js";
+export * from "./admin-managed-audit.js";
+export * from "./admin-measurement-projects.js";
+export * from "./admin-notification-destinations.js";
+export * from "./admin-notification-webhooks.js";
+export * from "./admin-oauth-client-admissions.js";
+export * from "./admin-rls.js";
+export * from "./admin-sdk-usage.js";
 export type {
   SiteRegionalTrendMarket,
   SiteRegionalTrendMatch,
   SiteRegionalTrends,
   SiteTechnicalTrends,
 } from "./admin-site-regional-trends.js";
+export * from "./admin-support-access.js";
+export * from "./admin-system.js";
+export * from "./admin-uncertainty-models.js";
+export * from "./analytics-reads.js";
 export * from "./app-account.js";
 export {
   type CaptureExceptionRequest,
@@ -4526,3 +5497,16 @@ export {
   type NativeErrorHandler,
   type NativeErrorSource,
 } from "./error-capture.js";
+export * from "./ingest-operations.js";
+export * from "./measurement.js";
+export * from "./public-reads.js";
+export * from "./reporting-catalogue.js";
+export type {
+  EventSchemaDocument,
+  EventSchemaRegisterRequest,
+  EventSchemaStateResult,
+  EventSchemaVersion,
+  EventSchemaVersionList,
+  RegisteredEventType,
+  RegisteredEventTypeList,
+} from "./schema-registry.js";

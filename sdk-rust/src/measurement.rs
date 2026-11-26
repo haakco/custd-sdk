@@ -24,6 +24,18 @@ where
     Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
 }
 
+/// Decodes a list of a recursive shape, dropping `null` items: a null child means no child.
+pub(crate) fn null_items_skipped<'de, D, T>(
+    deserializer: D,
+) -> std::result::Result<Vec<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    let items = Option::<Vec<Option<T>>>::deserialize(deserializer)?;
+    Ok(items.into_iter().flatten().flatten().collect())
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MeasurementProjectCreate {
@@ -85,6 +97,9 @@ pub struct MeasurementSeries {
     pub series_code: String,
     pub name: String,
     pub unit_slug: String,
+    /// The unit's display label, such as `tasks`; absent when the unit has none.
+    #[serde(default)]
+    pub unit_label: Option<String>,
     pub completion_direction: String,
     pub source: String,
 }
@@ -159,7 +174,7 @@ pub struct MeasurementObservationImport {
     pub results: Vec<MeasurementObservationResult>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MeasurementObservationResult {
     pub row_index: i64,
@@ -257,7 +272,7 @@ pub struct MeasurementForecastRun {
     pub counter: Option<MeasurementForecastCounter>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MeasurementForecastWarning {
     pub code: String,
     pub severity: String,

@@ -30,6 +30,21 @@ class AuditRetentionDisclosure(TypedDict):
     userAgentMaxAgeSeconds: int
 
 
+class AuditDomainHistory(TypedDict):
+    """The domain state transition an audit event records, when it records one."""
+
+    source: str
+    sourceId: str
+    createdAt: str
+    action: NotRequired[str]
+    resourceType: NotRequired[str]
+    resourceId: NotRequired[str]
+    state: NotRequired[str]
+    previousState: NotRequired[str]
+    currentState: NotRequired[str]
+    streamVersion: NotRequired[int]
+
+
 class AuditEvent(TypedDict, total=False):
     # Stable public audit event UUID.
     eventId: str
@@ -47,6 +62,7 @@ class AuditEvent(TypedDict, total=False):
     changes: list[AuditChange]
     details: dict[str, object]
     network: AuditNetworkDisclosure
+    domainHistory: AuditDomainHistory
     createdAt: str
 
 
@@ -67,9 +83,15 @@ class AuditListOptions(TypedDict, total=False):
     cursor: str
 
 
+class AuditListCursor(TypedDict):
+    """The cursor for the next page; ``cursor`` is absent on the last page."""
+
+    cursor: NotRequired[str]
+
+
 class AuditListResponse(TypedDict):
     events: list[AuditEvent]
-    nextCursor: dict[str, str]
+    nextCursor: AuditListCursor
     coverageBeginsAt: NotRequired[str]
     retention: NotRequired[AuditRetentionDisclosure]
 
@@ -84,7 +106,6 @@ class ReportingPackAuditEvent(TypedDict, total=False):
     actorReference: str
     actorDisplayName: str
     resourceType: str
-    resourceId: str
     packKey: str
     createdAt: str
 
@@ -171,6 +192,9 @@ def _safe_event(value: object) -> AuditEvent:
     details = value.get("details")
     if isinstance(details, Mapping):
         event["details"] = dict(details)
+    domain_history = value.get("domainHistory")
+    if isinstance(domain_history, Mapping):
+        event["domainHistory"] = dict(domain_history)
     network = value.get("network")
     if isinstance(network, Mapping):
         ip_state = network.get("ipAddressState")
@@ -209,7 +233,8 @@ class AuditAdminClient:
 
     def list_events(self, options: AuditListOptions | None = None) -> AuditListResponse:
         response = self._admin.request("GET", "/audit/events" + _query(options))
-        events = response.get("events")
+        # The server encodes an empty list as JSON null.
+        events = response.get("events") or []
         if not isinstance(events, list):
             raise ValueError("custd: audit list response events must be an array")
         cursor = response.get("nextCursor")
@@ -244,7 +269,8 @@ class AuditAdminClient:
         response = self._admin.request(
             "GET", "/reporting-packs/audit-events?" + urlencode({"packKey": pack_key})
         )
-        events = response.get("events")
+        # The server encodes an empty list as JSON null.
+        events = response.get("events") or []
         if not isinstance(events, list):
             raise ValueError("custd: reporting-pack audit list response events must be an array")
         safe_events: list[ReportingPackAuditEvent] = []
@@ -252,6 +278,6 @@ class AuditAdminClient:
             if not isinstance(event, Mapping):
                 raise ValueError("custd: reporting-pack audit event response must be an object")
             safe_events.append(cast(ReportingPackAuditEvent, {key: event[key] for key in (
-                "action", "actorReference", "actorDisplayName", "resourceType", "resourceId", "packKey", "createdAt"
+                "action", "actorReference", "actorDisplayName", "resourceType", "packKey", "createdAt"
             ) if key in event}))
         return {"events": safe_events}

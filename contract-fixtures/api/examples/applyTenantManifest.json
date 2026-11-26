@@ -13,7 +13,17 @@
         "lastFailure": {
           "code": "example",
           "observedAt": "2026-11-20T06:00:00Z",
-          "resources": []
+          "resources": [
+            {
+              "detail": "example",
+              "key": "example",
+              "kind": "example",
+              "ready": true,
+              "safeNextAction": "example",
+              "safeNextActionCode": "example",
+              "state": "example"
+            }
+          ]
         },
         "nextAttemptAt": "2026-11-20T06:00:00Z"
       },

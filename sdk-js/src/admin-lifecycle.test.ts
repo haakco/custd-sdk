@@ -1,8 +1,38 @@
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { readLifecycleFixture } from "./fixtures.js";
-import { AdminWorkflowError, CustdClient } from "./index";
+import { AdminWorkflowError, CustdClient, CustdRequestError } from "./index";
+import { OFFBOARDING_REQUEST_UUID, offboardingBodies, offboardingReceipt } from "./offboarding-bodies.test-helper";
 
 const BASE_URL = "http://localhost:8080/";
+
+/** The maximal server example for one operation, from contract-fixtures/api/examples. */
+function apiExample(operationId: string): Record<string, unknown> & Record<"id" | "requestUuid", string> {
+  const url = new URL(`../../contract-fixtures/api/examples/${operationId}.json`, import.meta.url);
+  return (
+    JSON.parse(readFileSync(url, "utf8")) as { maximal: Record<string, unknown> & Record<"id" | "requestUuid", string> }
+  ).maximal;
+}
+
+type RecordedCall = { url: string; method: string; body: unknown };
+
+/** A fetch that answers each call with the next queued JSON response and records what was sent. */
+function sequenceFetch(responses: Array<{ status: number; body: unknown }>) {
+  const calls: RecordedCall[] = [];
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const next = responses[calls.length];
+    calls.push({
+      url: String(input),
+      method: init?.method ?? "GET",
+      body: typeof init?.body === "string" && init.body.length > 0 ? JSON.parse(init.body) : undefined,
+    });
+    if (!next) throw new Error("unexpected request");
+    return new Response(JSON.stringify(next.body), {
+      status: next.status,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+  return { fetchMock: fetchMock as unknown as typeof fetch, calls };
+}
 
 // lifecycleTracker records every outbound request so each test can assert
 // the SDK sent the URL and method it claims. Tests replace the global fetch
@@ -32,267 +62,222 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("TenantStorageClient", () => {
-  it("list decodes the per-tenant storage location rows", async () => {
-    const body = readLifecycleFixture("tenant-storage", "valid-list-response.json") as {
-      locations: Array<Record<string, unknown>>;
-    };
-    const { fetchMock, calls } = bootstrapFetch(200, body);
-    globalThis.fetch = fetchMock;
-    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
-
-    const list = await client.admin.tenantStorage.list();
-
-    expect(list.locations).toHaveLength(2);
-    const first = list.locations[0];
-    expect(first.id).toBe("loc_acme_warehouse");
-    expect(first.tenantSlug).toBe("acme");
-    expect(first.serverAssignedPrefix).toBe("raw/acme/2026-07-31/");
-    expect(first.status).toBe("active");
-    expect(calls[0].url).toBe("http://localhost:8080/api/v1/tenant-storage-locations");
-    expect(calls[0].method).toBe("GET");
-  });
-
-  it("list returns an empty array when the SDK is scoped to a different tenant", async () => {
-    const body = readLifecycleFixture("tenant-storage", "isolation-other-tenant-response.json") as {
-      locations: unknown[];
-    };
-    const { fetchMock } = bootstrapFetch(200, body);
-    globalThis.fetch = fetchMock;
-    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
-
-    const list = await client.admin.tenantStorage.list();
-
-    expect(list.locations).toEqual([]);
-  });
-});
-
 describe("SubjectExportClient", () => {
-  it("create decodes the typed receipt and force decodes the ready-state response", async () => {
-    const createBody = readLifecycleFixture("subject-exports", "valid-create-response.json") as Record<string, unknown>;
-    const forceBody = readLifecycleFixture("subject-exports", "valid-force-response.json") as Record<string, unknown>;
-    const { calls } = bootstrapFetch(201, createBody);
-    const calls2: Array<{ url: string; method: string; body: unknown }> = [];
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      const method = init?.method ?? "GET";
-      let parsed: unknown;
-      if (typeof init?.body === "string" && init.body.length > 0) {
-        parsed = JSON.parse(init.body);
-      }
-      const callCount = calls.length + calls2.length;
-      calls.push({ url, method, body: parsed });
-      const body = callCount === 0 ? createBody : forceBody;
-      const status = callCount === 0 ? 201 : 200;
-      return new Response(JSON.stringify(body), {
-        status,
-        headers: { "Content-Type": "application/json" },
-      });
-    }) as unknown as typeof fetch;
-    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
+  it("create sends the server body and decodes the export status; force returns the same shape", async () => {
+    const createBody = apiExample("createSubjectExport");
+    const forceBody = { ...apiExample("forceSubjectExport"), state: "running", perStoreProgress: null };
+    const { fetchMock, calls } = sequenceFetch([
+      { status: 201, body: createBody },
+      { status: 202, body: forceBody },
+    ]);
+    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token", fetch: fetchMock });
 
     const created = await client.admin.subjectExports.create({
-      tenantSlug: "acme",
-      subject: { type: "userUuid", value: "01J5K7N4Y8X9Z2B6V3D1M0Q7RJ" },
+      opaqueSubjectId: "subject-01J5K7N4Y8X9Z2B6V3D1M0Q7RJ",
       scope: "portability",
-      idempotencyKey: "export-acme-01J5K7N4Y8X9Z2B6V3D1M0Q7RJ-2026-07-31",
+      idempotencyKey: "export-acme-2026-07-31",
     });
-    expect(created.requestId).toBe("se_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-    expect(created.state).toBe("queued");
-    expect(created.subject.type).toBe("userUuid");
-    expect(calls[0].url).toBe("http://localhost:8080/api/v1/admin/subject-exports");
-    expect(calls[0].method).toBe("POST");
+    expect(created.id).toBe(createBody.id);
+    expect(created.perStoreProgress[0]?.retainedExceptions).toBe(1);
+    expect(calls[0]).toEqual({
+      url: "http://localhost:8080/api/v1/admin/subject-exports",
+      method: "POST",
+      body: {
+        opaqueSubjectId: "subject-01J5K7N4Y8X9Z2B6V3D1M0Q7RJ",
+        scope: "portability",
+        idempotencyKey: "export-acme-2026-07-31",
+      },
+    });
 
-    const forced = await client.admin.subjectExports.force("se_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-    expect(forced.state).toBe("ready");
-    expect(calls[1].url).toBe("http://localhost:8080/api/v1/admin/subject-exports/se_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ/force");
-    expect(calls[1].method).toBe("POST");
+    const forced = await client.admin.subjectExports.force("se-1");
+    expect(forced.state).toBe("running");
+    expect(forced.perStoreProgress).toEqual([]);
+    expect(calls[1]?.url).toBe("http://localhost:8080/api/v1/admin/subject-exports/se-1/force");
   });
 
-  it("download surfaces the signed URL field but never logs the value", async () => {
-    const body = readLifecycleFixture("subject-exports", "valid-download-response.json") as Record<string, unknown>;
-    const { fetchMock, calls } = bootstrapFetch(200, body);
-    globalThis.fetch = fetchMock;
-    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
+  it("download asks for one artifact scope and returns its integrity metadata", async () => {
+    const body = apiExample("downloadSubjectExport");
+    const { fetchMock, calls } = sequenceFetch([{ status: 200, body }]);
+    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token", fetch: fetchMock });
 
-    const download = await client.admin.subjectExports.download("se_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    const artifact = await client.admin.subjectExports.download("se-1", "access");
 
-    expect(download.requestId).toBe("se_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-    // The download URL is sensitive; we never log it and never echo it
-    // into error messages. We assert presence only.
-    expect(typeof download.downloadUrl).toBe("string");
-    expect(download.downloadUrl).not.toBe("");
-    // The fetch URL must not contain the signed URL value.
-    expect(calls[0].url).toBe(
-      "http://localhost:8080/api/v1/admin/subject-exports/se_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ/download",
-    );
+    expect(artifact.checksumSha256).toBe(body.checksumSha256);
+    expect(artifact.byteSize).toBe(body.byteSize);
+    expect(calls[0]?.url).toBe("http://localhost:8080/api/v1/admin/subject-exports/se-1/download?scope=access");
   });
 
-  it("expired download returns a 4xx and the signed URL value never reaches error messages", async () => {
-    const body = readLifecycleFixture("subject-exports", "expired-download-response.json") as Record<string, unknown>;
-    const fetchMock = vi.fn(
-      async () =>
-        new Response(JSON.stringify(body), {
-          status: 410,
-          headers: { "Content-Type": "application/json" },
-        }),
-    );
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
+  // The server has no dedicated problem for an expired artifact yet: it answers with its internal problem.
+  it("an expired download surfaces the server's problem without retrying", async () => {
+    const problem = {
+      type: "internal",
+      title: "Internal Server Error",
+      status: 500,
+      detail: "An internal error occurred.",
+      retryability: "none",
+      nextAction: { action: "escalate" },
+    };
+    const { fetchMock } = sequenceFetch([{ status: 500, body: problem }]);
+    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token", fetch: fetchMock });
 
-    let error: Error | undefined;
-    try {
-      await client.admin.subjectExports.download("se_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-    } catch (err) {
-      error = err as Error;
-    }
-    expect(error).toBeDefined();
-    expect(error?.message).toContain("download_expired");
-    // The signed URL value must not leak into the surfaced error message.
-    expect(error?.message).not.toContain("signed.example.invalid");
+    const refusal = client.admin.subjectExports.download("se-1", "portability");
+
+    await expect(refusal).rejects.toBeInstanceOf(CustdRequestError);
+    await expect(refusal).rejects.toMatchObject({ status: 500, retryability: "none" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("PrivacyErasureClient", () => {
-  it("create + get decode per-store progress and surface complete state", async () => {
-    const createBody = readLifecycleFixture("privacy-erasures", "valid-create-response.json") as Record<
-      string,
-      unknown
-    >;
-    const getBody = readLifecycleFixture("privacy-erasures", "valid-get-response.json") as Record<string, unknown>;
-    const calls: Array<{ url: string; method: string; body: unknown }> = [];
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      const method = init?.method ?? "GET";
-      let parsed: unknown;
-      if (typeof init?.body === "string" && init.body.length > 0) {
-        parsed = JSON.parse(init.body);
-      }
-      calls.push({ url, method, body: parsed });
-      const body = calls.length === 1 ? createBody : getBody;
-      const status = calls.length === 1 ? 201 : 200;
-      return new Response(JSON.stringify(body), {
-        status,
-        headers: { "Content-Type": "application/json" },
-      });
-    }) as unknown as typeof fetch;
-    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
+  it("create + get decode the erasure read model", async () => {
+    const created = apiExample("createPrivacyErasure");
+    const read = apiExample("getPrivacyErasure");
+    const { fetchMock, calls } = sequenceFetch([
+      { status: 202, body: created },
+      { status: 200, body: { ...read, status: "s3_reflected" } },
+    ]);
+    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token", fetch: fetchMock });
 
-    const created = await client.admin.privacyErasures.create({
+    const request = await client.admin.privacyErasures.create({
       companySlug: "acme",
-      selector: { type: "userUuid", value: "01J5K7N4Y8X9Z2B6V3D1M0Q7RJ" },
+      selector: { type: "userUuid", values: ["user-1", "user-2"] },
       reason: "gdpr_erasure_request",
-      redactionId: "sdk-lifecycle-fixture",
+      redactionId: "sdk-erasure-proof",
     });
-    expect(created.requestUuid).toBe("pe_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    expect(request.requestUuid).toBe(created.requestUuid);
+    expect(request.matchedEventCount).toBe(1);
+    expect(calls[0]?.body).toMatchObject({ selector: { type: "userUuid", values: ["user-1", "user-2"] } });
 
-    const got = await client.admin.privacyErasures.get("acme", "pe_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-    expect(got.state).toBe("complete");
-    expect(got.perStoreProgress).toHaveLength(5);
-    for (const row of got.perStoreProgress ?? []) {
-      expect(row.store).not.toBe("");
-      expect(row.state).not.toBe("");
-    }
+    const got = await client.admin.privacyErasures.get("acme", "pe-1");
+    expect(got.status).toBe("s3_reflected");
+    expect(got.slaState).toBe(read.slaState);
+    expect(calls[1]?.url).toBe("http://localhost:8080/api/v1/admin/privacy/erasures/pe-1?companySlug=acme");
   });
 
-  it("legal hold surfaces the legal_hold store as retained with deletedCount=0", async () => {
-    const body = readLifecycleFixture("privacy-erasures", "legal-hold-retained.json") as Record<string, unknown>;
-    const { fetchMock } = bootstrapFetch(200, body);
-    globalThis.fetch = fetchMock;
-    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
+  it("another tenant's erasure is refused as not found", async () => {
+    const problem = {
+      type: "not_found",
+      title: "Not Found",
+      status: 404,
+      detail: "privacy erasure not found",
+      retryability: "none",
+      nextAction: { action: "none" },
+    };
+    const { fetchMock } = sequenceFetch([{ status: 404, body: problem }]);
+    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token", fetch: fetchMock });
 
-    const got = await client.admin.privacyErasures.get("acme", "pe_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-
-    expect(got.state).toBe("partial");
-    const legalHold = (got.perStoreProgress ?? []).find((row) => row.store === "legal_hold");
-    expect(legalHold).toBeDefined();
-    expect(legalHold?.state).toBe("retained");
-    expect(legalHold?.deletedCount).toBe(0);
-    expect(legalHold?.reason).toBe("legal_hold");
+    await expect(client.admin.privacyErasures.get("other-tenant", "pe-1")).rejects.toMatchObject({
+      code: "get_request_failed",
+      retryable: false,
+    });
   });
 });
 
 describe("RetentionClient", () => {
   it("preview/apply/listRuns surface server-computed counts and run state", async () => {
-    const previewBody = readLifecycleFixture("retention", "valid-preview-response.json") as Record<string, unknown>;
-    const applyBody = readLifecycleFixture("retention", "valid-apply-response.json") as Record<string, unknown>;
-    const runsBody = readLifecycleFixture("retention", "valid-runs-response.json") as Record<string, unknown>;
-    const calls: Array<{ url: string; method: string; body: unknown }> = [];
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      const method = init?.method ?? "GET";
-      calls.push({ url, method, body: undefined });
-      const body = calls.length === 1 ? previewBody : calls.length === 2 ? applyBody : runsBody;
-      return new Response(JSON.stringify(body), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    }) as unknown as typeof fetch;
-    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
+    const preview = {
+      perStore: [
+        {
+          store: "raw",
+          retentionClass: "raw",
+          candidateCount: 142,
+          estimatedAffected: 142,
+          sampleSubjects: null,
+          legalHoldCount: 0,
+        },
+        {
+          store: "archive",
+          retentionClass: "archive",
+          candidateCount: 0,
+          estimatedAffected: 0,
+          sampleSubjects: [],
+          legalHoldCount: 1,
+        },
+      ],
+      lastResult: "preview",
+      safeNextAction: "apply",
+      startedAt: "2026-07-31T08:00:00Z",
+      completedAt: "2026-07-31T08:00:01Z",
+    };
+    const applied = { ...preview, lastResult: "applied", lastAffectedCounts: { raw: 142 }, safeNextAction: "none" };
+    const runs = {
+      runs: [
+        {
+          startAt: "2026-07-30T00:00:00Z",
+          endAt: "2026-07-31T00:00:00Z",
+          lastResult: "applied",
+          lastAffectedCounts: { raw: 172 },
+        },
+      ],
+      nextOffset: 1,
+      hasMore: true,
+    };
+    const { fetchMock, calls } = sequenceFetch([
+      { status: 200, body: preview },
+      { status: 200, body: applied },
+      { status: 200, body: runs },
+    ]);
+    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token", fetch: fetchMock });
 
-    const preview = await client.admin.retention.preview("acme");
-    expect(preview.previewId).not.toBe("");
-    expect(preview.estimatedDeletions).toHaveLength(3);
-    expect(preview.estimatedDeletions[0].store).toBe("raw_landing");
-    expect(preview.estimatedDeletions[0].count).toBe(142);
-    expect(calls[0].url).toBe("http://localhost:8080/api/v1/admin/retention/policies/acme/preview");
-    expect(calls[0].method).toBe("POST");
+    const previewed = await client.admin.retention.preview("acme");
+    expect(previewed.perStore[0]?.estimatedAffected).toBe(142);
+    expect(previewed.perStore[0]?.sampleSubjects).toEqual([]);
+    // A legal hold blocks its whole class: the server reports it, and the SDK keeps it verbatim.
+    expect(previewed.perStore[1]).toMatchObject({ retentionClass: "archive", legalHoldCount: 1, estimatedAffected: 0 });
+    expect(calls[0]).toMatchObject({
+      url: "http://localhost:8080/api/v1/admin/retention/policies/acme/preview",
+      method: "POST",
+    });
 
-    const applied = await client.admin.retention.apply("acme");
-    expect(applied.runId).not.toBe("");
-    expect(applied.state).toBe("running");
+    const result = await client.admin.retention.apply("acme");
+    expect(result.lastAffectedCounts).toEqual({ raw: 142 });
 
-    const runs = await client.admin.retention.listRuns("acme");
-    expect(runs.runs).toHaveLength(2);
-    expect(runs.runs[0].state).toBe("complete");
-    expect(runs.runs[0].deletedCount).toBe(172);
-    expect(runs.runs[1].state).toBe("running");
+    const page = await client.admin.retention.listRuns("acme", { limit: 1, offset: 0 });
+    expect(page.runs[0]?.lastAffectedCounts.raw).toBe(172);
+    expect(page.hasMore).toBe(true);
+    expect(calls[2]?.url).toBe("http://localhost:8080/api/v1/admin/retention/policies/acme/runs?limit=1&offset=0");
   });
 
-  it("upsert surfaces the selector_required error without retry", async () => {
-    const body = readLifecycleFixture("retention", "invalid-selectorless-scope.json") as Record<string, unknown>;
-    const fetchMock = vi.fn(
-      async () =>
-        new Response(JSON.stringify(body), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }),
-    );
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
+  it("a legal hold upsert surfaces the server refusal without retry", async () => {
+    const problem = {
+      type: "conflict",
+      title: "Conflict",
+      status: 409,
+      detail: "retention: legal hold conflict",
+      retryability: "none",
+      nextAction: { action: "none" },
+    };
+    const { fetchMock } = sequenceFetch([{ status: 409, body: problem }]);
+    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token", fetch: fetchMock });
 
-    let error: Error | undefined;
-    try {
-      await client.admin.retention.upsert("acme", {
-        maxAgeDays: 30,
-        hardDeleteAfterDays: 60,
-      });
-    } catch (err) {
-      error = err as Error;
-    }
-    expect(error).toBeDefined();
-    expect(error?.message).not.toBe("");
+    await expect(
+      client.admin.retention.upsert("acme", {
+        scope: "tenant",
+        retentionClass: "raw",
+        maxAgeSeconds: 86_400,
+        precedence: 100,
+        legalHold: true,
+        legalHoldUntil: "2027-01-01T00:00:00Z",
+        legalHoldReference: "case-1",
+      }),
+    ).rejects.toThrow(/legal hold conflict/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("OffboardingClient", () => {
   it("full lifecycle decodes request, preview, export, download, acknowledge, execute, receipt", async () => {
-    const createBody = readLifecycleFixture("offboarding", "valid-request-create-response.json") as Record<
-      string,
-      unknown
-    >;
-    const previewBody = readLifecycleFixture("offboarding", "valid-preview-response.json") as Record<string, unknown>;
-    const exportBody = readLifecycleFixture("offboarding", "valid-export-response.json") as Record<string, unknown>;
-    const downloadFixture = readLifecycleFixture("offboarding", "valid-download-binary.json") as {
-      bodyBase64: string;
-      checksumSha256: string;
-      byteSize: number;
-    };
-    const downloadBytes = Uint8Array.from(atob(downloadFixture.bodyBase64), (character) => character.charCodeAt(0));
-    const ackBody = readLifecycleFixture("offboarding", "valid-acknowledge-response.json") as Record<string, unknown>;
-    const execBody = readLifecycleFixture("offboarding", "valid-execute-response.json") as Record<string, unknown>;
-    const receiptBody = readLifecycleFixture("offboarding", "valid-receipt-response.json") as Record<string, unknown>;
-    const sequence = [createBody, previewBody, exportBody, undefined, ackBody, execBody, receiptBody];
+    const downloadFixture = offboardingBodies.download;
+    const downloadBytes = downloadFixture.bytes;
+    const sequence = [
+      offboardingBodies.created,
+      offboardingBodies.preview,
+      offboardingBodies.export,
+      undefined,
+      offboardingBodies.acknowledged,
+      offboardingBodies.receipt,
+      offboardingBodies.receipt,
+    ];
     const calls: Array<{
       url: string;
       method: string;
@@ -336,12 +321,12 @@ describe("OffboardingClient", () => {
       { confirmation: "acme" },
       { idempotencyKey: "tiao-offboarding-proof-1" },
     );
-    expect(created.requestUuid).toBe("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    expect(created.requestUuid).toBe(OFFBOARDING_REQUEST_UUID);
     expect(calls[0].url).toBe("http://localhost:8080/api/v1/admin/offboarding");
     expect(calls[0].method).toBe("POST");
     expect(calls[0].idempotencyKey).toBe("tiao-offboarding-proof-1");
 
-    const preview = await client.admin.offboarding.preview("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    const preview = await client.admin.offboarding.preview(OFFBOARDING_REQUEST_UUID);
     expect(preview.previewInventoryDigest).not.toBe("");
     expect(preview.stores).toHaveLength(3);
     expect(preview.stores[0]?.retentionClass).toBe("operational");
@@ -349,27 +334,27 @@ describe("OffboardingClient", () => {
       "http://localhost:8080/api/v1/admin/offboarding/requests/ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ/preview",
     );
 
-    const exportReceipt = await client.admin.offboarding.export("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    const exportReceipt = await client.admin.offboarding.export(OFFBOARDING_REQUEST_UUID);
     expect(exportReceipt.recordCount).toBe(1357);
     expect(exportReceipt.checksumSha256).not.toBe("");
 
-    const download = await client.admin.offboarding.download("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    const download = await client.admin.offboarding.download(OFFBOARDING_REQUEST_UUID);
     expect(download.bytes).toEqual(downloadBytes);
     expect(download.checksumSha256).toBe(downloadFixture.checksumSha256);
     expect(download.byteSize).toBe(downloadFixture.byteSize);
     expect(calls[3].authorization).toBe("Bearer admin-token");
 
-    const ack = await client.admin.offboarding.acknowledge("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    const ack = await client.admin.offboarding.acknowledge(OFFBOARDING_REQUEST_UUID);
     expect(ack.state).toBe("requested");
 
-    const exec = await client.admin.offboarding.execute("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    const exec = await client.admin.offboarding.execute(OFFBOARDING_REQUEST_UUID);
     expect(exec.finalState).toBe("complete");
     expect(calls[5].body).toBeUndefined();
 
-    const receipt = await client.admin.offboarding.receipt("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    const receipt = await client.admin.offboarding.receipt(OFFBOARDING_REQUEST_UUID);
     expect(receipt.finalState).toBe("complete");
-    expect(receipt.requestedByActor).toBe("user:u_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
-    expect(receipt.requestedByUserId).toBe(7);
+    expect(receipt.requestedByKind).toBe("human");
+    expect(receipt.waiver).toEqual({ role: "client_owner", timestamp: "2026-07-31T09:04:00Z" });
     expect(receipt.sha256).not.toBe("");
     expect(receipt.perStore).toHaveLength(3);
     for (const row of receipt.perStore) {
@@ -378,21 +363,14 @@ describe("OffboardingClient", () => {
     }
   });
 
-  it("accepts a machine receipt without fabricating a user id", async () => {
-    const humanReceipt = readLifecycleFixture("offboarding", "valid-receipt-response.json") as Record<string, unknown>;
-    const machineReceipt = {
-      ...humanReceipt,
-      requested_by_actor: "client:tiao-lifecycle",
-      requested_by_user_id: null,
-    };
-    const { fetchMock } = bootstrapFetch(200, machineReceipt);
+  it("decodes a machine-requested receipt", async () => {
+    const { fetchMock } = bootstrapFetch(200, offboardingReceipt("machine"));
     globalThis.fetch = fetchMock;
     const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
 
-    const receipt = await client.admin.offboarding.receipt("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+    const receipt = await client.admin.offboarding.receipt(OFFBOARDING_REQUEST_UUID);
 
-    expect(receipt.requestedByActor).toBe("client:tiao-lifecycle");
-    expect(receipt.requestedByUserId).toBeNull();
+    expect(receipt.requestedByKind).toBe("machine");
   });
 
   it.each([
@@ -409,10 +387,13 @@ describe("OffboardingClient", () => {
   });
 
   it("confirmRequest surfaces the erasure-incomplete safeNextAction guidance", async () => {
-    const body = readLifecycleFixture("offboarding", "incomplete-erasure-blocks-confirm.json") as Record<
-      string,
-      unknown
-    >;
+    // OffboardingWorkflowConflictResponse: the workflow guidance a refused transition carries.
+    const body = {
+      error:
+        "Cannot confirm destructive offboarding while a related erasure request is not in terminal complete state.",
+      code: "erasure_incomplete",
+      safe_next_action: "retry_erasure",
+    };
     const fetchMock = vi.fn(
       async () =>
         new Response(JSON.stringify(body), {
@@ -425,7 +406,7 @@ describe("OffboardingClient", () => {
 
     let error: Error | undefined;
     try {
-      await client.admin.offboarding.confirmRequest("ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ");
+      await client.admin.offboarding.confirmRequest(OFFBOARDING_REQUEST_UUID);
     } catch (err) {
       error = err as Error;
     }

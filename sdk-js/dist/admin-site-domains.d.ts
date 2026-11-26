@@ -5,6 +5,7 @@ import type { SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest } 
 import type { SiteInsightsExport, SiteSearchMetricPage, SiteSearchMetricsQuery } from "./admin-site-export.js";
 import type { IndexNowState, IndexNowSubmission, IndexNowSubmissionRequest, SiteLighthouseHistory, SiteObservedWording, SitePageCheckRequest, SitePageCheckResponse, SitePageFacts, SitePageRecheck, SitePageRecheckList, SitePageWordingQuery, SiteProjectContext, SiteProjectContextRequest, SiteRemedy, SiteReport, SiteReportShareCreated, SiteReportShareList, SiteReportShareRequest, SiteRobotsTestRequest, SiteRobotsTestResponse, SiteSearchInspection, SiteSearchInspectionList, SiteSearchRowPage, SiteSearchRowsQuery, SiteUptimeHistory, SiteWordingCompare, SiteWordingCompareRequest } from "./admin-site-insights.js";
 import type { SiteReferringDomains } from "./admin-site-links.js";
+import type { PrivateUptimeCredential, PrivateUptimeMonitor, PrivateUptimeWork, SiteHeartbeatCreateRequest, SiteHeartbeatCredential, SiteHeartbeatList, SiteMaintenanceWindow, SiteMaintenanceWindowRequest, SiteMaintenanceWindows } from "./admin-site-monitors.js";
 import type { SiteNextActions, SitePortfolioSummary } from "./admin-site-next-actions.js";
 import type { SitePageSearchQueries } from "./admin-site-page-queries.js";
 import type { SiteRankings, SiteTrackedKeyword, SiteTrackedKeywordUpdate, SiteTrackKeywordRequest } from "./admin-site-rankings.js";
@@ -243,6 +244,8 @@ export type SiteIncident = {
     startedAt: string;
     openedAt: string;
     resolvedAt?: string;
+    /** When a person acknowledged the open incident; absent until acknowledged. */
+    acknowledgedAt?: string;
     cause: string;
     failedChecks: number;
 };
@@ -269,8 +272,19 @@ export type SiteRegistration = {
     readAt: string;
     expiresAt?: string;
 };
+/** What a domain's uptime probe expects from the response, beyond a successful status. */
+export type SiteHTTPExpectations = {
+    statusCode?: number;
+    bodyContains?: string;
+    json?: {
+        field: string;
+        value: string;
+    };
+    maxResponseMs?: number;
+};
 export type SiteDomainChecks = {
     mode: SiteCheckMode;
+    httpExpectations?: SiteHTTPExpectations;
     uptime: SiteUptime;
     tls: SiteTLS;
     warming: SiteWarming;
@@ -317,11 +331,55 @@ export type SiteFinding = {
     history: SiteFindingHistory;
     /** A one-page recheck decides this rule, so requestPageRecheck can confirm the fix. Absent before 3.51. */
     recheckable?: boolean;
+    /** Whether the finding may be dismissed instead of fixed. */
+    dismissible?: boolean;
     suggestion?: SiteFindingSuggestion;
 };
 /** A domain's findings, most severe first. */
 export type SiteFindingList = {
     findings: SiteFinding[];
+};
+export declare const SITE_FINDING_DISMISSAL_SCOPES: {
+    readonly rule: "rule";
+    readonly url: "url";
+};
+/** Whether a dismissal hides the finding's rule everywhere or only at the finding's URL. */
+export type SiteFindingDismissalScope = (typeof SITE_FINDING_DISMISSAL_SCOPES)[keyof typeof SITE_FINDING_DISMISSAL_SCOPES];
+/** Hides a currently observed finding, with the reason a person gives. */
+export type SiteFindingDismissalRequest = {
+    findingUuid: string;
+    scope: SiteFindingDismissalScope;
+    reason: string;
+};
+/** A current dismissal. url is absent for a rule-wide dismissal. */
+export type SiteFindingDismissal = {
+    dismissalUuid: string;
+    rule: string;
+    url?: string;
+    title: string;
+    reason: string;
+    dismissedAt: string;
+};
+export type SiteFindingDismissals = {
+    dismissals: SiteFindingDismissal[];
+};
+export declare const SITE_BROWSER_COLLECTOR_MODES: {
+    readonly enabled: "enabled";
+    readonly disabled: "disabled";
+};
+export type SiteBrowserCollectorMode = (typeof SITE_BROWSER_COLLECTOR_MODES)[keyof typeof SITE_BROWSER_COLLECTOR_MODES];
+/** The desired collector state. environment is required when enabling. */
+export type SiteBrowserCollectorRequest = {
+    mode: SiteBrowserCollectorMode;
+    environment?: string;
+};
+/** A Site's browser collector. browserKey is absent when disabled; treat it as a write credential. */
+export type SiteBrowserCollector = {
+    siteUuid: string;
+    mode: SiteBrowserCollectorMode;
+    browserKey?: string;
+    environment?: string;
+    allowedOrigin?: string;
 };
 /** Where one Site's alerts go. An absent emailRecipient means the tenant's own alert destinations. */
 export type SiteAlertDestination = {
@@ -424,9 +482,9 @@ export declare class SiteDomainAdminClient {
      * which verifies it (verifiedBy "attested") and its subdomains. Only a
      * site-bound credential holding site_domains.attest may attest its own Site's domains.
      */
-    attest(domainUuid: string, options?: RequestOptions): Promise<SiteDomain>;
+    attest(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteDomain>;
     /** Withdraws this credential's attestation; the domain stays verified only by its own proof or a verified parent. */
-    unattest(domainUuid: string, options?: RequestOptions): Promise<SiteDomain>;
+    unattest(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteDomain>;
     /** Queues an audit for the scheduler's next tick. An unverified domain is refused with SITE_DOMAIN_NOT_VERIFIED_CODE. */
     requestAudit(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteDomain>;
     /** Lists a domain's findings, most severe first. An omitted state lets the server default to open. */
@@ -630,6 +688,46 @@ export declare class SiteDomainAdminClient {
     updateTrackedKeyword(domainUuid: string, keywordUuid: string, body: SiteTrackedKeywordUpdate, options?: SiteDomainRequestOptions): Promise<SiteTrackedKeyword>;
     /** Stops tracking a keyword and removes its observations. */
     untrackKeyword(domainUuid: string, keywordUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Approves a domain as a HaakCo system administrator, which verifies it (verifiedBy "operator"). */
+    approve(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteDomain>;
+    /** Withdraws a system administrator's approval; the domain stays verified only by its own proof. */
+    withdrawApproval(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteDomain>;
+    /** Queues a public uptime check for a verified domain with active checks and returns the domain. */
+    requestUptimeCheck(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteDomain>;
+    /** Records that a person has seen the open incident without resolving it. */
+    acknowledgeIncident(domainUuid: string, incidentUuid: string, options?: SiteDomainRequestOptions): Promise<SiteIncident>;
+    /** Lists the domain's current rule- and URL-scoped finding dismissals. */
+    listFindingDismissals(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteFindingDismissals>;
+    /** Hides a currently observed finding at the requested scope. */
+    dismissFinding(domainUuid: string, body: SiteFindingDismissalRequest, options?: SiteDomainRequestOptions): Promise<SiteFindingDismissal>;
+    /** Removes a dismissal so a still-observed finding returns to active reporting. */
+    restoreFinding(domainUuid: string, dismissalUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Lists the domain's scheduled-job heartbeat monitors, without their tokens. */
+    listHeartbeats(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteHeartbeatList>;
+    /** Creates a heartbeat monitor and returns its one-time write credential. */
+    createHeartbeat(domainUuid: string, body: SiteHeartbeatCreateRequest, options?: SiteDomainRequestOptions): Promise<SiteHeartbeatCredential>;
+    /** Revokes the heartbeat's write token and returns its replacement. */
+    rotateHeartbeat(domainUuid: string, monitorUuid: string, options?: SiteDomainRequestOptions): Promise<SiteHeartbeatCredential>;
+    /** Removes the heartbeat monitor and revokes its write token. */
+    deleteHeartbeat(domainUuid: string, monitorUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Lists the domain's current and historical maintenance windows. */
+    listMaintenance(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteMaintenanceWindows>;
+    /** Schedules a one-off maintenance window on a verified domain. */
+    scheduleMaintenance(domainUuid: string, body: SiteMaintenanceWindowRequest, options?: SiteDomainRequestOptions): Promise<SiteMaintenanceWindow>;
+    /** Cancels a scheduled or active window and returns its historical record. */
+    cancelMaintenance(domainUuid: string, windowUuid: string, options?: SiteDomainRequestOptions): Promise<SiteMaintenanceWindow>;
+    /** Reads the domain's private uptime monitor and its latest result. */
+    getPrivateUptime(domainUuid: string, options?: SiteDomainRequestOptions): Promise<PrivateUptimeMonitor>;
+    /** Creates a private uptime monitor and returns its one-time write credential. */
+    createPrivateUptime(domainUuid: string, networkLabel: string, options?: SiteDomainRequestOptions): Promise<PrivateUptimeCredential>;
+    /** Queues a check for the private probe. */
+    requestPrivateUptime(domainUuid: string, options?: SiteDomainRequestOptions): Promise<PrivateUptimeWork>;
+    /** Revokes the private probe's write token and returns its replacement. */
+    rotatePrivateUptime(domainUuid: string, monitorUuid: string, options?: SiteDomainRequestOptions): Promise<PrivateUptimeCredential>;
+    /** Removes the private uptime monitor and revokes its write token. */
+    deletePrivateUptime(domainUuid: string, monitorUuid: string, options?: SiteDomainRequestOptions): Promise<void>;
+    /** Enables or disables the browser collector of a domain the Site credential owns. Repeating an enable returns the same key. */
+    setBrowserCollector(domainUuid: string, body: SiteBrowserCollectorRequest, options?: SiteDomainRequestOptions): Promise<SiteBrowserCollector>;
     private send;
 }
 export {};

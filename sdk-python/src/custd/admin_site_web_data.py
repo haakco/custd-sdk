@@ -162,6 +162,7 @@ class SiteKeywordListRequest(TypedDict):
     name: str
     keywords: list[str]
     seedTerm: NotRequired[str]
+    marketSampleEnabled: NotRequired[bool]
 
 
 class SiteRelatedKeyword(TypedDict):
@@ -185,6 +186,20 @@ class SiteRelatedKeywords(_SiteRelatedKeywordsWindow):
     keywords: list[SiteRelatedKeyword]
 
 
+class SiteMarketSearchHit(TypedDict):
+    title: str
+    url: str
+    authority: int
+    date: NotRequired[str]
+
+
+class SiteMarketSample(TypedDict):
+    """The search results last observed for the list's seed term."""
+
+    observedAt: str
+    hits: list[SiteMarketSearchHit]
+
+
 class SiteKeywordList(TypedDict):
     """A keyword list; ``related`` is absent until Bing was read for the seed term, and from older servers."""
 
@@ -194,6 +209,8 @@ class SiteKeywordList(TypedDict):
     updatedAt: str
     seedTerm: NotRequired[str]
     related: NotRequired[SiteRelatedKeywords]
+    marketSampleEnabled: bool
+    marketSample: NotRequired[SiteMarketSample]
 
 
 class SiteKeywordLists(TypedDict):

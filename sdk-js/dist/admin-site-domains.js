@@ -95,6 +95,14 @@ export const SiteRule = {
     SitemapBlockedURL: "sitemap.blocked-url",
     LogsCrawlerNotFound: "logs.crawler-not-found",
 };
+export const SITE_FINDING_DISMISSAL_SCOPES = {
+    rule: "rule",
+    url: "url",
+};
+export const SITE_BROWSER_COLLECTOR_MODES = {
+    enabled: "enabled",
+    disabled: "disabled",
+};
 const siteDomainsPath = "/site-domains";
 const siteAISettingsPath = `${siteDomainsPath}/ai-settings`;
 const searchPoolPath = `${siteDomainsPath}/search-pool`;
@@ -538,6 +546,8 @@ export class SiteDomainAdminClient {
         const request = { name: body.name, keywords: [...body.keywords] };
         if (body.seedTerm)
             request.seedTerm = body.seedTerm;
+        if (body.marketSampleEnabled !== undefined)
+            request.marketSampleEnabled = body.marketSampleEnabled;
         return this.send("PUT", keywordListsPath, { siteUuid }, request, options);
     }
     /** Deletes the named list. An unknown name is refused with SITE_KEYWORD_LIST_NOT_FOUND_CODE. */
@@ -603,6 +613,95 @@ export class SiteDomainAdminClient {
     untrackKeyword(domainUuid, keywordUuid, options) {
         return this.send("DELETE", rankingKeywordPath(domainUuid, keywordUuid), {}, undefined, options);
     }
+    /** Approves a domain as a HaakCo system administrator, which verifies it (verifiedBy "operator"). */
+    approve(domainUuid, options) {
+        return this.send("POST", `${domainPath(domainUuid)}/approval`, {}, undefined, options);
+    }
+    /** Withdraws a system administrator's approval; the domain stays verified only by its own proof. */
+    withdrawApproval(domainUuid, options) {
+        return this.send("DELETE", `${domainPath(domainUuid)}/approval`, {}, undefined, options);
+    }
+    /** Queues a public uptime check for a verified domain with active checks and returns the domain. */
+    requestUptimeCheck(domainUuid, options) {
+        return this.send("POST", `${domainPath(domainUuid)}/uptime-check`, {}, undefined, options);
+    }
+    /** Records that a person has seen the open incident without resolving it. */
+    acknowledgeIncident(domainUuid, incidentUuid, options) {
+        const path = `${domainPath(domainUuid)}/incidents/${encodeURIComponent(incidentUuid)}/acknowledgment`;
+        return this.send("POST", path, {}, undefined, options);
+    }
+    /** Lists the domain's current rule- and URL-scoped finding dismissals. */
+    async listFindingDismissals(domainUuid, options) {
+        const list = await this.send("GET", findingDismissalsPath(domainUuid), {}, undefined, options);
+        return { ...list, dismissals: list.dismissals ?? [] };
+    }
+    /** Hides a currently observed finding at the requested scope. */
+    dismissFinding(domainUuid, body, options) {
+        return this.send("POST", findingDismissalsPath(domainUuid), {}, body, options);
+    }
+    /** Removes a dismissal so a still-observed finding returns to active reporting. */
+    restoreFinding(domainUuid, dismissalUuid, options) {
+        const path = `${findingDismissalsPath(domainUuid)}/${encodeURIComponent(dismissalUuid)}`;
+        return this.send("DELETE", path, {}, undefined, options);
+    }
+    /** Lists the domain's scheduled-job heartbeat monitors, without their tokens. */
+    async listHeartbeats(domainUuid, options) {
+        const list = await this.send("GET", heartbeatsPath(domainUuid), {}, undefined, options);
+        return { ...list, monitors: list.monitors ?? [] };
+    }
+    /** Creates a heartbeat monitor and returns its one-time write credential. */
+    createHeartbeat(domainUuid, body, options) {
+        return this.send("POST", heartbeatsPath(domainUuid), {}, body, options);
+    }
+    /** Revokes the heartbeat's write token and returns its replacement. */
+    rotateHeartbeat(domainUuid, monitorUuid, options) {
+        const path = `${heartbeatsPath(domainUuid)}/${encodeURIComponent(monitorUuid)}/credential`;
+        return this.send("POST", path, {}, undefined, options);
+    }
+    /** Removes the heartbeat monitor and revokes its write token. */
+    deleteHeartbeat(domainUuid, monitorUuid, options) {
+        return this.send("DELETE", `${heartbeatsPath(domainUuid)}/${encodeURIComponent(monitorUuid)}`, {}, undefined, options);
+    }
+    /** Lists the domain's current and historical maintenance windows. */
+    async listMaintenance(domainUuid, options) {
+        const list = await this.send("GET", maintenancePath(domainUuid), {}, undefined, options);
+        return { ...list, windows: list.windows ?? [] };
+    }
+    /** Schedules a one-off maintenance window on a verified domain. */
+    scheduleMaintenance(domainUuid, body, options) {
+        return this.send("POST", maintenancePath(domainUuid), {}, body, options);
+    }
+    /** Cancels a scheduled or active window and returns its historical record. */
+    cancelMaintenance(domainUuid, windowUuid, options) {
+        const path = `${maintenancePath(domainUuid)}/${encodeURIComponent(windowUuid)}`;
+        return this.send("DELETE", path, {}, undefined, options);
+    }
+    /** Reads the domain's private uptime monitor and its latest result. */
+    getPrivateUptime(domainUuid, options) {
+        return this.send("GET", privateUptimePath(domainUuid), {}, undefined, options);
+    }
+    /** Creates a private uptime monitor and returns its one-time write credential. */
+    createPrivateUptime(domainUuid, networkLabel, options) {
+        return this.send("POST", privateUptimePath(domainUuid), {}, { networkLabel }, options);
+    }
+    /** Queues a check for the private probe. */
+    requestPrivateUptime(domainUuid, options) {
+        return this.send("POST", `${privateUptimePath(domainUuid)}/check`, {}, undefined, options);
+    }
+    /** Revokes the private probe's write token and returns its replacement. */
+    rotatePrivateUptime(domainUuid, monitorUuid, options) {
+        const path = `${privateUptimePath(domainUuid)}/${encodeURIComponent(monitorUuid)}/credential`;
+        return this.send("POST", path, {}, undefined, options);
+    }
+    /** Removes the private uptime monitor and revokes its write token. */
+    deletePrivateUptime(domainUuid, monitorUuid, options) {
+        const path = `${privateUptimePath(domainUuid)}/${encodeURIComponent(monitorUuid)}`;
+        return this.send("DELETE", path, {}, undefined, options);
+    }
+    /** Enables or disables the browser collector of a domain the Site credential owns. Repeating an enable returns the same key. */
+    setBrowserCollector(domainUuid, body, options) {
+        return this.send("PUT", `${domainPath(domainUuid)}/browser-collector`, {}, body, options);
+    }
     send(method, path, query, body, options) {
         const { companySlug, ...requestOptions } = options ?? {};
         const params = new URLSearchParams();
@@ -621,6 +720,18 @@ export class SiteDomainAdminClient {
 }
 function domainPath(domainUuid) {
     return `${siteDomainsPath}/${encodeURIComponent(domainUuid)}`;
+}
+function findingDismissalsPath(domainUuid) {
+    return `${domainPath(domainUuid)}/finding-dismissals`;
+}
+function heartbeatsPath(domainUuid) {
+    return `${domainPath(domainUuid)}/heartbeats`;
+}
+function maintenancePath(domainUuid) {
+    return `${domainPath(domainUuid)}/maintenance`;
+}
+function privateUptimePath(domainUuid) {
+    return `${domainPath(domainUuid)}/private-uptime`;
 }
 function savedReportsPath(domainUuid) {
     return `${domainPath(domainUuid)}/saved-reports`;

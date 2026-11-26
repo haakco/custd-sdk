@@ -21,15 +21,38 @@
             "nominal_point_ms": 1,
             "observed_at": "2026-11-20T06:00:00Z",
             "shrinkage_absolute_error_ms": 1,
-            "shrinkage_interval": {},
+            "shrinkage_interval": {
+              "p10_ms": 1,
+              "p90_ms": 1
+            },
             "shrinkage_point_ms": 1,
             "training_sample_count": 1
           }
         ],
         "input_hash": "example",
         "metrics": {
-          "nominal": {},
-          "shrinkage": {}
+          "nominal": {
+            "evaluated_fold_count": 1,
+            "interval": {
+              "available_fold_count": 1,
+              "coverage": 1.5,
+              "covered_fold_count": 1,
+              "mean_width_ms": 1.5
+            },
+            "mean_absolute_error_ms": 1.5,
+            "method": "example"
+          },
+          "shrinkage": {
+            "evaluated_fold_count": 1,
+            "interval": {
+              "available_fold_count": 1,
+              "coverage": 1.5,
+              "covered_fold_count": 1,
+              "mean_width_ms": 1.5
+            },
+            "mean_absolute_error_ms": 1.5,
+            "method": "example"
+          }
         },
         "minimum_training_history": 1,
         "primary_metric": "example",
@@ -90,8 +113,28 @@
         "folds": null,
         "input_hash": "example",
         "metrics": {
-          "nominal": {},
-          "shrinkage": {}
+          "nominal": {
+            "evaluated_fold_count": 1,
+            "interval": {
+              "available_fold_count": 1,
+              "coverage": 1.5,
+              "covered_fold_count": 1,
+              "mean_width_ms": 1.5
+            },
+            "mean_absolute_error_ms": 1.5,
+            "method": "example"
+          },
+          "shrinkage": {
+            "evaluated_fold_count": 1,
+            "interval": {
+              "available_fold_count": 1,
+              "coverage": 1.5,
+              "covered_fold_count": 1,
+              "mean_width_ms": 1.5
+            },
+            "mean_absolute_error_ms": 1.5,
+            "method": "example"
+          }
         },
         "minimum_training_history": 1,
         "primary_metric": "example",

@@ -44,7 +44,9 @@
         "name": "example",
         "summary": {
           "histogram": {
-            "counts": [],
+            "counts": [
+              1
+            ],
             "max": 1.5,
             "min": 1.5
           },
@@ -74,7 +76,10 @@
           "name": "example",
           "rankCorrelation": 1.5,
           "scatter": [
-            {}
+            {
+              "input": 1.5,
+              "output": 1.5
+            }
           ],
           "share": 1.5
         }

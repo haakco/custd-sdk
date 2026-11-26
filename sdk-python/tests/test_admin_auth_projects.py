@@ -457,5 +457,34 @@ class AuthProjectAdminClientTest(unittest.TestCase):
         self.assertEqual([], transport.calls)
 
 
+class AuthProjectUploadTest(unittest.TestCase):
+    def test_uploads_send_verbatim_bytes_with_their_content_type_and_owner(self) -> None:
+        transport = RecordingTransport({})
+        auth = CustdClient(base_url="http://localhost:8080", token="t", admin_transport=transport).admin.auth_projects
+        options: Any = {"owning_user_uuid": OWNING_USER}
+
+        auth.upload_app_release_file("p", "e", "r", "assets/app.js", b"console.log(1)", options)
+        auth.set_brand_logo("p", "e", "logo.png", b"\x89PNG", options)
+
+        upload, logo = transport.calls
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/auth-projects/p/environments/e/releases/r/files?path=assets%2Fapp.js",
+            upload["url"],
+        )
+        self.assertEqual(b"console.log(1)", upload["payload"])
+        self.assertEqual("application/octet-stream", upload["headers"]["Content-Type"])
+        self.assertEqual(OWNING_USER, upload["headers"][OWNING_USER_HEADER])
+        content_type = logo["headers"]["Content-Type"]
+        boundary = content_type.removeprefix("multipart/form-data; boundary=")
+        self.assertNotEqual(content_type, boundary)
+        self.assertEqual(
+            f'--{boundary}\r\nContent-Disposition: form-data; name="logo"; filename="logo.png"\r\n'
+            f"Content-Type: application/octet-stream\r\n\r\n".encode()
+            + b"\x89PNG"
+            + f"\r\n--{boundary}--\r\n".encode(),
+            logo["payload"],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

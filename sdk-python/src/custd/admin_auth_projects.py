@@ -11,8 +11,30 @@ actor and leaves the option unset.
 from __future__ import annotations
 
 import urllib.parse
-from typing import Literal, NotRequired, TypedDict, cast
+import uuid
+from typing import Any, Literal, NotRequired, TypedDict, cast
 
+from .admin_auth_project_hosting import (
+    AppCreateRequest,
+    AppCreation,
+    AppDeployCredential,
+    AppDeployCredentialList,
+    AppListResponse,
+    AppOverview,
+    AppRelease,
+    AppReleaseCreateRequest,
+    AppReleaseList,
+    AppReleasePromotion,
+    AppReleaseUploadedFile,
+    AppSignInRequest,
+    AppSummary,
+    AuthDomainBinding,
+    AuthDomainBindRequest,
+    AuthDomainImageOverrideRequest,
+    AuthDomainMintRequest,
+    AuthProjectAppLinkList,
+    AuthProjectBrandLogo,
+)
 from .client import AdminClient, AdminRequestOptions
 
 # AuthProjectIdentityMode names how an environment's identity boundary is shared.
@@ -60,6 +82,7 @@ class AuthProjectSummary(TypedDict):
     environmentId: str
     environmentSlug: str
     identityMode: AuthProjectIdentityMode
+    audienceEntitlementMode: str
     companyUuid: str | None
 
 
@@ -313,6 +336,51 @@ class AuthProjectProfileField(TypedDict):
     editableBy: str
 
 
+class AuthProjectHostingIngestTarget(TypedDict):
+    resourceUuid: str
+    scopeUuid: str
+
+
+class AuthProjectHosting(TypedDict):
+    """Whether Custd hosts the environment's application, and what that hosting may do."""
+
+    mode: str
+    capabilities: list[str] | None
+    ingestTarget: NotRequired[AuthProjectHostingIngestTarget]
+
+
+class AuthProjectSocialProvider(TypedDict):
+    """One social sign-in provider; ``clientSecret`` is write-only and reads back as ``clientSecretSet``."""
+
+    provider: str
+    mode: str
+    clientId: NotRequired[str]
+    clientSecret: NotRequired[str]
+    clientSecretSet: NotRequired[bool]
+
+
+class AuthProjectSocialCallbackUrl(TypedDict):
+    provider: str
+    url: str
+
+
+class AuthProjectSocialProviderStatus(TypedDict):
+    provider: str
+    mode: str
+    state: str
+    note: str
+
+
+class AuthProjectSocialSignInStatus(TypedDict):
+    callbackUrls: list[AuthProjectSocialCallbackUrl] | None
+    providers: list[AuthProjectSocialProviderStatus] | None
+
+
+class AuthProjectSocialSignIn(TypedDict):
+    providers: list[AuthProjectSocialProvider] | None
+    status: NotRequired[AuthProjectSocialSignInStatus]
+
+
 class AuthProjectDesiredState(TypedDict):
     """The environment configuration an apply writes.
 
@@ -327,6 +395,17 @@ class AuthProjectDesiredState(TypedDict):
     loginPaused: bool
     audiences: list[AuthProjectAudienceBinding] | None
     profileFields: list[AuthProjectProfileField] | None
+    # An apply replaces the entry path and accent; it leaves the display name and its owner alone
+    # when it sends neither, and offers every method when signInMethods is empty or absent.
+    entryPath: str
+    brandAccent: str
+    displayName: NotRequired[str]
+    displayNameSource: NotRequired[str]
+    signInMethods: NotRequired[list[str] | None]
+    applicationSessionPolicy: NotRequired[str]
+    withdrawDisplayName: NotRequired[bool]
+    hosting: NotRequired[AuthProjectHosting]
+    socialSignIn: NotRequired[AuthProjectSocialSignIn]
 
 
 class AuthProjectDesiredStateRequest(TypedDict):
@@ -399,6 +478,21 @@ class AuthProjectClientSync(TypedDict):
     errorCategory: NotRequired[str]
 
 
+class AuthProjectHostedSignIn(TypedDict):
+    audience: str
+    clientId: str
+    redirectUri: str
+    postLogoutRedirectUri: str
+
+
+class AuthProjectHostingStatus(TypedDict):
+    """Where a hosted environment serves, and the sign-in its hosted application uses."""
+
+    host: str
+    origin: str
+    signIn: NotRequired[AuthProjectHostedSignIn]
+
+
 class AuthProjectStatus(TypedDict):
     """The environment's configured state and applied revision.
 
@@ -420,6 +514,9 @@ class AuthProjectStatus(TypedDict):
     clientSync: NotRequired[AuthProjectClientSync]
     # Persisted company of this environment's project; None means explicitly unbound.
     companyUuid: str | None
+    companySlug: NotRequired[str]
+    brandLogoUrl: NotRequired[str]
+    hosting: NotRequired[AuthProjectHostingStatus]
 
 
 # Custd owns the four legal directory actions and the SDK rejects anything else
@@ -681,6 +778,32 @@ class AuthProjectReleasedResources(TypedDict):
     operations: int
 
 
+class AuthEnvironmentHostingRemoval(TypedDict):
+    """The hosted application data deleting an environment removed, by kind."""
+
+    sites: int
+    releases: int
+    releaseObjects: int
+    shareCardObjects: int
+    items: int
+    links: int
+    collectionEntries: int
+    meetings: int
+    measurementProjects: int
+    uncertaintyModels: int
+    requestSummaries: int
+    alertRules: int
+    alertSubscriptions: int
+    alertWebhooks: int
+    alertDeliveries: int
+
+
+class AuthProjectHostingRemoval(TypedDict):
+    environmentId: str
+    slug: str
+    removed: AuthEnvironmentHostingRemoval
+
+
 class AuthProjectDeletion(TypedDict):
     """The receipt for a deleted project."""
 
@@ -688,6 +811,7 @@ class AuthProjectDeletion(TypedDict):
     slug: str
     name: str
     released: AuthProjectReleasedResources
+    hosting: list[AuthProjectHostingRemoval]
 
 
 class AuthProjectEnvironmentDeletionRequest(TypedDict):
@@ -717,6 +841,7 @@ class AuthProjectEnvironmentDeletion(TypedDict):
     slug: str
     name: str
     released: AuthProjectEnvironmentReleasedResources
+    hosting: AuthEnvironmentHostingRemoval
 
 
 class AuthProjectEnvironmentOffboardRequest(TypedDict):
@@ -744,6 +869,17 @@ class AuthEnvironmentRetainedResources(TypedDict):
     reservedSlots: int
 
 
+class AuthEnvironmentHostingWithdrawal(TypedDict):
+    """What offboarding withdrew from the environment's hosted application."""
+
+    status: str
+    sites: int
+    activeReleases: int
+    alertRules: int
+    alertDeliveries: int
+    errorCategory: NotRequired[str]
+
+
 class AuthProjectEnvironmentOffboarding(TypedDict):
     """The receipt for one offboarded environment; authority withdrawn, data retained."""
 
@@ -756,6 +892,7 @@ class AuthProjectEnvironmentOffboarding(TypedDict):
     loginPaused: bool
     revision: int
     clientCleanup: AuthEnvironmentClientCleanup
+    hosting: AuthEnvironmentHostingWithdrawal
     retained: AuthEnvironmentRetainedResources
 
 
@@ -1241,6 +1378,219 @@ class AuthProjectAdminClient:
             self._admin.request("POST", path, dict(body), options),
         )
 
+    def list_environment_app_links(
+        self, project_id: str, environment_id: str, options: AdminRequestOptions | None = None
+    ) -> AuthProjectAppLinkList:
+        """List the app items linked to the environment."""
+        path = f"{_environment_path(project_id, environment_id)}/app-links"
+        links = self._admin.request("GET", path, None, options).get("links") or []
+        return AuthProjectAppLinkList(links=links)
+
+    def get_environment_domain(
+        self, project_id: str, environment_id: str, options: AdminRequestOptions | None = None
+    ) -> AuthDomainBinding:
+        """Read the environment's issuer domain claim and its convergence."""
+        return self._domain_request("GET", project_id, environment_id, "", None, options)
+
+    def bind_environment_domain(
+        self,
+        project_id: str,
+        environment_id: str,
+        body: AuthDomainBindRequest,
+        options: AdminRequestOptions | None = None,
+    ) -> AuthDomainBinding:
+        """Reserve ``host`` under an attested Site domain as the environment's issuer."""
+        return self._domain_request("PUT", project_id, environment_id, "", dict(body), options)
+
+    def mint_environment_domain(
+        self,
+        project_id: str,
+        environment_id: str,
+        body: AuthDomainMintRequest,
+        options: AdminRequestOptions | None = None,
+    ) -> AuthDomainBinding:
+        """Reserve the Custd-derived issuer host; platform operators only."""
+        return self._domain_request("POST", project_id, environment_id, "/mint", dict(body), options)
+
+    def admit_environment_domain(
+        self, project_id: str, environment_id: str, options: AdminRequestOptions | None = None
+    ) -> AuthDomainBinding:
+        """Claim a free realm slot for the reservation; repeating it returns the same claim."""
+        return self._domain_request("POST", project_id, environment_id, "/admit", None, options)
+
+    def retry_environment_domain(
+        self, project_id: str, environment_id: str, options: AdminRequestOptions | None = None
+    ) -> AuthDomainBinding:
+        return self._domain_request("POST", project_id, environment_id, "/retry", None, options)
+
+    def disable_environment_domain(
+        self, project_id: str, environment_id: str, options: AdminRequestOptions | None = None
+    ) -> AuthDomainBinding:
+        return self._domain_request("POST", project_id, environment_id, "/disable", None, options)
+
+    def release_environment_domain(
+        self, project_id: str, environment_id: str, options: AdminRequestOptions | None = None
+    ) -> AuthDomainBinding:
+        return self._domain_request("POST", project_id, environment_id, "/release", None, options)
+
+    def set_environment_domain_image_override(
+        self,
+        project_id: str,
+        environment_id: str,
+        body: AuthDomainImageOverrideRequest,
+        options: AdminRequestOptions | None = None,
+    ) -> AuthDomainBinding:
+        """Record one bounded image exception against the realm; platform operators only."""
+        return self._domain_request("PUT", project_id, environment_id, "/image-override", dict(body), options)
+
+    def clear_environment_domain_image_override(
+        self, project_id: str, environment_id: str, options: AdminRequestOptions | None = None
+    ) -> AuthDomainBinding:
+        return self._domain_request("DELETE", project_id, environment_id, "/image-override", None, options)
+
+    def list_app_releases(
+        self,
+        project_id: str,
+        environment_id: str,
+        limit: int | None = None,
+        options: AdminRequestOptions | None = None,
+    ) -> AppReleaseList:
+        path = f"{_environment_path(project_id, environment_id)}/releases"
+        if limit is not None:
+            path += "?" + urllib.parse.urlencode({"limit": limit})
+        releases = self._admin.request("GET", path, None, options).get("releases") or []
+        return AppReleaseList(releases=releases)
+
+    def create_app_release(
+        self,
+        project_id: str,
+        environment_id: str,
+        body: AppReleaseCreateRequest,
+        options: AdminRequestOptions | None = None,
+    ) -> AppRelease:
+        """Create a pending release from its manifest; upload each file, verify, then promote."""
+        path = f"{_environment_path(project_id, environment_id)}/releases"
+        return _app_release(self._admin.request("POST", path, dict(body), options))
+
+    def upload_app_release_file(
+        self,
+        project_id: str,
+        environment_id: str,
+        release_id: str,
+        file_path: str,
+        data: bytes,
+        options: AdminRequestOptions | None = None,
+    ) -> AppReleaseUploadedFile:
+        """Store one manifest file; bytes whose size or sha256 differ from the manifest are refused."""
+        path = _release_path(project_id, environment_id, release_id) + "/files?" + urllib.parse.urlencode(
+            {"path": file_path}
+        )
+        return cast(
+            AppReleaseUploadedFile,
+            self._admin.upload("POST", path, data, "application/octet-stream", options),
+        )
+
+    def verify_app_release(
+        self, project_id: str, environment_id: str, release_id: str, options: AdminRequestOptions | None = None
+    ) -> AppRelease:
+        """Read every file back and mark the release verified when all match the manifest."""
+        path = _release_path(project_id, environment_id, release_id) + "/verify"
+        return _app_release(self._admin.request("POST", path, None, options))
+
+    def promote_app_release(
+        self, project_id: str, environment_id: str, release_id: str, options: AdminRequestOptions | None = None
+    ) -> AppReleasePromotion:
+        """Serve a verified release on the environment's host."""
+        path = _release_path(project_id, environment_id, release_id) + "/promote"
+        return cast(AppReleasePromotion, self._admin.request("POST", path, None, options))
+
+    def set_brand_logo(
+        self,
+        project_id: str,
+        environment_id: str,
+        filename: str,
+        data: bytes,
+        options: AdminRequestOptions | None = None,
+    ) -> AuthProjectBrandLogo:
+        """Upload the realm logo as one multipart "logo" part; the server checks the real format."""
+        body, content_type = _brand_logo_form(filename, data)
+        path = f"{_environment_path(project_id, environment_id)}/brand/logo"
+        return cast(AuthProjectBrandLogo, self._admin.upload("POST", path, body, content_type, options))
+
+    def clear_brand_logo(
+        self, project_id: str, environment_id: str, options: AdminRequestOptions | None = None
+    ) -> None:
+        self._admin.request("DELETE", f"{_environment_path(project_id, environment_id)}/brand/logo", None, options)
+
+    def create_app(self, body: AppCreateRequest, options: AdminRequestOptions | None = None) -> AppCreation:
+        """Create a hosted app; a repeat with the same Idempotency-Key replays the first receipt."""
+        return cast(AppCreation, self._admin.request("POST", "/apps", dict(body), _require_idempotency_key(options)))
+
+    def list_apps(self, after: str | None = None, options: AdminRequestOptions | None = None) -> AppListResponse:
+        """One page of the caller's apps; pass the previous page's ``nextAfter`` as ``after``."""
+        path = "/apps" + ("?" + urllib.parse.urlencode({"after": after}) if after else "")
+        response = self._admin.request("GET", path, None, options)
+        page = AppListResponse(apps=response.get("apps") or [])
+        if isinstance(response.get("nextAfter"), str):
+            page["nextAfter"] = response["nextAfter"]
+        return page
+
+    def get_app(self, slug: str, options: AdminRequestOptions | None = None) -> AppOverview:
+        return cast(AppOverview, self._admin.request("GET", _app_path(slug), None, options))
+
+    def create_app_deploy_credential(
+        self, slug: str, options: AdminRequestOptions | None = None
+    ) -> AppDeployCredential:
+        """Mint a CI credential for the app's release routes; store its secret now."""
+        return cast(
+            AppDeployCredential, self._admin.request("POST", f"{_app_path(slug)}/deploy-credentials", None, options)
+        )
+
+    def list_app_deploy_credentials(
+        self, slug: str, options: AdminRequestOptions | None = None
+    ) -> AppDeployCredentialList:
+        response = self._admin.request("GET", f"{_app_path(slug)}/deploy-credentials", None, options)
+        return AppDeployCredentialList(credentials=response.get("credentials") or [])
+
+    def delete_app_deploy_credential(
+        self, slug: str, client_id: str, options: AdminRequestOptions | None = None
+    ) -> None:
+        path = f"{_app_path(slug)}/deploy-credentials/{urllib.parse.quote(client_id, safe='')}"
+        self._admin.request("DELETE", path, None, options)
+
+    def pause_app(self, slug: str, options: AdminRequestOptions | None = None) -> AppSummary:
+        return self._app_action(slug, "pause", None, options)
+
+    def resume_app(self, slug: str, options: AdminRequestOptions | None = None) -> AppSummary:
+        return self._app_action(slug, "resume", None, options)
+
+    def repair_app(self, slug: str, options: AdminRequestOptions | None = None) -> AppSummary:
+        return self._app_action(slug, "repair", None, options)
+
+    def set_app_sign_in(
+        self, slug: str, body: AppSignInRequest, options: AdminRequestOptions | None = None
+    ) -> AppSummary:
+        """Change who may sign in; off pauses login and keeps accounts and the directory."""
+        return self._app_action(slug, "sign-in", dict(body), options)
+
+    def _app_action(
+        self, slug: str, action: str, body: dict[str, Any] | None, options: AdminRequestOptions | None
+    ) -> AppSummary:
+        path = f"{_app_path(slug)}/{action}"
+        return cast(AppSummary, self._admin.request("POST", path, body, _require_idempotency_key(options)))
+
+    def _domain_request(
+        self,
+        method: str,
+        project_id: str,
+        environment_id: str,
+        suffix: str,
+        body: dict[str, Any] | None,
+        options: AdminRequestOptions | None,
+    ) -> AuthDomainBinding:
+        path = f"{_environment_path(project_id, environment_id)}/domain{suffix}"
+        return cast(AuthDomainBinding, self._admin.request(method, path, body, options))
+
     def provision_realm(
         self,
         project_id: str,
@@ -1393,3 +1743,32 @@ def _principal_audiences_path(target: ApplicationPrincipalTarget) -> str:
         _environment_path(target["projectId"], target["environmentId"])
         + f"/principals/{_segment(target['providerSubject'])}/audiences"
     )
+
+
+def _release_path(project_id: str, environment_id: str, release_id: str) -> str:
+    return f"{_environment_path(project_id, environment_id)}/releases/{_segment(release_id)}"
+
+
+def _brand_logo_form(filename: str, data: bytes) -> tuple[bytes, str]:
+    """Pack one image under the multipart "logo" field with its boundary-bearing content type."""
+    if any(char in filename for char in '"\r\n'):
+        raise ValueError("custd: brand logo filename must not contain quotes or line breaks")
+    boundary = uuid.uuid4().hex
+    head = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="logo"; filename="{filename}"\r\n'
+        "Content-Type: application/octet-stream\r\n\r\n"
+    ).encode()
+    return head + data + f"\r\n--{boundary}--\r\n".encode(), f"multipart/form-data; boundary={boundary}"
+
+
+def _app_path(slug: str) -> str:
+    return f"/apps/{urllib.parse.quote(slug, safe='')}"
+
+
+def _app_release(release: dict[str, Any]) -> AppRelease:
+    """Decode a release; the server encodes an empty manifest file list as JSON null."""
+    manifest = release.get("manifest")
+    if isinstance(manifest, dict):
+        manifest["files"] = manifest.get("files") or []
+    return cast(AppRelease, release)

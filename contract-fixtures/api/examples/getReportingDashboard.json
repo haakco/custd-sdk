@@ -52,7 +52,12 @@
         "layout": "example",
         "narrative": [
           {
-            "references": [],
+            "references": [
+              {
+                "value": "example",
+                "widgetKey": "example"
+              }
+            ],
             "text": "example"
           }
         ],

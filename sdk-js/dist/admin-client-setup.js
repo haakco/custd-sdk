@@ -1,4 +1,11 @@
-const setupManifestKeys = new Set(["schemas", "privacy", "retention", "reportingPacks", "oauthClients"]);
+const setupManifestKeys = new Set([
+    "schemas",
+    "privacy",
+    "retention",
+    "reportingPacks",
+    "oauthClients",
+    "eventTypeConfigs",
+]);
 const setupPurposeProfiles = [
     "ingest",
     "schema",
@@ -300,6 +307,9 @@ function validateSetupOAuthClients(clients) {
         }
         if (client.name !== undefined && typeof client.name !== "string") {
             throw new Error(`custd: oauthClients[${index}].name must be a string`);
+        }
+        if (client.environment !== undefined && typeof client.environment !== "string") {
+            throw new Error(`custd: oauthClients[${index}].environment must be a string`);
         }
         if (Object.keys(client).includes("clientSecret")) {
             throw new Error("custd: client secrets are managed by Custd");

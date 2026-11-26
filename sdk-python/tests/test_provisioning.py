@@ -114,7 +114,7 @@ class ProvisioningClientTest(unittest.TestCase):
         client.provisioning.producers.revoke("custd/agency store")
 
         self.assertEqual("once", created["clientSecret"])
-        self.assertEqual("webhook", producers[0]["producerSlug"])
+        self.assertEqual("webhook", producers["producers"][0]["producerSlug"])
         self.assertEqual("next", rotated["clientSecret"])
         self.assertEqual("staging", updated["environment"])
         self.assertEqual([

@@ -1,31 +1,30 @@
-// TenantStorageClient owns tenant-scoped storage location registration.
-// Locations are server-prefixed: the SDK submits clientLocation and the
-// server returns a serverAssignedPrefix that the SDK must use for raw
-// landing writes. Tenant is derived from the auth context; wrong-tenant
-// reads collapse to an empty list indistinguishable from "no locations".
+// TenantStorageClient manages the caller tenant's storage locations. The server derives the tenant
+// from the credential and assigns every location's bucket, root prefix and isolation tier; the caller
+// chooses none of them.
 
 import type { RequestOptions } from "./index.js";
 
+/** One storage location the server assigned to the caller's tenant. */
 export type TenantStorageLocation = {
-  id: string;
-  tenantSlug: string;
-  clientLocation: string;
-  serverAssignedPrefix: string;
-  status: string;
-  createdAt?: string;
-  expiresAt?: string;
+  id: number;
+  uuid: string;
+  companyId: number;
+  code: string;
+  isolationTier: string;
+  provider: string;
+  bucket: string;
+  region: string;
+  endpoint: string;
+  rootPrefix: string;
+  writeEnabled: boolean;
+  validationStatus: string;
+  validatedAt?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type TenantStorageListResponse = {
   locations: TenantStorageLocation[];
-};
-
-// TenantStorageCreateRequest is the body for POST /tenant-storage-locations.
-// TenantSlug is server-derived; the SDK sends it for tests but the server
-// is the authority for which tenant the location belongs to.
-export type TenantStorageCreateRequest = {
-  tenantSlug?: string;
-  clientLocation: string;
 };
 
 type NonAdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
@@ -33,22 +32,23 @@ type NonAdminRequester = <T>(method: string, path: string, body?: unknown, optio
 export class TenantStorageClient {
   constructor(private readonly request: NonAdminRequester) {}
 
-  list(options?: RequestOptions): Promise<TenantStorageListResponse> {
-    return this.request("GET", "/tenant-storage-locations", undefined, options);
+  /** Lists the caller tenant's locations; another tenant's are never visible. */
+  async list(options?: RequestOptions): Promise<TenantStorageListResponse> {
+    const list = await this.request<TenantStorageListResponse>("GET", "/tenant-storage-locations", undefined, options);
+    return { locations: list.locations ?? [] };
   }
 
-  create(body: TenantStorageCreateRequest, options?: RequestOptions): Promise<TenantStorageLocation> {
-    return this.request("POST", "/tenant-storage-locations", body, options);
+  /** Asks the server to assign the caller tenant a new location. */
+  create(options?: RequestOptions): Promise<TenantStorageLocation> {
+    return this.request("POST", "/tenant-storage-locations", {}, options);
   }
 
-  get(id: string, options?: RequestOptions): Promise<TenantStorageLocation> {
-    return this.request("GET", `/tenant-storage-locations/${encodeURIComponent(id)}`, undefined, options);
+  get(id: number, options?: RequestOptions): Promise<TenantStorageLocation> {
+    return this.request("GET", `/tenant-storage-locations/${id}`, undefined, options);
   }
 
-  // Revoke removes a tenant storage location. The server is the authority for
-  // whether the prefix is immediately unusable; the SDK must not assume
-  // partial deletes are atomic.
-  revoke(id: string, options?: RequestOptions): Promise<void> {
-    return this.request("DELETE", `/tenant-storage-locations/${encodeURIComponent(id)}`, undefined, options);
+  /** Revokes a location. The server decides when its prefix stops being usable. */
+  revoke(id: number, options?: RequestOptions): Promise<void> {
+    return this.request("DELETE", `/tenant-storage-locations/${id}`, undefined, options);
   }
 }

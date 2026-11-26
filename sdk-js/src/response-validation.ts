@@ -49,10 +49,11 @@ export function requireBoolean(record: JsonRecord, key: string, context: string)
 
 /**
  * Return the named list of JSON objects. A missing or non-list container, or a
- * scalar element, fails. An empty list is accepted because the service emits
- * `[]` for an empty collection.
+ * scalar element, fails. A JSON null list decodes as empty, and is replaced by
+ * `[]` in the record so the returned DTO always carries a list.
  */
 export function requireObjectList(record: JsonRecord, key: string, context: string): JsonRecord[] {
+  if (record[key] === null) record[key] = [];
   const value = requireField(record, key, context);
   if (!Array.isArray(value)) {
     throw new TypeError(`custd: ${context} field ${key} must be a list`);

@@ -16,6 +16,7 @@ use crate::{Result, SDK_IDENTITY};
 pub struct CustdClient {
     base_url: String,
     access_token: String,
+    acting_company: Option<String>,
     pub(crate) transport: Arc<dyn Transport>,
 }
 
@@ -24,8 +25,26 @@ impl CustdClient {
         Self {
             base_url: trim_base_url(base_url.into()),
             access_token: access_token.into(),
+            acting_company: None,
             transport: Arc::new(UreqTransport::new()),
         }
+    }
+
+    /// Names the client company a system administrator acts for on the ingest cleanup-job routes,
+    /// which read the tenant only from `X-Custd-Effective-Company`. The server then requires an
+    /// active support grant for that company. Other calls never send it.
+    pub fn with_acting_company(mut self, company_slug: impl Into<String>) -> Self {
+        self.acting_company = Some(company_slug.into());
+        self
+    }
+
+    /// The `X-Custd-Effective-Company` header for the cleanup-job routes, when one is set.
+    pub(crate) fn acting_company_header(&self) -> Vec<(&'static str, &str)> {
+        self.acting_company
+            .as_deref()
+            .map(|company| (EFFECTIVE_COMPANY_HEADER, company))
+            .into_iter()
+            .collect()
     }
 
     pub(crate) fn call<T: DeserializeOwned>(
@@ -34,11 +53,85 @@ impl CustdClient {
         path: &str,
         body: Option<&impl Serialize>,
     ) -> Result<T> {
-        let headers = vec![("Authorization", format!("Bearer {}", self.access_token))];
+        self.call_with_headers(method, path, &[], body)
+    }
+
+    /// [`CustdClient::call`] with extra request headers, such as [`IDEMPOTENCY_KEY`].
+    pub(crate) fn call_with_headers<T: DeserializeOwned>(
+        &self,
+        method: Method,
+        path: &str,
+        extra: &[(&'static str, &str)],
+        body: Option<&impl Serialize>,
+    ) -> Result<T> {
+        let mut headers = vec![("Authorization", format!("Bearer {}", self.access_token))];
+        headers.extend(
+            extra
+                .iter()
+                .map(|(name, value)| (*name, (*value).to_owned())),
+        );
         let request = json_request(method, format!("{}{path}", self.base_url), headers, body)?;
         let response = execute(self.transport.as_ref(), &request)?;
         decode(&response.body)
     }
+
+    /// Sends a non-JSON body (an image, a file, a multipart form) and returns the raw answer.
+    pub(crate) fn send_bytes(
+        &self,
+        method: Method,
+        path: &str,
+        content: Option<(&str, Vec<u8>)>,
+    ) -> Result<HttpResponse> {
+        self.send_bytes_with_headers(method, path, &[], content)
+    }
+
+    /// [`CustdClient::send_bytes`] with extra request headers.
+    pub(crate) fn send_bytes_with_headers(
+        &self,
+        method: Method,
+        path: &str,
+        extra: &[(&'static str, &str)],
+        content: Option<(&str, Vec<u8>)>,
+    ) -> Result<HttpResponse> {
+        let mut headers = vec![("Authorization", format!("Bearer {}", self.access_token))];
+        headers.extend(
+            extra
+                .iter()
+                .map(|(name, value)| (*name, (*value).to_owned())),
+        );
+        let mut request = json_request(
+            method,
+            format!("{}{path}", self.base_url),
+            headers,
+            None::<&()>,
+        )?;
+        if let Some((content_type, bytes)) = content {
+            request
+                .headers
+                .push(("Content-Type", content_type.to_owned()));
+            request.body = Some(bytes);
+        }
+        execute(self.transport.as_ref(), &request)
+    }
+}
+
+/// The header that makes a retried write safe: a repeat with the same key returns the first answer.
+pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
+
+/// The header that asks for grant-backed support context for one client company.
+const EFFECTIVE_COMPANY_HEADER: &str = "X-Custd-Effective-Company";
+
+/// A JSON call that carries no Custd bearer token: a public route, or one with its own key header.
+pub(crate) fn call_public<T: DeserializeOwned>(
+    base_url: &str,
+    method: Method,
+    path: &str,
+    headers: Vec<(&'static str, String)>,
+    body: Option<&impl Serialize>,
+) -> Result<T> {
+    let url = format!("{}{path}", trim_base_url(base_url.to_owned()));
+    let request = json_request(method, url, headers, body)?;
+    decode(&execute(&UreqTransport::new(), &request)?.body)
 }
 
 impl fmt::Debug for CustdClient {
@@ -46,6 +139,7 @@ impl fmt::Debug for CustdClient {
         f.debug_struct("CustdClient")
             .field("base_url", &self.base_url)
             .field("access_token", &"<redacted>")
+            .field("acting_company", &self.acting_company)
             .finish()
     }
 }

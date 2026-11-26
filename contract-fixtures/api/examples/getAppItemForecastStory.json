@@ -99,7 +99,17 @@
         {
           "label": "example",
           "points": [
-            {}
+            {
+              "date": "example",
+              "lowerDate": "example",
+              "lowerValue": 1.5,
+              "selected": true,
+              "snapshotUuid": "example",
+              "upperDate": "example",
+              "upperValue": 1.5,
+              "value": 1.5,
+              "x": "example"
+            }
           ],
           "role": "example",
           "yKind": "example"
@@ -120,12 +130,20 @@
       "supportingTables": [
         {
           "columns": [
-            {}
+            {
+              "key": "example",
+              "label": "example"
+            }
           ],
           "key": "example",
           "label": "example",
           "rows": [
-            {}
+            {
+              "cells": [
+                "example"
+              ],
+              "key": "example"
+            }
           ]
         }
       ],

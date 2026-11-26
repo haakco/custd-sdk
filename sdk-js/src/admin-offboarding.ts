@@ -54,6 +54,12 @@ export type OffboardingPreviewStore = {
   sourceAuthority?: string;
 };
 
+// OffboardingPreviewExclusion is one store the preview leaves out, with why.
+export type OffboardingPreviewExclusion = {
+  store: string;
+  reason: string;
+};
+
 // OffboardingPreviewResponse is the body for POST
 // /admin/offboarding/requests/{requestUuid}/preview.
 export type OffboardingPreviewResponse = {
@@ -61,21 +67,24 @@ export type OffboardingPreviewResponse = {
   generatedAt: string;
   expiresAt: string;
   stores: OffboardingPreviewStore[];
-  exclusions?: Array<Record<string, unknown>>;
+  exclusions?: OffboardingPreviewExclusion[];
   previewInventoryDigest: string;
   complete: boolean;
   partial: boolean;
 };
 
-// OffboardingWaiver is the typed waiver recorded in a server-issued receipt.
-// role identifies the actor (e.g. client_owner); reason is the human-readable
-// rationale. timestamp is server-stamped on acceptance. Callers do not submit
-// waiver metadata to execute.
+// OffboardingWaiver is the content-free waiver summary in a server-issued
+// receipt: role is the bounded authorization label of the approver and
+// timestamp is server-stamped on acceptance. The receipt never carries the
+// waiver reason. Callers do not submit waiver metadata to execute.
 export type OffboardingWaiver = {
   role: string;
-  reason: string;
-  timestamp?: string;
+  timestamp: string;
 };
+
+// OffboardingRequesterKind says whether a person or a machine credential
+// requested the offboarding.
+export type OffboardingRequesterKind = "human" | "machine";
 
 // OffboardingExportResponse is the body for POST
 // /admin/offboarding/requests/{requestUuid}/export.
@@ -120,8 +129,7 @@ export type OffboardingReceiptPerStore = {
 // client must store alongside its offboarding record.
 export type OffboardingReceiptResponse = {
   companyId: number;
-  requestedByActor: string;
-  requestedByUserId?: number | null;
+  requestedByKind: OffboardingRequesterKind;
   requestedAt: string;
   completedAt: string;
   finalState: string;
@@ -141,7 +149,10 @@ type WirePreviewStore = {
   source_authority?: string;
 };
 
-type WirePreviewResponse = Omit<OffboardingPreviewResponse, "stores"> & { stores: WirePreviewStore[] };
+type WirePreviewResponse = Omit<OffboardingPreviewResponse, "stores" | "exclusions"> & {
+  stores: WirePreviewStore[] | null;
+  exclusions?: OffboardingPreviewExclusion[] | null;
+};
 type WireReceiptPerStore = {
   store: string;
   retention_class: string;
@@ -150,12 +161,11 @@ type WireReceiptPerStore = {
 };
 type WireReceiptResponse = {
   company_id: number;
-  requested_by_actor: string;
-  requested_by_user_id?: number | null;
+  requested_by_kind: OffboardingRequesterKind;
   requested_at: string;
   completed_at: string;
   final_state: string;
-  per_store: WireReceiptPerStore[];
+  per_store: WireReceiptPerStore[] | null;
   waiver?: OffboardingWaiver | null;
   sha256: string;
 };
@@ -163,7 +173,8 @@ type WireReceiptResponse = {
 function mapPreview(response: WirePreviewResponse): OffboardingPreviewResponse {
   return {
     ...response,
-    stores: response.stores.map((store) => ({
+    exclusions: response.exclusions ?? [],
+    stores: (response.stores ?? []).map((store) => ({
       store: store.store,
       kind: store.kind,
       retentionClass: store.retention_class,
@@ -176,12 +187,11 @@ function mapPreview(response: WirePreviewResponse): OffboardingPreviewResponse {
 function mapReceipt(response: WireReceiptResponse): OffboardingReceiptResponse {
   return {
     companyId: response.company_id,
-    requestedByActor: response.requested_by_actor,
-    requestedByUserId: response.requested_by_user_id,
+    requestedByKind: response.requested_by_kind,
     requestedAt: response.requested_at,
     completedAt: response.completed_at,
     finalState: response.final_state,
-    perStore: response.per_store.map((store) => ({
+    perStore: (response.per_store ?? []).map((store) => ({
       store: store.store,
       retentionClass: store.retention_class,
       deletedCount: store.deleted_count,

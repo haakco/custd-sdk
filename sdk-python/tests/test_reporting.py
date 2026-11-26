@@ -74,11 +74,15 @@ class ReportingClientTest(unittest.TestCase):
         self.assertEqual(response, client.reporting.output(output_uuid))
         self.assertEqual(f"http://localhost:8080/api/v1/reporting/outputs/{output_uuid}", transport.calls[0][1])
 
-    def test_outputs_preserves_nullable_list_envelope(self) -> None:
-        for outputs in (None, [{"outputUuid": "33333333-3333-4333-8333-333333333333", "warnings": None}]):
+    def test_outputs_decode_null_lists_as_empty(self) -> None:
+        output = "33333333-3333-4333-8333-333333333333"
+        for outputs, expected in (
+            (None, []),
+            ([{"outputUuid": output, "warnings": None}], [{"outputUuid": output, "warnings": []}]),
+        ):
             transport = FakeTransport({"outputs": outputs})
             client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
-            self.assertEqual({"outputs": outputs}, client.reporting.outputs())
+            self.assertEqual({"outputs": expected}, client.reporting.outputs())
 
     def test_subject_insight_sends_closed_request_and_returns_rendered_data(self) -> None:
         response = fixture("reporting-subject-insight-response.json")

@@ -35,21 +35,25 @@ export type OffboardingPreviewStore = {
     estimatedCount: number;
     sourceAuthority?: string;
 };
+export type OffboardingPreviewExclusion = {
+    store: string;
+    reason: string;
+};
 export type OffboardingPreviewResponse = {
     requestUuid: string;
     generatedAt: string;
     expiresAt: string;
     stores: OffboardingPreviewStore[];
-    exclusions?: Array<Record<string, unknown>>;
+    exclusions?: OffboardingPreviewExclusion[];
     previewInventoryDigest: string;
     complete: boolean;
     partial: boolean;
 };
 export type OffboardingWaiver = {
     role: string;
-    reason: string;
-    timestamp?: string;
+    timestamp: string;
 };
+export type OffboardingRequesterKind = "human" | "machine";
 export type OffboardingExportResponse = {
     requestUuid: string;
     checksumSha256: string;
@@ -75,8 +79,7 @@ export type OffboardingReceiptPerStore = {
 };
 export type OffboardingReceiptResponse = {
     companyId: number;
-    requestedByActor: string;
-    requestedByUserId?: number | null;
+    requestedByKind: OffboardingRequesterKind;
     requestedAt: string;
     completedAt: string;
     finalState: string;

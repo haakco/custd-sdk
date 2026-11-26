@@ -6,8 +6,8 @@ export declare function requireInteger(record: JsonRecord, key: string, context:
 export declare function requireBoolean(record: JsonRecord, key: string, context: string): boolean;
 /**
  * Return the named list of JSON objects. A missing or non-list container, or a
- * scalar element, fails. An empty list is accepted because the service emits
- * `[]` for an empty collection.
+ * scalar element, fails. A JSON null list decodes as empty, and is replaced by
+ * `[]` in the record so the returned DTO always carries a list.
  */
 export declare function requireObjectList(record: JsonRecord, key: string, context: string): JsonRecord[];
 /**

@@ -2,8 +2,23 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, fields, is_dataclass
+from typing import TypedDict
 
+from ._wire import decode, request
+from .admin_timeplan_operations import (
+    CompletedDurationReport,
+    CompletedRunExportRequest,
+    TimePlanDefinitionMathProofResponse,
+    TimePlanDurationObservationReadResponse,
+    TimePlanOperationalStatus,
+    TimePlanOutboxReplayRequest,
+    TimePlanOutboxReplayResponse,
+    TimePlanPredictionSnapshotList,
+    TimePlanProjectionLossResponse,
+    TimePlanPublishedVersionDetails,
+)
 from .client import AdminClient, quote_path
+from .reporting_types import ReportExportJob
 
 Payload = Mapping[str, object]
 _MISSING = object()
@@ -706,6 +721,13 @@ class TimePlanAllocationPreview:
         )
 
 
+class TimePlanRunRepairResponse(TypedDict):
+    """A run projection rebuilt from immutable history."""
+
+    repairedAt: str
+    run: TimePlanRun
+
+
 class TimePlanAdminClient:
     def __init__(self, admin: AdminClient) -> None:
         self._admin = admin
@@ -777,6 +799,117 @@ class TimePlanAdminClient:
             "POST",
             self._resource(f"/time-plans/runs/{run_uuid}/annotations/{annotation_uuid}/redact", company_slug),
             _body(request),
+        )
+
+    def get_definition_math_proof(self, company_slug: str) -> TimePlanDefinitionMathProofResponse:
+        """Run source-owned time-plan definition math proof."""
+        return decode(
+            TimePlanDefinitionMathProofResponse,
+            request(
+                self._admin,
+                "GET",
+                "/api/v1/admin/time-plans/operations/definition-math",
+                query={"companySlug": company_slug},
+            ),
+        )
+
+    def get_operational_status(self, company_slug: str) -> TimePlanOperationalStatus:
+        """Read redacted time-plan operator status."""
+        return decode(
+            TimePlanOperationalStatus,
+            request(
+                self._admin, "GET", "/api/v1/admin/time-plans/operations/status", query={"companySlug": company_slug}
+            ),
+        )
+
+    def get_published_version(
+        self, company_slug: str, plan_uuid: str, version_uuid: str
+    ) -> TimePlanPublishedVersionDetails:
+        """Get an immutable published time-plan version."""
+        return decode(
+            TimePlanPublishedVersionDetails,
+            request(
+                self._admin,
+                "GET",
+                f"/api/v1/admin/time-plans/plans/{quote_path(plan_uuid)}/versions/{quote_path(version_uuid)}",
+                query={"companySlug": company_slug},
+            ),
+        )
+
+    def list_duration_observations(self, company_slug: str, run_uuid: str) -> TimePlanDurationObservationReadResponse:
+        """List persisted system duration observations for a run."""
+        return decode(
+            TimePlanDurationObservationReadResponse,
+            request(
+                self._admin,
+                "GET",
+                f"/api/v1/admin/time-plans/runs/{quote_path(run_uuid)}/duration-observations",
+                query={"companySlug": company_slug},
+            ),
+        )
+
+    def list_run_predictions(
+        self, company_slug: str, run_uuid: str, *, limit: int | None = None
+    ) -> TimePlanPredictionSnapshotList:
+        """List immutable time-plan prediction snapshots."""
+        return decode(
+            TimePlanPredictionSnapshotList,
+            request(
+                self._admin,
+                "GET",
+                f"/api/v1/admin/time-plans/runs/{quote_path(run_uuid)}/predictions",
+                query={"companySlug": company_slug, "limit": limit},
+            ),
+        )
+
+    def get_completed_duration_report(self, company_slug: str, run_uuid: str) -> CompletedDurationReport:
+        """Get a completed time-plan run report."""
+        return decode(
+            CompletedDurationReport,
+            request(
+                self._admin,
+                "GET",
+                f"/api/v1/admin/time-plans/runs/{quote_path(run_uuid)}/report",
+                query={"companySlug": company_slug},
+            ),
+        )
+
+    def replay_outbox(self, company_slug: str, body: TimePlanOutboxReplayRequest) -> TimePlanOutboxReplayResponse:
+        """Requeue failed time-plan derived events."""
+        return decode(
+            TimePlanOutboxReplayResponse,
+            request(
+                self._admin,
+                "POST",
+                "/api/v1/admin/time-plans/operations/outbox/replay",
+                query={"companySlug": company_slug},
+                body=dict(body),
+            ),
+        )
+
+    def delete_run_projection(self, company_slug: str, run_uuid: str) -> TimePlanProjectionLossResponse:
+        """Remove one generated-proof run's rebuildable projection."""
+        return decode(
+            TimePlanProjectionLossResponse,
+            request(
+                self._admin,
+                "POST",
+                f"/api/v1/admin/time-plans/runs/{quote_path(run_uuid)}/projection-loss",
+                query={"companySlug": company_slug},
+            ),
+        )
+
+    def repair_run(self, run_uuid: str, *, company_slug: str | None = None) -> TimePlanRunRepairResponse:
+        """Rebuild a time-plan run projection from immutable history."""
+        path = f"/api/v1/admin/time-plans/runs/{quote_path(run_uuid)}/repair"
+        answer = request(self._admin, "POST", path, query={"companySlug": company_slug})
+        return decode(TimePlanRunRepairResponse, answer)
+
+    def create_completed_run_export(self, body: CompletedRunExportRequest) -> ReportExportJob:
+        """Create completed-run report export."""
+        return decode(
+            ReportExportJob,
+            request(self._admin, "POST", "/api/v1/reporting/exports/completed-run", body=dict(body)),
         )
 
     @staticmethod

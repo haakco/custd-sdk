@@ -14,6 +14,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::Result;
+use crate::api_path::api_path;
 use crate::app_meetings::{AppMeeting, AppMeetingMinutes, AppPlanMeetingSummary};
 use crate::app_models::{AppModelRun, AppModelRunRequest, AppUncertaintyModel};
 use crate::app_story::AppForecastStory;
@@ -34,8 +35,8 @@ pub const APP_ITEM_KIND_UNCERTAINTY_MODEL: &str = "uncertainty_model";
 pub const APP_ITEM_KIND_PLAN: &str = "plan";
 
 const ITEMS_PATH: &str = "/api/v1/app/items";
-const ITEM_PATH: &str = "/api/v1/app/item";
-const MODEL_RUNS_PATH: &str = "/api/v1/app/models";
+pub(crate) const ITEM_PATH: &str = "/api/v1/app/item";
+pub(crate) const MODEL_RUNS_PATH: &str = "/api/v1/app/models";
 const FORECAST_PATH: &str = "/api/v1/app/forecast";
 const SITE_KEY_HEADER: &str = "X-Custd-Site-Key";
 const USER_TOKEN_HEADER: &str = "X-Custd-User-Token";
@@ -161,6 +162,7 @@ pub struct AppPlanForecast {
     pub model: String,
     pub required_parts: u32,
     pub completed_parts: u32,
+    #[serde(default, deserialize_with = "null_as_empty")]
     pub missing_parts: Vec<String>,
     pub deadline_probability: Option<f64>,
     pub median: Option<String>,
@@ -168,9 +170,9 @@ pub struct AppPlanForecast {
     pub lower: Option<String>,
     pub upper: Option<String>,
     pub horizon_miss_fraction: Option<f64>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_empty")]
     pub observed_progress: Vec<AppPlanProgressPoint>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_empty")]
     pub projected_progress: Vec<AppPlanProgressBand>,
 }
 
@@ -517,6 +519,27 @@ impl AppLink<'_> {
         body: Option<&impl Serialize>,
     ) -> Result<T> {
         let path = self.target(&format!("{ITEM_PATH}{suffix}"), None);
+        let response = self.app.send(method, path, self.token(), body, None)?;
+        decode(&response.body)
+    }
+
+    /// A call to `path` with the set query values. A read names a collection entry with `item`;
+    /// otherwise an owned item adds its own `item=`.
+    pub(crate) fn query_call<T: DeserializeOwned>(
+        &self,
+        method: Method,
+        path: &str,
+        query: &[(&str, Option<String>)],
+        body: Option<&impl Serialize>,
+    ) -> Result<T> {
+        let mut query = query.to_vec();
+        let named = query
+            .iter()
+            .any(|(name, value)| *name == "item" && value.is_some());
+        if let (Access::Owned(item_uuid), false) = (&self.access, named) {
+            query.push(("item", Some(item_uuid.clone())));
+        }
+        let path = api_path(path.to_owned(), &query, None);
         let response = self.app.send(method, path, self.token(), body, None)?;
         decode(&response.body)
     }

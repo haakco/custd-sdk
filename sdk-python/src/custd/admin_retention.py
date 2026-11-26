@@ -1,52 +1,91 @@
+"""Tenant retention policies under ``/api/v1/admin/retention/policies/{tenantSlug}``.
+
+A tenant holds one policy per retention class. ``preview`` is a dry run and ``apply`` the live
+sweep; both answer the same per-store breakdown, told apart by ``lastResult``. A class under legal
+hold is never swept. A JSON null list decodes as empty.
+"""
+
 from __future__ import annotations
 
-from typing import TypedDict, cast
+from typing import NotRequired, TypedDict
 
+from ._wire import decode, request
 from .client import AdminClient, quote_path
 
+RETENTION_POLICIES_PATH = "/api/v1/admin/retention/policies"
 
-class RetentionPolicy(TypedDict, total=False):
-    tenantSlug: str
+
+class RetentionPolicy(TypedDict):
+    id: int
     scope: str
     retentionClass: str
     maxAgeSeconds: int
     precedence: int
     legalHold: bool
     effectiveAt: str
-    expiresAt: str | None
+    lastAffectedCounts: dict[str, int]
+    companyId: NotRequired[int]
+    auditId: NotRequired[int]
+    expiresAt: NotRequired[str]
+    legalHoldUntil: NotRequired[str]
+    lastResult: NotRequired[str]
+    lastError: NotRequired[str]
+    nextRunAt: NotRequired[str]
 
 
-class RetentionPolicyUpsertRequest(TypedDict, total=False):
+class RetentionPolicyUpsertRequest(TypedDict):
     scope: str
     retentionClass: str
     maxAgeSeconds: int
     precedence: int
     legalHold: bool
-    effectiveAt: str
+    legalHoldReference: NotRequired[str]
+    legalHoldUntil: NotRequired[str]
+    effectiveAt: NotRequired[str]
+    expiresAt: NotRequired[str]
 
 
 class RetentionPolicyListResponse(TypedDict):
     policies: list[RetentionPolicy]
 
 
-class RetentionRunPreview(TypedDict, total=False):
-    previewId: str
-    tenantSlug: str
-    estimatedDeletions: list[dict[str, object]]
-    previewedAt: str
+class RetentionStoreBreakdown(TypedDict):
+    store: str
+    retentionClass: str
+    candidateCount: int
+    estimatedAffected: int
+    sampleSubjects: list[str]
+    legalHoldCount: int
 
 
-class RetentionRun(TypedDict, total=False):
-    runId: str
-    tenantSlug: str
-    state: str
+class RetentionRun(TypedDict):
+    """A preview (``lastResult`` "preview") or a live apply ("applied") and its per-store counts."""
+
+    perStore: list[RetentionStoreBreakdown]
+    lastResult: str
+    safeNextAction: str
     startedAt: str
     completedAt: str
-    deletedCount: int
+    nextRunAt: NotRequired[str]
+    lastAffectedCounts: NotRequired[dict[str, int]]
+    lastError: NotRequired[str]
+
+
+class RetentionRunRecord(TypedDict):
+    startAt: str
+    endAt: str
+    lastResult: str
+    lastAffectedCounts: dict[str, int]
+    lastError: NotRequired[str]
+    auditId: NotRequired[int]
 
 
 class RetentionRunsListResponse(TypedDict):
-    runs: list[RetentionRun]
+    """One page of runs; follow ``nextOffset`` while ``hasMore``."""
+
+    runs: list[RetentionRunRecord]
+    nextOffset: int
+    hasMore: bool
 
 
 class RetentionClient:
@@ -54,32 +93,31 @@ class RetentionClient:
         self._admin = admin
 
     def list(self) -> RetentionPolicyListResponse:
-        return cast(RetentionPolicyListResponse, self._admin.request("GET", "/retention/policies"))
+        return decode(RetentionPolicyListResponse, request(self._admin, "GET", RETENTION_POLICIES_PATH))
 
-    def get(self, slug: str) -> RetentionPolicy:
-        return cast(RetentionPolicy, self._admin.request(
-            "GET", f"/retention/policies/{quote_path(slug)}"
-        ))
+    def get(self, tenant_slug: str) -> RetentionPolicyListResponse:
+        """Read every retention-class policy of one tenant."""
+        return decode(RetentionPolicyListResponse, request(self._admin, "GET", _policy_path(tenant_slug)))
 
-    def upsert(self, slug: str, b: RetentionPolicyUpsertRequest) -> RetentionPolicy:
-        return cast(RetentionPolicy, self._admin.request(
-            "PUT", f"/retention/policies/{quote_path(slug)}", dict(b)
-        ))
+    def upsert(self, tenant_slug: str, body: RetentionPolicyUpsertRequest) -> RetentionPolicy:
+        return decode(RetentionPolicy, request(self._admin, "PUT", _policy_path(tenant_slug), body=dict(body)))
 
-    def delete(self, slug: str) -> None:
-        self._admin.request("DELETE", f"/retention/policies/{quote_path(slug)}")
+    def delete(self, tenant_slug: str) -> None:
+        request(self._admin, "DELETE", _policy_path(tenant_slug))
 
-    def preview(self, slug: str) -> RetentionRunPreview:
-        return cast(RetentionRunPreview, self._admin.request(
-            "POST", f"/retention/policies/{quote_path(slug)}/preview"
-        ))
+    def preview(self, tenant_slug: str) -> RetentionRun:
+        return decode(RetentionRun, request(self._admin, "POST", _policy_path(tenant_slug) + "/preview"))
 
-    def apply(self, slug: str) -> RetentionRun:
-        return cast(RetentionRun, self._admin.request(
-            "POST", f"/retention/policies/{quote_path(slug)}/apply"
-        ))
+    def apply(self, tenant_slug: str) -> RetentionRun:
+        return decode(RetentionRun, request(self._admin, "POST", _policy_path(tenant_slug) + "/apply"))
 
-    def list_runs(self, slug: str) -> RetentionRunsListResponse:
-        return cast(RetentionRunsListResponse, self._admin.request(
-            "GET", f"/retention/policies/{quote_path(slug)}/runs"
-        ))
+    def list_runs(
+        self, tenant_slug: str, *, limit: int | None = None, offset: int | None = None
+    ) -> RetentionRunsListResponse:
+        path = _policy_path(tenant_slug) + "/runs"
+        query = {"limit": limit, "offset": offset}
+        return decode(RetentionRunsListResponse, request(self._admin, "GET", path, query=query))
+
+
+def _policy_path(tenant_slug: str) -> str:
+    return f"{RETENTION_POLICIES_PATH}/{quote_path(tenant_slug)}"

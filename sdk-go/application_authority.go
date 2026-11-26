@@ -56,7 +56,7 @@ func (c *CustdClient) CheckApplicationAuthority(ctx context.Context, request App
 		Authorized *bool   `json:"authorized"`
 		Reason     *string `json:"reason"`
 	}
-	if err := json.Unmarshal(response.Body, &decision); err != nil {
+	if err := unmarshalResponse(response.Body, &decision); err != nil {
 		return denied, fmt.Errorf("custd: decode application authority decision: %w", err)
 	}
 	if decision.Authorized == nil || decision.Reason == nil {

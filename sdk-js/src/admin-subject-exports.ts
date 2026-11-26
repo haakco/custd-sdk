@@ -1,90 +1,116 @@
 // SubjectExportClient owns per-tenant subject export requests. The download
-// surface returns a short-lived signed URL the SDK must surface only to the
-// caller; it must not be logged or echoed into error messages.
+// surface returns artifact metadata the SDK surfaces only to the caller; its
+// object keys are tenant data and must not be logged or echoed into errors.
 
 import type { RequestOptions } from "./index.js";
 
-// SubjectExportSubject is the typed selector the server returns alongside
-// an export request. The value is a server-side identifier (e.g. a user
-// UUID); the SDK must not echo it into logs or error messages.
-export type SubjectExportSubject = {
-  type: string;
-  value: string;
+/** What a subject export covers. A request may ask for both; each artifact is access or portability. */
+export type SubjectExportScope = "access" | "portability" | "both";
+
+/** The artifact a download names: the server serves access or portability, never both at once. */
+export type SubjectExportArtifactScope = Exclude<SubjectExportScope, "both">;
+
+export type SubjectExportStatus = "queued" | "running" | "complete" | "failed" | "cancelled" | "expired";
+
+/** One store's progress for a subject export. */
+export type SubjectExportStoreProgress = {
+  store: string;
+  deletedCount: number;
+  retainedExceptions: number;
+  lastError?: string;
+  lastCompletedAt?: string;
 };
 
-// SubjectExport is the receipt returned for a subject export request. The
-// checksum and artifactSize are present only once the request is in
-// terminal ready state.
+/** The status of one subject export request, as create, get, list, cancel and force return it. */
 export type SubjectExport = {
-  requestId: string;
-  tenantSlug: string;
-  subject: SubjectExportSubject;
-  scope: string;
-  state: string;
-  createdAt?: string;
-  expiresAt?: string;
-  checksum?: string;
-  artifactSize?: number;
+  id: string;
+  opaqueSubjectId: string;
+  scope: SubjectExportScope;
+  state: SubjectExportStatus;
+  idempotencyKey: string;
+  requestedAt: string;
+  expiresAt: string;
+  completedAt?: string;
+  lastProgressAt?: string;
+  lastActionSafeNext?: string;
+  error?: string;
+  perStoreProgress: SubjectExportStoreProgress[];
 };
 
 export type SubjectExportListResponse = {
-  exports: SubjectExport[];
+  requests: SubjectExport[];
 };
 
-// SubjectExportCreateRequest is the body for POST /admin/subject-exports.
-// idempotencyKey is required for safe retries.
+/** The body for POST /admin/subject-exports. idempotencyKey makes a retry safe. */
 export type SubjectExportCreateRequest = {
-  tenantSlug: string;
-  subject: SubjectExportSubject;
-  scope: string;
+  opaqueSubjectId: string;
+  scope: SubjectExportScope;
   idempotencyKey: string;
 };
 
-// SubjectExportDownloadResponse is the body for GET
-// /admin/subject-exports/{requestId}/download. The downloadUrl is a
-// short-lived signed URL the SDK must hand back to the caller without
-// logging the URL value or the underlying subject identifier.
+/**
+ * One stored export artifact's identity, location and integrity metadata, as
+ * GET /admin/subject-exports/{requestId}/download returns it. It names object
+ * keys, not a signed URL.
+ */
 export type SubjectExportDownloadResponse = {
+  id: string;
   requestId: string;
-  downloadUrl: string;
-  expiresAt?: string;
-};
-
-export type SubjectExportState = {
-  requestId: string;
-  state: string;
-  cancelledAt?: string;
-  forcedAt?: string;
+  scope: SubjectExportScope;
+  objectKey: string;
+  s3Key: string;
+  encryptionKeyId: string;
+  checksumSha256: string;
+  byteSize: number;
+  recordCount: number;
+  generatedAt: string;
+  expiresAt: string;
 };
 
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 
+function exportPath(requestId: string, action = ""): string {
+  return `/subject-exports/${encodeURIComponent(requestId)}${action}`;
+}
+
+function normalizeExport(request: SubjectExport): SubjectExport {
+  return { ...request, perStoreProgress: request.perStoreProgress ?? [] };
+}
+
 export class SubjectExportClient {
   constructor(private readonly request: AdminRequester) {}
 
-  create(body: SubjectExportCreateRequest, options?: RequestOptions): Promise<SubjectExport> {
-    return this.request("POST", "/subject-exports", body, options);
+  async create(body: SubjectExportCreateRequest, options?: RequestOptions): Promise<SubjectExport> {
+    return normalizeExport(await this.request("POST", "/subject-exports", body, options));
   }
 
-  list(options?: RequestOptions): Promise<SubjectExportListResponse> {
-    return this.request("GET", "/subject-exports", undefined, options);
+  /** Lists the tenant's subject exports, newest first. The server default is 100; it accepts 1 to 1000. */
+  async list(limit?: number, options?: RequestOptions): Promise<SubjectExportListResponse> {
+    const query = limit === undefined ? "" : `?${new URLSearchParams({ limit: String(limit) })}`;
+    const list = await this.request<SubjectExportListResponse>("GET", `/subject-exports${query}`, undefined, options);
+    return { requests: (list.requests ?? []).map(normalizeExport) };
   }
 
-  get(requestId: string, options?: RequestOptions): Promise<SubjectExport> {
-    return this.request("GET", `/subject-exports/${encodeURIComponent(requestId)}`, undefined, options);
+  async get(requestId: string, options?: RequestOptions): Promise<SubjectExport> {
+    return normalizeExport(await this.request("GET", exportPath(requestId), undefined, options));
   }
 
-  cancel(requestId: string, options?: RequestOptions): Promise<SubjectExportState> {
-    return this.request("POST", `/subject-exports/${encodeURIComponent(requestId)}/cancel`, undefined, options);
+  /** Stops a queued or running export and returns its cancelled status. */
+  async cancel(requestId: string, options?: RequestOptions): Promise<SubjectExport> {
+    return normalizeExport(await this.request("POST", exportPath(requestId, "/cancel"), undefined, options));
   }
 
-  // Download returns a short-lived signed URL. The downloadUrl field is
-  // sensitive; callers must not log the URL or echo it into error messages.
-  download(requestId: string, options?: RequestOptions): Promise<SubjectExportDownloadResponse> {
-    return this.request("GET", `/subject-exports/${encodeURIComponent(requestId)}/download`, undefined, options);
+  /** Returns one stored artifact's metadata; scope names the artifact. The object keys are tenant data; do not log them. */
+  download(
+    requestId: string,
+    scope: SubjectExportArtifactScope,
+    options?: RequestOptions,
+  ): Promise<SubjectExportDownloadResponse> {
+    const query = new URLSearchParams({ scope });
+    return this.request("GET", `${exportPath(requestId, "/download")}?${query}`, undefined, options);
   }
 
-  force(requestId: string, options?: RequestOptions): Promise<SubjectExportState> {
-    return this.request("POST", `/subject-exports/${encodeURIComponent(requestId)}/force`, undefined, options);
+  async force(requestId: string, options?: RequestOptions): Promise<SubjectExport> {
+    return normalizeExport(await this.request("POST", exportPath(requestId, "/force"), undefined, options));
   }
 }

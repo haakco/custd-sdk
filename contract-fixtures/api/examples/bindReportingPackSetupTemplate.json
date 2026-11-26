@@ -5,9 +5,17 @@
         "allocations": [
           {
             "key": "example",
-            "rounding": {},
+            "rounding": {
+              "decimalPlaces": 1,
+              "mode": "example"
+            },
             "sourceSeriesKey": "example",
-            "targets": []
+            "targets": [
+              {
+                "seriesKey": "example",
+                "weight": 1.5
+              }
+            ]
           }
         ],
         "schedules": [
@@ -17,8 +25,17 @@
             "effectiveFrom": "2026-11-20T06:00:00Z",
             "effectiveTo": "2026-11-20T06:00:00Z",
             "key": "example",
-            "rounding": {},
-            "tiers": [],
+            "rounding": {
+              "decimalPlaces": 1,
+              "mode": "example"
+            },
+            "tiers": [
+              {
+                "lowerBound": 1.5,
+                "pricePerUnit": 1.5,
+                "upperBound": 1.5
+              }
+            ],
             "timezone": "example",
             "usageMetric": "example",
             "usageUnit": "example"
@@ -33,7 +50,9 @@
           "identity": "example",
           "key": "example",
           "predicate": {
-            "anyOf": [],
+            "anyOf": [
+              "example"
+            ],
             "exact": "example",
             "nonEmpty": true,
             "pattern": "example",
@@ -73,17 +92,23 @@
           "defaultRange": "example",
           "description": "example",
           "executive": {
-            "actions": [],
+            "actions": [
+              "example"
+            ],
             "comparisonBasis": "example",
             "comparisonLabel": "example",
-            "findings": [],
+            "findings": [
+              "example"
+            ],
             "primaryLabel": "example",
             "primaryMetricKey": "example",
             "primaryUnit": "example",
             "primaryWidgetKey": "example",
             "recipe": "example",
             "scopeLabel": "example",
-            "supportingWidgetKeys": [],
+            "supportingWidgetKeys": [
+              "example"
+            ],
             "targetUnit": "example",
             "targetValue": 1.5
           },
@@ -92,7 +117,16 @@
           ],
           "group": "example",
           "interactions": [
-            {}
+            {
+              "action": "example",
+              "comparisonPreset": "example",
+              "dimension": "example",
+              "key": "example",
+              "linkedFilterGroup": "example",
+              "resetBehavior": "example",
+              "sourceWidget": "example",
+              "targetWidget": "example"
+            }
           ],
           "key": "example",
           "packKey": "example",
@@ -101,15 +135,55 @@
             "example"
           ],
           "sections": [
-            {}
+            {
+              "columnSpan": 1,
+              "key": "example",
+              "layout": "example",
+              "narrative": [
+                {
+                  "references": [
+                    {
+                      "value": "example",
+                      "widgetKey": "example"
+                    }
+                  ],
+                  "text": "example"
+                }
+              ],
+              "title": "example",
+              "widgetKeys": [
+                "example"
+              ]
+            }
           ],
           "sharePolicy": {
-            "comparisonPresets": [],
-            "relativeRanges": []
+            "comparisonPresets": [
+              "example"
+            ],
+            "relativeRanges": [
+              "example"
+            ]
           },
           "title": "example",
           "widgets": [
-            {}
+            {
+              "dimensions": [
+                "example"
+              ],
+              "key": "example",
+              "kind": "example",
+              "metrics": [
+                "example"
+              ],
+              "presentation": {
+                "nonColorEncoding": "example",
+                "presetId": "example",
+                "summaryTemplateId": "example",
+                "version": 1
+              },
+              "template": "example",
+              "title": "example"
+            }
           ]
         }
       ],
@@ -192,7 +266,15 @@
           "kind": "example",
           "label": "example",
           "match": [
-            {}
+            {
+              "anyOf": [
+                "example"
+              ],
+              "exact": "example",
+              "nonEmpty": true,
+              "pattern": "example",
+              "selector": "example"
+            }
           ],
           "maximumGapSeconds": 1,
           "measurementKind": "example",
@@ -218,15 +300,25 @@
         ],
         "series": [
           {
-            "allowedSourceUnits": [],
+            "allowedSourceUnits": [
+              "example"
+            ],
             "assetKey": "example",
-            "assetKeys": [],
+            "assetKeys": [
+              "example"
+            ],
             "canonicalUnit": "example",
             "expectedCadenceSeconds": 1,
             "key": "example",
             "maximumGapSeconds": 1,
             "measurementKind": "example",
-            "sources": []
+            "sources": [
+              {
+                "priority": 1,
+                "sourceKey": "example",
+                "sourceSeriesKey": "example"
+              }
+            ]
           }
         ],
         "sources": [
@@ -260,7 +352,11 @@
           "relativeTolerance": 1.5,
           "seriesKey": "example",
           "sources": [
-            {}
+            {
+              "priority": 1,
+              "sourceKey": "example",
+              "sourceSeriesKey": "example"
+            }
           ],
           "tenantKey": "example",
           "version": 1
@@ -287,7 +383,9 @@
           "activationRule": "example",
           "key": "example",
           "returnPredicate": {
-            "anyOf": [],
+            "anyOf": [
+              "example"
+            ],
             "exact": "example",
             "nonEmpty": true,
             "pattern": "example",
@@ -302,11 +400,24 @@
         {
           "completenessRequired": true,
           "dimensions": [
-            {}
+            {
+              "allowedValuePattern": "example",
+              "dimension": "example",
+              "selector": "example",
+              "slot": 1
+            }
           ],
           "family": "example",
           "match": [
-            {}
+            {
+              "anyOf": [
+                "example"
+              ],
+              "exact": "example",
+              "nonEmpty": true,
+              "pattern": "example",
+              "selector": "example"
+            }
           ],
           "metric": "example",
           "sourceEventType": "example",
@@ -322,7 +433,12 @@
             "example"
           ],
           "allowedFilters": [
-            {}
+            {
+              "dimension": "example",
+              "operators": [
+                "example"
+              ]
+            }
           ],
           "allowedMetrics": [
             "example"

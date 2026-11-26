@@ -5,13 +5,21 @@
         "currentRevision": {
           "allowOverlap": true,
           "dimensions": [
-            {}
+            {
+              "dimensionKey": "example",
+              "maxValueBytes": 1
+            }
           ],
           "hash": "example",
           "number": 1,
           "predictionVersionUuid": "example",
           "steps": [
-            {}
+            {
+              "name": "example",
+              "nominalMs": 1,
+              "sequence": 1,
+              "stepKey": "example"
+            }
           ],
           "uuid": "example"
         },

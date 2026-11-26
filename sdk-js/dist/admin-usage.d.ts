@@ -1,4 +1,4 @@
-import type { RequestOptions } from "./index.js";
+import type { RequestOptions, StorageLimit, StorageMeasurementState } from "./index.js";
 /** The row cap the service applies when a request omits a limit. */
 export declare const USAGE_DEFAULT_LIMIT = 500;
 /** The most rows the usage endpoint returns in one request. */
@@ -55,6 +55,53 @@ export type UsageQuery = {
     /** Maximum rows, between 1 and {@link USAGE_MAX_LIMIT}. */
     limit?: number;
 };
+/** A usage window for the system-admin views, optionally narrowed to one company. */
+export type UsageAdminQuery = UsageQuery & {
+    companySlug?: string;
+};
+/** Where a tenant's retained bytes are held. */
+export type StorageUsageBreakdown = {
+    dbCoreLogicalBytes: number;
+    dbRawInlineLogicalBytes: number;
+    s3RawBytes: number;
+    s3RawObjectCount: number;
+    s3ParquetArchiveBytes: number;
+    s3ParquetArchiveObjectCount: number;
+    parquetArchiveAttribution: string;
+};
+/** One tenant's retained storage against its limit. */
+export type TenantStorageUsage = {
+    companySlug: string;
+    companyName: string;
+    attributedStorageBytes: number;
+    retainedLogicalBytes: number;
+    retainedEventCount: number;
+    effectiveLimitBytes: number;
+    remainingBytes: number;
+    percentUsed: number;
+    warning: boolean;
+    warningState: string;
+    limit: StorageLimit;
+    measuredAt: string;
+    measurementState: StorageMeasurementState;
+    breakdown?: StorageUsageBreakdown;
+};
+/** Retained storage across every tenant. */
+export type StorageUsageSummary = {
+    tenantCount: number;
+    attributedStorageBytes: number;
+    retainedLogicalBytes: number;
+    retainedEventCount: number;
+    effectiveLimitBytes: number;
+    remainingBytes: number;
+    percentUsed: number;
+    warning: boolean;
+    warningState: string;
+    measuredAt: string;
+    measurementState: StorageMeasurementState;
+    breakdown?: StorageUsageBreakdown;
+    tenants: TenantStorageUsage[];
+};
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 export declare class UsageAdminClient {
     private readonly request;
@@ -64,5 +111,14 @@ export declare class UsageAdminClient {
      * derived from the credential, so the caller never supplies a company slug.
      */
     get(query?: UsageQuery, options?: RequestOptions): Promise<UsageReport>;
+    /** System administrators: attributed usage across tenants, or one company's. */
+    listUsage(query?: UsageAdminQuery, options?: RequestOptions): Promise<UsageReport>;
+    /** System administrators: the same rows as `listUsage`, as a billing export. */
+    exportUsage(query?: UsageAdminQuery, options?: RequestOptions): Promise<UsageReport>;
+    /** System administrators: retained storage for every tenant. */
+    listStorageUsage(options?: RequestOptions): Promise<StorageUsageSummary>;
+    /** The token's own tenant's retained storage. */
+    getRetainedUsage(options?: RequestOptions): Promise<TenantStorageUsage>;
+    private adminUsage;
 }
 export {};

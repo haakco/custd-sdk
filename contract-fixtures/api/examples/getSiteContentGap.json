@@ -26,7 +26,9 @@
             "domain": "example",
             "firstSeen": "example",
             "lastSeen": "example",
-            "sources": [],
+            "sources": [
+              "example"
+            ],
             "url": "example"
           }
         ],

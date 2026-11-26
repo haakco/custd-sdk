@@ -1,5 +1,6 @@
 import type { AppRelease, AppReleaseCreateRequest, AppReleaseList, AppReleasePromotion, AppReleaseUploadedFile } from "./admin-app-releases.js";
-import { type AppCreateRequest, type AppCreation, type AppDeployCredential, type AppListResponse, type AppOverview } from "./admin-apps.js";
+import { type AppCreateRequest, type AppCreation, type AppDeployCredential, type AppDeployCredentialList, type AppListResponse, type AppOverview, type AppSignInRequest, type AppSummary } from "./admin-apps.js";
+import type { AuthProjectAppLinkList, AuthProjectBrandLogo, AuthProjectDomainBinding, AuthProjectDomainBindRequest, AuthProjectDomainImageOverrideRequest, AuthProjectDomainMintRequest } from "./admin-auth-project-domain.js";
 import type { RequestOptions } from "./index.js";
 /** How an environment's identity boundary is shared. Custd owns both values. */
 export type AuthProjectIdentityMode = "isolated" | "shared";
@@ -35,6 +36,7 @@ export type AuthProjectSummary = {
     environmentId: string;
     environmentSlug: string;
     identityMode: AuthProjectIdentityMode;
+    audienceEntitlementMode: AuthProjectAudienceEntitlementMode;
     /** Persisted company of this project; null means explicitly unbound, never inferred. */
     companyUuid: string | null;
 };
@@ -238,11 +240,56 @@ export type AuthProjectDesiredState = {
     loginPaused: boolean;
     audiences: AuthProjectAudienceBinding[] | null;
     profileFields: AuthProjectProfileField[] | null;
+    /** The realm's public entry path; empty when it has none. */
+    entryPath?: string;
+    /** The sign-in accent as #rrggbb; empty for the shared default. */
+    brandAccent?: string;
+    /** The application name shown on invitations and hosted sign-in; empty when none is chosen. */
+    displayName?: string;
+    /** Which surface owns the display name: `application` or `hosting`. Provenance, never authority. */
+    displayNameSource?: string;
+    /** With an empty displayName and a declared source, gives up a name that source set. Never returned. */
+    withdrawDisplayName?: boolean;
+    /** Narrows the offered sign-in methods; empty offers whatever the credential store can complete. */
+    signInMethods?: string[] | null;
+    /** The remembered-session offer. Leaving it out keeps the stored setting. */
+    applicationSessionPolicy?: AuthProjectApplicationSessionPolicy;
+    /** The social providers offered. Leaving it out keeps the stored section. */
+    socialSignIn?: AuthProjectSocialSignIn;
     /**
      * Serves the environment as a hosted application. Leaving it out keeps the
      * stored section, so an apply cannot switch an app off by omission.
      */
     hosting?: AuthProjectHosting;
+};
+export type AuthProjectApplicationSessionPolicy = "offer_remember_me" | "short_only";
+export type AuthProjectSocialProviderName = "google" | "github";
+/** One social provider. `shared` uses Custd's provider app; `own` needs the owner's clientId and, once, its secret. */
+export type AuthProjectSocialProvider = {
+    provider: AuthProjectSocialProviderName;
+    mode: "shared" | "own";
+    clientId?: string;
+    /** Write-only; leaving it out keeps the stored secret while clientId is unchanged. */
+    clientSecret?: string;
+    /** Read-only: whether a secret is stored. */
+    clientSecretSet?: boolean;
+};
+/** Read-only: what the sign-in directory offers now, and the callback URLs to register with an own provider app. */
+export type AuthProjectSocialSignInStatus = {
+    callbackUrls: Array<{
+        provider: AuthProjectSocialProviderName;
+        url: string;
+    }> | null;
+    providers: Array<{
+        provider: AuthProjectSocialProviderName;
+        mode: "shared" | "own";
+        state: "active" | "applying" | "unavailable" | "waiting_for_directory";
+        note: string;
+    }> | null;
+};
+export type AuthProjectSocialSignIn = {
+    providers: AuthProjectSocialProvider[] | null;
+    status?: AuthProjectSocialSignInStatus;
 };
 /** Whether an environment is served as a hosted application. */
 export type AuthProjectHostingMode = "disabled" | "enabled";
@@ -268,6 +315,7 @@ export type AuthProjectHostedSignIn = {
     clientId: string;
     audience: string;
     redirectUri: string;
+    postLogoutRedirectUri: string;
 };
 /** A hosted environment's derived serving identity. `signIn` is absent unless `sign_in` is on. */
 export type AuthProjectHostingStatus = {
@@ -349,6 +397,9 @@ export type AuthProjectStatus = {
     clientSync?: AuthProjectClientSync;
     /** Persisted company of this environment's project; null means explicitly unbound, never inferred. */
     companyUuid: string | null;
+    companySlug?: string;
+    /** The URL of the realm's uploaded logo, absent when it has none. */
+    brandLogoUrl?: string;
     /** The derived serving identity of a hosted environment, absent when it is not served. */
     hosting?: AuthProjectHostingStatus;
 };
@@ -573,6 +624,31 @@ export type AuthProjectDeletion = {
     slug: string;
     name: string;
     released: AuthProjectReleasedResources;
+    /** The hosted application data removed from each environment. */
+    hosting: AuthProjectHostingRemoval[] | null;
+};
+/** The hosted application rows removed with one environment. */
+export type AuthEnvironmentHostingRemoval = {
+    sites: number;
+    releases: number;
+    releaseObjects: number;
+    shareCardObjects: number;
+    items: number;
+    links: number;
+    collectionEntries: number;
+    measurementProjects: number;
+    meetings: number;
+    uncertaintyModels: number;
+    requestSummaries: number;
+    alertRules: number;
+    alertSubscriptions: number;
+    alertWebhooks: number;
+    alertDeliveries: number;
+};
+export type AuthProjectHostingRemoval = {
+    environmentId: string;
+    slug: string;
+    removed: AuthEnvironmentHostingRemoval;
 };
 /**
  * Body of POST .../environments/{environmentId}/delete. `confirmSlug` must equal
@@ -599,6 +675,7 @@ export type AuthProjectEnvironmentDeletion = {
     slug: string;
     name: string;
     released: AuthProjectEnvironmentReleasedResources;
+    hosting: AuthEnvironmentHostingRemoval;
 };
 /**
  * Body of POST .../environments/{environmentId}/offboard. `confirmSlug` must equal
@@ -638,6 +715,16 @@ export type AuthProjectEnvironmentOffboarding = {
     revision: number;
     clientCleanup: AuthEnvironmentClientCleanup;
     retained: AuthEnvironmentRetainedResources;
+    hosting: AuthEnvironmentHostingWithdrawal;
+};
+/** What offboarding withdrew from a hosted environment; `status` says whether it finished. */
+export type AuthEnvironmentHostingWithdrawal = {
+    status: string;
+    sites: number;
+    activeReleases: number;
+    alertRules: number;
+    alertDeliveries: number;
+    errorCategory?: string;
 };
 /**
  * One step of a realm provision, reported so a caller knows where it stopped.
@@ -765,8 +852,43 @@ export declare class AuthProjectAdminClient {
     getApp(slug: string, options?: RequestOptions): Promise<AppOverview>;
     /** Create a CI credential that can deploy only this app, acting for the caller. Its secret is shown once. */
     createAppDeployCredential(slug: string, options?: RequestOptions): Promise<AppDeployCredential>;
+    /** List the app's deploy credentials, newest first. */
+    listAppDeployCredentials(slug: string, options?: RequestOptions): Promise<AppDeployCredentialList>;
+    /** Take the app offline, keeping its releases and data. The Idempotency-Key finishes an incomplete pause. */
+    pauseApp(slug: string, options?: RequestOptions): Promise<AppSummary>;
+    /** Serve the app again, with its newest verified release when none is active. */
+    resumeApp(slug: string, options?: RequestOptions): Promise<AppSummary>;
+    /** Retry the app's Site registration and sign-in setup from its saved hosting configuration. */
+    repairApp(slug: string, options?: RequestOptions): Promise<AppSummary>;
+    /** Change who may sign in to the app. Only the project owner may. */
+    setAppSignIn(slug: string, body: AppSignInRequest, options?: RequestOptions): Promise<AppSummary>;
     /** Remove a deploy credential. Repeating a delete that failed part-way finishes it. */
     deleteAppDeployCredential(slug: string, clientId: string, options?: RequestOptions): Promise<void>;
+    /** Read the environment's authentication hostname, its state and the DNS records it needs. */
+    getEnvironmentAuthDomain(projectId: string, environmentId: string, options?: RequestOptions): Promise<AuthProjectDomainBinding>;
+    /** Reserve a verified hostname for the environment. */
+    bindEnvironmentAuthDomain(projectId: string, environmentId: string, body: AuthProjectDomainBindRequest, options?: RequestOptions): Promise<AuthProjectDomainBinding>;
+    /** Reserve a platform-generated issuer hostname for an installed environment. Operators only. */
+    mintEnvironmentAuthDomain(projectId: string, environmentId: string, body: AuthProjectDomainMintRequest, options?: RequestOptions): Promise<AuthProjectDomainBinding>;
+    /** Claim installed capacity for a reserved realm. A replay returns the same claim. */
+    admitEnvironmentAuthDomain(projectId: string, environmentId: string, options?: RequestOptions): Promise<AuthProjectDomainBinding>;
+    /** Ask for the hostname to be reconciled again. */
+    retryEnvironmentAuthDomain(projectId: string, environmentId: string, options?: RequestOptions): Promise<AuthProjectDomainBinding>;
+    /** Disable the issuer while keeping the hostname reserved. */
+    disableEnvironmentAuthDomain(projectId: string, environmentId: string, options?: RequestOptions): Promise<AuthProjectDomainBinding>;
+    /** Start the cleanup that frees the hostname for a new binding. */
+    releaseEnvironmentAuthDomain(projectId: string, environmentId: string, options?: RequestOptions): Promise<AuthProjectDomainBinding>;
+    /** Pin one realm component to an exact incident image until it expires. System operators only. */
+    setEnvironmentAuthDomainImageOverride(projectId: string, environmentId: string, body: AuthProjectDomainImageOverrideRequest, options?: RequestOptions): Promise<AuthProjectDomainBinding>;
+    /** End the realm's incident image override. */
+    clearEnvironmentAuthDomainImageOverride(projectId: string, environmentId: string, options?: RequestOptions): Promise<AuthProjectDomainBinding>;
+    /** Upload or replace the realm's brand logo. The server checks the image format from its bytes. */
+    setAuthProjectBrandLogo(projectId: string, environmentId: string, logo: Blob, filename?: string, options?: RequestOptions): Promise<AuthProjectBrandLogo>;
+    /** Remove the realm's brand logo. */
+    clearAuthProjectBrandLogo(projectId: string, environmentId: string, options?: RequestOptions): Promise<void>;
+    /** List the owner and share links to app items in the environment. */
+    listEnvironmentAppLinks(projectId: string, environmentId: string, options?: RequestOptions): Promise<AuthProjectAppLinkList>;
+    private authDomainRequest;
     /** Read the environment's supported auth configuration. */
     getEnvironmentCapability(projectId: string, environmentId: string, options?: RequestOptions): Promise<AuthProjectCapability>;
     /** Report every directory in the environment and whether it is fully stored. */

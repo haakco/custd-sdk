@@ -168,10 +168,10 @@ class AdminClientTest(unittest.TestCase):
         self.assertEqual("Bearer admin-token", transport.calls[0]["headers"]["Authorization"])
         self.assertEqual({"slug": "acme", "companyName": "Acme Inc"}, transport.calls[0]["payload"])
 
-    def test_prediction_admin_keeps_company_scope_and_array_shapes(self):
+    def test_prediction_admin_keeps_company_scope_and_list_envelopes(self):
         transport = CapturingAdminTransport([
             {"status": 201, "body": {"uuid": "definition-1", "status": "draft"}},
-            {"status": 200, "body": [{"uuid": "source-1", "source_mode": "http_json"}]},
+            {"status": 200, "body": {"sources": [{"uuid": "source-1", "source_mode": "http_json"}]}},
             {"status": 202, "body": {}},
         ])
         client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
@@ -183,7 +183,7 @@ class AdminClientTest(unittest.TestCase):
         client.admin.predictions.run_now("acme", "definition-1", {"worker_id": "proof"})
 
         self.assertEqual("definition-1", definition["uuid"])
-        self.assertEqual("source-1", sources[0]["uuid"])
+        self.assertEqual("source-1", sources["sources"][0]["uuid"])
         self.assertEqual(
             "http://localhost:8080/api/v1/admin/measurement/predictions/definitions?companySlug=acme",
             transport.calls[0]["url"],
@@ -313,36 +313,36 @@ class AdminClientTest(unittest.TestCase):
             ("DELETE", "http://localhost:8080/api/v1/admin/sites/site-123"),
         ], [(call["method"], call["url"]) for call in transport.calls])
 
-    def test_admin_schemas_manage_event_type_schemas(self):
+    def test_admin_schemas_use_the_schema_registry_routes(self):
         transport = CapturingAdminTransport([
-            {"status": 200, "body": {"schemas": [{"eventTypeSlug": "page-view", "version": "1.0.0"}]}},
-            {"status": 200, "body": {"eventTypeSlug": "page-view", "version": "1.0.0"}},
-            {"status": 201, "body": {"eventTypeSlug": "checkout.started", "version": "1.0.0"}},
-            {"status": 201, "body": {"eventTypeSlug": "checkout.started", "version": "1.1.0"}},
+            {"status": 200, "body": "null"},
+            {"status": 200, "body": [{"version": "1.0.0", "jsonSchema": "{}", "isActive": True, "enabled": True}]},
+            {"status": 200, "body": {"type": "object"}},
+            {"status": 201, "body": {"slug": "checkout.started", "name": "Checkout started", "enabled": True}},
         ])
         client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
 
         listed = client.admin.schemas.list()
-        got = client.admin.schemas.get("page-view")
+        versions = client.admin.schemas.list_versions("checkout.started")
+        document = client.admin.schemas.get("checkout.started", "1.0.0")
         registered = client.admin.schemas.register({
-            "eventTypeSlug": "checkout.started",
-            "version": "1.0.0",
-            "jsonSchema": {"type": "object"},
+            "slug": "checkout.started",
+            "name": "Checkout started",
+            "version": "1.1.0",
+            "jsonSchema": '{"type": "object"}',
+            "enabled": True,
+            "isActive": True,
         })
-        versioned = client.admin.schemas.create_version(
-            "checkout.started",
-            {"version": "1.1.0", "jsonSchema": {"type": "object"}},
-        )
 
-        self.assertEqual("page-view", listed["schemas"][0]["eventTypeSlug"])
-        self.assertEqual("page-view", got["eventTypeSlug"])
-        self.assertEqual("checkout.started", registered["eventTypeSlug"])
-        self.assertEqual("1.1.0", versioned["version"])
+        self.assertEqual([], listed["eventTypes"])
+        self.assertEqual("1.0.0", versions["versions"][0]["version"])
+        self.assertEqual({"type": "object"}, document)
+        self.assertEqual("checkout.started", registered["slug"])
         self.assertEqual([
-            ("GET", "http://localhost:8080/api/v1/admin/schemas"),
-            ("GET", "http://localhost:8080/api/v1/admin/schemas/page-view"),
-            ("POST", "http://localhost:8080/api/v1/admin/schemas"),
-            ("POST", "http://localhost:8080/api/v1/admin/schemas/checkout.started/versions"),
+            ("GET", "http://localhost:8080/api/v1/schemas"),
+            ("GET", "http://localhost:8080/api/v1/schemas/checkout.started/versions"),
+            ("GET", "http://localhost:8080/api/v1/schemas/checkout.started/1.0.0"),
+            ("POST", "http://localhost:8080/api/v1/schemas"),
         ], [(call["method"], call["url"]) for call in transport.calls])
 
     def test_admin_measurement_projects_create_uses_admin_api(self):

@@ -172,7 +172,7 @@ describe("CustdClient provisioning", () => {
     await client.provisioning.producers.revoke("custd/agency store");
 
     expect(created.clientSecret).toBe("once");
-    expect(producers[0].producerSlug).toBe("webhook");
+    expect(producers.producers[0]?.producerSlug).toBe("webhook");
     expect(rotated.clientSecret).toBe("next");
     expect(updated.environment).toBe("staging");
     expect(fetchMock.mock.calls.map((call) => [call[0], call[1]?.method])).toEqual([

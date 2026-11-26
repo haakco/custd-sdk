@@ -6,11 +6,13 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any, NotRequired, TypedDict, cast
 
-from .client import AdminClient
+from ._wire import decode, request
+from .client import AdminClient, StorageLimit, StorageMeasurementState
 
 # Usage is server-derived and includes provisional, final, and corrected state.
-# The system-admin ``/usage`` and ``/usage/export`` surfaces are deliberately not
-# exposed here: a tenant client must not depend on system-admin filtering.
+# ``get`` reads the credential's own tenant. ``list_usage`` and ``export_usage`` are the
+# system-administrator surfaces: they may name any tenant with ``company_slug``. The
+# storage reads report retained bytes against each tenant's storage limit.
 
 # USAGE_DEFAULT_LIMIT is the row cap the service applies when a request omits one.
 USAGE_DEFAULT_LIMIT = 500
@@ -94,8 +96,51 @@ class UsageQuery(TypedDict, total=False):
     limit: int
 
 
+class StorageUsageBreakdown(TypedDict):
+    dbCoreLogicalBytes: int
+    dbRawInlineLogicalBytes: int
+    parquetArchiveAttribution: str
+    s3ParquetArchiveBytes: int
+    s3ParquetArchiveObjectCount: int
+    s3RawBytes: int
+    s3RawObjectCount: int
+
+
+class TenantStorageUsage(TypedDict):
+    attributedStorageBytes: int
+    breakdown: NotRequired[StorageUsageBreakdown]
+    companyName: str
+    companySlug: str
+    effectiveLimitBytes: int
+    limit: StorageLimit
+    measuredAt: str
+    measurementState: StorageMeasurementState
+    percentUsed: float
+    remainingBytes: int
+    retainedEventCount: int
+    retainedLogicalBytes: int
+    warning: bool
+    warningState: str
+
+
+class StorageUsageSummary(TypedDict):
+    attributedStorageBytes: int
+    breakdown: NotRequired[StorageUsageBreakdown]
+    effectiveLimitBytes: int
+    measuredAt: str
+    measurementState: StorageMeasurementState
+    percentUsed: float
+    remainingBytes: int
+    retainedEventCount: int
+    retainedLogicalBytes: int
+    tenantCount: int
+    tenants: list[TenantStorageUsage]
+    warning: bool
+    warningState: str
+
+
 class UsageAdminClient:
-    """Reads attributed usage for the authenticated tenant through GET /api/v1/admin/usage/me."""
+    """Reads attributed usage and retained storage."""
 
     def __init__(self, admin: AdminClient) -> None:
         self._admin = admin
@@ -108,6 +153,31 @@ class UsageAdminClient:
         """
         return _validate_usage_report(self._admin.request("GET", "/usage/me" + _usage_query_string(query)))
 
+
+    def list_usage(self, query: UsageQuery | None = None, *, company_slug: str | None = None) -> UsageReport:
+        """Return attributed usage for any tenant; system administrators only."""
+        return _validate_usage_report(self._admin.request("GET", _admin_usage_path("/usage", query, company_slug)))
+
+    def export_usage(self, query: UsageQuery | None = None, *, company_slug: str | None = None) -> UsageReport:
+        """Export reconciled usage for any tenant as JSON; system administrators only."""
+        path = _admin_usage_path("/usage/export", query, company_slug)
+        return _validate_usage_report(self._admin.request("GET", path))
+
+    def list_storage_usage(self) -> StorageUsageSummary:
+        """Return retained storage for every tenant against its limit; system administrators only."""
+        return decode(StorageUsageSummary, request(self._admin, "GET", "/api/v1/admin/storage-usage"))
+
+    def get_retained_usage(self) -> TenantStorageUsage:
+        """Return the credential's own tenant's retained storage against its limit."""
+        return decode(TenantStorageUsage, request(self._admin, "GET", "/api/v1/admin/storage-usage/me"))
+
+
+def _admin_usage_path(route: str, query: UsageQuery | None, company_slug: str | None) -> str:
+    path = route + _usage_query_string(query)
+    if company_slug:
+        separator = "&" if "?" in path else "?"
+        path += separator + urllib.parse.urlencode({"companySlug": company_slug})
+    return path
 
 def _validate_usage_report(value: object) -> UsageReport:
     """Validate the named usage response DTO.
@@ -179,7 +249,10 @@ def _require_boolean(payload: Mapping[str, Any], key: str, context: str = "") ->
     return value
 
 
-def _require_objects(payload: Mapping[str, Any], key: str) -> list[Mapping[str, Any]]:
+def _require_objects(payload: dict[str, Any], key: str) -> list[Mapping[str, Any]]:
+    # The server encodes an empty list as JSON null; it decodes as empty.
+    if key in payload and payload[key] is None:
+        payload[key] = []
     value = _require(payload, key, "")
     if not isinstance(value, list):
         raise ValueError(f"custd: usage response field {key} must be a list")

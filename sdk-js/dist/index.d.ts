@@ -2,7 +2,7 @@ import { AuthProjectAdminClient } from "./admin-auth-projects.js";
 import { ClientSetupClient } from "./admin-client-setup.js";
 import { DataLabelAdminClient } from "./admin-data-labels.js";
 import { DataScopeAdminClient } from "./admin-data-scopes.js";
-import { OffboardingClient, type OffboardingDownloadResponse } from "./admin-offboarding.js";
+import { OffboardingClient, type OffboardingDownloadResponse, type OffboardingReceiptPerStore } from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
@@ -10,30 +10,59 @@ import { SiteDomainAdminClient } from "./admin-site-domains.js";
 import { SiteInsightsAdminClient } from "./admin-site-insights-tasks.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+export { AUTH_PROJECT_DOMAIN_CONVERGENCES, AUTH_PROJECT_DOMAIN_IMAGE_COMPONENTS, AUTH_PROJECT_DOMAIN_IMAGE_SOURCES, AUTH_PROJECT_DOMAIN_LIFECYCLES, AUTH_PROJECT_DOMAIN_STATUSES, type AuthProjectAppLink, type AuthProjectAppLinkList, type AuthProjectBrandLogo, type AuthProjectDomainBinding, type AuthProjectDomainBindRequest, type AuthProjectDomainConvergence, type AuthProjectDomainDNSProof, type AuthProjectDomainImageComponent, type AuthProjectDomainImageOverride, type AuthProjectDomainImageOverrideRequest, type AuthProjectDomainImageSet, type AuthProjectDomainImageSource, type AuthProjectDomainImages, type AuthProjectDomainLifecycle, type AuthProjectDomainMintRequest, type AuthProjectDomainStatus, } from "./admin-auth-project-domain.js";
+export { ADMIN_USER_GLOBAL_STATES, ADMIN_USER_MEMBERSHIP_STATES, ADMIN_USER_ROLES, type AdminUser, AdminUserAdminClient, type AdminUserCreateRequest, type AdminUserDisableRequest, type AdminUserEnableRequest, type AdminUserGlobalState, type AdminUserListQuery, type AdminUserListResponse, type AdminUserMembershipCreateRequest, type AdminUserMembershipState, type AdminUserPasswordReset, type AdminUserRemovalRequest, type AdminUserRole, type AdminUserScope, type AdminUserUpdateRequest, } from "./admin-users.js";
+export { WORKFLOW_TIMING_FACT_KINDS, WORKFLOW_TIMING_STATES, WorkflowTimingAdminClient, type WorkflowTimingAttempt, type WorkflowTimingBatchResult, type WorkflowTimingContribution, type WorkflowTimingDeclaration, type WorkflowTimingDefinition, type WorkflowTimingDefinitionList, type WorkflowTimingDimensionDefinition, type WorkflowTimingDurationHistory, type WorkflowTimingDurationHistoryEntry, type WorkflowTimingDurationProjection, type WorkflowTimingEvaluation, type WorkflowTimingEvaluationArtifact, type WorkflowTimingExcludedStep, type WorkflowTimingExpectation, type WorkflowTimingFact, type WorkflowTimingFactKind, type WorkflowTimingObservation, type WorkflowTimingObservationResult, type WorkflowTimingOutcomeCounts, type WorkflowTimingPrediction, type WorkflowTimingProjectionStatus, type WorkflowTimingProvenance, type WorkflowTimingRebuildResult, type WorkflowTimingReconcileResult, type WorkflowTimingRevision, type WorkflowTimingRun, type WorkflowTimingRunDuration, type WorkflowTimingRunFact, type WorkflowTimingRunList, type WorkflowTimingRunListQuery, type WorkflowTimingRunProjection, type WorkflowTimingRunSummary, type WorkflowTimingRunTiming, type WorkflowTimingState, type WorkflowTimingStepDeclaration, type WorkflowTimingStepDefinition, type WorkflowTimingStepDuration, type WorkflowTimingStepFact, } from "./admin-workflow-timings.js";
+import { AccountingEvidenceAdminClient } from "./admin-accounting-evidence.js";
+import { CampaignEmailAdminClient } from "./admin-campaign-email.js";
+import { EmailRelayAdminClient } from "./admin-email-relay.js";
+import { EnvironmentPolicyAdminClient } from "./admin-environment-policy.js";
+import { ErrorIssueAdminClient } from "./admin-error-issues.js";
+import { EventTypeAdminClient } from "./admin-event-types.js";
+import { ImpersonationAdminClient } from "./admin-impersonation.js";
+import { IngestClaimAdminClient } from "./admin-ingest-claims.js";
+import { ManagedAuditAdminClient } from "./admin-managed-audit.js";
+import { AdminMeasurementNamespace } from "./admin-measurement-projects.js";
+import { NotificationDestinationAdminClient } from "./admin-notification-destinations.js";
+import { NotificationWebhookAdminClient } from "./admin-notification-webhooks.js";
+import { OAuthClientAdmissionAdminClient } from "./admin-oauth-client-admissions.js";
+import { RlsAdminClient } from "./admin-rls.js";
+import { SdkUsageAdminClient } from "./admin-sdk-usage.js";
+import { SupportAccessAdminClient } from "./admin-support-access.js";
+import { SystemAdminClient } from "./admin-system.js";
 import { TimePlanAdminClient } from "./admin-timeplans.js";
+import { UncertaintyModelAdminClient } from "./admin-uncertainty-models.js";
 import { UsageAdminClient } from "./admin-usage.js";
+import { AdminUserAdminClient } from "./admin-users.js";
+import { WorkflowTimingAdminClient } from "./admin-workflow-timings.js";
 import { AnalyticsEventClient } from "./analytics-events.js";
 import { BackendLifecycleClient } from "./backend-lifecycle.js";
+import { IngestOperationsClient } from "./ingest-operations.js";
+import { MeasurementClient } from "./measurement.js";
 import { ParserClient } from "./parsers.js";
-export type { AppRelease, AppReleaseCacheMode, AppReleaseCacheRule, AppReleaseCreateRequest, AppReleaseFile, AppReleaseFramingMode, AppReleaseHeaderRule, AppReleaseList, AppReleaseManifest, AppReleasePromotion, AppReleaseResponseHeader, AppReleaseRouting, AppReleaseShareableRoute, AppReleaseSpaFallback, AppReleaseState, AppReleaseSummary, AppReleaseUploadedFile, } from "./admin-app-releases.js";
-export { APP_ERROR_CODES, APP_REASON_CODES, APP_STATUSES, type AppCreateRequest, type AppCreation, type AppDeployCredential, type AppListResponse, type AppOverview, type AppReason, type AppReasonCode, type AppStatus, type AppSummary, type AppTrafficReporting, } from "./admin-apps.js";
-export { type ApplicationIdentityTrait, type ApplicationIdentityTraitsStatus, type ApplicationIdentityTraitValue, type ApplicationMembershipChoice, type ApplicationMembershipContext, type ApplicationMembershipRevocation, type ApplicationMembershipRevokeRequest, type ApplicationPrincipalErasure, type ApplicationPrincipalErasureRequest, type ApplicationPrincipalExport, type ApplicationPrincipalIdentityExport, type ApplicationPrincipalListItem, type ApplicationPrincipalListQuery, type ApplicationPrincipalListResponse, type ApplicationPrincipalMembershipView, type ApplicationPrincipalProfile, type ApplicationPrincipalProfileValueView, type ApplicationPrincipalSuspension, type ApplicationPrincipalTarget, type ApplicationProfileField, type ApplicationProfileValue, type ApplicationProfileValuesRequest, type ApplicationSession, type ApplicationSessionInventory, type ApplicationSessionRevocation, type ApplicationSessionRevokeRequest, type ApplicationSessionsRevokeAllRequest, type AudienceGrant, type AudienceGrantRequest, type AuthEnvironmentClientCleanup, type AuthEnvironmentRetainedResources, AuthProjectAdminClient, type AuthProjectAudienceBinding, type AuthProjectCapability, type AuthProjectChange, type AuthProjectClientRegistration, type AuthProjectClientSync, type AuthProjectClientSyncRegistration, type AuthProjectClientSyncReport, type AuthProjectClientSyncRequest, type AuthProjectCreateRequest, type AuthProjectCreation, type AuthProjectDeletion, type AuthProjectDeletionRequest, type AuthProjectDesiredState, type AuthProjectDesiredStateRequest, type AuthProjectDirectoryAction, type AuthProjectDirectoryCapacity, type AuthProjectDirectoryRequest, type AuthProjectDirectoryStatus, type AuthProjectDirectoryView, type AuthProjectEnvironmentCreateRequest, type AuthProjectEnvironmentDeletion, type AuthProjectEnvironmentDeletionRequest, type AuthProjectEnvironmentOffboarding, type AuthProjectEnvironmentOffboardRequest, type AuthProjectEnvironmentOrganisation, type AuthProjectEnvironmentOrganisationList, type AuthProjectEnvironmentReleasedResources, type AuthProjectHostedSignIn, type AuthProjectHosting, type AuthProjectHostingCapability, type AuthProjectHostingIngestTarget, type AuthProjectHostingMode, type AuthProjectHostingStatus, type AuthProjectIdentityMode, type AuthProjectInvitation, type AuthProjectInvitationIssued, type AuthProjectInvitationIssueRequest, type AuthProjectInvitationListResponse, type AuthProjectInvitationRedeliveryRequest, type AuthProjectInvitationRevocationRequest, type AuthProjectListResponse, type AuthProjectOperation, type AuthProjectPreview, type AuthProjectProfileField, AuthProjectRealmNotConvergedError, AuthProjectRealmProvisionError, type AuthProjectRealmProvisionReceipt, type AuthProjectRealmProvisionRequest, type AuthProjectRealmStep, type AuthProjectReleasedResources, type AuthProjectStatus, type AuthProjectSummary, type PrincipalAudience, type PrincipalAudiences, } from "./admin-auth-projects.js";
-export { type ClientSetupApplyAndWaitOptions, type ClientSetupApplyAndWaitResult, type ClientSetupApplyOptions, type ClientSetupApplyResponse, ClientSetupClient, type ClientSetupManifest, type ClientSetupOAuthClientDesiredState, type ClientSetupOAuthPurposeProfile, type ClientSetupOperationStatus, type ClientSetupPrivacyDesiredState, type ClientSetupPrivacyRule, type ClientSetupReadinessResponse, type ClientSetupReportingPackDesiredState, type ClientSetupResourceStatus, type ClientSetupRetentionDesiredState, type ClientSetupSchemaDesiredState, validateClientSetupManifest, } from "./admin-client-setup.js";
+import { PublicReadClient } from "./public-reads.js";
+import type { CompletedRunExportRequest, ReportingDashboardCatalogue, ReportingDashboardGeneration, ReportingDashboardGenerationRequest, ReportingDraftPreviewRequest } from "./reporting-catalogue.js";
+import { type EventSchemaDocument, type EventSchemaRegisterRequest, type EventSchemaStateResult, type EventSchemaVersionList, type RegisteredEventType, type RegisteredEventTypeList } from "./schema-registry.js";
+export type { AppRelease, AppReleaseCacheMode, AppReleaseCacheRule, AppReleaseCreateRequest, AppReleaseFile, AppReleaseFramingMode, AppReleaseHeaderRule, AppReleaseList, AppReleaseManifest, AppReleasePromotion, AppReleaseResponseHeader, AppReleaseRouting, AppReleaseShareableRoute, AppReleaseSiteCard, AppReleaseSpaFallback, AppReleaseState, AppReleaseSummary, AppReleaseUploadedFile, } from "./admin-app-releases.js";
+export { APP_ERROR_CODES, APP_REASON_CODES, APP_SIGN_IN_MODES, APP_STATUSES, type AppCreateRequest, type AppCreation, type AppDeployCredential, type AppDeployCredentialList, type AppDeployCredentialSummary, type AppListResponse, type AppOverview, type AppReason, type AppReasonCode, type AppSignInMode, type AppSignInRequest, type AppStatus, type AppSummary, type AppTrafficReporting, } from "./admin-apps.js";
+export { type ApplicationIdentityTrait, type ApplicationIdentityTraitsStatus, type ApplicationIdentityTraitValue, type ApplicationMembershipChoice, type ApplicationMembershipContext, type ApplicationMembershipRevocation, type ApplicationMembershipRevokeRequest, type ApplicationPrincipalErasure, type ApplicationPrincipalErasureRequest, type ApplicationPrincipalExport, type ApplicationPrincipalIdentityExport, type ApplicationPrincipalListItem, type ApplicationPrincipalListQuery, type ApplicationPrincipalListResponse, type ApplicationPrincipalMembershipView, type ApplicationPrincipalProfile, type ApplicationPrincipalProfileValueView, type ApplicationPrincipalSuspension, type ApplicationPrincipalTarget, type ApplicationProfileField, type ApplicationProfileValue, type ApplicationProfileValuesRequest, type ApplicationSession, type ApplicationSessionInventory, type ApplicationSessionRevocation, type ApplicationSessionRevokeRequest, type ApplicationSessionsRevokeAllRequest, type AudienceGrant, type AudienceGrantRequest, type AuthEnvironmentClientCleanup, type AuthEnvironmentHostingRemoval, type AuthEnvironmentHostingWithdrawal, type AuthEnvironmentRetainedResources, AuthProjectAdminClient, type AuthProjectApplicationSessionPolicy, type AuthProjectAudienceBinding, type AuthProjectCapability, type AuthProjectChange, type AuthProjectClientRegistration, type AuthProjectClientSync, type AuthProjectClientSyncRegistration, type AuthProjectClientSyncReport, type AuthProjectClientSyncRequest, type AuthProjectCreateRequest, type AuthProjectCreation, type AuthProjectDeletion, type AuthProjectDeletionRequest, type AuthProjectDesiredState, type AuthProjectDesiredStateRequest, type AuthProjectDirectoryAction, type AuthProjectDirectoryCapacity, type AuthProjectDirectoryRequest, type AuthProjectDirectoryStatus, type AuthProjectDirectoryView, type AuthProjectEnvironmentCreateRequest, type AuthProjectEnvironmentDeletion, type AuthProjectEnvironmentDeletionRequest, type AuthProjectEnvironmentOffboarding, type AuthProjectEnvironmentOffboardRequest, type AuthProjectEnvironmentOrganisation, type AuthProjectEnvironmentOrganisationList, type AuthProjectEnvironmentReleasedResources, type AuthProjectHostedSignIn, type AuthProjectHosting, type AuthProjectHostingCapability, type AuthProjectHostingIngestTarget, type AuthProjectHostingMode, type AuthProjectHostingRemoval, type AuthProjectHostingStatus, type AuthProjectIdentityMode, type AuthProjectInvitation, type AuthProjectInvitationIssued, type AuthProjectInvitationIssueRequest, type AuthProjectInvitationListResponse, type AuthProjectInvitationRedeliveryRequest, type AuthProjectInvitationRevocationRequest, type AuthProjectListResponse, type AuthProjectOperation, type AuthProjectPreview, type AuthProjectProfileField, AuthProjectRealmNotConvergedError, AuthProjectRealmProvisionError, type AuthProjectRealmProvisionReceipt, type AuthProjectRealmProvisionRequest, type AuthProjectRealmStep, type AuthProjectReleasedResources, type AuthProjectSocialProvider, type AuthProjectSocialProviderName, type AuthProjectSocialSignIn, type AuthProjectSocialSignInStatus, type AuthProjectStatus, type AuthProjectSummary, type PrincipalAudience, type PrincipalAudiences, } from "./admin-auth-projects.js";
+export { type ClientSetupApplyAndWaitOptions, type ClientSetupApplyAndWaitResult, type ClientSetupApplyOptions, type ClientSetupApplyResponse, ClientSetupClient, type ClientSetupEventTypeDesiredState, type ClientSetupManifest, type ClientSetupOAuthClientDesiredState, type ClientSetupOAuthPurposeProfile, type ClientSetupOperationPending, type ClientSetupOperationStatus, type ClientSetupPrivacyDesiredState, type ClientSetupPrivacyRule, type ClientSetupReadinessResponse, type ClientSetupReportingPackDesiredState, type ClientSetupResourceStatus, type ClientSetupRetentionDesiredState, type ClientSetupSchemaDesiredState, validateClientSetupManifest, } from "./admin-client-setup.js";
 export { DataLabelAdminClient, type DataLabelAssignmentListResponse, type DataLabelCatalogue, type DataLabelCatalogueAssignment, type DataLabelCatalogueDataset, type DataLabelCataloguePack, type DataLabelCatalogueResponse, type DataLabelDefinition, type DataLabelDefinitionCreateRequest, type DataLabelDefinitionListResponse, type DataLabelDefinitionUpdateRequest, type DataLabelPropagationPolicy, type DataLabelSensitivity, type DataLabelUsage, type DataLabelUsageListResponse, type DataLabelValue, type DataLabelValueCreateRequest, type DataLabelValueUpdateRequest, type DescriptiveDataLabel, type EventTypeDataLabelDefault, type EventTypeDataLabelDefaultRequest, type SchemaFieldDataLabelAssignment, type SchemaFieldDataLabelAssignmentRequest, } from "./admin-data-labels.js";
 export { type DataScope, type DataScopeAction, DataScopeAdminClient, type DataScopeCreateRequest, type DataScopeGrant, type DataScopeGrantListResponse, type DataScopeGrantTarget, type DataScopeGrantTargetKind, type DataScopeListResponse, type DataScopePrincipalKind, type DataScopePrincipalRef, type DataScopeResource, type DataScopeResourceCreateRequest, type DataScopeResourceListResponse, type DataScopeResourceUpdateRequest, type DataScopeStatus, type DataScopeUpdateRequest, validDataScopeCode, validDataScopeName, } from "./admin-data-scopes.js";
-export { type OffboardingAcknowledgeResponse, type OffboardingCancelRequest, OffboardingClient, type OffboardingDownloadResponse, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPreviewResponse, type OffboardingPreviewStore, type OffboardingReceiptPerStore, type OffboardingReceiptResponse, type OffboardingRequest, type OffboardingRequestCreate, type OffboardingRetryResponse, type OffboardingSchedule, type OffboardingScheduleListResponse, type OffboardingScheduleRequest, type OffboardingWaiver, } from "./admin-offboarding.js";
-export { type PredictionActivateRequest, PredictionAdminClient, type PredictionDefinition, type PredictionDefinitionCreateRequest, type PredictionDefinitionListResponse, type PredictionDefinitionUpdateRequest, type PredictionEvaluationSummary, type PredictionOutcomeSummary, type PredictionPauseRequest, type PredictionRollbackRequest, type PredictionRunNowRequest, type PredictionRunSummary, type PredictionSignalSource, type PredictionSignalSourceCreateRequest, type PredictionThresholdEvent, type PredictionVersion, type PredictionVersionPublishRequest, } from "./admin-predictions.js";
-export { type PrivacyErasure, PrivacyErasureClient, type PrivacyErasureCreateRequest, PrivacyErasureError, type PrivacyErasureListResponse, type PrivacyErasureRetryClassification, type PrivacyErasureSelector, type PrivacyErasureState, type PrivacyErasureStoreProgress, type PrivacyErasureWaitOptions, } from "./admin-privacy-erasures.js";
-export { RetentionClient, type RetentionPolicy, type RetentionPolicyListResponse, type RetentionPolicyUpsertRequest, type RetentionRun, type RetentionRunDeletion, type RetentionRunPreview, type RetentionRunsListResponse, } from "./admin-retention.js";
+export { type OffboardingAcknowledgeResponse, type OffboardingCancelRequest, OffboardingClient, type OffboardingDownloadResponse, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPreviewExclusion, type OffboardingPreviewResponse, type OffboardingPreviewStore, type OffboardingReceiptPerStore, type OffboardingReceiptResponse, type OffboardingRequest, type OffboardingRequestCreate, type OffboardingRequesterKind, type OffboardingRetryResponse, type OffboardingSchedule, type OffboardingScheduleListResponse, type OffboardingScheduleRequest, type OffboardingWaiver, } from "./admin-offboarding.js";
+export { type PredictionActivateRequest, PredictionAdminClient, type PredictionDefinition, type PredictionDefinitionCreateRequest, type PredictionDefinitionListResponse, type PredictionDefinitionUpdateRequest, type PredictionEvaluationSummary, type PredictionOutcomeListResponse, type PredictionOutcomeSummary, type PredictionPauseRequest, type PredictionProjectKind, type PredictionRunListResponse, type PredictionRunNowRequest, type PredictionRunSummary, type PredictionSignalSource, type PredictionSignalSourceCreateRequest, type PredictionSignalSourceListResponse, type PredictionThresholdEvent, type PredictionThresholdEventListResponse, type PredictionVersion, type PredictionVersionPublishRequest, } from "./admin-predictions.js";
+export { type PrivacyErasure, PrivacyErasureClient, type PrivacyErasureCreateRequest, PrivacyErasureError, type PrivacyErasureListResponse, type PrivacyErasureRetryClassification, type PrivacyErasureSelector, type PrivacyErasureState, type PrivacyErasureWaitOptions, } from "./admin-privacy-erasures.js";
+export { type RetentionClass, RetentionClient, type RetentionPolicy, type RetentionPolicyListResponse, type RetentionPolicyUpsertRequest, type RetentionRun, type RetentionRunPreview, type RetentionRunsListResponse, type RetentionRunsPage, type RetentionScope, type RetentionStoreBreakdown, } from "./admin-retention.js";
 export type { SiteAIConsentRequest, SiteAIMode, SiteAIOwnerHandoff, SiteAIOwnerHandoffRequest, SiteAIPlatformUsage, SiteAIProduct, SiteAISettings, SiteAISettingsRequest, SiteAITenantUsage, SiteAIUsage, SiteAIUsagePeriod, SiteAIUsageRow, } from "./admin-site-ai.js";
 export { SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE, SITE_ANALYTICS_PROPERTY_INVALID_CODE, SITE_ANALYTICS_PROVIDER_GA4, type SiteAnalyticsConnection, type SiteAnalyticsConnectionRequest, type SiteAnalyticsReport, type SiteAnalyticsRow, type SiteAnalyticsUnavailable, SiteAnalyticsUnavailableReport, } from "./admin-site-analytics.js";
 export { SITE_AUDIT_PAGES_DEFAULT_LIMIT, SITE_AUDIT_PAGES_MAX_LIMIT, SITE_LIGHTHOUSE_MAX_EXTRA_PAGES, SITE_LIGHTHOUSE_PAGE_NOT_EXTRA_CODE, type SiteAuditDelta, type SiteAuditPage, SiteAuditPageIndexability, type SiteAuditPageList, SiteAuditRun, type SiteLighthousePages, type SiteLighthouseRequestOptions, } from "./admin-site-audit-pages.js";
 export { SITE_CAMPAIGN_LINK_LIMIT_CODE, SITE_CAMPAIGN_LINK_TAKEN_CODE, SITE_CAMPAIGN_LINKS_MAX, type SiteCampaignLink, type SiteCampaignLinkList, type SiteCampaignLinkRequest, } from "./admin-site-campaign-links.js";
-export { SITE_DOMAIN_NOT_VERIFIED_CODE, SITE_SEARCH_CONNECTION_NOT_FOUND_CODE, SITE_SEARCH_NOT_CONFIGURED_CODE, SITE_SEARCH_RETRY_NOT_FAILING_CODE, type SiteAlertDestination, type SiteAlertDestinationRequest, type SiteAuditSummary, type SiteCheckMode, type SiteChromeUX, type SiteChromeUXObservation, type SiteDomain, SiteDomainAdminClient, type SiteDomainAttestation, type SiteDomainAudit, type SiteDomainChecks, type SiteDomainCreateRequest, type SiteDomainList, type SiteDomainOwnership, type SiteDomainRequestOptions, type SiteDomainVerification, type SiteDomainVerifiedBy, type SiteFinding, type SiteFindingHistory, type SiteFindingList, type SiteFindingSeverity, type SiteFindingState, type SiteFindingSuggestion, type SiteIncident, type SiteIncidentList, type SiteProbe, type SiteProbeDetail, type SiteProbeList, type SiteProbeSpec, type SiteRegistration, SiteRule, type SiteRuleId, type SiteSearchAccount, type SiteSearchConnection, type SiteSearchConnectionRequest, type SiteSearchConnectionStatus, type SiteSearchDay, type SiteSearchPerformance, type SiteSearchProvider, type SiteSearchRow, type SiteSearchSource, type SiteSearchTotals, type SiteTLS, type SiteUptime, type SiteUptimeStatus, type SiteWarming, } from "./admin-site-domains.js";
+export { SITE_BROWSER_COLLECTOR_MODES, SITE_DOMAIN_NOT_VERIFIED_CODE, SITE_FINDING_DISMISSAL_SCOPES, SITE_SEARCH_CONNECTION_NOT_FOUND_CODE, SITE_SEARCH_NOT_CONFIGURED_CODE, SITE_SEARCH_RETRY_NOT_FAILING_CODE, type SiteAlertDestination, type SiteAlertDestinationRequest, type SiteAuditSummary, type SiteBrowserCollector, type SiteBrowserCollectorMode, type SiteBrowserCollectorRequest, type SiteCheckMode, type SiteChromeUX, type SiteChromeUXObservation, type SiteDomain, SiteDomainAdminClient, type SiteDomainAttestation, type SiteDomainAudit, type SiteDomainChecks, type SiteDomainCreateRequest, type SiteDomainList, type SiteDomainOwnership, type SiteDomainRequestOptions, type SiteDomainVerification, type SiteDomainVerifiedBy, type SiteFinding, type SiteFindingDismissal, type SiteFindingDismissalRequest, type SiteFindingDismissalScope, type SiteFindingDismissals, type SiteFindingHistory, type SiteFindingList, type SiteFindingSeverity, type SiteFindingState, type SiteFindingSuggestion, type SiteIncident, type SiteIncidentList, type SiteProbe, type SiteProbeDetail, type SiteProbeList, type SiteProbeSpec, type SiteRegistration, SiteRule, type SiteRuleId, type SiteSearchAccount, type SiteSearchConnection, type SiteSearchConnectionRequest, type SiteSearchConnectionStatus, type SiteSearchDay, type SiteSearchPerformance, type SiteSearchProvider, type SiteSearchRow, type SiteSearchSource, type SiteSearchTotals, type SiteTLS, type SiteUptime, type SiteUptimeStatus, type SiteWarming, } from "./admin-site-domains.js";
 export { SITE_INSIGHTS_EXPORT_SCHEMA, SITE_INSIGHTS_EXPORT_SEARCH_METRICS_MAX_LIMIT, type SiteInsightsExport, type SiteInsightsMonitoringExport, type SiteInsightsReportsExport, type SiteInsightsSearchExport, type SiteInsightsSiteExport, type SiteSearchMetricDay, SiteSearchMetricDimension, type SiteSearchMetricPage, type SiteSearchMetricsQuery, } from "./admin-site-export.js";
 export { type IndexNowState, type IndexNowSubmission, type IndexNowSubmissionRequest, IndexNowSubmissionStatus, SITE_CHOICE_REQUIRED_CODE, SITE_INDEXNOW_DOMAIN_UNVERIFIED_CODE, SITE_INDEXNOW_KEY_UNVERIFIED_CODE, SITE_INDEXNOW_LIMIT_CODE, SITE_INDEXNOW_NOT_ENABLED_CODE, SITE_INDEXNOW_URLS_INVALID_CODE, SITE_PAGE_NOT_ON_DOMAIN_CODE, SITE_PAGE_NOT_READ_CODE, SITE_PAGE_RECHECK_LIMIT_CODE, SITE_PAGE_RECHECK_READ_LIMIT, SITE_SEARCH_INSPECTION_LIMIT_CODE, SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE, SITE_SEARCH_INSPECTION_URL_INVALID_CODE, type SiteGeneratedFix, SiteGeneratedFormat, type SiteHreflangLink, type SiteLighthouseHistory, type SiteLighthouseMetrics, type SiteLighthousePageComparison, type SiteLighthouseProfile, type SiteLighthouseRun, type SiteLighthouseScores, type SiteMarket, type SiteObservedWording, type SitePageCheckRequest, type SitePageCheckResponse, SitePageCheckScope, type SitePageFacts, type SitePageFinding, type SitePageHeading, type SitePageOpenGraph, type SitePageReadability, type SitePageRecheck, type SitePageRecheckList, SitePageRecheckState, type SitePageRobots, type SitePageTwitter, type SitePageWordingQuery, type SitePhraseUse, type SiteProjectContext, type SiteProjectContextRequest, type SiteRemedy, SiteRemedyKind, type SiteReport, type SiteReportAudit, type SiteReportCertificate, type SiteReportFinding, type SiteReportSearch, type SiteReportShare, type SiteReportShareCreated, type SiteReportShareList, type SiteReportShareRequest, type SiteReportSpeed, type SiteReportUptime, type SiteResponseHour, type SiteRobotsRule, type SiteRobotsTestRequest, type SiteRobotsTestResponse, type SiteSearchDimension, type SiteSearchInspection, type SiteSearchInspectionList, type SiteSearchInspectionStatus, type SiteSearchRowPage, type SiteSearchRowsQuery, type SiteSearchUnavailable, type SiteUptimeDay, type SiteUptimeHistory, type SiteUptimeWindow, type SiteUptimeWindows, type SiteWordingCompare, type SiteWordingCompareRequest, type SiteWordingObservation, type SiteWordingObservationState, } from "./admin-site-insights.js";
 export { SiteInsightsAdminClient, type SiteInsightsBacklog, type SiteInsightsTaskList, SiteInsightsTaskName, type SiteInsightsTaskStatus, } from "./admin-site-insights-tasks.js";
 export { type SiteDomainAuthority, SiteLinkSource, SiteLinkSourceStatus, type SiteLinkSourceTotal, type SiteLostLinks, type SiteLostReferringDomain, type SiteReferringDomain, type SiteReferringDomains, } from "./admin-site-links.js";
+export { PRIVATE_UPTIME_FAILURES, PRIVATE_UPTIME_STATUSES, type PrivateUptimeCredential, type PrivateUptimeFailure, type PrivateUptimeMonitor, type PrivateUptimeReport, type PrivateUptimeStatus, type PrivateUptimeWork, SITE_HEARTBEAT_OUTCOMES, SITE_HEARTBEAT_STATUSES, type SiteHeartbeatCreateRequest, type SiteHeartbeatCredential, type SiteHeartbeatList, type SiteHeartbeatMonitor, type SiteHeartbeatOutcome, type SiteHeartbeatReceipt, type SiteHeartbeatReport, type SiteHeartbeatSchedule, type SiteHeartbeatStatus, type SiteMaintenanceWindow, type SiteMaintenanceWindowRequest, type SiteMaintenanceWindows, } from "./admin-site-monitors.js";
 export { SITE_NEXT_ACTIONS_MAX, type SiteFindingCounts, type SiteNextAction, SiteNextActionKind, SiteNextActionPlace, type SiteNextActions, type SiteNextActionTarget, SiteNotChecked, type SitePortfolioDomain, type SitePortfolioSummary, } from "./admin-site-next-actions.js";
 export { type SitePageLinkSource, SitePageLinkSourceWhere, SitePageQueriesState, type SitePageQuery, type SitePageQueryWindow, type SitePageSearchQueries, type SiteTitleOption, SiteTitleTemplate, } from "./admin-site-page-queries.js";
 export { SITE_RANKINGS_DAYS_INVALID_CODE, SITE_RANKINGS_DEFAULT_DAYS, SITE_RANKINGS_MAX_DAYS, SITE_TRACKED_KEYWORD_ALL, SITE_TRACKED_KEYWORD_DEFAULT_NOTIFY_POSITION, SITE_TRACKED_KEYWORD_DUPLICATE_CODE, SITE_TRACKED_KEYWORD_INVALID_CODE, SITE_TRACKED_KEYWORD_LIMIT_CODE, SITE_TRACKED_KEYWORD_NOT_FOUND_CODE, SITE_TRACKED_KEYWORDS_MAX, SiteRankDevice, type SiteRankings, SiteRankingsSource, type SiteRankObservation, SiteRankState, type SiteTrackedKeyword, SiteTrackedKeywordStatus, type SiteTrackedKeywordUpdate, type SiteTrackKeywordRequest, } from "./admin-site-rankings.js";
@@ -43,8 +72,8 @@ export { SITE_FINDING_IMPACT_DEFAULT_DAYS, SITE_FINDING_IMPACT_MAX_DAYS, SITE_FI
 export { type SiteStatusComponent, type SiteStatusComponentStatus, type SiteStatusPage, type SiteStatusPageDraft, type SiteStatusPagePublication, type SiteStatusPageSelection, type SiteStatusPageSettings, type SiteStatusUpdate, type SiteStatusUpdateHistory, type SiteStatusUpdateRequest, siteStatusPagePublicUrl, } from "./admin-site-status-page.js";
 export { ACCESS_LOG_HOUR_INVALID_CODE, type AccessLogHourReplay, AccessLogHourStatus, type SiteAIPage, type SiteAIVisibility, SiteCrawlerIdentity, SiteReferrerClass, type SiteTraffic, type SiteTrafficCount, type SiteTrafficCoverage, type SiteTrafficCrawler, type SiteTrafficDay, SiteTrafficDayCoverage, type SiteTrafficReferrer, type SiteTrafficReferrerClass, type SiteTrafficSlowPath, type SiteTrafficTotals, TRAFFIC_OTHER_KEY, } from "./admin-site-traffic.js";
 export { SITE_KEYWORD_DEMAND_SOURCE_BING, SITE_KEYWORD_LIST_LIMIT_CODE, SITE_KEYWORD_LIST_NOT_FOUND_CODE, type SiteContentGap, type SiteContentGapCompetitor, SiteContentGapCoverage, type SiteContentGapPage, type SiteContentGapTopic, type SiteKeywordCluster, type SiteKeywordClusters, type SiteKeywordDemand, type SiteKeywordDemandSet, SiteKeywordDemandState, type SiteKeywordList, type SiteKeywordListRequest, type SiteKeywordLists, type SiteRelatedKeyword, type SiteRelatedKeywords, type SiteStrikingKeyword, type SiteTopicTrend, type SiteTopicTrendMonth, SiteTopicTrendSource, SiteTopicTrendStatus, SiteTrancoBand, type SiteWebDomain, SiteWebDomainRole, type SiteWebDomains, SiteWebInventoryStatus, type SiteWebPage, SiteWebPageSource, type SiteWebPages, type SiteWebPagesQuery, } from "./admin-site-web-data.js";
-export { type SubjectExport, SubjectExportClient, type SubjectExportCreateRequest, type SubjectExportDownloadResponse, type SubjectExportListResponse, type SubjectExportState, type SubjectExportSubject, } from "./admin-subject-exports.js";
-export { TenantStorageClient, type TenantStorageCreateRequest, type TenantStorageListResponse, type TenantStorageLocation, } from "./admin-tenant-storage.js";
+export { type SubjectExport, type SubjectExportArtifactScope, SubjectExportClient, type SubjectExportCreateRequest, type SubjectExportDownloadResponse, type SubjectExportListResponse, type SubjectExportScope, type SubjectExportStatus, type SubjectExportStoreProgress, } from "./admin-subject-exports.js";
+export { TenantStorageClient, type TenantStorageListResponse, type TenantStorageLocation, } from "./admin-tenant-storage.js";
 export { type TimePlan, TimePlanAdminClient, type TimePlanAllocation, type TimePlanAllocationBasis, type TimePlanAllocationPreview, type TimePlanAnnotation, type TimePlanAnnotationField, type TimePlanAnnotationInput, type TimePlanAnnotationListResponse, type TimePlanAnnotationSchema, type TimePlanAnnotationType, type TimePlanCalculationChange, type TimePlanCalculationReceipt, type TimePlanCommandRequest, type TimePlanCommandResult, type TimePlanCorrectedCommand, type TimePlanCreatedRun, type TimePlanDefinition, type TimePlanDefinitionBlock, type TimePlanDraftRequest, type TimePlanDraftRevisionRequest, type TimePlanHistoryResponse, type TimePlanListResponse, type TimePlanRedactionRequest, type TimePlanRevisionRequest, type TimePlanRun, type TimePlanRunBlock, type TimePlanRunRequest, type TimePlanThresholdCue, type TimePlanThresholdCueSeverity, type TimePlanTransition, type TimePlanVersion, validateTimePlanDefinition, } from "./admin-timeplans.js";
 export { USAGE_DEFAULT_LIMIT, USAGE_MAX_LIMIT, UsageAdminClient, type UsageCompletenessState, type UsageQuery, type UsageReport, type UsageRow, type UsageTotal, } from "./admin-usage.js";
 export { ANALYTICS_MAX_LABEL_FILTERS, ANALYTICS_MAX_RANGE_DAYS, ANALYTICS_RANGE_GROUP_BY, AnalyticsEventClient, type AnalyticsEventQueryRequest, type AnalyticsEventQueryResponse, type AnalyticsEventRangeBucket, type AnalyticsEventRangeQueryRequest, type AnalyticsEventRangeQueryResponse, type AnalyticsEventRow, type AnalyticsEventSourceSummary, type AnalyticsEventTiming, type AnalyticsLabelFilter, type AnalyticsQuerySource, type AnalyticsRangeQuerySource, } from "./analytics-events.js";
@@ -193,7 +222,20 @@ export type ProvisionedProducerCredentials = {
     clientSecret: string;
     scopes?: string[];
     environment?: string;
-    metadata?: Record<string, string>;
+    producerSlug?: string;
+    /** The environments this producer may send; empty when it may send any. */
+    allowedEnvironments?: string[];
+};
+/** A rotated producer secret, with where to mint tokens with it. Shown once. */
+export type ProducerSecretRotation = {
+    clientId: string;
+    clientSecret: string;
+    baseUrl: string;
+    tokenUrl: string;
+    audience: string;
+};
+export type ProducerProvisionListResponse = {
+    producers: ProducerProvisionPublicClient[];
 };
 export type RedactedProvisionedProducerCredentials = Omit<ProvisionedProducerCredentials, "clientSecret">;
 export type DataSpaceCreate = {
@@ -216,6 +258,39 @@ export type DataSpaceListResponse = {
     dataSpaces: DataSpace[];
     entitlement: DataSpaceEntitlementState;
 };
+/** The tenant's new data-space limits. */
+export type DataSpaceEntitlementUpdateRequest = {
+    enabled: boolean;
+    maxActiveDataSpaces: number;
+    maxActiveProducersPerDataSpace: number;
+};
+/** How complete a stored-usage measurement is, and which calculation produced it. */
+export type StorageMeasurementState = {
+    sourceWatermark: number;
+    completenessState: string;
+    calculationVersion: number;
+};
+/** One data space's retained storage. */
+export type DataSpaceUsageRow = {
+    slug: string;
+    companyName: string;
+    enabled: boolean;
+    revokedAt?: string;
+    measuredAt: string;
+    retainedLogicalBytes: number;
+    retainedEventCount: number;
+    measurementState: StorageMeasurementState;
+};
+/** Retained storage across a parent tenant's data spaces. */
+export type DataSpaceUsageSummary = {
+    parentCompanySlug: string;
+    retainedLogicalBytes: number;
+    retainedEventCount: number;
+    measuredAt: string;
+    measurementState: StorageMeasurementState;
+    dataSpaceCount: number;
+    dataSpaces: DataSpaceUsageRow[];
+};
 export type ProducerProvisionCreate = {
     companySlug: string;
     producerSlug: string;
@@ -223,15 +298,18 @@ export type ProducerProvisionCreate = {
     environment?: string;
     scopes?: string[];
     scopeTemplate?: "events" | "schemas" | "managed-audit" | "managed-audit-reporting-read" | "managed-audit-reporting-subject-insight" | "managed-audit-event-read" | "site-insights" | "site-insights-read" | "site-ai-read";
-    metadata?: Record<string, string>;
+    /** Restricts the producer to these environments; omitted or empty allows every environment. */
+    allowedEnvironments?: string[];
 };
 export type ProducerProvisionPublicClient = {
     clientId: string;
     companySlug: string;
     producerSlug: string;
+    displayName?: string;
     scopes: string[];
     environment?: string;
-    metadata?: Record<string, string>;
+    /** The environments this producer may send; empty when it may send any. */
+    allowedEnvironments: string[];
 };
 export type ClientConfig = {
     baseUrl: string;
@@ -245,6 +323,15 @@ export type ClientConfig = {
     oauth?: ProducerOAuthConfig;
     fetch?: typeof fetch;
     defaultHeaders?: Record<string, string>;
+    /**
+     * The client company a system administrator's requests target. Admin routes
+     * receive it as the `companySlug` query parameter unless the call names its own;
+     * it never opens support context there. The ingest cleanup-job reads and cancel
+     * name their tenant only through `X-Custd-Effective-Company`, so those calls send
+     * it in that header, and the server then requires an active support grant for it.
+     * Ordinary tenant callers leave it unset.
+     */
+    actingCompanySlug?: string;
     retry?: RetryOptions;
     batch?: BatchOptions;
     queue?: QueueOptions;
@@ -378,17 +465,47 @@ export type QueueStorage = {
     save: (events: EventEnvelope[]) => void;
     clear: () => void;
 };
+/** Whether a tenant is a real customer or proof data that generated-data cleanup may remove. */
+export type AdminTenantPurpose = "customer" | "generated_proof";
 export type AdminTenantCreate = {
     slug: string;
     companyName: string;
+    purpose?: AdminTenantPurpose;
 };
 export type AdminTenant = {
     slug: string;
     companyName: string;
+    companyId: number;
+    companyUuid: string;
     enabled: boolean;
+    purpose: AdminTenantPurpose;
+    autoCreateEnvironments: boolean;
 };
 export type AdminTenantListResponse = {
     tenants: AdminTenant[];
+};
+/** A tenant's storage allowance. Writes are refused past it only when hardLimitEnabled is set. */
+export type StorageLimit = {
+    includedStorageBytes: number;
+    purchasedStorageBytes: number;
+    warnPercent: number;
+    hardLimitEnabled: boolean;
+};
+export type StorageLimitUpdateRequest = StorageLimit;
+/** The content-free receipt for a deleted tenant's historical cleanup. */
+export type TenantHistoricalCleanupReceipt = {
+    companyId: number;
+    requestedByKind: string;
+    requestedAt: string;
+    completedAt: string;
+    finalState: string;
+    perStore: OffboardingReceiptPerStore[];
+    waiver?: TenantHistoricalCleanupWaiver;
+    sha256: string;
+};
+export type TenantHistoricalCleanupWaiver = {
+    role: string;
+    timestamp: string;
 };
 export type AdminOAuthClientCreate = {
     clientId: string;
@@ -402,6 +519,8 @@ export type AdminOAuthClientCreate = {
     environment?: string;
     profile?: string;
     purposeProfile?: string;
+    /** Binds a browser sign-in client to one Site. */
+    siteUuid?: string;
 };
 export type AdminOAuthClient = {
     clientId: string;
@@ -411,8 +530,26 @@ export type AdminOAuthClient = {
     profile?: string;
     purposeProfile?: string;
 };
-export type AdminOAuthClientCreateResponse = AdminOAuthClient & {
-    clientSecret: string;
+/** What a person needs to sign a CLI or app in with a newly created client. */
+export type AdminOAuthClientLoginSetup = {
+    profileName: string;
+    clientId: string;
+    issuerUrl: string;
+    apiUrl: string;
+    audience: string;
+    scopes: string[];
+    redirectUris: string[];
+    configInitCommand: string;
+};
+/** The created client. clientSecret is present once, for a confidential client only. */
+export type AdminOAuthClientCreateResponse = {
+    clientId: string;
+    companySlug: string;
+    scopes: string[];
+    profile: string;
+    purposeProfile?: string;
+    clientSecret?: string;
+    loginSetup?: AdminOAuthClientLoginSetup;
 };
 export type AdminOAuthClientListResponse = {
     clients: AdminOAuthClient[];
@@ -436,6 +573,10 @@ export type AdminSiteCreate = {
     name: string;
     identityMode: "cookieless" | "extended";
     allowedOrigins: string[];
+    /** The environment events default to when they do not declare one. */
+    environment?: string;
+    /** Restricts the Site to these environments; omitted or empty allows every environment. */
+    allowedEnvironments?: string[];
     rateLimitPerMinute?: number;
     retentionDays?: number;
     /** Required: a site whose write key cannot write anywhere is not a usable setup. */
@@ -447,10 +588,22 @@ export type AdminSite = {
     name: string;
     identityMode: "cookieless" | "extended";
     allowedOrigins: string[];
+    /** The environment the site's events default to. */
+    environment: string;
+    /** The environments the site may send; empty when it may send any. */
+    allowedEnvironments: string[];
     rateLimitPerMinute: number;
     retentionDays: number;
     enabled: boolean;
     /** Absent for a site created before destinations existed. */
+    ingestTarget?: AdminSiteIngestTarget;
+};
+/** Replaces a site's browser settings. Omit `allowedEnvironments` or `ingestTarget` to keep them. */
+export type AdminSiteUpdate = {
+    identityMode: "cookieless" | "extended";
+    allowedOrigins: string[];
+    environment: string;
+    allowedEnvironments?: string[];
     ingestTarget?: AdminSiteIngestTarget;
 };
 export type AdminSiteCreateResponse = AdminSite & {
@@ -461,23 +614,6 @@ export type AdminSiteListResponse = {
 };
 export type AdminSiteWriteKeyResponse = {
     writeKey: string;
-};
-export type AdminSchemaRegister = {
-    eventTypeSlug: string;
-    version: string;
-    jsonSchema: Record<string, unknown>;
-};
-export type AdminSchemaVersionCreate = {
-    version: string;
-    jsonSchema: Record<string, unknown>;
-};
-export type AdminSchema = {
-    eventTypeSlug: string;
-    version: string;
-    jsonSchema?: Record<string, unknown>;
-};
-export type AdminSchemaListResponse = {
-    schemas: AdminSchema[];
 };
 export type AdminOAuthClientUpdateScopesRequest = {
     companySlug?: string;
@@ -506,6 +642,16 @@ export type AdminSchemaEnableRequest = {
     version: string;
     enabledAt?: string;
 };
+/** Registers one schema version for a tenant's event type; `checksum` is the schema's SHA-256 hex. */
+export type AdminSchemaRegisterRequest = {
+    tenantSlug: string;
+    eventTypeSlug: string;
+    version: string;
+    dialect: "jsonschema" | "avro";
+    schemaJson: string;
+    checksum: string;
+    enabled: boolean;
+};
 export type AdminSchemaDryRunRequest = {
     tenantSlug: string;
     eventTypeSlug: string;
@@ -522,35 +668,116 @@ export type AdminSchemaDryRunResult = {
 export declare const SCHEMA_AUDIT_TENANT_NOT_FOUND_CODE = "schema_audit_tenant_not_found";
 /** A 400 on schema audit: the request names no tenantSlug. */
 export declare const SCHEMA_AUDIT_TENANT_SLUG_REQUIRED_CODE = "schema_audit_tenant_slug_required";
-export type AdminSchemaAuditEntry = {
-    eventId: string;
+/** One compile pass of a schema under one validator. */
+export type AdminSchemaCompileResult = {
+    valid: boolean;
+    issues: string[];
+};
+/** How the schema's recorded examples validate under the shared validator. */
+export type AdminSchemaExampleValidation = {
+    discovered: number;
+    run: number;
+    sameAccept: number;
+    sameReject: number;
+    deltas: number;
+    issueCodes: string[];
+};
+/** One registered schema version's migration audit result. */
+export type AdminSchemaAuditResult = {
+    tenantSlug: string;
     eventTypeSlug: string;
     version: string;
-    action: "registered" | "enabled" | "rolled_back" | string;
-    registeredAt: string;
-    registeredBy: string;
+    dialect: string;
+    schemaChecksum: string;
+    class: string;
+    recommendedAction: string;
+    issueCodes: string[];
+    legacyCompile: AdminSchemaCompileResult;
+    sharedCompile: AdminSchemaCompileResult;
+    exampleValidation: AdminSchemaExampleValidation;
+};
+export type AdminSchemaAuditSummary = {
+    total: number;
+    compatible: number;
+    needsMigration: number;
+    blocked: number;
 };
 export type AdminSchemaAuditListResponse = {
-    entries: AdminSchemaAuditEntry[];
+    schemas: AdminSchemaAuditResult[];
+    summary: AdminSchemaAuditSummary;
+};
+/** One field rule: what the tenant's privacy pipeline does to fieldPath. */
+export type AdminPrivacyRule = {
+    fieldPath: string;
+    action: string;
+    enabled: boolean;
+    truncateLength?: number;
 };
 export type AdminPrivacyRulesResponse = {
-    tenantSlug: string;
-    purposes: string[];
-    hardDeleteAfterDays: number;
+    companySlug: string;
+    enabled: boolean;
+    applyMode: string;
+    rules: AdminPrivacyRule[];
 };
+/** Replaces the tenant's whole privacy rule set. */
 export type AdminPrivacyRuleUpdate = {
-    purposes: string[];
-    hardDeleteAfterDays?: number;
+    companySlug: string;
+    enabled: boolean;
+    applyMode: string;
+    rules: AdminPrivacyRule[];
 };
 export type AdminPrivacyIdentifierMapping = {
     identifierId: string;
     internalIdHash: string;
     internalIdHashPrefix: string;
     saltVersion: number;
-    createdAt?: string;
+    createdAt: string;
+};
+export type AdminPrivacyIdentifierMappingList = {
+    companySlug: string;
+    mappings: AdminPrivacyIdentifierMapping[];
 };
 export type AdminPrivacyIdentifierMapRequest = {
     externalId: string;
+};
+/** The purposes a subject's consent is recorded for. */
+export type AdminPrivacyConsentPurpose = "analytics" | "product_improvement" | "marketing";
+/** One subject's consent decision for one purpose and source. */
+export type AdminPrivacyConsentRecord = {
+    subjectId: string;
+    purpose: AdminPrivacyConsentPurpose;
+    source: string;
+    granted: boolean;
+    recordedAt: string;
+    grantedAt?: string;
+    revokedAt?: string;
+    expiresAt?: string;
+};
+export type AdminPrivacyConsentList = {
+    companySlug: string;
+    subjectId: string;
+    records: AdminPrivacyConsentRecord[];
+};
+export type AdminPrivacyConsentRecordRequest = {
+    companySlug: string;
+    subjectId: string;
+    purpose: AdminPrivacyConsentPurpose;
+    source: string;
+    granted: boolean;
+    expiresAt?: string;
+};
+/** Which consent a revoke ends. Leaving `source` out revokes the purpose from every source. */
+export type AdminPrivacyConsentRevokeRequest = {
+    purpose: AdminPrivacyConsentPurpose;
+    source?: string;
+    companySlug?: string;
+};
+/** The latest evaluation of a storage alert rule against measured usage. */
+export type AdminStorageAlertEvaluation = {
+    evaluatedAt: string;
+    measuredValue: number;
+    breached: boolean;
+    firedAt?: string;
 };
 export type AdminStorageAlertRule = {
     ruleId: string;
@@ -558,18 +785,48 @@ export type AdminStorageAlertRule = {
     metric: string;
     thresholdPercent: number;
     channel: string;
+    emailRecipient?: string;
     enabled: boolean;
-    createdAt?: string;
-    updatedAt?: string;
+    evaluation?: AdminStorageAlertEvaluation;
+    createdAt: string;
+    updatedAt: string;
 };
 export type AdminStorageAlertRuleCreateRequest = {
     metric: string;
     thresholdPercent: number;
     channel: string;
+    /** Where an email-channel rule sends its alert. */
+    emailRecipient?: string;
     enabled: boolean;
 };
 export type AdminStorageAlertRuleListResponse = {
     rules: AdminStorageAlertRule[];
+};
+export type AdminStorageAlertDelivery = {
+    state: string;
+    updatedAt?: string;
+    error?: string;
+};
+export type AdminStorageAlertMeasurement = {
+    limitBytes: number;
+    measuredValue: number;
+    thresholdPercent: number;
+    warningState: string;
+};
+/** One storage alert that fired and how its delivery went. */
+export type AdminStorageAlertEvent = {
+    eventId: string;
+    tenantSlug: string;
+    ruleId?: string;
+    metric: string;
+    channel: "email" | "webhook";
+    emailRecipient?: string;
+    triggeredAt: string;
+    measurement: AdminStorageAlertMeasurement;
+    delivery: AdminStorageAlertDelivery;
+};
+export type AdminStorageAlertEventListResponse = {
+    events: AdminStorageAlertEvent[];
 };
 export type AdminAuditEvent = {
     /** Stable public audit event UUID. */
@@ -588,6 +845,20 @@ export type AdminAuditEvent = {
     changes?: AdminAuditChange[];
     details?: Record<string, unknown>;
     network?: AdminAuditNetworkDisclosure;
+    domainHistory?: AdminAuditDomainHistory;
+    createdAt: string;
+};
+/** The domain state change an audit event recorded, from the resource's own history stream. */
+export type AdminAuditDomainHistory = {
+    source: string;
+    sourceId: string;
+    resourceType?: string;
+    resourceId?: string;
+    action?: string;
+    state?: string;
+    previousState?: string;
+    currentState?: string;
+    streamVersion?: number;
     createdAt: string;
 };
 export type AdminAuditListCursor = {
@@ -642,7 +913,6 @@ export type AdminReportingPackAuditEvent = {
     actorReference?: string;
     actorDisplayName: string;
     resourceType: string;
-    resourceId: string;
     packKey: string;
     createdAt: string;
 };
@@ -718,6 +988,9 @@ export type PackDimension = {
     allowedValuePattern?: string;
     fallback?: string;
     maxCardinality?: number;
+    labelDefinitionKey?: string;
+    labelDefinitionUuid?: string;
+    labelValueUuids?: string[];
 };
 export type PackTemplate = {
     name: string;
@@ -999,6 +1272,17 @@ export type PackDefinition = {
     accounting?: AccountingContract;
 };
 /** One client-selectable binding descriptor a setup template renders. */
+/** Whether one published reporting-pack generation still validates against the current contracts. */
+export type ReportingPackGenerationValidity = {
+    id: number;
+    packKey: string;
+    generationNumber: number;
+    state: string;
+    validationError?: string;
+};
+export type ReportingPackGenerationValidityListResponse = {
+    generations: ReportingPackGenerationValidity[];
+};
 export type ReportingPackSetupBindingField = {
     key: string;
     label: string;
@@ -1031,8 +1315,9 @@ export type ReportingPackDraft = {
     id: number;
     revision: number;
     definition: PackDefinition;
-    createdAt?: string;
-    updatedAt?: string;
+    validationError?: string;
+    createdAt: string;
+    updatedAt: string;
 };
 export type ReportingPackDraftCreateRequest = {
     definition: PackDefinition;
@@ -1047,12 +1332,8 @@ export type ReportingPackDraftListResponse = {
 export type ReportingPackValidateResponse = {
     valid: boolean;
 };
-export type ReportingPackPreviewQueryHint = {
-    template: string;
-    metrics: string[];
-    dimensions?: string[];
-    rangeDays?: number;
-};
+/** The widget query a preview renders: the same request the analytics query endpoint takes. */
+export type ReportingPackPreviewQueryHint = ReportingQueryRequest;
 export type ReportingPackPreviewRequest = {
     definition: PackDefinition;
     tenantSlug: string;
@@ -1061,6 +1342,45 @@ export type ReportingPackPreviewRequest = {
 /** The preview envelope: the rendered widget under `data`, aggregate-only with no raw rows. */
 export type ReportingPackPreviewResponse = {
     data: RenderedWidgetData;
+    executive?: ExecutiveReport;
+    presentation?: PresentationPresetSelection;
+};
+export type ExecutiveReport = {
+    recipe: "blank" | "weekly-performance" | "operations-health" | "forecast-decision";
+    title: string;
+    tenantDisplayName: string;
+    asOf: string;
+    generatedAt: string;
+    period: {
+        label: string;
+        from?: string;
+        to?: string;
+    };
+    primary: {
+        label: string;
+        scope: string;
+        unit: string;
+        value: RenderedMetricValue;
+        periodTotal: RenderedMetricValue;
+    };
+    comparison: {
+        available: boolean;
+        basis: "none" | "previous-period" | "target";
+        label: string;
+        value?: RenderedMetricValue;
+        percentChange?: number;
+        targetValue?: number;
+    };
+    confidence: {
+        status: "healthy" | "partial" | "unavailable" | "unknown";
+        coverage: string;
+        freshness: string;
+        completeness: string;
+        warnings?: string[];
+    };
+    findings?: string[];
+    actions?: string[];
+    supportingWidgets?: string[];
 };
 export type ReportingPackGeneration = {
     id: number;
@@ -1119,10 +1439,12 @@ export type ProducerReservationClaimRequest = {
     claimedByClientId: string;
 };
 export type MeasurementProjectCreate = {
+    /** The tenant a system administrator creates the project for. */
+    companySlug?: string;
     projectCode: string;
     name: string;
-    kind: string;
     description?: string;
+    kind: string;
     series: MeasurementSeriesCreate[];
     target: MeasurementTargetCreate;
 };
@@ -1130,17 +1452,34 @@ export type MeasurementProject = {
     projectUuid: string;
     projectCode: string;
     name: string;
+    description: string;
     kind: string;
     status: string;
-    description?: string;
+    delivery: MeasurementProjectDelivery;
+    run: MeasurementProjectRun;
     series?: MeasurementSeries[];
     target?: MeasurementTarget;
+    createdAt: string;
+    updatedAt: string;
+};
+/** What done means for a project, and when it is due or was completed. */
+export type MeasurementProjectDelivery = {
+    definitionOfDone: string;
+    targetDate?: string;
+    completedAt?: string;
+};
+/** How the project forecasts, and the series root it forecasts from. */
+export type MeasurementProjectRun = {
+    forecastMethod?: string;
+    seriesRootUuid?: string;
+    similar: boolean;
 };
 export type MeasurementSeries = {
     seriesUuid: string;
     seriesCode: string;
     name: string;
     unitSlug: string;
+    unitLabel?: string;
     completionDirection: string;
     source: string;
 };
@@ -1150,6 +1489,7 @@ export type MeasurementTarget = {
     name: string;
     targetValue: number;
     targetDate?: string;
+    completedAt?: string;
     state: string;
 };
 export type MeasurementProjectListResponse = {
@@ -1159,6 +1499,7 @@ export type MeasurementSeriesCreate = {
     seriesCode: string;
     name: string;
     unitSlug: string;
+    unitLabel?: string;
     completionDirection: string;
     source: string;
 };
@@ -1188,18 +1529,15 @@ export type MeasurementObservationResult = {
     title?: string;
     detail?: string;
 };
+/** Each row's outcome. completedTargetUuid names a target an accepted observation reached. */
 export type MeasurementObservationBulkResponse = {
     importId: string;
     accepted: number;
     rejected: number;
     results: MeasurementObservationResult[];
+    completedTargetUuid?: string;
 };
-export type MeasurementCSVImportResponse = {
-    importId: string;
-    accepted: number;
-    rejected: number;
-    results: MeasurementObservationResult[];
-};
+export type MeasurementCSVImportResponse = MeasurementObservationBulkResponse;
 export type SchemaValidationIssue = {
     path: string;
     keyword: string;
@@ -1261,23 +1599,9 @@ export type SendTestEventResponse = {
     success: boolean;
     eventUuid: string;
 };
-export type ReportingDashboard = {
-    key: string;
-    title: string;
-    hidden?: boolean;
-    defaultRange: string;
-    refreshSeconds: number;
-    requiredScopes: string[];
-    widgets: ReportingWidget[];
-};
-export type ReportingWidget = {
-    key: string;
-    title: string;
-    kind: string;
-    template: string;
-    metrics: string[];
-    dimensions?: string[];
-};
+/** A dashboard as the analytics API serves it: the same definition a reporting pack declares. */
+export type ReportingDashboard = PackDashboardDefinition;
+export type ReportingWidget = PackWidgetDefinition;
 export type ReportingQueryRequest = {
     dashboardKey?: string;
     widgetKey?: string;
@@ -1310,6 +1634,8 @@ export type SubjectInsightResponse = {
 export type RenderedWidgetData = {
     buckets: RenderedWidgetBucket[];
     value: RenderedMetricValue;
+    emailDelivery?: ReportingEmailDelivery;
+    labelMetadata?: ReportingLabelMetadata[];
     metadata?: ReportingQueryMetadata;
     sources?: ReportingSourceSummary[];
     warnings?: string[];
@@ -1360,10 +1686,79 @@ export type RenderedWidgetBucket = {
 export type RenderedMetricValue = {
     value: number;
     unit: string;
+    currency?: string;
     sampleCount: number;
     dataSufficiency: string;
     complete: boolean;
     truncated?: boolean;
+    trust?: ReportingTemporalTrust;
+};
+/** One reporting source's reading in a reconciliation. */
+export type ReportingSourceContribution = {
+    sourceKey: string;
+    sourceSeriesKey: string;
+    availability: "available" | "unavailable";
+    value?: number;
+    unit?: string;
+    observedAt?: string;
+    freshnessSeconds?: number;
+    stale?: boolean;
+    selected?: boolean;
+};
+/** How far the reconciled sources disagree. */
+export type ReportingSourceDivergence = {
+    detected: boolean;
+    absoluteDifference?: number;
+    relativeDifference?: number;
+};
+/** Which source a reconciled value came from, and how its alternatives compared. */
+export type ReportingReconciliation = {
+    tenantKey: string;
+    seriesKey: string;
+    status: "available" | "stale" | "unavailable";
+    availability: "available" | "unavailable";
+    value?: number;
+    unit?: string;
+    observedAt?: string;
+    selectedSourceKey?: string;
+    selectedSourceSeries?: string;
+    contributingSources?: ReportingSourceContribution[];
+    divergence: ReportingSourceDivergence;
+};
+/** The time coverage and freshness behind one rendered value. */
+export type ReportingTemporalTrust = {
+    calculationVersion?: string;
+    coverageStart?: string;
+    coverageEnd?: string;
+    sourceRange?: {
+        start: string;
+        end: string;
+    };
+    windowCoverage?: number;
+    freshnessMs?: number;
+    reconciliation?: ReportingReconciliation;
+    warnings?: string[];
+};
+/** The delivery outcome of one email recipient, by opaque recipient id. */
+export type ReportingEmailDeliveryRecipient = {
+    recipientId: string;
+    outcome: "deferred" | "remote_accepted" | "terminal_failure";
+    occurredAt: string;
+};
+export type ReportingEmailDelivery = {
+    complete: boolean;
+    recipients: ReportingEmailDeliveryRecipient[];
+};
+/** The display names of one data label a widget grouped by. */
+export type ReportingLabelMetadata = {
+    definitionUuid: string;
+    key: string;
+    displayName: string;
+    sensitivity: string;
+    values: Array<{
+        uuid: string;
+        displayName: string;
+    }>;
 };
 export type ReportingQueryMetadata = {
     resolvedTemplate: string;
@@ -1403,10 +1798,14 @@ export declare class CustdClient {
     readonly schemas: SchemaNamespace;
     readonly analytics: AnalyticsEventClient;
     readonly parsers: ParserClient;
+    readonly measurement: MeasurementClient;
+    readonly ingestOperations: IngestOperationsClient;
+    readonly publicReads: PublicReadClient;
     private baseUrl;
     private getToken;
     private fetchImpl;
     private defaultHeaders;
+    private actingCompanySlug;
     private retry;
     private batch;
     private queueEnabled;
@@ -1454,9 +1853,11 @@ export declare class CustdClient {
     private assertBatchResponse;
     private batchRejectionMessage;
     private adminRequest;
+    private actingCompanyPath;
     private offboardingDownload;
     private auditExportDownload;
     private apiRequest;
+    private publicRead;
     private apiDownload;
 }
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
@@ -1483,6 +1884,13 @@ export interface ReportExportArtifact {
     fallbackForFormat?: string;
     rendererVersion?: string;
 }
+export interface ReportExportProgressCounter {
+    key: string;
+    count: number;
+}
+export type ReportExportJobList = {
+    exports: ReportExportJob[];
+};
 export interface ReportExportJob {
     id: string;
     packKey: string;
@@ -1493,7 +1901,7 @@ export interface ReportExportJob {
     snapshotSha256?: string;
     state: string;
     progressStage: string;
-    progressCounters?: Record<string, number>;
+    progressCounters?: ReportExportProgressCounter[];
     queuedAt: string;
     startedAt?: string;
     finishedAt?: string;
@@ -1513,10 +1921,18 @@ declare class ReportingNamespace {
     private readonly download;
     constructor(request: APIRequester, download: APIDownloader);
     createExport(input: ReportExportCreateRequest, options?: RequestOptions): Promise<ReportExportJob>;
-    listExports(limit?: number, options?: RequestOptions): Promise<ReportExportJob[]>;
+    listExports(limit?: number, options?: RequestOptions): Promise<ReportExportJobList>;
     getExport(exportId: string, options?: RequestOptions): Promise<ReportExportJob>;
     cancelExport(exportId: string, reason?: string, options?: RequestOptions): Promise<ReportExportJob>;
     downloadExport(exportId: string, artifactId: string, options?: RequestOptions): Promise<Uint8Array>;
+    /** Exports a completed time-plan run's frozen report source in one to eight formats. */
+    createCompletedRunExport(input: CompletedRunExportRequest, options?: RequestOptions): Promise<ReportExportJob>;
+    /** Lists the dashboards the tenant can open. */
+    dashboards(options?: RequestOptions): Promise<ReportingDashboardCatalogue>;
+    /** Starts, or returns, the data generation that backs one dashboard view. */
+    generateDashboardData(input: ReportingDashboardGenerationRequest, options?: RequestOptions): Promise<ReportingDashboardGeneration>;
+    /** Renders one query against a pack definition that is not published. */
+    previewDraft(input: ReportingDraftPreviewRequest, options?: RequestOptions): Promise<RenderedWidgetData>;
     dashboard(key: string, options?: RequestOptions): Promise<ReportingDashboard>;
     receipt(receiptUuid: string, options?: RequestOptions): Promise<PreparedDataReceiptStatus>;
     outputs(options?: RequestOptions): Promise<PreparedDataOutputList>;
@@ -1531,6 +1947,22 @@ declare class SchemaNamespace {
     validate(input: SchemaValidationRequest): Promise<SchemaValidationResponse>;
     dryRun(input: SchemaValidationRequest): Promise<SchemaValidationResponse>;
     infer(input: SchemaInferenceRequest): Promise<SchemaInferenceResponse>;
+    /** Lists the tenant's event types. */
+    list(): Promise<RegisteredEventTypeList>;
+    /** Lists an event type's schema versions. */
+    listVersions(eventType: string): Promise<EventSchemaVersionList>;
+    /** Returns one version's JSON Schema document. */
+    get(eventType: string, version: string): Promise<EventSchemaDocument>;
+    /** Stores a schema version, creating the event type when it is new, and returns the event type. */
+    register(input: EventSchemaRegisterRequest): Promise<RegisteredEventType>;
+    /** Makes one version the event type's active schema. */
+    activate(eventType: string, version: string): Promise<EventSchemaStateResult>;
+    /** Lets events validate against one version again. */
+    enable(eventType: string, version: string): Promise<EventSchemaStateResult>;
+    /** Deprecates one version so new events no longer validate against it. */
+    disable(eventType: string, version: string): Promise<EventSchemaStateResult>;
+    /** Retires the tenant's event type. Its schemas and stored events stay readable. */
+    disableEventType(eventType: string): Promise<EventSchemaStateResult>;
     sendTestEvent(event: EventEnvelope): Promise<SendTestEventResponse>;
 }
 declare class AdminNamespace {
@@ -1558,6 +1990,25 @@ declare class AdminNamespace {
     readonly timePlans: TimePlanAdminClient;
     readonly usage: UsageAdminClient;
     readonly authProjects: AuthProjectAdminClient;
+    readonly workflowTimings: WorkflowTimingAdminClient;
+    readonly users: AdminUserAdminClient;
+    readonly uncertaintyModels: UncertaintyModelAdminClient;
+    readonly impersonation: ImpersonationAdminClient;
+    readonly supportAccess: SupportAccessAdminClient;
+    readonly system: SystemAdminClient;
+    readonly environmentPolicy: EnvironmentPolicyAdminClient;
+    readonly rls: RlsAdminClient;
+    readonly oauthClientAdmissions: OAuthClientAdmissionAdminClient;
+    readonly sdkUsage: SdkUsageAdminClient;
+    readonly ingestClaims: IngestClaimAdminClient;
+    readonly accountingEvidence: AccountingEvidenceAdminClient;
+    readonly webhooks: NotificationWebhookAdminClient;
+    readonly notificationDestinations: NotificationDestinationAdminClient;
+    readonly emailRelay: EmailRelayAdminClient;
+    readonly campaignEmail: CampaignEmailAdminClient;
+    readonly eventTypes: EventTypeAdminClient;
+    readonly errorIssues: ErrorIssueAdminClient;
+    readonly managedAudit: ManagedAuditAdminClient;
     constructor(request: AdminRequester, nonAdminRequest: NonAdminRequester, offboardingDownload: (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>, auditExportDownload: AdminAuditDownloader);
 }
 declare class ProvisioningNamespace {
@@ -1566,27 +2017,33 @@ declare class ProvisioningNamespace {
     readonly reservations: ProvisioningReservationsNamespace;
     constructor(request: APIRequester);
 }
+/** Producer reservations under one data space. A system administrator names the parent tenant. */
 declare class ProvisioningReservationsNamespace {
     private readonly request;
     constructor(request: APIRequester);
-    reserve(dataSpaceSlug: string, body: ProducerReservationCreateRequest): Promise<ProducerReservation>;
-    list(dataSpaceSlug: string): Promise<ProducerReservationListResponse>;
-    claim(dataSpaceSlug: string, producerSlug: string, body: ProducerReservationClaimRequest): Promise<ProducerReservation>;
-    release(dataSpaceSlug: string, producerSlug: string): Promise<void>;
+    reserve(dataSpaceSlug: string, body: ProducerReservationCreateRequest, parentCompanySlug?: string): Promise<ProducerReservation>;
+    list(dataSpaceSlug: string, parentCompanySlug?: string): Promise<ProducerReservationListResponse>;
+    claim(dataSpaceSlug: string, producerSlug: string, body: ProducerReservationClaimRequest, parentCompanySlug?: string): Promise<ProducerReservation>;
+    release(dataSpaceSlug: string, producerSlug: string, parentCompanySlug?: string): Promise<void>;
 }
 declare class ProvisioningDataSpaceNamespace {
     private readonly request;
     constructor(request: APIRequester);
-    create(dataSpace: DataSpaceCreate): Promise<DataSpace>;
-    list(): Promise<DataSpaceListResponse>;
-    revoke(slug: string): Promise<void>;
+    /** Creates a data space under the caller's company; a system administrator names the parent tenant. */
+    create(dataSpace: DataSpaceCreate, parentCompanySlug?: string): Promise<DataSpace>;
+    /** Lists the caller's data spaces; a system administrator names the parent tenant. */
+    list(parentCompanySlug?: string): Promise<DataSpaceListResponse>;
+    /** Reads retained storage per data space. A system administrator names the parent tenant. */
+    usage(parentCompanySlug?: string): Promise<DataSpaceUsageSummary>;
+    revoke(slug: string, parentCompanySlug?: string): Promise<void>;
 }
 declare class ProvisioningProducerNamespace {
     private readonly request;
     constructor(request: APIRequester);
     provision(request: ProducerProvisionCreate): Promise<ProvisionedProducerCredentials>;
-    list(companySlug?: string): Promise<ProducerProvisionPublicClient[]>;
-    rotateSecret(clientId: string): Promise<ProvisionedProducerCredentials>;
+    list(companySlug?: string): Promise<ProducerProvisionListResponse>;
+    get(clientId: string): Promise<ProducerProvisionPublicClient>;
+    rotateSecret(clientId: string): Promise<ProducerSecretRotation>;
     /**
      * Sets the environment recorded for this producer. It is the authenticated
      * default for events that do not declare their own, not a per-environment
@@ -1603,6 +2060,19 @@ declare class AdminTenantNamespace {
     list(): Promise<AdminTenantListResponse>;
     get(slug: string): Promise<AdminTenant>;
     delete(slug: string): Promise<void>;
+    /**
+     * Permanently removes an already deleted tenant once its cleanup is finished.
+     * The server refuses an unready tenant with a conflict.
+     */
+    finalize(slug: string, companyId: number): Promise<void>;
+    /**
+     * Runs the credential-revoking, queue, database and object-storage cleanup for a
+     * deleted tenant. The idempotencyKey is required: repeat it to retry the same cleanup.
+     */
+    historicalCleanup(slug: string, companyId: number, options?: RequestOptions): Promise<TenantHistoricalCleanupReceipt>;
+    getDataSpaceEntitlement(slug: string): Promise<DataSpaceEntitlementState>;
+    updateDataSpaceEntitlement(slug: string, body: DataSpaceEntitlementUpdateRequest): Promise<DataSpaceEntitlementState>;
+    updateStorageLimit(slug: string, body: StorageLimitUpdateRequest): Promise<StorageLimit>;
 }
 declare class AdminOAuthClientNamespace {
     private readonly request;
@@ -1612,6 +2082,11 @@ declare class AdminOAuthClientNamespace {
     get(clientId: string): Promise<AdminOAuthClient>;
     delete(clientId: string, options?: RequestOptions): Promise<void>;
     rotateSecret(clientId: string, options?: RequestOptions): Promise<AdminOAuthClientSecretResponse>;
+    /**
+     * Issues a new secret for a client whose current secret nobody holds. The new secret is shown only
+     * in this response.
+     */
+    replaceUnknownSecret(clientId: string, options?: RequestOptions): Promise<AdminOAuthClientSecretResponse>;
     updateScopes(clientId: string, body: AdminOAuthClientUpdateScopesRequest, options?: RequestOptions): Promise<AdminOAuthClient>;
 }
 declare class AdminSiteNamespace {
@@ -1620,28 +2095,29 @@ declare class AdminSiteNamespace {
     create(site: AdminSiteCreate): Promise<AdminSiteCreateResponse>;
     list(): Promise<AdminSiteListResponse>;
     get(siteUuid: string): Promise<AdminSite>;
+    update(siteUuid: string, body: AdminSiteUpdate): Promise<AdminSite>;
     delete(siteUuid: string): Promise<void>;
     rotateWriteKey(siteUuid: string): Promise<AdminSiteWriteKeyResponse>;
 }
 declare class AdminSchemaNamespace {
     private readonly request;
     constructor(request: AdminRequester);
-    list(): Promise<AdminSchemaListResponse>;
-    get(eventTypeSlug: string): Promise<AdminSchema>;
-    register(schema: AdminSchemaRegister): Promise<AdminSchema>;
-    createVersion(eventTypeSlug: string, schema: AdminSchemaVersionCreate): Promise<AdminSchema>;
     validate(body: AdminSchemaValidateRequest): Promise<AdminSchemaValidateResult>;
     enableVersion(tenantSlug: string, eventTypeSlug: string, body: AdminSchemaEnableRequest): Promise<void>;
+    register(tenantSlug: string, eventTypeSlug: string, body: AdminSchemaRegisterRequest): Promise<void>;
     dryRun(tenantSlug: string, eventTypeSlug: string, body: AdminSchemaDryRunRequest): Promise<AdminSchemaDryRunResult>;
-    audit(): Promise<AdminSchemaAuditListResponse>;
+    audit(tenantSlug?: string): Promise<AdminSchemaAuditListResponse>;
 }
 declare class AdminPrivacyNamespace {
     private readonly request;
     constructor(request: AdminRequester);
-    getRules(): Promise<AdminPrivacyRulesResponse>;
+    getRules(companySlug?: string): Promise<AdminPrivacyRulesResponse>;
     setRules(body: AdminPrivacyRuleUpdate): Promise<AdminPrivacyRulesResponse>;
     mapIdentifier(companySlug: string, body: AdminPrivacyIdentifierMapRequest): Promise<AdminPrivacyIdentifierMapping>;
-    listIdentifierMappings(companySlug: string): Promise<AdminPrivacyIdentifierMapping[]>;
+    listIdentifierMappings(companySlug: string): Promise<AdminPrivacyIdentifierMappingList>;
+    listConsent(subjectId: string, companySlug?: string): Promise<AdminPrivacyConsentList>;
+    recordConsent(body: AdminPrivacyConsentRecordRequest): Promise<AdminPrivacyConsentRecord>;
+    revokeConsent(subjectId: string, revoke: AdminPrivacyConsentRevokeRequest): Promise<AdminPrivacyConsentRecord>;
 }
 declare class AdminStorageAlertsNamespace {
     private readonly request;
@@ -1649,6 +2125,7 @@ declare class AdminStorageAlertsNamespace {
     listRules(tenantSlug: string): Promise<AdminStorageAlertRuleListResponse>;
     createRule(tenantSlug: string, body: AdminStorageAlertRuleCreateRequest): Promise<AdminStorageAlertRule>;
     deleteRule(tenantSlug: string, ruleId: string): Promise<void>;
+    listEvents(tenantSlug: string): Promise<AdminStorageAlertEventListResponse>;
 }
 declare class AdminAuditNamespace {
     private readonly request;
@@ -1680,25 +2157,12 @@ declare class AdminReportingPacksNamespace {
     validate(body: ReportingPackDraftCreateRequest): Promise<ReportingPackValidateResponse>;
     preview(body: ReportingPackPreviewRequest): Promise<ReportingPackPreviewResponse>;
     publish(draftId: string): Promise<ReportingPackGeneration>;
-    restart(draftId: string): Promise<ReportingPackGeneration>;
+    restart(draftId: string): Promise<ReportingPackDraft>;
     getGeneration(generationId: string): Promise<ReportingPackGeneration>;
     getGenerationStatus(generationId: string): Promise<ReportingPackGenerationStatusResponse>;
-    rollbackGeneration(generationId: string): Promise<void>;
+    rollbackGeneration(generationId: string): Promise<ReportingPackGeneration>;
+    listGenerationValidity(): Promise<ReportingPackGenerationValidityListResponse>;
     getRollupProvenance(generationId: string): Promise<ReportingPackRollupProvenance>;
-}
-declare class AdminMeasurementNamespace {
-    readonly projects: AdminMeasurementProjectNamespace;
-    constructor(request: AdminRequester);
-}
-declare class AdminMeasurementProjectNamespace {
-    private readonly request;
-    constructor(request: AdminRequester);
-    create(project: MeasurementProjectCreate): Promise<MeasurementProject>;
-    list(): Promise<MeasurementProjectListResponse>;
-    get(projectUuid: string): Promise<MeasurementProject>;
-    submitObservation(projectUuid: string, observation: MeasurementObservationInput): Promise<MeasurementObservationBulkResponse>;
-    submitObservations(projectUuid: string, request: MeasurementObservationBulkRequest): Promise<MeasurementObservationBulkResponse>;
-    importCSVString(projectUuid: string, csv: string, expectedRows: number): Promise<MeasurementCSVImportResponse>;
 }
 export type PrepareEventMode = "producer" | "browser-cookieless";
 export type PrepareEventOptions = {
@@ -1733,6 +2197,30 @@ export declare function normalizeRetryOptions(options?: RetryOptions): Required<
 export declare function withRetry<T>(options: Required<RetryOptions>, op: () => Promise<T>): Promise<T>;
 /** Opaque per-event identity, including runtimes without Web Crypto. Not an authentication token. */
 export declare function createEventId(): string;
+export * from "./admin-accounting-evidence.js";
+export * from "./admin-campaign-email.js";
+export * from "./admin-email-relay.js";
+export * from "./admin-environment-policy.js";
+export * from "./admin-error-issues.js";
+export * from "./admin-event-types.js";
+export * from "./admin-impersonation.js";
+export * from "./admin-ingest-claims.js";
+export * from "./admin-managed-audit.js";
+export * from "./admin-measurement-projects.js";
+export * from "./admin-notification-destinations.js";
+export * from "./admin-notification-webhooks.js";
+export * from "./admin-oauth-client-admissions.js";
+export * from "./admin-rls.js";
+export * from "./admin-sdk-usage.js";
 export type { SiteRegionalTrendMarket, SiteRegionalTrendMatch, SiteRegionalTrends, SiteTechnicalTrends, } from "./admin-site-regional-trends.js";
+export * from "./admin-support-access.js";
+export * from "./admin-system.js";
+export * from "./admin-uncertainty-models.js";
+export * from "./analytics-reads.js";
 export * from "./app-account.js";
 export { type CaptureExceptionRequest, createErrorCaptureEvent, ErrorCaptureClient, type ErrorCaptureConfig, type ErrorCaptureEvent, type ErrorCaptureEventConfig, type ErrorCaptureResult, type ErrorFrame, installBrowserErrorCapture, installNativeErrorCapture, type NativeErrorHandler, type NativeErrorSource, } from "./error-capture.js";
+export * from "./ingest-operations.js";
+export * from "./measurement.js";
+export * from "./public-reads.js";
+export * from "./reporting-catalogue.js";
+export type { EventSchemaDocument, EventSchemaRegisterRequest, EventSchemaStateResult, EventSchemaVersion, EventSchemaVersionList, RegisteredEventType, RegisteredEventTypeList, } from "./schema-registry.js";

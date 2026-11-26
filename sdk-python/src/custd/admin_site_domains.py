@@ -57,6 +57,23 @@ from .admin_site_insights import (
     SiteWordingCompare,
 )
 from .admin_site_links import SiteReferringDomains
+from .admin_site_monitoring import (
+    PrivateUptimeCreateRequest,
+    PrivateUptimeCredential,
+    PrivateUptimeMonitor,
+    PrivateUptimeWork,
+    SiteBrowserCollector,
+    SiteBrowserCollectorRequest,
+    SiteFindingDismissal,
+    SiteFindingDismissalRequest,
+    SiteFindingDismissals,
+    SiteHeartbeatCreateRequest,
+    SiteHeartbeatCredential,
+    SiteHeartbeatList,
+    SiteMaintenanceWindow,
+    SiteMaintenanceWindowRequest,
+    SiteMaintenanceWindows,
+)
 from .admin_site_next_actions import SiteNextActions, SitePortfolioSummary
 from .admin_site_page_queries import SitePageSearchQueries
 from .admin_site_rankings import SiteRankings, SiteTrackedKeyword, SiteTrackKeywordRequest
@@ -82,7 +99,7 @@ from .admin_site_web_data import (
     SiteWebDomains,
     SiteWebPages,
 )
-from .client import AdminClient, problem_request_error, quote_path
+from .client import AdminClient, problem_request_error, quote_path, with_acting_company
 
 SITE_DOMAINS_PATH = "/site-domains"
 SITE_ALERT_DESTINATION_PATH = SITE_DOMAINS_PATH + "/alert-destination"
@@ -530,6 +547,7 @@ class SiteIncident(TypedDict):
     cause: str
     failedChecks: int
     resolvedAt: NotRequired[str]
+    acknowledgedAt: NotRequired[str]
 
 
 class SiteIncidentList(TypedDict):
@@ -564,6 +582,20 @@ class SiteRegistration(TypedDict):
     expiresAt: NotRequired[str]
 
 
+class SiteHTTPJSONExpectation(TypedDict):
+    field: str
+    value: str
+
+
+class SiteHTTPExpectations(TypedDict):
+    """What an uptime check requires of the answer beyond reaching the host."""
+
+    statusCode: NotRequired[int]
+    bodyContains: NotRequired[str]
+    json: NotRequired[SiteHTTPJSONExpectation]
+    maxResponseMs: NotRequired[int]
+
+
 class SiteDomainChecks(TypedDict):
     """Uptime, certificate and warming state. Their problems are also uptime.* and tls.* findings."""
 
@@ -574,6 +606,7 @@ class SiteDomainChecks(TypedDict):
     openIncident: NotRequired[SiteIncident]
     chromeUx: NotRequired[SiteChromeUX]
     registration: NotRequired[SiteRegistration]
+    httpExpectations: NotRequired[SiteHTTPExpectations]
 
 
 class SiteDomain(TypedDict):
@@ -630,6 +663,8 @@ class SiteFinding(TypedDict):
     # Absent from a server before 3.51.
     recheckable: NotRequired[bool]
     suggestion: NotRequired[SiteFindingSuggestion]
+    # The finding may be dismissed (see the finding-dismissal operations).
+    dismissible: NotRequired[bool]
 
 
 class SiteFindingList(TypedDict):
@@ -764,17 +799,19 @@ class SiteDomainAdminClient:
         """
         return cast(SiteDomain, self._request("POST", _domain_path(domain_uuid) + "/verify", {}, company_slug))
 
-    def attest(self, domain_uuid: str) -> SiteDomain:
+    def attest(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteDomain:
         """Record this credential's attestation that it controls the domain.
 
         It verifies the domain (verifiedBy ``attested``) and its subdomains. Only a site-bound
         credential holding site_domains.attest may attest its own Site's domains.
         """
-        return cast(SiteDomain, self._request("POST", _domain_path(domain_uuid) + "/attestation", {}, None))
+        path = _domain_path(domain_uuid) + "/attestation"
+        return cast(SiteDomain, self._request("POST", path, {}, company_slug))
 
-    def unattest(self, domain_uuid: str) -> SiteDomain:
+    def unattest(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteDomain:
         """Withdraw this credential's attestation; the domain stays verified only by its own proof."""
-        return cast(SiteDomain, self._request("DELETE", _domain_path(domain_uuid) + "/attestation", {}, None))
+        path = _domain_path(domain_uuid) + "/attestation"
+        return cast(SiteDomain, self._request("DELETE", path, {}, company_slug))
 
     def request_audit(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteDomain:
         """Audit the domain on the scheduler's next tick.
@@ -1585,6 +1622,110 @@ class SiteDomainAdminClient:
         path = _domain_path(domain_uuid) + "/search-value"
         return cast(SiteSearchValue, self._request("GET", path, query, company_slug))
 
+    def approve(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteDomain:
+        """Approve the domain for checks and audits on the tenant's behalf."""
+        path = _domain_path(domain_uuid) + "/approval"
+        return cast(SiteDomain, self._request("POST", path, {}, company_slug))
+
+    def withdraw_approval(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteDomain:
+        path = _domain_path(domain_uuid) + "/approval"
+        return cast(SiteDomain, self._request("DELETE", path, {}, company_slug))
+
+    def request_uptime_check(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteDomain:
+        """Run the domain's uptime check on the scheduler's next tick."""
+        path = _domain_path(domain_uuid) + "/uptime-check"
+        return cast(SiteDomain, self._request("POST", path, {}, company_slug))
+
+    def acknowledge_incident(
+        self, domain_uuid: str, incident_uuid: str, *, company_slug: str | None = None
+    ) -> SiteIncident:
+        path = f"{_domain_path(domain_uuid)}/incidents/{quote_path(incident_uuid)}/acknowledgment"
+        return cast(SiteIncident, self._request("POST", path, {}, company_slug))
+
+    def set_browser_collector(self, domain_uuid: str, request: SiteBrowserCollectorRequest) -> SiteBrowserCollector:
+        """Converge the Site's browser collector. Repeating enable returns the existing key."""
+        path = _domain_path(domain_uuid) + "/browser-collector"
+        return cast(SiteBrowserCollector, self._request("PUT", path, {}, None, dict(request)))
+
+    def list_finding_dismissals(
+        self, domain_uuid: str, *, company_slug: str | None = None
+    ) -> SiteFindingDismissals:
+        result = self._request("GET", _domain_path(domain_uuid) + "/finding-dismissals", {}, company_slug)
+        return SiteFindingDismissals(dismissals=result.get("dismissals") or [])
+
+    def dismiss_finding(
+        self, domain_uuid: str, request: SiteFindingDismissalRequest, *, company_slug: str | None = None
+    ) -> SiteFindingDismissal:
+        path = _domain_path(domain_uuid) + "/finding-dismissals"
+        return cast(SiteFindingDismissal, self._request("POST", path, {}, company_slug, dict(request)))
+
+    def restore_finding(self, domain_uuid: str, dismissal_uuid: str, *, company_slug: str | None = None) -> None:
+        """Remove a dismissal so its finding reports again."""
+        path = f"{_domain_path(domain_uuid)}/finding-dismissals/{quote_path(dismissal_uuid)}"
+        self._request("DELETE", path, {}, company_slug)
+
+    def list_heartbeats(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteHeartbeatList:
+        result = self._request("GET", _domain_path(domain_uuid) + "/heartbeats", {}, company_slug)
+        return SiteHeartbeatList(monitors=result.get("monitors") or [])
+
+    def create_heartbeat(
+        self, domain_uuid: str, request: SiteHeartbeatCreateRequest, *, company_slug: str | None = None
+    ) -> SiteHeartbeatCredential:
+        """Create a heartbeat; the returned token is shown only here and on rotation."""
+        path = _domain_path(domain_uuid) + "/heartbeats"
+        return cast(SiteHeartbeatCredential, self._request("POST", path, {}, company_slug, dict(request)))
+
+    def rotate_heartbeat(
+        self, domain_uuid: str, monitor_uuid: str, *, company_slug: str | None = None
+    ) -> SiteHeartbeatCredential:
+        path = f"{_domain_path(domain_uuid)}/heartbeats/{quote_path(monitor_uuid)}/credential"
+        return cast(SiteHeartbeatCredential, self._request("POST", path, {}, company_slug))
+
+    def delete_heartbeat(self, domain_uuid: str, monitor_uuid: str, *, company_slug: str | None = None) -> None:
+        path = f"{_domain_path(domain_uuid)}/heartbeats/{quote_path(monitor_uuid)}"
+        self._request("DELETE", path, {}, company_slug)
+
+    def get_private_uptime(self, domain_uuid: str, *, company_slug: str | None = None) -> PrivateUptimeMonitor:
+        path = _domain_path(domain_uuid) + "/private-uptime"
+        return cast(PrivateUptimeMonitor, self._request("GET", path, {}, company_slug))
+
+    def create_private_uptime(
+        self, domain_uuid: str, request: PrivateUptimeCreateRequest, *, company_slug: str | None = None
+    ) -> PrivateUptimeCredential:
+        """Create the private-uptime monitor; the returned token is shown only here and on rotation."""
+        path = _domain_path(domain_uuid) + "/private-uptime"
+        return cast(PrivateUptimeCredential, self._request("POST", path, {}, company_slug, dict(request)))
+
+    def request_private_uptime(self, domain_uuid: str, *, company_slug: str | None = None) -> PrivateUptimeWork:
+        path = _domain_path(domain_uuid) + "/private-uptime/check"
+        return cast(PrivateUptimeWork, self._request("POST", path, {}, company_slug))
+
+    def rotate_private_uptime(
+        self, domain_uuid: str, monitor_uuid: str, *, company_slug: str | None = None
+    ) -> PrivateUptimeCredential:
+        path = f"{_domain_path(domain_uuid)}/private-uptime/{quote_path(monitor_uuid)}/credential"
+        return cast(PrivateUptimeCredential, self._request("POST", path, {}, company_slug))
+
+    def delete_private_uptime(self, domain_uuid: str, monitor_uuid: str, *, company_slug: str | None = None) -> None:
+        path = f"{_domain_path(domain_uuid)}/private-uptime/{quote_path(monitor_uuid)}"
+        self._request("DELETE", path, {}, company_slug)
+
+    def list_maintenance(self, domain_uuid: str, *, company_slug: str | None = None) -> SiteMaintenanceWindows:
+        result = self._request("GET", _domain_path(domain_uuid) + "/maintenance", {}, company_slug)
+        return SiteMaintenanceWindows(windows=result.get("windows") or [])
+
+    def schedule_maintenance(
+        self, domain_uuid: str, request: SiteMaintenanceWindowRequest, *, company_slug: str | None = None
+    ) -> SiteMaintenanceWindow:
+        path = _domain_path(domain_uuid) + "/maintenance"
+        return cast(SiteMaintenanceWindow, self._request("POST", path, {}, company_slug, dict(request)))
+
+    def cancel_maintenance(
+        self, domain_uuid: str, window_uuid: str, *, company_slug: str | None = None
+    ) -> SiteMaintenanceWindow:
+        path = f"{_domain_path(domain_uuid)}/maintenance/{quote_path(window_uuid)}"
+        return cast(SiteMaintenanceWindow, self._request("DELETE", path, {}, company_slug))
+
     def _request(
         self,
         method: str,
@@ -1595,10 +1736,9 @@ class SiteDomainAdminClient:
     ) -> dict[str, Any]:
         if company_slug:
             query = {**query, "companySlug": company_slug}
-        url = self._admin._client.base_url + "/api/v1" + path
-        if query:
-            url += "?" + urllib.parse.urlencode(query, doseq=True)
         client = self._admin._client
+        path = "/api/v1" + path + ("?" + urllib.parse.urlencode(query, doseq=True) if query else "")
+        url = client.base_url + with_acting_company(client, path)
         result = self._admin._transport(method, url, payload, client._headers(), client.timeout)
         status = int(result["status"])
         body = result.get("body")

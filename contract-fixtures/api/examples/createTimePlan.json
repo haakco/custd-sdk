@@ -32,7 +32,10 @@
       "horizonMs": 1,
       "redistributionMode": "example",
       "thresholdCues": [
-        {}
+        {
+          "remainingMs": 1,
+          "severity": "info"
+        }
       ]
     },
     "description": "example",

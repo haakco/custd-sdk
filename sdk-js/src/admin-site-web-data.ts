@@ -194,10 +194,27 @@ export type SiteRelatedKeywords = {
   keywords: SiteRelatedKeyword[];
 };
 
+/** One search result Custd sampled for a keyword list's market. */
+export type SiteMarketSearchHit = {
+  title: string;
+  url: string;
+  authority: number;
+  date?: string;
+};
+
+export type SiteMarketSample = {
+  observedAt: string;
+  hits: SiteMarketSearchHit[] | null;
+};
+
 export type SiteKeywordList = {
   name: string;
   seedTerm?: string;
   keywords: string[];
+  /** Whether Custd samples the seed term's search market for this list. */
+  marketSampleEnabled: boolean;
+  /** The latest market sample; absent until one is taken. */
+  marketSample?: SiteMarketSample;
   createdAt: string;
   updatedAt: string;
   /** Absent until Bing has been asked about the seed term, without a seed, or from an older server. */
@@ -214,6 +231,8 @@ export type SiteKeywordListRequest = {
   name: string;
   seedTerm?: string;
   keywords: string[];
+  /** Samples the seed term's search market for this list. */
+  marketSampleEnabled?: boolean;
 };
 
 /** clicks, impressions and avgPosition are absent when no keyword in the cluster has search numbers. */

@@ -10,7 +10,8 @@ from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict, cast
 
-from .client import AdminClient, RenderedWidgetData, quote_path
+from ._wire import decode, request
+from .client import AdminClient, RenderedMetricValue, RenderedWidgetData, quote_path
 
 
 class MetricDefinition(TypedDict):
@@ -448,6 +449,8 @@ class ReportingPackDraft(TypedDict, total=False):
     definition: PackDefinition
     createdAt: str
     updatedAt: str
+    # Why the last validation of this draft failed, when it did.
+    validationError: str
 
 
 class ReportingPackDraftCreateRequest(TypedDict):
@@ -480,10 +483,57 @@ class ReportingPackPreviewRequest(TypedDict):
     query: QueryHint
 
 
+class ExecutiveComparisonResult(TypedDict):
+    available: bool
+    basis: str
+    label: str
+    percentChange: NotRequired[float]
+    targetValue: NotRequired[float]
+    value: NotRequired[RenderedMetricValue]
+
+
+class ExecutiveConfidence(TypedDict):
+    status: str
+    completeness: str
+    coverage: str
+    freshness: str
+    warnings: NotRequired[list[str]]
+
+
+ExecutivePeriod = TypedDict("ExecutivePeriod", {"label": str, "from": NotRequired[str], "to": NotRequired[str]})
+
+
+class ExecutivePrimaryResult(TypedDict):
+    label: str
+    scope: str
+    unit: str
+    value: RenderedMetricValue
+    periodTotal: RenderedMetricValue
+
+
+class ExecutiveReport(TypedDict):
+    """The executive summary a dashboard with an executive recipe renders."""
+
+    title: str
+    recipe: str
+    tenantDisplayName: str
+    asOf: str
+    generatedAt: str
+    period: ExecutivePeriod
+    primary: ExecutivePrimaryResult
+    comparison: ExecutiveComparisonResult
+    confidence: ExecutiveConfidence
+    findings: NotRequired[list[str]]
+    actions: NotRequired[list[str]]
+    supportingWidgets: NotRequired[list[str]]
+
+
 class ReportingPackPreviewResponse(TypedDict):
     """The preview envelope: the rendered widget under ``data``, aggregate-only with no raw rows."""
 
     data: RenderedWidgetData
+    executive: NotRequired[ExecutiveReport]
+    presentation: NotRequired[PresentationPresetSelection]
 
 
 class ReportingPackGeneration(TypedDict, total=False):
@@ -531,6 +581,51 @@ class ReportingPackSetupTemplateBindRequest(TypedDict):
 class ReportingPackSetupTemplateBindResponse(TypedDict):
     kind: str
     definition: PackDefinition
+
+
+class ReportingPackGenerationValidity(TypedDict):
+    generationNumber: int
+    id: int
+    packKey: str
+    state: str
+    validationError: NotRequired[str]
+
+
+class ReportingPackGenerationValidityListResponse(TypedDict):
+    generations: list[ReportingPackGenerationValidity]
+
+
+class ReportingPackMaterializationProvenance(TypedDict):
+    definitionFingerprint: str
+    sourceCoverageCount: int
+    status: str
+
+
+class ReportingPackRollupProvenance(TypedDict):
+    definitionFingerprint: str
+    generationId: int
+    materializations: list[ReportingPackMaterializationProvenance]
+    tenantSlug: str
+
+
+class ReportingPackGenerationAcknowledgement(TypedDict):
+    accepted: bool
+    consumer: str
+    errorDetail: NotRequired[str]
+    observedAt: str
+    observedGenerationId: int
+
+
+class ReportingPackGenerationStatusDetail(TypedDict):
+    generationNumber: int
+    id: int
+    packKey: str
+    state: str
+
+
+class ReportingPackGenerationStatusResponse(TypedDict):
+    acknowledgements: list[ReportingPackGenerationAcknowledgement]
+    generation: ReportingPackGenerationStatusDetail
 
 
 class ReportingPacksAdminClient:
@@ -601,5 +696,55 @@ class ReportingPacksAdminClient:
                 "POST",
                 f"/reporting-packs/setup-templates/{quote_path(kind)}/bind",
                 dict(request),
+            ),
+        )
+
+    def list_generation_validity(self) -> ReportingPackGenerationValidityListResponse:
+        """List serving reporting pack generation validity."""
+        return decode(
+            ReportingPackGenerationValidityListResponse,
+            request(self._admin, "GET", "/api/v1/admin/reporting-packs/generation-validity"),
+        )
+
+    def get_generation(self, generation_id: str) -> ReportingPackGeneration:
+        """Get immutable reporting pack generation."""
+        return decode(
+            ReportingPackGeneration,
+            request(self._admin, "GET", f"/api/v1/admin/reporting-packs/generations/{quote_path(generation_id)}"),
+        )
+
+    def get_rollup_provenance(self, generation_id: str) -> ReportingPackRollupProvenance:
+        """Get tenant-scoped reporting pack rollup provenance."""
+        return decode(
+            ReportingPackRollupProvenance,
+            request(
+                self._admin,
+                "GET",
+                f"/api/v1/admin/reporting-packs/generations/{quote_path(generation_id)}/rollup-provenance",
+            ),
+        )
+
+    def get_generation_status(self, generation_id: str) -> ReportingPackGenerationStatusResponse:
+        """Get reporting pack generation activation status."""
+        return decode(
+            ReportingPackGenerationStatusResponse,
+            request(
+                self._admin, "GET", f"/api/v1/admin/reporting-packs/generations/{quote_path(generation_id)}/status"
+            ),
+        )
+
+    def restart_draft(self, draft_id: str) -> ReportingPackDraft:
+        """Restart reporting pack draft into a fresh revision."""
+        return decode(
+            ReportingPackDraft,
+            request(self._admin, "POST", f"/api/v1/admin/reporting-packs/drafts/{quote_path(draft_id)}/restart"),
+        )
+
+    def rollback_generation(self, generation_id: str) -> ReportingPackGeneration:
+        """Request reporting pack rollback."""
+        return decode(
+            ReportingPackGeneration,
+            request(
+                self._admin, "POST", f"/api/v1/admin/reporting-packs/generations/{quote_path(generation_id)}/rollback"
             ),
         )

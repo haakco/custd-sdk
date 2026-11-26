@@ -27,6 +27,20 @@ export const APP_ERROR_CODES = {
     nameInvalid: "app_name_invalid",
     /** Repeat the same body and Idempotency-Key to finish the create. */
     setupIncomplete: "app_setup_incomplete",
+    /** Repeat the same pause or resume with the same Idempotency-Key to finish it. */
+    hostingIncomplete: "app_hosting_incomplete",
+    /** Repeat the same repair with the same Idempotency-Key to finish it. */
+    repairIncomplete: "app_repair_incomplete",
+    signInModeInvalid: "app_sign_in_mode_invalid",
+    /** Resume the app before changing its sign-in. */
+    signInHostingOff: "app_sign_in_hosting_off",
+    signInApplyPending: "app_sign_in_apply_pending",
+};
+/** Who may sign in to an app. */
+export const APP_SIGN_IN_MODES = {
+    off: "off",
+    inviteOnly: "invite_only",
+    open: "open",
 };
 export function appPath(slug) {
     return `/apps/${encodeURIComponent(slug)}`;

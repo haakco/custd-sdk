@@ -83,6 +83,26 @@ export class AnalyticsEventClient {
         const value = await this.request("POST", "/analytics/query-range", body, options);
         return assertRangeQueryResponse(value);
     }
+    /** Counts the sessions active on one site now. A 503 means realtime counts are unavailable: hide them. */
+    activeNow(siteUuid, options) {
+        if (siteUuid.trim() === "")
+            return Promise.reject(new Error("custd: active-now requires a site"));
+        return this.request("GET", `/analytics/active-now?${new URLSearchParams({ site: siteUuid })}`, undefined, options);
+    }
+    /** Returns the tenant's stored-event overview. */
+    async dashboardSummary(options) {
+        const wire = await this.request("GET", "/analytics/dashboard-summary", undefined, options);
+        return decodeAnalyticsDashboardSummary(wire);
+    }
+    /** Counts the tenant's events on one UTC day, optionally of one event type. */
+    eventCount(query, options) {
+        if (query.date.trim() === "")
+            return Promise.reject(new Error("custd: event count requires a date"));
+        const params = new URLSearchParams({ date: query.date });
+        if (query.eventType)
+            params.set("eventType", query.eventType);
+        return this.request("GET", `/telemetry/event-count?${params}`, undefined, options);
+    }
 }
 // appendLogDimensionFilters copies the promoted log-dimension filters onto the
 // body, omitting each unset or empty one so it never narrows the query. It is
@@ -166,4 +186,12 @@ function assertRangeQueryResponse(value) {
     optionalString(timing, "oldestEventTimestamp", `${context} timing`);
     optionalString(timing, "newestEventTimestamp", `${context} timing`);
     return response;
+}
+/** Decodes a dashboard summary, turning JSON null lists into empty ones. */
+function decodeAnalyticsDashboardSummary(wire) {
+    return {
+        ...wire,
+        loadedDays: wire.loadedDays ?? [],
+        dogfood: { sources: wire.dogfood?.sources ?? [], metrics: wire.dogfood?.metrics ?? [] },
+    };
 }

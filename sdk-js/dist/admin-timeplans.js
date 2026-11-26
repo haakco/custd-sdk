@@ -133,6 +133,60 @@ export class TimePlanAdminClient {
     redactAnnotation(companySlug, runUuid, annotationUuid, request, options) {
         return this.request("POST", resourcePath(`/time-plans/runs/${runUuid}/annotations/${annotationUuid}/redact`, companySlug), request, options);
     }
+    /** Re-runs the allocator conformance vectors and reports whether every one passed. */
+    async getDefinitionMathProof(companySlug, options) {
+        const proof = await this.request("GET", collectionPath("/time-plans/operations/definition-math", companySlug), undefined, options);
+        return {
+            ...proof,
+            definitions: proof.definitions ?? [],
+            allocations: (proof.allocations ?? []).map((row) => ({ ...row, allocations: row.allocations ?? [] })),
+            adjustments: (proof.adjustments ?? []).map((row) => ({ ...row, allocations: row.allocations ?? [] })),
+        };
+    }
+    getOperationalStatus(companySlug, options) {
+        return this.request("GET", collectionPath("/time-plans/operations/status", companySlug), undefined, options);
+    }
+    /** Re-queues failed outbox events for publication. */
+    replayOutbox(companySlug, body = {}, options) {
+        return this.request("POST", collectionPath("/time-plans/operations/outbox/replay", companySlug), body, options);
+    }
+    async getPublishedVersion(companySlug, planUuid, versionUuid, options) {
+        const path = resourcePath(`/time-plans/plans/${planUuid}/versions/${versionUuid}`, companySlug);
+        const version = await this.request("GET", path, undefined, options);
+        return { ...version, allocations: version.allocations ?? [] };
+    }
+    async listDurationObservations(companySlug, runUuid, options) {
+        const path = resourcePath(`/time-plans/runs/${runUuid}/duration-observations`, companySlug);
+        const list = await this.request("GET", path, undefined, options);
+        return { ...list, observations: list.observations ?? [] };
+    }
+    async listRunPredictions(companySlug, runUuid, limit, options) {
+        const path = resourcePath(`/time-plans/runs/${runUuid}/predictions`, companySlug, limit);
+        const list = await this.request("GET", path, undefined, options);
+        return { snapshots: (list.snapshots ?? []).map((row) => ({ ...row, warnings: row.warnings ?? [] })) };
+    }
+    async getCompletedDurationReport(companySlug, runUuid, options) {
+        const path = resourcePath(`/time-plans/runs/${runUuid}/report`, companySlug);
+        const report = await this.request("GET", path, undefined, options);
+        return {
+            ...report,
+            blocks: report.blocks ?? [],
+            adjustments: report.adjustments ?? [],
+            annotations: report.annotations ?? [],
+            prediction_comparisons: report.prediction_comparisons ?? [],
+        };
+    }
+    /** Drops a run's read projection so it is rebuilt from the event stream. */
+    deleteRunProjection(companySlug, runUuid, options) {
+        const path = resourcePath(`/time-plans/runs/${runUuid}/projection-loss`, companySlug);
+        return this.request("POST", path, undefined, options);
+    }
+    /** Rebuilds a run's projection from its event stream. The run names its tenant. */
+    async repairRun(runUuid, options) {
+        const path = `/time-plans/runs/${encodeURIComponent(runUuid)}/repair`;
+        const repair = await this.request("POST", path, undefined, options);
+        return { ...repair, run: { ...repair.run, blocks: repair.run.blocks ?? [] } };
+    }
 }
 function collectionPath(path, companySlug, limit) {
     const query = new URLSearchParams({ companySlug });

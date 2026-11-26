@@ -67,6 +67,7 @@ fn json(status: u16, body: &str) -> std::result::Result<HttpResponse, TransportE
     Ok(HttpResponse {
         status,
         etag: None,
+        content_type: None,
         body: body.as_bytes().to_vec(),
     })
 }

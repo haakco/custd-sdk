@@ -19,6 +19,8 @@ dist/
 !/sdk-react/dist/
 !/sdk-react/dist/**
 coverage/
+# Each SDK's proven route coverage is a contract file, not a test report.
+!/contract-fixtures/api/coverage/
 .phpunit.result.cache
 .pytest_cache/
 __pycache__/

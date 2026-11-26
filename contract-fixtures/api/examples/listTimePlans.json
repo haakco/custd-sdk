@@ -4,19 +4,40 @@
       {
         "definition": {
           "annotationSchema": {
-            "allowedTypes": [],
-            "fields": []
+            "allowedTypes": [
+              "note"
+            ],
+            "fields": [
+              "text"
+            ]
           },
           "autoAdvance": true,
           "blocks": [
-            {}
+            {
+              "basis": "example",
+              "category": "example",
+              "denominator": 1,
+              "description": "example",
+              "durationMs": 1,
+              "numerator": 1,
+              "semanticKey": "example",
+              "tags": [
+                "example"
+              ],
+              "title": "example",
+              "uuid": "example",
+              "weight": 1
+            }
           ],
           "defaultEndsAt": "2026-11-20T06:00:00Z",
           "defaultStartsAt": "2026-11-20T06:00:00Z",
           "horizonMs": 1,
           "redistributionMode": "example",
           "thresholdCues": [
-            {}
+            {
+              "remainingMs": 1,
+              "severity": "info"
+            }
           ]
         },
         "description": "example",

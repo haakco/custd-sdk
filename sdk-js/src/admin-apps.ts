@@ -36,6 +36,14 @@ export const APP_ERROR_CODES = {
   nameInvalid: "app_name_invalid",
   /** Repeat the same body and Idempotency-Key to finish the create. */
   setupIncomplete: "app_setup_incomplete",
+  /** Repeat the same pause or resume with the same Idempotency-Key to finish it. */
+  hostingIncomplete: "app_hosting_incomplete",
+  /** Repeat the same repair with the same Idempotency-Key to finish it. */
+  repairIncomplete: "app_repair_incomplete",
+  signInModeInvalid: "app_sign_in_mode_invalid",
+  /** Resume the app before changing its sign-in. */
+  signInHostingOff: "app_sign_in_hosting_off",
+  signInApplyPending: "app_sign_in_apply_pending",
 } as const;
 
 /** Whether a created app's traffic reports are published. */
@@ -82,6 +90,26 @@ export type AppOverview = {
  * its read. The secret is in this response only: hand it to the caller's secret store.
  */
 export type AppDeployCredential = { clientId: string; clientSecret: string; app: string; scope: string };
+
+/** One deploy credential as the list shows it. Its secret was shown only when it was created. */
+export type AppDeployCredentialSummary = { clientId: string; createdAt: string };
+
+export type AppDeployCredentialList = { credentials: AppDeployCredentialSummary[] };
+
+/** Who may sign in to an app. */
+export const APP_SIGN_IN_MODES = {
+  off: "off",
+  inviteOnly: "invite_only",
+  open: "open",
+} as const;
+
+export type AppSignInMode = (typeof APP_SIGN_IN_MODES)[keyof typeof APP_SIGN_IN_MODES];
+
+/**
+ * A sign-in change, made against the environment revision Auth Project Status reports. Off pauses
+ * login and keeps accounts and the directory; turning it on provisions the directory if needed.
+ */
+export type AppSignInRequest = { mode: AppSignInMode; expectedRevision: number };
 
 export function appPath(slug: string): string {
   return `/apps/${encodeURIComponent(slug)}`;

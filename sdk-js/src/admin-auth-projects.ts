@@ -20,10 +20,21 @@ import {
   type AppCreateRequest,
   type AppCreation,
   type AppDeployCredential,
+  type AppDeployCredentialList,
   type AppListResponse,
   type AppOverview,
+  type AppSignInRequest,
+  type AppSummary,
   appPath,
 } from "./admin-apps.js";
+import type {
+  AuthProjectAppLinkList,
+  AuthProjectBrandLogo,
+  AuthProjectDomainBinding,
+  AuthProjectDomainBindRequest,
+  AuthProjectDomainImageOverrideRequest,
+  AuthProjectDomainMintRequest,
+} from "./admin-auth-project-domain.js";
 import type { RequestOptions } from "./index.js";
 
 /** How an environment's identity boundary is shared. Custd owns both values. */
@@ -64,6 +75,7 @@ export type AuthProjectSummary = {
   environmentId: string;
   environmentSlug: string;
   identityMode: AuthProjectIdentityMode;
+  audienceEntitlementMode: AuthProjectAudienceEntitlementMode;
   /** Persisted company of this project; null means explicitly unbound, never inferred. */
   companyUuid: string | null;
 };
@@ -293,11 +305,58 @@ export type AuthProjectDesiredState = {
   loginPaused: boolean;
   audiences: AuthProjectAudienceBinding[] | null;
   profileFields: AuthProjectProfileField[] | null;
+  /** The realm's public entry path; empty when it has none. */
+  entryPath?: string;
+  /** The sign-in accent as #rrggbb; empty for the shared default. */
+  brandAccent?: string;
+  /** The application name shown on invitations and hosted sign-in; empty when none is chosen. */
+  displayName?: string;
+  /** Which surface owns the display name: `application` or `hosting`. Provenance, never authority. */
+  displayNameSource?: string;
+  /** With an empty displayName and a declared source, gives up a name that source set. Never returned. */
+  withdrawDisplayName?: boolean;
+  /** Narrows the offered sign-in methods; empty offers whatever the credential store can complete. */
+  signInMethods?: string[] | null;
+  /** The remembered-session offer. Leaving it out keeps the stored setting. */
+  applicationSessionPolicy?: AuthProjectApplicationSessionPolicy;
+  /** The social providers offered. Leaving it out keeps the stored section. */
+  socialSignIn?: AuthProjectSocialSignIn;
   /**
    * Serves the environment as a hosted application. Leaving it out keeps the
    * stored section, so an apply cannot switch an app off by omission.
    */
   hosting?: AuthProjectHosting;
+};
+
+export type AuthProjectApplicationSessionPolicy = "offer_remember_me" | "short_only";
+
+export type AuthProjectSocialProviderName = "google" | "github";
+
+/** One social provider. `shared` uses Custd's provider app; `own` needs the owner's clientId and, once, its secret. */
+export type AuthProjectSocialProvider = {
+  provider: AuthProjectSocialProviderName;
+  mode: "shared" | "own";
+  clientId?: string;
+  /** Write-only; leaving it out keeps the stored secret while clientId is unchanged. */
+  clientSecret?: string;
+  /** Read-only: whether a secret is stored. */
+  clientSecretSet?: boolean;
+};
+
+/** Read-only: what the sign-in directory offers now, and the callback URLs to register with an own provider app. */
+export type AuthProjectSocialSignInStatus = {
+  callbackUrls: Array<{ provider: AuthProjectSocialProviderName; url: string }> | null;
+  providers: Array<{
+    provider: AuthProjectSocialProviderName;
+    mode: "shared" | "own";
+    state: "active" | "applying" | "unavailable" | "waiting_for_directory";
+    note: string;
+  }> | null;
+};
+
+export type AuthProjectSocialSignIn = {
+  providers: AuthProjectSocialProvider[] | null;
+  status?: AuthProjectSocialSignInStatus;
 };
 
 /** Whether an environment is served as a hosted application. */
@@ -328,6 +387,7 @@ export type AuthProjectHostedSignIn = {
   clientId: string;
   audience: string;
   redirectUri: string;
+  postLogoutRedirectUri: string;
 };
 
 /** A hosted environment's derived serving identity. `signIn` is absent unless `sign_in` is on. */
@@ -417,6 +477,9 @@ export type AuthProjectStatus = {
   clientSync?: AuthProjectClientSync;
   /** Persisted company of this environment's project; null means explicitly unbound, never inferred. */
   companyUuid: string | null;
+  companySlug?: string;
+  /** The URL of the realm's uploaded logo, absent when it has none. */
+  brandLogoUrl?: string;
   /** The derived serving identity of a hosted environment, absent when it is not served. */
   hosting?: AuthProjectHostingStatus;
 };
@@ -638,6 +701,33 @@ export type AuthProjectDeletion = {
   slug: string;
   name: string;
   released: AuthProjectReleasedResources;
+  /** The hosted application data removed from each environment. */
+  hosting: AuthProjectHostingRemoval[] | null;
+};
+
+/** The hosted application rows removed with one environment. */
+export type AuthEnvironmentHostingRemoval = {
+  sites: number;
+  releases: number;
+  releaseObjects: number;
+  shareCardObjects: number;
+  items: number;
+  links: number;
+  collectionEntries: number;
+  measurementProjects: number;
+  meetings: number;
+  uncertaintyModels: number;
+  requestSummaries: number;
+  alertRules: number;
+  alertSubscriptions: number;
+  alertWebhooks: number;
+  alertDeliveries: number;
+};
+
+export type AuthProjectHostingRemoval = {
+  environmentId: string;
+  slug: string;
+  removed: AuthEnvironmentHostingRemoval;
 };
 
 /**
@@ -665,6 +755,7 @@ export type AuthProjectEnvironmentDeletion = {
   slug: string;
   name: string;
   released: AuthProjectEnvironmentReleasedResources;
+  hosting: AuthEnvironmentHostingRemoval;
 };
 
 /**
@@ -706,6 +797,17 @@ export type AuthProjectEnvironmentOffboarding = {
   revision: number;
   clientCleanup: AuthEnvironmentClientCleanup;
   retained: AuthEnvironmentRetainedResources;
+  hosting: AuthEnvironmentHostingWithdrawal;
+};
+
+/** What offboarding withdrew from a hosted environment; `status` says whether it finished. */
+export type AuthEnvironmentHostingWithdrawal = {
+  status: string;
+  sites: number;
+  activeReleases: number;
+  alertRules: number;
+  alertDeliveries: number;
+  errorCategory?: string;
 };
 
 /**
@@ -1019,10 +1121,164 @@ export class AuthProjectAdminClient {
     return this.request<AppDeployCredential>("POST", `${appPath(slug)}/deploy-credentials`, undefined, options);
   }
 
+  /** List the app's deploy credentials, newest first. */
+  async listAppDeployCredentials(slug: string, options?: RequestOptions): Promise<AppDeployCredentialList> {
+    const path = `${appPath(slug)}/deploy-credentials`;
+    const list = await this.request<AppDeployCredentialList>("GET", path, undefined, options);
+    return { credentials: list.credentials ?? [] };
+  }
+
+  /** Take the app offline, keeping its releases and data. The Idempotency-Key finishes an incomplete pause. */
+  pauseApp(slug: string, options?: RequestOptions): Promise<AppSummary> {
+    return this.request<AppSummary>("POST", `${appPath(slug)}/pause`, undefined, requireIdempotencyKey(options));
+  }
+
+  /** Serve the app again, with its newest verified release when none is active. */
+  resumeApp(slug: string, options?: RequestOptions): Promise<AppSummary> {
+    return this.request<AppSummary>("POST", `${appPath(slug)}/resume`, undefined, requireIdempotencyKey(options));
+  }
+
+  /** Retry the app's Site registration and sign-in setup from its saved hosting configuration. */
+  repairApp(slug: string, options?: RequestOptions): Promise<AppSummary> {
+    return this.request<AppSummary>("POST", `${appPath(slug)}/repair`, undefined, requireIdempotencyKey(options));
+  }
+
+  /** Change who may sign in to the app. Only the project owner may. */
+  setAppSignIn(slug: string, body: AppSignInRequest, options?: RequestOptions): Promise<AppSummary> {
+    return this.request<AppSummary>("POST", `${appPath(slug)}/sign-in`, body, requireIdempotencyKey(options));
+  }
+
   /** Remove a deploy credential. Repeating a delete that failed part-way finishes it. */
   async deleteAppDeployCredential(slug: string, clientId: string, options?: RequestOptions): Promise<void> {
     const path = `${appPath(slug)}/deploy-credentials/${encodeURIComponent(clientId)}`;
     await this.request<null>("DELETE", path, undefined, options);
+  }
+
+  /** Read the environment's authentication hostname, its state and the DNS records it needs. */
+  getEnvironmentAuthDomain(
+    projectId: string,
+    environmentId: string,
+    options?: RequestOptions,
+  ): Promise<AuthProjectDomainBinding> {
+    return this.authDomainRequest("GET", projectId, environmentId, "", undefined, options);
+  }
+
+  /** Reserve a verified hostname for the environment. */
+  bindEnvironmentAuthDomain(
+    projectId: string,
+    environmentId: string,
+    body: AuthProjectDomainBindRequest,
+    options?: RequestOptions,
+  ): Promise<AuthProjectDomainBinding> {
+    return this.authDomainRequest("PUT", projectId, environmentId, "", body, options);
+  }
+
+  /** Reserve a platform-generated issuer hostname for an installed environment. Operators only. */
+  mintEnvironmentAuthDomain(
+    projectId: string,
+    environmentId: string,
+    body: AuthProjectDomainMintRequest,
+    options?: RequestOptions,
+  ): Promise<AuthProjectDomainBinding> {
+    return this.authDomainRequest("POST", projectId, environmentId, "/mint", body, options);
+  }
+
+  /** Claim installed capacity for a reserved realm. A replay returns the same claim. */
+  admitEnvironmentAuthDomain(
+    projectId: string,
+    environmentId: string,
+    options?: RequestOptions,
+  ): Promise<AuthProjectDomainBinding> {
+    return this.authDomainRequest("POST", projectId, environmentId, "/admit", undefined, options);
+  }
+
+  /** Ask for the hostname to be reconciled again. */
+  retryEnvironmentAuthDomain(
+    projectId: string,
+    environmentId: string,
+    options?: RequestOptions,
+  ): Promise<AuthProjectDomainBinding> {
+    return this.authDomainRequest("POST", projectId, environmentId, "/retry", undefined, options);
+  }
+
+  /** Disable the issuer while keeping the hostname reserved. */
+  disableEnvironmentAuthDomain(
+    projectId: string,
+    environmentId: string,
+    options?: RequestOptions,
+  ): Promise<AuthProjectDomainBinding> {
+    return this.authDomainRequest("POST", projectId, environmentId, "/disable", undefined, options);
+  }
+
+  /** Start the cleanup that frees the hostname for a new binding. */
+  releaseEnvironmentAuthDomain(
+    projectId: string,
+    environmentId: string,
+    options?: RequestOptions,
+  ): Promise<AuthProjectDomainBinding> {
+    return this.authDomainRequest("POST", projectId, environmentId, "/release", undefined, options);
+  }
+
+  /** Pin one realm component to an exact incident image until it expires. System operators only. */
+  setEnvironmentAuthDomainImageOverride(
+    projectId: string,
+    environmentId: string,
+    body: AuthProjectDomainImageOverrideRequest,
+    options?: RequestOptions,
+  ): Promise<AuthProjectDomainBinding> {
+    return this.authDomainRequest("PUT", projectId, environmentId, "/image-override", body, options);
+  }
+
+  /** End the realm's incident image override. */
+  clearEnvironmentAuthDomainImageOverride(
+    projectId: string,
+    environmentId: string,
+    options?: RequestOptions,
+  ): Promise<AuthProjectDomainBinding> {
+    return this.authDomainRequest("DELETE", projectId, environmentId, "/image-override", undefined, options);
+  }
+
+  /** Upload or replace the realm's brand logo. The server checks the image format from its bytes. */
+  setAuthProjectBrandLogo(
+    projectId: string,
+    environmentId: string,
+    logo: Blob,
+    filename = "logo",
+    options?: RequestOptions,
+  ): Promise<AuthProjectBrandLogo> {
+    const form = new FormData();
+    form.append("logo", logo, filename);
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/brand/logo`;
+    return this.request<AuthProjectBrandLogo>("POST", path, form, options);
+  }
+
+  /** Remove the realm's brand logo. */
+  async clearAuthProjectBrandLogo(projectId: string, environmentId: string, options?: RequestOptions): Promise<void> {
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/brand/logo`;
+    await this.request<null>("DELETE", path, undefined, options);
+  }
+
+  /** List the owner and share links to app items in the environment. */
+  async listEnvironmentAppLinks(
+    projectId: string,
+    environmentId: string,
+    options?: RequestOptions,
+  ): Promise<AuthProjectAppLinkList> {
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/app-links`;
+    const list = await this.request<AuthProjectAppLinkList>("GET", path, undefined, options);
+    return { links: list.links ?? [] };
+  }
+
+  private authDomainRequest(
+    method: string,
+    projectId: string,
+    environmentId: string,
+    action: string,
+    body: unknown,
+    options: RequestOptions | undefined,
+  ): Promise<AuthProjectDomainBinding> {
+    const path = `${environmentDesiredStatePath(projectId, environmentId)}/domain${action}`;
+    return this.request<AuthProjectDomainBinding>(method, path, body, options);
   }
 
   /** Read the environment's supported auth configuration. */

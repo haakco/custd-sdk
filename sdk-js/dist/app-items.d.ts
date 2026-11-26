@@ -70,6 +70,7 @@ export type AppMeasurementSeriesCreate = {
     seriesCode: string;
     name: string;
     unitSlug: string;
+    unitLabel?: string;
     completionDirection: string;
     source: string;
 };
@@ -189,6 +190,47 @@ export type AppEstimateCreateRequest = {
 export type AppProjectCompleteRequest = {
     completedAt: string;
 };
+/** A new run of a counter project: a sibling project sharing its series. */
+export type AppRunCreateRequest = {
+    projectCode: string;
+    name?: string;
+    targetDate?: string;
+};
+/** Keyset paging for an item's runs or measurements: `after` is the previous page's `nextCursor`. */
+export type AppItemPageOptions = {
+    item?: string;
+    after?: string;
+    limit?: number;
+};
+/** Measurement paging; `run` reads another run of the same series instead of the item's own. */
+export type AppItemMeasurementPageOptions = AppItemPageOptions & {
+    run?: string;
+};
+export type AppItemRun = {
+    runUuid: string;
+    name: string;
+    status: string;
+    createdAt: string;
+};
+export type AppItemRunPage = {
+    runs: AppItemRun[];
+    nextCursor?: string;
+};
+export type AppItemMeasurement = {
+    observationUuid: string;
+    seriesUuid: string;
+    observedAt: string;
+    value: number;
+};
+export type AppItemMeasurementPage = {
+    runUuid: string;
+    rows: AppItemMeasurement[];
+    nextCursor?: string;
+};
+/** The token from an alert email's unsubscribe link. */
+export type AppAlertUnsubscribeRequest = {
+    token: string;
+};
 export type AppLinkCollectionEntryAddRequest = {
     /** A share (or owner) link token of another item of this app. */
     token: string;
@@ -206,6 +248,8 @@ export type AppItem = {
 export type AppItemLink = {
     linkUuid: string;
     role: AppLinkRole;
+    /** The share token again, for share links created or rotated since recovery was enabled. */
+    shareToken?: string;
     createdAt: string;
 };
 export type AppMeasurementSeries = {
@@ -213,6 +257,7 @@ export type AppMeasurementSeries = {
     seriesCode: string;
     name: string;
     unitSlug: string;
+    unitLabel?: string;
     completionDirection: string;
     source: string;
 };
@@ -269,7 +314,22 @@ export type AppLinkCollectionEntry = {
     itemUuid: string;
     kind: AppItemKind;
     position: number;
+    /** The entry's share token, when its stored link is recoverable. */
+    shareToken?: string;
     createdAt: string;
+};
+/** A counter item's progress toward its target. */
+export type AppItemCounterProgress = {
+    current?: number;
+    percent?: number;
+    forecastP50?: string;
+};
+/** A model item's headline quantity at its 5th, 50th and 95th percentiles. */
+export type AppModelPreview = {
+    quantity: string;
+    p5: number;
+    p50: number;
+    p95: number;
 };
 /** An item with its kind's content. `links` is listed for an owner link only. */
 export type AppItemRead = {
@@ -278,6 +338,7 @@ export type AppItemRead = {
     measurementProject?: AppMeasurementProject;
     estimates?: AppProjectEstimateList;
     linkCollection?: {
+        name?: string;
         entries: AppLinkCollectionEntry[] | null;
     };
     meeting?: AppMeeting;
@@ -285,6 +346,12 @@ export type AppItemRead = {
     planMeetingSummaries?: AppPlanMeetingSummary[];
     plan?: AppPlan;
     uncertaintyModel?: AppUncertaintyModel;
+    measurementRuns?: {
+        runs: AppItemRun[] | null;
+        nextCursor?: string;
+    };
+    counterProgress?: AppItemCounterProgress;
+    modelPreview?: AppModelPreview;
 };
 /** A new item and its two links. Each token is shown this once: keep it, Custd cannot. */
 export type AppItemCreated = {
@@ -320,6 +387,8 @@ export type AppItemSummary = AppItem & {
     name: string;
     /** The project's or meeting run's status; empty for a link collection or a model. */
     status: string;
+    /** The code of a measurement project's first series. */
+    seriesCode?: string;
 };
 /** "My items": at most 200, most recently changed first. */
 export type AppItemList = {
@@ -588,7 +657,8 @@ export declare class AppItemsClient {
      * Makes the signed-in holder of an owner link the item's owner. A repeat by the same user
      * succeeds; an item another user owns is refused with `claimed`.
      */
-    claim(ownerToken: string): Promise<AppItemRead>;
+    /** Claims a link's item into the signed-in account; `item` names one item of a collection link. */
+    claim(ownerToken: string, item?: string): Promise<AppItemRead>;
     readItem(access: AppItemAccess, options?: AppReadOptions): Promise<AppConditionalRead<AppItemRead>>;
     planForecast(access: AppItemAccess, options?: Pick<AppReadOptions, "item">): Promise<AppPlanForecast>;
     updatePlan(access: AppItemAccess, request: AppPlanUpdate): Promise<AppItemRead>;
@@ -597,6 +667,12 @@ export declare class AppItemsClient {
     addMeasurements(access: AppItemAccess, request: AppMeasurementBulkRequest): Promise<AppMeasurementBulkResponse>;
     /** Records measurements from a pasted CSV document. */
     importMeasurementsCsv(access: AppItemAccess, csv: string): Promise<AppMeasurementBulkResponse>;
+    /** The counter project's runs, newest first. */
+    listRuns(access: AppItemAccess, options?: AppItemPageOptions): Promise<AppItemRunPage>;
+    /** Starts a new run of the counter project. Owner only. */
+    startRun(access: AppItemAccess, request: AppRunCreateRequest): Promise<AppItemRead>;
+    /** The item's recorded measurements, oldest first. */
+    listMeasurements(access: AppItemAccess, options?: AppItemMeasurementPageOptions): Promise<AppItemMeasurementPage>;
     createEstimate(access: AppItemAccess, request: AppEstimateCreateRequest): Promise<AppProjectEstimate>;
     complete(access: AppItemAccess, request: AppProjectCompleteRequest): Promise<AppItemRead>;
     cancel(access: AppItemAccess): Promise<AppItemRead>;
@@ -648,6 +724,10 @@ export declare class AppItemsClient {
     subscribeAlertEmail(access: AppItemAccess): Promise<AppAlertSubscription>;
     /** Stops the signed-in user's alert email. Repeating it succeeds. */
     unsubscribeAlertEmail(access: AppItemAccess): Promise<void>;
+    /** The confirmation page an alert email's unsubscribe link opens, as HTML. It changes nothing. */
+    getAlertUnsubscribePage(token: string): Promise<string>;
+    /** Stops the alert email an unsubscribe link names; it needs no sign-in. Repeating it succeeds. */
+    unsubscribeAlertEmailByToken(request: AppAlertUnsubscribeRequest): Promise<void>;
     /** Starts the meeting item's first block. Owner only. */
     updateMeetingMinutes(access: AppItemAccess, request: AppMeetingMinutesUpdate): Promise<AppItemRead>;
     startMeeting(access: AppItemAccess): Promise<AppItemRead>;
@@ -678,6 +758,7 @@ export declare class AppItemsClient {
     private write;
     private meetingStep;
     private conditional;
+    private page;
     private json;
     private send;
 }

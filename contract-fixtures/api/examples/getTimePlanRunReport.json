@@ -14,14 +14,26 @@
         "receipt": {
           "allocator_version": "example",
           "changes": [
-            {}
+            {
+              "block_uuid": "example",
+              "from_ms": 1,
+              "to_ms": 1
+            }
           ],
           "reason": "example",
           "result": [
-            {}
+            {
+              "block_uuid": "example",
+              "duration_ms": 1,
+              "sequence": 1
+            }
           ],
           "source": [
-            {}
+            {
+              "block_uuid": "example",
+              "duration_ms": 1,
+              "sequence": 1
+            }
           ],
           "summary": "example"
         },

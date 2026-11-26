@@ -1,9 +1,17 @@
+import type { EventRollupDimensionProfile } from "./admin-event-types.js";
 import type { PackDefinition, RequestOptions } from "./index.js";
 export type ClientSetupOAuthPurposeProfile = "ingest" | "schema" | "reporting" | "lifecycle" | "broker";
 export type ClientSetupOAuthClientDesiredState = {
     name?: string;
     clientId: string;
     purposeProfile: ClientSetupOAuthPurposeProfile;
+    /** The environment the client's events default to. */
+    environment?: string;
+};
+/** An event type's desired rollup dimensions. */
+export type ClientSetupEventTypeDesiredState = {
+    eventTypeSlug: string;
+    rollupDimensions: EventRollupDimensionProfile;
 };
 export type ClientSetupSchemaDesiredState = {
     eventTypeSlug: string;
@@ -37,6 +45,7 @@ export type ClientSetupManifest = {
     retention?: ClientSetupRetentionDesiredState;
     reportingPacks?: ClientSetupReportingPackDesiredState[];
     oauthClients?: ClientSetupOAuthClientDesiredState[];
+    eventTypeConfigs?: ClientSetupEventTypeDesiredState[];
 };
 export type ClientSetupResourceStatus = {
     kind: string;
@@ -45,12 +54,25 @@ export type ClientSetupResourceStatus = {
     ready: boolean;
     safeNextAction: string;
     safeNextActionCode: string;
+    detail?: string;
+};
+/** Why a pending operation is waiting, and when it tries again. */
+export type ClientSetupOperationPending = {
+    nextAttemptAt: string;
+    lastFailure?: {
+        code: string;
+        observedAt: string;
+        resources: ClientSetupResourceStatus[] | null;
+    };
 };
 export type ClientSetupOperationStatus = {
     uuid: string;
     idempotencyKey: string;
     state: string;
     errorCode?: string;
+    attemptCount: number;
+    leaseExpiresAt?: string;
+    pending?: ClientSetupOperationPending;
     createdAt: string;
     updatedAt: string;
     completedAt?: string;

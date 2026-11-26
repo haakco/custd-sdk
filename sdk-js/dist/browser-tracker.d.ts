@@ -101,6 +101,9 @@ export type BrowserTracker = {
     close: () => void;
 };
 export type BrowserSiteConfig = {
+    siteUuid?: string;
+    /** The environment the Site's events default to. */
+    environment?: string;
     identityMode?: BrowserIdentityMode;
     allowedOrigins?: string[];
     /** The page-view schema version the Site's tenant accepts; absent when it has none. */

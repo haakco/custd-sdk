@@ -23,7 +23,7 @@ pub struct AppModelRunRequest {
     pub sensitivity_output: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppModelRun {
     pub run_uuid: String,
@@ -37,14 +37,14 @@ pub struct AppModelRun {
     pub quantities: Vec<AppModelQuantityResult>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AppModelQuantityResult {
     pub name: String,
     pub summary: Option<AppModelQuantitySummary>,
     pub error: Option<AppModelQuantityError>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppModelQuantitySummary {
     pub mean: f64,
@@ -53,7 +53,7 @@ pub struct AppModelQuantitySummary {
     pub histogram: AppModelHistogram,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AppModelPercentiles {
     pub p5: f64,
     pub p25: f64,
@@ -62,7 +62,7 @@ pub struct AppModelPercentiles {
     pub p95: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AppModelHistogram {
     pub min: f64,
     pub max: f64,
@@ -70,7 +70,7 @@ pub struct AppModelHistogram {
     pub counts: Vec<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AppModelQuantityError {
     pub code: String,
     pub detail: String,

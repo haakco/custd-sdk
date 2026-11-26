@@ -572,3 +572,24 @@ describe("admin auth projects", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
+
+describe("realm brand logo", () => {
+  it("uploads the logo as a multipart form with no JSON content type", async () => {
+    const fetchImpl = mockFetch({ contentType: "image/png", updatedAt: "", byteSize: 4, width: 1, height: 1 });
+    const logo = new Blob([new Uint8Array([137, 80, 78, 71])], { type: "image/png" });
+
+    await newClient(fetchImpl).admin.authProjects.setAuthProjectBrandLogo(
+      "project-1",
+      "environment-1",
+      logo,
+      "logo.png",
+    );
+
+    const { init } = sentRequest(fetchImpl);
+    expect(init.body).toBeInstanceOf(FormData);
+    const part = (init.body as FormData).get("logo") as File;
+    expect(part.name).toBe("logo.png");
+    expect(part.size).toBe(4);
+    expect(init.headers).not.toHaveProperty("Content-Type");
+  });
+});

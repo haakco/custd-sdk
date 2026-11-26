@@ -76,8 +76,20 @@
           }
         ],
         "status": {
-          "callbackUrls": [],
-          "providers": []
+          "callbackUrls": [
+            {
+              "provider": "example",
+              "url": "example"
+            }
+          ],
+          "providers": [
+            {
+              "mode": "example",
+              "note": "example",
+              "provider": "example",
+              "state": "active"
+            }
+          ]
         }
       },
       "withdrawDisplayName": true

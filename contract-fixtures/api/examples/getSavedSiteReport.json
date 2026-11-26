@@ -55,37 +55,68 @@
         "days": 1,
         "sources": [
           {
-            "daily": [],
+            "daily": [
+              {
+                "clicks": 1,
+                "day": "example",
+                "impressions": 1
+              }
+            ],
             "days": 1,
             "from": "example",
             "granularity": "example",
             "importedAt": "2026-11-20T06:00:00Z",
-            "previous": {},
+            "previous": {
+              "clicks": 1,
+              "ctr": 1.5,
+              "impressions": 1,
+              "position": 1.5
+            },
             "provider": "example",
             "source": "example",
             "to": "example",
-            "totals": {}
+            "totals": {
+              "clicks": 1,
+              "ctr": 1.5,
+              "impressions": 1,
+              "position": 1.5
+            }
           }
         ],
         "strikingDistance": [
           {
             "key": "example",
             "provider": "example",
-            "totals": {}
+            "totals": {
+              "clicks": 1,
+              "ctr": 1.5,
+              "impressions": 1,
+              "position": 1.5
+            }
           }
         ],
         "topPages": [
           {
             "key": "example",
             "provider": "example",
-            "totals": {}
+            "totals": {
+              "clicks": 1,
+              "ctr": 1.5,
+              "impressions": 1,
+              "position": 1.5
+            }
           }
         ],
         "topQueries": [
           {
             "key": "example",
             "provider": "example",
-            "totals": {}
+            "totals": {
+              "clicks": 1,
+              "ctr": 1.5,
+              "impressions": 1,
+              "position": 1.5
+            }
           }
         ]
       },
@@ -123,9 +154,21 @@
         "responseMs": 1,
         "status": "unknown",
         "windows": {
-          "last24h": {},
-          "last30d": {},
-          "last7d": {}
+          "last24h": {
+            "checks": 1,
+            "upChecks": 1,
+            "upPercent": 1.5
+          },
+          "last30d": {
+            "checks": 1,
+            "upChecks": 1,
+            "upPercent": 1.5
+          },
+          "last7d": {
+            "checks": 1,
+            "upChecks": 1,
+            "upPercent": 1.5
+          }
         }
       }
     },
@@ -161,9 +204,18 @@
         "days": null,
         "status": "unknown",
         "windows": {
-          "last24h": {},
-          "last30d": {},
-          "last7d": {}
+          "last24h": {
+            "checks": 1,
+            "upChecks": 1
+          },
+          "last30d": {
+            "checks": 1,
+            "upChecks": 1
+          },
+          "last7d": {
+            "checks": 1,
+            "upChecks": 1
+          }
         }
       }
     },

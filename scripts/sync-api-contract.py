@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Refresh the SDK API contract snapshot from a Custd checkout.
 
-Writes contract-fixtures/api/operations.json (every public operation and whether the SDKs must
-cover it) and contract-fixtures/api/examples/<operationId>.json (a minimal and a maximal success
+Writes contract-fixtures/api/operations.json (every public operation, its declared query
+parameters, and whether the SDKs must cover it) and contract-fixtures/api/examples/<operationId>.json (a minimal and a maximal success
 response generated from the OpenAPI schema, for the SDK decode tests).
 
 Run: uv run --with pyyaml python scripts/sync-api-contract.py --custd ../custd
@@ -45,15 +45,33 @@ def exclusion(method: str, path: str) -> str | None:
 
 
 class Examples:
-    """Builds example values from OpenAPI schemas; minimal sends required fields with null lists."""
+    """Builds example values from OpenAPI schemas; minimal sends required fields with null lists.
+
+    A schema that refers back to itself stops at the repeat: a list of it is empty and an optional
+    property of it is left out, the shapes the server sends at the end of a recursive value.
+    """
+
+    REPEAT = object()
 
     def __init__(self, schemas: dict) -> None:
         self.schemas = schemas
 
-    def value(self, schema: dict, minimal: bool, depth: int = 0) -> object:
+    def value(self, schema: dict, minimal: bool, seen: frozenset = frozenset()) -> object:
         if "$ref" in schema:
             name = schema["$ref"].rsplit("/", 1)[-1]
-            return self.value(self.schemas[name], minimal, depth + 1) if depth < 8 else {}
+            if name in seen:
+                return Examples.REPEAT
+            return self.value(self.schemas[name], minimal, seen | {name})
+        for union in ("oneOf", "anyOf"):
+            if schema.get(union):
+                return self.value(schema[union][0], minimal, seen)
+        if schema.get("allOf"):
+            merged: dict = {"type": "object", "properties": {}, "required": []}
+            for part in schema["allOf"]:
+                part = self.schemas[part["$ref"].rsplit("/", 1)[-1]] if "$ref" in part else part
+                merged["properties"].update(part.get("properties", {}))
+                merged["required"] += part.get("required", [])
+            return self.value(merged, minimal, seen)
         types = schema.get("type", "object")
         types = types if isinstance(types, list) else [types]
         nullable = "null" in types
@@ -63,19 +81,22 @@ class Examples:
         if "enum" in schema:
             return schema["enum"][0]
         if kind == "object":
-            return self.object(schema, minimal, depth)
+            return self.object(schema, minimal, seen)
         if kind == "array":
             item = schema.get("items", {})
-            return [] if minimal or depth >= 8 else [self.value(item, minimal, depth + 1)]
+            value = [] if minimal else self.value(item, minimal, seen)
+            return [] if minimal or value is Examples.REPEAT else [value]
         return self.scalar(kind, schema.get("format"))
 
-    def object(self, schema: dict, minimal: bool, depth: int) -> dict:
+    def object(self, schema: dict, minimal: bool, seen: frozenset) -> dict:
         properties = schema.get("properties", {})
         required = set(schema.get("required", []))
         names = [n for n in properties if n != "$schema" and (not minimal or n in required)]
         if not properties and isinstance(schema.get("additionalProperties"), dict) and not minimal:
-            return {"key": self.value(schema["additionalProperties"], minimal, depth + 1)}
-        return {n: self.value(properties[n], minimal, depth + 1) for n in names}
+            return {"key": self.value(schema["additionalProperties"], minimal, seen)}
+        values = {n: self.value(properties[n], minimal, seen) for n in names}
+        return {n: (None if v is Examples.REPEAT else v) for n, v in values.items()
+                if v is not Examples.REPEAT or n in required}
 
     @staticmethod
     def scalar(kind: str, fmt: str | None) -> object:
@@ -105,6 +126,15 @@ def openapi_operations(custd: Path) -> tuple[dict, dict]:
                 if method in item:
                     operations[(service, method.upper(), path)] = item[method]
     return operations, schemas
+
+
+def query_parameters(operation: dict) -> list[dict]:
+    """The query parameters an operation declares, so each SDK can prove it can send them."""
+    return [
+        {"name": p["name"], "required": bool(p.get("required"))}
+        for p in operation.get("parameters", [])
+        if p.get("in") == "query"
+    ]
 
 
 def success_schema(operation: dict) -> dict | None:
@@ -143,6 +173,9 @@ def main() -> None:
         spec = by_route.get((op["service"], op["method"], op["path"]))
         if spec and spec.get("operationId"):
             entry["operationId"] = spec["operationId"]
+            query = query_parameters(spec)
+            if query:
+                entry["query"] = query
             schema = success_schema(spec)
             if schema and not reason:
                 builder = Examples(schemas[op["service"]])

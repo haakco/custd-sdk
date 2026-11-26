@@ -7,7 +7,7 @@
         "description": "example",
         "expression": {
           "children": [
-            {}
+            null
           ],
           "kind": "example",
           "value": 1.5,

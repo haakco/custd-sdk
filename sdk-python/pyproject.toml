@@ -20,7 +20,7 @@ dev = ["ruff", "mypy"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-custd = ["py.typed", "lifecycle_fixtures/*.json"]
+custd = ["py.typed"]
 
 [tool.ruff]
 target-version = "py311"

@@ -15,6 +15,7 @@ describe("CustdClient prediction admin", () => {
             uuid: "definition-1",
             definition_key: "quota",
             display_name: "Quota",
+            project_kind: "event_probability",
             status: "draft",
             schedule_kind: "interval",
             is_paused: false,
@@ -26,19 +27,21 @@ describe("CustdClient prediction admin", () => {
       )
       .mockResolvedValueOnce(
         new Response(
-          JSON.stringify([
-            {
-              uuid: "source-1",
-              source_key: "status",
-              source_mode: "http_json",
-              display_name: "Status",
-              source_status: "active",
-              is_paused: false,
-              created_at: "2026-08-12T12:00:00Z",
-              updated_at: "2026-08-12T12:00:00Z",
-              consecutive_failed_count: 0,
-            },
-          ]),
+          JSON.stringify({
+            sources: [
+              {
+                uuid: "source-1",
+                source_key: "status",
+                source_mode: "http_json",
+                display_name: "Status",
+                source_status: "active",
+                is_paused: false,
+                created_at: "2026-08-12T12:00:00Z",
+                updated_at: "2026-08-12T12:00:00Z",
+                consecutive_failed_count: 0,
+              },
+            ],
+          }),
           { status: 200 },
         ),
       )
@@ -54,7 +57,7 @@ describe("CustdClient prediction admin", () => {
     await client.admin.predictions.runNow("acme", "definition-1", { worker_id: "proof" });
 
     expect(definition.uuid).toBe("definition-1");
-    expect(sources).toHaveLength(1);
+    expect(sources.sources).toHaveLength(1);
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
       "http://localhost:8080/api/v1/admin/measurement/predictions/definitions?companySlug=acme",
     );

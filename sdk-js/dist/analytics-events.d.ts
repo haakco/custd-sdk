@@ -1,3 +1,4 @@
+import type { AnalyticsActiveNow, AnalyticsDashboardSummary, AnalyticsEventCount, AnalyticsEventCountQuery } from "./analytics-reads.js";
 import type { RequestOptions } from "./index.js";
 /** Sources the server may answer a query from. */
 export type AnalyticsQuerySource = "auto" | "postgres" | "duckdb" | "rollup" | "materialized";
@@ -156,5 +157,11 @@ export declare class AnalyticsEventClient {
      * contract and cannot be transmitted by a caller passing extra properties.
      */
     queryRange(request: AnalyticsEventRangeQueryRequest, options?: RequestOptions): Promise<AnalyticsEventRangeQueryResponse>;
+    /** Counts the sessions active on one site now. A 503 means realtime counts are unavailable: hide them. */
+    activeNow(siteUuid: string, options?: RequestOptions): Promise<AnalyticsActiveNow>;
+    /** Returns the tenant's stored-event overview. */
+    dashboardSummary(options?: RequestOptions): Promise<AnalyticsDashboardSummary>;
+    /** Counts the tenant's events on one UTC day, optionally of one event type. */
+    eventCount(query: AnalyticsEventCountQuery, options?: RequestOptions): Promise<AnalyticsEventCount>;
 }
 export {};

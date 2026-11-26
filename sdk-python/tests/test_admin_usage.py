@@ -97,7 +97,6 @@ class UsageAdminClientTest(unittest.TestCase):
             {key: value for key, value in REPORT.items() if key != "containsIncomplete"},
             {key: value for key, value in REPORT.items() if key != "rows"},
             {**REPORT, "rows": {"unexpected": REPORT["rows"]}},
-            {**REPORT, "totals": None},
             {**REPORT, "containsProvisional": "false"},
             {
                 **REPORT,
@@ -117,10 +116,11 @@ class UsageAdminClientTest(unittest.TestCase):
                     client.admin.usage.get()
                 self.assertEqual(1, len(transport.calls))
 
-    def test_accepts_empty_collections_and_absent_optional_slug(self) -> None:
+    def test_accepts_empty_and_null_collections_and_absent_optional_slug(self) -> None:
         payload = {key: value for key, value in REPORT.items() if key != "companySlug"}
         payload["rows"] = []
-        payload["totals"] = []
+        # The server encodes an empty list as JSON null.
+        payload["totals"] = None
         transport = FakeTransport(payload)
         client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
 

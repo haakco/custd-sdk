@@ -23,9 +23,6 @@ export class PredictionAdminClient {
     activateVersion(companySlug, definitionUuid, body, options) {
         return this.request("POST", resourcePath(`/definitions/${definitionUuid}/activate`, companySlug), body, options);
     }
-    rollbackVersion(companySlug, definitionUuid, body, options) {
-        return this.request("POST", resourcePath(`/definitions/${definitionUuid}/rollback`, companySlug), body, options);
-    }
     pauseDefinition(companySlug, definitionUuid, body = {}, options) {
         return this.request("POST", resourcePath(`/definitions/${definitionUuid}/pause`, companySlug), body, options);
     }
@@ -38,20 +35,33 @@ export class PredictionAdminClient {
     runNow(companySlug, definitionUuid, body = {}, options) {
         return this.request("POST", resourcePath(`/definitions/${definitionUuid}/run-now`, companySlug), body, options);
     }
-    listRuns(companySlug, definitionUuid, pageSize, options) {
-        return this.request("GET", collectionPath(`/definitions/${definitionUuid}/runs`, companySlug, pageSize), undefined, options);
+    async listRuns(companySlug, definitionUuid, pageSize, options) {
+        const list = await this.request("GET", collectionPath(`/definitions/${definitionUuid}/runs`, companySlug, pageSize), undefined, options);
+        return { runs: list.runs ?? [] };
     }
-    listOutcomes(companySlug, definitionUuid, pageSize, options) {
-        return this.request("GET", collectionPath(`/definitions/${definitionUuid}/outcomes`, companySlug, pageSize), undefined, options);
+    async listOutcomes(companySlug, definitionUuid, pageSize, options) {
+        const list = await this.request("GET", collectionPath(`/definitions/${definitionUuid}/outcomes`, companySlug, pageSize), undefined, options);
+        return { outcomes: list.outcomes ?? [] };
     }
     getEvaluation(companySlug, definitionUuid, options) {
         return this.request("GET", resourcePath(`/definitions/${definitionUuid}/evaluations`, companySlug), undefined, options);
     }
-    listThresholdEvents(companySlug, definitionUuid, pageSize, options) {
-        return this.request("GET", collectionPath(`/definitions/${definitionUuid}/threshold-events`, companySlug, pageSize), undefined, options);
+    async evaluateDurationHistory(companySlug, definitionUuid, body, options) {
+        const evaluation = await this.request("POST", resourcePath(`/definitions/${definitionUuid}/duration-evaluations`, companySlug), body, options);
+        const { versionEvidence, artifact } = evaluation;
+        return {
+            ...evaluation,
+            versionEvidence: { ...versionEvidence, history: { items: versionEvidence.history?.items ?? [] } },
+            artifact: { ...artifact, evaluation: { ...artifact.evaluation, folds: artifact.evaluation.folds ?? [] } },
+        };
     }
-    listSignalSources(companySlug, pageSize, pageToken, options) {
-        return this.request("GET", collectionPath("/sources", companySlug, pageSize, pageToken), undefined, options);
+    async listThresholdEvents(companySlug, definitionUuid, pageSize, options) {
+        const list = await this.request("GET", collectionPath(`/definitions/${definitionUuid}/threshold-events`, companySlug, pageSize), undefined, options);
+        return { events: list.events ?? [] };
+    }
+    async listSignalSources(companySlug, pageSize, pageToken, options) {
+        const list = await this.request("GET", collectionPath("/sources", companySlug, pageSize, pageToken), undefined, options);
+        return { ...list, sources: list.sources ?? [] };
     }
     getSignalSource(companySlug, sourceUuid, options) {
         return this.request("GET", resourcePath(`/sources/${sourceUuid}`, companySlug), undefined, options);

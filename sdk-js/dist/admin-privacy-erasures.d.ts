@@ -1,23 +1,35 @@
 import type { RequestOptions } from "./index.js";
 export type PrivacyErasureSelector = {
     type: string;
-    value: string;
-};
-export type PrivacyErasureStoreProgress = {
-    store: string;
-    state: string;
-    deletedCount?: number;
-    reason?: string;
+    value?: string;
+    values?: string[];
 };
 export type PrivacyErasure = {
     requestUuid: string;
     status: string;
-    state?: string;
-    selectorType?: string;
-    selectorDisplay?: string;
-    perStoreProgress?: PrivacyErasureStoreProgress[];
+    selectorType: string;
+    selectorDisplay: string;
+    source?: string;
+    requestedBy?: string;
+    matchedEventCount: number;
+    redactedEventCount: number;
+    affectedSegmentCount: number;
+    rewriteCount?: number;
+    pendingRewriteCount?: number;
+    rewritingRewriteCount?: number;
+    rewrittenRewriteCount?: number;
+    recompactedRewriteCount?: number;
+    failedRewriteCount?: number;
+    oldestPendingRewriteAt?: string;
+    latestRecompactedAt?: string;
+    archiveRecompactedAt?: string;
+    s3PropagationLagSeconds?: number;
+    latestFailureReason?: string;
+    slaDeadlineAt?: string;
+    slaState?: string;
+    forceRequestedAt?: string;
     createdAt?: string;
-    completedAt?: string;
+    updatedAt?: string;
 };
 export type PrivacyErasureCreateRequest = {
     companySlug: string;

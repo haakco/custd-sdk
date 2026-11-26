@@ -13,9 +13,45 @@ import uuid
 from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
-from typing import Any, NotRequired, TypedDict, cast
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, TypeVar, cast
 
+from .reporting_types import (
+    PreparedDataNextAction,
+    PreparedDataProvenance,
+    PreparedDataWarning,
+    RenderedEmailDelivery,
+    RenderedLabelMetadata,
+    RenderedMetricTrust,
+    ReportExportJob,
+)
 from .version import IDENTITY
+
+if TYPE_CHECKING:
+    from .admin_oauth_admissions import (
+        OAuthClient,
+        OAuthClientListResponse,
+        OAuthClientSecretResponse,
+        OAuthClientUpdateScopesRequest,
+    )
+    from .admin_operations import (
+        AdminSite,
+        AdminSiteCreateRequest,
+        AdminSiteCreateResponse,
+        AdminSiteListResponse,
+        AdminSiteUpdate,
+        AdminSiteWriteKey,
+        DashboardDefinition,
+        PublicSiteConfig,
+    )
+    from .analytics_reads import (
+        PreparedDataBootstrapStatus,
+        PreparedDataBootstrapSubmitRequest,
+        ReportingDashboardCatalogueResponse,
+        ReportingDashboardGenerationRequest,
+        ReportingDashboardGenerationResponse,
+        ReportingDraftPreviewRequest,
+    )
+    from .ingest_operations import Account
 
 INGEST_ENDPOINT = "/api/v1/events"
 INGEST_BATCH_ENDPOINT = "/api/v1/events/batch"
@@ -33,7 +69,8 @@ EventEnvelope = dict[str, Any]
 TransportBody = EventEnvelope | bytes
 TransportResult = dict[str, Any]
 Transport = Callable[[str, TransportBody, dict[str, str], float], TransportResult]
-AdminTransport = Callable[[str, str, dict[str, Any] | None, dict[str, str], float], TransportResult]
+# The payload is a JSON object, or the verbatim bytes of an upload whose Content-Type header names it.
+AdminTransport = Callable[[str, str, dict[str, Any] | bytes | None, dict[str, str], float], TransportResult]
 
 
 class RawSourceTarget(TypedDict):
@@ -143,6 +180,16 @@ def _raw_ingest_url_and_body(base_url: str, request: RawIngestRequest) -> tuple[
     return url, content.encode("utf-8")
 
 
+_DTO = TypeVar("_DTO")
+
+
+def _decode_dto(dto: type[_DTO], value: object) -> _DTO:
+    """Return ``value`` as the named DTO with null lists made empty (see ``_wire.decode``)."""
+    from ._wire import decode
+
+    return decode(dto, value)
+
+
 def _decode_raw_ingest_result(body: object, operation_key: str | None = None) -> RawIngestResult:
     """Decode the acceptance body strictly.
 
@@ -247,6 +294,80 @@ class RenderedMetricValue(TypedDict):
     dataSufficiency: str
     complete: bool
     truncated: NotRequired[bool]
+    currency: NotRequired[str]
+    trust: NotRequired[RenderedMetricTrust]
+
+
+class RenderedAnomaly(TypedDict):
+    at: str
+    value: RenderedMetricValue
+    lower: float
+    upper: float
+
+
+class RenderedCalibrationBucket(TypedDict):
+    predictedLower: float
+    predictedUpper: float
+    observed: RenderedMetricValue
+
+
+class RenderedCohortCell(TypedDict):
+    cohort: str
+    window: str
+    population: int
+    value: RenderedMetricValue
+    suppressed: NotRequired[bool]
+
+
+class RenderedDistributionBin(TypedDict):
+    lower: float
+    upper: float
+    value: RenderedMetricValue
+
+
+class RenderedDriver(TypedDict):
+    key: str
+    label: str
+    method: str
+    rank: int
+    contribution: RenderedMetricValue
+
+
+class RenderedInterval(TypedDict):
+    label: str
+    estimate: RenderedMetricValue
+    lower: RenderedMetricValue
+    upper: RenderedMetricValue
+
+
+class RenderedLifecycleStage(TypedDict):
+    key: str
+    label: str
+    order: int
+    entered: RenderedMetricValue
+    converted: RenderedMetricValue
+    dropOff: RenderedMetricValue
+
+
+class RenderedQuantile(TypedDict):
+    quantile: float
+    value: RenderedMetricValue
+
+
+class RenderedVisualResult(TypedDict):
+    """The analysis a non-time-series widget renders; ``kind`` names which list it fills."""
+
+    kind: str
+    summary: str
+    method: NotRequired[str]
+    anomalies: NotRequired[list[RenderedAnomaly]]
+    calibration: NotRequired[list[RenderedCalibrationBucket]]
+    cohorts: NotRequired[list[RenderedCohortCell]]
+    distribution: NotRequired[list[RenderedDistributionBin]]
+    drivers: NotRequired[list[RenderedDriver]]
+    intervals: NotRequired[list[RenderedInterval]]
+    lifecycle: NotRequired[list[RenderedLifecycleStage]]
+    quantiles: NotRequired[list[RenderedQuantile]]
 
 
 class RenderedWidgetBucket(TypedDict):
@@ -281,7 +402,7 @@ class RenderedReportingTrust(TypedDict):
     status: str
     dataFreshness: str
     retryability: str
-    nextAction: dict[str, Any]
+    nextAction: PreparedDataNextAction
     rollupState: str
     coverage: str
     captureState: str
@@ -311,6 +432,9 @@ class RenderedWidgetData(TypedDict):
     deltaPercent: NotRequired[float]
     deltaLabel: NotRequired[str]
     secondaryLabel: NotRequired[str]
+    visual: NotRequired[RenderedVisualResult]
+    emailDelivery: NotRequired[RenderedEmailDelivery]
+    labelMetadata: NotRequired[list[RenderedLabelMetadata]]
 
 
 class SubjectInsightResponse(TypedDict):
@@ -318,19 +442,71 @@ class SubjectInsightResponse(TypedDict):
 
 
 class PreparedDataStatus(TypedDict):
+    """Where one processing receipt stands and its next safe action."""
+
+    receiptUuid: str
     tenantSlug: str
     processingState: str
     availability: str
     observedAt: str
-    provenance: dict[str, Any]
+    provenance: PreparedDataProvenance
     retryability: str
-    nextAction: dict[str, Any]
+    nextAction: PreparedDataNextAction
     watermark: NotRequired[str]
-    warnings: NotRequired[list[dict[str, str]] | None]
+    warnings: NotRequired[list[PreparedDataWarning]]
+
+
+class PreparedDataOutputStatus(TypedDict):
+    """Where one prepared-data output stands and its next safe action."""
+
+    outputUuid: str
+    tenantSlug: str
+    processingState: str
+    availability: str
+    observedAt: str
+    provenance: PreparedDataProvenance
+    retryability: str
+    nextAction: PreparedDataNextAction
+    watermark: NotRequired[str]
+    warnings: NotRequired[list[PreparedDataWarning]]
 
 
 class PreparedDataOutputList(TypedDict):
-    outputs: list[PreparedDataStatus] | None
+    outputs: list[PreparedDataOutputStatus]
+
+
+class PreparedDataOutputQueryResponse(TypedDict):
+    """A query answered from one prepared-data output, with the output's state."""
+
+    data: RenderedWidgetData
+    output: PreparedDataOutputStatus
+
+
+ReportExportParameters = TypedDict(
+    "ReportExportParameters",
+    {
+        "from": NotRequired[str],
+        "to": NotRequired[str],
+        "rangeDays": NotRequired[int],
+        "maxRows": NotRequired[int],
+        "comparison": NotRequired[str],
+        "filters": NotRequired[list[dict[str, str]]],
+        "selections": NotRequired[list[str]],
+    },
+)
+
+
+class ReportExportCreateRequest(TypedDict):
+    dashboardKey: str
+    formats: list[str]
+    parameters: ReportExportParameters
+    idempotencyKey: NotRequired[str]
+
+
+class ReportExportListResponse(TypedDict):
+    """The named GET /api/v1/reporting/exports response; a null list decodes as empty."""
+
+    exports: list[ReportExportJob]
 
 
 class ValidationError(ValueError):
@@ -588,8 +764,15 @@ class CustdClient:
         transport: Transport | None = None,
         admin_transport: AdminTransport | None = None,
         timeout: float = 15,
+        acting_company_slug: str | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
+        # The client company a system administrator's requests target. Admin routes read the
+        # tenant from the companySlug query, so a call that names none gets this one (see
+        # with_acting_company). The ingest cleanup-job calls read it only from a header and
+        # send it as X-Custd-Effective-Company, which needs a support grant for that company.
+        # Ordinary tenant callers leave it unset.
+        self.acting_company_slug = (acting_company_slug or "").strip()
         assert_secure_or_local_http(self.base_url, "base_url")
         # One credential serves every environment, so this is the process
         # default for events that do not declare their own.
@@ -631,6 +814,9 @@ class CustdClient:
         from .parsers import ParserClient
 
         self.parsers = ParserClient(self, admin_transport or default_admin_transport)
+        from .measurement import MeasurementClient
+
+        self.measurement = MeasurementClient(self.admin)
         self.timeout = timeout
 
     @classmethod
@@ -838,6 +1024,29 @@ class CustdClient:
         return str(access_token)
 
 
+# The admin-api routes that select their tenant with the companySlug query.
+ACTING_COMPANY_ROUTES = (
+    "/api/v1/admin/",
+    "/api/v1/site-domains",
+    "/api/v1/error-issues",
+    "/api/v1/notification-destinations",
+)
+
+
+def with_acting_company(client: CustdClient, path: str) -> str:
+    """Name the configured acting company in ``path``'s companySlug query when the call names none.
+
+    This is ordinary tenant selection, so it never adds the support-context header.
+    """
+    company = client.acting_company_slug
+    route, _, query = path.partition("?")
+    if not company or not route.startswith(ACTING_COMPANY_ROUTES):
+        return path
+    if any(key == "companySlug" and value for key, value in urllib.parse.parse_qsl(query)):
+        return path
+    return path + ("&" if query else "?") + urllib.parse.urlencode({"companySlug": company})
+
+
 class AdminClient:
     def __init__(self, client: CustdClient, transport: AdminTransport) -> None:
         self._client = client
@@ -845,23 +1054,52 @@ class AdminClient:
         self.tenants = TenantAdminClient(self)
         self.oauth_clients = OAuthClientAdminClient(self)
         self.sites = SiteAdminClient(self)
-        self.schemas = SchemaAdminClient(self)
-        self.measurement = MeasurementAdminClient(self)
+        from .admin_access import ImpersonationAdminClient, SupportAccessAdminClient
         from .admin_audit import AuditAdminClient
         from .admin_auth_projects import AuthProjectAdminClient
+        from .admin_campaign_email import CampaignEmailAdminClient
         from .admin_data_labels import DataLabelAdminClient
         from .admin_data_scopes import DataScopeAdminClient
+        from .admin_notifications import (
+            EmailRelayAdminClient,
+            NotificationDestinationAdminClient,
+            NotificationWebhookAdminClient,
+        )
+        from .admin_oauth_admissions import OAuthClientAdmissionAdminClient
         from .admin_offboarding import OffboardingClient
+        from .admin_operations import (
+            AccountingEvidenceAdminClient,
+            EnvironmentPolicyAdminClient,
+            ErrorIssueAdminClient,
+            EventTypeAdminClient,
+            IngestClaimAdminClient,
+            ManagedAuditAdminClient,
+            RLSAdminClient,
+            SDKUsageAdminClient,
+            StorageAlertAdminClient,
+            SystemAdminClient,
+            TenantManifestAdminClient,
+        )
         from .admin_predictions import PredictionAdminClient
+        from .admin_privacy import PrivacyAdminClient
         from .admin_privacy_erasures import PrivacyErasureClient
         from .admin_reporting_packs import ReportingPacksAdminClient
         from .admin_retention import RetentionClient
+        from .admin_schema_actions import SchemaActionAdminClient
+        from .admin_schemas import SchemaAdminClient
         from .admin_site_domains import SiteDomainAdminClient
         from .admin_subject_exports import SubjectExportClient
         from .admin_tenant_storage import TenantStorageClient
         from .admin_timeplans import TimePlanAdminClient
         from .admin_usage import UsageAdminClient
+        from .admin_users import AdminUserAdminClient
+        from .admin_workflow_timings import WorkflowTimingAdminClient
+        from .ingest_operations import IngestAdminClient
+        from .measurement import MeasurementAdminClient
+        from .uncertainty_models import UncertaintyModelAdminClient
 
+        self.measurement = MeasurementAdminClient(self)
+        self.schemas = SchemaAdminClient(self)
         self.tenant_storage = TenantStorageClient(self)
         self.subject_exports = SubjectExportClient(self)
         self.privacy_erasures = PrivacyErasureClient(self)
@@ -876,6 +1114,36 @@ class AdminClient:
         self.usage = UsageAdminClient(self)
         self.site_domains = SiteDomainAdminClient(self)
         self.auth_projects = AuthProjectAdminClient(self)
+        self.workflow_timings = WorkflowTimingAdminClient(self)
+        self.users = AdminUserAdminClient(self)
+        self.impersonation = ImpersonationAdminClient(self)
+        self.support_access = SupportAccessAdminClient(self)
+        self.oauth_client_admissions = OAuthClientAdmissionAdminClient(self)
+        self.uncertainty_models = UncertaintyModelAdminClient(self)
+        self.privacy = PrivacyAdminClient(self)
+        self.ingest = IngestAdminClient(self)
+        self.system = SystemAdminClient(self)
+        self.rls = RLSAdminClient(self)
+        self.environment_policy = EnvironmentPolicyAdminClient(self)
+        self.sdk_usage = SDKUsageAdminClient(self)
+        self.storage_alerts = StorageAlertAdminClient(self)
+        self.accounting_evidence = AccountingEvidenceAdminClient(self)
+        self.event_types = EventTypeAdminClient(self)
+        self.ingest_claims = IngestClaimAdminClient(self)
+        self.tenant_manifest = TenantManifestAdminClient(self)
+        self.error_issues = ErrorIssueAdminClient(self)
+        self.managed_audit = ManagedAuditAdminClient(self)
+        self.webhooks = NotificationWebhookAdminClient(self)
+        self.notification_destinations = NotificationDestinationAdminClient(self)
+        self.email_relay = EmailRelayAdminClient(self)
+        self.campaign_email = CampaignEmailAdminClient(self)
+        self.schema_actions = SchemaActionAdminClient(self)
+
+    def get_account(self) -> "Account":
+        """Read the authenticated caller's account document from /api/v1/account/me."""
+        from .ingest_operations import _get_account
+
+        return _get_account(self)
 
     def request(
         self,
@@ -884,6 +1152,22 @@ class AdminClient:
         payload: dict[str, Any] | None = None,
         options: AdminRequestOptions | None = None,
     ) -> TransportResult:
+        return self._send(method, path, payload, self._option_headers(options))
+
+    def upload(
+        self,
+        method: str,
+        path: str,
+        data: bytes,
+        content_type: str,
+        options: AdminRequestOptions | None = None,
+    ) -> TransportResult:
+        """Send verbatim bytes (a file or multipart form) and decode the JSON answer."""
+        headers = self._option_headers(options)
+        headers["Content-Type"] = content_type
+        return self._send(method, path, data, headers)
+
+    def _option_headers(self, options: AdminRequestOptions | None) -> dict[str, str]:
         headers = self._client._headers()
         options = options or {}
         idempotency_key = options.get("idempotency_key")
@@ -892,9 +1176,14 @@ class AdminClient:
         owning_user_uuid = options.get("owning_user_uuid")
         if isinstance(owning_user_uuid, str) and owning_user_uuid.strip():
             headers["X-Custd-Owning-User-UUID"] = owning_user_uuid.strip()
+        return headers
+
+    def _send(
+        self, method: str, path: str, payload: dict[str, Any] | bytes | None, headers: dict[str, str]
+    ) -> TransportResult:
         result = self._transport(
             method,
-            self._client.base_url + "/api/v1/admin" + path,
+            self._client.base_url + with_acting_company(self._client, "/api/v1/admin" + path),
             payload,
             headers,
             self._client.timeout,
@@ -922,7 +1211,7 @@ class AdminClient:
     ) -> tuple[bytes, dict[str, str]]:
         result = self._transport(
             method,
-            self._client.base_url + "/api/v1/admin" + path,
+            self._client.base_url + with_acting_company(self._client, "/api/v1/admin" + path),
             payload,
             self._client._headers(),
             self._client.timeout,
@@ -950,6 +1239,7 @@ class ProvisioningClient:
         self._transport = transport
         self.data_spaces = DataSpaceProvisioningClient(self)
         self.producers = ProducerProvisioningClient(self)
+        self.reservations = ProducerReservationsClient(self)
 
     def request(
         self,
@@ -985,30 +1275,37 @@ class ReportingClient:
         self._client = client
         self._transport = transport
 
-    def dashboard(self, key: str) -> TransportResult:
-        return self._request("GET", f"/reporting/dashboards/{quote_path(key)}")
+    def dashboard(self, key: str) -> "DashboardDefinition":
+        from ._wire import decode
+        from .admin_operations import DashboardDefinition
 
-    def create_export(self, request: dict[str, Any]) -> TransportResult:
+        return decode(DashboardDefinition, self._request("GET", f"/reporting/dashboards/{quote_path(key)}"))
+
+    def create_export(self, request: ReportExportCreateRequest) -> ReportExportJob:
         formats = request.get("formats")
         if not request.get("dashboardKey") or not isinstance(formats, list) or not 1 <= len(formats) <= 8:
             raise ValueError("custd: report export requires a dashboard key and 1 to 8 formats")
-        return self._request("POST", "/reporting/exports", request)
+        return _decode_dto(ReportExportJob, self._request("POST", "/reporting/exports", dict(request)))
 
-    def list_exports(self, limit: int = 50) -> list[TransportResult]:
+    def list_exports(self, limit: int = 50) -> ReportExportListResponse:
         if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
             raise ValueError("custd: report export limit must be between 1 and 100")
-        result = self._request_value("GET", f"/reporting/exports?limit={limit}")
-        if not isinstance(result, list):
-            raise ValueError("custd: report export list response must be an array")
-        return result
+        response = self._request("GET", f"/reporting/exports?limit={limit}")
+        exports = response.get("exports")
+        if exports is not None and (
+            not isinstance(exports, list) or not all(isinstance(item, dict) for item in exports)
+        ):
+            raise ValueError("custd: report export list response exports must be an array of objects")
+        return _decode_dto(ReportExportListResponse, response)
 
-    def get_export(self, export_id: str) -> TransportResult:
+    def get_export(self, export_id: str) -> ReportExportJob:
         validate_uuid(export_id, "export_id")
-        return self._request("GET", f"/reporting/exports/{quote_path(export_id)}")
+        return _decode_dto(ReportExportJob, self._request("GET", f"/reporting/exports/{quote_path(export_id)}"))
 
-    def cancel_export(self, export_id: str, reason: str = "") -> TransportResult:
+    def cancel_export(self, export_id: str, reason: str = "") -> ReportExportJob:
         validate_uuid(export_id, "export_id")
-        return self._request("POST", f"/reporting/exports/{quote_path(export_id)}/cancel", {"reason": reason})
+        path = f"/reporting/exports/{quote_path(export_id)}/cancel"
+        return _decode_dto(ReportExportJob, self._request("POST", path, {"reason": reason}))
 
     def download_export(self, export_id: str, artifact_id: str) -> bytes:
         validate_uuid(export_id, "export_id")
@@ -1037,19 +1334,61 @@ class ReportingClient:
 
     def receipt(self, receipt_uuid: str) -> PreparedDataStatus:
         validate_uuid(receipt_uuid, "receipt_uuid")
-        return cast(PreparedDataStatus, self._request("GET", f"/processing/{quote_path(receipt_uuid)}"))
+        return _decode_dto(PreparedDataStatus, self._request("GET", f"/processing/{quote_path(receipt_uuid)}"))
 
     def outputs(self) -> PreparedDataOutputList:
-        response = self._request("GET", "/reporting/outputs")
-        return PreparedDataOutputList(outputs=response.get("outputs"))
+        return _decode_dto(PreparedDataOutputList, self._request("GET", "/reporting/outputs"))
 
-    def output(self, output_uuid: str) -> PreparedDataStatus:
+    def output(self, output_uuid: str) -> PreparedDataOutputStatus:
         validate_uuid(output_uuid, "output_uuid")
-        return cast(PreparedDataStatus, self._request("GET", f"/reporting/outputs/{quote_path(output_uuid)}"))
+        path = f"/reporting/outputs/{quote_path(output_uuid)}"
+        return _decode_dto(PreparedDataOutputStatus, self._request("GET", path))
 
-    def query_output(self, output_uuid: str, request: dict[str, Any]) -> TransportResult:
+    def query_output(self, output_uuid: str, request: ReportingQueryRequest) -> PreparedDataOutputQueryResponse:
         validate_uuid(output_uuid, "output_uuid")
-        return self._request("POST", f"/reporting/outputs/{quote_path(output_uuid)}/query", request)
+        path = f"/reporting/outputs/{quote_path(output_uuid)}/query"
+        response = self._request("POST", path, dict(request))
+        validate_rendered_widget_data(response.get("data"))
+        return _decode_dto(PreparedDataOutputQueryResponse, response)
+
+    def list_dashboards(self) -> "ReportingDashboardCatalogueResponse":
+        """List the dashboards the tenant can open."""
+        from ._wire import decode
+        from .analytics_reads import ReportingDashboardCatalogueResponse
+
+        return decode(ReportingDashboardCatalogueResponse, self._request("GET", "/reporting/dashboards"))
+
+    def generate_dashboard_data(
+        self, body: "ReportingDashboardGenerationRequest"
+    ) -> "ReportingDashboardGenerationResponse":
+        """Generate, or reuse, the data snapshot behind one dashboard view."""
+        from ._wire import decode
+        from .analytics_reads import ReportingDashboardGenerationResponse
+
+        response = self._request("POST", "/reporting/dashboard-data-generations", dict(body))
+        return decode(ReportingDashboardGenerationResponse, response)
+
+    def preview_draft(self, body: "ReportingDraftPreviewRequest") -> RenderedWidgetData:
+        """Render one query against a pack definition that has not been published."""
+        widget = self._request("POST", "/reporting/draft-preview", dict(body))
+        if contains_unsafe_reporting_trust_key(widget.get("trust")):
+            raise ValueError("custd: unsafe reporting trust diagnostics")
+        validate_rendered_widget_data(widget)
+        return cast(RenderedWidgetData, widget)
+
+    def get_client_bootstrap(self) -> "PreparedDataBootstrapStatus":
+        """Read where the tenant's client bootstrap stands and its next safe action."""
+        from ._wire import decode
+        from .analytics_reads import PreparedDataBootstrapStatus
+
+        return decode(PreparedDataBootstrapStatus, self._request("GET", "/admin/bootstrap"))
+
+    def submit_client_bootstrap(self, body: "PreparedDataBootstrapSubmitRequest") -> "PreparedDataBootstrapStatus":
+        """Submit the client's bootstrap proofs; the server derives the tenant and state."""
+        from ._wire import decode
+        from .analytics_reads import PreparedDataBootstrapStatus
+
+        return decode(PreparedDataBootstrapStatus, self._request("POST", "/admin/bootstrap", dict(body)))
 
     def _request(
         self,
@@ -1093,170 +1432,475 @@ class ReportingClient:
         return body
 
 
+class StorageMeasurementState(TypedDict):
+    calculationVersion: int
+    completenessState: str
+    sourceWatermark: int
+
+
+class DataSpaceUsageRow(TypedDict):
+    slug: str
+    companyName: str
+    enabled: bool
+    measuredAt: str
+    measurementState: StorageMeasurementState
+    retainedEventCount: int
+    retainedLogicalBytes: int
+    revokedAt: NotRequired[str]
+
+
+class DataSpaceUsageSummary(TypedDict):
+    """GET /api/v1/data-spaces/usage: retained storage per owned data space."""
+
+    parentCompanySlug: str
+    dataSpaceCount: int
+    dataSpaces: list[DataSpaceUsageRow]
+    measuredAt: str
+    measurementState: StorageMeasurementState
+    retainedEventCount: int
+    retainedLogicalBytes: int
+
+
+class ProducerProvisionPublicClient(TypedDict):
+    """A provisioned producer without its secret."""
+
+    clientId: str
+    companySlug: str
+    producerSlug: str
+    allowedEnvironments: list[str]
+    scopes: list[str]
+    displayName: NotRequired[str]
+    environment: NotRequired[str]
+
+
+class ProducerProvisionListResponse(TypedDict):
+    producers: list[ProducerProvisionPublicClient]
+
+
+class ProducerProvisionRequest(TypedDict):
+    companySlug: str
+    producerSlug: str
+    displayName: NotRequired[str]
+    environment: NotRequired[str]
+    allowedEnvironments: NotRequired[list[str]]
+    scopes: NotRequired[list[str]]
+    scopeTemplate: NotRequired[str]
+
+
+class ProducerProvisionResponse(TypedDict):
+    """A new producer's credentials; ``clientSecret`` is shown only this once."""
+
+    clientId: str
+    clientSecret: str
+    companySlug: str
+    producerSlug: str
+    allowedEnvironments: list[str]
+    scopes: list[str]
+    tokenUrl: str
+    audience: str
+    baseUrl: str
+    environment: NotRequired[str]
+
+
+class ProducerSecretRotationResponse(TypedDict):
+    """A producer's replacement secret, shown only this once."""
+
+    clientId: str
+    clientSecret: str
+    tokenUrl: str
+    audience: str
+    baseUrl: str
+
+
+class DataSpace(TypedDict):
+    slug: str
+    companyName: str
+    parentCompanySlug: str
+    enabled: bool
+
+
+class DataSpaceCreateRequest(TypedDict):
+    slug: str
+    companyName: str
+
+
+class DataSpaceListResponse(TypedDict):
+    dataSpaces: list[DataSpace]
+    entitlement: "DataSpaceEntitlementState"
+
+
+class ProducerReservation(TypedDict):
+    producerSlug: str
+    parentCompanySlug: str
+    childCompanySlug: str
+    status: str
+    reservedAt: str
+    expiresAt: str
+    maxTtlSeconds: int
+    claimedByClientId: NotRequired[str]
+
+
+class ProducerReservationListResponse(TypedDict):
+    reservations: list[ProducerReservation]
+
+
+class ProducerReservationCreateRequest(TypedDict):
+    producerSlug: str
+    ttlSeconds: int
+
+
+class ProducerReservationClaimRequest(TypedDict):
+    claimedByClientId: str
+
+
 class DataSpaceProvisioningClient:
     def __init__(self, provisioning: ProvisioningClient) -> None:
         self._provisioning = provisioning
 
-    def create(self, data_space: dict[str, Any]) -> TransportResult:
-        return self._provisioning.request("POST", "/data-spaces", data_space)
+    def create(self, data_space: DataSpaceCreateRequest, parent_company_slug: str | None = None) -> DataSpace:
+        path = "/data-spaces" + _parent_company_query(parent_company_slug)
+        return _decode_dto(DataSpace, self._provisioning.request("POST", path, dict(data_space)))
 
-    def list(self) -> TransportResult:
-        return self._provisioning.request("GET", "/data-spaces")
+    def list(self, parent_company_slug: str | None = None) -> DataSpaceListResponse:
+        path = "/data-spaces" + _parent_company_query(parent_company_slug)
+        return _decode_dto(DataSpaceListResponse, self._provisioning.request("GET", path))
 
-    def revoke(self, slug: str) -> None:
-        self._provisioning.request("DELETE", f"/data-spaces/{quote_path(slug)}")
+    def revoke(self, slug: str, parent_company_slug: str | None = None) -> None:
+        path = f"/data-spaces/{quote_path(slug)}" + _parent_company_query(parent_company_slug)
+        self._provisioning.request("DELETE", path)
+
+    def get_usage(self, parent_company_slug: str | None = None) -> DataSpaceUsageSummary:
+        """Report the retained storage of every data space the caller owns."""
+        usage = self._provisioning.request("GET", "/data-spaces/usage" + _parent_company_query(parent_company_slug))
+        usage["dataSpaces"] = usage.get("dataSpaces") or []
+        return cast(DataSpaceUsageSummary, usage)
+
+
+def _parent_company_query(parent_company_slug: str | None) -> str:
+    """The parentCompanySlug a parent-company administrator names a data-space owner with."""
+    return "?" + urllib.parse.urlencode({"parentCompanySlug": parent_company_slug}) if parent_company_slug else ""
 
 
 class ProducerProvisioningClient:
     def __init__(self, provisioning: ProvisioningClient) -> None:
         self._provisioning = provisioning
 
-    def provision(self, request: dict[str, Any]) -> TransportResult:
-        return self._provisioning.request("POST", "/producer-provisioning", request)
+    def provision(self, request: ProducerProvisionRequest) -> ProducerProvisionResponse:
+        response = self._provisioning.request("POST", "/producer-provisioning", dict(request))
+        return _decode_dto(ProducerProvisionResponse, response)
 
-    def list(self, company_slug: str | None = None) -> list[dict[str, Any]]:
+    def list(self, company_slug: str | None = None) -> ProducerProvisionListResponse:
         query = f"?companySlug={quote_path(company_slug)}" if company_slug else ""
         response = self._provisioning.request("GET", f"/producer-provisioning{query}")
-        items = response.get("producers")
-        return items if isinstance(items, list) else []
+        return _decode_dto(ProducerProvisionListResponse, response)
 
-    def rotate_secret(self, client_id: str) -> TransportResult:
-        return self._provisioning.request("POST", f"/producer-provisioning/{quote_path(client_id)}/rotate-secret")
+    def rotate_secret(self, client_id: str) -> ProducerSecretRotationResponse:
+        path = f"/producer-provisioning/{quote_path(client_id)}/rotate-secret"
+        return _decode_dto(ProducerSecretRotationResponse, self._provisioning.request("POST", path))
 
-    def update_environment(self, client_id: str, environment: str) -> TransportResult:
+    def update_environment(self, client_id: str, environment: str) -> ProducerProvisionPublicClient:
         """Set the environment recorded for this producer.
 
         It is the authenticated default for events that do not declare their
         own, not a per-environment credential: one producer is expected to carry
         every environment unless an operator deliberately restricts it.
         """
-        return self._provisioning.request(
-            "PATCH",
-            f"/producer-provisioning/{quote_path(client_id)}/environment",
-            {"environment": environment},
-        )
+        path = f"/producer-provisioning/{quote_path(client_id)}/environment"
+        response = self._provisioning.request("PATCH", path, {"environment": environment})
+        return _decode_dto(ProducerProvisionPublicClient, response)
+
+    def get(self, client_id: str) -> ProducerProvisionPublicClient:
+        producer = self._provisioning.request("GET", f"/producer-provisioning/{quote_path(client_id)}")
+        producer["allowedEnvironments"] = producer.get("allowedEnvironments") or []
+        producer["scopes"] = producer.get("scopes") or []
+        return cast(ProducerProvisionPublicClient, producer)
 
     def revoke(self, client_id: str) -> None:
         self._provisioning.request("DELETE", f"/producer-provisioning/{quote_path(client_id)}")
+
+
+class ProducerReservationsClient:
+    """Reserve, claim and release producer slugs on one owned data space."""
+
+    def __init__(self, provisioning: ProvisioningClient) -> None:
+        self._provisioning = provisioning
+
+    def reserve(self, data_space_slug: str, request: ProducerReservationCreateRequest) -> ProducerReservation:
+        path = _reservations_path(data_space_slug)
+        return cast(ProducerReservation, self._provisioning.request("POST", path, dict(request)))
+
+    def list(self, data_space_slug: str, parent_company_slug: str | None = None) -> ProducerReservationListResponse:
+        path = _reservations_path(data_space_slug) + _parent_company_query(parent_company_slug)
+        reservations = self._provisioning.request("GET", path).get("reservations")
+        return ProducerReservationListResponse(reservations=reservations or [])
+
+    def claim(
+        self, data_space_slug: str, producer_slug: str, request: ProducerReservationClaimRequest
+    ) -> ProducerReservation:
+        path = f"{_reservations_path(data_space_slug)}/{quote_path(producer_slug)}/claim"
+        return cast(ProducerReservation, self._provisioning.request("POST", path, dict(request)))
+
+    def release(self, data_space_slug: str, producer_slug: str, parent_company_slug: str | None = None) -> None:
+        path = f"{_reservations_path(data_space_slug)}/{quote_path(producer_slug)}"
+        self._provisioning.request("DELETE", path + _parent_company_query(parent_company_slug))
+
+
+def _reservations_path(data_space_slug: str) -> str:
+    return f"/data-spaces/{quote_path(data_space_slug)}/producer-reservations"
+
+
+class DataSpaceEntitlementState(TypedDict):
+    enabled: bool
+    maxActiveDataSpaces: int
+    maxActiveProducersPerDataSpace: int
+    activeDataSpaces: int
+
+
+class DataSpaceEntitlementUpdateRequest(TypedDict):
+    enabled: bool
+    maxActiveDataSpaces: int
+    maxActiveProducersPerDataSpace: int
+
+
+class StorageLimit(TypedDict):
+    includedStorageBytes: int
+    purchasedStorageBytes: int
+    warnPercent: int
+    hardLimitEnabled: bool
+
+
+StorageLimitUpdateRequest = StorageLimit
+
+
+class TenantHistoricalCleanupStore(TypedDict):
+    store: str
+    retention_class: str
+    deleted_count: int
+    retained_exceptions_count: int
+
+
+class TenantHistoricalCleanupWaiver(TypedDict):
+    role: str
+    timestamp: str
+
+
+class TenantHistoricalCleanupReceipt(TypedDict):
+    """The content-free receipt for a deleted tenant's historical cleanup, in its wire spelling."""
+
+    company_id: int
+    requested_by_kind: str
+    requested_at: str
+    completed_at: str
+    final_state: str
+    per_store: list[TenantHistoricalCleanupStore]
+    sha256: str
+    waiver: NotRequired[TenantHistoricalCleanupWaiver]
+
+
+class Tenant(TypedDict):
+    companyId: int
+    companyUuid: str
+    slug: str
+    companyName: str
+    purpose: str
+    enabled: bool
+    autoCreateEnvironments: bool
+
+
+class TenantListResponse(TypedDict):
+    tenants: list[Tenant]
+
+
+class TenantCreateRequest(TypedDict):
+    slug: str
+    companyName: str
+    purpose: NotRequired[str]
 
 
 class TenantAdminClient:
     def __init__(self, admin: AdminClient) -> None:
         self._admin = admin
 
-    def create(self, tenant: dict[str, Any]) -> TransportResult:
-        return self._admin.request("POST", "/tenants", tenant)
+    def finalize(self, slug: str, company_id: int) -> None:
+        """Permanently remove an already deleted tenant once its cleanup is finished."""
+        self._admin.request("POST", _tenant_company_path(slug, "finalize", company_id))
 
-    def list(self) -> TransportResult:
-        return self._admin.request("GET", "/tenants")
+    def historical_cleanup(
+        self, slug: str, company_id: int, options: AdminRequestOptions | None = None
+    ) -> TenantHistoricalCleanupReceipt:
+        """Run a deleted tenant's cleanup; pass the same idempotency_key to retry one cleanup."""
+        if not (options or {}).get("idempotency_key", "").strip():
+            raise ValueError("custd: historical cleanup idempotency key is required")
+        path = _tenant_company_path(slug, "historical-cleanup", company_id)
+        receipt = dict(self._admin.request("POST", path, None, options))
+        receipt["per_store"] = receipt.get("per_store") or []
+        return cast(TenantHistoricalCleanupReceipt, receipt)
 
-    def get(self, slug: str) -> TransportResult:
-        return self._admin.request("GET", f"/tenants/{quote_path(slug)}")
+    def get_data_space_entitlement(self, slug: str) -> DataSpaceEntitlementState:
+        return cast(
+            DataSpaceEntitlementState,
+            self._admin.request("GET", f"/tenants/{quote_path(slug)}/data-space-entitlement"),
+        )
+
+    def update_data_space_entitlement(
+        self, slug: str, body: DataSpaceEntitlementUpdateRequest
+    ) -> DataSpaceEntitlementState:
+        path = f"/tenants/{quote_path(slug)}/data-space-entitlement"
+        return cast(DataSpaceEntitlementState, self._admin.request("PUT", path, dict(body)))
+
+    def update_storage_limit(self, slug: str, body: StorageLimitUpdateRequest) -> StorageLimit:
+        path = f"/tenants/{quote_path(slug)}/storage-limit"
+        return cast(StorageLimit, self._admin.request("PUT", path, dict(body)))
+
+    def create(self, tenant: TenantCreateRequest) -> Tenant:
+        return _decode_dto(Tenant, self._admin.request("POST", "/tenants", dict(tenant)))
+
+    def list(self) -> TenantListResponse:
+        return _decode_dto(TenantListResponse, self._admin.request("GET", "/tenants"))
+
+    def get(self, slug: str) -> Tenant:
+        return _decode_dto(Tenant, self._admin.request("GET", f"/tenants/{quote_path(slug)}"))
 
     def delete(self, slug: str) -> None:
         self._admin.request("DELETE", f"/tenants/{quote_path(slug)}")
+
+
+def _tenant_company_path(slug: str, action: str, company_id: int) -> str:
+    if isinstance(company_id, bool) or not isinstance(company_id, int) or company_id <= 0:
+        raise ValueError("custd: company id must be a positive integer")
+    return f"/tenants/{quote_path(slug)}/{action}?companyId={company_id}"
+
+
+class OAuthClientCreateRequest(TypedDict):
+    clientId: str
+    companySlug: str
+    profile: str
+    scopes: list[str]
+    environment: NotRequired[str]
+    purposeProfile: NotRequired[str]
+    siteUuid: NotRequired[str]
+
+
+class OAuthClientLoginSetup(TypedDict):
+    """What a person needs to sign in with a new interactive client, including the CLI command."""
+
+    profileName: str
+    clientId: str
+    issuerUrl: str
+    apiUrl: str
+    audience: str
+    scopes: list[str]
+    redirectUris: list[str]
+    configInitCommand: str
+
+
+class OAuthClientCreateResponse(TypedDict):
+    """A new OAuth client; ``clientSecret`` is shown only this once, and absent for a public client."""
+
+    clientId: str
+    companySlug: str
+    profile: str
+    scopes: list[str]
+    clientSecret: NotRequired[str]
+    purposeProfile: NotRequired[str]
+    loginSetup: NotRequired[OAuthClientLoginSetup]
 
 
 class OAuthClientAdminClient:
     def __init__(self, admin: AdminClient) -> None:
         self._admin = admin
 
-    def create(self, client: dict[str, Any]) -> TransportResult:
-        return self._admin.request("POST", "/oauth-clients", client)
+    def create(self, client: OAuthClientCreateRequest) -> OAuthClientCreateResponse:
+        return _decode_dto(OAuthClientCreateResponse, self._admin.request("POST", "/oauth-clients", dict(client)))
 
-    def list(self) -> TransportResult:
-        return self._admin.request("GET", "/oauth-clients")
+    def list(self) -> "OAuthClientListResponse":
+        from .admin_oauth_admissions import OAuthClientListResponse
 
-    def get(self, client_id: str) -> TransportResult:
-        return self._admin.request("GET", f"/oauth-clients/{quote_path(client_id)}")
+        return _decode_dto(OAuthClientListResponse, self._admin.request("GET", "/oauth-clients"))
+
+    def get(self, client_id: str) -> "OAuthClient":
+        from .admin_oauth_admissions import OAuthClient
+
+        return _decode_dto(OAuthClient, self._admin.request("GET", f"/oauth-clients/{quote_path(client_id)}"))
 
     def delete(self, client_id: str) -> None:
         self._admin.request("DELETE", f"/oauth-clients/{quote_path(client_id)}")
 
-    def rotate_secret(self, client_id: str) -> TransportResult:
-        return self._admin.request("POST", f"/oauth-clients/{quote_path(client_id)}/rotate-secret")
+    def rotate_secret(self, client_id: str) -> "OAuthClientSecretResponse":
+        from .admin_oauth_admissions import OAuthClientSecretResponse
+
+        path = f"/oauth-clients/{quote_path(client_id)}/rotate-secret"
+        return _decode_dto(OAuthClientSecretResponse, self._admin.request("POST", path))
+
+    def update_scopes(
+        self, client_id: str, request: "OAuthClientUpdateScopesRequest", options: AdminRequestOptions | None = None
+    ) -> "OAuthClient":
+        """Replace the client's scope profile; a tenant administrator reaches only its own clients."""
+        from .admin_oauth_admissions import oauth_client_with_scopes
+
+        path = f"/oauth-clients/{quote_path(client_id)}/scopes"
+        return oauth_client_with_scopes(self._admin.request("PATCH", path, dict(request), options))
+
+    def replace_unknown_secret(self, client_id: str, options: AdminRequestOptions) -> "OAuthClientSecretResponse":
+        """Issue a new secret when the current one is lost. The Idempotency-Key makes a retry safe;
+        the new secret is shown only this once."""
+        key = options.get("idempotency_key")
+        if not isinstance(key, str) or key.strip() == "":
+            raise ValueError("custd: replace-unknown-secret idempotency key is required")
+        path = f"/oauth-clients/{quote_path(client_id)}/replace-unknown-secret"
+        return cast("OAuthClientSecretResponse", self._admin.request("POST", path, None, options))
 
 
 class SiteAdminClient:
     def __init__(self, admin: AdminClient) -> None:
         self._admin = admin
 
-    def create(self, site: dict[str, Any]) -> TransportResult:
-        return self._admin.request("POST", "/sites", site)
+    def create(self, site: "AdminSiteCreateRequest") -> "AdminSiteCreateResponse":
+        """Create a site; the answer carries its write key, which only create and rotate return."""
+        from .admin_operations import AdminSiteCreateResponse
 
-    def list(self) -> TransportResult:
+        return _decode_dto(AdminSiteCreateResponse, self._admin.request("POST", "/sites", dict(site)))
+
+    def list(self) -> "AdminSiteListResponse":
+        from .admin_operations import AdminSiteListResponse
+
         response = self._admin.request("GET", "/sites")
         sites = response.get("sites")
         if isinstance(sites, list):
             response = dict(response)
             response["sites"] = [public_admin_site(site) for site in sites]
-        return response
+        return _decode_dto(AdminSiteListResponse, response)
 
-    def get(self, site_uuid: str) -> TransportResult:
-        return public_admin_site(self._admin.request("GET", f"/sites/{quote_path(site_uuid)}"))
+    def get(self, site_uuid: str) -> "AdminSite":
+        from .admin_operations import AdminSite
+
+        site = public_admin_site(self._admin.request("GET", f"/sites/{quote_path(site_uuid)}"))
+        return _decode_dto(AdminSite, site)
 
     def delete(self, site_uuid: str) -> None:
         self._admin.request("DELETE", f"/sites/{quote_path(site_uuid)}")
 
-    def rotate_write_key(self, site_uuid: str) -> TransportResult:
-        return self._admin.request("POST", f"/sites/{quote_path(site_uuid)}/rotate-write-key")
+    def rotate_write_key(self, site_uuid: str) -> "AdminSiteWriteKey":
+        from .admin_operations import AdminSiteWriteKey
 
+        path = f"/sites/{quote_path(site_uuid)}/rotate-write-key"
+        return _decode_dto(AdminSiteWriteKey, self._admin.request("POST", path))
 
-class SchemaAdminClient:
-    def __init__(self, admin: AdminClient) -> None:
-        self._admin = admin
+    def update(self, site_uuid: str, body: "AdminSiteUpdate") -> "AdminSite":
+        """Change a site's settings."""
+        from ._wire import decode, request
+        from .admin_operations import AdminSite
 
-    def list(self) -> TransportResult:
-        return self._admin.request("GET", "/schemas")
+        path = f"/api/v1/admin/sites/{quote_path(site_uuid)}"
+        return decode(AdminSite, request(self._admin, "PATCH", path, body=dict(body)))
 
-    def get(self, event_type_slug: str) -> TransportResult:
-        return self._admin.request("GET", f"/schemas/{quote_path(event_type_slug)}")
+    def get_public_config(self, site_uuid: str) -> "PublicSiteConfig":
+        """Read the public collector configuration a site's pages load."""
+        from ._wire import decode, request
+        from .admin_operations import PublicSiteConfig
 
-    def register(self, schema: dict[str, Any]) -> TransportResult:
-        return self._admin.request("POST", "/schemas", schema)
-
-    def create_version(self, event_type_slug: str, schema: dict[str, Any]) -> TransportResult:
-        return self._admin.request("POST", f"/schemas/{quote_path(event_type_slug)}/versions", schema)
-
-
-class MeasurementAdminClient:
-    def __init__(self, admin: AdminClient) -> None:
-        self.projects = MeasurementProjectAdminClient(admin)
-
-
-class MeasurementProjectAdminClient:
-    def __init__(self, admin: AdminClient) -> None:
-        self._admin = admin
-
-    def create(self, project: dict[str, Any]) -> TransportResult:
-        return self._admin.request("POST", "/measurement/projects", project)
-
-    def list(self) -> TransportResult:
-        return self._admin.request("GET", "/measurement/projects")
-
-    def get(self, project_uuid: str) -> TransportResult:
-        return self._admin.request("GET", f"/measurement/projects/{quote_path(project_uuid)}")
-
-    def submit_observation(self, project_uuid: str, observation: dict[str, Any]) -> TransportResult:
-        return self.submit_observations(project_uuid, {"rows": [observation]})
-
-    def submit_observations(self, project_uuid: str, request: dict[str, Any]) -> TransportResult:
-        response = self._admin.request(
-            "POST",
-            f"/measurement/projects/{quote_path(project_uuid)}/observations:bulk",
-            request,
-        )
-        validate_measurement_results(response.get("results"), len(request.get("rows", [])))
-        return response
-
-    def import_csv_string(self, project_uuid: str, csv: str, expected_rows: int) -> TransportResult:
-        response = self._admin.request(
-            "POST",
-            f"/measurement/projects/{quote_path(project_uuid)}/observations:csv",
-            {"csv": csv},
-        )
-        validate_measurement_results(response.get("results"), expected_rows)
-        return response
+        path = f"/api/v1/sites/{quote_path(site_uuid)}/config"
+        return decode(PublicSiteConfig, request(self._admin, "GET", path))
 
 
 def validate_measurement_results(results: Any, submitted_rows: int) -> None:
@@ -1592,6 +2236,9 @@ def validate_rendered_widget_data(data: Any) -> None:
     required = {"buckets", "value", "queryDurationMs", "snapshotAgeMs", "eventLagP95Ms"}
     if not isinstance(data, dict) or not required.issubset(data):
         raise ValueError("custd: rendered widget data is malformed")
+    # The server encodes an empty bucket list as JSON null; it decodes as empty.
+    if data["buckets"] is None:
+        data["buckets"] = []
     if not isinstance(data["buckets"], list) or not _is_rendered_metric_value(data["value"]):
         raise ValueError("custd: rendered widget data is malformed")
     if not all(_is_rendered_widget_bucket(bucket) for bucket in data["buckets"]):
@@ -1855,12 +2502,14 @@ default_transport = make_default_transport(normalize_compression(None))
 def default_admin_transport(
     method: str,
     url: str,
-    payload: dict[str, Any] | None,
+    payload: dict[str, Any] | bytes | None,
     headers: dict[str, str],
     timeout: float,
 ) -> TransportResult:
     data = None
-    if payload is not None:
+    if isinstance(payload, bytes):
+        data = payload
+    elif payload is not None:
         data = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
@@ -1869,6 +2518,7 @@ def default_admin_transport(
                 "/artifacts/" in url
                 or ("/offboarding/requests/" in url and url.endswith("/download"))
                 or "/audit/events/export" in url
+                or (method == "GET" and url.endswith("/api/v1/app/profile/photo"))
             )
             declared = response.headers.get("Content-Length") if is_binary else None
             if declared is not None and declared.isdigit() and int(declared) > 64 * 1024 * 1024:

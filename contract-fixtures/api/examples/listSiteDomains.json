@@ -19,11 +19,20 @@
         "checks": {
           "chromeUx": {
             "checkedAt": "2026-11-20T06:00:00Z",
-            "observation": {}
+            "observation": {
+              "cls": 1.5,
+              "firstDate": "2026-11-20T06:00:00Z",
+              "inpMs": 1.5,
+              "lastDate": "2026-11-20T06:00:00Z",
+              "lcpMs": 1.5
+            }
           },
           "httpExpectations": {
             "bodyContains": "example",
-            "json": {},
+            "json": {
+              "field": "example",
+              "value": "example"
+            },
             "maxResponseMs": 1,
             "statusCode": 1
           },

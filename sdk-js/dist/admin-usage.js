@@ -1,7 +1,8 @@
-// UsageAdminClient reads attributed usage for the authenticated tenant through
-// GET /api/v1/admin/usage/me. The system-admin `/usage` and `/usage/export`
-// surfaces are deliberately not exposed here: a tenant client must not depend on
-// system-admin filtering.
+// UsageAdminClient reads attributed usage and retained storage. `get` reads the
+// authenticated tenant's own usage through GET /api/v1/admin/usage/me; the
+// tenant is derived from the credential. `listUsage` and `exportUsage` are the
+// system-admin views that may name a company, and `listStorageUsage` /
+// `getRetainedUsage` report retained storage against each tenant's limit.
 //
 // Usage is server-derived and includes provisional, final, and corrected state.
 // `containsProvisional` and `containsIncomplete` are the server's own assessment
@@ -29,6 +30,37 @@ export class UsageAdminClient {
             return Promise.reject(error);
         }
         return this.request("GET", `/usage/me${params.length > 0 ? `?${params}` : ""}`, undefined, options).then(assertUsageReport);
+    }
+    /** System administrators: attributed usage across tenants, or one company's. */
+    listUsage(query = {}, options) {
+        return this.adminUsage("/usage", query, options);
+    }
+    /** System administrators: the same rows as `listUsage`, as a billing export. */
+    exportUsage(query = {}, options) {
+        return this.adminUsage("/usage/export", query, options);
+    }
+    /** System administrators: retained storage for every tenant. */
+    async listStorageUsage(options) {
+        const summary = await this.request("GET", "/storage-usage", undefined, options);
+        return { ...summary, tenants: summary.tenants ?? [] };
+    }
+    /** The token's own tenant's retained storage. */
+    getRetainedUsage(options) {
+        return this.request("GET", "/storage-usage/me", undefined, options);
+    }
+    adminUsage(path, query, options) {
+        const { companySlug, ...window } = query;
+        let params;
+        try {
+            params = usageQueryParams(window);
+        }
+        catch (error) {
+            return Promise.reject(error);
+        }
+        if (companySlug)
+            params.set("companySlug", companySlug);
+        const encoded = params.toString();
+        return this.request("GET", encoded ? `${path}?${encoded}` : path, undefined, options).then(assertUsageReport);
     }
 }
 // assertUsageReport validates the named response DTO. The service emits every

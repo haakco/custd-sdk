@@ -1,28 +1,38 @@
 // SubjectExportClient owns per-tenant subject export requests. The download
-// surface returns a short-lived signed URL the SDK must surface only to the
-// caller; it must not be logged or echoed into error messages.
+// surface returns artifact metadata the SDK surfaces only to the caller; its
+// object keys are tenant data and must not be logged or echoed into errors.
+function exportPath(requestId, action = "") {
+    return `/subject-exports/${encodeURIComponent(requestId)}${action}`;
+}
+function normalizeExport(request) {
+    return { ...request, perStoreProgress: request.perStoreProgress ?? [] };
+}
 export class SubjectExportClient {
     constructor(request) {
         this.request = request;
     }
-    create(body, options) {
-        return this.request("POST", "/subject-exports", body, options);
+    async create(body, options) {
+        return normalizeExport(await this.request("POST", "/subject-exports", body, options));
     }
-    list(options) {
-        return this.request("GET", "/subject-exports", undefined, options);
+    /** Lists the tenant's subject exports, newest first. The server default is 100; it accepts 1 to 1000. */
+    async list(limit, options) {
+        const query = limit === undefined ? "" : `?${new URLSearchParams({ limit: String(limit) })}`;
+        const list = await this.request("GET", `/subject-exports${query}`, undefined, options);
+        return { requests: (list.requests ?? []).map(normalizeExport) };
     }
-    get(requestId, options) {
-        return this.request("GET", `/subject-exports/${encodeURIComponent(requestId)}`, undefined, options);
+    async get(requestId, options) {
+        return normalizeExport(await this.request("GET", exportPath(requestId), undefined, options));
     }
-    cancel(requestId, options) {
-        return this.request("POST", `/subject-exports/${encodeURIComponent(requestId)}/cancel`, undefined, options);
+    /** Stops a queued or running export and returns its cancelled status. */
+    async cancel(requestId, options) {
+        return normalizeExport(await this.request("POST", exportPath(requestId, "/cancel"), undefined, options));
     }
-    // Download returns a short-lived signed URL. The downloadUrl field is
-    // sensitive; callers must not log the URL or echo it into error messages.
-    download(requestId, options) {
-        return this.request("GET", `/subject-exports/${encodeURIComponent(requestId)}/download`, undefined, options);
+    /** Returns one stored artifact's metadata; scope names the artifact. The object keys are tenant data; do not log them. */
+    download(requestId, scope, options) {
+        const query = new URLSearchParams({ scope });
+        return this.request("GET", `${exportPath(requestId, "/download")}?${query}`, undefined, options);
     }
-    force(requestId, options) {
-        return this.request("POST", `/subject-exports/${encodeURIComponent(requestId)}/force`, undefined, options);
+    async force(requestId, options) {
+        return normalizeExport(await this.request("POST", exportPath(requestId, "/force"), undefined, options));
     }
 }

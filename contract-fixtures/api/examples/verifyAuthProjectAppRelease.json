@@ -25,7 +25,12 @@
         "headers": [
           {
             "framing": "example",
-            "headers": [],
+            "headers": [
+              {
+                "name": "example",
+                "value": "example"
+              }
+            ],
             "route": "example"
           }
         ],

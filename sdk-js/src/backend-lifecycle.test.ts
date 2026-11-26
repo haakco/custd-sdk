@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { readLifecycleFixture } from "./fixtures.js";
 import {
   CustdClient,
   createVerifiedOffboardingExportReceiver,
   type ReceiveAndVerifyOffboardingExport,
 } from "./index.js";
+import { OFFBOARDING_REQUEST_UUID, offboardingBodies } from "./offboarding-bodies.test-helper";
 
 const BASE_URL = "http://localhost:8080";
-const REQUEST_UUID = "ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ";
+const REQUEST_UUID = OFFBOARDING_REQUEST_UUID;
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -26,15 +26,8 @@ function binaryResponse(bytes: Uint8Array, checksumSha256: string, status = 200)
   });
 }
 
-type DownloadFixture = {
-  bodyBase64: string;
-  checksumSha256: string;
-  byteSize: number;
-};
-
-function readDownloadFixture(): DownloadFixture {
-  const fixture = readLifecycleFixture("offboarding", "valid-download-binary.json") as DownloadFixture;
-  return fixture;
+function readDownloadFixture() {
+  return offboardingBodies.download;
 }
 
 function clientFor(responses: Response[]) {
@@ -184,18 +177,18 @@ describe("BackendLifecycleClient", () => {
   });
 
   it("runs the complete offboarding workflow and requires a zero-state proof", async () => {
-    const request = readLifecycleFixture("offboarding", "valid-request-create-response.json");
-    const preview = readLifecycleFixture("offboarding", "valid-preview-response.json");
+    const request = offboardingBodies.created;
+    const preview = offboardingBodies.preview;
     const downloadFixture = readDownloadFixture();
     const exported = {
-      ...(readLifecycleFixture("offboarding", "valid-export-response.json") as Record<string, unknown>),
+      ...offboardingBodies.export,
       checksumSha256: downloadFixture.checksumSha256,
       byteSize: downloadFixture.byteSize,
     };
-    const downloadBytes = Uint8Array.from(atob(downloadFixture.bodyBase64), (character) => character.charCodeAt(0));
-    const acknowledged = readLifecycleFixture("offboarding", "valid-acknowledge-response.json");
-    const executed = readLifecycleFixture("offboarding", "valid-execute-response.json");
-    const receipt = readLifecycleFixture("offboarding", "valid-receipt-response.json");
+    const downloadBytes = downloadFixture.bytes;
+    const acknowledged = offboardingBodies.acknowledged;
+    const executed = offboardingBodies.receipt;
+    const receipt = offboardingBodies.receipt;
     const { client, fetchMock } = clientFor([
       jsonResponse(request),
       jsonResponse(preview),
@@ -245,22 +238,18 @@ describe("BackendLifecycleClient", () => {
   });
 
   it("resumes an exported request from its durable binary download", async () => {
-    const downloadFixture = readLifecycleFixture("offboarding", "valid-download-binary.json") as {
-      bodyBase64: string;
-      checksumSha256: string;
-      byteSize: number;
-    };
-    const downloadBytes = Uint8Array.from(atob(downloadFixture.bodyBase64), (character) => character.charCodeAt(0));
+    const downloadFixture = readDownloadFixture();
+    const downloadBytes = downloadFixture.bytes;
     const download = {
       bytes: downloadBytes,
       checksumSha256: downloadFixture.checksumSha256,
       byteSize: downloadFixture.byteSize,
     };
-    const acknowledged = readLifecycleFixture("offboarding", "valid-acknowledge-response.json");
-    const executed = readLifecycleFixture("offboarding", "valid-execute-response.json");
-    const receipt = readLifecycleFixture("offboarding", "valid-receipt-response.json");
+    const acknowledged = offboardingBodies.acknowledged;
+    const executed = offboardingBodies.receipt;
+    const receipt = offboardingBodies.receipt;
     const { client, fetchMock } = clientFor([
-      jsonResponse(readLifecycleFixture("offboarding", "valid-request-get-response.json")),
+      jsonResponse(offboardingBodies.exported),
       binaryResponse(downloadBytes, downloadFixture.checksumSha256),
       jsonResponse(acknowledged),
       jsonResponse({ requestUuid: REQUEST_UUID, state: "confirmed" }),
@@ -313,17 +302,14 @@ describe("BackendLifecycleClient", () => {
   it("fails closed when fresh export metadata disagrees with the download", async () => {
     const downloadFixture = readDownloadFixture();
     const exported = {
-      ...(readLifecycleFixture("offboarding", "valid-export-response.json") as Record<string, unknown>),
+      ...offboardingBodies.export,
       checksumSha256: "0".repeat(64),
     };
     const { client, fetchMock } = clientFor([
       jsonResponse({ requestUuid: REQUEST_UUID, state: "preview", requestedAt: "2026-08-26T00:00:00Z" }),
-      jsonResponse(readLifecycleFixture("offboarding", "valid-preview-response.json")),
+      jsonResponse(offboardingBodies.preview),
       jsonResponse(exported),
-      binaryResponse(
-        Uint8Array.from(atob(downloadFixture.bodyBase64), (character) => character.charCodeAt(0)),
-        downloadFixture.checksumSha256,
-      ),
+      binaryResponse(downloadFixture.bytes, downloadFixture.checksumSha256),
     ]);
 
     await expect(
@@ -365,18 +351,15 @@ describe("BackendLifecycleClient", () => {
   it("does not acknowledge until the downloaded export is persisted and verified", async () => {
     const downloadFixture = readDownloadFixture();
     const exported = {
-      ...(readLifecycleFixture("offboarding", "valid-export-response.json") as Record<string, unknown>),
+      ...offboardingBodies.export,
       checksumSha256: downloadFixture.checksumSha256,
       byteSize: downloadFixture.byteSize,
     };
     const { client, fetchMock } = clientFor([
       jsonResponse({ requestUuid: REQUEST_UUID, state: "preview", requestedAt: "2026-08-26T00:00:00Z" }),
-      jsonResponse(readLifecycleFixture("offboarding", "valid-preview-response.json")),
+      jsonResponse(offboardingBodies.preview),
       jsonResponse(exported),
-      binaryResponse(
-        Uint8Array.from(atob(downloadFixture.bodyBase64), (character) => character.charCodeAt(0)),
-        downloadFixture.checksumSha256,
-      ),
+      binaryResponse(downloadFixture.bytes, downloadFixture.checksumSha256),
     ]);
 
     await expect(
@@ -391,17 +374,17 @@ describe("BackendLifecycleClient", () => {
   });
 
   it("fails closed when zero-state reconciliation reports residual data", async () => {
-    const preview = readLifecycleFixture("offboarding", "valid-preview-response.json");
+    const preview = offboardingBodies.preview;
     const downloadFixture = readDownloadFixture();
     const exported = {
-      ...(readLifecycleFixture("offboarding", "valid-export-response.json") as Record<string, unknown>),
+      ...offboardingBodies.export,
       checksumSha256: downloadFixture.checksumSha256,
       byteSize: downloadFixture.byteSize,
     };
-    const downloadBytes = Uint8Array.from(atob(downloadFixture.bodyBase64), (character) => character.charCodeAt(0));
-    const acknowledged = readLifecycleFixture("offboarding", "valid-acknowledge-response.json");
-    const executed = readLifecycleFixture("offboarding", "valid-execute-response.json");
-    const receipt = readLifecycleFixture("offboarding", "valid-receipt-response.json");
+    const downloadBytes = downloadFixture.bytes;
+    const acknowledged = offboardingBodies.acknowledged;
+    const executed = offboardingBodies.receipt;
+    const receipt = offboardingBodies.receipt;
     const { client } = clientFor([
       jsonResponse({ requestUuid: REQUEST_UUID, state: "preview", requestedAt: "2026-08-26T00:00:00Z" }),
       jsonResponse(preview),

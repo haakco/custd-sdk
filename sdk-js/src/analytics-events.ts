@@ -4,6 +4,15 @@
 // `events.read` scope. Effective-tenant authority is enforced server-side, so the caller
 // never supplies a tenant slug — the credential already names the tenant.
 
+import type {
+  AnalyticsActiveNow,
+  AnalyticsDashboardDogfoodMetric,
+  AnalyticsDashboardDogfoodSource,
+  AnalyticsDashboardLoadedDay,
+  AnalyticsDashboardSummary,
+  AnalyticsEventCount,
+  AnalyticsEventCountQuery,
+} from "./analytics-reads.js";
 import type { RequestOptions } from "./index.js";
 import {
   optionalInteger,
@@ -257,6 +266,31 @@ export class AnalyticsEventClient {
     const value = await this.request<unknown>("POST", "/analytics/query-range", body, options);
     return assertRangeQueryResponse(value);
   }
+
+  /** Counts the sessions active on one site now. A 503 means realtime counts are unavailable: hide them. */
+  activeNow(siteUuid: string, options?: RequestOptions): Promise<AnalyticsActiveNow> {
+    if (siteUuid.trim() === "") return Promise.reject(new Error("custd: active-now requires a site"));
+    return this.request("GET", `/analytics/active-now?${new URLSearchParams({ site: siteUuid })}`, undefined, options);
+  }
+
+  /** Returns the tenant's stored-event overview. */
+  async dashboardSummary(options?: RequestOptions): Promise<AnalyticsDashboardSummary> {
+    const wire = await this.request<AnalyticsDashboardSummaryWire>(
+      "GET",
+      "/analytics/dashboard-summary",
+      undefined,
+      options,
+    );
+    return decodeAnalyticsDashboardSummary(wire);
+  }
+
+  /** Counts the tenant's events on one UTC day, optionally of one event type. */
+  eventCount(query: AnalyticsEventCountQuery, options?: RequestOptions): Promise<AnalyticsEventCount> {
+    if (query.date.trim() === "") return Promise.reject(new Error("custd: event count requires a date"));
+    const params = new URLSearchParams({ date: query.date });
+    if (query.eventType) params.set("eventType", query.eventType);
+    return this.request("GET", `/telemetry/event-count?${params}`, undefined, options);
+  }
 }
 
 // appendLogDimensionFilters copies the promoted log-dimension filters onto the
@@ -347,4 +381,21 @@ function assertRangeQueryResponse(value: unknown): AnalyticsEventRangeQueryRespo
   optionalString(timing, "oldestEventTimestamp", `${context} timing`);
   optionalString(timing, "newestEventTimestamp", `${context} timing`);
   return response as unknown as AnalyticsEventRangeQueryResponse;
+}
+
+type AnalyticsDashboardSummaryWire = Omit<AnalyticsDashboardSummary, "loadedDays" | "dogfood"> & {
+  loadedDays: AnalyticsDashboardLoadedDay[] | null;
+  dogfood: {
+    sources: AnalyticsDashboardDogfoodSource[] | null;
+    metrics: AnalyticsDashboardDogfoodMetric[] | null;
+  } | null;
+};
+
+/** Decodes a dashboard summary, turning JSON null lists into empty ones. */
+function decodeAnalyticsDashboardSummary(wire: AnalyticsDashboardSummaryWire): AnalyticsDashboardSummary {
+  return {
+    ...wire,
+    loadedDays: wire.loadedDays ?? [],
+    dogfood: { sources: wire.dogfood?.sources ?? [], metrics: wire.dogfood?.metrics ?? [] },
+  };
 }

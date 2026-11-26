@@ -88,7 +88,8 @@ config above so token refresh stays inside the SDK.
 
 ## Schema Admin Helpers
 
-Use `client.admin.schemas` for setup-time schema registration:
+Use `client.admin.schemas` for setup-time schema registration. It calls the schema
+registry's `/api/v1/schemas` routes on the same base URL:
 
 ```python
 from custd import CustdClient
@@ -105,17 +106,31 @@ client = CustdClient(
 )
 
 client.admin.schemas.list()
-client.admin.schemas.get("page-view")
+client.admin.schemas.list_versions("checkout.started")
+client.admin.schemas.get("checkout.started", "1.0.0")
 client.admin.schemas.register({
-    "eventTypeSlug": "checkout.started",
+    "slug": "checkout.started",
+    "name": "Checkout started",
     "version": "1.0.0",
-    "jsonSchema": {"type": "object"},
+    "jsonSchema": '{"type": "object"}',
+    "enabled": True,
+    "isActive": True,
 })
-client.admin.schemas.create_version("checkout.started", {
+# A new version registers under the same slug.
+client.admin.schemas.register({
+    "slug": "checkout.started",
+    "name": "Checkout started",
     "version": "1.1.0",
-    "jsonSchema": {"type": "object"},
+    "jsonSchema": '{"type": "object"}',
+    "enabled": True,
+    "isActive": True,
 })
 ```
+
+`validate`, `dry_run` and `infer` check a schema without registering it;
+`activate`, `enable`, `disable` and `disable_event_type` change a version's or an
+event type's state. Operators act on another tenant's schemas through
+`client.admin.schema_actions`.
 
 Supported feature parity and intentionally missing helpers are documented in the SDK
 root README.
@@ -281,27 +296,29 @@ The Python SDK exposes typed admin clients for the five lifecycle
 namespaces. Forward-only: no deprecated aliases.
 
 ```python
-admin = client.admin()
+admin = client.admin
 
-# Tenant storage: list/create/get/revoke.
-loc = admin.tenant_storage.create({
-    "tenantSlug": "acme",
-    "clientLocation": "s3://acme-prod-warehouse/events/",
-})
+# Deleted tenants: historical_cleanup (needs idempotency_key) then finalize, both by company id.
+admin.tenants.historical_cleanup("acme", company_id, {"idempotency_key": "cleanup-acme"})
+admin.tenants.finalize("acme", company_id)
 
-# Subject exports: full request lifecycle.
+# Tenant storage: list/create/get/revoke. Custd assigns every field, so create takes none.
+loc = admin.tenant_storage.create()
+admin.tenant_storage.get(loc["id"])
+
+# Subject exports: full request lifecycle; download reads one scope's artifact.
 exp = admin.subject_exports.create({
-    "tenantSlug": "acme",
-    "subject": {"type": "userUuid", "value": "01J5..."},
-    "scope": "portability",
+    "opaqueSubjectId": "subject-01J5...",
+    "scope": "both",
     "idempotencyKey": "acme-2026-07-31",
 })
+artifact = admin.subject_exports.download(exp["id"], "portability")
 
-# Physical erasures: NO cancel/retry.
-force = admin.privacy_erasures.force("pe_01J5...")
+# Physical erasures: NO cancel/retry. force answers the erasure, or the next safe step.
+forced = admin.privacy_erasures.force("pe_01J5...")
 
-# Retention policies: list/get/upsert/delete + preview/apply/list_runs.
-runs = admin.retention.list_runs("acme")
+# Retention policies: list/get/upsert/delete + preview/apply/list_runs (paged by offset).
+runs = admin.retention.list_runs("acme", limit=25)
 
 # Offboarding: full request lifecycle + schedules.
 sched = admin.offboarding.schedule({
@@ -339,10 +356,11 @@ The typed clients are available in `v1.8.25` and later.
 
 ## Usage reporting
 
-`client.admin.usage` reads the attributed usage for the authenticated tenant
+`client.admin.usage.get` reads the attributed usage for the authenticated tenant
 through `GET /api/v1/admin/usage/me`. The tenant comes from the credential, so
-the call never names a company slug. The system-admin `/usage` and `/usage/export`
-surfaces are deliberately not exposed.
+the call never names a company slug. System administrators use `list_usage` and
+`export_usage` with an optional `company_slug`, and `list_storage_usage` /
+`get_retained_usage` for retained storage against each tenant's limit.
 
 ```python
 report = client.admin.usage.get({
@@ -360,6 +378,30 @@ them rather than assuming every row is final. An omitted `start`/`end` uses the
 service default (the trailing 30 days) and an omitted `limit` uses
 `USAGE_DEFAULT_LIMIT`; a limit outside `1..USAGE_MAX_LIMIT` raises before a
 request is sent.
+
+## Operations, measurement and notifications
+
+These surfaces have typed calls. Responses are named `TypedDict` DTOs and a JSON
+null list always comes back as `[]`.
+
+- `client.measurement` reads the analytics API: `overview()`, `projects` forecast and
+  decision-simulation runs, `predictions` reads and `uncertainty_models` runs.
+  `client.admin.measurement.projects` and `client.admin.uncertainty_models` manage them.
+- `client.admin.ingest` covers ingest-api reprocessing, redaction, monitoring,
+  diagnostics and generated-data cleanup plans and jobs; `client.admin.get_account()`
+  reads the caller's account.
+  A system administrator names a tenant with `CustdClient(..., acting_company_slug="acme")`:
+  every admin route call that names no `companySlug` then sends that one, and the cleanup-job
+  list, get, proof and cancel name it in `X-Custd-Effective-Company`, the only place
+  ingest-api reads it.
+- Operator areas: `system` (jobs, scheduled tasks, status), `rls`, `environment_policy`,
+  `sdk_usage`, `storage_alerts`, `accounting_evidence`, `event_types`, `ingest_claims`,
+  `tenant_manifest`, `error_issues`, `managed_audit`, `privacy`, `webhooks`,
+  `notification_destinations`, `email_relay` and `campaign_email`, all on `client.admin`.
+- Credential-free routes are module functions in `custd.ingest_operations`:
+  `collect_event` / `collect_events` (a Site's public write key), `ErrorCaptureClient`
+  (error metadata relay), `read_shared_site_report` and
+  `read_auth_domain_monitoring_inventory`.
 
 ## Auth-project admin helpers
 
@@ -394,6 +436,38 @@ creation = client.admin.auth_projects.create_project(
 Responses are typed: `AuthProjectCreation`, `AuthProjectListResponse`,
 `ApplicationSessionInventory`, `ApplicationSessionRevocation` and
 `ApplicationMembershipRevocation`.
+
+### Hosted apps
+
+`client.admin.auth_projects` also creates and operates hosted apps under
+`/api/v1/admin/apps`: `create_app`, `list_apps(after=...)`, `get_app`,
+`pause_app`, `resume_app`, `repair_app`, `set_app_sign_in`, and
+`create_app_deploy_credential` / `list_app_deploy_credentials` /
+`delete_app_deploy_credential`. Create, pause, resume, repair and sign-in
+require `idempotency_key`.
+
+## Hosted-app items and profile
+
+`AppClient` calls the item routes under `/api/v1/app/` as a hosted app: its
+Site key, one of its allowed origins, and a link token or the signed-in user's
+access token. `read_app_discovery(api_base_url, host)` reads the app's public
+discovery document.
+
+```python
+from custd.app_items import AppClient, read_app_discovery
+
+discovery = read_app_discovery("https://api.custd.com", "counter.apps.custd.com")
+app = AppClient.from_discovery(discovery, "https://counter.apps.custd.com")
+created = app.create_item({"kind": "measurement_project", "measurementProject": project})
+owner = app.link(created["ownerToken"])
+owner.add_measurements({"rows": rows})
+read = owner.read(etag=previous_etag)  # {"status": "not_modified"} while unchanged
+```
+
+`app.with_user_token(token).owned_item(item_uuid)` reaches a signed-in owner's
+item with no link. Alert-email links use `read_alert_unsubscribe_page` and
+`unsubscribe_alert_email_by_token`. `CurrentAppProfileClient(api_base_url,
+access_token)` reads and changes the signed-in user's own profile and photo.
 
 ## Analytics range query
 

@@ -50,7 +50,11 @@
       "sources": [
         {
           "daily": [
-            {}
+            {
+              "clicks": 1,
+              "day": "example",
+              "impressions": 1
+            }
           ],
           "days": 1,
           "from": "example",

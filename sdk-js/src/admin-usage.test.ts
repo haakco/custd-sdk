@@ -122,7 +122,6 @@ describe("admin usage", () => {
       { ...usageReportBody, containsIncomplete: undefined },
       { ...usageReportBody, rows: undefined },
       { ...usageReportBody, rows: { unexpected: usageReportBody.rows } },
-      { ...usageReportBody, totals: null },
       { ...usageReportBody, containsProvisional: "false" },
       { ...usageReportBody, rows: [{ ...usageReportBody.rows[0], quantity: undefined }] },
       // companySlug is omitted-or-string, never null.

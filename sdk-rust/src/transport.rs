@@ -30,6 +30,7 @@ pub(crate) struct HttpRequest {
 pub(crate) struct HttpResponse {
     pub status: u16,
     pub etag: Option<String>,
+    pub content_type: Option<String>,
     pub body: Vec<u8>,
 }
 
@@ -92,6 +93,11 @@ impl Transport for UreqTransport {
             .get("etag")
             .and_then(|value| value.to_str().ok())
             .map(str::to_owned);
+        let content_type = response
+            .headers()
+            .get("content-type")
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned);
         let body = response
             .body_mut()
             .with_config()
@@ -101,6 +107,7 @@ impl Transport for UreqTransport {
         Ok(HttpResponse {
             status: response.status().as_u16(),
             etag,
+            content_type,
             body,
         })
     }

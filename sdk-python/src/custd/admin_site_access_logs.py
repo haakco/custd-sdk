@@ -127,6 +127,14 @@ class SiteAIPage(TypedDict):
     referralVisits: int
 
 
+class SiteAIAnswerSample(TypedDict):
+    """One AI product's latest answer about the site, when one was sampled."""
+
+    product: str
+    observedAt: str
+    answer: NotRequired[str]
+
+
 class SiteAIVisibility(_SiteTrafficRange):
     """AI crawlers, AI-assistant referrals and the pages they reach over ``from``..``to``."""
 
@@ -134,6 +142,7 @@ class SiteAIVisibility(_SiteTrafficRange):
     crawlers: list[SiteTrafficCrawler]
     assistants: list[SiteTrafficCount]
     pages: list[SiteAIPage]
+    answerSample: NotRequired[SiteAIAnswerSample]
 
 
 class SiteAccessLogHourReplay(TypedDict):

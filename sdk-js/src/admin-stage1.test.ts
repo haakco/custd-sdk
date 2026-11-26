@@ -60,13 +60,14 @@ const reportingPackDefinition: PackDefinition = {
 describe("admin privacy", () => {
   it("round-trips privacy rules and identifiers", async () => {
     const fetchMock = mockFetch([
-      { status: 200, body: JSON.stringify({ tenantSlug: "acme", purposes: ["analytics"], hardDeleteAfterDays: 30 }) },
+      { status: 200, body: JSON.stringify({ companySlug: "acme", enabled: true, applyMode: "ingest", rules: null }) },
       {
         status: 200,
         body: JSON.stringify({
-          tenantSlug: "acme",
-          purposes: ["analytics", "product_improvement"],
-          hardDeleteAfterDays: 60,
+          companySlug: "acme",
+          enabled: true,
+          applyMode: "ingest",
+          rules: [{ fieldPath: "payload.email", action: "hash", enabled: true }],
         }),
       },
       {
@@ -81,27 +82,39 @@ describe("admin privacy", () => {
       },
       {
         status: 200,
-        body: JSON.stringify([
-          { identifierId: "id-1", internalIdHash: "$2a$prefix", internalIdHashPrefix: "prefix", saltVersion: 2 },
-        ]),
+        body: JSON.stringify({
+          companySlug: "acme",
+          mappings: [
+            {
+              identifierId: "id-1",
+              internalIdHash: "$2a$prefix",
+              internalIdHashPrefix: "prefix",
+              saltVersion: 2,
+              createdAt: "2026-07-23T12:00:00Z",
+            },
+          ],
+        }),
       },
     ]);
     const client = newClient(fetchMock);
 
     const rules = await client.admin.privacy.getRules();
-    expect(rules.tenantSlug).toBe("acme");
+    expect(rules.companySlug).toBe("acme");
+    expect(rules.rules).toEqual([]);
 
     const updated = await client.admin.privacy.setRules({
-      purposes: ["analytics", "product_improvement"],
-      hardDeleteAfterDays: 60,
+      companySlug: "acme",
+      enabled: true,
+      applyMode: "ingest",
+      rules: [{ fieldPath: "payload.email", action: "hash", enabled: true }],
     });
-    expect(updated.hardDeleteAfterDays).toBe(60);
+    expect(updated.rules[0]?.action).toBe("hash");
 
     const mapped = await client.admin.privacy.mapIdentifier("acme", { externalId: "external-secret" });
     expect(mapped.internalIdHashPrefix).toBe("prefix");
 
     const list = await client.admin.privacy.listIdentifierMappings("acme");
-    expect(list[0]?.identifierId).toBe("id-1");
+    expect(list.mappings[0]?.identifierId).toBe("id-1");
 
     const urls = (fetchMock as unknown as { mock: { calls: string[][] } }).mock.calls.map((c) => c[0]);
     expect(urls).toEqual([
@@ -115,63 +128,37 @@ describe("admin privacy", () => {
 
 describe("admin retention", () => {
   it("covers list, upsert, get, delete", async () => {
+    const policy = {
+      id: 7,
+      scope: "tenant",
+      retentionClass: "raw",
+      maxAgeSeconds: 15_552_000,
+      precedence: 100,
+      legalHold: false,
+      effectiveAt: "2026-07-23T00:00:00Z",
+      lastAffectedCounts: null,
+    };
     const fetchMock = mockFetch([
-      {
-        status: 200,
-        body: JSON.stringify({
-          policies: [
-            {
-              tenantSlug: "acme",
-              maxAgeDays: 365,
-              hardDeleteAfterDays: 730,
-              applyToEventTypes: ["page.view"],
-              applyToDataSpaces: ["main"],
-            },
-          ],
-        }),
-      },
-      {
-        status: 200,
-        body: JSON.stringify({
-          tenantSlug: "acme",
-          maxAgeDays: 180,
-          hardDeleteAfterDays: 365,
-          applyToEventTypes: [],
-          applyToDataSpaces: [],
-        }),
-      },
-      {
-        status: 200,
-        body: JSON.stringify({
-          tenantSlug: "acme",
-          maxAgeDays: 180,
-          hardDeleteAfterDays: 365,
-          applyToEventTypes: [],
-          applyToDataSpaces: [],
-        }),
-      },
-      {
-        status: 200,
-        body: JSON.stringify({
-          tenantSlug: "acme",
-          effectiveAt: "2026-08-23T00:00:00Z",
-          gracePeriodDays: 7,
-          reason: "client cancelled",
-          status: "cancelled",
-        }),
-      },
+      { status: 200, body: JSON.stringify({ policies: [policy] }) },
+      { status: 200, body: JSON.stringify(policy) },
+      { status: 200, body: JSON.stringify({ policies: null }) },
+      { status: 204, body: "" },
     ]);
     const client = newClient(fetchMock);
 
     const list = await client.admin.retention.list();
-    expect(list.policies[0]?.tenantSlug).toBe("acme");
+    expect(list.policies[0]?.retentionClass).toBe("raw");
     const upserted = await client.admin.retention.upsert("acme", {
-      maxAgeDays: 180,
-      hardDeleteAfterDays: 365,
+      scope: "tenant",
+      retentionClass: "raw",
+      maxAgeSeconds: 15_552_000,
+      precedence: 100,
+      legalHold: false,
     });
-    expect(upserted.maxAgeDays).toBe(180);
+    expect(upserted.maxAgeSeconds).toBe(15_552_000);
+    expect(upserted.lastAffectedCounts).toEqual({});
     const got = await client.admin.retention.get("acme");
-    expect(got.tenantSlug).toBe("acme");
+    expect(got.policies).toEqual([]);
     await client.admin.retention.delete("acme");
     const calls = (fetchMock as unknown as { mock: { calls: [string, { method?: string }][] } }).mock.calls;
     const urls = calls.map((c) => `${c[1]?.method ?? ""} ${c[0]}`);
@@ -537,13 +524,13 @@ describe("admin reporting packs", () => {
         }),
       },
       {
-        status: 202,
+        status: 200,
         body: JSON.stringify({
-          id: 100,
-          generationNumber: 8,
-          sourceDraftId: 43,
+          id: 43,
+          revision: 4,
           definition: { key: "security", displayName: "Security" },
-          state: "restarting",
+          createdAt: "2026-07-23T12:00:00Z",
+          updatedAt: "2026-07-23T12:05:00Z",
         }),
       },
       {
@@ -565,7 +552,17 @@ describe("admin reporting packs", () => {
           ],
         }),
       },
-      { status: 204, body: "" },
+      {
+        status: 202,
+        body: JSON.stringify({
+          id: 101,
+          generationNumber: 9,
+          sourceDraftId: 43,
+          definition: { key: "security", displayName: "Security" },
+          state: "rolling_back",
+          createdAt: "2026-07-23T12:10:00Z",
+        }),
+      },
       {
         status: 200,
         body: JSON.stringify({
@@ -604,12 +601,13 @@ describe("admin reporting packs", () => {
     const published = await client.admin.reportingPacks.publish("43");
     expect(published.state).toBe("publishing");
     const restarted = await client.admin.reportingPacks.restart("43");
-    expect(restarted.generationNumber).toBe(8);
+    expect(restarted.revision).toBe(4);
     const got = await client.admin.reportingPacks.getGeneration("99");
     expect(got.state).toBe("published");
     const status = await client.admin.reportingPacks.getGenerationStatus("99");
     expect(status.generation.packKey).toBe("security");
-    await client.admin.reportingPacks.rollbackGeneration("99");
+    const rolledBack = await client.admin.reportingPacks.rollbackGeneration("99");
+    expect(rolledBack.generationNumber).toBe(9);
     const provenance = await client.admin.reportingPacks.getRollupProvenance("99");
     expect(provenance.materializations[0]?.sourceCoverageCount).toBe(12);
   });
@@ -628,16 +626,22 @@ describe("admin oauth updateScopes + admin schema audit/validate/dryRun/enable",
       {
         status: 200,
         body: JSON.stringify({
-          entries: [
+          schemas: [
             {
-              eventId: "ev-1",
+              tenantSlug: "acme",
               eventTypeSlug: "courib.delivery.created",
               version: "1.0.0",
-              action: "registered",
-              registeredAt: "2026-07-23T12:00:00Z",
-              registeredBy: "u-1",
+              dialect: "jsonschema",
+              schemaChecksum: "sha256:abc",
+              class: "compatible",
+              recommendedAction: "none",
+              issueCodes: null,
+              legacyCompile: { valid: true, issues: null },
+              sharedCompile: { valid: true, issues: null },
+              exampleValidation: { discovered: 1, run: 1, sameAccept: 1, sameReject: 0, deltas: 0, issueCodes: null },
             },
           ],
+          summary: { total: 1, compatible: 1, needsMigration: 0, blocked: 0 },
         }),
       },
     ]);
@@ -673,7 +677,9 @@ describe("admin oauth updateScopes + admin schema audit/validate/dryRun/enable",
     expect(dryRun.passed).toBe(3);
 
     const audit = await client.admin.schemas.audit();
-    expect(audit.entries[0]?.version).toBe("1.0.0");
+    expect(audit.schemas[0]?.version).toBe("1.0.0");
+    expect(audit.schemas[0]?.issueCodes).toEqual([]);
+    expect(audit.summary.compatible).toBe(1);
   });
 });
 

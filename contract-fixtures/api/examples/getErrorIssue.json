@@ -28,7 +28,21 @@
       "exceptions": [
         {
           "frames": [
-            {}
+            {
+              "column": 1,
+              "contextLine": "example",
+              "filename": "example",
+              "function": "example",
+              "inApp": true,
+              "line": 1,
+              "module": "example",
+              "postContext": [
+                "example"
+              ],
+              "preContext": [
+                "example"
+              ]
+            }
           ],
           "framesOmitted": 1,
           "handled": true,

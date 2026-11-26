@@ -17,9 +17,42 @@
             "coverageEnd": "2026-11-20T06:00:00Z",
             "coverageStart": "2026-11-20T06:00:00Z",
             "freshnessMs": 1,
-            "reconciliation": {},
-            "sourceRange": {},
-            "warnings": [],
+            "reconciliation": {
+              "availability": "example",
+              "contributingSources": [
+                {
+                  "availability": "example",
+                  "freshnessSeconds": 1,
+                  "observedAt": "2026-11-20T06:00:00Z",
+                  "selected": true,
+                  "sourceKey": "example",
+                  "sourceSeriesKey": "example",
+                  "stale": true,
+                  "unit": "example",
+                  "value": 1.5
+                }
+              ],
+              "divergence": {
+                "absoluteDifference": 1.5,
+                "detected": true,
+                "relativeDifference": 1.5
+              },
+              "observedAt": "2026-11-20T06:00:00Z",
+              "selectedSourceKey": "example",
+              "selectedSourceSeries": "example",
+              "seriesKey": "example",
+              "status": "example",
+              "tenantKey": "example",
+              "unit": "example",
+              "value": 1.5
+            },
+            "sourceRange": {
+              "end": "2026-11-20T06:00:00Z",
+              "start": "2026-11-20T06:00:00Z"
+            },
+            "warnings": [
+              "example"
+            ],
             "windowCoverage": 1.5
           },
           "unit": "example",
@@ -37,9 +70,42 @@
             "coverageEnd": "2026-11-20T06:00:00Z",
             "coverageStart": "2026-11-20T06:00:00Z",
             "freshnessMs": 1,
-            "reconciliation": {},
-            "sourceRange": {},
-            "warnings": [],
+            "reconciliation": {
+              "availability": "example",
+              "contributingSources": [
+                {
+                  "availability": "example",
+                  "freshnessSeconds": 1,
+                  "observedAt": "2026-11-20T06:00:00Z",
+                  "selected": true,
+                  "sourceKey": "example",
+                  "sourceSeriesKey": "example",
+                  "stale": true,
+                  "unit": "example",
+                  "value": 1.5
+                }
+              ],
+              "divergence": {
+                "absoluteDifference": 1.5,
+                "detected": true,
+                "relativeDifference": 1.5
+              },
+              "observedAt": "2026-11-20T06:00:00Z",
+              "selectedSourceKey": "example",
+              "selectedSourceSeries": "example",
+              "seriesKey": "example",
+              "status": "example",
+              "tenantKey": "example",
+              "unit": "example",
+              "value": 1.5
+            },
+            "sourceRange": {
+              "end": "2026-11-20T06:00:00Z",
+              "start": "2026-11-20T06:00:00Z"
+            },
+            "warnings": [
+              "example"
+            ],
             "windowCoverage": 1.5
           },
           "unit": "example",
@@ -60,8 +126,24 @@
         "freshnessMs": 1,
         "reconciliation": {
           "availability": "example",
-          "contributingSources": [],
-          "divergence": {},
+          "contributingSources": [
+            {
+              "availability": "example",
+              "freshnessSeconds": 1,
+              "observedAt": "2026-11-20T06:00:00Z",
+              "selected": true,
+              "sourceKey": "example",
+              "sourceSeriesKey": "example",
+              "stale": true,
+              "unit": "example",
+              "value": 1.5
+            }
+          ],
+          "divergence": {
+            "absoluteDifference": 1.5,
+            "detected": true,
+            "relativeDifference": 1.5
+          },
           "observedAt": "2026-11-20T06:00:00Z",
           "selectedSourceKey": "example",
           "selectedSourceSeries": "example",
@@ -169,8 +251,24 @@
         "freshnessMs": 1,
         "reconciliation": {
           "availability": "example",
-          "contributingSources": [],
-          "divergence": {},
+          "contributingSources": [
+            {
+              "availability": "example",
+              "freshnessSeconds": 1,
+              "observedAt": "2026-11-20T06:00:00Z",
+              "selected": true,
+              "sourceKey": "example",
+              "sourceSeriesKey": "example",
+              "stale": true,
+              "unit": "example",
+              "value": 1.5
+            }
+          ],
+          "divergence": {
+            "absoluteDifference": 1.5,
+            "detected": true,
+            "relativeDifference": 1.5
+          },
           "observedAt": "2026-11-20T06:00:00Z",
           "selectedSourceKey": "example",
           "selectedSourceSeries": "example",
@@ -204,7 +302,49 @@
             "dataSufficiency": "example",
             "sampleCount": 1,
             "truncated": true,
-            "trust": {},
+            "trust": {
+              "calculationVersion": "example",
+              "coverageEnd": "2026-11-20T06:00:00Z",
+              "coverageStart": "2026-11-20T06:00:00Z",
+              "freshnessMs": 1,
+              "reconciliation": {
+                "availability": "example",
+                "contributingSources": [
+                  {
+                    "availability": "example",
+                    "freshnessSeconds": 1,
+                    "observedAt": "2026-11-20T06:00:00Z",
+                    "selected": true,
+                    "sourceKey": "example",
+                    "sourceSeriesKey": "example",
+                    "stale": true,
+                    "unit": "example",
+                    "value": 1.5
+                  }
+                ],
+                "divergence": {
+                  "absoluteDifference": 1.5,
+                  "detected": true,
+                  "relativeDifference": 1.5
+                },
+                "observedAt": "2026-11-20T06:00:00Z",
+                "selectedSourceKey": "example",
+                "selectedSourceSeries": "example",
+                "seriesKey": "example",
+                "status": "example",
+                "tenantKey": "example",
+                "unit": "example",
+                "value": 1.5
+              },
+              "sourceRange": {
+                "end": "2026-11-20T06:00:00Z",
+                "start": "2026-11-20T06:00:00Z"
+              },
+              "warnings": [
+                "example"
+              ],
+              "windowCoverage": 1.5
+            },
             "unit": "example",
             "value": 1.5
           }
@@ -218,7 +358,49 @@
             "dataSufficiency": "example",
             "sampleCount": 1,
             "truncated": true,
-            "trust": {},
+            "trust": {
+              "calculationVersion": "example",
+              "coverageEnd": "2026-11-20T06:00:00Z",
+              "coverageStart": "2026-11-20T06:00:00Z",
+              "freshnessMs": 1,
+              "reconciliation": {
+                "availability": "example",
+                "contributingSources": [
+                  {
+                    "availability": "example",
+                    "freshnessSeconds": 1,
+                    "observedAt": "2026-11-20T06:00:00Z",
+                    "selected": true,
+                    "sourceKey": "example",
+                    "sourceSeriesKey": "example",
+                    "stale": true,
+                    "unit": "example",
+                    "value": 1.5
+                  }
+                ],
+                "divergence": {
+                  "absoluteDifference": 1.5,
+                  "detected": true,
+                  "relativeDifference": 1.5
+                },
+                "observedAt": "2026-11-20T06:00:00Z",
+                "selectedSourceKey": "example",
+                "selectedSourceSeries": "example",
+                "seriesKey": "example",
+                "status": "example",
+                "tenantKey": "example",
+                "unit": "example",
+                "value": 1.5
+              },
+              "sourceRange": {
+                "end": "2026-11-20T06:00:00Z",
+                "start": "2026-11-20T06:00:00Z"
+              },
+              "warnings": [
+                "example"
+              ],
+              "windowCoverage": 1.5
+            },
             "unit": "example",
             "value": 1.5
           },
@@ -237,7 +419,49 @@
             "dataSufficiency": "example",
             "sampleCount": 1,
             "truncated": true,
-            "trust": {},
+            "trust": {
+              "calculationVersion": "example",
+              "coverageEnd": "2026-11-20T06:00:00Z",
+              "coverageStart": "2026-11-20T06:00:00Z",
+              "freshnessMs": 1,
+              "reconciliation": {
+                "availability": "example",
+                "contributingSources": [
+                  {
+                    "availability": "example",
+                    "freshnessSeconds": 1,
+                    "observedAt": "2026-11-20T06:00:00Z",
+                    "selected": true,
+                    "sourceKey": "example",
+                    "sourceSeriesKey": "example",
+                    "stale": true,
+                    "unit": "example",
+                    "value": 1.5
+                  }
+                ],
+                "divergence": {
+                  "absoluteDifference": 1.5,
+                  "detected": true,
+                  "relativeDifference": 1.5
+                },
+                "observedAt": "2026-11-20T06:00:00Z",
+                "selectedSourceKey": "example",
+                "selectedSourceSeries": "example",
+                "seriesKey": "example",
+                "status": "example",
+                "tenantKey": "example",
+                "unit": "example",
+                "value": 1.5
+              },
+              "sourceRange": {
+                "end": "2026-11-20T06:00:00Z",
+                "start": "2026-11-20T06:00:00Z"
+              },
+              "warnings": [
+                "example"
+              ],
+              "windowCoverage": 1.5
+            },
             "unit": "example",
             "value": 1.5
           },
@@ -254,7 +478,49 @@
             "dataSufficiency": "example",
             "sampleCount": 1,
             "truncated": true,
-            "trust": {},
+            "trust": {
+              "calculationVersion": "example",
+              "coverageEnd": "2026-11-20T06:00:00Z",
+              "coverageStart": "2026-11-20T06:00:00Z",
+              "freshnessMs": 1,
+              "reconciliation": {
+                "availability": "example",
+                "contributingSources": [
+                  {
+                    "availability": "example",
+                    "freshnessSeconds": 1,
+                    "observedAt": "2026-11-20T06:00:00Z",
+                    "selected": true,
+                    "sourceKey": "example",
+                    "sourceSeriesKey": "example",
+                    "stale": true,
+                    "unit": "example",
+                    "value": 1.5
+                  }
+                ],
+                "divergence": {
+                  "absoluteDifference": 1.5,
+                  "detected": true,
+                  "relativeDifference": 1.5
+                },
+                "observedAt": "2026-11-20T06:00:00Z",
+                "selectedSourceKey": "example",
+                "selectedSourceSeries": "example",
+                "seriesKey": "example",
+                "status": "example",
+                "tenantKey": "example",
+                "unit": "example",
+                "value": 1.5
+              },
+              "sourceRange": {
+                "end": "2026-11-20T06:00:00Z",
+                "start": "2026-11-20T06:00:00Z"
+              },
+              "warnings": [
+                "example"
+              ],
+              "windowCoverage": 1.5
+            },
             "unit": "example",
             "value": 1.5
           }
@@ -268,7 +534,49 @@
             "dataSufficiency": "example",
             "sampleCount": 1,
             "truncated": true,
-            "trust": {},
+            "trust": {
+              "calculationVersion": "example",
+              "coverageEnd": "2026-11-20T06:00:00Z",
+              "coverageStart": "2026-11-20T06:00:00Z",
+              "freshnessMs": 1,
+              "reconciliation": {
+                "availability": "example",
+                "contributingSources": [
+                  {
+                    "availability": "example",
+                    "freshnessSeconds": 1,
+                    "observedAt": "2026-11-20T06:00:00Z",
+                    "selected": true,
+                    "sourceKey": "example",
+                    "sourceSeriesKey": "example",
+                    "stale": true,
+                    "unit": "example",
+                    "value": 1.5
+                  }
+                ],
+                "divergence": {
+                  "absoluteDifference": 1.5,
+                  "detected": true,
+                  "relativeDifference": 1.5
+                },
+                "observedAt": "2026-11-20T06:00:00Z",
+                "selectedSourceKey": "example",
+                "selectedSourceSeries": "example",
+                "seriesKey": "example",
+                "status": "example",
+                "tenantKey": "example",
+                "unit": "example",
+                "value": 1.5
+              },
+              "sourceRange": {
+                "end": "2026-11-20T06:00:00Z",
+                "start": "2026-11-20T06:00:00Z"
+              },
+              "warnings": [
+                "example"
+              ],
+              "windowCoverage": 1.5
+            },
             "unit": "example",
             "value": 1.5
           },
@@ -286,7 +594,49 @@
             "dataSufficiency": "example",
             "sampleCount": 1,
             "truncated": true,
-            "trust": {},
+            "trust": {
+              "calculationVersion": "example",
+              "coverageEnd": "2026-11-20T06:00:00Z",
+              "coverageStart": "2026-11-20T06:00:00Z",
+              "freshnessMs": 1,
+              "reconciliation": {
+                "availability": "example",
+                "contributingSources": [
+                  {
+                    "availability": "example",
+                    "freshnessSeconds": 1,
+                    "observedAt": "2026-11-20T06:00:00Z",
+                    "selected": true,
+                    "sourceKey": "example",
+                    "sourceSeriesKey": "example",
+                    "stale": true,
+                    "unit": "example",
+                    "value": 1.5
+                  }
+                ],
+                "divergence": {
+                  "absoluteDifference": 1.5,
+                  "detected": true,
+                  "relativeDifference": 1.5
+                },
+                "observedAt": "2026-11-20T06:00:00Z",
+                "selectedSourceKey": "example",
+                "selectedSourceSeries": "example",
+                "seriesKey": "example",
+                "status": "example",
+                "tenantKey": "example",
+                "unit": "example",
+                "value": 1.5
+              },
+              "sourceRange": {
+                "end": "2026-11-20T06:00:00Z",
+                "start": "2026-11-20T06:00:00Z"
+              },
+              "warnings": [
+                "example"
+              ],
+              "windowCoverage": 1.5
+            },
             "unit": "example",
             "value": 1.5
           },
@@ -297,7 +647,49 @@
             "dataSufficiency": "example",
             "sampleCount": 1,
             "truncated": true,
-            "trust": {},
+            "trust": {
+              "calculationVersion": "example",
+              "coverageEnd": "2026-11-20T06:00:00Z",
+              "coverageStart": "2026-11-20T06:00:00Z",
+              "freshnessMs": 1,
+              "reconciliation": {
+                "availability": "example",
+                "contributingSources": [
+                  {
+                    "availability": "example",
+                    "freshnessSeconds": 1,
+                    "observedAt": "2026-11-20T06:00:00Z",
+                    "selected": true,
+                    "sourceKey": "example",
+                    "sourceSeriesKey": "example",
+                    "stale": true,
+                    "unit": "example",
+                    "value": 1.5
+                  }
+                ],
+                "divergence": {
+                  "absoluteDifference": 1.5,
+                  "detected": true,
+                  "relativeDifference": 1.5
+                },
+                "observedAt": "2026-11-20T06:00:00Z",
+                "selectedSourceKey": "example",
+                "selectedSourceSeries": "example",
+                "seriesKey": "example",
+                "status": "example",
+                "tenantKey": "example",
+                "unit": "example",
+                "value": 1.5
+              },
+              "sourceRange": {
+                "end": "2026-11-20T06:00:00Z",
+                "start": "2026-11-20T06:00:00Z"
+              },
+              "warnings": [
+                "example"
+              ],
+              "windowCoverage": 1.5
+            },
             "unit": "example",
             "value": 1.5
           },
@@ -307,7 +699,49 @@
             "dataSufficiency": "example",
             "sampleCount": 1,
             "truncated": true,
-            "trust": {},
+            "trust": {
+              "calculationVersion": "example",
+              "coverageEnd": "2026-11-20T06:00:00Z",
+              "coverageStart": "2026-11-20T06:00:00Z",
+              "freshnessMs": 1,
+              "reconciliation": {
+                "availability": "example",
+                "contributingSources": [
+                  {
+                    "availability": "example",
+                    "freshnessSeconds": 1,
+                    "observedAt": "2026-11-20T06:00:00Z",
+                    "selected": true,
+                    "sourceKey": "example",
+                    "sourceSeriesKey": "example",
+                    "stale": true,
+                    "unit": "example",
+                    "value": 1.5
+                  }
+                ],
+                "divergence": {
+                  "absoluteDifference": 1.5,
+                  "detected": true,
+                  "relativeDifference": 1.5
+                },
+                "observedAt": "2026-11-20T06:00:00Z",
+                "selectedSourceKey": "example",
+                "selectedSourceSeries": "example",
+                "seriesKey": "example",
+                "status": "example",
+                "tenantKey": "example",
+                "unit": "example",
+                "value": 1.5
+              },
+              "sourceRange": {
+                "end": "2026-11-20T06:00:00Z",
+                "start": "2026-11-20T06:00:00Z"
+              },
+              "warnings": [
+                "example"
+              ],
+              "windowCoverage": 1.5
+            },
             "unit": "example",
             "value": 1.5
           }
@@ -322,7 +756,49 @@
             "dataSufficiency": "example",
             "sampleCount": 1,
             "truncated": true,
-            "trust": {},
+            "trust": {
+              "calculationVersion": "example",
+              "coverageEnd": "2026-11-20T06:00:00Z",
+              "coverageStart": "2026-11-20T06:00:00Z",
+              "freshnessMs": 1,
+              "reconciliation": {
+                "availability": "example",
+                "contributingSources": [
+                  {
+                    "availability": "example",
+                    "freshnessSeconds": 1,
+                    "observedAt": "2026-11-20T06:00:00Z",
+                    "selected": true,
+                    "sourceKey": "example",
+                    "sourceSeriesKey": "example",
+                    "stale": true,
+                    "unit": "example",
+                    "value": 1.5
+                  }
+                ],
+                "divergence": {
+                  "absoluteDifference": 1.5,
+                  "detected": true,
+                  "relativeDifference": 1.5
+                },
+                "observedAt": "2026-11-20T06:00:00Z",
+                "selectedSourceKey": "example",
+                "selectedSourceSeries": "example",
+                "seriesKey": "example",
+                "status": "example",
+                "tenantKey": "example",
+                "unit": "example",
+                "value": 1.5
+              },
+              "sourceRange": {
+                "end": "2026-11-20T06:00:00Z",
+                "start": "2026-11-20T06:00:00Z"
+              },
+              "warnings": [
+                "example"
+              ],
+              "windowCoverage": 1.5
+            },
             "unit": "example",
             "value": 1.5
           },
@@ -332,7 +808,49 @@
             "dataSufficiency": "example",
             "sampleCount": 1,
             "truncated": true,
-            "trust": {},
+            "trust": {
+              "calculationVersion": "example",
+              "coverageEnd": "2026-11-20T06:00:00Z",
+              "coverageStart": "2026-11-20T06:00:00Z",
+              "freshnessMs": 1,
+              "reconciliation": {
+                "availability": "example",
+                "contributingSources": [
+                  {
+                    "availability": "example",
+                    "freshnessSeconds": 1,
+                    "observedAt": "2026-11-20T06:00:00Z",
+                    "selected": true,
+                    "sourceKey": "example",
+                    "sourceSeriesKey": "example",
+                    "stale": true,
+                    "unit": "example",
+                    "value": 1.5
+                  }
+                ],
+                "divergence": {
+                  "absoluteDifference": 1.5,
+                  "detected": true,
+                  "relativeDifference": 1.5
+                },
+                "observedAt": "2026-11-20T06:00:00Z",
+                "selectedSourceKey": "example",
+                "selectedSourceSeries": "example",
+                "seriesKey": "example",
+                "status": "example",
+                "tenantKey": "example",
+                "unit": "example",
+                "value": 1.5
+              },
+              "sourceRange": {
+                "end": "2026-11-20T06:00:00Z",
+                "start": "2026-11-20T06:00:00Z"
+              },
+              "warnings": [
+                "example"
+              ],
+              "windowCoverage": 1.5
+            },
             "unit": "example",
             "value": 1.5
           },
@@ -342,7 +860,49 @@
             "dataSufficiency": "example",
             "sampleCount": 1,
             "truncated": true,
-            "trust": {},
+            "trust": {
+              "calculationVersion": "example",
+              "coverageEnd": "2026-11-20T06:00:00Z",
+              "coverageStart": "2026-11-20T06:00:00Z",
+              "freshnessMs": 1,
+              "reconciliation": {
+                "availability": "example",
+                "contributingSources": [
+                  {
+                    "availability": "example",
+                    "freshnessSeconds": 1,
+                    "observedAt": "2026-11-20T06:00:00Z",
+                    "selected": true,
+                    "sourceKey": "example",
+                    "sourceSeriesKey": "example",
+                    "stale": true,
+                    "unit": "example",
+                    "value": 1.5
+                  }
+                ],
+                "divergence": {
+                  "absoluteDifference": 1.5,
+                  "detected": true,
+                  "relativeDifference": 1.5
+                },
+                "observedAt": "2026-11-20T06:00:00Z",
+                "selectedSourceKey": "example",
+                "selectedSourceSeries": "example",
+                "seriesKey": "example",
+                "status": "example",
+                "tenantKey": "example",
+                "unit": "example",
+                "value": 1.5
+              },
+              "sourceRange": {
+                "end": "2026-11-20T06:00:00Z",
+                "start": "2026-11-20T06:00:00Z"
+              },
+              "warnings": [
+                "example"
+              ],
+              "windowCoverage": 1.5
+            },
             "unit": "example",
             "value": 1.5
           },
@@ -361,7 +921,49 @@
             "dataSufficiency": "example",
             "sampleCount": 1,
             "truncated": true,
-            "trust": {},
+            "trust": {
+              "calculationVersion": "example",
+              "coverageEnd": "2026-11-20T06:00:00Z",
+              "coverageStart": "2026-11-20T06:00:00Z",
+              "freshnessMs": 1,
+              "reconciliation": {
+                "availability": "example",
+                "contributingSources": [
+                  {
+                    "availability": "example",
+                    "freshnessSeconds": 1,
+                    "observedAt": "2026-11-20T06:00:00Z",
+                    "selected": true,
+                    "sourceKey": "example",
+                    "sourceSeriesKey": "example",
+                    "stale": true,
+                    "unit": "example",
+                    "value": 1.5
+                  }
+                ],
+                "divergence": {
+                  "absoluteDifference": 1.5,
+                  "detected": true,
+                  "relativeDifference": 1.5
+                },
+                "observedAt": "2026-11-20T06:00:00Z",
+                "selectedSourceKey": "example",
+                "selectedSourceSeries": "example",
+                "seriesKey": "example",
+                "status": "example",
+                "tenantKey": "example",
+                "unit": "example",
+                "value": 1.5
+              },
+              "sourceRange": {
+                "end": "2026-11-20T06:00:00Z",
+                "start": "2026-11-20T06:00:00Z"
+              },
+              "warnings": [
+                "example"
+              ],
+              "windowCoverage": 1.5
+            },
             "unit": "example",
             "value": 1.5
           }

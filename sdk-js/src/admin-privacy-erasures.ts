@@ -4,32 +4,42 @@
 
 import type { RequestOptions } from "./index.js";
 
-// PrivacyErasureSelector is the typed selector the SDK submits to identify
-// a subject. The value is a server-side identifier; the SDK must not log it.
+// PrivacyErasureSelector identifies the subject: one value or a list of
+// values. The values are server-side identifiers; the SDK must not log them.
 export type PrivacyErasureSelector = {
   type: string;
-  value: string;
+  value?: string;
+  values?: string[];
 };
 
-// PrivacyErasureStoreProgress tracks per-store progress of an erasure.
-// state == "retained" is terminal for the legal_hold store and means the
-// row must not be deleted; callers must surface this verbatim.
-export type PrivacyErasureStoreProgress = {
-  store: string;
-  state: string;
-  deletedCount?: number;
-  reason?: string;
-};
-
+// PrivacyErasure is the read model of one erasure request: its status plus
+// the rewrite, SLA and archive-propagation rollups.
 export type PrivacyErasure = {
   requestUuid: string;
   status: string;
-  state?: string;
-  selectorType?: string;
-  selectorDisplay?: string;
-  perStoreProgress?: PrivacyErasureStoreProgress[];
+  selectorType: string;
+  selectorDisplay: string;
+  source?: string;
+  requestedBy?: string;
+  matchedEventCount: number;
+  redactedEventCount: number;
+  affectedSegmentCount: number;
+  rewriteCount?: number;
+  pendingRewriteCount?: number;
+  rewritingRewriteCount?: number;
+  rewrittenRewriteCount?: number;
+  recompactedRewriteCount?: number;
+  failedRewriteCount?: number;
+  oldestPendingRewriteAt?: string;
+  latestRecompactedAt?: string;
+  archiveRecompactedAt?: string;
+  s3PropagationLagSeconds?: number;
+  latestFailureReason?: string;
+  slaDeadlineAt?: string;
+  slaState?: string;
+  forceRequestedAt?: string;
   createdAt?: string;
-  completedAt?: string;
+  updatedAt?: string;
 };
 
 export type PrivacyErasureCreateRequest = {
@@ -81,11 +91,18 @@ export class PrivacyErasureClient {
     return classifiedRequest(() => this.request("POST", "/privacy/erasures", body, options), "create_request_failed");
   }
 
-  list(companySlug: string, options?: RequestOptions): Promise<PrivacyErasureListResponse> {
-    return classifiedRequest(
-      () => this.request("GET", `/privacy/erasures?companySlug=${encodeURIComponent(companySlug)}`, undefined, options),
+  async list(companySlug: string, options?: RequestOptions): Promise<PrivacyErasureListResponse> {
+    const list = await classifiedRequest(
+      () =>
+        this.request<PrivacyErasureListResponse>(
+          "GET",
+          `/privacy/erasures?companySlug=${encodeURIComponent(companySlug)}`,
+          undefined,
+          options,
+        ),
       "list_request_failed",
     );
+    return { requests: list.requests ?? [] };
   }
 
   get(companySlug: string, requestUuid: string, options?: RequestOptions): Promise<PrivacyErasure> {

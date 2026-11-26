@@ -6,6 +6,8 @@ from collections.abc import Mapping
 from datetime import date
 from typing import Any, NotRequired, TypedDict, cast
 
+from ._wire import decode, query_string
+from .analytics_reads import AnalyticsActiveNow, AnalyticsDashboardSummary, AnalyticsTelemetryEventCount
 from .client import AdminTransport, CustdClient, RequestError, problem_request_error
 
 ANALYTICS_QUERY_PATH = "/analytics/query"
@@ -171,6 +173,24 @@ class AnalyticsEventClient:
         """Query this tenant's own events across an inclusive date range."""
         payload = _public_range_query_payload(request)
         return _validate_range_response(self._request("POST", ANALYTICS_QUERY_RANGE_PATH, payload))
+
+    def active_now(self, site_uuid: str) -> AnalyticsActiveNow:
+        """Count the sessions active on one site now; a 503 means realtime counts are unavailable."""
+        if not site_uuid.strip():
+            raise ValueError("custd: active-now requires a site")
+        path = "/analytics/active-now" + query_string({"site": site_uuid})
+        return decode(AnalyticsActiveNow, self._request("GET", path))
+
+    def dashboard_summary(self) -> AnalyticsDashboardSummary:
+        """Return the tenant's stored-event overview."""
+        return decode(AnalyticsDashboardSummary, self._request("GET", "/analytics/dashboard-summary"))
+
+    def telemetry_event_count(self, date: str, *, event_type: str | None = None) -> AnalyticsTelemetryEventCount:
+        """Count the tenant's events on one UTC date (YYYY-MM-DD), optionally of one event type."""
+        if not date.strip():
+            raise ValueError("custd: event count requires a date")
+        path = "/telemetry/event-count" + query_string({"date": date, "eventType": event_type})
+        return decode(AnalyticsTelemetryEventCount, self._request("GET", path))
 
     def _request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         try:
@@ -377,7 +397,10 @@ def _require_range_boolean(payload: Mapping[str, Any], key: str, context: str = 
     return value
 
 
-def _require_range_objects(payload: Mapping[str, Any], key: str) -> list[Mapping[str, Any]]:
+def _require_range_objects(payload: dict[str, Any], key: str) -> list[Mapping[str, Any]]:
+    # The server encodes an empty list as JSON null; it decodes as empty.
+    if key in payload and payload[key] is None:
+        payload[key] = []
     value = _require_range(payload, key, "")
     if not isinstance(value, list):
         raise ValueError(f"custd: analytics range response field {key} must be a list")

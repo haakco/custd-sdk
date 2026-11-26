@@ -25,6 +25,7 @@ impl Transport for TestTokenEndpoint {
         Ok(HttpResponse {
             status: 200,
             etag: None,
+            content_type: None,
             body: br#"{"access_token":"test-bearer","token_type":"Bearer","expires_in":300}"#
                 .to_vec(),
         })

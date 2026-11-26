@@ -112,7 +112,12 @@ describe("hosting desired state", () => {
       hosting: {
         host: "shop.apps.example",
         origin: "https://shop.apps.example",
-        signIn: { clientId: "c1", audience: "shop", redirectUri: "https://shop.apps.example/auth/callback" },
+        signIn: {
+          clientId: "c1",
+          audience: "shop",
+          redirectUri: "https://shop.apps.example/auth/callback",
+          postLogoutRedirectUri: "https://shop.apps.example/",
+        },
       },
     };
     expect(JSON.parse(JSON.stringify(desired)).hosting.ingestTarget.scopeUuid).toBe("scope-1");

@@ -55,6 +55,17 @@ import type {
   SiteWordingCompareRequest,
 } from "./admin-site-insights.js";
 import type { SiteReferringDomains } from "./admin-site-links.js";
+import type {
+  PrivateUptimeCredential,
+  PrivateUptimeMonitor,
+  PrivateUptimeWork,
+  SiteHeartbeatCreateRequest,
+  SiteHeartbeatCredential,
+  SiteHeartbeatList,
+  SiteMaintenanceWindow,
+  SiteMaintenanceWindowRequest,
+  SiteMaintenanceWindows,
+} from "./admin-site-monitors.js";
 import type { SiteNextActions, SitePortfolioSummary } from "./admin-site-next-actions.js";
 import type { SitePageSearchQueries } from "./admin-site-page-queries.js";
 import type {
@@ -330,6 +341,8 @@ export type SiteIncident = {
   startedAt: string;
   openedAt: string;
   resolvedAt?: string;
+  /** When a person acknowledged the open incident; absent until acknowledged. */
+  acknowledgedAt?: string;
   cause: string;
   failedChecks: number;
 };
@@ -361,8 +374,17 @@ export type SiteRegistration = {
   expiresAt?: string;
 };
 
+/** What a domain's uptime probe expects from the response, beyond a successful status. */
+export type SiteHTTPExpectations = {
+  statusCode?: number;
+  bodyContains?: string;
+  json?: { field: string; value: string };
+  maxResponseMs?: number;
+};
+
 export type SiteDomainChecks = {
   mode: SiteCheckMode;
+  httpExpectations?: SiteHTTPExpectations;
   uptime: SiteUptime;
   tls: SiteTLS;
   warming: SiteWarming;
@@ -416,12 +438,66 @@ export type SiteFinding = {
   history: SiteFindingHistory;
   /** A one-page recheck decides this rule, so requestPageRecheck can confirm the fix. Absent before 3.51. */
   recheckable?: boolean;
+  /** Whether the finding may be dismissed instead of fixed. */
+  dismissible?: boolean;
   suggestion?: SiteFindingSuggestion;
 };
 
 /** A domain's findings, most severe first. */
 export type SiteFindingList = {
   findings: SiteFinding[];
+};
+
+export const SITE_FINDING_DISMISSAL_SCOPES = {
+  rule: "rule",
+  url: "url",
+} as const;
+
+/** Whether a dismissal hides the finding's rule everywhere or only at the finding's URL. */
+export type SiteFindingDismissalScope =
+  (typeof SITE_FINDING_DISMISSAL_SCOPES)[keyof typeof SITE_FINDING_DISMISSAL_SCOPES];
+
+/** Hides a currently observed finding, with the reason a person gives. */
+export type SiteFindingDismissalRequest = {
+  findingUuid: string;
+  scope: SiteFindingDismissalScope;
+  reason: string;
+};
+
+/** A current dismissal. url is absent for a rule-wide dismissal. */
+export type SiteFindingDismissal = {
+  dismissalUuid: string;
+  rule: string;
+  url?: string;
+  title: string;
+  reason: string;
+  dismissedAt: string;
+};
+
+export type SiteFindingDismissals = {
+  dismissals: SiteFindingDismissal[];
+};
+
+export const SITE_BROWSER_COLLECTOR_MODES = {
+  enabled: "enabled",
+  disabled: "disabled",
+} as const;
+
+export type SiteBrowserCollectorMode = (typeof SITE_BROWSER_COLLECTOR_MODES)[keyof typeof SITE_BROWSER_COLLECTOR_MODES];
+
+/** The desired collector state. environment is required when enabling. */
+export type SiteBrowserCollectorRequest = {
+  mode: SiteBrowserCollectorMode;
+  environment?: string;
+};
+
+/** A Site's browser collector. browserKey is absent when disabled; treat it as a write credential. */
+export type SiteBrowserCollector = {
+  siteUuid: string;
+  mode: SiteBrowserCollectorMode;
+  browserKey?: string;
+  environment?: string;
+  allowedOrigin?: string;
 };
 
 /** Where one Site's alerts go. An absent emailRecipient means the tenant's own alert destinations. */
@@ -568,12 +644,12 @@ export class SiteDomainAdminClient {
    * which verifies it (verifiedBy "attested") and its subdomains. Only a
    * site-bound credential holding site_domains.attest may attest its own Site's domains.
    */
-  attest(domainUuid: string, options?: RequestOptions): Promise<SiteDomain> {
+  attest(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteDomain> {
     return this.send("POST", `${domainPath(domainUuid)}/attestation`, {}, undefined, options);
   }
 
   /** Withdraws this credential's attestation; the domain stays verified only by its own proof or a verified parent. */
-  unattest(domainUuid: string, options?: RequestOptions): Promise<SiteDomain> {
+  unattest(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteDomain> {
     return this.send("DELETE", `${domainPath(domainUuid)}/attestation`, {}, undefined, options);
   }
 
@@ -1202,6 +1278,7 @@ export class SiteDomainAdminClient {
   ): Promise<SiteKeywordList> {
     const request: SiteKeywordListRequest = { name: body.name, keywords: [...body.keywords] };
     if (body.seedTerm) request.seedTerm = body.seedTerm;
+    if (body.marketSampleEnabled !== undefined) request.marketSampleEnabled = body.marketSampleEnabled;
     return this.send("PUT", keywordListsPath, { siteUuid }, request, options);
   }
 
@@ -1303,6 +1380,163 @@ export class SiteDomainAdminClient {
     return this.send("DELETE", rankingKeywordPath(domainUuid, keywordUuid), {}, undefined, options);
   }
 
+  /** Approves a domain as a HaakCo system administrator, which verifies it (verifiedBy "operator"). */
+  approve(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteDomain> {
+    return this.send("POST", `${domainPath(domainUuid)}/approval`, {}, undefined, options);
+  }
+
+  /** Withdraws a system administrator's approval; the domain stays verified only by its own proof. */
+  withdrawApproval(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteDomain> {
+    return this.send("DELETE", `${domainPath(domainUuid)}/approval`, {}, undefined, options);
+  }
+
+  /** Queues a public uptime check for a verified domain with active checks and returns the domain. */
+  requestUptimeCheck(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteDomain> {
+    return this.send("POST", `${domainPath(domainUuid)}/uptime-check`, {}, undefined, options);
+  }
+
+  /** Records that a person has seen the open incident without resolving it. */
+  acknowledgeIncident(
+    domainUuid: string,
+    incidentUuid: string,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteIncident> {
+    const path = `${domainPath(domainUuid)}/incidents/${encodeURIComponent(incidentUuid)}/acknowledgment`;
+    return this.send("POST", path, {}, undefined, options);
+  }
+
+  /** Lists the domain's current rule- and URL-scoped finding dismissals. */
+  async listFindingDismissals(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteFindingDismissals> {
+    const list = await this.send<SiteFindingDismissals>(
+      "GET",
+      findingDismissalsPath(domainUuid),
+      {},
+      undefined,
+      options,
+    );
+    return { ...list, dismissals: list.dismissals ?? [] };
+  }
+
+  /** Hides a currently observed finding at the requested scope. */
+  dismissFinding(
+    domainUuid: string,
+    body: SiteFindingDismissalRequest,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteFindingDismissal> {
+    return this.send("POST", findingDismissalsPath(domainUuid), {}, body, options);
+  }
+
+  /** Removes a dismissal so a still-observed finding returns to active reporting. */
+  restoreFinding(domainUuid: string, dismissalUuid: string, options?: SiteDomainRequestOptions): Promise<void> {
+    const path = `${findingDismissalsPath(domainUuid)}/${encodeURIComponent(dismissalUuid)}`;
+    return this.send("DELETE", path, {}, undefined, options);
+  }
+
+  /** Lists the domain's scheduled-job heartbeat monitors, without their tokens. */
+  async listHeartbeats(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteHeartbeatList> {
+    const list = await this.send<SiteHeartbeatList>("GET", heartbeatsPath(domainUuid), {}, undefined, options);
+    return { ...list, monitors: list.monitors ?? [] };
+  }
+
+  /** Creates a heartbeat monitor and returns its one-time write credential. */
+  createHeartbeat(
+    domainUuid: string,
+    body: SiteHeartbeatCreateRequest,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteHeartbeatCredential> {
+    return this.send("POST", heartbeatsPath(domainUuid), {}, body, options);
+  }
+
+  /** Revokes the heartbeat's write token and returns its replacement. */
+  rotateHeartbeat(
+    domainUuid: string,
+    monitorUuid: string,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteHeartbeatCredential> {
+    const path = `${heartbeatsPath(domainUuid)}/${encodeURIComponent(monitorUuid)}/credential`;
+    return this.send("POST", path, {}, undefined, options);
+  }
+
+  /** Removes the heartbeat monitor and revokes its write token. */
+  deleteHeartbeat(domainUuid: string, monitorUuid: string, options?: SiteDomainRequestOptions): Promise<void> {
+    return this.send(
+      "DELETE",
+      `${heartbeatsPath(domainUuid)}/${encodeURIComponent(monitorUuid)}`,
+      {},
+      undefined,
+      options,
+    );
+  }
+
+  /** Lists the domain's current and historical maintenance windows. */
+  async listMaintenance(domainUuid: string, options?: SiteDomainRequestOptions): Promise<SiteMaintenanceWindows> {
+    const list = await this.send<SiteMaintenanceWindows>("GET", maintenancePath(domainUuid), {}, undefined, options);
+    return { ...list, windows: list.windows ?? [] };
+  }
+
+  /** Schedules a one-off maintenance window on a verified domain. */
+  scheduleMaintenance(
+    domainUuid: string,
+    body: SiteMaintenanceWindowRequest,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteMaintenanceWindow> {
+    return this.send("POST", maintenancePath(domainUuid), {}, body, options);
+  }
+
+  /** Cancels a scheduled or active window and returns its historical record. */
+  cancelMaintenance(
+    domainUuid: string,
+    windowUuid: string,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteMaintenanceWindow> {
+    const path = `${maintenancePath(domainUuid)}/${encodeURIComponent(windowUuid)}`;
+    return this.send("DELETE", path, {}, undefined, options);
+  }
+
+  /** Reads the domain's private uptime monitor and its latest result. */
+  getPrivateUptime(domainUuid: string, options?: SiteDomainRequestOptions): Promise<PrivateUptimeMonitor> {
+    return this.send("GET", privateUptimePath(domainUuid), {}, undefined, options);
+  }
+
+  /** Creates a private uptime monitor and returns its one-time write credential. */
+  createPrivateUptime(
+    domainUuid: string,
+    networkLabel: string,
+    options?: SiteDomainRequestOptions,
+  ): Promise<PrivateUptimeCredential> {
+    return this.send("POST", privateUptimePath(domainUuid), {}, { networkLabel }, options);
+  }
+
+  /** Queues a check for the private probe. */
+  requestPrivateUptime(domainUuid: string, options?: SiteDomainRequestOptions): Promise<PrivateUptimeWork> {
+    return this.send("POST", `${privateUptimePath(domainUuid)}/check`, {}, undefined, options);
+  }
+
+  /** Revokes the private probe's write token and returns its replacement. */
+  rotatePrivateUptime(
+    domainUuid: string,
+    monitorUuid: string,
+    options?: SiteDomainRequestOptions,
+  ): Promise<PrivateUptimeCredential> {
+    const path = `${privateUptimePath(domainUuid)}/${encodeURIComponent(monitorUuid)}/credential`;
+    return this.send("POST", path, {}, undefined, options);
+  }
+
+  /** Removes the private uptime monitor and revokes its write token. */
+  deletePrivateUptime(domainUuid: string, monitorUuid: string, options?: SiteDomainRequestOptions): Promise<void> {
+    const path = `${privateUptimePath(domainUuid)}/${encodeURIComponent(monitorUuid)}`;
+    return this.send("DELETE", path, {}, undefined, options);
+  }
+
+  /** Enables or disables the browser collector of a domain the Site credential owns. Repeating an enable returns the same key. */
+  setBrowserCollector(
+    domainUuid: string,
+    body: SiteBrowserCollectorRequest,
+    options?: SiteDomainRequestOptions,
+  ): Promise<SiteBrowserCollector> {
+    return this.send("PUT", `${domainPath(domainUuid)}/browser-collector`, {}, body, options);
+  }
+
   private send<T>(
     method: string,
     path: string,
@@ -1326,6 +1560,22 @@ export class SiteDomainAdminClient {
 
 function domainPath(domainUuid: string): string {
   return `${siteDomainsPath}/${encodeURIComponent(domainUuid)}`;
+}
+
+function findingDismissalsPath(domainUuid: string): string {
+  return `${domainPath(domainUuid)}/finding-dismissals`;
+}
+
+function heartbeatsPath(domainUuid: string): string {
+  return `${domainPath(domainUuid)}/heartbeats`;
+}
+
+function maintenancePath(domainUuid: string): string {
+  return `${domainPath(domainUuid)}/maintenance`;
+}
+
+function privateUptimePath(domainUuid: string): string {
+  return `${domainPath(domainUuid)}/private-uptime`;
 }
 
 function savedReportsPath(domainUuid: string): string {

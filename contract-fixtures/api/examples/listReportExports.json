@@ -13,7 +13,9 @@
             "objectBytes": 1,
             "objectSha256": "example",
             "rendererVersion": "example",
-            "warnings": []
+            "warnings": [
+              "example"
+            ]
           }
         ],
         "attemptCount": 1,

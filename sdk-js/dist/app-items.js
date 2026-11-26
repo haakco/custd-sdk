@@ -126,8 +126,12 @@ export class AppItemsClient {
      * Makes the signed-in holder of an owner link the item's owner. A repeat by the same user
      * succeeds; an item another user owns is refused with `claimed`.
      */
-    claim(ownerToken) {
-        return this.write(ownerToken, "POST", `${ITEM_PATH}/claim`);
+    /** Claims a link's item into the signed-in account; `item` names one item of a collection link. */
+    async claim(ownerToken, item) {
+        const { credential } = this.reach(ownerToken);
+        const result = await this.json({ method: "POST", path: `${ITEM_PATH}/claim`, credential, item });
+        this.live.refreshToken(accessKey(ownerToken));
+        return result;
     }
     readItem(access, options = {}) {
         return this.conditional(ITEM_PATH, access, options);
@@ -154,6 +158,23 @@ export class AppItemsClient {
     /** Records measurements from a pasted CSV document. */
     importMeasurementsCsv(access, csv) {
         return this.write(access, "POST", `${ITEM_PATH}/measurements/csv`, { csv });
+    }
+    /** The counter project's runs, newest first. */
+    async listRuns(access, options = {}) {
+        const page = await this.page(`${ITEM_PATH}/runs`, access, options.item, {
+            after: options.after,
+            limit: options.limit,
+        });
+        return { ...page, runs: page.runs ?? [] };
+    }
+    /** Starts a new run of the counter project. Owner only. */
+    startRun(access, request) {
+        return this.write(access, "POST", `${ITEM_PATH}/runs`, request);
+    }
+    /** The item's recorded measurements, oldest first. */
+    async listMeasurements(access, options = {}) {
+        const page = await this.page(`${ITEM_PATH}/measurements`, access, options.item, { after: options.after, limit: options.limit, run: options.run });
+        return { ...page, rows: page.rows ?? [] };
     }
     createEstimate(access, request) {
         return this.write(access, "POST", `${ITEM_PATH}/estimates`, request);
@@ -285,6 +306,15 @@ export class AppItemsClient {
     async unsubscribeAlertEmail(access) {
         await this.json({ method: "DELETE", path: `${ALERTS_PATH}/subscription`, ...this.reach(access) });
     }
+    /** The confirmation page an alert email's unsubscribe link opens, as HTML. It changes nothing. */
+    async getAlertUnsubscribePage(token) {
+        const response = await this.send({ method: "GET", path: `${ALERTS_PATH}/unsubscribe`, query: { token } });
+        return response.text();
+    }
+    /** Stops the alert email an unsubscribe link names; it needs no sign-in. Repeating it succeeds. */
+    async unsubscribeAlertEmailByToken(request) {
+        await this.json({ method: "POST", path: `${ALERTS_PATH}/unsubscribe`, body: request });
+    }
     /** Starts the meeting item's first block. Owner only. */
     updateMeetingMinutes(access, request) {
         return this.write(access, "PATCH", `${ITEM_PATH}/meeting/minutes`, request);
@@ -377,6 +407,16 @@ export class AppItemsClient {
         }));
         return { status: "modified", data, etag: response.headers.get("etag") };
     }
+    page(path, access, item, query) {
+        const reached = this.reach(access);
+        return this.json({
+            method: "GET",
+            path,
+            credential: reached.credential,
+            item: item ?? reached.item,
+            query: Object.fromEntries(Object.entries(query).map(([name, value]) => [name, value?.toString()])),
+        });
+    }
     async json(request) {
         const response = await this.send(request);
         if (response.status === 204)
@@ -387,6 +427,10 @@ export class AppItemsClient {
         const url = new URL(`${this.baseUrl}${request.path}`);
         if (request.item)
             url.searchParams.set("item", request.item);
+        for (const [name, value] of Object.entries(request.query ?? {})) {
+            if (value !== undefined)
+                url.searchParams.set(name, value);
+        }
         // Only the headers the app routes' preflight allows.
         const headers = { [APP_ITEM_SITE_KEY_HEADER]: this.siteKey };
         if (request.credential?.linkToken)

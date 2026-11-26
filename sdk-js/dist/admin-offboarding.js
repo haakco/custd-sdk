@@ -3,7 +3,8 @@
 function mapPreview(response) {
     return {
         ...response,
-        stores: response.stores.map((store) => ({
+        exclusions: response.exclusions ?? [],
+        stores: (response.stores ?? []).map((store) => ({
             store: store.store,
             kind: store.kind,
             retentionClass: store.retention_class,
@@ -15,12 +16,11 @@ function mapPreview(response) {
 function mapReceipt(response) {
     return {
         companyId: response.company_id,
-        requestedByActor: response.requested_by_actor,
-        requestedByUserId: response.requested_by_user_id,
+        requestedByKind: response.requested_by_kind,
         requestedAt: response.requested_at,
         completedAt: response.completed_at,
         finalState: response.final_state,
-        perStore: response.per_store.map((store) => ({
+        perStore: (response.per_store ?? []).map((store) => ({
             store: store.store,
             retentionClass: store.retention_class,
             deletedCount: store.deleted_count,

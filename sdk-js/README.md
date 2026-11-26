@@ -605,6 +605,21 @@ More reads and controls on the same client:
 - Search value: `getFindingSearchImpact(domainUuid, findingUuid, days?)` compares a fixed
   finding's page in search before and after the fix, and `getSearchValue(domainUuid, goals, days?)`
   credits up to five goal event types to search landing pages. Unmeasured numbers are absent.
+- Approval (system administrators): `approve(domainUuid)` verifies a domain (`verifiedBy: "operator"`),
+  `withdrawApproval(domainUuid)` removes it.
+- Uptime: `requestUptimeCheck(domainUuid)` queues a public check; `acknowledgeIncident(domainUuid, incidentUuid)`
+  marks an open incident as seen (`acknowledgedAt`).
+- Finding dismissals: `listFindingDismissals`, `dismissFinding(domainUuid, { findingUuid, scope: "rule" | "url", reason })`,
+  `restoreFinding(domainUuid, dismissalUuid)`.
+- Heartbeats for scheduled jobs: `listHeartbeats`, `createHeartbeat(domainUuid, { name, schedule: { cron, timezone, graceMinutes } })`,
+  `rotateHeartbeat`, `deleteHeartbeat`. Create and rotate return the write token once.
+- Maintenance windows: `listMaintenance`, `scheduleMaintenance(domainUuid, { windowUuid, startsAt, endsAt })` (reuse
+  `windowUuid` on retry), `cancelMaintenance(domainUuid, windowUuid)`.
+- Private uptime: `getPrivateUptime`, `createPrivateUptime(domainUuid, networkLabel)`, `requestPrivateUptime`,
+  `rotatePrivateUptime`, `deletePrivateUptime`. Create and rotate return the probe's write token once.
+- Browser collector: `setBrowserCollector(domainUuid, { mode: "enabled", environment })` returns the browser key
+  (repeating an identical enable returns the same key); `{ mode: "disabled" }` turns it off.
+- Empty lists decode as `[]`.
 - Older servers (3.46.0) send no report `template` or Lighthouse `url` / `pages`; those fields
   are then absent (no pages).
 
@@ -620,15 +635,15 @@ Supported feature parity and intentionally missing helpers are documented in the
 root README.
 
 ```ts
-await client.admin.schemas.register({
-  eventTypeSlug: "courib.delivery.created",
-  version: "1.0.0",
-  jsonSchema: { type: "object" },
-});
+const schemaJson = JSON.stringify({ type: "object" });
+const candidate = { tenantSlug: "acme", eventTypeSlug: "courib.delivery.created", dialect: "jsonschema" as const, schemaJson };
 
-await client.admin.schemas.createVersion("courib.delivery.created", {
+await client.admin.schemas.validate(candidate);
+await client.admin.schemas.dryRun("acme", "courib.delivery.created", { ...candidate, samples: [{}] });
+await client.admin.schemas.enableVersion("acme", "courib.delivery.created", {
+  tenantSlug: "acme",
+  eventTypeSlug: "courib.delivery.created",
   version: "1.1.0",
-  jsonSchema: { type: "object" },
 });
 ```
 
@@ -715,25 +730,23 @@ namespaces. Forward-only: no deprecated aliases.
 ```ts
 const admin = client.admin();
 
-// Tenant storage: list/get/create/revoke.
-const loc = await admin.tenantStorage.create({
-  tenantSlug: "acme",
-  clientLocation: "s3://acme-prod-warehouse/events/",
-});
+// Tenant storage: list/get/create/revoke. The server assigns the bucket and root prefix.
+const loc = await admin.tenantStorage.create();
 
 // Subject exports: full request lifecycle.
 const exp = await admin.subjectExports.create({
-  tenantSlug: "acme",
-  subject: { type: "userUuid", value: "01J5..." },
-  scope: "portability",
+  opaqueSubjectId: "subject-01J5...",
+  scope: "both",
   idempotencyKey: "acme-2026-07-31",
 });
+// Each artifact downloads by its own scope: access or portability.
+const artifact = await admin.subjectExports.download(exp.id, "portability");
 
 // Physical erasures: NO cancel/retry.
-const force = await admin.privacyErasures.force("pe_01J5...");
+const force = await admin.privacyErasures.force("acme", "pe_01J5...");
 
-// Retention policies: list/get/upsert/delete + preview/apply/listRuns.
-const runs = await admin.retention.listRuns("acme");
+// Retention policies: list/get/upsert/delete + preview/apply/listRuns (follow nextOffset while hasMore).
+const runs = await admin.retention.listRuns("acme", { limit: 25 });
 
 // Offboarding: full request lifecycle + schedules.
 const sched = await admin.offboarding.schedule({
@@ -814,7 +827,17 @@ application principals a directory holds, through `/api/v1/admin/auth-projects`:
   `listApps(after?)` and `getApp(slug)` report one `status` per app (codes in
   `APP_STATUSES`, `APP_REASON_CODES`, `APP_ERROR_CODES`);
   `createAppDeployCredential(slug)` returns a CI client that can deploy only that
-  app (its secret is shown once) and `deleteAppDeployCredential(slug, clientId)`
+  app (its secret is shown once), `listAppDeployCredentials(slug)` and
+  `deleteAppDeployCredential(slug, clientId)`; `pauseApp`, `resumeApp`, `repairApp` and
+  `setAppSignIn(slug, { mode, expectedRevision })` (modes in `APP_SIGN_IN_MODES`) require
+  `idempotencyKey` (repeat it to finish `app_hosting_incomplete` or `app_repair_incomplete`)
+- Authentication domain: `getEnvironmentAuthDomain`, `bindEnvironmentAuthDomain`,
+  `mintEnvironmentAuthDomain`, `admitEnvironmentAuthDomain`, `retryEnvironmentAuthDomain`,
+  `disableEnvironmentAuthDomain`, `releaseEnvironmentAuthDomain`, and the incident pin
+  `setEnvironmentAuthDomainImageOverride` / `clearEnvironmentAuthDomainImageOverride`
+- Realm branding: `setAuthProjectBrandLogo(projectId, environmentId, logo, filename?)` uploads a
+  `Blob` as multipart `logo`; `clearAuthProjectBrandLogo` removes it
+- `listEnvironmentAppLinks` lists the environment's app item owner and share links
 - Hosted app releases: `createAppRelease` (manifest files and routing),
   `uploadAppReleaseFile` (one file's raw bytes, sent as `application/octet-stream`),
   `verifyAppRelease`, `promoteAppRelease` and `listAppReleases`
@@ -842,6 +865,57 @@ const creation = await client.admin.authProjects.createProject(
 Responses are typed: `AuthProjectCreation`, `AuthProjectListResponse`,
 `ApplicationSessionInventory`, `ApplicationSessionRevocation` and
 `ApplicationMembershipRevocation`.
+
+## Admin Users
+
+`client.admin.users` manages tenant administrator users. A user's global identity state and its
+membership in one company are reported separately.
+
+- `list({ companySlug?, role?, globalState?, membershipState?, welcomeStatus?, includeEnded?, includeDeleted? })`
+- `get(userUuid, { companySlug?, includeEnded? })`, `create({ companySlug, email, roles })`,
+  `update(userUuid, { roles }, companySlug?)`, `addMembership(userUuid, { companySlug, roles })`
+- `disable(userUuid, { reason?, companySlug?, globalUser? })`, `enable(userUuid, { roles, companySlug?, globalUser? })`
+- `softDelete(userUuid, companySlug, { reason })`, `restore(userUuid, companySlug, { reason })`
+- `resetPassword(userUuid)` returns the queued notification (`messageUuid`, `deliveryUuids`), never a password;
+  `retryWelcome(userUuid, { companySlug? })` re-sends the welcome message.
+
+Roles are `ADMIN_USER_ROLES` (`tenant_admin`, `tenant_ingest_manager`, `tenant_analyst`).
+
+## Workflow Timings
+
+`client.admin.workflowTimings` records facts another system observed about its own work. Custd never runs,
+schedules or retries that work; every append is idempotent through the caller's key.
+
+```ts
+await client.admin.workflowTimings.reconcileDefinition("acme", {
+  workflowKey: "nightly-import",
+  name: "Nightly import",
+  steps: [{ stepKey: "fetch", name: "Fetch", nominalMs: 60_000 }],
+});
+const result = await client.admin.workflowTimings.appendObservation("acme", {
+  workflowKey: "nightly-import",
+  externalRunId: "run-42",
+  idempotencyKey: "workflow-timing:nightly-import:run-42:run_started",
+  fact: { kind: WORKFLOW_TIMING_FACT_KINDS.runStarted, occurredAt: new Date().toISOString(), run: { state: "running" } },
+});
+if (result.rejected > 0) throw new Error(result.results.find((item) => !item.accepted)?.errorCode);
+```
+
+A 200 answer is not a durable append: read `accepted` per result. `appendObservations` sends one bounded batch
+(10,000 facts, 1 MiB); `correctObservation` supersedes an accepted fact via `supersedesFactUuid`. Reads:
+`listDefinitions`, `getDefinition`, `listRuns({ workflowKey?, limit? })`, `getRun`, `getPrediction` (only a
+`ready` expectation is a forecast; see `WORKFLOW_TIMING_STATES`), `getDurationHistory`, `getEvaluation`.
+`rebuildRun` is the repair path when a run's `projectionStatus.pendingFacts` is above zero.
+
+## Tenant administration
+
+`client.admin.tenants` (system administrators) also reads and sets a tenant's data-space limits
+(`getDataSpaceEntitlement`, `updateDataSpaceEntitlement`) and storage allowance
+(`updateStorageLimit`). Removing a deleted tenant is two steps that each take its positive
+`companyId`: `historicalCleanup(slug, companyId, { idempotencyKey })` returns a content-free
+`TenantHistoricalCleanupReceipt`, then `finalize(slug, companyId)`.
+`client.provisioning.dataSpaces.usage(parentCompanySlug?)` reports retained storage per data space,
+and `client.provisioning.producers.get(clientId)` reads one producer.
 
 ## Analytics range query
 

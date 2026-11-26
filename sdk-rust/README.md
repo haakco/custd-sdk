@@ -1,8 +1,21 @@
 # custd SDK (Rust)
 
-A blocking, typed client for the Custd API. It covers measurement projects, the hosted-app item
-routes under `/api/v1/app/` (items, meetings, alerts and forecasts), and RFC 8628 device-code
-login, which works the same way as `custdctl login --method device`.
+A blocking, typed client for the Custd API. It covers the public Custd operations in the
+operation snapshot (`contract-fixtures/api/operations.json`), all but `POST
+/api/v1/cleanup/jobs/{uuid}/proof`, which the ingest API answers by cancelling the job:
+
+- the Admin API: tenants, users and roles, OAuth clients and admissions, impersonation and support
+  access, apps, auth projects, producers, data spaces and scopes, data labels, event types, Sites,
+  measurement, time plans, workflow timings, reporting packs, jobs and scheduled tasks, storage,
+  usage, audit, accounting, privacy, retention, offboarding, subject exports, campaign email,
+  notifications, error issues and the tenant manifest;
+- the Analytics API: reporting, event queries, measurement reads and prepared data;
+- the schema registry (event schemas and parsers) and the ingest API (events, raw lines,
+  monitoring, diagnostics and cleanup plans and jobs);
+- the hosted-app item routes under `/api/v1/app/` (items, meetings, alerts and forecasts);
+- RFC 8628 device-code login, which works the same way as `custdctl login --method device`.
+
+`contract-fixtures/api/coverage/rust.json` lists the operations the route conformance test proves.
 
 ## Install
 
@@ -65,8 +78,22 @@ meetings (`start_meeting`, `advance_meeting(block_uuid)`, `end_meeting`) and ale
 `read_hosted_app_discovery(app_origin)` reads `/.well-known/custd.json`, and
 `AppClient::from_discovery` builds a client from it.
 
-Observation imports check that every row has a result and that every accepted row has an
-`observationUuid`. An HTTP 202 on its own is not treated as success. A non-success answer
+A Site's public write key collects events and captures errors without a login:
+
+```rust
+use custd_sdk::{EventEnvelope, SiteCollector};
+
+let site = SiteCollector::new("https://api.custd.com", "<site_pk_ key>", "https://www.example.com")?;
+let receipt = site.collect_event(&EventEnvelope { /* … */ ..Default::default() })?;
+```
+
+A system administrator acting for a client company on the ingest cleanup-job routes names it with
+`CustdClient::with_acting_company(slug)`; it is sent as `X-Custd-Effective-Company` on those calls
+only, and the server requires an active support grant for that company.
+
+Event batches check that every sent event has exactly one result and that `success` agrees with
+the results. Observation imports check that every row has a result and that every accepted row
+has an `observationUuid`. An HTTP 202 on its own is not treated as success. A non-success answer
 becomes `Error::Api`, carrying its RFC 9457 problem details.
 
 ## Develop

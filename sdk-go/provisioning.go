@@ -67,23 +67,36 @@ func newProvisioningClient(client *CustdClient) *ProvisioningClient {
 	return provisioning
 }
 
+// Create adds a data space under a parent. An empty parentCompanySlug uses the
+// credential's own company; a platform administrator may name another parent.
 func (c *DataSpaceProvisioningClient) Create(
 	ctx context.Context,
 	req DataSpaceCreate,
+	parentCompanySlug string,
 ) (*DataSpace, error) {
 	var space DataSpace
-	err := c.provisioning.request(ctx, http.MethodPost, "/data-spaces", req, &space)
+	err := c.provisioning.request(ctx, http.MethodPost, dataSpacePath("/data-spaces", parentCompanySlug), req, &space)
 	return &space, err
 }
 
-func (c *DataSpaceProvisioningClient) List(ctx context.Context) (*DataSpaceList, error) {
+// List returns a parent's data spaces and entitlement. An empty parentCompanySlug
+// uses the credential's own company.
+func (c *DataSpaceProvisioningClient) List(ctx context.Context, parentCompanySlug string) (*DataSpaceList, error) {
 	var spaces DataSpaceList
-	err := c.provisioning.request(ctx, http.MethodGet, "/data-spaces", nil, &spaces)
+	err := c.provisioning.request(ctx, http.MethodGet, dataSpacePath("/data-spaces", parentCompanySlug), nil, &spaces)
 	return &spaces, err
 }
 
-func (c *DataSpaceProvisioningClient) Revoke(ctx context.Context, slug string) error {
-	return c.provisioning.request(ctx, http.MethodDelete, "/data-spaces/"+url.PathEscape(slug), nil, nil)
+// Revoke removes one data space from a parent. An empty parentCompanySlug uses
+// the credential's own company.
+func (c *DataSpaceProvisioningClient) Revoke(ctx context.Context, slug, parentCompanySlug string) error {
+	path := dataSpacePath("/data-spaces/"+url.PathEscape(slug), parentCompanySlug)
+	return c.provisioning.request(ctx, http.MethodDelete, path, nil, nil)
+}
+
+// dataSpacePath adds the parentCompanySlug a platform administrator names.
+func dataSpacePath(path, parentCompanySlug string) string {
+	return siteQueryPath(path, url.Values{"parentCompanySlug": {parentCompanySlug}})
 }
 
 func (c *ProducerProvisioningClient) Provision(
@@ -113,8 +126,8 @@ func (c *ProducerProvisioningClient) List(
 func (c *ProducerProvisioningClient) RotateSecret(
 	ctx context.Context,
 	clientID string,
-) (*ProducerProvisionResponse, error) {
-	var producer ProducerProvisionResponse
+) (*ProducerSecretRotationResponse, error) {
+	var producer ProducerSecretRotationResponse
 	err := c.provisioning.request(
 		ctx,
 		http.MethodPost,
