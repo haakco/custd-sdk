@@ -135,11 +135,35 @@ heuristic script. People cannot keep five SDKs and about 540 admin operations al
 - **Proof:** `surface-check --mode complete` reports zero missing operations. Each batch ships as one
   synchronized tag with its route and shape conformance tests green.
 
+### M7. Release and adopt on every consumer on the development server
+
+`v3.66.0` breaks public shapes on purpose (pre-live, no compatibility layers), so the release is not
+done until every consumer on the development server runs it with its own checks green. Each consumer
+bumps through its normal dependency command, never a local path replacement. The changes go in using
+that repository's own rules, and each item below records its commit.
+
+- [ ] Resync the snapshot from Custd `82873e00c`, then run the final pass in every SDK, then
+  `just check`, then tag and push `v3.66.0`.
+- [ ] **Custd:** custdctl, loadgen (Go, JS and PHP), the frontend and the lifecycle-m6 proof, bumped
+  with `scripts/dev/update-custd-sdk.sh v3.66.0`. Then `just lint` and `just test`, commit, push,
+  release and deploy. Before deploying, check production for queued cleanup jobs, because the
+  approval key change invalidates their scope hash.
+- [ ] **Hosting API:** PHP `^3.66`. Move provisioning to the typed DTOs
+  (`HostingSiteInsightCredentials`), give `FakeSiteDomainTransport::provisioning()` the full server
+  shape, and update Plan 247 with the changes.
+- [ ] **Hosting frontend:** JS.
+- [ ] **Vorrent:** Go root module and media cache, plus JS frontend, mobile and shared.
+- [ ] **done-when-app:** JS and React, plus the Rust CLI.
+- [ ] **dzine-canvas:** JS release tarball.
+- [ ] Consumers with no checkout on this server are handed to the
+  [SDK 3.66 consumer adoption plan](./2026-11-26_0300_sdk-3-66-consumer-adoption_plan.md).
+
 ## Acceptance
 
 - `just surface-check --mode complete`, the M2 route tests and the M3 shape tests pass in all five SDKs
   against the current Custd OpenAPI.
 - The Custd workflow from M4 has opened at least one real snapshot pull request.
+- Every M7 item is checked with its commit.
 - Hosting's CI consumes the fixture check from M5.
 
 ## Deferred, not dropped

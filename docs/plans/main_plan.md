@@ -9,6 +9,10 @@ Central tracker for active implementation plans. Link every active plan here wit
   sides catch the next gap: a surface manifest, generated route and response-shape tests, automatic
   snapshot pull requests from Custd, and consumer fixture checks. M1-M6 are open.
 
+- [SDK 3.66 Consumer Adoption](./2026-11-26_0300_sdk-3-66-consumer-adoption_plan.md). **Proposed, for
+  another team.** Consumers on the development server are updated in the parity delivery. This team
+  finds and updates the rest (TrackLab, Awthy, and an organisation-wide search).
+
 ## AI Execution Order
 
 1. Execute the [SDK API Parity Automation](./2026-11-26_0006_sdk-api-parity-automation_plan.md) plan in
