@@ -322,6 +322,20 @@ func (r *ReportingClient) QueryOutput(ctx context.Context, outputUUID string, re
 	return &out, err
 }
 
+// QueryOutputDocument runs a query document the caller already holds against a ready prepared
+// output. The document is sent verbatim, so fields this SDK does not model yet still reach the
+// server, which validates it.
+func (r *ReportingClient) QueryOutputDocument(
+	ctx context.Context, outputUUID string, query json.RawMessage,
+) (*PreparedDataQueryEnvelope, error) {
+	if !preparedDataUUIDPattern.MatchString(outputUUID) {
+		return nil, fmt.Errorf("custd: outputUuid must be a UUID")
+	}
+	var out PreparedDataQueryEnvelope
+	err := r.request(ctx, http.MethodPost, "/outputs/"+url.PathEscape(outputUUID)+"/query", query, &out)
+	return &out, err
+}
+
 func validateReportingSubjectInsightRequest(req SubjectInsightRequest) error {
 	if !subjectInsightTemplatePattern.MatchString(req.Template) {
 		return fmt.Errorf("custd: reporting subject insight template is invalid")

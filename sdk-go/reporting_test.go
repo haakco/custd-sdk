@@ -408,6 +408,7 @@ func TestMeasurementAndReportingRecordTheRequestID(t *testing.T) {
 			"doer": newAdminTestClient(t, doer, "http://localhost:8080"),
 			"http": NewClient(&ClientConfig{BaseURL: server.URL, APIKey: "admin-token", FlushInterval: time.Hour}),
 		}
+		t.Cleanup(func() { _ = transports["http"].Close(context.Background()) })
 		for transport, client := range transports {
 			var recorder MetadataRecorder
 			if err := call(WithMetadataRecorder(context.Background(), &recorder), client); err == nil {
@@ -417,5 +418,21 @@ func TestMeasurementAndReportingRecordTheRequestID(t *testing.T) {
 				t.Errorf("%s via %s recorded %q, want %q", name, transport, recorder.RequestID, want)
 			}
 		}
+	}
+}
+
+// TestReportingQueryOutputDocumentIsSentVerbatim proves a stored query document reaches the
+// output query route unchanged.
+func TestReportingQueryOutputDocumentIsSentVerbatim(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, preparedDataQueryBody)
+	client := newAdminTestClient(t, doer, "http://localhost:8080")
+	document := `{"template":"count","metrics":["events"],"futureOption":true}`
+	output := "22222222-2222-4222-8222-222222222222"
+	if _, err := client.Reporting.QueryOutputDocument(context.Background(), output, json.RawMessage(document)); err != nil {
+		t.Fatalf("QueryOutputDocument error: %v", err)
+	}
+	request := doer.requests[0]
+	if string(request.Body) != document || !strings.HasSuffix(request.URL, "/outputs/"+output+"/query") {
+		t.Fatalf("request = %s %s", request.URL, request.Body)
 	}
 }
