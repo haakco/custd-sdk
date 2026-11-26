@@ -55,8 +55,9 @@ type ClientConfig struct {
 	MaxQueueSize  int
 	Retry         RetryConfig
 	// HTTPClient sends every Custd request in place of the SDK's built-in client, so it owns
-	// authentication, timeouts and redirects for the requests it carries. A *http.Client
-	// satisfies it. It answers with the unread response, so a download streams through it.
+	// timeouts, redirects and any credential beyond APIKey: the OAuth client-credentials
+	// fields are not used with it. A *http.Client satisfies it. It answers with the unread
+	// response, so a download streams through it.
 	HTTPClient HTTPDoer
 
 	// CompressionEnabled gzip-compresses the batch request body when it meets

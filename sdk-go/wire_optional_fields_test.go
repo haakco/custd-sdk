@@ -37,3 +37,14 @@ func TestOptionalWireFieldsMatchServerOmission(t *testing.T) {
 		})
 	}
 }
+
+// A platform-minted hostname needs no TXT record, so the server leaves dnsProof out.
+func TestMintedDomainBindingHasNoDNSProof(t *testing.T) {
+	var binding AuthDomainBinding
+	body := `{"environmentId":"e","host":"h","issuer":"i","status":"active","lifecycle":"admitted",` +
+		`"intentRevision":1,"images":{"expected":{},"running":{},"source":"release-default","convergence":"converged"},` +
+		`"createdAt":"2026-11-19T09:00:00Z"}`
+	if err := json.Unmarshal([]byte(body), &binding); err != nil || binding.DNSProof != nil {
+		t.Fatalf("binding = %+v, %v", binding, err)
+	}
+}

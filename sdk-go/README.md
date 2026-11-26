@@ -100,7 +100,8 @@ allowed for development.
 
 Own transport: set `HTTPClient` to anything with `Do(*http.Request) (*http.Response, error)`,
 such as an `*http.Client`, to send every Custd request through it. It then owns
-authentication, timeouts and redirects. It answers with the unread response, so
+timeouts, redirects and any credential beyond `APIKey`; the OAuth client-credentials
+fields are not used with it. It answers with the unread response, so
 `Offboarding.Download`, `Audit.ExportEvents` and usage exports stream straight to the
 caller's writer without being held in memory.
 
