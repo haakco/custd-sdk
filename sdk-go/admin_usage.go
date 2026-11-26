@@ -295,7 +295,7 @@ func decodeRetainedUsage(data []byte) (*TenantStorageUsage, error) {
 // openUsageExport starts a CSV export and hands back the unread body, so a large export
 // costs one stream rather than one whole document in memory.
 func (c *UsageAdminClient) openUsageExport(ctx context.Context, path string) (*UsageExport, error) {
-	resp, err := send(ctx, c.admin.client.httpClient, &bufferedRequest{
+	resp, err := c.admin.client.sendStream(ctx, &bufferedRequest{
 		Method: http.MethodGet, URL: c.admin.endpoint(path),
 		Headers: c.admin.client.withCredentials(map[string]string{"Accept": usageExportAccept}),
 	})

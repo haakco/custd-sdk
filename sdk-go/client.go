@@ -46,6 +46,8 @@ type CustdClient struct {
 	wg           sync.WaitGroup
 	closeOnce    sync.Once
 	httpClient   HTTPDoer
+	streamClient HTTPDoer
+	streamStall  time.Duration
 	rng          *mrand.Rand
 	rngMu        sync.Mutex
 }
@@ -55,12 +57,14 @@ type CustdClient struct {
 func NewClient(config *ClientConfig) *CustdClient {
 	cfg := applyDefaults(config)
 	c := &CustdClient{
-		config:     cfg,
-		q:          newQueue(cfg.MaxQueueSize),
-		retrySet:   retryableStatusSet(cfg.Retry.RetryOnStatuses),
-		done:       make(chan struct{}),
-		httpClient: buildTransport(&cfg),
-		rng:        newSecureRand(),
+		config:       cfg,
+		q:            newQueue(cfg.MaxQueueSize),
+		retrySet:     retryableStatusSet(cfg.Retry.RetryOnStatuses),
+		done:         make(chan struct{}),
+		httpClient:   buildTransport(&cfg),
+		streamClient: buildStreamTransport(&cfg),
+		streamStall:  streamStallTimeout,
+		rng:          newSecureRand(),
 	}
 	c.Admin = newAdminClient(c)
 	c.Analytics = newAnalyticsEventClient(c)
@@ -510,8 +514,14 @@ func buildTransport(cfg *ClientConfig) HTTPDoer {
 }
 
 func buildHTTPClient(cfg *ClientConfig) *http.Client {
+	return &http.Client{Timeout: defaultHTTPTimeout, Transport: buildRoundTripper(cfg, http.DefaultTransport)}
+}
+
+// buildRoundTripper is base, wrapped in the OAuth client-credentials transport when the config
+// names a client.
+func buildRoundTripper(cfg *ClientConfig, base http.RoundTripper) http.RoundTripper {
 	if cfg.ClientID == "" && cfg.ClientSecret == "" && cfg.TokenURL == "" {
-		return &http.Client{Timeout: defaultHTTPTimeout}
+		return base
 	}
 	oauthCfg := clientcredentials.Config{
 		ClientID:     cfg.ClientID,
@@ -522,7 +532,7 @@ func buildHTTPClient(cfg *ClientConfig) *http.Client {
 	if cfg.Audience != "" {
 		oauthCfg.EndpointParams = url.Values{"audience": {cfg.Audience}}
 	}
-	return &http.Client{Timeout: defaultHTTPTimeout, Transport: &clientCredentialsTransport{config: oauthCfg}}
+	return &clientCredentialsTransport{config: oauthCfg, base: base}
 }
 
 func isSecureOrLocalHTTP(raw string) bool {

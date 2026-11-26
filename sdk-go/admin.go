@@ -573,9 +573,10 @@ type adminDownload struct {
 
 // openAdminDownload starts an admin GET for a file. A refused request is read so its problem
 // reaches checkStatus; an accepted body is left unread so the caller streams it instead of
-// holding the whole file in memory, through the caller's HTTPClient as much as the built one.
+// holding the whole file in memory, through the caller's HTTPClient as much as the built one. The
+// body has no whole-download deadline; it fails only once it stalls (see sendStream).
 func (c *AdminClient) openAdminDownload(ctx context.Context, path, label string) (*adminDownload, error) {
-	resp, err := send(ctx, c.client.httpClient, &bufferedRequest{
+	resp, err := c.client.sendStream(ctx, &bufferedRequest{
 		Method: http.MethodGet, URL: c.endpoint(path), Headers: c.client.headers(false),
 	})
 	if err != nil {

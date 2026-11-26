@@ -6,7 +6,9 @@ import (
 	"encoding/hex"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -87,6 +89,50 @@ func TestDownloadsStreamThroughACustomHTTPClient(t *testing.T) {
 			}
 			if string(writer.written) != "first half,second half" || !transport.closed.Load() {
 				t.Fatalf("written %q, body closed %v", writer.written, transport.closed.Load())
+			}
+		})
+	}
+}
+
+// The built-in download path has no whole-body deadline: a body that keeps arriving outlasts the
+// JSON client's timeout, and only a body that stops arriving fails. Both bounds are scaled down.
+func TestBuiltInDownloadsFailOnlyWhenTheyStall(t *testing.T) {
+	cases := map[string]struct {
+		pause   time.Duration
+		wantErr bool
+	}{
+		"slow but steady": {pause: 20 * time.Millisecond},
+		"stalled":         {pause: time.Second, wantErr: true},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/csv")
+				for range 10 {
+					_, _ = io.WriteString(w, "row\n")
+					w.(http.Flusher).Flush()
+					select {
+					case <-time.After(tc.pause):
+					case <-r.Context().Done():
+						return
+					}
+				}
+			}))
+			t.Cleanup(server.Close)
+			client := NewClient(&ClientConfig{BaseURL: server.URL, APIKey: "token", FlushInterval: time.Hour})
+			t.Cleanup(func() { _ = client.Close(context.Background()) })
+			client.httpClient = &http.Client{Timeout: 50 * time.Millisecond}
+			client.streamStall = 100 * time.Millisecond
+			var written strings.Builder
+			_, err := client.Admin.Audit.ExportEvents(context.Background(), AuditListOptions{}, AuditExportFormatCSV, &written)
+			if tc.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "download stalled") {
+					t.Fatalf("stalled download error = %v", err)
+				}
+				return
+			}
+			if err != nil || written.Len() != 40 {
+				t.Fatalf("steady download wrote %d bytes, error %v", written.Len(), err)
 			}
 		})
 	}

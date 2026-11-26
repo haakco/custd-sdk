@@ -105,6 +105,10 @@ fields are not used with it. It answers with the unread response, so
 `Offboarding.Download`, `Audit.ExportEvents` and usage exports stream straight to the
 caller's writer without being held in memory.
 
+Downloads have no whole-body deadline. JSON calls keep the built-in client's 10-second
+bound, but a download fails only when its response headers or its next bytes take more
+than 30 seconds.
+
 Dogfood producers can use `NewDogfoodEvent` to build the canonical event shape
 with `sourceSystem`, `sourceCompany`, `environment`, `schemaVersion`, and
 `correlationId` in the payload while keeping `companySlug` on the envelope.
