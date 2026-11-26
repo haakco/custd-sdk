@@ -6,7 +6,6 @@ namespace HaakCo\Custd\Admin;
 
 use HaakCo\Custd\Admin\Audit\AuditEvent;
 use HaakCo\Custd\Admin\Audit\AuditEventQuery;
-use HaakCo\Custd\Admin\Audit\AuditExport;
 use HaakCo\Custd\Admin\Audit\AuditListResponse;
 use HaakCo\Custd\Admin\Audit\ReportingPackAuditListResponse;
 use HaakCo\Custd\Admin\Audit\AuditExportFormat;
@@ -57,25 +56,26 @@ final class AuditClient
     }
 
     /**
-     * Export the filtered audit trail as csv or json without decoding it. The query's limit and cursor are not
-     * sent: an export is bounded by the server.
+     * Stream the filtered audit trail as csv or json into `$sink` as it arrives, undecoded. The query's limit
+     * and cursor are not sent: an export is bounded by the server.
      *
+     * @param resource $sink A writable stream, such as an opened file.
      * @param AuditExportFormat::* $format
      */
-    public function exportEvents(AuditEventQuery $query = new AuditEventQuery(), string $format = AuditExportFormat::JSON): AuditExport
+    public function exportEvents(mixed $sink, AuditEventQuery $query = new AuditEventQuery(), string $format = AuditExportFormat::JSON): StreamedDownload
     {
         if (!in_array($format, self::FORMATS, true)) {
             throw new \InvalidArgumentException('custd: audit export format must be csv or json');
         }
-        $export = Http::binaryRequest(
+
+        return Http::streamRequest(
             $this->baseUrl,
             $this->token,
             $this->transport,
             'GET',
             ApiHttp::withQuery('/audit/events/export', $query->filters() + ['format' => $format]),
+            $sink,
         );
-
-        return new AuditExport($export['body'], $export['headers']);
     }
 
     /**

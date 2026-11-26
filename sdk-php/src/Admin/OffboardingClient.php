@@ -6,7 +6,6 @@ namespace HaakCo\Custd\Admin;
 
 use HaakCo\Custd\Admin\Offboarding\CancellationRequest;
 use HaakCo\Custd\Admin\Offboarding\OffboardingCancelRequest;
-use HaakCo\Custd\Admin\Offboarding\OffboardingDownload;
 use HaakCo\Custd\Admin\Offboarding\OffboardingExportResponse;
 use HaakCo\Custd\Admin\Offboarding\OffboardingPreviewResponse;
 use HaakCo\Custd\Admin\Offboarding\OffboardingRequestBody;
@@ -18,13 +17,11 @@ use HaakCo\Custd\Admin\Offboarding\TenantOffboardingReceipt;
 
 /**
  * OffboardingClient owns a tenant's offboarding: the delayed schedule, and the one-off request
- * through preview, export, download, acknowledgement and the destructive execute, with its receipt.
+ * through preview, export, streamed download, acknowledgement and the destructive execute, with its receipt.
  * A schedule body names tenantSlug, which the server checks against the authenticated client.
  */
 final class OffboardingClient
 {
-    private const MAX_DOWNLOAD_BYTES = 64 * 1024 * 1024;
-
     private readonly ApiHttp $http;
 
     /** @var string|callable():string */
@@ -40,37 +37,39 @@ final class OffboardingClient
         $this->http = new ApiHttp($baseUrl, $token, is_callable($transport) ? $transport : null);
     }
 
-    /** Download the export: authenticated bytes whose length and SHA-256 checksum are verified. */
-    public function download(string $requestUuid): OffboardingDownload
+    /**
+     * Stream the export into `$sink` as it arrives, then verify its length and SHA-256 checksum against
+     * the server's Content-Length and X-Checksum-SHA256. A mismatch throws after the bytes were written,
+     * so discard the sink's contents on any exception.
+     *
+     * @param resource $sink A writable stream, such as an opened file.
+     */
+    public function download(string $requestUuid, mixed $sink): StreamedDownload
     {
-        $response = Http::binaryRequest(
+        $download = Http::streamRequest(
             $this->baseUrl,
             $this->token,
             is_callable($this->transport) ? $this->transport : null,
             'GET',
             '/offboarding/requests/' . rawurlencode($requestUuid) . '/download',
+            $sink,
         );
-        $body = $response['body'];
-        $lengthHeader = trim($response['headers']['content-length'] ?? '');
-        if (preg_match('/^[0-9]+$/', $lengthHeader) !== 1) {
+        $length = trim($download->headers['content-length'] ?? '');
+        if (preg_match('/^[0-9]+$/', $length) !== 1) {
             throw new \RuntimeException('custd: offboarding download content length is invalid');
         }
-        $byteSize = (int) $lengthHeader;
-        if ($byteSize > self::MAX_DOWNLOAD_BYTES || strlen($body) > self::MAX_DOWNLOAD_BYTES) {
-            throw new \RuntimeException('custd: offboarding download exceeds 64 MiB');
-        }
-        if ($byteSize !== strlen($body)) {
+        if ((int) $length !== $download->byteSize) {
             throw new \RuntimeException('custd: offboarding download content length mismatch');
         }
-        $checksum = strtolower(trim($response['headers']['x-checksum-sha256'] ?? ''));
+        $checksum = strtolower(trim($download->headers['x-checksum-sha256'] ?? ''));
         if (preg_match('/^[a-f0-9]{64}$/', $checksum) !== 1) {
             throw new \RuntimeException('custd: offboarding download checksum header is invalid');
         }
-        if (!hash_equals($checksum, hash('sha256', $body))) {
+        if (!hash_equals($checksum, $download->checksumSha256)) {
             throw new \RuntimeException('custd: offboarding download checksum mismatch');
         }
 
-        return new OffboardingDownload($body, $checksum, $byteSize);
+        return $download;
     }
 
     /**

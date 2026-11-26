@@ -60,8 +60,8 @@ final class AdminTokenProviderTest extends TestCase
             $transport,
         );
 
-        $client->exportEvents();
-        $client->exportEvents();
+        $client->exportEvents(fopen('php://memory', 'w+b'));
+        $client->exportEvents(fopen('php://memory', 'w+b'));
 
         $this->assertSame(2, $issued);
         $this->assertSame(['token-1', 'token-2'], $sent);

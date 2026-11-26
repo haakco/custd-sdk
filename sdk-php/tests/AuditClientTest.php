@@ -41,7 +41,7 @@ final class AuditClientTest extends TestCase
                 "ipAddress" => "legacy-sensitive", "metadata" => "sensitive",
                 "createdAt" => "2026-07-23T12:00:00Z",
             ], JSON_THROW_ON_ERROR)],
-            ["status" => 200, "body" => "eventId,tenantSlug\n01957abc-0000-7000-8000-000000000001,acme\n", "headers" => ["Content-Type" => "text/csv; charset=utf-8"]],
+            ["status" => 200, "body" => "eventId,tenantSlug\n01957abc-0000-7000-8000-000000000001,acme\n", "headers" => ["Content-Type" => "text/csv; charset=utf-8", "X-Request-Id" => "req-export-1"]],
         ];
         $transport = function (string $method, string $url, ?array $body = null, string $token = "", array $headers = []) use (&$calls, &$responses): array {
             $calls[] = [$method, $url, $body, $token, $headers];
@@ -67,7 +67,10 @@ final class AuditClientTest extends TestCase
 
         $listed = $client->adminAudit()->listEvents($options);
         $event = $client->adminAudit()->getEvent("01957abc-0000-7000-8000-000000000001", "tenant", "acme");
-        $exported = $client->adminAudit()->exportEvents($options, "csv");
+        $sink = fopen("php://memory", "w+b");
+        $this->assertIsResource($sink);
+        $exported = $client->adminAudit()->exportEvents($sink, $options, "csv");
+        rewind($sink);
 
         $this->assertSame("next", $listed->nextCursor->cursor);
         $this->assertSame("2026-07-01T00:00:00Z", $listed->coverageBeginsAt);
@@ -81,8 +84,10 @@ final class AuditClientTest extends TestCase
         $this->assertSame("available", $listed->events[0]->network?->ipAddressState);
         $this->assertEquals((object) ["safe" => "value"], $listed->events[0]->details);
         $this->assertSame("Mozilla/5.0", $event->network?->userAgent);
-        $this->assertSame("eventId,tenantSlug\n01957abc-0000-7000-8000-000000000001,acme\n", $exported->body);
-        $this->assertSame("text/csv; charset=utf-8", $exported->headers["content-type"]);
+        $this->assertSame("eventId,tenantSlug\n01957abc-0000-7000-8000-000000000001,acme\n", stream_get_contents($sink));
+        $this->assertSame("text/csv; charset=utf-8", $exported->contentType);
+        $this->assertSame("req-export-1", $exported->requestId);
+        $this->assertSame(61, $exported->byteSize);
         $this->assertStringContainsString("&correlationId=req-1&environmentId=env-1&limit=50&cursor=next", $calls[0][1]);
         $this->assertStringNotContainsString("limit=50", $calls[2][1]);
         $this->assertStringNotContainsString("cursor=next", $calls[2][1]);

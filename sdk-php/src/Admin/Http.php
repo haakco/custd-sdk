@@ -9,8 +9,6 @@ use HaakCo\Custd\Problem;
 
 final class Http
 {
-    private const MAX_BINARY_RESPONSE_BYTES = 64 * 1024 * 1024;
-
     /**
      * @param string|callable():string $token A bearer token, or a provider that
      *     returns one. A provider runs immediately before each request, so a
@@ -238,39 +236,67 @@ final class Http
     }
 
     /**
-     * Fetch an authenticated binary response without attempting JSON decoding.
+     * Stream an authenticated response body into `$sink` as it arrives, never holding it in memory, and
+     * describe what was written. A refusal is never written to the sink: it throws the typed error a JSON
+     * call would. A failure after bytes were written leaves them in the sink, so the caller discards it.
+     *
+     * An injected transport returns the whole body, which is then written the same way.
      *
      * @param string|callable():string $token A bearer token or a token provider;
      *     see {@see request}.
      * @param callable|null $transport
-     * @param array<string, mixed>|null $body
-     * @return array{body:string, headers:array<string, string>}
+     * @param resource $sink A writable stream.
      */
-    public static function binaryRequest(
+    public static function streamRequest(
         string $baseUrl,
         string|callable $token,
         ?callable $transport,
         string $method,
         string $path,
-        ?array $body = null,
-        string $prefix = "/api/v1/admin"
-    ): array {
+        mixed $sink,
+        string $prefix = "/api/v1/admin",
+    ): StreamedDownload {
+        if (!is_resource($sink) || get_resource_type($sink) !== "stream") {
+            throw new \InvalidArgumentException("custd: a download needs a writable stream");
+        }
         $url = rtrim($baseUrl, "/") . $prefix . $path;
         $token = self::resolveToken($token);
-        $result = $transport
-            ? $transport($method, $url, $body, $token)
-            : self::curlBinaryRequest($method, $url, $body, $token);
-        $status = self::status($result);
-        if ($status >= 400) {
-            throw new \RuntimeException("custd: " . self::errorMessage($result["body"], $status));
+        $hash = hash_init("sha256");
+        $written = 0;
+        $write = static function (string $chunk) use ($sink, $hash, &$written): void {
+            self::writeAll($sink, $chunk);
+            hash_update($hash, $chunk);
+            $written += strlen($chunk);
+        };
+        if ($transport) {
+            $result = $transport($method, $url, null, $token);
+            self::successBody($result);
+            /** @var array{status:int, body:string} $result */
+            $write($result["body"]);
+            $headers = self::headers($result);
+        } else {
+            $headers = self::curlStreamRequest($method, $url, $token, $write);
         }
-        if (strlen($result["body"]) > self::MAX_BINARY_RESPONSE_BYTES) {
-            throw new \RuntimeException("custd: binary admin response exceeds 64 MiB");
+
+        return new StreamedDownload(
+            $written,
+            hash_final($hash),
+            $headers["content-type"] ?? "",
+            $headers["x-request-id"] ?? "",
+            $headers,
+        );
+    }
+
+    /** @param resource $sink */
+    private static function writeAll(mixed $sink, string $chunk): void
+    {
+        while ($chunk !== "") {
+            $count = fwrite($sink, $chunk);
+            if ($count === false || $count === 0) {
+                throw new \RuntimeException("custd: download could not be written to the stream");
+            }
+            $chunk = substr($chunk, $count);
         }
-        return [
-            "body" => $result["body"],
-            "headers" => self::headers($result),
-        ];
     }
 
     /**
@@ -379,59 +405,57 @@ final class Http
     }
 
     /**
-     * @param array<string, mixed>|null $body
-     * @return array{status:int, body:string, headers:array<string, string>}
+     * The connection must open within 15 seconds and the body may not stall for 30; a large download is
+     * otherwise given the time it needs. A refusal's body is kept (bounded) to type the error.
+     *
+     * @param callable(string):void $write
+     * @return array<string, string>
      */
-    private static function curlBinaryRequest(string $method, string $url, ?array $body, string $token): array
+    private static function curlStreamRequest(string $method, string $url, string $token, callable $write): array
     {
         $ch = curl_init($url);
-        $headers = self::baseHeaders($token);
         /** @var array<string, string> $responseHeaders */
         $responseHeaders = [];
-        $responseBody = "";
-        $tooLarge = false;
-        $options = [
+        $refusal = "";
+        $failure = null;
+        curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => $method,
             CURLOPT_RETURNTRANSFER => false,
-            CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_TIMEOUT => 15,
+            CURLOPT_HTTPHEADER => self::baseHeaders($token),
+            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_LOW_SPEED_LIMIT => 1,
+            CURLOPT_LOW_SPEED_TIME => 30,
             CURLOPT_HEADERFUNCTION => static function ($unused, string $line) use (&$responseHeaders): int {
-                $length = strlen($line);
                 $separator = strpos($line, ":");
-                if ($separator === false) {
-                    return $length;
+                if ($separator !== false) {
+                    $responseHeaders[strtolower(trim(substr($line, 0, $separator)))] = trim(substr($line, $separator + 1));
                 }
-                $name = strtolower(trim(substr($line, 0, $separator)));
-                $value = trim(substr($line, $separator + 1));
-                if ($name !== "") {
-                    $responseHeaders[$name] = $value;
-                }
-                return $length;
+                return strlen($line);
             },
-            CURLOPT_WRITEFUNCTION => static function ($unused, string $chunk) use (&$responseBody, &$tooLarge): int {
-                if (strlen($responseBody) + strlen($chunk) > self::MAX_BINARY_RESPONSE_BYTES) {
-                    $tooLarge = true;
+            CURLOPT_WRITEFUNCTION => static function ($handle, string $chunk) use ($write, &$refusal, &$failure): int {
+                if ((int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE) >= 400) {
+                    $refusal = substr($refusal . $chunk, 0, 65536);
+                    return strlen($chunk);
+                }
+                try {
+                    $write($chunk);
+                } catch (\RuntimeException $error) {
+                    $failure = $error;
                     return 0;
                 }
-                $responseBody .= $chunk;
                 return strlen($chunk);
             },
-        ];
-        if ($body !== null) {
-            $options[CURLOPT_POSTFIELDS] = json_encode($body, JSON_THROW_ON_ERROR);
+        ]);
+        $completed = curl_exec($ch);
+        if ($failure !== null) {
+            throw $failure;
         }
-        curl_setopt_array($ch, $options);
-        if (curl_exec($ch) === false && !$tooLarge) {
-            throw new \RuntimeException("custd: admin request failed: " . curl_error($ch));
+        if ($completed === false) {
+            throw new \RuntimeException("custd: admin download failed: " . curl_error($ch));
         }
-        if ($tooLarge) {
-            throw new \RuntimeException("custd: binary admin response exceeds 64 MiB");
-        }
-        return [
-            "status" => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE),
-            "body" => $responseBody,
-            "headers" => $responseHeaders,
-        ];
+        self::successBody(["status" => (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE), "body" => $refusal]);
+
+        return $responseHeaders;
     }
 
     /**
@@ -461,14 +485,14 @@ final class Http
         $headers = $result["headers"] ?? [];
         if (!is_array($headers)) {
             throw new \UnexpectedValueException(
-                "custd: admin_http_client binary response headers must be array<string, string>"
+                "custd: admin_http_client download response headers must be array<string, string>"
             );
         }
         $normalized = [];
         foreach ($headers as $name => $value) {
             if (!is_string($name) || !is_string($value)) {
                 throw new \UnexpectedValueException(
-                    "custd: admin_http_client binary response headers must be array<string, string>"
+                    "custd: admin_http_client download response headers must be array<string, string>"
                 );
             }
             $normalized[strtolower($name)] = $value;

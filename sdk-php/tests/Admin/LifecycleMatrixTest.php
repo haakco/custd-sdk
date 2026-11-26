@@ -201,16 +201,25 @@ final class LifecycleMatrixTest extends TestCase
         $this->assertSame("example", $receipt->waiver?->role);
     }
 
-    public function testOffboardingDownloadVerifiesTheDeclaredChecksumAndSize(): void
+    public function testOffboardingDownloadStreamsVerifiedBytesWithTheResponseMetadata(): void
     {
         $body = "custd offboarding export\n";
-        [$client] = $this->client([[200, $body, ["Content-Length" => (string) strlen($body), "X-Checksum-SHA256" => hash("sha256", $body)]]]);
+        [$client] = $this->client([[200, $body, [
+            "Content-Type" => "application/octet-stream",
+            "Content-Length" => (string) strlen($body),
+            "X-Checksum-SHA256" => hash("sha256", $body),
+            "X-Request-Id" => "req-download-1",
+        ]]]);
+        $sink = self::sink();
 
-        $download = $client->adminOffboarding()->download(self::REQUEST);
+        $download = $client->adminOffboarding()->download(self::REQUEST, $sink);
 
-        $this->assertSame($body, $download->bytes);
+        rewind($sink);
+        $this->assertSame($body, stream_get_contents($sink));
         $this->assertSame(hash("sha256", $body), $download->checksumSha256);
         $this->assertSame(strlen($body), $download->byteSize);
+        $this->assertSame("req-download-1", $download->requestId);
+        $this->assertSame("application/octet-stream", $download->contentType);
     }
 
     public function testOffboardingDownloadRejectsChecksumMismatch(): void
@@ -222,19 +231,43 @@ final class LifecycleMatrixTest extends TestCase
         ]]]);
 
         $this->expectExceptionMessage("checksum mismatch");
-        $client->adminOffboarding()->download(self::REQUEST);
+        $client->adminOffboarding()->download(self::REQUEST, self::sink());
     }
 
-    public function testOffboardingDownloadRejectsDeclaredSizeAboveBound(): void
+    public function testOffboardingDownloadRejectsALengthThatDiffersFromTheDeclaredOne(): void
     {
         $body = "custd offboarding";
         [$client] = $this->client([[200, $body, [
-            "Content-Length" => (string) (64 * 1024 * 1024 + 1),
+            "Content-Length" => (string) (strlen($body) + 1),
             "X-Checksum-SHA256" => hash("sha256", $body),
         ]]]);
 
-        $this->expectExceptionMessage("exceeds 64 MiB");
-        $client->adminOffboarding()->download(self::REQUEST);
+        $this->expectExceptionMessage("content length mismatch");
+        $client->adminOffboarding()->download(self::REQUEST, self::sink());
+    }
+
+    public function testOffboardingDownloadNeverWritesARefusalIntoTheSink(): void
+    {
+        [$client] = $this->client([[404, '{"error":"offboarding export not found"}']]);
+        $sink = self::sink();
+
+        try {
+            $client->adminOffboarding()->download(self::REQUEST, $sink);
+            $this->fail("expected the refusal");
+        } catch (\RuntimeException $error) {
+            $this->assertStringContainsString("offboarding export not found", $error->getMessage());
+        }
+        rewind($sink);
+        $this->assertSame("", stream_get_contents($sink));
+    }
+
+    /** @return resource */
+    private static function sink()
+    {
+        $sink = fopen("php://memory", "w+b");
+        self::assertIsResource($sink);
+
+        return $sink;
     }
 
     public function testOffboardingConfirmSurfacesErasureIncompleteSafeNextAction(): void
