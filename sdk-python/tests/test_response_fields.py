@@ -50,7 +50,7 @@ LITERAL_EXAMPLES: dict[str, str] = {
 # Operations whose example is not the body the SDK method decodes. Each is reported to the owner.
 UNCHECKED_BODY: dict[str, str] = {
     "admin-api GET /api/v1/admin/audit/events/export": (
-        "the method returns the raw download (format=csv or json) with its headers, not a decoded page"
+        "the method streams the raw download (format=csv or json) into a writer, not a decoded page"
     ),
 }
 

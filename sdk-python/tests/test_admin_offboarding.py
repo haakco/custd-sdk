@@ -3,6 +3,9 @@ import io
 import pathlib
 import sys
 import unittest
+import urllib.error
+from email.message import Message
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
@@ -104,6 +107,16 @@ class OffboardingClientTest(unittest.TestCase):
 
         self.assertEqual((409, "export_pending"), (raised.exception.status, raised.exception.code))
         self.assertTrue(stream.body.closed)
+
+    def test_default_stream_transport_reads_an_http_error_as_the_admin_error(self):
+        error = urllib.error.HTTPError(
+            "http://localhost:8080", 404, "Not Found", Message(), io.BytesIO(b'{"error": "no such request"}')
+        )
+        with mock.patch("custd.client.urllib.request.urlopen", side_effect=error):
+            client = CustdClient(base_url="http://localhost:8080", token="admin-token")
+            with self.assertRaisesRegex(RequestError, "no such request") as raised:
+                client.admin.offboarding.download(REQUEST_ID, io.BytesIO())
+        self.assertEqual(404, raised.exception.status)
 
     def test_execute_posts_without_caller_body(self):
         transport = QueueAdminTransport([{"status": 200, "body": '{"state":"deleting"}'}])
