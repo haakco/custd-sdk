@@ -4,7 +4,15 @@ from collections.abc import Mapping
 from typing import Literal, NotRequired, TypedDict, cast
 from urllib.parse import urlencode
 
-from .client import AdminClient, ValidationError, quote_path, validate_uuid
+from .client import (
+    REQUEST_ID_HEADER,
+    AdminClient,
+    BinaryWriter,
+    ValidationError,
+    copy_stream,
+    quote_path,
+    validate_uuid,
+)
 
 AuditExportFormat = Literal["csv", "json"]
 
@@ -82,6 +90,7 @@ class AuditListOptions(TypedDict, total=False):
     resourceId: str
     outcome: AuditOutcome
     correlationId: str
+    environmentId: str
     limit: int
     cursor: str
 
@@ -99,9 +108,12 @@ class AuditListResponse(TypedDict):
     retention: NotRequired[AuditRetentionDisclosure]
 
 
-class AuditExportResponse(TypedDict):
-    body: bytes
-    headers: dict[str, str]
+class AuditExport(TypedDict):
+    """An export written to the caller's writer; ``requestId`` is "" when the server sent none."""
+
+    contentType: str
+    byteSize: int
+    requestId: str
 
 
 class ReportingPackAuditEvent(TypedDict, total=False):
@@ -117,7 +129,7 @@ class ReportingPackAuditListResponse(TypedDict):
     events: list[ReportingPackAuditEvent]
 
 
-_AUDIT_QUERY_KEYS = (
+_AUDIT_EXPORT_QUERY_KEYS = (
     "scope",
     "companySlug",
     "affectedTenantSlug",
@@ -130,10 +142,9 @@ _AUDIT_QUERY_KEYS = (
     "resourceId",
     "outcome",
     "correlationId",
-    "limit",
-    "cursor",
+    "environmentId",
 )
-_AUDIT_EXPORT_QUERY_KEYS = _AUDIT_QUERY_KEYS[:-2]
+_AUDIT_QUERY_KEYS = (*_AUDIT_EXPORT_QUERY_KEYS, "limit", "cursor")
 
 
 def _query(options: Mapping[str, object] | None, keys: tuple[str, ...] = _AUDIT_QUERY_KEYS) -> str:
@@ -259,14 +270,26 @@ class AuditAdminClient:
         return _safe_event(response)
 
     def export_events(
-        self, options: AuditListOptions | None = None, format: AuditExportFormat = "json"
-    ) -> AuditExportResponse:
+        self, writer: BinaryWriter, options: AuditListOptions | None = None, format: AuditExportFormat = "json"
+    ) -> AuditExport:
+        """Stream the audit events matching ``options`` into ``writer`` as csv or json.
+
+        On an error part way through, ``writer`` may hold a partial export.
+        """
         if format not in ("csv", "json"):
             raise ValueError("custd: audit export format must be csv or json")
         query = _query(options, _AUDIT_EXPORT_QUERY_KEYS)
         separator = "&" if query else "?"
-        body, headers = self._admin.request_binary("GET", f"/audit/events/export{query}{separator}format={format}")
-        return {"body": body, "headers": headers}
+        stream = self._admin.open_stream(f"/audit/events/export{query}{separator}format={format}")
+        try:
+            written, _ = copy_stream(stream, writer)
+        finally:
+            stream.body.close()
+        return {
+            "contentType": stream.headers.get("content-type", ""),
+            "byteSize": written,
+            "requestId": stream.headers.get(REQUEST_ID_HEADER, ""),
+        }
 
     def list_reporting_pack_events(self, pack_key: str) -> ReportingPackAuditListResponse:
         response = self._admin.request(

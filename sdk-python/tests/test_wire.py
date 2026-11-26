@@ -1,5 +1,6 @@
 """Behaviour shared by the typed operation clients: problem errors and the error relay's limits."""
 
+import io
 import json
 import pathlib
 import sys
@@ -10,6 +11,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
 from custd import CustdClient, RequestError, SiteReport
 from custd._wire import decode
+from custd.client import AdminStream
 from custd.ingest_operations import EFFECTIVE_COMPANY_HEADER, ErrorCaptureClient
 
 
@@ -109,13 +111,18 @@ class WireTest(unittest.TestCase):
         )
         self.assertTrue(all(EFFECTIVE_COMPANY_HEADER not in headers for headers in transport.headers))
 
-        download = RecordingTransport(200, b"[]")
+        streamed: list[tuple[str, str]] = []
+
+        def stream(method: str, url: str, headers: dict[str, str], timeout: float) -> AdminStream:
+            streamed.append((method, url))
+            return AdminStream(200, {}, io.BytesIO(b"[]"))
+
         CustdClient(
-            base_url="http://localhost:8080", token="token", admin_transport=download, acting_company_slug="acme"
-        ).admin.audit.export_events()
+            base_url="http://localhost:8080", token="token", admin_stream_transport=stream, acting_company_slug="acme"
+        ).admin.audit.export_events(io.BytesIO())
         self.assertEqual(
             [("GET", "http://localhost:8080/api/v1/admin/audit/events/export?format=json&companySlug=acme")],
-            download.calls,
+            streamed,
         )
 
 

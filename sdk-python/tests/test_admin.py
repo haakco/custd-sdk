@@ -1,3 +1,4 @@
+import io
 import pathlib
 import sys
 import unittest
@@ -5,6 +6,7 @@ import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
 from custd import CustdClient
+from custd.client import AdminStream
 
 
 class CapturingAdminTransport:
@@ -72,25 +74,32 @@ class AdminClientTest(unittest.TestCase):
                 "ipAddress": "legacy-sensitive", "metadata": "sensitive",
                 "createdAt": "2026-07-23T12:00:00Z",
             }},
-            {
-                "status": 200,
-                "body": b"eventId,tenantSlug\n01957abc-0000-7000-8000-000000000001,acme\n",
-                "headers": {"Content-Type": "text/csv; charset=utf-8"},
-            },
         ])
-        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+        csv = b"eventId,tenantSlug\n01957abc-0000-7000-8000-000000000001,acme\n"
+        export_urls = []
+
+        def stream(method, url, headers, timeout):
+            export_urls.append(url)
+            answer_headers = {"content-type": "text/csv; charset=utf-8", "x-request-id": "req-9"}
+            return AdminStream(200, answer_headers, io.BytesIO(csv))
+
+        client = CustdClient(
+            base_url="http://localhost:8080", token="admin-token", admin_transport=transport,
+            admin_stream_transport=stream,
+        )
         options = {
             "scope": "global", "affectedTenantSlug": "acme", "since": "2026-07-01T00:00:00Z",
             "until": "2026-08-01T00:00:00Z", "actorKind": "user", "actorReference": "actor-0123456789ab",
             "action": "tenant.create", "resourceType": "tenant", "resourceId": "acme",
-            "outcome": "success", "correlationId": "req-1", "limit": 50, "cursor": "next",
+            "outcome": "success", "correlationId": "req-1", "environmentId": "env-1", "limit": 50, "cursor": "next",
         }
+        written = io.BytesIO()
 
         listed = client.admin.audit.list_events(options)
         event = client.admin.audit.get_event(
             "01957abc-0000-7000-8000-000000000001", {"scope": "tenant", "companySlug": "acme"}
         )
-        exported = client.admin.audit.export_events(options, "csv")
+        exported = client.admin.audit.export_events(written, options, "csv")
 
         self.assertEqual("next", listed["nextCursor"]["cursor"])
         self.assertEqual("2026-07-01T00:00:00Z", listed["coverageBeginsAt"])
@@ -106,20 +115,34 @@ class AdminClientTest(unittest.TestCase):
         self.assertEqual("value", listed["events"][0]["details"]["safe"])
         self.assertNotIn("ipAddress", listed["events"][0])
         self.assertNotIn("metadata", event)
-        self.assertEqual(b"eventId,tenantSlug\n01957abc-0000-7000-8000-000000000001,acme\n", exported["body"])
-        self.assertEqual("text/csv; charset=utf-8", exported["headers"]["content-type"])
+        self.assertEqual(csv, written.getvalue())
         self.assertEqual(
-            "http://localhost:8080/api/v1/admin/audit/events?scope=global&affectedTenantSlug=acme&since=2026-07-01T00%3A00%3A00Z&until=2026-08-01T00%3A00%3A00Z&actorKind=user&actorReference=actor-0123456789ab&action=tenant.create&resourceType=tenant&resourceId=acme&outcome=success&correlationId=req-1&limit=50&cursor=next",
+            {"contentType": "text/csv; charset=utf-8", "byteSize": len(csv), "requestId": "req-9"}, exported
+        )
+        self.assertEqual(
+            "http://localhost:8080/api/v1/admin/audit/events?scope=global&affectedTenantSlug=acme&since=2026-07-01T00%3A00%3A00Z&until=2026-08-01T00%3A00%3A00Z&actorKind=user&actorReference=actor-0123456789ab&action=tenant.create&resourceType=tenant&resourceId=acme&outcome=success&correlationId=req-1&environmentId=env-1&limit=50&cursor=next",
             transport.calls[0]["url"],
         )
         self.assertEqual(
             "http://localhost:8080/api/v1/admin/audit/events/01957abc-0000-7000-8000-000000000001?scope=tenant&companySlug=acme",
             transport.calls[1]["url"],
         )
-        self.assertEqual(transport.calls[2]["url"].split("?")[0], "http://localhost:8080/api/v1/admin/audit/events/export")
-        self.assertIn("format=csv", transport.calls[2]["url"])
-        self.assertNotIn("limit=50", transport.calls[2]["url"])
-        self.assertNotIn("cursor=next", transport.calls[2]["url"])
+        self.assertEqual(export_urls[0].split("?")[0], "http://localhost:8080/api/v1/admin/audit/events/export")
+        self.assertIn("environmentId=env-1", export_urls[0])
+        self.assertIn("format=csv", export_urls[0])
+        self.assertNotIn("limit=50", export_urls[0])
+        self.assertNotIn("cursor=next", export_urls[0])
+
+    def test_email_relay_view_reports_no_relay_while_the_tenant_uses_custds(self):
+        effective = {"fromAddress": "no-reply@custd.com", "fromDisplayName": "Custd", "hasCredential": True,
+                     "relay": "custd"}
+        transport = CapturingAdminTransport([{"status": 200, "body": {"relay": None, "effective": effective}}])
+        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+
+        view = client.admin.email_relay.get("acme")
+
+        self.assertIsNone(view["relay"])
+        self.assertEqual("custd", view["effective"]["relay"])
 
     def test_audit_reader_rejects_non_uuid_event_id(self):
         transport = CapturingAdminTransport([

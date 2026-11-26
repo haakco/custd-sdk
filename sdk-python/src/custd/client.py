@@ -1,5 +1,6 @@
 import base64
 import gzip
+import hashlib
 import json
 import os
 import random
@@ -11,9 +12,10 @@ import urllib.parse
 import urllib.request
 import uuid
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, Protocol, TypedDict, TypeVar, cast
 
 from .reporting_types import (
     PreparedDataNextAction,
@@ -102,6 +104,36 @@ TransportResult = dict[str, Any]
 Transport = Callable[[str, TransportBody, dict[str, str], float], TransportResult]
 # The payload is a JSON object, or the verbatim bytes of an upload whose Content-Type header names it.
 AdminTransport = Callable[[str, str, dict[str, Any] | bytes | None, dict[str, str], float], TransportResult]
+
+
+class ReadableBody(Protocol):
+    def read(self, size: int, /) -> bytes: ...
+
+    def close(self) -> None: ...
+
+
+class BinaryWriter(Protocol):
+    """Where a streamed download is written: an open binary file, ``io.BytesIO`` or a socket wrapper."""
+
+    def write(self, data: bytes, /) -> object: ...
+
+
+@dataclass(frozen=True)
+class AdminStream:
+    """An open answer whose body is read in chunks; ``headers`` keys are lower case."""
+
+    status: int
+    headers: dict[str, str]
+    body: ReadableBody
+
+
+# Opens a body-less request and returns the answer unread, so a download is copied, never buffered.
+AdminStreamTransport = Callable[[str, str, dict[str, str], float], AdminStream]
+
+STREAM_CHUNK_BYTES = 64 * 1024
+# An error answer is a small problem document; more than this is not read.
+STREAM_ERROR_BODY_LIMIT = 64 * 1024
+REQUEST_ID_HEADER = "x-request-id"
 
 
 class RawSourceTarget(TypedDict):
@@ -794,6 +826,7 @@ class CustdClient:
         environment: str | None = None,
         transport: Transport | None = None,
         admin_transport: AdminTransport | None = None,
+        admin_stream_transport: AdminStreamTransport | None = None,
         timeout: float = 15,
         acting_company_slug: str | None = None,
     ) -> None:
@@ -836,7 +869,9 @@ class CustdClient:
             raise ValueError("custd: queue max_queue_size must be a positive integer")
         self.compression = normalize_compression(compression)
         self.transport = transport or make_default_transport(self.compression)
-        self.admin = AdminClient(self, admin_transport or default_admin_transport)
+        self.admin = AdminClient(
+            self, admin_transport or default_admin_transport, admin_stream_transport or default_admin_stream_transport
+        )
         self.provisioning = ProvisioningClient(self, admin_transport or default_admin_transport)
         self.reporting = ReportingClient(self, admin_transport or default_admin_transport)
         from .analytics_events import AnalyticsEventClient
@@ -1079,9 +1114,12 @@ def with_acting_company(client: CustdClient, path: str) -> str:
 
 
 class AdminClient:
-    def __init__(self, client: CustdClient, transport: AdminTransport) -> None:
+    def __init__(
+        self, client: CustdClient, transport: AdminTransport, stream_transport: AdminStreamTransport
+    ) -> None:
         self._client = client
         self._transport = transport
+        self._stream_transport = stream_transport
         self.tenants = TenantAdminClient(self)
         self.oauth_clients = OAuthClientAdminClient(self)
         self.sites = SiteAdminClient(self)
@@ -1234,34 +1272,39 @@ class AdminClient:
             return {"items": body}
         return {}
 
-    def request_binary(
-        self,
-        method: str,
-        path: str,
-        payload: dict[str, Any] | None = None,
-    ) -> tuple[bytes, dict[str, str]]:
-        result = self._transport(
-            method,
+    def open_stream(self, path: str) -> AdminStream:
+        """GET ``path`` and return the accepted answer unread; the caller closes its body.
+
+        An error answer is read (bounded), closed and raised as the admin request error.
+        """
+        stream = self._stream_transport(
+            "GET",
             self._client.base_url + with_acting_company(self._client, "/api/v1/admin" + path),
-            payload,
             self._client._headers(),
             self._client.timeout,
         )
-        status = int(result["status"])
-        if status >= 400:
-            raise RequestError(f"custd: admin request failed with status {status}")
-        body = result.get("body")
-        if not isinstance(body, bytes):
-            raise ValueError("custd: binary admin response must be bytes")
-        if len(body) > 64 * 1024 * 1024:
-            raise RequestError("custd: binary admin response exceeds 64 MiB")
-        raw_headers = result.get("headers")
-        if raw_headers is None:
-            raw_headers = {}
-        if not isinstance(raw_headers, Mapping):
-            raise ValueError("custd: binary admin response headers must be a mapping")
-        headers = {str(key).lower(): str(value) for key, value in raw_headers.items()}
-        return body, headers
+        if stream.status < 400:
+            return stream
+        try:
+            body = stream.body.read(STREAM_ERROR_BODY_LIMIT).decode("utf-8", errors="replace")
+        finally:
+            stream.body.close()
+        raise admin_request_error(stream.status, body)
+
+
+def copy_stream(stream: AdminStream, writer: BinaryWriter, limit: int | None = None) -> tuple[int, str]:
+    """Copy at most ``limit`` (else every) body byte into ``writer``; return the count and SHA-256 hex."""
+    digest = hashlib.sha256()
+    written = 0
+    while limit is None or written < limit:
+        size = STREAM_CHUNK_BYTES if limit is None else min(STREAM_CHUNK_BYTES, limit - written)
+        chunk = stream.body.read(size)
+        if not chunk:
+            break
+        writer.write(chunk)
+        digest.update(chunk)
+        written += len(chunk)
+    return written, digest.hexdigest()
 
 
 class ProvisioningClient:
@@ -2552,12 +2595,7 @@ def default_admin_transport(
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            is_binary = (
-                "/artifacts/" in url
-                or ("/offboarding/requests/" in url and url.endswith("/download"))
-                or "/audit/events/export" in url
-                or (method == "GET" and url.endswith("/api/v1/app/profile/photo"))
-            )
+            is_binary = "/artifacts/" in url or (method == "GET" and url.endswith("/api/v1/app/profile/photo"))
             declared = response.headers.get("Content-Length") if is_binary else None
             if declared is not None and declared.isdigit() and int(declared) > 64 * 1024 * 1024:
                 raise RequestError("custd: binary admin response exceeds 64 MiB")
@@ -2571,6 +2609,17 @@ def default_admin_transport(
         return {"status": err.code, "body": err.read().decode("utf-8")}
     except urllib.error.URLError as err:
         raise RetryableError(f"custd: admin request failed: {err}") from err
+
+
+def default_admin_stream_transport(method: str, url: str, headers: dict[str, str], timeout: float) -> AdminStream:
+    request = urllib.request.Request(url, headers=headers, method=method)
+    try:
+        response = urllib.request.urlopen(request, timeout=timeout)
+    except urllib.error.HTTPError as err:
+        return AdminStream(err.code, {key.lower(): value for key, value in err.headers.items()}, err)
+    except urllib.error.URLError as err:
+        raise RetryableError(f"custd: admin request failed: {err}") from err
+    return AdminStream(response.status, {key.lower(): value for key, value in response.headers.items()}, response)
 
 
 class _KeepRedirect(urllib.request.HTTPRedirectHandler):

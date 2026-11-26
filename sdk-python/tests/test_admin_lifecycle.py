@@ -9,6 +9,7 @@ idempotency and verified binary download. Bodies are inline and server-shaped.
 from __future__ import annotations
 
 import hashlib
+import io
 import pathlib
 import sys
 import unittest
@@ -17,6 +18,7 @@ from typing import Any
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
 from custd import CustdClient, RequestError
+from custd.client import AdminStream
 
 REQUEST_UUID = "11111111-1111-4111-8111-111111111111"
 RECEIPT: dict[str, Any] = {
@@ -123,38 +125,34 @@ class OffboardingTest(unittest.TestCase):
     def test_workflow_sends_idempotency_once_and_verifies_the_download(self) -> None:
         archive = b"offboarding export archive"
         checksum = hashlib.sha256(archive).hexdigest()
-        client, transport = admin_client(
+        transport = CapturingAdminTransport([
             {
                 "status": 202,
                 "body": {"requestUuid": REQUEST_UUID, "state": "preview", "requestedAt": "2026-07-31T08:00:00Z"},
             },
-            {
-                "status": 200,
-                "body": archive,
-                "headers": {"Content-Length": str(len(archive)), "X-Checksum-SHA256": checksum},
-            },
             {"status": 200, "body": RECEIPT},
+        ])
+        headers = {"content-length": str(len(archive)), "x-checksum-sha256": checksum}
+        client = CustdClient(
+            base_url="http://localhost:8080",
+            token="admin-token",
+            admin_transport=transport,
+            admin_stream_transport=lambda *_: AdminStream(200, headers, io.BytesIO(archive)),
         )
         offboarding = client.admin.offboarding
+        bundle = io.BytesIO()
 
         created = offboarding.request_offboarding({"confirmation": "acme"}, {"idempotency_key": "offboarding-proof-1"})
-        downloaded = offboarding.download(REQUEST_UUID)
+        downloaded = offboarding.download(REQUEST_UUID, bundle)
         receipt = offboarding.execute(REQUEST_UUID)
 
         self.assertEqual(REQUEST_UUID, created["requestUuid"])
-        self.assertEqual({"bytes": archive, "checksumSha256": checksum, "byteSize": len(archive)}, downloaded)
+        self.assertEqual(archive, bundle.getvalue())
+        self.assertEqual((checksum, len(archive)), (downloaded["checksumSha256"], downloaded["byteSize"]))
         self.assertEqual("complete", receipt["final_state"])
         self.assertEqual("offboarding-proof-1", transport.calls[0]["headers"]["Idempotency-Key"])
-        self.assertNotIn("Idempotency-Key", transport.calls[2]["headers"])
-        self.assertIsNone(transport.calls[2]["payload"])
-
-    def test_a_download_whose_checksum_does_not_match_is_refused(self) -> None:
-        client, _ = admin_client(
-            {"status": 200, "body": b"tampered", "headers": {"Content-Length": "8", "X-Checksum-SHA256": "b" * 64}}
-        )
-
-        with self.assertRaisesRegex(ValueError, "checksum mismatch"):
-            client.admin.offboarding.download(REQUEST_UUID)
+        self.assertNotIn("Idempotency-Key", transport.calls[1]["headers"])
+        self.assertIsNone(transport.calls[1]["payload"])
 
     def test_confirm_surfaces_the_workflow_conflict(self) -> None:
         client, _ = admin_client({

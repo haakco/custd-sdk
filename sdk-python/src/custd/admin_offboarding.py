@@ -5,12 +5,19 @@ server's wire spelling; a JSON null list decodes as empty.
 
 from __future__ import annotations
 
-import hashlib
 import re
 from typing import Any, NotRequired, TypedDict, TypeVar
 
 from . import _wire
-from .client import AdminClient, AdminRequestOptions, OffboardingState, quote_path
+from .client import (
+    REQUEST_ID_HEADER,
+    AdminClient,
+    AdminRequestOptions,
+    BinaryWriter,
+    OffboardingState,
+    copy_stream,
+    quote_path,
+)
 
 OFFBOARDING_PATH = "/offboarding"
 
@@ -93,13 +100,13 @@ class OffboardingExportResponse(TypedDict):
     previewInventoryDigest: str
 
 
-class OffboardingDownloadResponse(TypedDict):
-    bytes: bytes
+class OffboardingDownload(TypedDict):
+    """A bundle download written to the caller's writer; ``requestId`` is "" when the server sent none."""
+
+    contentType: str
     checksumSha256: str
     byteSize: int
-
-
-MAX_OFFBOARDING_DOWNLOAD_BYTES = 64 * 1024 * 1024
+    requestId: str
 
 
 class OffboardingReceiptPerStore(TypedDict):
@@ -203,29 +210,35 @@ class OffboardingClient:
     ) -> OffboardingExportResponse:
         return self._call(OffboardingExportResponse, "POST", _request_path(request_uuid, "export"), options)
 
-    def download(
-        self,
-        request_uuid: str,
-        options: AdminRequestOptions | None = None,
-    ) -> OffboardingDownloadResponse:
-        del options
-        body, headers = self._admin.request_binary("GET", f"/offboarding/requests/{quote_path(request_uuid)}/download")
-        if len(body) > MAX_OFFBOARDING_DOWNLOAD_BYTES:
-            raise ValueError("custd: offboarding download exceeds 64 MiB")
-        length_header = headers.get("content-length", "").strip()
-        if re.fullmatch(r"[0-9]+", length_header) is None:
-            raise ValueError("custd: offboarding download content length is invalid")
-        byte_size = int(length_header)
-        if byte_size > MAX_OFFBOARDING_DOWNLOAD_BYTES:
-            raise ValueError("custd: offboarding download exceeds 64 MiB")
-        if byte_size != len(body):
+    def download(self, request_uuid: str, writer: BinaryWriter) -> OffboardingDownload:
+        """Stream the authenticated export bundle into ``writer``, hashing it as it copies.
+
+        A response without a valid Content-Length and X-Checksum-SHA256 is refused before anything is
+        written. When the copied bytes do not match them a ValueError is raised after the copy, so
+        ``writer`` then holds an unverified bundle the caller must discard.
+        """
+        stream = self._admin.open_stream(f"/offboarding/requests/{quote_path(request_uuid)}/download")
+        try:
+            length_header = stream.headers.get("content-length", "").strip()
+            if re.fullmatch(r"[0-9]+", length_header) is None:
+                raise ValueError("custd: offboarding download content length is invalid")
+            checksum = stream.headers.get("x-checksum-sha256", "").strip().lower()
+            if re.fullmatch(r"[0-9a-f]{64}", checksum) is None:
+                raise ValueError("custd: offboarding download checksum header is invalid")
+            byte_size = int(length_header)
+            written, digest = copy_stream(stream, writer, byte_size + 1)
+        finally:
+            stream.body.close()
+        if written != byte_size:
             raise ValueError("custd: offboarding download content length mismatch")
-        checksum = headers.get("x-checksum-sha256", "").strip().lower()
-        if re.fullmatch(r"[0-9a-f]{64}", checksum) is None:
-            raise ValueError("custd: offboarding download checksum header is invalid")
-        if hashlib.sha256(body).hexdigest() != checksum:
+        if digest != checksum:
             raise ValueError("custd: offboarding download checksum mismatch")
-        return {"bytes": body, "checksumSha256": checksum, "byteSize": byte_size}
+        return {
+            "contentType": stream.headers.get("content-type", ""),
+            "checksumSha256": checksum,
+            "byteSize": byte_size,
+            "requestId": stream.headers.get(REQUEST_ID_HEADER, ""),
+        }
 
     def acknowledge(
         self,

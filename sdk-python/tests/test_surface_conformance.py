@@ -10,6 +10,7 @@ decodes every example and checks each response DTO's fields.
 """
 
 import contextlib
+import io
 import json
 import pathlib
 import re
@@ -175,10 +176,13 @@ class FakeResponse:
     headers: dict[str, str] = {}
 
     def __init__(self, body: bytes) -> None:
-        self.body = body
+        self.stream = io.BytesIO(body)
 
-    def read(self, *_: object) -> bytes:
-        return self.body
+    def read(self, size: int | None = -1) -> bytes:
+        return self.stream.read(size)
+
+    def close(self) -> None:
+        self.stream.close()
 
     def __enter__(self) -> "FakeResponse":
         return self
@@ -438,7 +442,7 @@ ROUTES: dict[str, RouteCase] = {
         f"/api/v1/producer-provisioning/{U}", lambda c: c.provisioning.producers.revoke(U)
     ),
     "admin-api GET /api/v1/admin/audit/events/export": RouteCase(
-        "/api/v1/admin/audit/events/export", lambda c: c.admin.audit.export_events()
+        "/api/v1/admin/audit/events/export", lambda c: c.admin.audit.export_events(io.BytesIO())
     ),
     "admin-api GET /api/v1/admin/audit/events/{eventId}": RouteCase(
         f"/api/v1/admin/audit/events/{U}", lambda c: c.admin.audit.get_event(U)
@@ -553,7 +557,7 @@ ROUTES: dict[str, RouteCase] = {
         "/api/v1/admin/offboarding/schedules", lambda c: c.admin.offboarding.list_schedules()
     ),
     "admin-api GET /api/v1/admin/offboarding/requests/{requestUuid}/download": RouteCase(
-        f"/api/v1/admin/offboarding/requests/{U}/download", lambda c: c.admin.offboarding.download(U)
+        f"/api/v1/admin/offboarding/requests/{U}/download", lambda c: c.admin.offboarding.download(U, io.BytesIO())
     ),
     "admin-api GET /api/v1/admin/offboarding/requests/{requestUuid}/receipt": RouteCase(
         f"/api/v1/admin/offboarding/requests/{U}/receipt", lambda c: c.admin.offboarding.receipt(U)
@@ -2475,7 +2479,9 @@ QUERY_CASES: dict[str, Callable[[CustdClient], object]] = {
         lambda c: c.admin.predictions.list_threshold_events("acme", U, page_size=10)
     ),
     "admin-api DELETE /api/v1/data-spaces/{slug}": lambda c: c.provisioning.data_spaces.revoke("acme", "parent"),
-    "admin-api GET /api/v1/admin/audit/events/export": lambda c: c.admin.audit.export_events(AUDIT_FILTERS),
+    "admin-api GET /api/v1/admin/audit/events/export": (
+        lambda c: c.admin.audit.export_events(io.BytesIO(), AUDIT_FILTERS)
+    ),
     "admin-api GET /api/v1/admin/audit/events/{eventId}": lambda c: c.admin.audit.get_event(U, {"scope": "tenant"}),
     "admin-api GET /api/v1/admin/audit/events": (
         lambda c: c.admin.audit.list_events({**AUDIT_FILTERS, "limit": 1, "cursor": "next"})

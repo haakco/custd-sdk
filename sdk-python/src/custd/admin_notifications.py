@@ -57,8 +57,10 @@ class EmailRelay(TypedDict):
 
 
 class EmailRelayView(TypedDict):
+    """A tenant's own relay, None while the tenant sends through Custd's relay, and the sender in effect."""
+
     effective: EmailRelayEffectiveSender
-    relay: EmailRelay
+    relay: EmailRelay | None
 
 
 class NotificationDeliveryStatus(TypedDict):
