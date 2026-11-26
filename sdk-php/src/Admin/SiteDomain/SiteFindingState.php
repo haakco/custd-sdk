@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\SiteDomain;
 
 /** SiteFindingState selects which findings a list returns. */
-enum SiteFindingState: string
+final class SiteFindingState
 {
-    case Open = 'open';
-    case Fixed = 'fixed';
-    case All = 'all';
+    public const OPEN = 'open';
+    public const FIXED = 'fixed';
+    public const ALL = 'all';
 }

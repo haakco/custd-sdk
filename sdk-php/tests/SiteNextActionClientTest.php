@@ -7,8 +7,8 @@ namespace HaakCo\Custd\Tests;
 use HaakCo\Custd\Admin\SiteDomain\SiteNextAction;
 use HaakCo\Custd\Admin\SiteDomain\SiteNextActions;
 use HaakCo\Custd\Admin\SiteDomain\SiteNextActionTarget;
-use HaakCo\Custd\Admin\SiteDomain\SiteReport;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\SiteDomain\SiteReportTemplate;
 
 /** Replays contract-fixtures/site-next-actions.json through the next-actions calls and the report. */
 final class SiteNextActionClientTest extends TestCase
@@ -28,7 +28,7 @@ final class SiteNextActionClientTest extends TestCase
         $findings = $this->replay($calls, 'nextActionsFindings')->nextActions()->forDomain('d-1', 'acme');
 
         self::assertSame('down', $next->status);
-        self::assertSame('own-key', $next->aiMode?->value);
+        self::assertSame('own-key', $next->aiMode);
         self::assertSame(6, $next->actionCount);
         self::assertCount(SiteNextActions::MAX_ACTIONS, $next->actions);
         self::assertSame(
@@ -73,6 +73,6 @@ final class SiteNextActionClientTest extends TestCase
         $read = $this->replay($calls, 'nextActions')->nextActions()->forDomain('d-1');
 
         self::assertEquals($read->actions, $report->nextActions);
-        self::assertSame(SiteReport::TEMPLATE_EXECUTIVE, $report->template);
+        self::assertSame(SiteReportTemplate::EXECUTIVE, $report->template);
     }
 }

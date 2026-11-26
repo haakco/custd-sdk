@@ -9,8 +9,11 @@ use HaakCo\Custd\Fields;
 /** The latest AI answer sample for a domain. A null answer means no answer was received. */
 final readonly class SiteAIAnswerSample
 {
+    /**
+     * @param SiteAIProduct::* $product
+     */
     public function __construct(
-        public SiteAIProduct $product,
+        public string $product,
         public string $observedAt,
         public ?string $answer = null,
     ) {
@@ -19,7 +22,7 @@ final readonly class SiteAIAnswerSample
     public static function fromPayload(\stdClass $payload): self
     {
         return new self(
-            SiteAIProduct::from(Fields::string($payload, 'product')),
+            Fields::string($payload, 'product'),
             Fields::string($payload, 'observedAt'),
             Fields::optionalString($payload, 'answer'),
         );

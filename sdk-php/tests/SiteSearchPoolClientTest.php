@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\AdminProblemException;
-use HaakCo\Custd\Admin\SiteDomain\SearchPoolBand;
 use HaakCo\Custd\Admin\SiteDomain\SearchPoolSetting;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use HaakCo\Custd\Admin\SiteSearchPoolClient;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\SiteDomain\SearchPoolDemandBand;
 
 /** Replays contract-fixtures/site-search-pool.json through the shared search pool calls. */
 final class SiteSearchPoolClientTest extends TestCase
@@ -79,9 +79,9 @@ final class SiteSearchPoolClientTest extends TestCase
 
         [$pricing, $free] = $page->queries;
         self::assertSame('2026-11-18T00:00:00Z', $page->computedAt);
-        self::assertSame(SearchPoolBand::DEMAND_10K_100K, $pricing->demandBand);
+        self::assertSame(SearchPoolDemandBand::BAND_10K_100K, $pricing->demandBand);
         self::assertSame(35, $pricing->positions->top3);
-        self::assertSame(SearchPoolBand::DEMAND_100_999, $free->demandBand);
+        self::assertSame(SearchPoolDemandBand::BAND_100_999, $free->demandBand);
         self::assertSame(0, $free->positions->top3);
         self::assertSame(0, $free->positions->top10);
         self::assertSame(75, $free->positions->beyond20);

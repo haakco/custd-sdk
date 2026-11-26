@@ -9,9 +9,6 @@ use HaakCo\Custd\Fields;
 /** SitePageLinkSource is a page of the domain that mentions a ranking query in its title or a heading. */
 final readonly class SitePageLinkSource
 {
-    public const WHERE_TITLE = 'title';
-    public const WHERE_HEADING = 'heading';
-
     /**
      * @param SitePageLinkPlacement::* $where
      */

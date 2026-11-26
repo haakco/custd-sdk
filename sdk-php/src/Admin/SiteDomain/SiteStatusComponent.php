@@ -9,9 +9,12 @@ use HaakCo\Custd\Fields;
 /** SiteStatusComponent is one component as customers see it on the status page. */
 final readonly class SiteStatusComponent
 {
+    /**
+     * @param SiteStatusComponentStatus::* $status
+     */
     public function __construct(
         public string $label,
-        public SiteStatusComponentStatus $status,
+        public string $status,
         public ?string $lastCheckedAt = null,
     ) {
     }
@@ -20,7 +23,7 @@ final readonly class SiteStatusComponent
     {
         return new self(
             Fields::string($payload, 'label'),
-            SiteStatusComponentStatus::from(Fields::string($payload, 'status')),
+            Fields::string($payload, 'status'),
             Fields::optionalString($payload, 'lastCheckedAt'),
         );
     }

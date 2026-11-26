@@ -9,18 +9,19 @@ use HaakCo\Custd\Fields;
 /** AppReleaseCacheRule applies a cache mode to the files match selects. */
 final readonly class AppReleaseCacheRule
 {
-    public function __construct(public string $match, public AppReleaseCacheMode $mode)
+    /** @param AppReleaseCacheMode::* $mode */
+    public function __construct(public string $match, public string $mode)
     {
     }
 
     public static function fromPayload(\stdClass $payload): self
     {
-        return new self(Fields::string($payload, 'match'), AppReleaseCacheMode::from(Fields::string($payload, 'mode')));
+        return new self(Fields::string($payload, 'match'), Fields::string($payload, 'mode'));
     }
 
-    /** @return array{match: string, mode: string} */
+    /** @return array{match: string, mode: AppReleaseCacheMode::*} */
     public function serialise(): array
     {
-        return ['match' => $this->match, 'mode' => $this->mode->value];
+        return ['match' => $this->match, 'mode' => $this->mode];
     }
 }

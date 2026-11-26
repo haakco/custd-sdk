@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\SiteDomain;
 
 /** SiteSearchDimension is what a page of search rows is grouped by. */
-enum SiteSearchDimension: string
+final class SiteSearchDimension
 {
-    case Page = 'page';
-    case Query = 'query';
-    case Country = 'country';
-    case Device = 'device';
+    public const PAGE = 'page';
+    public const QUERY = 'query';
+    public const COUNTRY = 'country';
+    public const DEVICE = 'device';
 }

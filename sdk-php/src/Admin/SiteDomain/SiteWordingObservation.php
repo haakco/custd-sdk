@@ -9,14 +9,15 @@ use HaakCo\Custd\Fields;
 /** Availability and time of the latest checked copy of a page. */
 final readonly class SiteWordingObservation
 {
-    public function __construct(public WordingObservationState $state, public ?string $observedAt)
+    /** @param WordingObservationState::* $state */
+    public function __construct(public string $state, public ?string $observedAt)
     {
     }
 
     public static function fromPayload(\stdClass $payload): self
     {
         return new self(
-            WordingObservationState::from(Fields::string($payload, 'state')),
+            Fields::string($payload, 'state'),
             Fields::optionalString($payload, 'observedAt'),
         );
     }

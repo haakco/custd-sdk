@@ -7,18 +7,11 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 use HaakCo\Custd\Fields;
 
 /**
- * SiteTopicTrend is the monthly Wikipedia views of one brand or seed term. source is a SOURCE_* value
- * and status a STATUS_* value; article is empty unless found.
+ * SiteTopicTrend is the monthly Wikipedia views of one brand or seed term. source is a SiteTopicTrendSource value
+ * and status a SiteTopicTrendStatus value; article is empty unless found.
  */
 final readonly class SiteTopicTrend
 {
-    public const SOURCE_BRAND = 'brand';
-    public const SOURCE_SEED = 'seed';
-    public const STATUS_PENDING = 'pending';
-    public const STATUS_FOUND = 'found';
-    public const STATUS_NO_ARTICLE = 'no_article';
-    public const STATUS_FAILED = 'failed';
-
     /**
      * @param list<SiteTrendMonth> $months
      * @param SiteTopicTrendSource::* $source

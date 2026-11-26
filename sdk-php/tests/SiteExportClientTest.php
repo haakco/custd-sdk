@@ -6,8 +6,8 @@ namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\AdminProblemException;
 use HaakCo\Custd\Admin\SiteDomain\SiteInsightsExport;
-use HaakCo\Custd\Admin\SiteDomain\SiteSearchMetricDay;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\SiteDomain\SiteSearchMetricDimension;
 
 /** Replays contract-fixtures/site-export.json through the domain export calls. */
 final class SiteExportClientTest extends TestCase
@@ -35,7 +35,7 @@ final class SiteExportClientTest extends TestCase
         self::assertSame($fixture->search->metricRows, $export->search->metricRows);
         self::assertCount(count($fixture->reports->savedReports), $export->reports->savedReports);
         self::assertSame(2, $page->total);
-        self::assertSame(SiteSearchMetricDay::DIMENSION_TOTAL, $page->rows[0]->dimension);
+        self::assertSame(SiteSearchMetricDimension::TOTAL, $page->rows[0]->dimension);
         self::assertSame('', $page->rows[0]->key);
         self::assertSame(4.2, $page->rows[1]->avgPosition);
         self::assertSame([

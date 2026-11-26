@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin\AuthProject;
 
-enum ApplicationIdentityTraitsStatus: string
+/**
+ * ApplicationIdentityTraitsStatus names the values of ApplicationPrincipalIdentityExport.traitsStatus.
+ * A value Custd adds later still decodes as a plain string.
+ */
+final class ApplicationIdentityTraitsStatus
 {
-    case Included = 'included';
-    case Incomplete = 'incomplete';
-    case IdentityAbsent = 'identity_absent';
-    case DirectoryUnavailable = 'directory_unavailable';
-    case ProviderUnreadable = 'provider_unreadable';
+    public const INCLUDED = 'included';
+    public const INCOMPLETE = 'incomplete';
+    public const IDENTITY_ABSENT = 'identity_absent';
+    public const DIRECTORY_UNAVAILABLE = 'directory_unavailable';
+    public const PROVIDER_UNREADABLE = 'provider_unreadable';
 }

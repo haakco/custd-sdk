@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\SiteDomain;
 
 /** SiteRobotsDirective is the kind of robots.txt rule that decided a test. */
-enum SiteRobotsDirective: string
+final class SiteRobotsDirective
 {
-    case Allow = 'allow';
-    case Disallow = 'disallow';
+    public const ALLOW = 'allow';
+    public const DISALLOW = 'disallow';
 }

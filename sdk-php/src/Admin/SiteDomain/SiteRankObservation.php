@@ -7,15 +7,11 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 use HaakCo\Custd\Fields;
 
 /**
- * SiteRankObservation is one day of a tracked keyword in Search Console. state is a STATE_* value;
+ * SiteRankObservation is one day of a tracked keyword in Search Console. state is a SiteRankObservationState value;
  * position and rankingUrl are null unless the domain ranked that day (never 0).
  */
 final readonly class SiteRankObservation
 {
-    public const STATE_RANKING = 'ranking';
-    public const STATE_NOT_RANKING = 'not_ranking';
-    public const STATE_NO_DATA = 'no_data';
-
     /**
      * @param SiteRankObservationState::* $state
      */

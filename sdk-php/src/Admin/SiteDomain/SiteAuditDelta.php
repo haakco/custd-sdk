@@ -8,16 +8,11 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteAuditDelta is what the latest audit changed: findings it raised for the first time, raised
- * again after a fix, and found fixed. run is one of the RUN_* values; failure says why a failed
+ * again after a fix, and found fixed. run is a SiteAuditRun value; failure says why a failed
  * run failed.
  */
 final readonly class SiteAuditDelta
 {
-    public const RUN_NOT_AUDITED = 'not_audited';
-    public const RUN_FAILED = 'failed';
-    public const RUN_TRUNCATED = 'truncated';
-    public const RUN_COMPLETE = 'complete';
-
     /**
      * @param list<SiteFinding> $new
      * @param list<SiteFinding> $reopened

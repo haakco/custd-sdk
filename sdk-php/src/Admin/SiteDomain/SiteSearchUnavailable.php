@@ -9,8 +9,11 @@ use HaakCo\Custd\Fields;
 /** SiteSearchUnavailable is a provider that cannot report a dimension: no data, not zero traffic. */
 final readonly class SiteSearchUnavailable
 {
+    /**
+     * @param SiteSearchProvider::* $provider
+     */
     public function __construct(
-        public SiteSearchProvider $provider,
+        public string $provider,
         public string $reason,
     ) {
     }
@@ -18,7 +21,7 @@ final readonly class SiteSearchUnavailable
     public static function fromPayload(\stdClass $payload): self
     {
         return new self(
-            SiteSearchProvider::from(Fields::string($payload, 'provider')),
+            Fields::string($payload, 'provider'),
             Fields::string($payload, 'reason'),
         );
     }

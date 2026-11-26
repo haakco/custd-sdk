@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\SiteDomain;
 
 /** SiteHeartbeatStatus is where a scheduled job's latest expected report stands. */
-enum SiteHeartbeatStatus: string
+final class SiteHeartbeatStatus
 {
-    case Pending = 'pending';
-    case OnTime = 'on-time';
-    case Late = 'late';
-    case Missed = 'missed';
-    case Failed = 'failed';
+    public const PENDING = 'pending';
+    public const ON_TIME = 'on-time';
+    public const LATE = 'late';
+    public const MISSED = 'missed';
+    public const FAILED = 'failed';
 }

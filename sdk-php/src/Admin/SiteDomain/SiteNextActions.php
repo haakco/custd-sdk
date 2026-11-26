@@ -21,6 +21,8 @@ final readonly class SiteNextActions
     /**
      * @param list<string> $notChecked
      * @param list<SiteNextAction> $actions
+     * @param SiteUptimeStatus::* $status
+     * @param SiteAIMode::*|null $aiMode
      */
     public function __construct(
         public string $domainUuid,
@@ -31,7 +33,7 @@ final readonly class SiteNextActions
         public int $actionCount,
         public array $actions,
         public ?string $checkedAt = null,
-        public ?SiteAIMode $aiMode = null,
+        public ?string $aiMode = null,
     ) {
     }
 
@@ -48,7 +50,7 @@ final readonly class SiteNextActions
             Fields::integer($payload, 'actionCount'),
             array_map(SiteNextAction::fromPayload(...), Fields::objects($payload, 'actions')),
             Fields::optionalString($payload, 'checkedAt'),
-            $mode === null ? null : SiteAIMode::tryFrom($mode),
+            $mode === null ? null : $mode,
         );
     }
 }

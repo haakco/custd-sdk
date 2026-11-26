@@ -8,15 +8,10 @@ use HaakCo\Custd\Fields;
 
 /**
  * AccessLogHourReplay is a queued re-read of one UTC hour of access logs; previousStatus is how the hour
- * stood before (a PREVIOUS_* value).
+ * stood before (an AccessLogHourStatus value).
  */
 final readonly class AccessLogHourReplay
 {
-    public const PREVIOUS_DONE = 'done';
-    public const PREVIOUS_PARTIAL = 'partial';
-    public const PREVIOUS_FAILED = 'failed';
-    public const PREVIOUS_MISSING = 'missing';
-
     /**
      * @param AccessLogHourStatus::* $previousStatus
      */

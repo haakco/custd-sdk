@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Tests;
 
-use HaakCo\Custd\Admin\SiteDomain\SitePageLinkSource;
-use HaakCo\Custd\Admin\SiteDomain\SitePageSearchQueries;
-use HaakCo\Custd\Admin\SiteDomain\SitePageTitleOption;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\SiteDomain\SiteTitleTemplate;
+use HaakCo\Custd\Admin\SiteDomain\SitePageLinkPlacement;
+use HaakCo\Custd\Admin\SiteDomain\SitePageQueriesState;
 
 /** Replays contract-fixtures/site-page-queries.json through the page search queries read. */
 final class SitePageSearchQueriesTest extends TestCase
@@ -26,13 +26,13 @@ final class SitePageSearchQueriesTest extends TestCase
         $none = $this->replay($calls, 'pageSearchQueriesNotConnected')
             ->getPageSearchQueries('d-1', 'https://shop.example.com/pricing');
 
-        self::assertSame(SitePageSearchQueries::STATE_AVAILABLE, $page->state);
+        self::assertSame(SitePageQueriesState::AVAILABLE, $page->state);
         self::assertSame('2026-10-18', $page->window?->from);
         self::assertSame(4.2, $page->queries[0]->position);
         self::assertTrue($page->queries[0]->inDescription);
-        self::assertSame(SitePageTitleOption::TEMPLATE_GUIDE, $page->titleOptions[1]->template);
-        self::assertSame(SitePageLinkSource::WHERE_TITLE, $page->linkSources[0]->where);
-        self::assertSame(SitePageSearchQueries::STATE_NOT_CONNECTED, $none->state);
+        self::assertSame(SiteTitleTemplate::GUIDE, $page->titleOptions[1]->template);
+        self::assertSame(SitePageLinkPlacement::TITLE, $page->linkSources[0]->where);
+        self::assertSame(SitePageQueriesState::NOT_CONNECTED, $none->state);
         self::assertNull($none->window);
         self::assertSame([], $none->queries);
         self::assertSame([

@@ -8,7 +8,7 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteReferringDomain is one domain linking to the Site's domain. sources are
- * SiteLinkSourceTotal::SOURCE_* values; a count, followed or rank a source did not report is null.
+ * SiteLinkSource values; a count, followed or rank a source did not report is null.
  */
 final readonly class SiteReferringDomain
 {

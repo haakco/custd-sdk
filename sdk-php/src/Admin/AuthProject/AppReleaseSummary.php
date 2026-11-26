@@ -9,9 +9,12 @@ use HaakCo\Custd\Fields;
 /** AppReleaseSummary is one release in a list, without its file manifest. */
 final readonly class AppReleaseSummary
 {
+    /**
+     * @param AppReleaseState::* $state
+     */
     public function __construct(
         public string $releaseId,
-        public AppReleaseState $state,
+        public string $state,
         public bool $active,
         public int $fileCount,
         public int $totalBytes,
@@ -25,7 +28,7 @@ final readonly class AppReleaseSummary
     {
         return new self(
             Fields::string($payload, 'releaseId'),
-            AppReleaseState::from(Fields::string($payload, 'state')),
+            Fields::string($payload, 'state'),
             Fields::boolean($payload, 'active'),
             Fields::integer($payload, 'fileCount'),
             Fields::integer($payload, 'totalBytes'),

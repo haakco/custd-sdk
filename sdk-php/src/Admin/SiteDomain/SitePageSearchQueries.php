@@ -14,11 +14,6 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SitePageSearchQueries
 {
-    public const STATE_AVAILABLE = 'available';
-    public const STATE_NOT_CONNECTED = 'not_connected';
-    public const STATE_NOT_IMPORTED = 'not_imported';
-    public const STATE_NO_QUERIES = 'no_queries';
-
     /**
      * @param list<SitePageSearchQuery> $queries
      * @param list<SitePageTitleOption> $titleOptions

@@ -6,11 +6,6 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 
 final readonly class SiteProbeSpec
 {
-    public const PING = 'ping';
-    public const TCP = 'tcp';
-    public const DNS = 'dns';
-    public const HTTP_DELIVERY = 'http-delivery';
-
     /**
      * @param SiteProbeKind::* $kind
      * @param list<string> $expectedAddresses

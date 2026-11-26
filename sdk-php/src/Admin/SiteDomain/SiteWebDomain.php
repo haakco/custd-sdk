@@ -8,25 +8,11 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteWebDomain is one of a Site's own or competitor domains and its public web-data inventory.
- * role is a ROLE_* value; trancoBand a TRANCO_* value, with trancoRank null when unranked or unknown;
- * sitemapStatus and waybackStatus are INVENTORY_* values. inventoryAt is null before the first full pass.
+ * role is a SiteWebDomainRole value; trancoBand a SiteTrancoBand value, with trancoRank null when unranked or unknown;
+ * sitemapStatus and waybackStatus are SiteWebInventoryStatus values. inventoryAt is null before the first full pass.
  */
 final readonly class SiteWebDomain
 {
-    public const ROLE_OWN = 'own';
-    public const ROLE_COMPETITOR = 'competitor';
-    public const TRANCO_TOP_1K = 'top-1k';
-    public const TRANCO_TOP_10K = 'top-10k';
-    public const TRANCO_TOP_100K = 'top-100k';
-    public const TRANCO_TOP_1M = 'top-1m';
-    public const TRANCO_UNRANKED = 'unranked';
-    public const TRANCO_UNKNOWN = 'unknown';
-    public const INVENTORY_PENDING = 'pending';
-    public const INVENTORY_DONE = 'done';
-    public const INVENTORY_PARTIAL = 'partial';
-    public const INVENTORY_UNAVAILABLE = 'unavailable';
-    public const INVENTORY_FAILED = 'failed';
-
     /**
      * @param SiteWebDomainRole::* $role
      * @param SiteWebInventoryStatus::* $sitemapStatus

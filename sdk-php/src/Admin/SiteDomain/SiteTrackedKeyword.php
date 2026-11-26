@@ -8,7 +8,7 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteTrackedKeyword is one keyword a domain tracks, its latest day and its daily observations.
- * country is an ISO 3166-1 alpha-3 code or ALL; device a DEVICE_* value or ALL; status a STATUS_* value.
+ * country is an ISO 3166-1 alpha-3 code or ALL; device a DEVICE_* value or ALL; status a SiteTrackedKeywordStatus value.
  * pool is the shared search pool's band for the keyword, null unless the tenant joined and the pool holds it.
  */
 final readonly class SiteTrackedKeyword
@@ -18,8 +18,6 @@ final readonly class SiteTrackedKeyword
     public const DEVICE_DESKTOP = 'desktop';
     public const DEVICE_MOBILE = 'mobile';
     public const DEVICE_TABLET = 'tablet';
-    public const STATUS_ACTIVE = 'active';
-    public const STATUS_PAUSED = 'paused';
 
     /**
      * @param list<SiteRankObservation> $observations

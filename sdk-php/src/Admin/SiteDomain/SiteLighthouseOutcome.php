@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin\SiteDomain;
 
-enum SiteLighthouseOutcome: string
+/**
+ * SiteLighthouseOutcome names the values of LighthouseRun.outcome.
+ * A value Custd adds later still decodes as a plain string.
+ */
+final class SiteLighthouseOutcome
 {
-    case Success = 'success';
-    case Failed = 'failed';
+    public const SUCCESS = 'success';
+    public const FAILED = 'failed';
 }

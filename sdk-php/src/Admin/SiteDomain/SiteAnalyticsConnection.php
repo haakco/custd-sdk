@@ -12,15 +12,9 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteAnalyticsConnection
 {
-    public const PROVIDER_GA4 = 'ga4';
-
-    public const STATUS_PENDING = 'pending';
-    public const STATUS_ACTIVE = 'active';
-    public const STATUS_FAILING = 'failing';
-    public const STATUS_REVOKED = 'revoked';
-
     /**
      * @param SiteAnalyticsProvider::* $provider
+     * @param SiteSearchConnectionStatus::* $status
      */
     public function __construct(
         public string $provider,

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\SiteAnalyticsClient;
-use HaakCo\Custd\Admin\SiteDomain\SiteAnalyticsConnection;
-use HaakCo\Custd\Admin\SiteDomain\SiteAnalyticsUnavailable;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\SiteDomain\SiteAnalyticsUnavailableReport;
+use HaakCo\Custd\Admin\SiteDomain\SiteSearchConnectionStatus;
 
 /** Replays contract-fixtures/site-analytics.json through the GA4 connection and report calls. */
 final class SiteAnalyticsClientTest extends TestCase
@@ -29,14 +29,14 @@ final class SiteAnalyticsClientTest extends TestCase
         $report = $this->replay($calls, 'report')->analytics()->getAnalytics('d-1');
         $this->replay($calls, 'report', 204)->analytics()->disconnectGA4('d-1');
 
-        self::assertSame(SiteAnalyticsConnection::STATUS_PENDING, $connection->status);
+        self::assertSame(SiteSearchConnectionStatus::PENDING, $connection->status);
         self::assertNull($connection->lastImportedAt);
-        self::assertSame(SiteAnalyticsConnection::STATUS_ACTIVE, $report->connection?->status);
+        self::assertSame(SiteSearchConnectionStatus::ACTIVE, $report->connection?->status);
         self::assertTrue($report->keyEventsRecorded);
         self::assertSame(34.0, $report->landingPages[0]->keyEvents);
         self::assertNull($report->landingPages[1]->keyEvents);
         self::assertSame(1060, $report->channels[0]->sessions);
-        self::assertSame(SiteAnalyticsUnavailable::REPORT_ECOMMERCE, $report->unavailable[0]->report);
+        self::assertSame(SiteAnalyticsUnavailableReport::ECOMMERCE, $report->unavailable[0]->report);
         self::assertSame([
             'PUT ' . self::BASE . '/ga4?companySlug=acme',
             'GET ' . self::BASE,

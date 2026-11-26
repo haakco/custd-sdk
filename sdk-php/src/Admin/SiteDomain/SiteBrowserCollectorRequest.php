@@ -6,26 +6,29 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 
 final readonly class SiteBrowserCollectorRequest
 {
+    /**
+     * @param SiteBrowserCollectorMode::* $mode
+     */
     private function __construct(
-        public SiteBrowserCollectorMode $mode,
+        public string $mode,
         public ?string $environment,
     ) {
     }
 
     public static function enable(string $environment): self
     {
-        return new self(SiteBrowserCollectorMode::Enabled, $environment);
+        return new self(SiteBrowserCollectorMode::ENABLED, $environment);
     }
 
     public static function disable(): self
     {
-        return new self(SiteBrowserCollectorMode::Disabled, null);
+        return new self(SiteBrowserCollectorMode::DISABLED, null);
     }
 
     /** @return array{mode: string, environment?: string} */
     public function serialise(): array
     {
-        $body = ['mode' => $this->mode->value];
+        $body = ['mode' => $this->mode];
 
         return $this->environment === null ? $body : $body + ['environment' => $this->environment];
     }

@@ -6,7 +6,7 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 
 use HaakCo\Custd\Fields;
 
-/** SiteGapCompetitor is one competitor the gap read, with its SiteWebDomain::INVENTORY_* states. */
+/** SiteGapCompetitor is one competitor the gap read, with its SiteWebInventoryStatus states. */
 final readonly class SiteGapCompetitor
 {
     public function __construct(

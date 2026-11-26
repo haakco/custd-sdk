@@ -7,7 +7,6 @@ namespace HaakCo\Custd\Tests;
 use HaakCo\Custd\Admin\AdminProblemException;
 use HaakCo\Custd\Admin\SiteDomain\CreateSiteDomainRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteFinding;
-use HaakCo\Custd\Admin\SiteDomain\SiteGeneratedFix;
 use HaakCo\Custd\Admin\SiteDomain\SiteMarket;
 use HaakCo\Custd\Admin\SiteDomain\SitePageCheckRequest;
 use HaakCo\Custd\Admin\SiteDomain\SitePageRecheckState;
@@ -25,6 +24,9 @@ use HaakCo\Custd\Admin\SiteDomain\WordingObservationState;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use HaakCo\Custd\CustdClient;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\SiteDomain\SiteRemedyKind;
+use HaakCo\Custd\Admin\SiteDomain\SiteGeneratedFixFormat;
+use HaakCo\Custd\Admin\SiteDomain\SitePageCheckScope;
 
 /** Replays contract-fixtures/site-page-tools.json through the page tools, search rows, inspections and project context. */
 final class SitePageToolsClientTest extends TestCase
@@ -37,13 +39,13 @@ final class SitePageToolsClientTest extends TestCase
         $unknown = SiteRemedy::fromPayload($this->fixture('remedyUnknownRule'));
         $listed = $this->client($calls, 'findingList', 'site-insights.json')->listFindings('d-1')->findings;
 
-        self::assertSame(SiteRemedy::KIND_MARKUP, $generated->remedy->kind);
-        self::assertSame(SiteGeneratedFix::FORMAT_HTML, $generated->remedy->generated?->format);
+        self::assertSame(SiteRemedyKind::MARKUP, $generated->remedy->kind);
+        self::assertSame(SiteGeneratedFixFormat::HTML, $generated->remedy->generated?->format);
         self::assertSame('<link rel="canonical" href="https://example.com/plans">', $generated->remedy->generated->code);
         self::assertSame('', $unknown->kind);
         self::assertNull($unknown->generated);
-        self::assertSame(SiteRemedy::KIND_CONTENT, $listed[0]->remedy->kind);
-        self::assertSame(SiteRemedy::KIND_SERVER, $listed[1]->remedy->kind);
+        self::assertSame(SiteRemedyKind::CONTENT, $listed[0]->remedy->kind);
+        self::assertSame(SiteRemedyKind::SERVER, $listed[1]->remedy->kind);
         self::assertNull($listed[1]->remedy->generated);
         self::assertSame('The page has no title.', $listed[0]->suggestion?->explanation);
         self::assertSame('Add a title that describes the page.', $listed[0]->suggestion->nextStep);
@@ -57,7 +59,7 @@ final class SitePageToolsClientTest extends TestCase
         $list = $this->client($calls, 'pageRecheckList')->listPageRechecks('d-1', ['r-1', 'r-2']);
 
         self::assertSame(
-            [SitePageRecheckState::Checked, SitePageRecheckState::Failed],
+            [SitePageRecheckState::CHECKED, SitePageRecheckState::FAILED],
             array_map(static fn ($recheck) => $recheck->state, $list->rechecks),
         );
         self::assertSame(['GET ' . self::BASE . '/d-1/page-rechecks?ids=r-1%2Cr-2'], array_column($calls, 'route'));
@@ -95,7 +97,7 @@ final class SitePageToolsClientTest extends TestCase
         self::assertSame(1, $plain->readability->sentences);
         self::assertSame(13, $check->page->wordCount);
         self::assertSame('ai.js-required', $check->findings[0]->rule);
-        self::assertSame(SiteGeneratedFix::FORMAT_HTML, $check->findings[1]->remedy->generated?->format);
+        self::assertSame(SiteGeneratedFixFormat::HTML, $check->findings[1]->remedy->generated?->format);
         self::assertSame(['url' => $request->url, 'html' => $request->html], $calls[2]['body']);
         self::assertNull($check->slug);
         self::assertNull($check->redirect);
@@ -115,11 +117,11 @@ final class SitePageToolsClientTest extends TestCase
         $check = $this->client($calls, 'pageCheckContent')->checkPage('d-1', new SitePageCheckRequest(
             (string) $request->url,
             (string) $request->html,
-            scope: SitePageCheckRequest::SCOPE_CONTENT,
+            scope: SitePageCheckScope::CONTENT,
         ));
         $page = $this->client($calls, 'pageCheck')->checkPage('d-1', new SitePageCheckRequest('https://example.com/', '<p>x</p>'));
 
-        self::assertSame(SitePageCheckRequest::SCOPE_CONTENT, $check->scope);
+        self::assertSame(SitePageCheckScope::CONTENT, $check->scope);
         self::assertContains('image.not-lazy', $check->checkedRules ?? []);
         self::assertNotContains('image.not-lazy', array_map(static fn ($finding): string => $finding->rule, $check->findings));
         self::assertSame(['url' => $request->url, 'html' => $request->html, 'scope' => 'content'], $calls[0]['body']);
@@ -143,7 +145,7 @@ final class SitePageToolsClientTest extends TestCase
 
         self::assertSame((array) $request, $calls[0]['body']);
         self::assertSame('cafe-hosting-plans-for-small-teams', $check->slug);
-        self::assertSame(SiteGeneratedFix::FORMAT_REDIRECT, $check->redirect?->format);
+        self::assertSame(SiteGeneratedFixFormat::REDIRECT, $check->redirect?->format);
         self::assertSame(2, $check->phrase?->count);
         self::assertTrue($check->phrase->inDescription);
         self::assertSame(3.85, $check->phrase->densityPercent);
@@ -177,7 +179,7 @@ final class SitePageToolsClientTest extends TestCase
         $first = 'https://example.com/plans';
         $second = 'https://example.com/support';
         $ready = $this->client($calls, 'observedWording')->comparePageWording('d-1', $first, $second, 'acme');
-        self::assertSame(WordingObservationState::Ready, $ready->first->state);
+        self::assertSame(WordingObservationState::READY, $ready->first->state);
         self::assertSame('2026-11-18T11:00:00Z', $ready->first->observedAt);
         self::assertSame(96, $ready->comparison?->sharedPercent);
         self::assertSame([null], array_column($calls, 'body'));
@@ -188,13 +190,13 @@ final class SitePageToolsClientTest extends TestCase
         );
 
         $missing = $this->client($calls, 'observedWordingUnavailable')->comparePageWording('d-1', $first, $second);
-        self::assertSame(WordingObservationState::Unavailable, $missing->first->state);
-        self::assertSame(WordingObservationState::Unread, $missing->second->state);
+        self::assertSame(WordingObservationState::UNAVAILABLE, $missing->first->state);
+        self::assertSame(WordingObservationState::UNREAD, $missing->second->state);
         self::assertNull($missing->second->observedAt);
         self::assertNull($missing->comparison);
 
         $short = $this->client($calls, 'observedWordingShort')->comparePageWording('d-1', $first, $second);
-        self::assertSame(WordingObservationState::Short, $short->first->state);
+        self::assertSame(WordingObservationState::SHORT, $short->first->state);
         self::assertNotNull($short->comparison);
         self::assertSame(80, $short->comparison->firstWords);
         self::assertNull($short->comparison->sharedPercent);
@@ -206,7 +208,7 @@ final class SitePageToolsClientTest extends TestCase
         $checked = $this->client($calls, 'pageRecheckChecked')->getPageRecheck('d-1', 'r-1', 'acme');
         $failed = $this->client($calls, 'pageRecheckFailed')->getPageRecheck('d-1', 'r-2');
 
-        self::assertSame(SitePageRecheckState::Queued, $queued->state);
+        self::assertSame(SitePageRecheckState::QUEUED, $queued->state);
         self::assertNull($queued->checkedAt);
         self::assertSame([], $queued->openRules);
         self::assertSame(['canonical.missing'], $checked->openRules);
@@ -232,13 +234,13 @@ final class SitePageToolsClientTest extends TestCase
         $live = $this->client($calls, 'robotsTestLiveMissing')->testRobots('d-1', new SiteRobotsTestRequest('/', 'GPTBot'));
 
         self::assertFalse($pasted->allowed);
-        self::assertSame(SiteRobotsSource::Pasted, $pasted->source);
+        self::assertSame(SiteRobotsSource::PASTED, $pasted->source);
         self::assertNull($pasted->robotsStatus);
         self::assertSame(['*'], $pasted->groups);
-        self::assertSame(SiteRobotsDirective::Disallow, $pasted->rule?->directive);
+        self::assertSame(SiteRobotsDirective::DISALLOW, $pasted->rule?->directive);
         self::assertSame(2, $pasted->rule->line);
         self::assertTrue($live->allowed);
-        self::assertSame(SiteRobotsSource::Live, $live->source);
+        self::assertSame(SiteRobotsSource::LIVE, $live->source);
         self::assertSame(404, $live->robotsStatus);
         self::assertNull($live->rule);
         self::assertSame('robots.txt is missing, so every URL is allowed', $live->note);
@@ -249,15 +251,15 @@ final class SitePageToolsClientTest extends TestCase
 
     public function testSearchRowsPageWithUnavailableProvidersAndAbsentPosition(): void
     {
-        $rows = $this->client($calls, 'searchRows')->listSearchRows('d-1', SiteSearchDimension::Country);
+        $rows = $this->client($calls, 'searchRows')->listSearchRows('d-1', SiteSearchDimension::COUNTRY);
         $bing = $this->client($calls, 'searchRowsNoPosition')
-            ->listSearchRows('d-1', SiteSearchDimension::Query, SiteSearchProvider::Bing, 7, 100, 50, 'acme');
+            ->listSearchRows('d-1', SiteSearchDimension::QUERY, SiteSearchProvider::BING, 7, 100, 50, 'acme');
 
-        self::assertSame(SiteSearchDimension::Country, $rows->dimension);
+        self::assertSame(SiteSearchDimension::COUNTRY, $rows->dimension);
         self::assertNull($rows->provider);
         self::assertSame(6.5, $rows->rows[0]->totals->position);
-        self::assertSame(SiteSearchProvider::Bing, $rows->unavailable[0]->provider);
-        self::assertSame(SiteSearchProvider::Bing, $bing->provider);
+        self::assertSame(SiteSearchProvider::BING, $rows->unavailable[0]->provider);
+        self::assertSame(SiteSearchProvider::BING, $bing->provider);
         self::assertSame(101, $bing->total);
         self::assertNull($bing->rows[0]->totals->position);
         self::assertSame(0.0, $bing->rows[0]->totals->ctr);
@@ -274,7 +276,7 @@ final class SitePageToolsClientTest extends TestCase
             ->requestSearchInspection('d-1', 'https://example.com/plans');
         $list = $this->client($calls, 'searchInspectionList')->listSearchInspections('d-1', 'acme');
 
-        self::assertSame(SiteSearchInspectionStatus::Queued, $queued->status);
+        self::assertSame(SiteSearchInspectionStatus::QUEUED, $queued->status);
         self::assertNull($queued->inspectedAt);
         self::assertNull($queued->verdict);
         self::assertSame(200, $list->dailyLimit);
@@ -283,7 +285,7 @@ final class SitePageToolsClientTest extends TestCase
         self::assertSame('2026-11-15T03:00:00Z', $list->inspections[0]->lastCrawlAt);
         self::assertNull($list->inspections[1]->lastCrawlAt);
         self::assertNull($list->inspections[0]->mobileUsabilityVerdict);
-        self::assertSame(SiteSearchInspectionStatus::Failed, $list->inspections[2]->status);
+        self::assertSame(SiteSearchInspectionStatus::FAILED, $list->inspections[2]->status);
         self::assertSame((array) $this->fixture('searchInspectionRequest'), $calls[0]['body']);
         self::assertSame([
             'POST ' . self::BASE . '/d-1/search/inspections',

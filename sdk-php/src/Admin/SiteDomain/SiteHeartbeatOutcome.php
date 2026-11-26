@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\SiteDomain;
 
 /** SiteHeartbeatOutcome is what the job reported for one scheduled run. */
-enum SiteHeartbeatOutcome: string
+final class SiteHeartbeatOutcome
 {
-    case Succeeded = 'succeeded';
-    case Failed = 'failed';
+    public const SUCCEEDED = 'succeeded';
+    public const FAILED = 'failed';
 }

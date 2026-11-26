@@ -9,10 +9,13 @@ use HaakCo\Custd\Fields;
 /** AppReleaseHeaderRule sets framing and extra response headers on a route. */
 final readonly class AppReleaseHeaderRule
 {
-    /** @param list<AppReleaseResponseHeader> $headers */
+    /**
+     * @param list<AppReleaseResponseHeader> $headers
+     * @param AppReleaseFramingMode::*|null $framing
+     */
     public function __construct(
         public string $route,
-        public ?AppReleaseFramingMode $framing = null,
+        public ?string $framing = null,
         public array $headers = [],
     ) {
     }
@@ -23,7 +26,7 @@ final readonly class AppReleaseHeaderRule
 
         return new self(
             Fields::string($payload, 'route'),
-            $framing === null ? null : AppReleaseFramingMode::from($framing),
+            $framing === null ? null : $framing,
             array_map(AppReleaseResponseHeader::fromPayload(...), Fields::optionalObjects($payload, 'headers') ?? []),
         );
     }
@@ -33,7 +36,7 @@ final readonly class AppReleaseHeaderRule
     {
         $body = ['route' => $this->route];
         if ($this->framing !== null) {
-            $body['framing'] = $this->framing->value;
+            $body['framing'] = $this->framing;
         }
         if ($this->headers !== []) {
             $body['headers'] = array_map(static fn (AppReleaseResponseHeader $header): array => $header->serialise(), $this->headers);

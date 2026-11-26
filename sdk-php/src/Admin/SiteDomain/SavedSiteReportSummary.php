@@ -8,7 +8,7 @@ use HaakCo\Custd\Fields;
 
 /**
  * SavedSiteReportSummary describes one saved report without its content. template is a
- * SiteReport::TEMPLATE_* value; liveShares counts its share links that have not expired.
+ * SiteReportTemplate value; liveShares counts its share links that have not expired.
  */
 final readonly class SavedSiteReportSummary
 {

@@ -8,14 +8,11 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteFindingImpact compares the search numbers of a finding's page in the windowDays before and after
- * an audit first saw it fixed. status is a STATUS_* value; fixedAt, before and after are null while it
+ * an audit first saw it fixed. status is a SiteFindingImpactStatus value; fixedAt, before and after are null while it
  * is open. note says why the difference is an observation, not a measured effect.
  */
 final readonly class SiteFindingImpact
 {
-    public const STATUS_OPEN = 'open';
-    public const STATUS_MEASURED = 'measured';
-    public const STATUS_INSUFFICIENT = 'insufficient';
     /** The window the server uses when none is asked for. */
     public const DEFAULT_DAYS = 28;
     public const MIN_DAYS = 7;

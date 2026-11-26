@@ -12,8 +12,11 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteSearchValuePage
 {
+    /**
+     * @param SiteSearchProvider::* $provider
+     */
     public function __construct(
-        public SiteSearchProvider $provider,
+        public string $provider,
         public string $source,
         public string $pageUrl,
         public string $path,
@@ -26,7 +29,7 @@ final readonly class SiteSearchValuePage
     public static function fromPayload(\stdClass $payload): self
     {
         return new self(
-            SiteSearchProvider::from(Fields::string($payload, 'provider')),
+            Fields::string($payload, 'provider'),
             Fields::string($payload, 'source'),
             Fields::string($payload, 'pageUrl'),
             Fields::string($payload, 'path'),

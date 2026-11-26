@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\SiteDomain\SearchPoolBand;
-use HaakCo\Custd\Admin\SiteDomain\SearchPoolSetting;
-use HaakCo\Custd\Admin\SiteDomain\SiteRankings;
-use HaakCo\Custd\Admin\SiteDomain\SiteRankObservation;
 use HaakCo\Custd\Admin\SiteDomain\SiteTrackedKeyword;
 use HaakCo\Custd\Admin\SiteDomain\SiteTrackKeywordRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteUpdateTrackedKeywordRequest;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use HaakCo\Custd\Admin\SiteRankingClient;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\SiteDomain\SiteRankObservationState;
+use HaakCo\Custd\Admin\SiteDomain\SiteRankingsSource;
+use HaakCo\Custd\Admin\SiteDomain\SiteTrackedKeywordStatus;
+use HaakCo\Custd\Admin\SiteDomain\SearchPoolDemandBand;
+use HaakCo\Custd\Admin\SiteDomain\SearchPoolAccess;
 
 /** Replays contract-fixtures/site-rankings.json through the rank tracking calls. */
 final class SiteRankingClientTest extends TestCase
@@ -36,27 +38,27 @@ final class SiteRankingClientTest extends TestCase
 
         [$tracked, $paused] = $rankings->keywords;
         [$noData, $notRanking, $ranking] = $tracked->observations;
-        self::assertSame(SiteRankings::SOURCE_ACTIVE, $rankings->source);
+        self::assertSame(SiteRankingsSource::ACTIVE, $rankings->source);
         self::assertSame(50, $rankings->maxKeywords);
         self::assertSame(SiteTrackedKeyword::DEVICE_MOBILE, $tracked->device);
         self::assertSame(7.4, $tracked->latest->position);
-        self::assertSame(SiteRankObservation::STATE_NO_DATA, $noData->state);
-        self::assertSame(SiteRankObservation::STATE_NOT_RANKING, $notRanking->state);
+        self::assertSame(SiteRankObservationState::NO_DATA, $noData->state);
+        self::assertSame(SiteRankObservationState::NOT_RANKING, $notRanking->state);
         self::assertNull($notRanking->position);
         self::assertNull($notRanking->rankingUrl);
         self::assertSame(0, $notRanking->clicks);
         self::assertSame('https://example.com/pricing', $ranking->rankingUrl);
-        self::assertSame(SiteTrackedKeyword::STATUS_PAUSED, $paused->status);
+        self::assertSame(SiteTrackedKeywordStatus::PAUSED, $paused->status);
         self::assertSame(SiteTrackedKeyword::ALL, $paused->country);
-        self::assertSame(SearchPoolSetting::ACCESS_JOINED, $rankings->pool);
-        self::assertSame(SearchPoolBand::DEMAND_10K_100K, $tracked->pool?->demandBand);
+        self::assertSame(SearchPoolAccess::JOINED, $rankings->pool);
+        self::assertSame(SearchPoolDemandBand::BAND_10K_100K, $tracked->pool?->demandBand);
         self::assertSame(40, $tracked->pool->positions->top10);
         self::assertSame(10, $tracked->pool->positions->beyond20);
         self::assertNull($paused->pool);
-        self::assertSame(SearchPoolSetting::ACCESS_NOT_JOINED, $failing->pool);
-        self::assertSame(SearchPoolSetting::ACCESS_NOT_JOINED, $notConnected->pool);
+        self::assertSame(SearchPoolAccess::NOT_JOINED, $failing->pool);
+        self::assertSame(SearchPoolAccess::NOT_JOINED, $notConnected->pool);
         self::assertSame('Search Console refused the token', $failing->sourceFailure);
-        self::assertSame(SiteRankings::SOURCE_NOT_CONNECTED, $notConnected->source);
+        self::assertSame(SiteRankingsSource::NOT_CONNECTED, $notConnected->source);
         self::assertNull($notConnected->sourceFailure);
         self::assertSame([
             'GET ' . self::BASE . '?days=3&companySlug=acme',
@@ -86,7 +88,7 @@ final class SiteRankingClientTest extends TestCase
 
         self::assertSame('pricing tool', $tracked->keyword);
         self::assertSame(SiteTrackKeywordRequest::DEFAULT_NOTIFY_POSITION, $tracked->notifyPosition);
-        self::assertSame(SiteTrackedKeyword::STATUS_ACTIVE, $updated->status);
+        self::assertSame(SiteTrackedKeywordStatus::ACTIVE, $updated->status);
         self::assertSame(5, $updated->notifyPosition);
         self::assertSame([
             'POST ' . self::BASE . '/keywords',

@@ -12,14 +12,9 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteSearchMetricDay
 {
-    public const DIMENSION_TOTAL = 'total';
-    public const DIMENSION_PAGE = 'page';
-    public const DIMENSION_QUERY = 'query';
-    public const DIMENSION_COUNTRY = 'country';
-    public const DIMENSION_DEVICE = 'device';
-
     /**
      * @param SiteSearchMetricDimension::* $dimension
+     * @param SiteSearchProvider::* $provider
      */
     public function __construct(
         public string $provider,

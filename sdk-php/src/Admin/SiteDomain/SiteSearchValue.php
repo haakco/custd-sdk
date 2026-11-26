@@ -8,14 +8,11 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteSearchValue joins a domain's search pages to the named analytics goals credited to their
- * landings. goalStatus is a GOAL_* value with goalReason saying why goals are partial or unavailable;
+ * landings. goalStatus is a SiteSearchGoalStatus value with goalReason saying why goals are partial or unavailable;
  * attribution explains how goals are credited.
  */
 final readonly class SiteSearchValue
 {
-    public const GOAL_MEASURED = 'measured';
-    public const GOAL_PARTIAL = 'partial';
-    public const GOAL_UNAVAILABLE = 'unavailable';
     /** The days read when none are asked for. */
     public const DEFAULT_DAYS = 28;
     public const MAX_DAYS = 90;

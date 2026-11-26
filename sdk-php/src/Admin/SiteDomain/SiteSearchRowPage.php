@@ -16,17 +16,19 @@ final readonly class SiteSearchRowPage
     /**
      * @param list<SiteSearchRow> $rows
      * @param list<SiteSearchUnavailable> $unavailable
+     * @param SiteSearchProvider::*|null $provider
+     * @param SiteSearchDimension::* $dimension
      */
     public function __construct(
         public string $domainUuid,
-        public SiteSearchDimension $dimension,
+        public string $dimension,
         public int $days,
         public int $offset,
         public int $limit,
         public int $total,
         public array $rows,
         public array $unavailable,
-        public ?SiteSearchProvider $provider = null,
+        public ?string $provider = null,
     ) {
     }
 
@@ -36,14 +38,14 @@ final readonly class SiteSearchRowPage
 
         return new self(
             Fields::string($payload, 'domainUuid'),
-            SiteSearchDimension::from(Fields::string($payload, 'dimension')),
+            Fields::string($payload, 'dimension'),
             Fields::integer($payload, 'days'),
             Fields::integer($payload, 'offset'),
             Fields::integer($payload, 'limit'),
             Fields::integer($payload, 'total'),
             array_map(SiteSearchRow::fromPayload(...), Fields::objects($payload, 'rows')),
             array_map(SiteSearchUnavailable::fromPayload(...), Fields::objects($payload, 'unavailable')),
-            $provider === null || $provider === '' ? null : SiteSearchProvider::from($provider),
+            $provider === null || $provider === '' ? null : $provider,
         );
     }
 }

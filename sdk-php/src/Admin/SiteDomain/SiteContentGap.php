@@ -13,9 +13,6 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteContentGap
 {
-    public const COVERAGE_AVAILABLE = 'available';
-    public const COVERAGE_UNAVAILABLE = 'unavailable';
-
     /**
      * @param list<SiteGapCompetitor> $competitors
      * @param list<SiteGapTopic> $topics

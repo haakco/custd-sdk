@@ -20,6 +20,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteUptimeStatus;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use HaakCo\Custd\CustdClient;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\SiteDomain\SiteProbeKind;
 
 final class SiteDomainClientTest extends TestCase
 {
@@ -29,7 +30,7 @@ final class SiteDomainClientTest extends TestCase
     {
         $calls = [];
         $address = '192.0.2.1';
-        $dns = new SiteProbeSpec(SiteProbeSpec::DNS, expectedAddresses: [$address]);
+        $dns = new SiteProbeSpec(SiteProbeKind::DNS, expectedAddresses: [$address]);
         $transport = static function (string $method, string $url, ?array $request) use (&$calls, $address): array {
             $calls[] = [$method, $url, $request];
             $probes = $request === ['probes' => []] ? [] : [[
@@ -103,7 +104,7 @@ final class SiteDomainClientTest extends TestCase
         $domains->get("d-1");
         $domains->verify("d-1", "acme");
         $domains->requestAudit("d-1", "acme");
-        $domains->listFindings("d-1", SiteFindingState::All, "acme");
+        $domains->listFindings("d-1", SiteFindingState::ALL, "acme");
         $domains->delete("d-1", "acme");
 
         self::assertSame(["siteUuid" => "s-1", "host" => "www.example.com"], $calls[0]["body"]);
@@ -149,11 +150,11 @@ final class SiteDomainClientTest extends TestCase
             $calls,
         );
         self::assertSame("s-1", $enabled->siteUuid);
-        self::assertSame(SiteBrowserCollectorMode::Enabled, $enabled->mode);
+        self::assertSame(SiteBrowserCollectorMode::ENABLED, $enabled->mode);
         self::assertSame("site_pk_example", $enabled->browserKey);
         self::assertSame("production", $enabled->environment);
         self::assertSame("https://www.example.com", $enabled->allowedOrigin);
-        self::assertSame(SiteBrowserCollectorMode::Disabled, $disabled->mode);
+        self::assertSame(SiteBrowserCollectorMode::DISABLED, $disabled->mode);
         self::assertNull($disabled->browserKey);
     }
 
@@ -189,22 +190,22 @@ final class SiteDomainClientTest extends TestCase
         $performance = $domains->getSearchPerformance("d-1", 7, "acme");
         $connection = $domains->connectSearch(
             "d-1",
-            SiteSearchProvider::Bing,
+            SiteSearchProvider::BING,
             "https://www.example.com/",
             "bing-api-key-0123456789",
         );
-        $domains->connectSearch("d-1", SiteSearchProvider::Google, "sc-domain:example.com");
-        $domains->disconnectSearch("d-1", SiteSearchProvider::Google);
+        $domains->connectSearch("d-1", SiteSearchProvider::GOOGLE, "sc-domain:example.com");
+        $domains->disconnectSearch("d-1", SiteSearchProvider::GOOGLE);
 
         self::assertTrue($account->googleConfigured);
         self::assertFalse($account->bingConfigured);
         self::assertSame("custd@project.iam.gserviceaccount.com", $account->googleServiceAccountEmail);
-        self::assertSame(SiteSearchConnectionStatus::Active, $performance->connections[0]->status);
+        self::assertSame(SiteSearchConnectionStatus::ACTIVE, $performance->connections[0]->status);
         self::assertSame(42, $performance->sources[0]->totals->clicks);
         self::assertSame(8.4, $performance->sources[0]->totals->position);
         self::assertNull($performance->topPages[0]->totals->position);
         self::assertSame("example shop", $performance->topQueries[0]->key);
-        self::assertSame(SiteSearchConnectionStatus::Pending, $connection->status);
+        self::assertSame(SiteSearchConnectionStatus::PENDING, $connection->status);
         self::assertSame(
             ["property" => "https://www.example.com/", "apiKey" => "bing-api-key-0123456789"],
             $calls[2]["body"],
@@ -264,10 +265,10 @@ final class SiteDomainClientTest extends TestCase
         $calls = [];
         $domains = $this->client($calls)->adminSiteDomains();
 
-        $domain = $domains->setCheckMode("d-1", SiteCheckMode::Paused, "acme");
+        $domain = $domains->setCheckMode("d-1", SiteCheckMode::PAUSED, "acme");
         self::assertSame(["mode" => "paused"], $calls[0]["body"]);
-        self::assertSame(SiteCheckMode::Warm, $domain->checks->mode);
-        self::assertSame(SiteUptimeStatus::Down, $domain->checks->uptime->status);
+        self::assertSame(SiteCheckMode::WARM, $domain->checks->mode);
+        self::assertSame(SiteUptimeStatus::DOWN, $domain->checks->uptime->status);
         self::assertSame(820, $domain->checks->warming->unwarmedResponseMs);
         self::assertNull($domain->checks->warming->warmedResponseMs);
         self::assertSame(2, $domain->checks->openIncident?->failedChecks);
@@ -282,14 +283,15 @@ final class SiteDomainClientTest extends TestCase
 
     public function testSiteRuleNamesEveryCatalogueRuleAndTheFixtureFindings(): void
     {
-        self::assertCount(77, SiteRule::cases());
+        $rules = (new \ReflectionClass(SiteRule::class))->getConstants();
+        self::assertCount(77, $rules);
         $fixture = json_decode(
             (string) file_get_contents(__DIR__ . "/../../contract-fixtures/site-insights.json"),
             true,
             flags: JSON_THROW_ON_ERROR,
         );
         foreach ($fixture["findingList"]["findings"] as $finding) {
-            self::assertNotNull(SiteRule::tryFrom($finding["rule"]), $finding["rule"]);
+            self::assertContains($finding["rule"], $rules);
         }
     }
 

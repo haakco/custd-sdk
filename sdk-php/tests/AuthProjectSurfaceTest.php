@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\AdminProblemException;
-use HaakCo\Custd\Admin\AuthProject\AuthDomainBinding;
 use HaakCo\Custd\Admin\AuthProjectClient;
 use HaakCo\Custd\Admin\AuthProject\Capability;
 use HaakCo\Custd\Admin\AuthProject\ClientSyncReport;
@@ -40,6 +39,8 @@ use HaakCo\Custd\Admin\AuthProject\RequestOptions;
 use HaakCo\Custd\CustdClient;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\AuthProject\AuthProjectDomainLifecycle;
+use HaakCo\Custd\Admin\AuthProject\AuthProjectDirectoryAction;
 
 final class AuthProjectSurfaceTest extends TestCase
 {
@@ -166,7 +167,7 @@ final class AuthProjectSurfaceTest extends TestCase
         self::assertSame(self::OWNING_USER, $calls[0]["headers"][self::OWNING_USER_HEADER]);
         self::assertNull($calls[0]["body"]);
         self::assertSame("slot-a", $binding->slotRef);
-        self::assertSame(AuthDomainBinding::LIFECYCLE_ADMITTED, $binding->lifecycle);
+        self::assertSame(AuthProjectDomainLifecycle::ADMITTED, $binding->lifecycle);
         self::assertSame(7, $binding->intentRevision);
         self::assertNotNull($binding->images);
         self::assertSame("registry.example.test/gateway:1", $binding->images->expected->gateway);
@@ -278,7 +279,7 @@ final class AuthProjectSurfaceTest extends TestCase
         $operation = $client->adminAuthProjects()->actOnDirectory(
             "project-1",
             "environment-1",
-            \HaakCo\Custd\Admin\AuthProjectClient::DIRECTORY_ENABLE,
+            AuthProjectDirectoryAction::ENABLE,
             new DirectoryRequest("pool-1", 4),
             new RequestOptions(owningUserUuid: self::OWNING_USER, idempotencyKey: "idem-dir"),
         );
@@ -585,7 +586,6 @@ final class AuthProjectSurfaceTest extends TestCase
         self::assertSame("complete", $offboarding->hosting->status);
         self::assertNull($offboarding->hosting->errorCategory);
     }
-
 
     public function testProvisionRealmEnforcesServerRevisionSequence(): void
     {

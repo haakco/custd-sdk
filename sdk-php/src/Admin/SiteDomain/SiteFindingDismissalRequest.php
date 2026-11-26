@@ -7,9 +7,12 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 /** SiteFindingDismissalRequest dismisses one finding's rule, domain-wide or on its page, with a reason. */
 final readonly class SiteFindingDismissalRequest
 {
+    /**
+     * @param SiteFindingDismissalScope::* $scope
+     */
     public function __construct(
         public string $findingUuid,
-        public SiteFindingDismissalScope $scope,
+        public string $scope,
         public string $reason,
     ) {
     }
@@ -17,6 +20,6 @@ final readonly class SiteFindingDismissalRequest
     /** @return array{findingUuid: string, scope: string, reason: string} */
     public function serialise(): array
     {
-        return ['findingUuid' => $this->findingUuid, 'scope' => $this->scope->value, 'reason' => $this->reason];
+        return ['findingUuid' => $this->findingUuid, 'scope' => $this->scope, 'reason' => $this->reason];
     }
 }

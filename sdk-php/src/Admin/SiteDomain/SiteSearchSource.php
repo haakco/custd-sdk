@@ -15,9 +15,10 @@ final readonly class SiteSearchSource
     /**
      * @param list<SiteSearchDay> $daily
      * @param SiteSearchGranularity::* $granularity
+     * @param SiteSearchProvider::* $provider
      */
     public function __construct(
-        public SiteSearchProvider $provider,
+        public string $provider,
         public string $source,
         public string $granularity,
         public int $days,
@@ -35,7 +36,7 @@ final readonly class SiteSearchSource
         $previous = Fields::optionalObject($payload, 'previous');
 
         return new self(
-            SiteSearchProvider::from(Fields::string($payload, 'provider')),
+            Fields::string($payload, 'provider'),
             Fields::string($payload, 'source'),
             Fields::string($payload, 'granularity'),
             Fields::integer($payload, 'days'),

@@ -9,12 +9,6 @@ use HaakCo\Custd\Fields;
 /** SiteGeneratedFix is ready-to-copy code that fixes one finding. */
 final readonly class SiteGeneratedFix
 {
-    public const FORMAT_HTML = 'html';
-    public const FORMAT_ROBOTS_TXT = 'robots.txt';
-
-    /** One Apache line and one nginx line. */
-    public const FORMAT_REDIRECT = 'redirect';
-
     /**
      * @param SiteGeneratedFixFormat::* $format
      */

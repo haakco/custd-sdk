@@ -14,9 +14,6 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SearchPoolSetting
 {
-    /** The pool access of SiteRankings::$pool. */
-    public const ACCESS_JOINED = 'joined';
-    public const ACCESS_NOT_JOINED = 'not_joined';
     public const MIN_CONTRIBUTORS = 5;
     public const MIN_IMPRESSIONS = 100;
     public const WINDOW_DAYS = 28;

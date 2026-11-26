@@ -9,11 +9,15 @@ use HaakCo\Custd\Fields;
 /** AppLink is one application item an environment owns or has shared with it. */
 final readonly class AppLink
 {
+    /**
+     * @param AppLinkKind::* $kind
+     * @param AppLinkRole::* $role
+     */
     public function __construct(
         public string $linkUuid,
         public string $itemUuid,
-        public AppLinkKind $kind,
-        public AppLinkRole $role,
+        public string $kind,
+        public string $role,
         public string $createdAt,
         public string $itemExpiresAt,
     ) {
@@ -24,8 +28,8 @@ final readonly class AppLink
         return new self(
             Fields::string($payload, 'linkUuid'),
             Fields::string($payload, 'itemUuid'),
-            AppLinkKind::from(Fields::string($payload, 'kind')),
-            AppLinkRole::from(Fields::string($payload, 'role')),
+            Fields::string($payload, 'kind'),
+            Fields::string($payload, 'role'),
             Fields::string($payload, 'createdAt'),
             Fields::string($payload, 'itemExpiresAt'),
         );

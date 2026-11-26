@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin\SiteDomain;
 
-enum SiteLighthouseProfile: string
+/**
+ * SiteLighthouseProfile names the values of LighthousePageComparison.profile, LighthouseRun.profile,
+ * SiteReportSpeed.profile.
+ * A value Custd adds later still decodes as a plain string.
+ */
+final class SiteLighthouseProfile
 {
-    case Desktop = 'desktop';
-    case Mobile = 'mobile';
+    public const DESKTOP = 'desktop';
+    public const MOBILE = 'mobile';
 }

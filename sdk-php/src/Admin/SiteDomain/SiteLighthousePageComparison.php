@@ -12,9 +12,12 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteLighthousePageComparison
 {
+    /**
+     * @param SiteLighthouseProfile::* $profile
+     */
     public function __construct(
         public string $url,
-        public SiteLighthouseProfile $profile,
+        public string $profile,
         public string $latestAt,
         public int $latestScore,
         public bool $regressionOpen,
@@ -27,7 +30,7 @@ final readonly class SiteLighthousePageComparison
     {
         return new self(
             Fields::string($payload, 'url'),
-            SiteLighthouseProfile::from(Fields::string($payload, 'profile')),
+            Fields::string($payload, 'profile'),
             Fields::string($payload, 'latestAt'),
             Fields::integer($payload, 'latestScore'),
             Fields::boolean($payload, 'regressionOpen'),

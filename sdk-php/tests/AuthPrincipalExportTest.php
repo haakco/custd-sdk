@@ -35,8 +35,8 @@ final class AuthPrincipalExportTest extends TestCase
         $target = new ApplicationPrincipalTarget('project/1', 'environment/1', 'directory/1', 'subject/1');
         $exported = $client->adminAuthProjects()->exportPrincipal($target, new RequestOptions(owningUserUuid: 'owner-1'));
         self::assertCount(2, $exported->identities);
-        self::assertSame(ApplicationIdentityTraitsStatus::Included, $exported->identities[0]->traitsStatus);
-        self::assertSame(ApplicationIdentityTraitsStatus::Incomplete, $exported->identities[1]->traitsStatus);
+        self::assertSame(ApplicationIdentityTraitsStatus::INCLUDED, $exported->identities[0]->traitsStatus);
+        self::assertSame(ApplicationIdentityTraitsStatus::INCOMPLETE, $exported->identities[1]->traitsStatus);
         self::assertTrue($exported->identities[0]->traits[0]->value);
         self::assertInstanceOf(\stdClass::class, $exported->identities[0]->traits[1]->value);
         self::assertSame(['plain', null, false, 2], $exported->identities[0]->traits[1]->value->nested);

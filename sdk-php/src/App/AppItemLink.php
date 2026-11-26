@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace HaakCo\Custd\App;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Admin\AuthProject\AppLinkRole;
 
 final readonly class AppItemLink
 {
+    /**
+     * @param AppLinkRole::* $role
+     */
     public function __construct(
         public string $createdAt,
         public string $linkUuid,

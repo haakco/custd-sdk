@@ -6,7 +6,7 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 
 use HaakCo\Custd\Fields;
 
-/** SiteTrafficReferrer is one external referrer domain; class is a SiteTrafficReferrerClass::CLASS_* value. */
+/** SiteTrafficReferrer is one external referrer domain; class is a SiteReferrerClass value. */
 final readonly class SiteTrafficReferrer
 {
     /**

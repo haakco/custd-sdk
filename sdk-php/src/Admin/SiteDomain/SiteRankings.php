@@ -8,16 +8,11 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteRankings is a domain's tracked keywords over from..to (YYYY-MM-DD). source is the Search
- * Console connection's state (a SOURCE_* value); sourceFailure says why a failing one fails. pool is
- * the tenant's shared search pool access (a SearchPoolSetting::ACCESS_* value), null from an older server.
+ * Console connection's state (a SiteRankingsSource value); sourceFailure says why a failing one fails. pool is
+ * the tenant's shared search pool access (a SearchPoolAccess value), null from an older server.
  */
 final readonly class SiteRankings
 {
-    public const SOURCE_NOT_CONNECTED = 'not_connected';
-    public const SOURCE_PENDING = 'pending';
-    public const SOURCE_ACTIVE = 'active';
-    public const SOURCE_FAILING = 'failing';
-    public const SOURCE_REVOKED = 'revoked';
     /** How many keywords a Site may track. */
     public const MAX_KEYWORDS = 50;
     /** The days read when none are asked for. */

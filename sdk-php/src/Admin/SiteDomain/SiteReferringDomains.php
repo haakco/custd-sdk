@@ -8,7 +8,7 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteReferringDomains is the domains linking to one of a Site's domains, by source. role is a
- * SiteWebDomain::ROLE_* value; authority is null when no Common Crawl graph has been read.
+ * SiteWebDomainRole value; authority is null when no Common Crawl graph has been read.
  */
 final readonly class SiteReferringDomains
 {

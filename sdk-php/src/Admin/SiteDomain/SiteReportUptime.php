@@ -10,9 +10,10 @@ final readonly class SiteReportUptime
 {
     /**
      * @param list<SiteUptimeDay> $days
+     * @param SiteUptimeStatus::* $status
      */
     public function __construct(
-        public SiteUptimeStatus $status,
+        public string $status,
         public SiteUptimeWindows $windows,
         public array $days,
         public ?int $responseMs = null,
@@ -24,7 +25,7 @@ final readonly class SiteReportUptime
     public static function fromPayload(\stdClass $payload): self
     {
         return new self(
-            SiteUptimeStatus::from(Fields::string($payload, 'status')),
+            Fields::string($payload, 'status'),
             SiteUptimeWindows::fromPayload(Fields::object($payload, 'windows')),
             array_map(SiteUptimeDay::fromPayload(...), Fields::objects($payload, 'days')),
             Fields::optionalInteger($payload, 'responseMs'),

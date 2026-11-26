@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\App;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Admin\AuthProject\AppReleaseState;
 
 final readonly class ReleaseSummary
 {
+    /**
+     * @param AppReleaseState::* $state
+     */
     public function __construct(
         public bool $active,
         public string $createdAt,

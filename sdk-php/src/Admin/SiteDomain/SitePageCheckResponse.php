@@ -9,15 +9,15 @@ use HaakCo\Custd\Fields;
 /**
  * SitePageCheckResponse is what the one-page checks found on a draft, with the draft's facts. The
  * draft tools are null unless asked for: slug from the draft's first h1, else its title; redirect
- * from previousUrl (format SiteGeneratedFix::FORMAT_REDIRECT); phrase. scope echoes the request's
- * scope; with SitePageCheckRequest::SCOPE_CONTENT, checkedRules lists the rules checked, and a rule
+ * from previousUrl (format SiteGeneratedFixFormat::REDIRECT); phrase. scope echoes the request's
+ * scope; with SitePageCheckScope::CONTENT, checkedRules lists the rules checked, and a rule
  * among them with no finding passed. Both are null otherwise.
  */
 final readonly class SitePageCheckResponse
 {
     /**
      * @param list<SitePageFinding> $findings
-     * @param list<string>|null $checkedRules
+     * @param list<SiteRule::*>|null $checkedRules
      * @param SitePageCheckScope::*|null $scope
      */
     public function __construct(

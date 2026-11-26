@@ -63,10 +63,10 @@ final class CredentialFreeRoutesTest extends TestCase
         $receipt = ['report' => ['scheduledFor' => '2026-01-01T00:00:00Z', 'outcome' => 'failed'], 'receivedAt' => '2026-01-01T00:00:05Z'];
         $reads = self::client($calls, [['status' => 200, 'body' => json_encode($receipt)], ['status' => 204, 'body' => '']])->publicReads();
 
-        $accepted = $reads->submitSiteHeartbeat('/api/v1/site-heartbeat-reports/acme/m-1', self::TOKEN, new SiteHeartbeatReport('2026-01-01T00:00:00Z', SiteHeartbeatOutcome::Failed));
+        $accepted = $reads->submitSiteHeartbeat('/api/v1/site-heartbeat-reports/acme/m-1', self::TOKEN, new SiteHeartbeatReport('2026-01-01T00:00:00Z', SiteHeartbeatOutcome::FAILED));
         $reads->submitPrivateUptime('/api/v1/site-private-uptime-reports/acme/m-1', self::TOKEN, new PrivateUptimeReport('r-1', '2026-01-01T00:00:00Z', 30, 503));
 
-        self::assertSame(SiteHeartbeatOutcome::Failed, $accepted->report->outcome);
+        self::assertSame(SiteHeartbeatOutcome::FAILED, $accepted->report->outcome);
         self::assertSame(['scheduledFor' => '2026-01-01T00:00:00Z', 'outcome' => 'failed'], $calls[0]['body']);
         self::assertSame(['reportUuid' => 'r-1', 'observedAt' => '2026-01-01T00:00:00Z', 'responseMs' => 30, 'statusCode' => 503], $calls[1]['body']);
         self::assertSame([self::TOKEN, self::TOKEN], array_column($calls, 'bearer'));

@@ -12,9 +12,9 @@ use HaakCo\Custd\Admin\Privacy\PrivacyErasureCreateRequest;
 use HaakCo\Custd\Admin\Privacy\PrivacyErasureSelector;
 use HaakCo\Custd\Admin\Retention\RetentionPolicyUpsertRequest;
 use HaakCo\Custd\Admin\SubjectExport\SubjectExportCreateRequest;
-use HaakCo\Custd\Admin\SubjectExportClient;
 use HaakCo\Custd\CustdClient;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\SubjectExport\SubjectExportScope;
 
 /**
  * The client-data-lifecycle behaviours the route conformance cannot show: what a subject export, erasure,
@@ -56,8 +56,8 @@ final class LifecycleMatrixTest extends TestCase
         ]);
         $exports = $client->adminSubjectExports();
 
-        $exports->create(new SubjectExportCreateRequest("idem-1", "subject-1", SubjectExportClient::SCOPE_BOTH), "acme");
-        $artifact = $exports->download(self::REQUEST, SubjectExportClient::SCOPE_ACCESS, "acme");
+        $exports->create(new SubjectExportCreateRequest("idem-1", "subject-1", SubjectExportScope::BOTH), "acme");
+        $artifact = $exports->download(self::REQUEST, SubjectExportScope::ACCESS, "acme");
         $exports->force(self::REQUEST, "acme");
 
         $this->assertSame(["idempotencyKey" => "idem-1", "opaqueSubjectId" => "subject-1", "scope" => "both"], $calls->calls[0]["body"]);
@@ -72,7 +72,7 @@ final class LifecycleMatrixTest extends TestCase
         [$client] = $this->client([[410, self::problem(410, "gone", "Gone", "subject export artifact expired; request a new export")]]);
 
         try {
-            $client->adminSubjectExports()->download(self::REQUEST, SubjectExportClient::SCOPE_PORTABILITY);
+            $client->adminSubjectExports()->download(self::REQUEST, SubjectExportScope::PORTABILITY);
             $this->fail("expected the expired download to be refused");
         } catch (AdminProblemException $err) {
             $this->assertSame(410, $err->status);

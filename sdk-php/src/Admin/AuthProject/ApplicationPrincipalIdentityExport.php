@@ -8,11 +8,14 @@ use HaakCo\Custd\Fields;
 
 final readonly class ApplicationPrincipalIdentityExport
 {
-    /** @param list<ApplicationIdentityTrait>|null $traits */
+    /**
+     * @param list<ApplicationIdentityTrait>|null $traits
+     * @param ApplicationIdentityTraitsStatus::* $traitsStatus
+     */
     public function __construct(
         public string $providerIssuer,
         public string $providerSubject,
-        public ApplicationIdentityTraitsStatus $traitsStatus,
+        public string $traitsStatus,
         public ?array $traits,
     ) {
     }
@@ -25,7 +28,7 @@ final readonly class ApplicationPrincipalIdentityExport
         return new self(
             Fields::string($object, 'providerIssuer'),
             Fields::string($object, 'providerSubject'),
-            ApplicationIdentityTraitsStatus::from(Fields::string($object, 'traitsStatus')),
+            Fields::string($object, 'traitsStatus'),
             $traits === null ? null : array_map(ApplicationIdentityTrait::fromPayload(...), $traits),
         );
     }

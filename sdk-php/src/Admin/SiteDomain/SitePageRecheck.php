@@ -15,11 +15,12 @@ final readonly class SitePageRecheck
     /**
      * @param list<string> $openRules
      * @param list<string> $fixedRules
+     * @param SitePageRecheckState::* $state
      */
     public function __construct(
         public string $recheckUuid,
         public string $url,
-        public SitePageRecheckState $state,
+        public string $state,
         public string $requestedAt,
         public array $openRules,
         public array $fixedRules,
@@ -33,7 +34,7 @@ final readonly class SitePageRecheck
         return new self(
             Fields::string($payload, 'recheckUuid'),
             Fields::string($payload, 'url'),
-            SitePageRecheckState::from(Fields::string($payload, 'state')),
+            Fields::string($payload, 'state'),
             Fields::string($payload, 'requestedAt'),
             Fields::strings($payload, 'openRules'),
             Fields::strings($payload, 'fixedRules'),

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\AuthProject;
 
 /** AppLinkKind is the kind of application item linked to an environment. */
-enum AppLinkKind: string
+final class AppLinkKind
 {
-    case MeasurementProject = 'measurement_project';
-    case LinkCollection = 'link_collection';
-    case Meeting = 'meeting';
-    case UncertaintyModel = 'uncertainty_model';
+    public const MEASUREMENT_PROJECT = 'measurement_project';
+    public const LINK_COLLECTION = 'link_collection';
+    public const MEETING = 'meeting';
+    public const UNCERTAINTY_MODEL = 'uncertainty_model';
 }

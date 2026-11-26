@@ -12,8 +12,11 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteDomainChecks
 {
+    /**
+     * @param SiteCheckMode::* $mode
+     */
     public function __construct(
-        public SiteCheckMode $mode,
+        public string $mode,
         public SiteUptime $uptime,
         public SiteTls $tls,
         public SiteWarming $warming,
@@ -32,7 +35,7 @@ final readonly class SiteDomainChecks
         $httpExpectations = Fields::optionalObject($payload, 'httpExpectations');
 
         return new self(
-            SiteCheckMode::from(Fields::string($payload, 'mode')),
+            Fields::string($payload, 'mode'),
             SiteUptime::fromPayload(Fields::object($payload, 'uptime')),
             SiteTls::fromPayload(Fields::object($payload, 'tls')),
             SiteWarming::fromPayload(Fields::object($payload, 'warming')),

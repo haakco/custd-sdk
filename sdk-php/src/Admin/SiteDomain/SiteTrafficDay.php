@@ -7,15 +7,11 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 use HaakCo\Custd\Fields;
 
 /**
- * SiteTrafficDay is one UTC day; coverage is a COVERAGE_* value. requests, bytes and notFound are null
+ * SiteTrafficDay is one UTC day; coverage is a SiteTrafficDayCoverage value. requests, bytes and notFound are null
  * when no hour of the day was read; a present 0 is a real 0.
  */
 final readonly class SiteTrafficDay
 {
-    public const COVERAGE_COMPLETE = 'complete';
-    public const COVERAGE_PARTIAL = 'partial';
-    public const COVERAGE_MISSING = 'missing';
-
     /**
      * @param SiteTrafficDayCoverage::* $coverage
      */

@@ -9,8 +9,11 @@ use HaakCo\Custd\Fields;
 /** SiteUptime is the latest home page check. */
 final readonly class SiteUptime
 {
+    /**
+     * @param SiteUptimeStatus::* $status
+     */
     public function __construct(
-        public SiteUptimeStatus $status,
+        public string $status,
         public int $consecutiveFailures = 0,
         public ?string $lastCheckedAt = null,
         public ?int $statusCode = null,
@@ -22,7 +25,7 @@ final readonly class SiteUptime
     public static function fromPayload(\stdClass $payload): self
     {
         return new self(
-            SiteUptimeStatus::from(Fields::string($payload, 'status')),
+            Fields::string($payload, 'status'),
             Fields::integer($payload, 'consecutiveFailures'),
             Fields::optionalString($payload, 'lastCheckedAt'),
             Fields::optionalInteger($payload, 'statusCode'),

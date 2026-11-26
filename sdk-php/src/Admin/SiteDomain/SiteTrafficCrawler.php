@@ -12,9 +12,6 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteTrafficCrawler
 {
-    public const IDENTITY_VERIFIED = 'verified';
-    public const IDENTITY_CLAIMS_TO_BE = 'claims_to_be';
-
     /**
      * @param SiteCrawlerIdentity::* $identity
      */

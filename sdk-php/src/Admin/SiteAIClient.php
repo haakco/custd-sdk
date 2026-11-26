@@ -43,10 +43,14 @@ final class SiteAIClient
         return SiteAITenantUsage::fromPayload($this->http->send('GET', SiteDomainHttp::COLLECTION . '/ai-usage', [], null));
     }
 
-    /** System administrators only. Omit the period to use the server's current-month default. */
-    public function getPlatformUsage(?SiteAIUsagePeriod $period = null): SiteAIPlatformUsage
+    /**
+     * System administrators only. Omit the period to use the server's current-month default.
+     *
+     * @param SiteAIUsagePeriod::*|null $period
+     */
+    public function getPlatformUsage(?string $period = null): SiteAIPlatformUsage
     {
-        $query = $period === null ? [] : ['period' => $period->value];
+        $query = $period === null ? [] : ['period' => $period];
 
         return SiteAIPlatformUsage::fromPayload($this->http->send('GET', '/admin/site-insights/ai-usage', $query, null));
     }

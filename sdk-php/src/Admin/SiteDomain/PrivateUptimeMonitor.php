@@ -12,10 +12,13 @@ use HaakCo\Custd\Fields;
  */
 final readonly class PrivateUptimeMonitor
 {
+    /**
+     * @param PrivateUptimeStatus::* $status
+     */
     public function __construct(
         public string $monitorUuid,
         public string $networkLabel,
-        public PrivateUptimeStatus $status,
+        public string $status,
         public ?PrivateUptimeReport $latest = null,
         public ?string $requestedAt = null,
     ) {
@@ -28,7 +31,7 @@ final readonly class PrivateUptimeMonitor
         return new self(
             Fields::string($payload, 'monitorUuid'),
             Fields::string($payload, 'networkLabel'),
-            PrivateUptimeStatus::from(Fields::string($payload, 'status')),
+            Fields::string($payload, 'status'),
             $latest === null ? null : PrivateUptimeReport::fromPayload($latest),
             Fields::optionalString($payload, 'requestedAt'),
         );

@@ -8,10 +8,10 @@ namespace HaakCo\Custd\Admin\SiteDomain;
  * SiteIndexNowSubmissionStatus is where an IndexNow submission is. Accepted means IndexNow
  * received the URLs, not that a search engine indexed them.
  */
-enum SiteIndexNowSubmissionStatus: string
+final class SiteIndexNowSubmissionStatus
 {
-    case Queued = 'queued';
-    case Accepted = 'accepted';
-    case Rejected = 'rejected';
-    case Failed = 'failed';
+    public const QUEUED = 'queued';
+    public const ACCEPTED = 'accepted';
+    public const REJECTED = 'rejected';
+    public const FAILED = 'failed';
 }

@@ -12,6 +12,9 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SitePortfolioDomain
 {
+    /**
+     * @param SiteUptimeStatus::* $status
+     */
     public function __construct(
         public string $domainUuid,
         public string $siteUuid,

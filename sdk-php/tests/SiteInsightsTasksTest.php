@@ -42,9 +42,9 @@ final class SiteInsightsTasksTest extends TestCase
     public function testRetryReimportsAFailingConnection(): void
     {
         $connection = $this->replay($calls, 'searchConnectionRetried')
-            ->retrySearch('d-1', SiteSearchProvider::Google, 'acme');
+            ->retrySearch('d-1', SiteSearchProvider::GOOGLE, 'acme');
 
-        self::assertSame(SiteSearchConnectionStatus::Failing, $connection->status);
+        self::assertSame(SiteSearchConnectionStatus::FAILING, $connection->status);
         self::assertSame(
             ['POST http://localhost:8080/api/v1/site-domains/d-1/search/google/retry?companySlug=acme'],
             array_column($calls, 'route'),
@@ -52,7 +52,7 @@ final class SiteInsightsTasksTest extends TestCase
         self::assertSame([null], array_column($calls, 'body'));
         $this->assertRefusals(
             ['retryNotFailingProblem' => SiteDomainClient::SEARCH_RETRY_NOT_FAILING_CODE],
-            static fn (SiteDomainClient $client): mixed => $client->retrySearch('d-1', SiteSearchProvider::Bing),
+            static fn (SiteDomainClient $client): mixed => $client->retrySearch('d-1', SiteSearchProvider::BING),
         );
     }
 }

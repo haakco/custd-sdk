@@ -9,12 +9,15 @@ use HaakCo\Custd\Fields;
 /** PrivateUptimeReport is one check the private agent ran. failure names the step a failed check stopped at. */
 final readonly class PrivateUptimeReport
 {
+    /**
+     * @param PrivateUptimeFailure::*|null $failure
+     */
     public function __construct(
         public string $reportUuid,
         public string $observedAt,
         public int $responseMs,
         public ?int $statusCode = null,
-        public ?PrivateUptimeFailure $failure = null,
+        public ?string $failure = null,
     ) {
     }
 
@@ -26,7 +29,7 @@ final readonly class PrivateUptimeReport
             $payload['statusCode'] = $this->statusCode;
         }
         if ($this->failure !== null) {
-            $payload['failure'] = $this->failure->value;
+            $payload['failure'] = $this->failure;
         }
 
         return $payload;
@@ -41,7 +44,7 @@ final readonly class PrivateUptimeReport
             Fields::string($payload, 'observedAt'),
             Fields::integer($payload, 'responseMs'),
             Fields::optionalInteger($payload, 'statusCode'),
-            $failure === null ? null : PrivateUptimeFailure::from($failure),
+            $failure === null ? null : $failure,
         );
     }
 }

@@ -7,18 +7,13 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 use HaakCo\Custd\Fields;
 
 /**
- * SiteReport is the client report of one domain, built from the TEMPLATE_* layout it names. template
+ * SiteReport is the client report of one domain, built from the SiteReportTemplate layout it names. template
  * is null on servers before the template field; the server's default template is full. nextActions
  * are the first three of SiteNextActionClient::forDomain(), and empty in reports built or saved
  * before servers sent them.
  */
 final readonly class SiteReport
 {
-    /** The short summary for a site owner. */
-    public const TEMPLATE_EXECUTIVE = 'executive';
-    /** Every section; the default. */
-    public const TEMPLATE_FULL = 'full';
-
     /**
      * @param list<SiteReportSpeed> $speed
      * @param list<SiteNextAction> $nextActions

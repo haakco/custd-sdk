@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Tests;
 
-use HaakCo\Custd\Admin\SiteDomain\SiteContentGap;
 use HaakCo\Custd\Admin\SiteDomain\SiteKeywordDemandSet;
 use HaakCo\Custd\Admin\SiteDomain\SiteKeywordListRequest;
-use HaakCo\Custd\Admin\SiteDomain\SiteTopicTrend;
-use HaakCo\Custd\Admin\SiteDomain\SiteWebDomain;
 use HaakCo\Custd\Admin\SiteDomain\SiteWebPage;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use HaakCo\Custd\Admin\SiteWebDataClient;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\SiteDomain\SiteTrancoBand;
+use HaakCo\Custd\Admin\SiteDomain\SiteContentGapCoverage;
+use HaakCo\Custd\Admin\SiteDomain\SiteWebInventoryStatus;
+use HaakCo\Custd\Admin\SiteDomain\SiteKeywordDemandState;
+use HaakCo\Custd\Admin\SiteDomain\SiteWebDomainRole;
+use HaakCo\Custd\Admin\SiteDomain\SiteTopicTrendStatus;
 
 /** Replays contract-fixtures/site-web-data.json through the web data and keyword list calls. */
 final class SiteWebDataClientTest extends TestCase
@@ -35,12 +38,12 @@ final class SiteWebDataClientTest extends TestCase
             ->listWebPages('rival.example', after: 'https://rival.example/pricing', companySlug: 'acme');
 
         [$own, $rival, $new] = $domains->domains;
-        self::assertSame(SiteWebDomain::ROLE_OWN, $own->role);
+        self::assertSame(SiteWebDomainRole::OWN, $own->role);
         self::assertSame(8421, $own->trancoRank);
-        self::assertSame(SiteWebDomain::TRANCO_UNRANKED, $rival->trancoBand);
+        self::assertSame(SiteTrancoBand::UNRANKED, $rival->trancoBand);
         self::assertNull($rival->trancoRank);
         self::assertSame('sitemap.xml answered HTTP 503', $rival->lastFailure);
-        self::assertSame(SiteWebDomain::INVENTORY_PENDING, $new->sitemapStatus);
+        self::assertSame(SiteWebInventoryStatus::PENDING, $new->sitemapStatus);
         self::assertNull($new->inventoryAt);
         self::assertNull($new->trancoListDay);
         self::assertSame(0, $new->pageCount);
@@ -77,16 +80,16 @@ final class SiteWebDataClientTest extends TestCase
         $unavailable = $this->replay($calls, 'contentGapUnavailable')->webData()->getContentGap();
 
         [$found, $noArticle, $failed] = $trends->trends;
-        self::assertSame(SiteTopicTrend::STATUS_FOUND, $found->status);
+        self::assertSame(SiteTopicTrendStatus::FOUND, $found->status);
         self::assertSame(0, $found->months[1]->views);
-        self::assertSame(SiteTopicTrend::STATUS_NO_ARTICLE, $noArticle->status);
+        self::assertSame(SiteTopicTrendStatus::NO_ARTICLE, $noArticle->status);
         self::assertNull($failed->checkedAt);
         self::assertSame('wikipedia answered HTTP 429', $failed->lastFailure);
         self::assertSame('seo', $gap->seed);
         self::assertTrue($gap->partial);
         self::assertSame(['rival.example'], $gap->topics[0]->competitors);
         self::assertSame('https://rival.example/blog/seo-checklist', $gap->topics[0]->pages[0]->url);
-        self::assertSame(SiteContentGap::COVERAGE_UNAVAILABLE, $unavailable->ownCoverage);
+        self::assertSame(SiteContentGapCoverage::UNAVAILABLE, $unavailable->ownCoverage);
         self::assertNull($unavailable->seed);
         self::assertSame([
             'GET ' . self::BASE . '/topic-trends?siteUuid=' . self::SITE,
@@ -135,7 +138,7 @@ final class SiteWebDataClientTest extends TestCase
         self::assertNull($older->clusters[0]->bingWeeklyImpressions);
         self::assertSame(1400, $demand->clusters[0]->bingWeeklyImpressions);
         self::assertNull($demand->clusters[1]->bingWeeklyImpressions);
-        self::assertSame(SiteKeywordDemandSet::STATE_AVAILABLE, $demand->demand?->state);
+        self::assertSame(SiteKeywordDemandState::AVAILABLE, $demand->demand?->state);
         self::assertSame('en-ZA', $demand->demand->market);
         [$tool, $checker, $audit] = $demand->demand->keywords;
         self::assertSame(3200, $tool->broadImpressions);
@@ -143,7 +146,7 @@ final class SiteWebDataClientTest extends TestCase
         self::assertNull($audit->weeklyImpressions);
         self::assertNull($audit->weekOf);
         self::assertSame('bing keyword research: the service answered 503', $audit->lastFailure);
-        self::assertSame(SiteKeywordDemandSet::STATE_NO_MARKET, $noMarket->demand?->state);
+        self::assertSame(SiteKeywordDemandState::NO_MARKET, $noMarket->demand?->state);
         self::assertNull($noMarket->demand->market);
         self::assertSame([], $noMarket->demand->keywords);
         self::assertSame(SiteKeywordDemandSet::SOURCE_BING_KEYWORD_RESEARCH, $list->related?->source);

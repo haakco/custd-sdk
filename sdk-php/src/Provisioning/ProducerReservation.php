@@ -9,13 +9,16 @@ use HaakCo\Custd\Fields;
 /** ProducerReservation is one producer slug held in a data space. claimedByClientId is set once claimed. */
 final readonly class ProducerReservation
 {
+    /**
+     * @param ProducerReservationStatus::* $status
+     */
     public function __construct(
         public string $producerSlug,
         public string $parentCompanySlug,
         public string $childCompanySlug,
         public string $reservedAt,
         public string $expiresAt,
-        public ProducerReservationStatus $status,
+        public string $status,
         public int $maxTtlSeconds,
         public ?string $claimedByClientId = null,
     ) {
@@ -29,7 +32,7 @@ final readonly class ProducerReservation
             Fields::string($payload, 'childCompanySlug'),
             Fields::string($payload, 'reservedAt'),
             Fields::string($payload, 'expiresAt'),
-            ProducerReservationStatus::from(Fields::string($payload, 'status')),
+            Fields::string($payload, 'status'),
             Fields::integer($payload, 'maxTtlSeconds'),
             Fields::optionalString($payload, 'claimedByClientId'),
         );

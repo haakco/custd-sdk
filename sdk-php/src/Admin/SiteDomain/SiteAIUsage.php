@@ -8,9 +8,12 @@ use HaakCo\Custd\Fields;
 
 final readonly class SiteAIUsage
 {
-    /** @param list<SiteAIUsageRow> $rows */
+    /**
+     * @param list<SiteAIUsageRow> $rows
+     * @param SiteAIUsagePeriod::* $period
+     */
     public function __construct(
-        public SiteAIUsagePeriod $period,
+        public string $period,
         public string $from,
         public string $until,
         public array $rows,
@@ -20,7 +23,7 @@ final readonly class SiteAIUsage
     public static function fromPayload(\stdClass $payload): self
     {
         return new self(
-            SiteAIUsagePeriod::from(Fields::string($payload, 'period')),
+            Fields::string($payload, 'period'),
             Fields::string($payload, 'from'),
             Fields::string($payload, 'until'),
             array_map(SiteAIUsageRow::fromPayload(...), Fields::objects($payload, 'rows')),

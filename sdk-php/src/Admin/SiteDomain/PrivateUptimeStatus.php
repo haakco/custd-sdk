@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\SiteDomain;
 
 /** PrivateUptimeStatus is what the last private uptime report said about the site. */
-enum PrivateUptimeStatus: string
+final class PrivateUptimeStatus
 {
-    case Unknown = 'unknown';
-    case Up = 'up';
-    case Down = 'down';
+    public const UNKNOWN = 'unknown';
+    public const UP = 'up';
+    public const DOWN = 'down';
 }

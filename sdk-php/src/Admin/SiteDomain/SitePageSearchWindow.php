@@ -9,6 +9,9 @@ use HaakCo\Custd\Fields;
 /** SitePageSearchWindow is the imported days (YYYY-MM-DD) a page's queries come from, and the provider. */
 final readonly class SitePageSearchWindow
 {
+    /**
+     * @param SiteSearchProvider::* $provider
+     */
     public function __construct(
         public string $provider,
         public string $from,

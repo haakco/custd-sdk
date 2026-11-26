@@ -13,12 +13,6 @@ namespace HaakCo\Custd\Admin\SiteDomain;
  */
 final readonly class SitePageCheckRequest
 {
-    /** A whole page, the server's default. */
-    public const SCOPE_PAGE = 'page';
-
-    /** Body content only: the response's checkedRules lists the rules checked. */
-    public const SCOPE_CONTENT = 'content';
-
     /**
      * @param SitePageCheckScope::*|null $scope
      */

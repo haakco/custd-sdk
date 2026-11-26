@@ -13,10 +13,13 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteSearchInspection
 {
+    /**
+     * @param SiteSearchInspectionStatus::* $status
+     */
     public function __construct(
         public string $inspectionUuid,
         public string $url,
-        public SiteSearchInspectionStatus $status,
+        public string $status,
         public string $requestedAt,
         public ?string $inspectedAt = null,
         public ?string $failure = null,
@@ -39,7 +42,7 @@ final readonly class SiteSearchInspection
         return new self(
             Fields::string($payload, 'inspectionUuid'),
             Fields::string($payload, 'url'),
-            SiteSearchInspectionStatus::from(Fields::string($payload, 'status')),
+            Fields::string($payload, 'status'),
             Fields::string($payload, 'requestedAt'),
             Fields::optionalString($payload, 'inspectedAt'),
             Fields::optionalString($payload, 'failure'),

@@ -39,8 +39,8 @@ final class SiteStatusPageClientTest extends TestCase
 
         self::assertNull($empty->draft);
         self::assertNull($empty->publication);
-        self::assertSame(SiteStatusComponentStatus::Up, $preview->components[0]->status);
-        self::assertSame(SiteStatusComponentStatus::Maintenance, $preview->components[1]->status);
+        self::assertSame(SiteStatusComponentStatus::UP, $preview->components[0]->status);
+        self::assertSame(SiteStatusComponentStatus::MAINTENANCE, $preview->components[1]->status);
         self::assertNull($preview->components[1]->lastCheckedAt);
         self::assertSame('Service restored.', $preview->updates[0]->message);
         self::assertSame(

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Provisioning;
 
 /** ProducerReservationStatus is where a producer reservation is in its life. */
-enum ProducerReservationStatus: string
+final class ProducerReservationStatus
 {
-    case Pending = 'pending';
-    case Claimed = 'claimed';
-    case Released = 'released';
-    case Expired = 'expired';
+    public const PENDING = 'pending';
+    public const CLAIMED = 'claimed';
+    public const RELEASED = 'released';
+    public const EXPIRED = 'expired';
 }

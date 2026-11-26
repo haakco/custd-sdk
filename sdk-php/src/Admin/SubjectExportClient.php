@@ -17,11 +17,6 @@ use HaakCo\Custd\Admin\SubjectExport\SubjectExportScope;
  */
 final class SubjectExportClient
 {
-    /** A request may ask for one artifact scope or both; a download reads one artifact. */
-    public const SCOPE_ACCESS = 'access';
-    public const SCOPE_PORTABILITY = 'portability';
-    public const SCOPE_BOTH = 'both';
-
     private readonly ApiHttp $http;
 
     /** @param string|callable():string $token Bearer token, or a provider run per request. */

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\SiteDomain\SavedSiteReportRequest;
-use HaakCo\Custd\Admin\SiteDomain\SiteReport;
 use HaakCo\Custd\Admin\SiteDomain\SiteReportShareRequest;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\SiteDomain\SiteReportTemplate;
 
 /** Replays contract-fixtures/site-saved-reports.json through the report template, saved report and share calls. */
 final class SiteSavedReportsClientTest extends TestCase
@@ -26,16 +26,16 @@ final class SiteSavedReportsClientTest extends TestCase
     public function testReportTemplateAndDaysAreQueryParameters(): void
     {
         $report = $this->replay($calls, 'executiveReport')
-            ->getReport('d-1', 'acme', SiteReport::TEMPLATE_EXECUTIVE, 14);
+            ->getReport('d-1', 'acme', SiteReportTemplate::EXECUTIVE, 14);
 
-        self::assertSame(SiteReport::TEMPLATE_EXECUTIVE, $report->template);
+        self::assertSame(SiteReportTemplate::EXECUTIVE, $report->template);
         self::assertSame(14, $report->search->days);
         self::assertSame('GET ' . self::BASE . '/report?template=executive&days=14&companySlug=acme', $calls[0]['route']);
     }
 
     public function testSavedReportsListSaveReadReplaceAndDelete(): void
     {
-        $request = new SavedSiteReportRequest('November client summary', SiteReport::TEMPLATE_EXECUTIVE, 14);
+        $request = new SavedSiteReportRequest('November client summary', SiteReportTemplate::EXECUTIVE, 14);
         $list = $this->replay($calls, 'savedReportList')->listSavedReports('d-1');
         $empty = $this->replay($calls, 'savedReportListEmpty')->listSavedReports('d-1');
         $saved = $this->replay($calls, 'savedReport', 201)->saveReport('d-1', $request);
@@ -45,11 +45,11 @@ final class SiteSavedReportsClientTest extends TestCase
 
         self::assertSame(20, $list->maxReports);
         self::assertSame(0, $list->reports[1]->liveShares);
-        self::assertSame(SiteReport::TEMPLATE_FULL, $list->reports[1]->template);
+        self::assertSame(SiteReportTemplate::FULL, $list->reports[1]->template);
         self::assertSame([], $empty->reports);
         self::assertSame('November client summary', $saved->name);
         self::assertSame(1, $saved->liveShares);
-        self::assertSame(SiteReport::TEMPLATE_EXECUTIVE, $saved->report->template);
+        self::assertSame(SiteReportTemplate::EXECUTIVE, $saved->report->template);
         self::assertSame(self::REPORT, $read->reportUuid);
         self::assertSame(['name' => 'Report'], (new SavedSiteReportRequest('Report'))->serialise());
         self::assertSame([

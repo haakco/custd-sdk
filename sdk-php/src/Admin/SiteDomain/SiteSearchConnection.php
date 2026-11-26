@@ -12,10 +12,14 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteSearchConnection
 {
+    /**
+     * @param SiteSearchProvider::* $provider
+     * @param SiteSearchConnectionStatus::* $status
+     */
     public function __construct(
-        public SiteSearchProvider $provider,
+        public string $provider,
         public string $property,
-        public SiteSearchConnectionStatus $status,
+        public string $status,
         public ?string $importedThrough = null,
         public ?string $lastImportedAt = null,
         public ?string $lastFailure = null,
@@ -25,9 +29,9 @@ final readonly class SiteSearchConnection
     public static function fromPayload(\stdClass $payload): self
     {
         return new self(
-            SiteSearchProvider::from(Fields::string($payload, 'provider')),
+            Fields::string($payload, 'provider'),
             Fields::string($payload, 'property'),
-            SiteSearchConnectionStatus::from(Fields::string($payload, 'status')),
+            Fields::string($payload, 'status'),
             Fields::optionalString($payload, 'importedThrough'),
             Fields::optionalString($payload, 'lastImportedAt'),
             Fields::optionalString($payload, 'lastFailure'),

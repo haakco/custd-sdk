@@ -14,6 +14,7 @@ final readonly class SitePageFinding
 {
     /**
      * @param SiteFindingSeverity::* $severity
+     * @param SiteRule::* $rule
      */
     public function __construct(
         public string $rule,

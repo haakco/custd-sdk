@@ -8,10 +8,13 @@ use HaakCo\Custd\Fields;
 
 final readonly class SiteAIUsageRow
 {
+    /**
+     * @param SiteAIProduct::*|null $samplingProduct
+     */
     public function __construct(
         public ?string $tenantSlug,
         public string $feature,
-        public ?SiteAIProduct $samplingProduct,
+        public ?string $samplingProduct,
         public string $provider,
         public string $method,
         public string $model,
@@ -39,7 +42,7 @@ final readonly class SiteAIUsageRow
         return new self(
             Fields::optionalString($payload, 'tenantSlug'),
             Fields::string($payload, 'feature'),
-            self::product($payload),
+            Fields::optionalString($payload, 'samplingProduct'),
             Fields::string($payload, 'provider'),
             Fields::string($payload, 'method'),
             Fields::string($payload, 'model'),
@@ -60,12 +63,5 @@ final readonly class SiteAIUsageRow
             Fields::integer($payload, 'estimatedCostUsdMicros'),
             Fields::integer($payload, 'capAccountedUsdMicros'),
         );
-    }
-
-    private static function product(\stdClass $payload): ?SiteAIProduct
-    {
-        $product = Fields::optionalString($payload, 'samplingProduct');
-
-        return $product === null ? null : SiteAIProduct::from($product);
     }
 }

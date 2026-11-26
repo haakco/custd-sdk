@@ -19,21 +19,6 @@ use HaakCo\Custd\Fields;
  */
 final readonly class AuthDomainBinding
 {
-    public const ACTIVE = "active";
-
-    /** A reservation recorded before it claimed installed capacity: hostname, no realm slot. */
-    public const LIFECYCLE_UNCLAIMED = "unclaimed";
-
-    public const LIFECYCLE_ADMITTED = "admitted";
-
-    /** An operator hold. Admission never clears it. */
-    public const LIFECYCLE_PAUSED = "paused";
-
-    public const LIFECYCLE_RETIRING = "retiring";
-
-    /** Terminal: a retired realm never binds or admits again. */
-    public const LIFECYCLE_RETIRED = "retired";
-
     /**
      * @param AuthProjectDomainLifecycle::*|null $lifecycle
      * @param AuthProjectDomainStatus::* $status

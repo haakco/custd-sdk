@@ -14,12 +14,15 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteRobotsTestResult
 {
-    /** @param list<string> $groups */
+    /**
+     * @param list<string> $groups
+     * @param SiteRobotsSource::* $source
+     */
     public function __construct(
         public bool $allowed,
         public string $userAgent,
         public string $path,
-        public SiteRobotsSource $source,
+        public string $source,
         public array $groups,
         public ?int $robotsStatus = null,
         public ?SiteRobotsRule $rule = null,
@@ -35,7 +38,7 @@ final readonly class SiteRobotsTestResult
             Fields::boolean($payload, 'allowed'),
             Fields::string($payload, 'userAgent'),
             Fields::string($payload, 'path'),
-            SiteRobotsSource::from(Fields::string($payload, 'source')),
+            Fields::string($payload, 'source'),
             Fields::strings($payload, 'groups'),
             Fields::optionalInteger($payload, 'robotsStatus'),
             $rule === null ? null : SiteRobotsRule::fromPayload($rule),

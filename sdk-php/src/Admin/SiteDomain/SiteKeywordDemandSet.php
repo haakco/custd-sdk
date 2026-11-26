@@ -12,10 +12,6 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteKeywordDemandSet
 {
-    public const STATE_AVAILABLE = 'available';
-    public const STATE_NO_MARKET = 'no_market';
-    public const STATE_NO_BING = 'no_bing';
-
     /** Where the numbers come from, here and on SiteRelatedKeywords::$source. */
     public const SOURCE_BING_KEYWORD_RESEARCH = 'bing_keyword_research';
 

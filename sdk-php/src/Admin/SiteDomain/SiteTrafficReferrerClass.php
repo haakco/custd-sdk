@@ -6,14 +6,9 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 
 use HaakCo\Custd\Fields;
 
-/** SiteTrafficReferrerClass is the referred requests of one CLASS_* value. */
+/** SiteTrafficReferrerClass is the referred requests of one SiteReferrerClass value. */
 final readonly class SiteTrafficReferrerClass
 {
-    public const CLASS_SEARCH = 'search';
-    public const CLASS_AI = 'ai';
-    public const CLASS_SOCIAL = 'social';
-    public const CLASS_OTHER = 'other';
-
     /**
      * @param SiteReferrerClass::* $class
      */

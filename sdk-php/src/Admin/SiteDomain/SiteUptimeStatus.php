@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\SiteDomain;
 
 /** SiteUptimeStatus is the uptime state a domain shows. */
-enum SiteUptimeStatus: string
+final class SiteUptimeStatus
 {
     /** No check in the last fifteen minutes, or none yet. */
-    case Unknown = 'unknown';
-    case Up = 'up';
+    public const UNKNOWN = 'unknown';
+    public const UP = 'up';
     /** One failed check, not yet an outage. */
-    case Failing = 'failing';
+    public const FAILING = 'failing';
     /** An open incident: two or more failed checks in a row. */
-    case Down = 'down';
-    case Paused = 'paused';
+    public const DOWN = 'down';
+    public const PAUSED = 'paused';
 }

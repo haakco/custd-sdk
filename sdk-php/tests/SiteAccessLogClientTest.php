@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\SiteAccessLogClient;
-use HaakCo\Custd\Admin\SiteDomain\AccessLogHourReplay;
 use HaakCo\Custd\Admin\SiteDomain\SiteTrafficCount;
-use HaakCo\Custd\Admin\SiteDomain\SiteTrafficCrawler;
-use HaakCo\Custd\Admin\SiteDomain\SiteTrafficDay;
-use HaakCo\Custd\Admin\SiteDomain\SiteTrafficReferrerClass;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\SiteDomain\SiteTrafficDayCoverage;
+use HaakCo\Custd\Admin\SiteDomain\SiteReferrerClass;
+use HaakCo\Custd\Admin\SiteDomain\AccessLogHourStatus;
+use HaakCo\Custd\Admin\SiteDomain\SiteCrawlerIdentity;
 
 /** Replays contract-fixtures/site-access-logs.json through the traffic, AI visibility and hour replay calls. */
 final class SiteAccessLogClientTest extends TestCase
@@ -33,15 +33,15 @@ final class SiteAccessLogClientTest extends TestCase
         [$missing, $partial] = $traffic->days;
         self::assertFalse($traffic->coverage->complete);
         self::assertSame(750, $traffic->totals?->p95Ms);
-        self::assertSame(SiteTrafficDay::COVERAGE_MISSING, $missing->coverage);
+        self::assertSame(SiteTrafficDayCoverage::MISSING, $missing->coverage);
         self::assertNull($missing->requests);
         self::assertNull($missing->notFound);
-        self::assertSame(SiteTrafficDay::COVERAGE_PARTIAL, $partial->coverage);
+        self::assertSame(SiteTrafficDayCoverage::PARTIAL, $partial->coverage);
         self::assertSame(0, $partial->notFound);
         self::assertSame(SiteTrafficCount::OTHER_KEY, $traffic->notFoundPaths[1]->key);
         self::assertSame(4100, $traffic->slowPaths[0]->maxMs);
-        self::assertSame(SiteTrafficReferrerClass::CLASS_AI, $traffic->referrers[1]->class);
-        self::assertSame(SiteTrafficCrawler::IDENTITY_CLAIMS_TO_BE, $traffic->crawlers[1]->identity);
+        self::assertSame(SiteReferrerClass::AI, $traffic->referrers[1]->class);
+        self::assertSame(SiteCrawlerIdentity::CLAIMS_TO_BE, $traffic->crawlers[1]->identity);
         self::assertNull($empty->totals);
         self::assertSame([], $empty->crawlers);
         self::assertSame([
@@ -54,7 +54,7 @@ final class SiteAccessLogClientTest extends TestCase
     {
         $visibility = $this->replay($calls, 'aiVisibility')->accessLogs()->getAIVisibility('d-1', '2026-11-15');
 
-        self::assertSame(SiteTrafficCrawler::IDENTITY_VERIFIED, $visibility->crawlers[0]->identity);
+        self::assertSame(SiteCrawlerIdentity::VERIFIED, $visibility->crawlers[0]->identity);
         self::assertTrue($visibility->crawlers[0]->ai);
         self::assertSame('chatgpt.com', $visibility->assistants[0]->key);
         self::assertSame(30, $visibility->pages[0]->verifiedCrawlerHits);
@@ -67,7 +67,7 @@ final class SiteAccessLogClientTest extends TestCase
         $hour = new \DateTimeImmutable('2026-11-17T12:00:00+02:00');
         $replay = $this->replay($calls, 'accessLogHourReplay', 202)->accessLogs()->replayAccessLogHour($hour);
 
-        self::assertSame(AccessLogHourReplay::PREVIOUS_FAILED, $replay->previousStatus);
+        self::assertSame(AccessLogHourStatus::FAILED, $replay->previousStatus);
         self::assertSame('2026-11-17T10:00:00Z', $replay->hourStart);
         self::assertSame('POST http://localhost:8080/api/v1/admin/access-log-hours/replay', $calls[0]['route']);
         self::assertSame(self::fixtureArray('accessLogHourReplayRequest'), $calls[0]['body']);

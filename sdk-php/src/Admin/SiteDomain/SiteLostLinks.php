@@ -8,7 +8,7 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteLostLinks is the referring domains previousRelease listed that release no longer has. status is
- * a SiteLinkSourceTotal::STATUS_AVAILABLE, STATUS_PENDING or STATUS_UNAVAILABLE value.
+ * a SiteLinkSourceStatus::AVAILABLE, STATUS_PENDING or STATUS_UNAVAILABLE value.
  */
 final readonly class SiteLostLinks
 {

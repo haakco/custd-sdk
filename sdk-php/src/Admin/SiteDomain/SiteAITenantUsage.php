@@ -8,9 +8,12 @@ use HaakCo\Custd\Fields;
 
 final readonly class SiteAITenantUsage
 {
+    /**
+     * @param SiteAIMode::* $aiMode
+     */
     public function __construct(
         public SiteAIUsage $usage,
-        public SiteAIMode $aiMode,
+        public string $aiMode,
         public int $monthlyCapUsdMicros,
         public ?int $monthlyCapUsedUsdMicros = null,
     ) {
@@ -20,7 +23,7 @@ final readonly class SiteAITenantUsage
     {
         return new self(
             SiteAIUsage::fromPayload($payload),
-            SiteAIMode::from(Fields::string($payload, 'aiMode')),
+            Fields::string($payload, 'aiMode'),
             Fields::integer($payload, 'monthlyCapUsdMicros'),
             Fields::optionalInteger($payload, 'monthlyCapUsedUsdMicros'),
         );

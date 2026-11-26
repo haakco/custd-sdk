@@ -6,7 +6,7 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 
 use HaakCo\Custd\Fields;
 
-/** SearchPoolQuery is one pooled query with its SearchPoolBand::DEMAND_* band and position ranges. */
+/** SearchPoolQuery is one pooled query with its SearchPoolDemandBand band and position ranges. */
 final readonly class SearchPoolQuery
 {
     /**

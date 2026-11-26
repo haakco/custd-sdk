@@ -12,10 +12,13 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteIndexNowSubmission
 {
-    /** @param list<string> $urls */
+    /**
+     * @param list<string> $urls
+     * @param SiteIndexNowSubmissionStatus::* $status
+     */
     public function __construct(
         public string $submissionUuid,
-        public SiteIndexNowSubmissionStatus $status,
+        public string $status,
         public array $urls,
         public string $requestedAt,
         public ?int $providerStatus = null,
@@ -28,7 +31,7 @@ final readonly class SiteIndexNowSubmission
     {
         return new self(
             Fields::string($payload, 'submissionUuid'),
-            SiteIndexNowSubmissionStatus::from(Fields::string($payload, 'status')),
+            Fields::string($payload, 'status'),
             Fields::strings($payload, 'urls'),
             Fields::string($payload, 'requestedAt'),
             Fields::optionalInteger($payload, 'providerStatus'),

@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin\SiteDomain;
 
-enum SiteAIProduct: string
+/**
+ * SiteAIProduct names the values of SiteAIAnswerSample.product, SiteAIUsageRow.samplingProduct.
+ * A value Custd adds later still decodes as a plain string.
+ */
+final class SiteAIProduct
 {
-    case Hosting = 'hosting';
-    case Custd = 'custd';
-    case CB = 'cb';
-    case Awthy = 'awthy';
+    public const HOSTING = 'hosting';
+    public const CUSTD = 'custd';
+    public const CB = 'cb';
+    public const AWTHY = 'awthy';
 }

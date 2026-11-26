@@ -9,8 +9,11 @@ use SensitiveParameter;
 /** Replace settings; omitting the key can retain an existing own key. */
 final readonly class SiteAISettingsRequest
 {
+    /**
+     * @param SiteAIMode::* $aiMode
+     */
     public function __construct(
-        public SiteAIMode $aiMode,
+        public string $aiMode,
         public int $monthlyCapUsdMicros,
         #[SensitiveParameter] private ?string $apiKey = null,
     ) {
@@ -19,7 +22,7 @@ final readonly class SiteAISettingsRequest
     /** @return array{aiMode: string, monthlyCapUsdMicros: int, apiKey?: string} */
     public function serialise(): array
     {
-        $body = ['aiMode' => $this->aiMode->value, 'monthlyCapUsdMicros' => $this->monthlyCapUsdMicros];
+        $body = ['aiMode' => $this->aiMode, 'monthlyCapUsdMicros' => $this->monthlyCapUsdMicros];
 
         return $this->apiKey === null ? $body : $body + ['apiKey' => $this->apiKey];
     }

@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\SiteDomain;
 
 /** SiteStatusComponentStatus is the state a status page shows for one component. */
-enum SiteStatusComponentStatus: string
+final class SiteStatusComponentStatus
 {
     /** No recent check, or none yet. */
-    case Unknown = 'unknown';
-    case Up = 'up';
+    public const UNKNOWN = 'unknown';
+    public const UP = 'up';
     /** One failed check, not yet an outage. */
-    case Failing = 'failing';
+    public const FAILING = 'failing';
     /** An open incident. */
-    case Down = 'down';
-    case Paused = 'paused';
+    public const DOWN = 'down';
+    public const PAUSED = 'paused';
     /** Inside a scheduled maintenance window. */
-    case Maintenance = 'maintenance';
+    public const MAINTENANCE = 'maintenance';
 }

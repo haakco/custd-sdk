@@ -13,15 +13,6 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteRemedy
 {
-    /** The fix changes the page's HTML. */
-    public const KIND_MARKUP = 'markup';
-    /** The fix changes a CMS or site setting. */
-    public const KIND_SETTING = 'setting';
-    /** The fix changes the page's words. */
-    public const KIND_CONTENT = 'content';
-    /** The fix changes the web server or CDN. */
-    public const KIND_SERVER = 'server';
-
     /**
      * @param SiteRemedyKind::* $kind
      */

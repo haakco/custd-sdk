@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Tests;
 
-use HaakCo\Custd\Admin\SiteDomain\SiteAuditDelta;
-use HaakCo\Custd\Admin\SiteDomain\SiteAuditPage;
 use HaakCo\Custd\Admin\SiteDomain\SiteLighthouseProfile;
 use HaakCo\Custd\Admin\SiteDomain\SiteRule;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\SiteDomain\SiteAuditRun;
+use HaakCo\Custd\Admin\SiteDomain\SiteAuditPageIndexability;
 
 /** Replays contract-fixtures/site-audit-pages.json through the audit page, delta and Lighthouse page calls. */
 final class SiteAuditPagesClientTest extends TestCase
@@ -31,7 +31,7 @@ final class SiteAuditPagesClientTest extends TestCase
 
         [$home, $redirected, $orphan] = $list->pages;
         self::assertSame(3, $list->total);
-        self::assertSame(SiteAuditPage::INDEXABILITY_INDEXABLE, $home->indexability);
+        self::assertSame(SiteAuditPageIndexability::INDEXABLE, $home->indexability);
         self::assertSame(0, $home->depth);
         self::assertNull($home->finalUrl);
         self::assertSame('https://example.com/new', $redirected->finalUrl);
@@ -55,13 +55,13 @@ final class SiteAuditPagesClientTest extends TestCase
         $failed = $this->replay($calls, 'auditDeltaFailed')->getAuditDelta('d/1');
         $notAudited = $this->replay($calls, 'auditDeltaNotAudited')->getAuditDelta('d/1');
 
-        self::assertSame(SiteAuditDelta::RUN_COMPLETE, $delta->run);
-        self::assertSame(SiteRule::BrokenFragment, SiteRule::tryFrom($delta->new[0]->rule));
-        self::assertSame(SiteRule::SitemapBlockedURL, SiteRule::tryFrom($delta->reopened[0]->rule));
+        self::assertSame(SiteAuditRun::COMPLETE, $delta->run);
+        self::assertSame(SiteRule::CRAWL_BROKEN_FRAGMENT, $delta->new[0]->rule);
+        self::assertSame(SiteRule::SITEMAP_BLOCKED_URL, $delta->reopened[0]->rule);
         self::assertTrue($delta->fixed[0]->history->fixed);
-        self::assertSame(SiteAuditDelta::RUN_FAILED, $failed->run);
+        self::assertSame(SiteAuditRun::FAILED, $failed->run);
         self::assertSame('the home page did not answer', $failed->failure);
-        self::assertSame(SiteAuditDelta::RUN_NOT_AUDITED, $notAudited->run);
+        self::assertSame(SiteAuditRun::NOT_AUDITED, $notAudited->run);
         self::assertNull($notAudited->auditedAt);
         self::assertSame('GET ' . self::BASE . '/audit-delta', $calls[0]['route']);
     }
@@ -73,7 +73,7 @@ final class SiteAuditPagesClientTest extends TestCase
 
         [$home, $pricing] = $history->pages;
         self::assertSame('https://example.com/pricing', $history->url);
-        self::assertSame(SiteLighthouseProfile::Desktop, $home->profile);
+        self::assertSame(SiteLighthouseProfile::DESKTOP, $home->profile);
         self::assertSame(95, $home->previousScore);
         self::assertTrue($pricing->regressionOpen);
         self::assertNull($pricing->previousAt);

@@ -9,9 +9,6 @@ use HaakCo\Custd\Fields;
 /** SitePageTitleOption is a title built from one ranking query; options are ranked by its impressions. */
 final readonly class SitePageTitleOption
 {
-    public const TEMPLATE_GENERAL = 'general';
-    public const TEMPLATE_GUIDE = 'guide';
-
     /**
      * @param SiteTitleTemplate::* $template
      */

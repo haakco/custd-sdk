@@ -8,7 +8,7 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteSearchImpactPeriod is one provider's search numbers for one window. status is a
- * SiteFindingImpact::STATUS_* value; an insufficient period has null clicks, impressions and ctr (never
+ * SiteSearchImpactStatus value; an insufficient period has null clicks, impressions and ctr (never
  * 0) and says why in reason, while a measured period's 0 is a real 0.
  */
 final readonly class SiteSearchImpactPeriod

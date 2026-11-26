@@ -279,13 +279,17 @@ final class SiteDomainClient
         return SiteDomain::fromPayload($this->send('POST', self::item($domainUuid) . '/audit', [], $companySlug));
     }
 
-    /** List a domain's findings; the server defaults to open findings when state is null. */
+    /**
+     * List a domain's findings; the server defaults to open findings when state is null.
+     *
+     * @param SiteFindingState::*|null $state
+     */
     public function listFindings(
         string $domainUuid,
-        ?SiteFindingState $state = null,
+        ?string $state = null,
         ?string $companySlug = null,
     ): SiteFindingList {
-        $query = $state === null ? [] : ['state' => $state->value];
+        $query = $state === null ? [] : ['state' => $state];
 
         return SiteFindingList::fromPayload(
             $this->send('GET', self::item($domainUuid) . '/findings', $query, $companySlug)
@@ -295,11 +299,13 @@ final class SiteDomainClient
     /**
      * Choose how a domain is checked. It works before verification too, so a
      * consumer can pause a domain before its first check.
+     *
+     * @param SiteCheckMode::* $mode
      */
-    public function setCheckMode(string $domainUuid, SiteCheckMode $mode, ?string $companySlug = null): SiteDomain
+    public function setCheckMode(string $domainUuid, string $mode, ?string $companySlug = null): SiteDomain
     {
         return SiteDomain::fromPayload(
-            $this->send('PUT', self::item($domainUuid) . '/checks', [], $companySlug, ['mode' => $mode->value])
+            $this->send('PUT', self::item($domainUuid) . '/checks', [], $companySlug, ['mode' => $mode])
         );
     }
 
@@ -413,10 +419,12 @@ final class SiteDomainClient
      * "sc-domain:example.com" or a URL prefix for Google, and a URL prefix ending in "/" for Bing.
      * $apiKey is Bing only, write-only and never returned. A deployment without an account or key
      * for the provider throws AdminProblemException with {@see self::SEARCH_NOT_CONFIGURED_CODE}.
+     *
+     * @param SiteSearchProvider::* $provider
      */
     public function connectSearch(
         string $domainUuid,
-        SiteSearchProvider $provider,
+        string $provider,
         string $property,
         #[\SensitiveParameter] ?string $apiKey = null,
         ?string $companySlug = null,
@@ -434,10 +442,12 @@ final class SiteDomainClient
     /**
      * Remove a provider connection and the numbers imported through it. A provider that is not
      * connected throws AdminProblemException with {@see self::SEARCH_CONNECTION_NOT_FOUND_CODE}.
+     *
+     * @param SiteSearchProvider::* $provider
      */
     public function disconnectSearch(
         string $domainUuid,
-        SiteSearchProvider $provider,
+        string $provider,
         ?string $companySlug = null,
     ): void {
         $this->http->sendNoContent('DELETE', self::searchConnection($domainUuid, $provider), [], $companySlug);
@@ -447,10 +457,12 @@ final class SiteDomainClient
      * Import a failing search connection again now instead of waiting for its retry. A connection
      * that is not failing throws AdminProblemException with {@see self::SEARCH_RETRY_NOT_FAILING_CODE};
      * reconnect a revoked one with connectSearch().
+     *
+     * @param SiteSearchProvider::* $provider
      */
     public function retrySearch(
         string $domainUuid,
-        SiteSearchProvider $provider,
+        string $provider,
         ?string $companySlug = null,
     ): SiteSearchConnection {
         return SiteSearchConnection::fromPayload(
@@ -461,19 +473,22 @@ final class SiteDomainClient
     /**
      * Page through one dimension of a domain's imported search rows. Null arguments let the server
      * default to the query dimension, every provider, 28 days, offset 0 and 100 rows (limit 1..1000).
+     *
+     * @param SiteSearchDimension::*|null $dimension
+     * @param SiteSearchProvider::*|null $provider
      */
     public function listSearchRows(
         string $domainUuid,
-        ?SiteSearchDimension $dimension = null,
-        ?SiteSearchProvider $provider = null,
+        ?string $dimension = null,
+        ?string $provider = null,
         ?int $days = null,
         ?int $offset = null,
         ?int $limit = null,
         ?string $companySlug = null,
     ): SiteSearchRowPage {
         $query = array_filter([
-            'dimension' => $dimension?->value,
-            'provider' => $provider?->value,
+            'dimension' => $dimension,
+            'provider' => $provider,
             'days' => $days === null ? null : (string) $days,
             'offset' => $offset === null ? null : (string) $offset,
             'limit' => $limit === null ? null : (string) $limit,
@@ -933,9 +948,9 @@ final class SiteDomainClient
         return self::item($domainUuid) . '/indexnow';
     }
 
-    private static function searchConnection(string $domainUuid, SiteSearchProvider $provider): string
+    private static function searchConnection(string $domainUuid, string $provider): string
     {
-        return self::item($domainUuid) . '/search/' . $provider->value;
+        return self::item($domainUuid) . '/search/' . $provider;
     }
 
     /**

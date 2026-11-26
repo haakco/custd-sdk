@@ -9,13 +9,16 @@ use HaakCo\Custd\Fields;
 /** SiteHeartbeatMonitor watches one scheduled job on a domain. latest is null until the job first reports. */
 final readonly class SiteHeartbeatMonitor
 {
+    /**
+     * @param SiteHeartbeatStatus::* $status
+     */
     public function __construct(
         public string $monitorUuid,
         public string $name,
         public SiteHeartbeatSchedule $schedule,
         public string $startedAt,
         public string $nextExpectedAt,
-        public SiteHeartbeatStatus $status,
+        public string $status,
         public ?SiteHeartbeatReceipt $latest = null,
     ) {
     }
@@ -30,7 +33,7 @@ final readonly class SiteHeartbeatMonitor
             SiteHeartbeatSchedule::fromPayload(Fields::object($payload, 'schedule')),
             Fields::string($payload, 'startedAt'),
             Fields::string($payload, 'nextExpectedAt'),
-            SiteHeartbeatStatus::from(Fields::string($payload, 'status')),
+            Fields::string($payload, 'status'),
             $latest === null ? null : SiteHeartbeatReceipt::fromPayload($latest),
         );
     }

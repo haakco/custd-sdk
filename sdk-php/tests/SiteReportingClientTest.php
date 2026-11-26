@@ -7,12 +7,12 @@ namespace HaakCo\Custd\Tests;
 use HaakCo\Custd\Admin\AdminProblemException;
 use HaakCo\Custd\Admin\SiteDomain\SiteLighthouseOutcome;
 use HaakCo\Custd\Admin\SiteDomain\SiteLighthouseProfile;
-use HaakCo\Custd\Admin\SiteDomain\SiteReport;
 use HaakCo\Custd\Admin\SiteDomain\SiteReportShareRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteUptimeStatus;
 use HaakCo\Custd\Admin\SiteDomainClient;
 use HaakCo\Custd\CustdClient;
 use PHPUnit\Framework\TestCase;
+use HaakCo\Custd\Admin\SiteDomain\SiteReportTemplate;
 
 final class SiteReportingClientTest extends TestCase
 {
@@ -24,15 +24,15 @@ final class SiteReportingClientTest extends TestCase
         $report = $this->client($calls)->getReport('domain-1', 'acme');
 
         self::assertSame('example.com', $report->host);
-        self::assertSame(SiteReport::TEMPLATE_FULL, $report->template);
-        self::assertSame(SiteUptimeStatus::Unknown, $report->uptime->status);
+        self::assertSame(SiteReportTemplate::FULL, $report->template);
+        self::assertSame(SiteUptimeStatus::UNKNOWN, $report->uptime->status);
         self::assertNull($report->uptime->responseMs);
         self::assertNull($report->uptime->windows->last24h->upPercent);
         self::assertSame(90.0, $report->uptime->windows->last7d->upPercent);
         self::assertNull($report->uptime->days[0]->upPercent);
         self::assertNull($report->certificate->validTo);
         self::assertFalse($report->certificate->problem);
-        self::assertSame(SiteLighthouseProfile::Desktop, $report->speed[0]->profile);
+        self::assertSame(SiteLighthouseProfile::DESKTOP, $report->speed[0]->profile);
         self::assertSame(83, $report->speed[0]->scores->performance);
         self::assertNull($report->speed[0]->scores->accessibility);
         self::assertSame(0.01, $report->speed[0]->metrics->cumulativeLayoutShift);
@@ -57,7 +57,7 @@ final class SiteReportingClientTest extends TestCase
         self::assertNull($uptime->hours[0]->maxMs);
         self::assertSame('https://example.com/', $lighthouse->url);
         self::assertSame([], $lighthouse->pages);
-        self::assertSame(SiteLighthouseOutcome::Failed, $lighthouse->runs[1]->outcome);
+        self::assertSame(SiteLighthouseOutcome::FAILED, $lighthouse->runs[1]->outcome);
         self::assertSame('timeout', $lighthouse->runs[1]->failure);
         self::assertNull($lighthouse->runs[1]->scores->performance);
         self::assertSame([

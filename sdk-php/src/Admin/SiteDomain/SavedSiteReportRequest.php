@@ -6,7 +6,7 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 
 /**
  * SavedSiteReportRequest builds and stores a report under a name unique to the domain. template is
- * a SiteReport::TEMPLATE_* value (the server defaults to full) and days the search window, 1 to 90
+ * a SiteReportTemplate value (the server defaults to full) and days the search window, 1 to 90
  * (default 28); null leaves either to the server.
  */
 final readonly class SavedSiteReportRequest

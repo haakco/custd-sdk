@@ -31,7 +31,7 @@ final class ProvisioningClientTest extends TestCase
         $this->assertSame("agency", $created->parentCompanySlug);
         $this->assertSame([], $listed->dataSpaces);
         $this->assertSame(5, $listed->entitlement->maxActiveDataSpaces);
-        $this->assertSame(ProducerReservationStatus::Pending, $reservations->reservations[0]->status);
+        $this->assertSame(ProducerReservationStatus::PENDING, $reservations->reservations[0]->status);
         $this->assertSame(["slug" => "agency-store-001", "companyName" => "Agency Store 001"], $calls[0]["body"]);
         $this->assertSame([
             "POST http://localhost:8080/api/v1/data-spaces?parentCompanySlug=agency",

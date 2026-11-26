@@ -8,8 +8,11 @@ use HaakCo\Custd\Fields;
 
 final readonly class SiteReportSpeed
 {
+    /**
+     * @param SiteLighthouseProfile::* $profile
+     */
     public function __construct(
-        public SiteLighthouseProfile $profile,
+        public string $profile,
         public string $observedAt,
         public SiteLighthouseScores $scores,
         public SiteLighthouseMetrics $metrics,
@@ -19,7 +22,7 @@ final readonly class SiteReportSpeed
     public static function fromPayload(\stdClass $payload): self
     {
         return new self(
-            SiteLighthouseProfile::from(Fields::string($payload, 'profile')),
+            Fields::string($payload, 'profile'),
             Fields::string($payload, 'observedAt'),
             SiteLighthouseScores::fromPayload(Fields::object($payload, 'scores')),
             SiteLighthouseMetrics::fromPayload(Fields::object($payload, 'metrics')),

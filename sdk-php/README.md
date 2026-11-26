@@ -256,12 +256,12 @@ as the optional `$companySlug` argument.
 
 Each domain also carries `checks`: its uptime status, last check, certificate
 expiry and warming measurements, and any open outage. `setCheckMode()` takes
-`SiteCheckMode::Uptime` (the default), `SiteCheckMode::Warm` (adds one home page
-GET a minute) or `SiteCheckMode::Paused` (no requests at all; set it when you
+`SiteCheckMode::UPTIME` (the default), `SiteCheckMode::WARM` (adds one home page
+GET a minute) or `SiteCheckMode::PAUSED` (no requests at all; set it when you
 stop a site, so nothing wakes it). `listIncidents()` returns the domain's recent
 outages.
 
-Each finding carries a `remedy`: what the fix changes (`SiteRemedy::KIND_*`),
+Each finding carries a `remedy`: what the fix changes (`SiteRemedyKind`),
 the element, and for some rules `generated` code to copy, and `recheckable`
 when a one-page recheck can confirm the fix. The page tools read
 `getPageFacts()`, queue `requestPageRecheck()` (poll `getPageRecheck()`, or
@@ -332,7 +332,7 @@ Search performance comes from the client's own Google Search Console and Bing
 Webmaster Tools properties. `getSearchAccount()` says which providers this
 deployment can import from and the Google service account email to add as a
 (Restricted) user on the property. `connectSearch($domainUuid,
-SiteSearchProvider::Bing, 'https://www.example.com/', $bingApiKey)` connects a
+SiteSearchProvider::BING, 'https://www.example.com/', $bingApiKey)` connects a
 domain (Google takes no key; the key is never returned), and a provider the
 deployment cannot import from throws `AdminProblemException` with
 `SiteDomainClient::SEARCH_NOT_CONFIGURED_CODE`. `getSearchPerformance($domainUuid,
@@ -385,7 +385,7 @@ totals, Common Crawl authority, referring and lost domains; a count a source did
 not report is `null`, never zero), `getTopicTrends()` and `getContentGap()` and
 keeps its keyword lists (`listKeywordLists()`, `saveKeywordList()`,
 `deleteKeywordList()`, `getKeywordClusters()`); clusters carry Bing keyword
-research in `demand` (`SiteKeywordDemandSet::STATE_*`) and a list its `related`
+research in `demand` (`SiteKeywordDemandState`) and a list its `related`
 keywords, both `null` from an older server. `searchPool()` is tenant-wide:
 `getSearchPool()` reports the `termsVersion` a join must accept, and
 `setSearchPool(true, $setting->termsVersion)` joins (joining without a version
@@ -640,7 +640,7 @@ $creation = $client->adminAuthProjects()->createProject(
         slug: "hosting-eu",
         name: "Hosting EU",
         environmentSlug: "production",
-        identityMode: \HaakCo\Custd\Admin\AuthProjectClient::IDENTITY_ISOLATED,
+        identityMode: \HaakCo\Custd\Admin\AuthProject\AuthProjectIdentityMode::ISOLATED,
     ),
     new \HaakCo\Custd\Admin\AuthProject\RequestOptions(
         owningUserUuid: $owningUserUuid,

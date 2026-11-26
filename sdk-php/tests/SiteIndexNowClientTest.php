@@ -36,10 +36,10 @@ final class SiteIndexNowClientTest extends TestCase
         self::assertSame(3, $verified->urlsToday);
 
         [$queued, $accepted, $failed] = $verified->submissions;
-        self::assertSame(SiteIndexNowSubmissionStatus::Queued, $queued->status);
+        self::assertSame(SiteIndexNowSubmissionStatus::QUEUED, $queued->status);
         self::assertNull($queued->providerStatus);
         self::assertNull($queued->submittedAt);
-        self::assertSame(SiteIndexNowSubmissionStatus::Accepted, $accepted->status);
+        self::assertSame(SiteIndexNowSubmissionStatus::ACCEPTED, $accepted->status);
         self::assertSame(202, $accepted->providerStatus);
         self::assertSame('2026-11-17T07:11:00Z', $accepted->submittedAt);
         self::assertSame('IndexNow could not be reached after 3 attempts', $failed->failure);
@@ -60,7 +60,7 @@ final class SiteIndexNowClientTest extends TestCase
         $urls = $request->urls;
         $submission = $this->client($calls, 'submissionQueued', status: 202)->submitIndexNow('d-1', $urls);
 
-        self::assertSame(SiteIndexNowSubmissionStatus::Queued, $submission->status);
+        self::assertSame(SiteIndexNowSubmissionStatus::QUEUED, $submission->status);
         self::assertSame($urls, $submission->urls);
         self::assertNull($submission->providerStatus);
         self::assertNull($submission->failure);

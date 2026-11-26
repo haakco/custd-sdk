@@ -9,12 +9,12 @@ namespace HaakCo\Custd\Admin\SiteDomain;
  * site is stopped, so whoever stops a site sets its domain to Paused; nothing
  * then requests it until the mode is set back.
  */
-enum SiteCheckMode: string
+final class SiteCheckMode
 {
     /** No requests at all: no uptime, certificate or warming check. */
-    case Paused = 'paused';
+    public const PAUSED = 'paused';
     /** The home page every five minutes and the certificate every six hours (the default). */
-    case Uptime = 'uptime';
+    public const UPTIME = 'uptime';
     /** Uptime, plus one anonymous home page GET every minute. */
-    case Warm = 'warm';
+    public const WARM = 'warm';
 }

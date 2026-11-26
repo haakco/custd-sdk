@@ -58,6 +58,8 @@ use HaakCo\Custd\Admin\AuthProject\SessionsRevokeAllRequest;
 use HaakCo\Custd\Admin\AuthProject\Status;
 use HaakCo\Custd\Admin\AuthProject\Summary;
 use HaakCo\Custd\Admin\AuthProject\AuthProjectDirectoryAction;
+use HaakCo\Custd\Admin\AuthProject\AuthProjectIdentityMode;
+use HaakCo\Custd\Admin\AuthProject\AuthProjectAudienceEntitlementMode;
 
 /**
  * AuthProjectClient manages Custd projects, their environments, and the
@@ -73,27 +75,6 @@ use HaakCo\Custd\Admin\AuthProject\AuthProjectDirectoryAction;
  */
 final class AuthProjectClient
 {
-    public const IDENTITY_ISOLATED = "isolated";
-
-    public const IDENTITY_SHARED = "shared";
-
-    /**
-     * Organisation membership admits any live member of the environment's organisation for every
-     * registered audience: the behaviour every environment had before explicit grants existed.
-     */
-    public const AUDIENCE_ENTITLEMENT_ORGANISATION_MEMBERSHIP = "organisation_membership";
-
-    /** An audience is admitted only when the principal holds a grant for that exact audience. */
-    public const AUDIENCE_ENTITLEMENT_EXPLICIT_GRANTS = "explicit_grants";
-
-    public const DIRECTORY_ENABLE = "enable";
-
-    public const DIRECTORY_PAUSE = "pause";
-
-    public const DIRECTORY_RESUME = "resume";
-
-    public const DIRECTORY_RELEASE = "release";
-
     /**
      * The problem codes the authentication-domain admission and lifecycle routes
      * answer with. Each is stable, so a caller catches {@see AdminProblemException}
@@ -134,20 +115,20 @@ final class AuthProjectClient
     public const AUTH_DOMAIN_UNAVAILABLE_CODE = "auth_domain_unavailable";
 
     /** @var list<string> */
-    private const IDENTITY_MODES = [self::IDENTITY_ISOLATED, self::IDENTITY_SHARED];
+    private const IDENTITY_MODES = [AuthProjectIdentityMode::ISOLATED, AuthProjectIdentityMode::SHARED];
 
     /** @var list<string> */
     private const AUDIENCE_ENTITLEMENT_MODES = [
-        self::AUDIENCE_ENTITLEMENT_ORGANISATION_MEMBERSHIP,
-        self::AUDIENCE_ENTITLEMENT_EXPLICIT_GRANTS,
+        AuthProjectAudienceEntitlementMode::ORGANISATION_MEMBERSHIP,
+        AuthProjectAudienceEntitlementMode::EXPLICIT_GRANTS,
     ];
 
     /** @var list<string> */
     private const DIRECTORY_ACTIONS = [
-        self::DIRECTORY_ENABLE,
-        self::DIRECTORY_PAUSE,
-        self::DIRECTORY_RESUME,
-        self::DIRECTORY_RELEASE,
+        AuthProjectDirectoryAction::ENABLE,
+        AuthProjectDirectoryAction::PAUSE,
+        AuthProjectDirectoryAction::RESUME,
+        AuthProjectDirectoryAction::RELEASE,
     ];
 
     /**
@@ -868,7 +849,7 @@ final class AuthProjectClient
             $directory = $this->actOnDirectory(
                 $projectId,
                 $environmentId,
-                self::DIRECTORY_ENABLE,
+                AuthProjectDirectoryAction::ENABLE,
                 new DirectoryRequest($request->directoryPoolId, $apply->revision),
                 new RequestOptions($owner, $base . self::REALM_DIRECTORY_SUFFIX),
             );
