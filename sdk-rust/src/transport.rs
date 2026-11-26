@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use crate::SDK_IDENTITY;
 
-/// The largest answer read into memory: the Go SDK's limit for binary admin answers, so an
-/// offboarding archive that Go can download, Rust can too.
+/// The largest answer read into memory: the Go SDK's limit for binary admin answers. Streamed
+/// downloads are not held in memory and have no cap.
 const MAX_RESPONSE_BYTES: u64 = 64 << 20;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 /// How long a streamed download may wait for its answer or for each read; the whole body has no
@@ -161,6 +161,8 @@ impl UreqTransport {
         self.agent
             .configure_request(request)
             .timeout_global(None)
+            .timeout_resolve(Some(STREAM_STALL_TIMEOUT))
+            .timeout_connect(Some(STREAM_STALL_TIMEOUT))
             .timeout_recv_response(Some(STREAM_STALL_TIMEOUT))
             .timeout_per_read(Some(STREAM_STALL_TIMEOUT))
             .build()
