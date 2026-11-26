@@ -3,6 +3,7 @@
 // The app is a public client, so no client secret is involved. Pending sign-in
 // state and the token set live in sessionStorage by default. Tokens are never
 // placed in error messages.
+import { openAppAccountSettings } from "./app-account.js";
 export const SIGN_IN_STATUSES = {
     signedOut: "signed_out",
     signingIn: "signing_in",
@@ -34,6 +35,12 @@ export const DEFAULT_SIGN_IN_SCOPES = ["openid", "profile", "offline_access"];
 const STORAGE_PREFIX = "custd:sign-in";
 const EXPIRY_SKEW_MS = 30000;
 const RANDOM_BYTES = 32;
+/**
+ * Hosted settings sends a person back with this query parameter when managing their sign-in methods
+ * needs a fresh sign-in. `restore()` then signs them in and reopens settings on the same page.
+ */
+const ACCOUNT_SIGN_IN_PARAM = "custd_account";
+const ACCOUNT_SIGN_IN_AGAIN = "sign_in_again";
 /** Reads and validates the sign-in endpoints from a discovery document. */
 export function signInConfigFromDiscovery(document, options) {
     const signIn = document.signIn;
@@ -69,12 +76,13 @@ export class BrowserSignIn {
         this.completion = null;
         this.refresh = null;
         validateEndpoints(config);
-        const { storage, fetch: fetchImpl, now, navigate, ...endpoints } = config;
+        const { storage, fetch: fetchImpl, now, navigate, openAccountSettings, ...endpoints } = config;
         this.config = endpoints;
         this.storage = storage ?? defaultStorage();
         this.fetchImpl = fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
         this.now = now ?? Date.now;
         this.navigate = navigate ?? ((url) => window.location.assign(url));
+        this.openAccountSettings = openAccountSettings ?? openAppAccountSettings;
         this.state = this.initialState();
     }
     /** Current state for UI bindings; replaced (never mutated) on each change. */
@@ -97,6 +105,8 @@ export class BrowserSignIn {
             codeVerifier: randomToken(),
             returnTo: safeReturnTo(options.returnTo ?? currentPath()),
         };
+        if (options.openAccountSettings)
+            pending.openAccountSettings = true;
         this.storage.setItem(this.storageKey("pending"), JSON.stringify(pending));
         const url = new URL(this.config.authorizationEndpoint);
         url.searchParams.set("response_type", "code");
@@ -141,10 +151,18 @@ export class BrowserSignIn {
      * redirect URI, otherwise reads the stored session and refreshes it if expired.
      */
     async restore(url = currentHref()) {
+        const settingsReturn = accountSignInReturn(url);
+        if (settingsReturn !== null) {
+            await this.signIn({ returnTo: settingsReturn, openAccountSettings: true });
+            return { state: this.state };
+        }
         if (this.isPendingCallback(url)) {
             this.setState({ status: SIGN_IN_STATUSES.signingIn });
             try {
                 const completion = await this.completeSignIn(url);
+                if (completion.openAccountSettings && (await this.reopenAccountSettings(completion))) {
+                    return { state: this.state };
+                }
                 return { state: this.state, returnTo: completion.returnTo };
             }
             catch (error) {
@@ -222,7 +240,22 @@ export class BrowserSignIn {
             code_verifier: pending.codeVerifier,
         });
         this.saveSession(session);
-        return { session, returnTo: pending.returnTo };
+        return { session, returnTo: pending.returnTo, openAccountSettings: pending.openAccountSettings === true };
+    }
+    /** Opens settings after the sign-in it asked for; a refusal leaves the person on the app page. */
+    async reopenAccountSettings(completion) {
+        try {
+            await this.openAccountSettings({
+                issuer: this.config.issuer,
+                accessToken: completion.session.accessToken,
+                returnPath: completion.returnTo,
+                fetch: this.fetchImpl,
+            });
+            return true;
+        }
+        catch {
+            return false;
+        }
     }
     async exchangeRefreshToken() {
         const refreshToken = this.currentSession()?.refreshToken;
@@ -330,6 +363,14 @@ function base64Url(bytes) {
     for (const byte of bytes)
         binary += String.fromCharCode(byte);
     return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+/** The page to return to when `url` carries the settings sign-in request, otherwise null. */
+function accountSignInReturn(url) {
+    const parsed = new URL(url);
+    if (parsed.searchParams.get(ACCOUNT_SIGN_IN_PARAM) !== ACCOUNT_SIGN_IN_AGAIN)
+        return null;
+    parsed.searchParams.delete(ACCOUNT_SIGN_IN_PARAM);
+    return `${parsed.pathname}${parsed.search}`;
 }
 function safeReturnTo(path) {
     return path.startsWith("/") && !path.startsWith("//") ? path : "/";

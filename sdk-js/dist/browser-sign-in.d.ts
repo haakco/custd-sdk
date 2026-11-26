@@ -1,3 +1,4 @@
+import { type OpenAppAccountSettingsOptions } from "./app-account.js";
 /** Sign-in block of the hosted app discovery file `/.well-known/custd.json`. */
 export type CustdDiscoverySignIn = {
     issuer: string;
@@ -25,6 +26,8 @@ export type BrowserSignInConfig = BrowserSignInEndpoints & {
     fetch?: typeof fetch;
     now?: () => number;
     navigate?: (url: string) => void;
+    /** Opens hosted account settings after a sign-in settings asked for; replace it in tests. */
+    openAccountSettings?: (options: OpenAppAccountSettingsOptions) => Promise<void>;
 };
 export type SignInDiscoveryOptions = {
     redirectUri: string;
@@ -42,6 +45,8 @@ export type SignInSession = {
 export type SignInStartOptions = {
     /** Same-origin path to return to after sign-in. Defaults to the current page. */
     returnTo?: string;
+    /** Reopen hosted account settings, linking back to `returnTo`, once sign-in completes. */
+    openAccountSettings?: boolean;
 };
 export type SignInStart = {
     authorizationUrl: string;
@@ -49,6 +54,7 @@ export type SignInStart = {
 export type SignInCompletion = {
     session: SignInSession;
     returnTo: string;
+    openAccountSettings?: boolean;
 };
 export type SignOutOptions = {
     postLogoutRedirectUri?: string;
@@ -109,6 +115,7 @@ export declare class BrowserSignIn {
     private readonly fetchImpl;
     private readonly now;
     private readonly navigate;
+    private readonly openAccountSettings;
     private readonly listeners;
     private state;
     private completion;
@@ -139,6 +146,8 @@ export declare class BrowserSignIn {
     signOut(options?: SignOutOptions): SignOutResult;
     private initialState;
     private exchangeCallback;
+    /** Opens settings after the sign-in it asked for; a refusal leaves the person on the app page. */
+    private reopenAccountSettings;
     private exchangeRefreshToken;
     private requestTokens;
     private sessionFromTokenResponse;

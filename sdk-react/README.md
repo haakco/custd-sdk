@@ -14,7 +14,7 @@ function or existing `UseQueryResult`. The session helpers wrap a core
 ## Install
 
 ```bash
-pnpm add @haakco/custd-sdk@^3.71.2 @haakco/custd-react@^3.71.2
+pnpm add @haakco/custd-sdk@^3.72.0 @haakco/custd-react@^3.72.0
 ```
 
 Use the same released version for both packages; both are public on npmjs. These examples were verified on
