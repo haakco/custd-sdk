@@ -4,123 +4,94 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Admin\Measurement\MeasurementObservationBulkRequest;
+use HaakCo\Custd\Admin\Measurement\MeasurementObservationBulkResponse;
+use HaakCo\Custd\Admin\Measurement\MeasurementObservationCSVImportRequest;
+use HaakCo\Custd\Admin\Measurement\MeasurementObservationRow;
+use HaakCo\Custd\Admin\Measurement\MeasurementProject;
+use HaakCo\Custd\Admin\Measurement\MeasurementProjectCreateRequest;
+use HaakCo\Custd\Admin\Measurement\MeasurementProjectListResponse;
+
+/**
+ * MeasurementProjectClient creates, lists and reads a tenant's measurement projects and submits their
+ * observations. An observation import must account for every submitted row: a response with fewer results, or a
+ * success without an observation UUID, raises instead of returning a partial receipt. A system administrator names
+ * the tenant with companySlug.
+ */
 final class MeasurementProjectClient
 {
-    /** @var string|callable():string Bearer token, or a provider run per request. */
-    private readonly mixed $token;
+    private readonly ApiHttp $http;
 
-    public function __construct(
-        private readonly string $baseUrl,
-        string|callable $token,
-        private readonly mixed $transport,
-    ) {
-        $this->token = $token;
+    /** @param string|callable():string $token Bearer token, or a provider run per request. */
+    public function __construct(string $baseUrl, string|callable $token, ?callable $transport = null)
+    {
+        $this->http = new ApiHttp($baseUrl, $token, $transport);
     }
 
     /**
-     * @param array<string, mixed> $project
-     * @return array<string, mixed>
+     * Create a measurement project.
      */
-    public function create(array $project): array
+    public function create(MeasurementProjectCreateRequest $request, ?string $companySlug = null): MeasurementProject
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/measurement/projects",
-            $project,
-        ) ?? [];
+        return MeasurementProject::fromPayload($this->http->object('POST', '/api/v1/admin/measurement/projects', ['companySlug' => $companySlug], $request->serialise()));
     }
 
     /**
-     * @return array<string, mixed>
+     * List measurement projects.
      */
-    public function list(): array
+    public function list(?string $companySlug = null): MeasurementProjectListResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/measurement/projects",
-        ) ?? ["projects" => []];
+        return MeasurementProjectListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/measurement/projects', ['companySlug' => $companySlug], null));
     }
 
     /**
-     * @return array<string, mixed>
+     * Get a measurement project.
      */
-    public function get(string $projectUuid): array
+    public function get(string $projectUuid, ?string $companySlug = null): MeasurementProject
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/measurement/projects/" . rawurlencode($projectUuid),
-        ) ?? [];
+        return MeasurementProject::fromPayload($this->http->object('GET', '/api/v1/admin/measurement/projects/' . rawurlencode($projectUuid), ['companySlug' => $companySlug], null));
     }
 
     /**
-     * @param array<string, mixed> $observation
-     * @return array<string, mixed>
+     * Submit one observation.
      */
-    public function submitObservation(string $projectUuid, array $observation): array
+    public function submitObservation(string $projectUuid, MeasurementObservationRow $observation, ?string $companySlug = null): MeasurementObservationBulkResponse
     {
-        return $this->submitObservations($projectUuid, ["rows" => [$observation]]);
+        return $this->submitObservations($projectUuid, new MeasurementObservationBulkRequest([$observation]), $companySlug);
     }
 
     /**
-     * @param array{rows: array<int, array<string, mixed>>} $request
-     * @return array<string, mixed>
+     * Submit observations in bulk; the response carries one result per submitted row.
      */
-    public function submitObservations(string $projectUuid, array $request): array
+    public function submitObservations(string $projectUuid, MeasurementObservationBulkRequest $request, ?string $companySlug = null): MeasurementObservationBulkResponse
     {
-        $response = Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/measurement/projects/" . rawurlencode($projectUuid) . "/observations:bulk",
-            $request,
-        ) ?? [];
-        self::validateResults($response["results"] ?? null, count($request["rows"] ?? []));
+        $response = MeasurementObservationBulkResponse::fromPayload($this->http->object('POST', '/api/v1/admin/measurement/projects/' . rawurlencode($projectUuid) . '/observations:bulk', ['companySlug' => $companySlug], $request->serialise()));
+        self::validateResults($response, count($request->rows));
+
         return $response;
     }
 
     /**
-     * @return array<string, mixed>
+     * Import observations from CSV text; the response must carry one result for each of the expected rows.
      */
-    public function importCSVString(string $projectUuid, string $csv, int $expectedRows): array
+    public function importCSVString(string $projectUuid, string $csv, int $expectedRows, ?string $companySlug = null): MeasurementObservationBulkResponse
     {
-        $response = Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/measurement/projects/" . rawurlencode($projectUuid) . "/observations:csv",
-            ["csv" => $csv],
-        ) ?? [];
-        self::validateResults($response["results"] ?? null, $expectedRows);
+        $response = MeasurementObservationBulkResponse::fromPayload($this->http->object('POST', '/api/v1/admin/measurement/projects/' . rawurlencode($projectUuid) . '/observations:csv', ['companySlug' => $companySlug], (new MeasurementObservationCSVImportRequest($csv))->serialise()));
+        self::validateResults($response, $expectedRows);
+
         return $response;
     }
 
-    /**
-     * @param mixed $results
-     */
-    private static function validateResults(mixed $results, int $submittedRows): void
+    private static function validateResults(MeasurementObservationBulkResponse $response, int $submittedRows): void
     {
-        if (!is_array($results) || count($results) !== $submittedRows) {
-            $count = is_array($results) ? count($results) : 0;
+        $count = count($response->results);
+        if ($count !== $submittedRows) {
             throw new \RuntimeException(
                 "custd: measurement result count {$count} does not match submitted row count {$submittedRows}"
             );
         }
-        foreach ($results as $index => $result) {
-            if (!is_array($result)) {
-                continue;
-            }
-            if (($result["success"] ?? false) === true && ($result["observationUuid"] ?? "") === "") {
+        foreach ($response->results as $index => $result) {
+            if ($result->success && ($result->observationUuid ?? '') === '') {
                 throw new \RuntimeException("custd: measurement result {$index} missing observationUuid");
             }
         }

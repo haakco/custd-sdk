@@ -11,6 +11,7 @@ use HaakCo\Custd\Fields;
  *
  * `companyUuid` is the company this project is persisted against. Null means the project is
  * explicitly unbound; it is never inferred from a slug, an email or the caller's own company.
+ * `audienceEntitlementMode` is `organisation_membership` or `explicit_grants`.
  */
 final readonly class Summary
 {
@@ -22,6 +23,7 @@ final readonly class Summary
         public string $environmentSlug = '',
         public string $identityMode = '',
         public ?string $companyUuid = null,
+        public string $audienceEntitlementMode = '',
     ) {
     }
 
@@ -37,6 +39,7 @@ final readonly class Summary
             Fields::string($object, 'environmentSlug'),
             Fields::string($object, 'identityMode'),
             Fields::optionalString($object, 'companyUuid'),
+            Fields::string($object, 'audienceEntitlementMode'),
         );
     }
 }

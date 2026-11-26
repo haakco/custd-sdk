@@ -15,6 +15,7 @@ use HaakCo\Custd\Fields;
  * the presentation revision. `lifecycle` reports what an operator may act on;
  * `images` reports what the realm runs against what it should run. Each is null
  * when an older Custd does not publish it, so a read never fails on absence.
+ * `dnsProof` is null for a platform-generated hostname, which needs no DNS record.
  */
 final readonly class AuthDomainBinding
 {
@@ -38,7 +39,7 @@ final readonly class AuthDomainBinding
         public string $hostname,
         public string $issuer,
         public string $status,
-        public AuthDomainDnsProof $dnsProof,
+        public ?AuthDomainDnsProof $dnsProof,
         public string $createdAt,
         public ?string $siteDomainId = null,
         public ?string $dnsTarget = null,
@@ -55,13 +56,14 @@ final readonly class AuthDomainBinding
     {
         $object = Fields::jsonObject($payload, "authentication domain binding");
         $images = Fields::optionalObject($object, "images");
+        $dnsProof = Fields::optionalObject($object, "dnsProof");
 
         return new self(
             Fields::string($object, "environmentId"),
             Fields::string($object, "host"),
             Fields::string($object, "issuer"),
             Fields::string($object, "status"),
-            AuthDomainDnsProof::fromPayload(Fields::object($object, "dnsProof")),
+            $dnsProof === null ? null : AuthDomainDnsProof::fromPayload($dnsProof),
             Fields::string($object, "createdAt"),
             Fields::optionalString($object, "siteDomainId"),
             Fields::optionalString($object, "dnsTarget"),

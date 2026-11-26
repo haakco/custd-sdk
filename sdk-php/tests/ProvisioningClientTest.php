@@ -5,99 +5,89 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\CustdClient;
+use HaakCo\Custd\Provisioning\DataSpaceCreateRequest;
+use HaakCo\Custd\Provisioning\ProducerEnvironmentUpdateRequest;
+use HaakCo\Custd\Provisioning\ProducerReservationStatus;
+use HaakCo\Custd\Provisioning\ProvisionProducerRequest;
 use PHPUnit\Framework\TestCase;
 
 final class ProvisioningClientTest extends TestCase
 {
-    public function testDataSpacesUsePublicApi(): void
+    public function testDataSpacesSendTypedRequestsAndNameTheParent(): void
     {
-        $responses = [
-            [
-                "status" => 201,
-                "body" => '{"slug":"agency-store-001","companyName":"Agency Store 001","parentCompanySlug":"agency","enabled":true}',
-            ],
-            [
-                "status" => 200,
-                "body" => '{"dataSpaces":[],"entitlement":{"enabled":true,"activeDataSpaces":0,"maxActiveDataSpaces":5,"maxActiveProducersPerDataSpace":3}}',
-            ],
-            ["status" => 204, "body" => ""],
-        ];
         $calls = [];
-        $client = new CustdClient("http://localhost:8080/", "broker-token", [
-            "admin_http_client" => function (string $method, string $url, ?array $body, string $token) use (&$responses, &$calls): array {
-                $calls[] = compact("method", "url", "body", "token");
-                return array_shift($responses);
-            },
+        $client = self::client($calls, [
+            ["status" => 201, "body" => '{"slug":"agency-store-001","companyName":"Agency Store 001","parentCompanySlug":"agency","enabled":true}'],
+            ["status" => 200, "body" => '{"dataSpaces":null,"entitlement":{"enabled":true,"activeDataSpaces":0,"maxActiveDataSpaces":5,"maxActiveProducersPerDataSpace":3}}'],
+            ["status" => 200, "body" => '{"reservations":[{"producerSlug":"webhook","parentCompanySlug":"agency","childCompanySlug":"agency-store-001","reservedAt":"t","expiresAt":"t","status":"pending","maxTtlSeconds":3600}]}'],
+            ["status" => 204, "body" => ""],
         ]);
 
-        $created = $client->provisioning()->createDataSpace([
-            "slug" => "agency-store-001",
-            "companyName" => "Agency Store 001",
-        ]);
+        $created = $client->provisioning()->createDataSpace(new DataSpaceCreateRequest("agency-store-001", "Agency Store 001"), "agency");
         $listed = $client->provisioning()->listDataSpaces();
-        $client->provisioning()->revokeDataSpace("agency store/001");
+        $reservations = $client->provisioning()->listProducerReservations("agency store/001");
+        $client->provisioning()->revokeDataSpace("agency store/001", "agency");
 
-        $this->assertSame("agency-store-001", $created["slug"]);
-        $this->assertSame(5, $listed["entitlement"]["maxActiveDataSpaces"]);
+        $this->assertSame("agency", $created->parentCompanySlug);
+        $this->assertSame([], $listed->dataSpaces);
+        $this->assertSame(5, $listed->entitlement->maxActiveDataSpaces);
+        $this->assertSame(ProducerReservationStatus::Pending, $reservations->reservations[0]->status);
+        $this->assertSame(["slug" => "agency-store-001", "companyName" => "Agency Store 001"], $calls[0]["body"]);
         $this->assertSame([
-            ["POST", "http://localhost:8080/api/v1/data-spaces"],
-            ["GET", "http://localhost:8080/api/v1/data-spaces"],
-            ["DELETE", "http://localhost:8080/api/v1/data-spaces/agency%20store%2F001"],
-        ], array_map(
-            static fn (array $call): array => [$call["method"], $call["url"]],
-            $calls,
-        ));
+            "POST http://localhost:8080/api/v1/data-spaces?parentCompanySlug=agency",
+            "GET http://localhost:8080/api/v1/data-spaces",
+            "GET http://localhost:8080/api/v1/data-spaces/agency%20store%2F001/producer-reservations",
+            "DELETE http://localhost:8080/api/v1/data-spaces/agency%20store%2F001?parentCompanySlug=agency",
+        ], array_map(static fn (array $call): string => $call["method"] . " " . $call["url"], $calls));
     }
 
     public function testProducerProvisioningKeepsOneTimeSecretExplicit(): void
     {
-        $responses = [
-            [
-                "status" => 201,
-                "body" => '{"clientId":"custd-agency-store-001-webhook","clientSecret":"once","companySlug":"agency-store-001","producerSlug":"webhook","scopes":["events.write"]}',
-            ],
-            [
-                "status" => 200,
-                "body" => '{"producers":[{"clientId":"custd-agency-store-001-webhook","companySlug":"agency-store-001","producerSlug":"webhook","scopes":["events.write"]}]}',
-            ],
-            ["status" => 200, "body" => '{"clientId":"custd-x","clientSecret":"next","scopes":["events.write"]}'],
-            [
-                "status" => 200,
-                "body" => '{"clientId":"custd-agency-store-001-webhook","companySlug":"agency-store-001","producerSlug":"webhook","environment":"staging"}',
-            ],
-            ["status" => 204, "body" => ""],
-        ];
         $calls = [];
-        $client = new CustdClient("http://localhost:8080", "broker-token", [
-            "admin_http_client" => function (string $method, string $url, ?array $body, string $token) use (&$responses, &$calls): array {
-                $calls[] = compact("method", "url", "body", "token");
+        $client = self::client($calls, [
+            ["status" => 201, "body" => '{"baseUrl":"https://custd.test","tokenUrl":"https://auth.test/token","audience":"custd","companySlug":"agency-store-001","producerSlug":"webhook","clientId":"custd-webhook","clientSecret":"once","scopes":["events.write"],"allowedEnvironments":null}'],
+            ["status" => 200, "body" => '{"producers":[{"clientId":"custd-webhook","companySlug":"agency-store-001","producerSlug":"webhook","scopes":["events.write"],"allowedEnvironments":null}]}'],
+            ["status" => 200, "body" => '{"clientId":"custd-webhook","companySlug":"agency-store-001","producerSlug":"webhook","scopes":["events.write"],"allowedEnvironments":["staging"],"environment":"staging"}'],
+            ["status" => 204, "body" => ""],
+        ]);
+
+        $created = $client->provisioning()->provisionProducer(
+            new ProvisionProducerRequest("agency-store-001", "webhook", scopeTemplate: "managed-audit")
+        );
+        $producers = $client->provisioning()->listProducers("agency-store-001");
+        $updated = $client->provisioning()->updateProducerEnvironment("custd/agency store", new ProducerEnvironmentUpdateRequest("staging"));
+        $client->provisioning()->revokeProducer("custd/agency store");
+
+        $this->assertSame("once", $created->clientSecret);
+        $this->assertSame([], $created->allowedEnvironments);
+        $this->assertSame("webhook", $producers->producers[0]->producerSlug);
+        $this->assertSame("staging", $updated->environment);
+        $this->assertSame(
+            ["companySlug" => "agency-store-001", "producerSlug" => "webhook", "scopeTemplate" => "managed-audit"],
+            $calls[0]["body"]
+        );
+        $this->assertSame(["environment" => "staging"], $calls[2]["body"]);
+        $this->assertSame([
+            "POST http://localhost:8080/api/v1/producer-provisioning",
+            "GET http://localhost:8080/api/v1/producer-provisioning?companySlug=agency-store-001",
+            "PATCH http://localhost:8080/api/v1/producer-provisioning/custd%2Fagency%20store/environment",
+            "DELETE http://localhost:8080/api/v1/producer-provisioning/custd%2Fagency%20store",
+        ], array_map(static fn (array $call): string => $call["method"] . " " . $call["url"], $calls));
+    }
+
+    /**
+     * @param list<array<string, mixed>> $calls
+     * @param-out list<array<string, mixed>> $calls
+     * @param list<array{status: int, body: string}> $responses
+     */
+    private static function client(array &$calls, array $responses): CustdClient
+    {
+        return new CustdClient("http://localhost:8080/", "broker-token", [
+            "admin_http_client" => function (string $method, string $url, ?array $body) use (&$responses, &$calls): array {
+                $calls[] = compact("method", "url", "body");
+
                 return array_shift($responses);
             },
         ]);
-
-        $created = $client->provisioning()->provisionProducer([
-            "companySlug" => "agency-store-001",
-            "producerSlug" => "webhook",
-            "scopeTemplate" => "managed-audit",
-        ]);
-        $producers = $client->provisioning()->listProducers("agency-store-001");
-        $rotated = $client->provisioning()->rotateProducerSecret("custd/agency store");
-        $updated = $client->provisioning()->updateProducerEnvironment("custd/agency store", "staging");
-        $client->provisioning()->revokeProducer("custd/agency store");
-
-        $this->assertSame("once", $created["clientSecret"]);
-        $this->assertSame("webhook", $producers[0]["producerSlug"]);
-        $this->assertSame("next", $rotated["clientSecret"]);
-        $this->assertSame("staging", $updated["environment"]);
-        $this->assertSame([
-            ["POST", "http://localhost:8080/api/v1/producer-provisioning"],
-            ["GET", "http://localhost:8080/api/v1/producer-provisioning?companySlug=agency-store-001"],
-            ["POST", "http://localhost:8080/api/v1/producer-provisioning/custd%2Fagency%20store/rotate-secret"],
-            ["PATCH", "http://localhost:8080/api/v1/producer-provisioning/custd%2Fagency%20store/environment"],
-            ["DELETE", "http://localhost:8080/api/v1/producer-provisioning/custd%2Fagency%20store"],
-        ], array_map(
-            static fn (array $call): array => [$call["method"], $call["url"]],
-            $calls,
-        ));
     }
 }

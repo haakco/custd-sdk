@@ -4,413 +4,187 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Admin\Offboarding\CancellationRequest;
+use HaakCo\Custd\Admin\Offboarding\OffboardingCancelRequest;
+use HaakCo\Custd\Admin\Offboarding\OffboardingDownload;
+use HaakCo\Custd\Admin\Offboarding\OffboardingExportResponse;
+use HaakCo\Custd\Admin\Offboarding\OffboardingPreviewResponse;
+use HaakCo\Custd\Admin\Offboarding\OffboardingRequestBody;
+use HaakCo\Custd\Admin\Offboarding\OffboardingRequestResponse;
+use HaakCo\Custd\Admin\Offboarding\OffboardingSchedule;
+use HaakCo\Custd\Admin\Offboarding\OffboardingScheduleListResponse;
+use HaakCo\Custd\Admin\Offboarding\OffboardingScheduleRequest;
+use HaakCo\Custd\Admin\Offboarding\TenantOffboardingReceipt;
+
 /**
- * OffboardingClient owns the offboarding schedule and one-off request
- * surfaces. Schedule writes a delayed offboarding schedule. The request body
- * must include tenantSlug; the server validates it against the authenticated
- * client context before applying the tenant scope.
- *
- * @phpstan-type OffboardingRequestCreate array{confirmation: string}
- * @phpstan-type OffboardingCancelRequest array{reason: string}
- * @phpstan-type OffboardingWaiver array{role: string, reason: string, timestamp?: string}
- * @phpstan-type OffboardingDownloadResponse array{
- *     bytes: string,
- *     checksumSha256: string,
- *     byteSize: int,
- * }
+ * OffboardingClient owns a tenant's offboarding: the delayed schedule, and the one-off request
+ * through preview, export, download, acknowledgement and the destructive execute, with its receipt.
+ * A schedule body names tenantSlug, which the server checks against the authenticated client.
  */
 final class OffboardingClient
 {
     private const MAX_DOWNLOAD_BYTES = 64 * 1024 * 1024;
 
-    /** @var string|callable():string Bearer token, or a provider run per request. */
+    private readonly ApiHttp $http;
+
+    /** @var string|callable():string */
     private readonly mixed $token;
 
+    /** @param string|callable():string $token Bearer token, or a provider run per request. */
     public function __construct(
         private readonly string $baseUrl,
         string|callable $token,
-        private readonly mixed $transport,
+        private readonly mixed $transport = null,
     ) {
         $this->token = $token;
+        $this->http = new ApiHttp($baseUrl, $token, is_callable($transport) ? $transport : null);
     }
 
-    /**
-     * Schedule writes a delayed offboarding schedule for the effective tenant.
-     * The request body must include tenantSlug and the server validates it
-     * against the authenticated tenant. The collection endpoint is POST
-     * /offboarding/schedules.
-     *
-     * @param array<string, mixed> $request
-     * @return array<string, mixed>
-     */
-    public function schedule(array $request): array
-    {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/offboarding/schedules",
-            $request
-        ) ?? [];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function listSchedules(): array
-    {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/offboarding/schedules"
-        ) ?? ["schedules" => []];
-    }
-
-    /**
-     * GetSchedule reads the delayed offboarding schedule for a single tenant.
-     * It targets the per-tenant route GET /offboarding/schedules/{tenantSlug},
-     * which is distinct from the global listSchedules collection read.
-     *
-     * @return array<string, mixed>
-     */
-    public function getSchedule(string $tenantSlug): array
-    {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/offboarding/schedules/" . rawurlencode($tenantSlug)
-        ) ?? [];
-    }
-
-    /**
-     * @param array<string, mixed> $request
-     * @return array<string, mixed>
-     */
-    public function cancelSchedule(string $tenantSlug, array $request): array
-    {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/offboarding/schedules/" . rawurlencode($tenantSlug) . "/cancel",
-            $request
-        ) ?? [];
-    }
-
-    /**
-     * RequestOffboarding submits a one-off offboarding request for the effective
-     * tenant via POST /offboarding. The confirmation field must match the tenant
-     * slug the server reads from the auth context; mismatches fail with 400.
-     * The optional idempotency key is sent as the Idempotency-Key header, not
-     * included in the strict request body.
-     *
-     * @param OffboardingRequestCreate $request
-     * @param string|array{idempotencyKey?: string, idempotency_key?: string}|null $options
-     * @return array<string, mixed>
-     */
-    public function requestOffboarding(array $request, string|array|null $options = null): array
-    {
-        $idempotencyKey = self::idempotencyKey($options);
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/offboarding",
-            $request,
-            idempotencyKey: $idempotencyKey,
-        ) ?? [];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function getRequest(string $requestUuid): array
-    {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/offboarding/" . rawurlencode($requestUuid)
-        ) ?? [];
-    }
-
-    /**
-     * @param OffboardingCancelRequest $request
-     * @return array<string, mixed>
-     */
-    public function cancelRequest(string $requestUuid, array $request): array
-    {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/offboarding/" . rawurlencode($requestUuid) . "/cancel",
-            $request,
-        ) ?? [];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function confirmRequest(string $requestUuid): array
-    {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/offboarding/" . rawurlencode($requestUuid) . "/confirm"
-        ) ?? [];
-    }
-
-    /**
-     * Preview asks the server to compute the per-store inventory estimate for
-     * the offboarding request. The result is server-issued and must be
-     * surfaced without re-deriving estimatedCount. Durable snake_case fields
-     * in each store row are normalized to the SDK's camelCase array shape.
-     *
-     * @return array<string, mixed>
-     */
-    public function preview(string $requestUuid): array
-    {
-        $response = Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/offboarding/requests/" . rawurlencode($requestUuid) . "/preview"
-        ) ?? [];
-        return self::mapPreview($response);
-    }
-
-    /**
-     * Export triggers the destructive export packaging for a request. The
-     * response is the per-request artifact metadata; the download URL is
-     * fetched separately via download.
-     *
-     * @return array<string, mixed>
-     */
-    public function export(string $requestUuid): array
-    {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/offboarding/requests/" . rawurlencode($requestUuid) . "/export"
-        ) ?? [];
-    }
-
-    /**
-     * Download returns authenticated bytes with verified checksum and length.
-     *
-     * @return OffboardingDownloadResponse
-     */
-    public function download(string $requestUuid): array
+    /** Download the export: authenticated bytes whose length and SHA-256 checksum are verified. */
+    public function download(string $requestUuid): OffboardingDownload
     {
         $response = Http::binaryRequest(
             $this->baseUrl,
             $this->token,
-            $this->transport,
-            "GET",
-            "/offboarding/requests/" . rawurlencode($requestUuid) . "/download"
+            is_callable($this->transport) ? $this->transport : null,
+            'GET',
+            '/offboarding/requests/' . rawurlencode($requestUuid) . '/download',
         );
-        $body = $response["body"];
-        if (strlen($body) > self::MAX_DOWNLOAD_BYTES) {
-            throw new \RuntimeException("custd: offboarding download exceeds 64 MiB");
-        }
-        $lengthHeader = trim($response["headers"]["content-length"] ?? "");
+        $body = $response['body'];
+        $lengthHeader = trim($response['headers']['content-length'] ?? '');
         if (preg_match('/^[0-9]+$/', $lengthHeader) !== 1) {
-            throw new \RuntimeException("custd: offboarding download content length is invalid");
+            throw new \RuntimeException('custd: offboarding download content length is invalid');
         }
         $byteSize = (int) $lengthHeader;
-        if ($byteSize > self::MAX_DOWNLOAD_BYTES) {
-            throw new \RuntimeException("custd: offboarding download exceeds 64 MiB");
+        if ($byteSize > self::MAX_DOWNLOAD_BYTES || strlen($body) > self::MAX_DOWNLOAD_BYTES) {
+            throw new \RuntimeException('custd: offboarding download exceeds 64 MiB');
         }
         if ($byteSize !== strlen($body)) {
-            throw new \RuntimeException("custd: offboarding download content length mismatch");
+            throw new \RuntimeException('custd: offboarding download content length mismatch');
         }
-        $checksum = strtolower(trim($response["headers"]["x-checksum-sha256"] ?? ""));
+        $checksum = strtolower(trim($response['headers']['x-checksum-sha256'] ?? ''));
         if (preg_match('/^[a-f0-9]{64}$/', $checksum) !== 1) {
-            throw new \RuntimeException("custd: offboarding download checksum header is invalid");
+            throw new \RuntimeException('custd: offboarding download checksum header is invalid');
         }
-        if (!hash_equals($checksum, hash("sha256", $body))) {
-            throw new \RuntimeException("custd: offboarding download checksum mismatch");
+        if (!hash_equals($checksum, hash('sha256', $body))) {
+            throw new \RuntimeException('custd: offboarding download checksum mismatch');
         }
-        return ["bytes" => $body, "checksumSha256" => $checksum, "byteSize" => $byteSize];
+
+        return new OffboardingDownload($body, $checksum, $byteSize);
     }
 
     /**
-     * Acknowledge records that the export was downloaded successfully and its
-     * inventory was confirmed. It must not be called merely after preview.
-     *
-     * @return array<string, mixed>
+     * Run the destructive phase. It sends no body: waiver metadata comes only from the separately
+     * approved server-side request, and the server refuses any a caller asserts.
      */
-    public function acknowledge(string $requestUuid): array
+    public function execute(string $requestUuid): TenantOffboardingReceipt
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/offboarding/requests/" . rawurlencode($requestUuid) . "/acknowledge"
-        ) ?? [];
+        return TenantOffboardingReceipt::fromPayload(
+            $this->http->object('POST', '/api/v1/admin/offboarding/requests/' . rawurlencode($requestUuid) . '/execute'),
+        );
     }
 
     /**
-     * Execute triggers the destructive phase. Authorization and approval are
-     * server-owned; callers cannot submit waiver metadata.
-     *
-     * @return array<string, mixed>
+     * Schedule a delayed offboarding.
      */
-    public function execute(string $requestUuid): array
+    public function schedule(OffboardingScheduleRequest $request): OffboardingSchedule
     {
-        $response = Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/offboarding/requests/" . rawurlencode($requestUuid) . "/execute"
-        ) ?? [];
-        return self::mapReceipt($response);
+        return OffboardingSchedule::fromPayload($this->http->object('POST', '/api/v1/admin/offboarding/schedules', [], $request->serialise()));
     }
 
     /**
-     * Retry re-arms an offboarding request that previously failed. The server
-     * decides whether the request is retryable; the SDK does not pre-filter.
-     *
-     * @return array<string, mixed>
+     * List all offboarding schedules.
      */
-    public function retry(string $requestUuid): array
+    public function listSchedules(): OffboardingScheduleListResponse
     {
-        $response = Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/offboarding/requests/" . rawurlencode($requestUuid) . "/retry"
-        ) ?? [];
-        return self::mapReceipt($response);
+        return OffboardingScheduleListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/offboarding/schedules', [], null));
     }
 
     /**
-     * Receipt returns the terminal offboarding receipt for a request. The
-     * sha256 is an unkeyed integrity checksum the client must retain alongside
-     * its offboarding record; it is not an authenticity signature.
-     *
-     * @return array<string, mixed>
+     * Get a tenant's offboarding schedule.
      */
-    public function receipt(string $requestUuid): array
+    public function getSchedule(string $tenantSlug): OffboardingSchedule
     {
-        $response = Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/offboarding/requests/" . rawurlencode($requestUuid) . "/receipt"
-        ) ?? [];
-        return self::mapReceipt($response);
+        return OffboardingSchedule::fromPayload($this->http->object('GET', '/api/v1/admin/offboarding/schedules/' . rawurlencode($tenantSlug), [], null));
     }
 
     /**
-     * @param string|array{idempotencyKey?: string, idempotency_key?: string}|null $options
+     * Cancel a scheduled offboarding.
      */
-    private static function idempotencyKey(string|array|null $options): ?string
+    public function cancelSchedule(string $tenantSlug, OffboardingCancelRequest $request): OffboardingSchedule
     {
-        if (is_string($options)) {
-            return trim($options) === "" ? null : trim($options);
-        }
-        if (!is_array($options)) {
-            return null;
-        }
-        $key = $options["idempotencyKey"] ?? $options["idempotency_key"] ?? null;
-        return is_string($key) && trim($key) !== "" ? trim($key) : null;
+        return OffboardingSchedule::fromPayload($this->http->object('POST', '/api/v1/admin/offboarding/schedules/' . rawurlencode($tenantSlug) . '/cancel', [], $request->serialise()));
     }
 
     /**
-     * @param array<string, mixed> $response
-     * @return array<string, mixed>
+     * Request tenant offboarding.
      */
-    private static function mapPreview(array $response): array
+    public function requestOffboarding(OffboardingRequestBody $request, ?string $idempotencyKey = null): OffboardingRequestResponse
     {
-        $stores = $response["stores"] ?? null;
-        if (!is_array($stores)) {
-            return $response;
-        }
-
-        $mappedStores = [];
-        foreach ($stores as $store) {
-            if (!is_array($store)) {
-                $mappedStores[] = $store;
-                continue;
-            }
-            $mapped = $store;
-            self::rename($mapped, "retention_class", "retentionClass");
-            self::rename($mapped, "estimated_count", "estimatedCount");
-            self::rename($mapped, "source_authority", "sourceAuthority");
-            $mappedStores[] = $mapped;
-        }
-        $response["stores"] = $mappedStores;
-        return $response;
+        return OffboardingRequestResponse::fromPayload($this->http->object('POST', '/api/v1/admin/offboarding', [], $request->serialise(), $idempotencyKey));
     }
 
     /**
-     * @param array<string, mixed> $response
-     * @return array<string, mixed>
+     * Get tenant offboarding request.
      */
-    private static function mapReceipt(array $response): array
+    public function getRequest(string $requestUuid): OffboardingRequestResponse
     {
-        $fields = [
-            "company_id" => "companyId",
-            "requested_by_user_id" => "requestedByUserId",
-            "requested_by_actor" => "requestedByActor",
-            "requested_at" => "requestedAt",
-            "completed_at" => "completedAt",
-            "final_state" => "finalState",
-        ];
-        foreach ($fields as $wire => $sdk) {
-            self::rename($response, $wire, $sdk);
-        }
-
-        $rows = $response["per_store"] ?? null;
-        if (!is_array($rows)) {
-            return $response;
-        }
-        $mappedRows = [];
-        foreach ($rows as $row) {
-            if (!is_array($row)) {
-                $mappedRows[] = $row;
-                continue;
-            }
-            $mapped = $row;
-            self::rename($mapped, "retention_class", "retentionClass");
-            self::rename($mapped, "deleted_count", "deletedCount");
-            self::rename($mapped, "retained_exceptions_count", "retainedExceptionsCount");
-            $mappedRows[] = $mapped;
-        }
-        $response["perStore"] = $mappedRows;
-        unset($response["per_store"]);
-        return $response;
+        return OffboardingRequestResponse::fromPayload($this->http->object('GET', '/api/v1/admin/offboarding/' . rawurlencode($requestUuid), [], null));
     }
 
     /**
-     * @param array<string, mixed> $values
+     * Cancel tenant offboarding request.
      */
-    private static function rename(array &$values, string $from, string $to): void
+    public function cancelRequest(string $requestUuid, CancellationRequest $request): OffboardingRequestResponse
     {
-        if (!array_key_exists($from, $values)) {
-            return;
-        }
-        $values[$to] = $values[$from];
-        unset($values[$from]);
+        return OffboardingRequestResponse::fromPayload($this->http->object('POST', '/api/v1/admin/offboarding/' . rawurlencode($requestUuid) . '/cancel', [], $request->serialise()));
+    }
+
+    /**
+     * Confirm tenant offboarding request.
+     */
+    public function confirmRequest(string $requestUuid): OffboardingRequestResponse
+    {
+        return OffboardingRequestResponse::fromPayload($this->http->object('POST', '/api/v1/admin/offboarding/' . rawurlencode($requestUuid) . '/confirm', [], null));
+    }
+
+    /**
+     * Preview tenant offboarding inventory.
+     */
+    public function preview(string $requestUuid): OffboardingPreviewResponse
+    {
+        return OffboardingPreviewResponse::fromPayload($this->http->object('POST', '/api/v1/admin/offboarding/requests/' . rawurlencode($requestUuid) . '/preview', [], null));
+    }
+
+    /**
+     * Build the tenant offboarding export.
+     */
+    public function export(string $requestUuid): OffboardingExportResponse
+    {
+        return OffboardingExportResponse::fromPayload($this->http->object('POST', '/api/v1/admin/offboarding/requests/' . rawurlencode($requestUuid) . '/export', [], null));
+    }
+
+    /**
+     * Acknowledge the saved offboarding export.
+     */
+    public function acknowledge(string $requestUuid): OffboardingRequestResponse
+    {
+        return OffboardingRequestResponse::fromPayload($this->http->object('POST', '/api/v1/admin/offboarding/requests/' . rawurlencode($requestUuid) . '/acknowledge', [], null));
+    }
+
+    /**
+     * Retry destructive tenant offboarding.
+     */
+    public function retry(string $requestUuid): TenantOffboardingReceipt
+    {
+        return TenantOffboardingReceipt::fromPayload($this->http->object('POST', '/api/v1/admin/offboarding/requests/' . rawurlencode($requestUuid) . '/retry', [], null));
+    }
+
+    /**
+     * Get the destructive offboarding receipt.
+     */
+    public function receipt(string $requestUuid): TenantOffboardingReceipt
+    {
+        return TenantOffboardingReceipt::fromPayload($this->http->object('GET', '/api/v1/admin/offboarding/requests/' . rawurlencode($requestUuid) . '/receipt', [], null));
     }
 }

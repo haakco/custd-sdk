@@ -4,110 +4,78 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Admin\SubjectExport\SubjectExportArtifactResponse;
+use HaakCo\Custd\Admin\SubjectExport\SubjectExportCreateRequest;
+use HaakCo\Custd\Admin\SubjectExport\SubjectExportListResponse;
+use HaakCo\Custd\Admin\SubjectExport\SubjectExportResponse;
+
 /**
- * SubjectExportClient owns per-tenant subject export requests. The download
- * surface returns a short-lived signed URL the SDK must surface only to the
- * caller; it must not be logged or echoed into error messages.
+ * SubjectExportClient queues, reads, cancels and downloads a tenant's subject exports. A download returns the
+ * stored artifact's object key and integrity metadata, which are tenant data: never log them or echo them into an
+ * error message. A system administrator names the tenant with companySlug.
  */
 final class SubjectExportClient
 {
-    /** @var string|callable():string Bearer token, or a provider run per request. */
-    private readonly mixed $token;
+    /** A request may ask for one artifact scope or both; a download reads one artifact. */
+    public const SCOPE_ACCESS = 'access';
+    public const SCOPE_PORTABILITY = 'portability';
+    public const SCOPE_BOTH = 'both';
 
-    public function __construct(
-        private readonly string $baseUrl,
-        string|callable $token,
-        private readonly mixed $transport,
-    ) {
-        $this->token = $token;
+    private readonly ApiHttp $http;
+
+    /** @param string|callable():string $token Bearer token, or a provider run per request. */
+    public function __construct(string $baseUrl, string|callable $token, ?callable $transport = null)
+    {
+        $this->http = new ApiHttp($baseUrl, $token, $transport);
     }
 
     /**
-     * @param array<string, mixed> $request
-     * @return array<string, mixed>
+     * Queue a subject export.
      */
-    public function create(array $request): array
+    public function create(SubjectExportCreateRequest $request, ?string $companySlug = null): SubjectExportResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/subject-exports",
-            $request
-        ) ?? [];
+        return SubjectExportResponse::fromPayload($this->http->object('POST', '/api/v1/admin/subject-exports', ['companySlug' => $companySlug], $request->serialise()));
     }
 
     /**
-     * @return array<string, mixed>
+     * List the tenant's subject exports, newest first. A null limit uses the server default; the server accepts 1
+     * to 1000.
      */
-    public function list(): array
+    public function list(?int $limit = null, ?string $companySlug = null): SubjectExportListResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/subject-exports"
-        ) ?? ["exports" => []];
+        return SubjectExportListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/subject-exports', ['limit' => $limit, 'companySlug' => $companySlug], null));
     }
 
     /**
-     * @return array<string, mixed>
+     * Get subject export status.
      */
-    public function get(string $requestId): array
+    public function get(string $requestId, ?string $companySlug = null): SubjectExportResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/subject-exports/" . rawurlencode($requestId)
-        ) ?? [];
+        return SubjectExportResponse::fromPayload($this->http->object('GET', '/api/v1/admin/subject-exports/' . rawurlencode($requestId), ['companySlug' => $companySlug], null));
     }
 
     /**
-     * @return array<string, mixed>
+     * Cancel a subject export.
      */
-    public function cancel(string $requestId): array
+    public function cancel(string $requestId, ?string $companySlug = null): SubjectExportResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/subject-exports/" . rawurlencode($requestId) . "/cancel"
-        ) ?? [];
+        return SubjectExportResponse::fromPayload($this->http->object('POST', '/api/v1/admin/subject-exports/' . rawurlencode($requestId) . '/cancel', ['companySlug' => $companySlug], null));
     }
 
     /**
-     * Download returns a short-lived signed URL. The downloadUrl field is
-     * sensitive; callers must not log the URL or echo it into error messages.
-     *
-     * @return array<string, mixed>
+     * Download one artifact of a completed subject export. The scope is SCOPE_ACCESS or SCOPE_PORTABILITY; an
+     * export past its expiry answers 410 Gone.
      */
-    public function download(string $requestId): array
+    public function download(string $requestId, string $scope, ?string $companySlug = null): SubjectExportArtifactResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/subject-exports/" . rawurlencode($requestId) . "/download"
-        ) ?? [];
+        return SubjectExportArtifactResponse::fromPayload($this->http->object('GET', '/api/v1/admin/subject-exports/' . rawurlencode($requestId) . '/download', ['scope' => $scope, 'companySlug' => $companySlug], null));
     }
 
     /**
-     * @return array<string, mixed>
+     * Force a queued subject export.
      */
-    public function force(string $requestId): array
+    public function force(string $requestId, string $companySlug): SubjectExportResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/subject-exports/" . rawurlencode($requestId) . "/force"
-        ) ?? [];
+        return SubjectExportResponse::fromPayload($this->http->object('POST', '/api/v1/admin/subject-exports/' . rawurlencode($requestId) . '/force', ['companySlug' => $companySlug], null));
     }
 }

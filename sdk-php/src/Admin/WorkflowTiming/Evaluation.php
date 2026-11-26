@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin\WorkflowTiming;
 
-use HaakCo\Custd\Admin\TimePlan\Payload;
+use HaakCo\Custd\Admin\Prediction\DurationForecastEvaluationArtifact;
+use HaakCo\Custd\Fields;
 
 /**
  * Evaluation is the chronological rolling-origin evaluation of one workflow's
@@ -25,7 +26,7 @@ final readonly class Evaluation
         public int $baselineMs = 0,
         public OutcomeCounts $outcomes = new OutcomeCounts(),
         public string $predictionVersionUuid = '',
-        public ?EvaluationArtifact $artifact = null,
+        public ?DurationForecastEvaluationArtifact $artifact = null,
     ) {
     }
 
@@ -35,21 +36,25 @@ final readonly class Evaluation
         return $this->artifact !== null;
     }
 
-    /** @param array<string, mixed> $payload */
-    public static function fromPayload(array $payload): self
+    /**
+     * fromPayload reads the shape-preserving decode, so an empty interval `{}` in the artifact stays
+     * an object for the shared prediction DTO. The outcome tally is flat integers.
+     */
+    public static function fromPayload(mixed $payload): self
     {
-        $artifact = Payload::optionalObject($payload, 'artifact');
+        $object = Fields::jsonObject($payload, 'workflow timing evaluation');
+        $artifact = Fields::optionalObject($object, 'artifact');
 
         return new self(
-            Payload::string($payload, 'workflowKey'),
-            Payload::string($payload, 'workflowUuid'),
-            Payload::string($payload, 'seriesKey'),
-            Payload::string($payload, 'state'),
-            Payload::string($payload, 'nextAction'),
-            Payload::integer($payload, 'baselineMs'),
-            OutcomeCounts::fromPayload(Payload::object($payload, 'outcomes')),
-            Payload::optionalString($payload, 'predictionVersionUuid') ?? '',
-            $artifact === null ? null : EvaluationArtifact::fromPayload($artifact),
+            Fields::string($object, 'workflowKey'),
+            Fields::string($object, 'workflowUuid'),
+            Fields::string($object, 'seriesKey'),
+            Fields::string($object, 'state'),
+            Fields::string($object, 'nextAction'),
+            Fields::integer($object, 'baselineMs'),
+            OutcomeCounts::fromPayload(get_object_vars(Fields::object($object, 'outcomes'))),
+            Fields::optionalString($object, 'predictionVersionUuid') ?? '',
+            $artifact === null ? null : DurationForecastEvaluationArtifact::fromPayload($artifact),
         );
     }
 }

@@ -4,6 +4,16 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Admin\OAuth\OAuthClientCreateRequest;
+use HaakCo\Custd\Admin\OAuth\OAuthClientCreateResponse;
+use HaakCo\Custd\Admin\OAuth\OAuthClientListResponse;
+use HaakCo\Custd\Admin\OAuth\OAuthClientRecord;
+use HaakCo\Custd\Admin\OAuth\OAuthClientSecretResponse;
+use HaakCo\Custd\Admin\OAuth\OAuthClientUpdateScopesRequest;
+
+/**
+ * OAuthClient creates, lists, rotates and retires the tenant's OAuth clients and changes their scopes.
+ */
 final class OAuthClient
 {
     /**
@@ -12,71 +22,67 @@ final class OAuthClient
      */
     public const PURPOSE_SITE_INSIGHTS = 'site_insights';
 
-    /** @var string|callable():string Bearer token, or a provider run per request. */
-    private readonly mixed $token;
+    private readonly ApiHttp $http;
 
-    public function __construct(
-        private readonly string $baseUrl,
-        string|callable $token,
-        private readonly mixed $transport,
-    ) {
-        $this->token = $token;
+    /** @param string|callable():string $token Bearer token, or a provider run per request. */
+    public function __construct(string $baseUrl, string|callable $token, ?callable $transport = null)
+    {
+        $this->http = new ApiHttp($baseUrl, $token, $transport);
     }
 
     /**
-     * @param array<string, mixed> $client
-     * @return array<string, mixed>
+     * Create an OAuth client.
      */
-    public function create(array $client): array
+    public function create(OAuthClientCreateRequest $request, string $idempotencyKey): OAuthClientCreateResponse
     {
-        return Http::request($this->baseUrl, $this->token, $this->transport, "POST", "/oauth-clients", $client) ?? [];
+        return OAuthClientCreateResponse::fromPayload($this->http->object('POST', '/api/v1/admin/oauth-clients', [], $request->serialise(), $idempotencyKey));
     }
 
     /**
-     * @return array<string, mixed>
+     * List visible OAuth clients.
      */
-    public function list(): array
+    public function list(): OAuthClientListResponse
     {
-        return Http::request($this->baseUrl, $this->token, $this->transport, "GET", "/oauth-clients")
-            ?? ["clients" => []];
+        return OAuthClientListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/oauth-clients', [], null));
     }
 
     /**
-     * @return array<string, mixed>
+     * Get an OAuth client.
      */
-    public function get(string $clientId): array
+    public function get(string $clientId): OAuthClientRecord
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/oauth-clients/" . rawurlencode($clientId)
-        ) ?? [];
+        return OAuthClientRecord::fromPayload($this->http->object('GET', '/api/v1/admin/oauth-clients/' . rawurlencode($clientId), [], null));
     }
 
+    /**
+     * Delete an OAuth client.
+     */
     public function delete(string $clientId): void
     {
-        Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "DELETE",
-            "/oauth-clients/" . rawurlencode($clientId)
-        );
+        $this->http->none('DELETE', '/api/v1/admin/oauth-clients/' . rawurlencode($clientId), [], null);
     }
 
     /**
-     * @return array<string, mixed>
+     * Rotate an OAuth client secret.
      */
-    public function rotateSecret(string $clientId): array
+    public function rotateSecret(string $clientId, string $idempotencyKey): OAuthClientSecretResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/oauth-clients/" . rawurlencode($clientId) . "/rotate-secret"
-        ) ?? [];
+        return OAuthClientSecretResponse::fromPayload($this->http->object('POST', '/api/v1/admin/oauth-clients/' . rawurlencode($clientId) . '/rotate-secret', [], null, $idempotencyKey));
+    }
+
+    /**
+     * Update OAuth client scopes.
+     */
+    public function updateScopes(string $clientId, OAuthClientUpdateScopesRequest $request): OAuthClientRecord
+    {
+        return OAuthClientRecord::fromPayload($this->http->object('PATCH', '/api/v1/admin/oauth-clients/' . rawurlencode($clientId) . '/scopes', [], $request->serialise()));
+    }
+
+    /**
+     * Replace an OAuth client secret after unknown delivery.
+     */
+    public function replaceUnknownSecret(string $clientId, string $idempotencyKey): OAuthClientSecretResponse
+    {
+        return OAuthClientSecretResponse::fromPayload($this->http->object('POST', '/api/v1/admin/oauth-clients/' . rawurlencode($clientId) . '/replace-unknown-secret', [], null, $idempotencyKey));
     }
 }

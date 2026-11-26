@@ -20,7 +20,7 @@ final class EnvironmentDeclarationTest extends TestCase
         $options = [
             "http_client" => function (string $url, array $payload, string $token) use (&$sent): array {
                 $sent[] = $payload;
-                return ["status" => 202, "body" => '{"success":true}'];
+                return ["status" => 202, "body" => json_encode(["success" => true, "eventUuid" => $payload["eventUuid"]], JSON_THROW_ON_ERROR)];
             },
         ];
         if ($environment !== "") {

@@ -34,26 +34,4 @@ final readonly class RenderedWidgetBucket
             $secondary === null ? null : RenderedMetricValue::fromPayload($secondary),
         );
     }
-
-    /** @return array<string, mixed> */
-    public function serialise(): array
-    {
-        $payload = [
-            'date' => $this->date,
-            'value' => $this->value->serialise(),
-            'source' => $this->source,
-            'queryDurationMs' => $this->queryDurationMs,
-        ];
-        if ($this->parquetUriCount !== null) {
-            $payload['parquetUriCount'] = $this->parquetUriCount;
-        }
-        if ($this->message !== null) {
-            $payload['message'] = $this->message;
-        }
-        if ($this->secondary !== null) {
-            $payload['secondary'] = $this->secondary->serialise();
-        }
-
-        return $payload;
-    }
 }

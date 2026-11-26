@@ -53,7 +53,7 @@ final class DurationEvaluationTest extends TestCase
         $this->assertSame("version-1", $response->versionEvidence->selected->uuid);
         $this->assertSame("version-1", $response->versionEvidence->activeVersionUuid);
         $this->assertSame(3, $response->versionEvidence->selected->versionNumber);
-        $this->assertSame("duration-forecast-evaluation.v1", $response->artifact["schema_version"]);
+        $this->assertSame("duration-forecast-evaluation.v1", $response->artifact->schemaVersion);
     }
 
     public function testDurationEvaluationSendsAnExplicitVersionWhenSelected(): void
@@ -89,30 +89,21 @@ final class DurationEvaluationTest extends TestCase
         ]);
     }
 
+    /** artifactBody is the server-shaped evaluation example with the version evidence this test asserts. */
     private function artifactBody(): string
     {
-        return json_encode([
-            "definitionUuid" => "definition-1",
-            "planUuid" => "plan-1",
-            "semanticKey" => "build_step",
-            "artifact" => [
-                "schema_version" => "duration-forecast-evaluation.v1",
-                "source" => "measurement.duration_forecast_evaluation",
-                "prediction_version_uuid" => "version-1",
-                "evaluation" => ["folds" => []],
-                "content_sha256" => str_repeat("a", 64),
-            ],
-            "outcomes" => ["eligible" => 5, "skipped" => 0, "cancelled" => 0, "notRun" => 0, "censored" => 1],
-            "versionEvidence" => [
-                "selected" => [
-                    "uuid" => "version-1",
-                    "versionNumber" => 3,
-                    "status" => "active",
-                    "createdAt" => "2026-09-01T00:00:00Z",
-                ],
-                "activeVersionUuid" => "version-1",
-                "history" => ["items" => []],
-            ],
-        ], JSON_THROW_ON_ERROR);
+        $example = json_decode((string) file_get_contents(__DIR__ . "/../../../contract-fixtures/api/examples/evaluateDurationHistory.json"), false, 512, JSON_THROW_ON_ERROR);
+        $body = $example->maximal;
+        $body->definitionUuid = "definition-1";
+        $body->planUuid = "plan-1";
+        $body->semanticKey = "build_step";
+        $body->outcomes->eligible = 5;
+        $body->outcomes->censored = 1;
+        $body->artifact->schema_version = "duration-forecast-evaluation.v1";
+        $body->versionEvidence->selected->uuid = "version-1";
+        $body->versionEvidence->selected->versionNumber = 3;
+        $body->versionEvidence->activeVersionUuid = "version-1";
+
+        return json_encode($body, JSON_THROW_ON_ERROR);
     }
 }

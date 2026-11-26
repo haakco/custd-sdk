@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Tests;
 
+use HaakCo\Custd\Analytics\AnalyticsEventsQueryRequest;
 use HaakCo\Custd\Analytics\RangeQueryRequest;
 use HaakCo\Custd\CustdClient;
 use PHPUnit\Framework\TestCase;
@@ -15,13 +16,13 @@ final class AnalyticsLogFilterTest extends TestCase
         $calls = [];
         $client = $this->clientWithResponse($this->response(), $calls);
 
-        $client->analytics()->query([
-            "date" => "2026-09-14",
-            "severity" => "error",
-            "service" => "checkout-api",
-            "subClient" => "acme-store",
-            "resource" => "srv-1",
-        ]);
+        $client->analytics()->query(new AnalyticsEventsQueryRequest(
+            "2026-09-14",
+            severity: "error",
+            service: "checkout-api",
+            subClient: "acme-store",
+            resource: "srv-1",
+        ));
 
         self::assertSame("error", $calls[0]["body"]["severity"]);
         self::assertSame("checkout-api", $calls[0]["body"]["service"]);
@@ -34,7 +35,7 @@ final class AnalyticsLogFilterTest extends TestCase
         $calls = [];
         $client = $this->clientWithResponse($this->response(), $calls);
 
-        $client->analytics()->query(["date" => "2026-09-14", "severity" => ""]);
+        $client->analytics()->query(new AnalyticsEventsQueryRequest("2026-09-14", severity: ""));
 
         self::assertSame(["date" => "2026-09-14"], $calls[0]["body"]);
     }

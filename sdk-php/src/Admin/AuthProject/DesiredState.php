@@ -22,6 +22,13 @@ use HaakCo\Custd\Fields;
  * the source of truth and Custd only mirrors it, so a Custd editor must not
  * overwrite it. Both are null when the caller does not know the field, which
  * leaves the stored value alone.
+ *
+ * The remaining sections are sent only when set, so a consumer that leaves them null sends what it
+ * sent before: `entryPath` is the realm's public entry path, `brandAccent` its `#rrggbb` sign-in
+ * accent, `signInMethods` narrows the sign-in methods it offers, `applicationSessionPolicy` is
+ * `offer_remember_me` or `short_only`, `hosting` serves the environment as a hosted application and
+ * `socialSignIn` is the social providers it offers. A null `hosting` or `socialSignIn` keeps the
+ * stored section.
  */
 final readonly class DesiredState
 {
@@ -35,6 +42,7 @@ final readonly class DesiredState
     /**
      * @param list<AudienceBinding>|null $audiences
      * @param list<ProfileField>|null $profileFields
+     * @param list<string>|null $signInMethods
      * @param string|null $displayName Customer-facing application name; `""` clears it and null
      *                                 keeps the stored name.
      * @param string|null $displayNameSource `application` or `hosting`.
@@ -52,6 +60,12 @@ final readonly class DesiredState
         public ?string $displayName = null,
         public ?string $displayNameSource = null,
         public bool $withdrawDisplayName = false,
+        public ?string $entryPath = null,
+        public ?string $brandAccent = null,
+        public ?array $signInMethods = null,
+        public ?string $applicationSessionPolicy = null,
+        public ?Hosting $hosting = null,
+        public ?SocialSignIn $socialSignIn = null,
     ) {
         AuthProjectClient::assertIdentityMode($identityMode);
         if (trim($registrationPolicy) === "") {
@@ -92,6 +106,29 @@ final readonly class DesiredState
             $payload["withdrawDisplayName"] = true;
         }
 
+        return $this->withSections($payload);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function withSections(array $payload): array
+    {
+        $sections = [
+            "entryPath" => $this->entryPath,
+            "brandAccent" => $this->brandAccent,
+            "signInMethods" => $this->signInMethods,
+            "applicationSessionPolicy" => $this->applicationSessionPolicy,
+            "hosting" => $this->hosting?->toPayload(),
+            "socialSignIn" => $this->socialSignIn?->toPayload(),
+        ];
+        foreach ($sections as $key => $value) {
+            if ($value !== null) {
+                $payload[$key] = $value;
+            }
+        }
+
         return $payload;
     }
 
@@ -99,6 +136,8 @@ final readonly class DesiredState
     {
         $audiences = Fields::optionalObjects($payload, "audiences");
         $profileFields = Fields::optionalObjects($payload, "profileFields");
+        $hosting = Fields::optionalObject($payload, "hosting");
+        $socialSignIn = Fields::optionalObject($payload, "socialSignIn");
 
         return new self(
             Fields::string($payload, "identityMode"),
@@ -108,6 +147,13 @@ final readonly class DesiredState
             $profileFields === null ? null : array_map(ProfileField::fromPayload(...), $profileFields),
             Fields::optionalString($payload, "displayName"),
             Fields::optionalString($payload, "displayNameSource"),
+            false,
+            Fields::optionalString($payload, "entryPath"),
+            Fields::optionalString($payload, "brandAccent"),
+            Fields::optionalStrings($payload, "signInMethods"),
+            Fields::optionalString($payload, "applicationSessionPolicy"),
+            $hosting === null ? null : Hosting::fromPayload($hosting),
+            $socialSignIn === null ? null : SocialSignIn::fromPayload($socialSignIn),
         );
     }
 

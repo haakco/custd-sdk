@@ -10,11 +10,13 @@ use HaakCo\Custd\Fields;
  * EnvironmentDeletion is the receipt for a deleted environment. It names both the
  * project and the one environment it removed, so a caller can tell an
  * environment deletion from a project deletion without reading the request back.
+ * `hosting` is what the delete removed from the environment's hosted application.
  */
 final readonly class EnvironmentDeletion
 {
     public function __construct(
         public EnvironmentReleasedResources $released,
+        public HostingRemoval $hosting,
         public string $projectId = '',
         public string $projectSlug = '',
         public string $environmentId = '',
@@ -29,6 +31,7 @@ final readonly class EnvironmentDeletion
 
         return new self(
             EnvironmentReleasedResources::fromPayload(Fields::object($object, 'released')),
+            HostingRemoval::fromPayload(Fields::object($object, 'hosting')),
             Fields::string($object, 'projectId'),
             Fields::string($object, 'projectSlug'),
             Fields::string($object, 'environmentId'),

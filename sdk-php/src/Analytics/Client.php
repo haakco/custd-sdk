@@ -22,9 +22,6 @@ final class Client
     /** The only bucket granularity the service supports today. */
     public const RANGE_GROUP_BY = "day";
 
-    /** Sources the single-day query may select. The range contract is narrower. */
-    private const SOURCES = ["auto", "postgres", "duckdb", "rollup", "materialized"];
-
     /** @var callable|null */
     private $httpClient;
 
@@ -37,29 +34,13 @@ final class Client
     }
 
     /**
-     * Query this tenant's own events for a single UTC day.
-     *
-     * Accepts only the documented public fields. The service also accepts an internal
-     * `anonymousId` exact-subject predicate and a `countOnly` flag, but both are absent
-     * from its public JSON contract; rebuilding the body from named keys keeps them off
-     * the wire even when a caller passes extra entries.
-     *
-     * @param array{
-     *     date: string,
-     *     eventType?: string,
-     *     limit?: int,
-     *     source?: string,
-     *     labelFilters?: list<array{key: string, value: string}>,
-     *     severity?: string,
-     *     service?: string,
-     *     subClient?: string,
-     *     resource?: string
-     * } $request
-     * @return array<string, mixed>
+     * Query this tenant's own events for a single UTC day; see {@see AnalyticsEventsQueryRequest}.
      */
-    public function query(array $request): array
+    public function query(AnalyticsEventsQueryRequest $request): AnalyticsEventsQueryResponse
     {
-        return $this->request("POST", "/api/v1/analytics/query", self::publicQueryPayload($request));
+        return AnalyticsEventsQueryResponse::fromPayload(
+            $this->requestStructured("POST", "/api/v1/analytics/query", $request->serialise())
+        );
     }
 
     /**
@@ -94,47 +75,6 @@ final class Client
     }
 
     /**
-     * @param array<string, mixed> $request
-     * @return array<string, mixed>
-     */
-    private static function publicQueryPayload(array $request): array
-    {
-        $date = $request["date"] ?? null;
-        if (!is_string($date) || $date === "") {
-            throw new \InvalidArgumentException("custd: analytics query requires a date (YYYY-MM-DD)");
-        }
-
-        $filters = $request["labelFilters"] ?? [];
-        if (!is_array($filters)) {
-            throw new \InvalidArgumentException("custd: analytics labelFilters must be a list");
-        }
-        if (count($filters) > self::MAX_LABEL_FILTERS) {
-            throw new \InvalidArgumentException(
-                "custd: analytics query accepts at most " . self::MAX_LABEL_FILTERS . " label filters, received " . count($filters)
-            );
-        }
-
-        $payload = ["date" => $date];
-        if (isset($request["eventType"])) {
-            $payload["eventType"] = $request["eventType"];
-        }
-        if (isset($request["limit"])) {
-            $payload["limit"] = (int) $request["limit"];
-        }
-        if (isset($request["source"])) {
-            if (!in_array($request["source"], self::SOURCES, true)) {
-                throw new \InvalidArgumentException("custd: analytics source must be one of " . implode(", ", self::SOURCES));
-            }
-            $payload["source"] = $request["source"];
-        }
-        if ($filters !== []) {
-            $payload["labelFilters"] = array_values($filters);
-        }
-
-        return self::appendLogDimensionFilters($payload, $request);
-    }
-
-    /**
      * appendLogDimensionFilters copies the promoted log-dimension filters onto
      * the body, omitting each unset or empty one so it never narrows the query.
      * It is shared by the day and range payloads, which carry the same set.
@@ -153,24 +93,6 @@ final class Client
         }
 
         return $payload;
-    }
-
-    /**
-     * @param array<string, mixed>|null $body
-     * @return array<string, mixed>
-     */
-    private function request(string $method, string $path, ?array $body = null): array
-    {
-        $responseBody = $this->rawRequest($method, $path, $body);
-        if ($responseBody === "") {
-            return [];
-        }
-        $decoded = json_decode($responseBody, true, flags: JSON_THROW_ON_ERROR);
-        if (!is_array($decoded)) {
-            throw new \RuntimeException("custd: analytics response body must be JSON object");
-        }
-
-        return $decoded;
     }
 
     /** @param array<string, mixed>|null $body */

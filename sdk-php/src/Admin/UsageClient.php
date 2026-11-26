@@ -13,6 +13,7 @@ use HaakCo\Custd\Admin\Usage\Report;
  *
  * The system-admin `/usage` and `/usage/export` surfaces are deliberately not
  * exposed here: a tenant client must not depend on system-admin filtering.
+ * {@see SystemUsageClient} reads them.
  */
 final class UsageClient
 {

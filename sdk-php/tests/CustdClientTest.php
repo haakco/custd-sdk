@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\CustdClient;
+use HaakCo\Custd\Provisioning\ProvisionedProducer;
 use HaakCo\Custd\FileQueueStore;
 use HaakCo\Custd\MemoryQueueStore;
 use HaakCo\Custd\RetryableException;
@@ -160,7 +161,7 @@ final class CustdClientTest extends TestCase
                 if ($calls === 1) {
                     throw new RetryableException("retry");
                 }
-                return ["status" => 202, "body" => ""];
+                return ["status" => 202, "body" => json_encode(["success" => true, "eventUuid" => $event["eventUuid"]], JSON_THROW_ON_ERROR)];
             },
         ]);
 
@@ -177,7 +178,7 @@ final class CustdClientTest extends TestCase
             "http_client" => function (string $url, array $event, string $token) use (&$sent): array {
                 $this->assertSame("http://localhost:8080/api/v1/events", $url);
                 $sent = $event;
-                return ["status" => 202, "body" => ""];
+                return ["status" => 202, "body" => json_encode(["success" => true, "eventUuid" => $event["eventUuid"]], JSON_THROW_ON_ERROR)];
             },
         ]);
 
@@ -647,7 +648,7 @@ final class CustdClientTest extends TestCase
             "retry" => ["max_attempts" => 1],
             "http_client" => function (string $url, array $event, string $token) use (&$seenToken): array {
                 $seenToken = $token;
-                return ["status" => 202, "body" => ""];
+                return ["status" => 202, "body" => json_encode(["success" => true, "eventUuid" => $event["eventUuid"]], JSON_THROW_ON_ERROR)];
             },
         ]);
 
@@ -710,33 +711,37 @@ final class CustdClientTest extends TestCase
 
     public function testFromProvisionedProducerCreatesClientWithoutManualMapping(): void
     {
-        $credentials = $this->loadFixture("valid-provisioned-producer.json");
+        $producer = ProvisionedProducer::fromPayload($this->loadFixtureObject("valid-provisioned-producer.json"));
 
-        $client = CustdClient::fromProvisionedProducer($credentials);
+        $client = CustdClient::fromProvisionedProducer($producer);
 
         $this->assertInstanceOf(CustdClient::class, $client);
+        $this->assertSame("awthy-store-123", $producer->producerSlug);
+        $this->assertSame([], $producer->allowedEnvironments);
     }
 
-    public function testFromProvisionedProducerRejectsMissingClientSecret(): void
+    public function testProvisionedProducerWithoutClientSecretIsRefused(): void
     {
-        $credentials = $this->loadFixture("invalid-provisioned-producer-missing-secret.json");
+        $this->expectExceptionMessageMatches("/response field [a-zA-Z]+ is required/");
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches("/client secret/");
-
-        CustdClient::fromProvisionedProducer($credentials);
+        ProvisionedProducer::fromPayload($this->loadFixtureObject("invalid-provisioned-producer-missing-secret.json"));
     }
 
     public function testRedactedProvisionedProducerOmitsSecret(): void
     {
-        $credentials = $this->loadFixture("valid-provisioned-producer.json");
+        $producer = ProvisionedProducer::fromPayload($this->loadFixtureObject("valid-provisioned-producer.json"));
 
-        $redacted = CustdClient::redactedProvisionedProducer($credentials);
+        $redacted = CustdClient::redactedProvisionedProducer($producer);
 
-        $this->assertSame($credentials["clientId"], $redacted["clientId"]);
-        $this->assertArrayNotHasKey("clientSecret", $redacted);
-        $encoded = json_encode($redacted, JSON_THROW_ON_ERROR);
-        $this->assertStringNotContainsString((string) $credentials["clientSecret"], $encoded);
+        $this->assertSame($producer->clientId, $redacted->clientId);
+        $this->assertStringNotContainsString($producer->clientSecret, json_encode($redacted, JSON_THROW_ON_ERROR));
+    }
+
+    private function loadFixtureObject(string $name): \stdClass
+    {
+        $path = __DIR__ . "/../../contract-fixtures/{$name}";
+
+        return \HaakCo\Custd\Fields::jsonObject(json_decode((string) file_get_contents($path), false, flags: JSON_THROW_ON_ERROR), $name);
     }
 
     /**

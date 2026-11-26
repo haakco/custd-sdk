@@ -46,6 +46,7 @@ final class AuthProjectClientTest extends TestCase
             "environmentSlug" => "production",
             "identityMode" => "isolated",
             "companyUuid" => self::COMPANY_UUID,
+            "audienceEntitlementMode" => "organisation_membership",
         ];
     }
 

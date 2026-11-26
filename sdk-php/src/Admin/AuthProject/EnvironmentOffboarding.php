@@ -9,13 +9,15 @@ use HaakCo\Custd\Fields;
 /**
  * EnvironmentOffboarding is the receipt for one offboarded environment. It names
  * both the project and the one environment it withdrew, so a caller can tell it
- * from a physical delete without reading the request back.
+ * from a physical delete without reading the request back. `hosting` is what it withdrew from
+ * the environment's hosted application.
  */
 final readonly class EnvironmentOffboarding
 {
     public function __construct(
         public EnvironmentClientCleanup $clientCleanup,
         public EnvironmentRetainedResources $retained,
+        public HostingWithdrawal $hosting,
         public string $projectId = '',
         public string $projectSlug = '',
         public string $environmentId = '',
@@ -34,6 +36,7 @@ final readonly class EnvironmentOffboarding
         return new self(
             EnvironmentClientCleanup::fromPayload(Fields::object($object, 'clientCleanup')),
             EnvironmentRetainedResources::fromPayload(Fields::object($object, 'retained')),
+            HostingWithdrawal::fromPayload(Fields::object($object, 'hosting')),
             Fields::string($object, 'projectId'),
             Fields::string($object, 'projectSlug'),
             Fields::string($object, 'environmentId'),

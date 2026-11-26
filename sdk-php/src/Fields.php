@@ -113,6 +113,71 @@ final class Fields
     }
 
     /**
+     * optionalStringMap returns an optional JSON object of strings: empty when the field is
+     * absent or null, otherwise the same validation as {@see stringMap}.
+     *
+     * @param \stdClass $payload
+     * @return array<string, string>
+     */
+    public static function optionalStringMap(\stdClass $payload, string $key): array
+    {
+        return self::optional($payload, $key) === null ? [] : self::stringMap($payload, $key);
+    }
+
+    /**
+     * objectMap returns a JSON object whose values are all JSON objects, keyed by name: empty
+     * when an optional field is absent or null.
+     *
+     * @param \stdClass $payload
+     * @return array<string, \stdClass>
+     */
+    public static function objectMap(\stdClass $payload, string $key, bool $required = true): array
+    {
+        $object = $required ? self::object($payload, $key) : self::optionalObject($payload, $key);
+        $map = [];
+        foreach (get_object_vars($object ?? new \stdClass()) as $name => $value) {
+            if (!$value instanceof \stdClass) {
+                throw new \UnexpectedValueException("custd: response field {$key}.{$name} must be an object");
+            }
+            $map[(string) $name] = $value;
+        }
+
+        return $map;
+    }
+
+    /**
+     * integerMap returns a JSON object whose values are all integers, keyed by name: empty when
+     * an optional field is absent or null.
+     *
+     * @param \stdClass $payload
+     * @return array<string, int>
+     */
+    public static function integerMap(\stdClass $payload, string $key, bool $required = true): array
+    {
+        $object = $required ? self::object($payload, $key) : self::optionalObject($payload, $key);
+        $map = [];
+        foreach (get_object_vars($object ?? new \stdClass()) as $name => $value) {
+            if (!is_int($value)) {
+                throw new \UnexpectedValueException("custd: response field {$key}.{$name} must be an integer");
+            }
+            $map[(string) $name] = $value;
+        }
+
+        return $map;
+    }
+
+    /**
+     * raw returns a field the contract leaves open (any JSON value) exactly as decoded: objects
+     * stay stdClass and arrays stay lists. An absent field is null.
+     *
+     * @param \stdClass $payload
+     */
+    public static function raw(\stdClass $payload, string $key): mixed
+    {
+        return self::optional($payload, $key);
+    }
+
+    /**
      * strings returns a required JSON array of strings.
      *
      * @param \stdClass $payload
@@ -151,14 +216,14 @@ final class Fields
     }
 
     /**
-     * numbers returns a required JSON array of numbers.
+     * numbers returns a required JSON array of numbers; a present null is the empty list.
      *
      * @param \stdClass $payload
      * @return list<float>
      */
     public static function numbers(\stdClass $payload, string $key): array
     {
-        $values = self::required($payload, $key);
+        $values = self::requiredList($payload, $key);
         if (!is_array($values) || !array_is_list($values)) {
             throw new \UnexpectedValueException("custd: response field {$key} must be a list");
         }
@@ -172,14 +237,14 @@ final class Fields
     }
 
     /**
-     * integerList returns a required JSON array of integers.
+     * integerList returns a required JSON array of integers; a present null is the empty list.
      *
      * @param \stdClass $payload
      * @return list<int>
      */
     public static function integerList(\stdClass $payload, string $key): array
     {
-        $values = self::required($payload, $key);
+        $values = self::requiredList($payload, $key);
         if (!is_array($values) || !array_is_list($values)) {
             throw new \UnexpectedValueException("custd: response field {$key} must be a list");
         }

@@ -4,26 +4,27 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin\Prediction;
 
-use HaakCo\Custd\Admin\TimePlan\Payload;
+use HaakCo\Custd\Fields;
 
 /**
- * DurationEvaluationVersionEvidence binds an evaluation to the selected version
- * and the active version visible at evaluation time.
+ * DurationEvaluationVersionEvidence binds an evaluation to the selected version,
+ * the active version visible at evaluation time and the version's transition history.
  */
 final readonly class DurationEvaluationVersionEvidence
 {
     public function __construct(
-        public DurationEvaluationVersion $selected = new DurationEvaluationVersion(),
-        public string $activeVersionUuid = "",
+        public DurationEvaluationVersion $selected,
+        public DurationEvaluationVersionHistory $history,
+        public ?string $activeVersionUuid = null,
     ) {
     }
 
-    /** @param array<string, mixed> $payload */
-    public static function fromPayload(array $payload): self
+    public static function fromPayload(\stdClass $payload): self
     {
         return new self(
-            DurationEvaluationVersion::fromPayload(Payload::object($payload, "selected")),
-            Payload::optionalString($payload, "activeVersionUuid") ?? "",
+            DurationEvaluationVersion::fromPayload(Fields::object($payload, 'selected')),
+            DurationEvaluationVersionHistory::fromPayload(Fields::object($payload, 'history')),
+            Fields::optionalString($payload, 'activeVersionUuid'),
         );
     }
 }

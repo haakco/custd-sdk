@@ -41,6 +41,8 @@ final class CustdClient
     private $adminHttpClient;
     /** Product named in X-Custd-Sdk for this instance. */
     private string $product;
+    /** The company a system administrator's cleanup jobs act for; null uses the credential's own. */
+    private ?string $actingCompanySlug;
 
     /**
      * @param array<string, mixed> $options Client options:
@@ -78,8 +80,11 @@ final class CustdClient
      *       follow-up and is intentionally not implemented here.
      *     - `queue`: array{enabled?:bool, store?:QueueStore, max_size?:int}
      *     - `http_client`: callable|null Custom HTTP transport. When provided,
-     *       it receives `(string $url, array|string $payload, string $token)`
-     *       and MAY accept a fourth `array<string, string> $headers` argument.
+     *       it receives `(string $url, array|string $payload, string $token,
+     *       array<string, string> $headers, string $method)`. A callback MAY
+     *       declare only the first three; PHP ignores the extra arguments.
+     *       `$headers` is empty on the JSON event paths and `$method` is the
+     *       HTTP method the request uses.
      *       It MUST return `array{status:int, body:string}`. The status is
      *       translated the same way as the built-in curl path: a status in
      *       `retry["retry_statuses"]` raises {@see RetryableException}, any
@@ -92,12 +97,19 @@ final class CustdClient
      *       payload and pass the request headers (including `X-Parser-UUID`
      *       and the raw content type) as that fourth argument; a callback that
      *       declares only three parameters cannot observe the parser binding.
+     *     - `acting_company_slug`: string|null The company a system
+     *       administrator's ingest-api cleanup jobs act for. It is sent as
+     *       `X-Custd-Effective-Company` on the cleanup-job list, read, proof and
+     *       cancel calls only; unset, the credential's own company applies.
      *     - `admin_http_client`: callable|null Custom admin HTTP transport.
      *       When provided, it receives
-     *       `(string $method, string $url, ?array $body, string $token, array<string, string> $headers)`
-     *       and MUST return `array{status:int, body:string}`. The fifth
-     *       headers argument is empty unless a request option needs an extra
-     *       header; existing four-argument callbacks remain valid.
+     *       `(string $method, string $url, array|string|null $body, string $token, array<string, string> $headers)`
+     *       and MUST return `array{status:int, body:string}`. `$body` is the
+     *       JSON request as an array, except on the two auth-project uploads
+     *       (release files and the brand logo), which pass the encoded bytes as
+     *       a string with their `Content-Type` in `$headers`. The headers are
+     *       otherwise empty unless a request option needs an extra header;
+     *       existing four-argument callbacks remain valid.
      */
     public function __construct(string $baseUrl, ?string $token = null, array $options = [])
     {
@@ -132,6 +144,8 @@ final class CustdClient
         $this->httpClient = $options["http_client"] ?? null;
         $this->adminHttpClient = $options["admin_http_client"] ?? null;
         $this->product = self::normalizeProduct($options["product"] ?? self::PRODUCT);
+        $acting = trim((string) ($options["acting_company_slug"] ?? ""));
+        $this->actingCompanySlug = $acting === "" ? null : $acting;
     }
 
     /**
@@ -173,9 +187,10 @@ final class CustdClient
         return new Admin\SiteDomainClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
-    public function adminSchemas(): Admin\SchemaClient
+    /** The tenant's event schemas on the schema registry (/api/v1/schemas). */
+    public function schemas(): Schemas\Client
     {
-        return new Admin\SchemaClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+        return new Schemas\Client($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminMeasurementProjects(): Admin\MeasurementProjectClient
@@ -272,6 +287,175 @@ final class CustdClient
         return new Admin\AuthProjectClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
+    public function adminUsers(): Admin\UserClient
+    {
+        return new Admin\UserClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminSupportAccess(): Admin\SupportAccessClient
+    {
+        return new Admin\SupportAccessClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminClientSetup(): Admin\ClientSetupClient
+    {
+        return new Admin\ClientSetupClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminStorage(): Admin\StorageClient
+    {
+        return new Admin\StorageClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminOAuthClientAdmissions(): Admin\OAuthClientAdmissionClient
+    {
+        return new Admin\OAuthClientAdmissionClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminMeasurementWork(): Admin\MeasurementWorkClient
+    {
+        return new Admin\MeasurementWorkClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function measurement(): Analytics\MeasurementClient
+    {
+        return new Analytics\MeasurementClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminTimePlanOperations(): Admin\TimePlanOperationsClient
+    {
+        return new Admin\TimePlanOperationsClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminUncertaintyModels(): Admin\UncertaintyModelClient
+    {
+        return new Admin\UncertaintyModelClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminReportingGenerations(): Admin\ReportingGenerationClient
+    {
+        return new Admin\ReportingGenerationClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function reportingData(): Reporting\DashboardDataClient
+    {
+        return new Reporting\DashboardDataClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminAccountingEvidence(): Admin\AccountingEvidenceClient
+    {
+        return new Admin\AccountingEvidenceClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function analyticsReads(): Analytics\ReadClient
+    {
+        return new Analytics\ReadClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminOperations(): Admin\OperationsClient
+    {
+        return new Admin\OperationsClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminSchemaActions(): Admin\SchemaActionClient
+    {
+        return new Admin\SchemaActionClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminEventConfig(): Admin\EventConfigClient
+    {
+        return new Admin\EventConfigClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminEnvironmentPolicy(): Admin\EnvironmentPolicyClient
+    {
+        return new Admin\EnvironmentPolicyClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminPrivacy(): Admin\PrivacyClient
+    {
+        return new Admin\PrivacyClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminErrorIssues(): Admin\ErrorIssueClient
+    {
+        return new Admin\ErrorIssueClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminSystemUsage(): Admin\SystemUsageClient
+    {
+        return new Admin\SystemUsageClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminEmailRelay(): Admin\EmailRelayClient
+    {
+        return new Admin\EmailRelayClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminNotifications(): Admin\NotificationClient
+    {
+        return new Admin\NotificationClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminCampaignEmail(): Admin\CampaignEmailClient
+    {
+        return new Admin\CampaignEmailClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    /**
+     * Operate the tenant's stored events on ingest-api. The `acting_company_slug` option is sent
+     * as X-Custd-Effective-Company on the cleanup-job list, read, proof and cancel calls only,
+     * where ingest-api reads a system administrator's tenant; no other call carries it.
+     */
+    public function ingestOperations(): Ingest\OperationsClient
+    {
+        return new Ingest\OperationsClient(
+            $this->baseUrl,
+            fn (): string => $this->authToken(),
+            $this->adminHttpClient,
+            $this->actingCompanySlug,
+        );
+    }
+
+    public function adminManagedAudit(): Admin\ManagedAuditClient
+    {
+        return new Admin\ManagedAuditClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function adminApps(): Admin\AppClient
+    {
+        return new Admin\AppClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    /**
+     * A hosted app's item routes, reached with the app's public Site key from one of its allowed
+     * origins. It never sends this client's credential: an item call carries its link token, and
+     * $userToken supplies the signed-in user's access token, or null when signed out.
+     *
+     * @param (callable():(string|null))|null $userToken
+     */
+    public function appItems(string $siteKey, string $origin, ?callable $userToken = null): App\AppItemsClient
+    {
+        return new App\AppItemsClient($this->baseUrl, $siteKey, $origin, $this->adminHttpClient, $userToken);
+    }
+
+    /**
+     * The signed-in application user's own profile, reached with that user's application access
+     * token alone; this client's credential is never sent.
+     *
+     * @param string|callable():string $accessToken
+     */
+    public function appProfile(string|callable $accessToken): App\AppProfileClient
+    {
+        return new App\AppProfileClient($this->baseUrl, $accessToken, $this->adminHttpClient);
+    }
+
+    /** The routes that take no client credential, such as a hosted app's discovery document. */
+    public function publicReads(): App\PublicReadClient
+    {
+        return new App\PublicReadClient($this->baseUrl, $this->adminHttpClient);
+    }
+
     public function provisioning(): Provisioning\Client
     {
         return new Provisioning\Client($this->baseUrl, $this->authToken(), $this->adminHttpClient);
@@ -293,16 +477,126 @@ final class CustdClient
     }
 
     /**
+     * Send one event to POST /api/v1/events and return the server's acknowledgement, which must name the sent
+     * event; a response that does not raises rather than reporting a delivery that did not happen.
+     *
      * @param array<string, mixed> $event
-     * @return array<string, mixed>
      */
-    public function ingestEvent(array $event): array
+    public function ingestEvent(array $event): Ingest\IngestReceipt
     {
         $event = self::prepareEvent($event);
         self::validateEvent($event);
         $event = self::applyEnvironmentLabel($event, $this->environment);
 
-        return $this->sendWithRetry($event);
+        $result = $this->sendWithRetry($event);
+        $receipt = Ingest\IngestReceipt::fromPayload(Fields::jsonObject(
+            json_decode((string) $result["body"], false, flags: JSON_THROW_ON_ERROR),
+            "ingest response",
+        ));
+        if (!$receipt->success || $receipt->eventUuid !== $event["eventUuid"]) {
+            throw new \RuntimeException("custd: ingest response does not acknowledge the sent event");
+        }
+
+        return $receipt;
+    }
+
+    /**
+     * Send one browser event to the public collector with a Site's write key (site_pk_...) from
+     * one of the Site's allowed origins. This client's own credential is not sent.
+     *
+     * @param array<string, mixed> $event
+     */
+    public function collectEvent(array $event, string $writeKey, string $origin): Ingest\CollectReceipt
+    {
+        $prepared = self::collectorEvents([$event])[0];
+        $receipt = Ingest\CollectReceipt::fromPayload($this->collect("/api/v1/collect/events", $prepared, $writeKey, $origin));
+        if (!$receipt->success || $receipt->eventUuid !== $prepared["eventUuid"]) {
+            throw new \RuntimeException("custd: collector response does not acknowledge the sent event");
+        }
+
+        return $receipt;
+    }
+
+    /**
+     * Send 1 to 1000 browser events to the public collector and return each event's outcome; a
+     * partial rejection is a valid answer. The write key and origin are as for {@see collectEvent}.
+     *
+     * @param list<array<string, mixed>> $events
+     */
+    public function collectEvents(array $events, string $writeKey, string $origin): Ingest\CollectBatchResult
+    {
+        $prepared = self::collectorEvents($events);
+        $result = Ingest\CollectBatchResult::fromPayload(
+            $this->collect("/api/v1/collect/events/batch", ["events" => $prepared], $writeKey, $origin),
+        );
+        $sent = array_map(static fn (array $event): string => (string) $event["eventUuid"], $prepared);
+        $reported = array_map(static fn (Ingest\CollectEventResult $item): string => $item->eventUuid, $result->results);
+        sort($sent);
+        sort($reported);
+        if ($sent !== $reported) {
+            throw new \RuntimeException("custd: collector response does not report every sent event");
+        }
+
+        return $result;
+    }
+
+    /**
+     * collectorEvents fills, validates and labels a collector batch as every confirmed send does.
+     *
+     * @param list<array<string, mixed>> $events
+     * @return list<array<string, mixed>>
+     */
+    private static function collectorEvents(array $events): array
+    {
+        if ($events === [] || count($events) > 1000) {
+            throw new \InvalidArgumentException("custd: a collector batch must contain 1 to 1000 events");
+        }
+        $prepared = [];
+        foreach ($events as $event) {
+            $event = self::prepareEvent($event);
+            self::validateEvent($event);
+            $prepared[] = self::applyEnvironmentLabel($event, "");
+        }
+        if (count(array_unique(array_column($prepared, "eventUuid"))) !== count($prepared)) {
+            throw new \InvalidArgumentException("custd: batch contains duplicate eventUuid");
+        }
+
+        return $prepared;
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function collect(string $path, array $payload, string $writeKey, string $origin): \stdClass
+    {
+        if (!str_starts_with($writeKey, "site_pk_") || trim($origin) === "") {
+            throw new \InvalidArgumentException("custd: the collector needs a site_pk_ write key and an allowed origin");
+        }
+        $url = $this->baseUrl . $path;
+        $headers = ["Origin" => $origin];
+        if (is_callable($this->httpClient)) {
+            $result = $this->normalizeHttpClientResult(($this->httpClient)($url, $payload, $writeKey, $headers, "POST"));
+        } else {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_CUSTOMREQUEST => "POST",
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    "Content-Type: application/json",
+                    "Authorization: Bearer " . $writeKey,
+                    "Origin: " . $origin,
+                    "X-Custd-Sdk: " . $this->product . "/" . self::VERSION,
+                ],
+                CURLOPT_POSTFIELDS => json_encode($payload, JSON_THROW_ON_ERROR),
+                CURLOPT_TIMEOUT => 15,
+            ]);
+            $response = curl_exec($ch);
+            if ($response === false) {
+                throw new \RuntimeException("custd: collector request failed: " . curl_error($ch));
+            }
+            $result = ["status" => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE), "body" => is_string($response) ? $response : ""];
+        }
+        $body = Admin\Http::successBody($result);
+
+        return Fields::jsonObject($body === null ? null : json_decode($body, false, flags: JSON_THROW_ON_ERROR), "collector response");
     }
 
     /**
@@ -380,7 +674,7 @@ final class CustdClient
                 // one documented signal to the no-replay unknown-acceptance
                 // error (preserving the cause); any other exception, including
                 // a programming error, propagates unchanged.
-                $result = $this->normalizeHttpClientResult($client($url, $content, $this->authToken(), $headers));
+                $result = $this->normalizeHttpClientResult($client($url, $content, $this->authToken(), $headers, "POST"));
             } catch (RetryableException $error) {
                 throw new RawAcceptanceUnknownException(
                     "custd: raw upload acceptance is unknown; the request may or may not have landed "
@@ -521,25 +815,19 @@ final class CustdClient
     }
 
     /**
-     * @return array<string, mixed>
+     * Redact fields of managed Awthy audit events under the source system's redaction rule.
      */
-    public function redactAwthyAuditEvents(Awthy\AwthyAuditRedactionRequest $request): array
+    public function redactAwthyAuditEvents(Awthy\AwthyAuditRedactionRequest $request): Awthy\AwthyAuditRedactionResponse
     {
         $result = $this->sendPayloadWithRetry(
             "/api/v1/managed-audit/redactions",
             $request->toArray()
         );
 
-        if ($result["body"] === "") {
-            return [];
-        }
-
-        $decoded = json_decode($result["body"], true);
-        if (!is_array($decoded)) {
-            throw new \RuntimeException("custd: redaction response body must be JSON object");
-        }
-
-        return $decoded;
+        return Awthy\AwthyAuditRedactionResponse::fromPayload(Fields::jsonObject(
+            json_decode((string) $result["body"], false, flags: JSON_THROW_ON_ERROR),
+            "managed audit redaction response",
+        ));
     }
 
     /**
@@ -562,39 +850,33 @@ final class CustdClient
     /**
      * Build an event-producing client directly from a provisioned producer
      * bundle, hiding the OAuth wiring.
-     *
-     * @param array<string, mixed> $credentials
      */
-    public static function fromProvisionedProducer(array $credentials): self
+    public static function fromProvisionedProducer(Provisioning\ProvisionedProducer $producer): self
     {
-        if (($credentials["clientSecret"] ?? "") === "") {
+        if ($producer->clientSecret === "") {
             throw new \InvalidArgumentException(
                 "custd: provisioned producer bundle is missing the client secret"
             );
         }
 
-        return new self((string) ($credentials["baseUrl"] ?? ""), null, [
+        return new self($producer->baseUrl, null, [
             "oauth" => [
-                "client_id" => $credentials["clientId"] ?? "",
-                "client_secret" => $credentials["clientSecret"],
-                "token_url" => $credentials["tokenUrl"] ?? "",
-                "audience" => $credentials["audience"] ?? "",
-                "scopes" => $credentials["scopes"] ?? [],
+                "client_id" => $producer->clientId,
+                "client_secret" => $producer->clientSecret,
+                "token_url" => $producer->tokenUrl,
+                "audience" => $producer->audience,
+                "scopes" => $producer->scopes,
             ],
         ]);
     }
 
     /**
-     * Return the display-safe view of a provisioned producer bundle, omitting
-     * the client secret so it is safe to render on dashboards.
-     *
-     * @param array<string, mixed> $credentials
-     * @return array<string, mixed>
+     * Return the display-safe view of a provisioned producer bundle, without
+     * the client secret, so it is safe to render on dashboards.
      */
-    public static function redactedProvisionedProducer(array $credentials): array
+    public static function redactedProvisionedProducer(Provisioning\ProvisionedProducer $producer): Provisioning\RedactedProvisionedProducer
     {
-        unset($credentials["clientSecret"]);
-        return $credentials;
+        return Provisioning\RedactedProvisionedProducer::fromProducer($producer);
     }
 
     /**
@@ -878,7 +1160,7 @@ final class CustdClient
             // translation as the curl path so a callable returning a 5xx
             // (instead of throwing) still triggers retry/error semantics.
             $client = $this->httpClient;
-            $result = $client($this->baseUrl . "/api/v1/events", $event, $this->authToken());
+            $result = $client($this->baseUrl . "/api/v1/events", $event, $this->authToken(), [], "POST");
             $result = $this->normalizeHttpClientResult($result);
             $this->translateStatus($result["status"], $result["body"]);
             return $result;
@@ -923,7 +1205,7 @@ final class CustdClient
 
         if (is_callable($this->httpClient)) {
             $client = $this->httpClient;
-            $result = $this->normalizeHttpClientResult($client($url, $payload, $this->authToken()));
+            $result = $this->normalizeHttpClientResult($client($url, $payload, $this->authToken(), [], "POST"));
             $this->translateStatus($result["status"], $result["body"]);
             if ($validateBatch) {
                 $this->translateBatchBody($result);
@@ -1041,7 +1323,7 @@ final class CustdClient
 
         if (is_callable($this->httpClient)) {
             $client = $this->httpClient;
-            $result = $this->normalizeHttpClientResult($client($url, $payload, $this->authToken()));
+            $result = $this->normalizeHttpClientResult($client($url, $payload, $this->authToken(), [], "POST"));
             $this->translateStatus($result["status"], $result["body"]);
             return $result;
         }

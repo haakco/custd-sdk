@@ -4,87 +4,54 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Admin\TenantStorage\TenantStorageLocationCreateBody;
+use HaakCo\Custd\Admin\TenantStorage\TenantStorageLocationListResponse;
+use HaakCo\Custd\Admin\TenantStorage\TenantStorageLocationView;
+
 /**
- * TenantStorageClient owns tenant-scoped storage location registration.
- * Locations are server-prefixed: the SDK submits clientLocation and the
- * server returns a serverAssignedPrefix that the SDK must use for raw
- * landing writes. Tenant is derived from the auth context; wrong-tenant
- * reads collapse to an empty list indistinguishable from "no locations".
+ * TenantStorageClient registers, reads and revokes the tenant's storage locations. Custd generates a location's
+ * routing, identity, prefix and write state, so create() sends an empty body. The tenant comes from the
+ * credential.
  */
 final class TenantStorageClient
 {
-    /** @var string|callable():string Bearer token, or a provider run per request. */
-    private readonly mixed $token;
+    private readonly ApiHttp $http;
 
-    public function __construct(
-        private readonly string $baseUrl,
-        string|callable $token,
-        private readonly mixed $transport,
-    ) {
-        $this->token = $token;
+    /** @param string|callable():string $token Bearer token, or a provider run per request. */
+    public function __construct(string $baseUrl, string|callable $token, ?callable $transport = null)
+    {
+        $this->http = new ApiHttp($baseUrl, $token, $transport);
     }
 
     /**
-     * @return array<string, mixed>
+     * List tenant storage locations.
      */
-    public function list(): array
+    public function list(): TenantStorageLocationListResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/tenant-storage-locations",
-            prefix: "/api/v1"
-        ) ?? ["locations" => []];
+        return TenantStorageLocationListResponse::fromPayload($this->http->object('GET', '/api/v1/tenant-storage-locations', [], null));
     }
 
     /**
-     * @param array<string, mixed> $request
-     * @return array<string, mixed>
+     * Create a tenant storage location.
      */
-    public function create(array $request): array
+    public function create(TenantStorageLocationCreateBody $request = new TenantStorageLocationCreateBody()): TenantStorageLocationView
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/tenant-storage-locations",
-            $request,
-            prefix: "/api/v1"
-        ) ?? [];
+        return TenantStorageLocationView::fromPayload($this->http->object('POST', '/api/v1/tenant-storage-locations', [], $request->serialise()));
     }
 
     /**
-     * @return array<string, mixed>
+     * Get a tenant storage location.
      */
-    public function get(string $id): array
+    public function get(int $id): TenantStorageLocationView
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/tenant-storage-locations/" . rawurlencode($id),
-            prefix: "/api/v1"
-        ) ?? [];
+        return TenantStorageLocationView::fromPayload($this->http->object('GET', '/api/v1/tenant-storage-locations/' . rawurlencode((string) $id), [], null));
     }
 
     /**
-     * Revoke removes a tenant storage location. The server is the authority
-     * for whether the prefix is immediately unusable; the SDK must not assume
-     * partial deletes are atomic.
+     * Revoke a tenant storage location.
      */
-    public function revoke(string $id): void
+    public function revoke(int $id): void
     {
-        Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "DELETE",
-            "/tenant-storage-locations/" . rawurlencode($id),
-            prefix: "/api/v1"
-        );
+        $this->http->none('DELETE', '/api/v1/tenant-storage-locations/' . rawurlencode((string) $id), [], null);
     }
 }

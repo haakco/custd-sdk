@@ -17,7 +17,9 @@ use HaakCo\Custd\Fields;
  * until registration has run. `companyUuid` is the persisted company this
  * environment's project belongs to; null means explicitly unbound, and a
  * consumer must not treat it as verified ownership unless the provider
- * authorised the read.
+ * authorised the read. `companySlug` is the owning company's slug, null while there is none;
+ * `brandLogoUrl` is the realm's uploaded logo address, null while it has none; `hosting` is the
+ * derived serving identity of a hosted environment, null when it is not served.
  */
 final readonly class Status
 {
@@ -32,6 +34,9 @@ final readonly class Status
         public string $loginNote = '',
         public ?ClientSyncStatus $clientSync = null,
         public ?string $companyUuid = null,
+        public ?string $companySlug = null,
+        public ?string $brandLogoUrl = null,
+        public ?HostingStatus $hosting = null,
     ) {
     }
 
@@ -39,6 +44,7 @@ final readonly class Status
     {
         $object = Fields::jsonObject($payload, "auth-project status");
         $clientSync = Fields::optionalObject($object, "clientSync");
+        $hosting = Fields::optionalObject($object, 'hosting');
 
         return new self(
             DesiredState::fromPayload(Fields::object($object, "desired")),
@@ -51,6 +57,9 @@ final readonly class Status
             Fields::string($object, "loginNote"),
             $clientSync === null ? null : ClientSyncStatus::fromPayload($clientSync),
             Fields::optionalString($object, 'companyUuid'),
+            Fields::optionalString($object, 'companySlug'),
+            Fields::optionalString($object, 'brandLogoUrl'),
+            $hosting === null ? null : HostingStatus::fromPayload($hosting),
         );
     }
 }

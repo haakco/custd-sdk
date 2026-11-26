@@ -5,18 +5,19 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin;
 
 use HaakCo\Custd\Admin\TimePlan\Dto;
-use HaakCo\Custd\Admin\TimePlan\Payload;
 use HaakCo\Custd\Admin\WorkflowTiming\BatchResult;
 use HaakCo\Custd\Admin\WorkflowTiming\Definition;
+use HaakCo\Custd\Admin\WorkflowTiming\DefinitionList;
 use HaakCo\Custd\Admin\WorkflowTiming\DurationHistory;
 use HaakCo\Custd\Admin\WorkflowTiming\Evaluation;
 use HaakCo\Custd\Admin\WorkflowTiming\Observation;
 use HaakCo\Custd\Admin\WorkflowTiming\ObservationBatch;
 use HaakCo\Custd\Admin\WorkflowTiming\ObservationResult;
 use HaakCo\Custd\Admin\WorkflowTiming\ObservedRun;
+use HaakCo\Custd\Admin\WorkflowTiming\RebuildResult;
 use HaakCo\Custd\Admin\WorkflowTiming\ReconcileResult;
 use HaakCo\Custd\Admin\WorkflowTiming\RunPrediction;
-use HaakCo\Custd\Admin\WorkflowTiming\RunSummary;
+use HaakCo\Custd\Admin\WorkflowTiming\RunList;
 use HaakCo\Custd\Admin\WorkflowTiming\WorkflowDeclaration;
 
 /**
@@ -55,13 +56,10 @@ final class WorkflowTimingClient
         return ReconcileResult::fromPayload($this->requiredResponse('PUT', $path, $declaration));
     }
 
-    /** @return list<Definition> */
-    public function listDefinitions(string $companySlug, ?int $limit = null): array
+    public function listDefinitions(string $companySlug, ?int $limit = null): DefinitionList
     {
-        $payload = $this->requiredResponse('GET', $this->collection('/definitions', $companySlug, $limit));
-        return array_map(
-            static fn (array $item): Definition => Definition::fromPayload($item),
-            Payload::objects($payload, 'items'),
+        return DefinitionList::fromPayload(
+            $this->requiredResponse('GET', $this->collection('/definitions', $companySlug, $limit)),
         );
     }
 
@@ -213,16 +211,16 @@ final class WorkflowTimingClient
     /**
      * listRuns lists the tenant's observed runs, newest first. A run whose summary
      * reports pending facts has observations that are not folded yet.
-     *
-     * @return list<RunSummary>
      */
-    public function listRuns(string $companySlug, ?int $limit = null): array
+    /** listRuns lists the tenant's observed runs, newest first; workflowKey narrows them to one workflow. */
+    public function listRuns(string $companySlug, ?int $limit = null, ?string $workflowKey = null): RunList
     {
-        $payload = $this->requiredResponse('GET', $this->collection('/runs', $companySlug, $limit));
-        return array_map(
-            static fn (array $item): RunSummary => RunSummary::fromPayload($item),
-            Payload::objects($payload, 'items'),
-        );
+        $path = $this->collection('/runs', $companySlug, $limit);
+        if ($workflowKey !== null && $workflowKey !== '') {
+            $path .= '&workflowKey=' . rawurlencode($workflowKey);
+        }
+
+        return RunList::fromPayload($this->requiredResponse('GET', $path));
     }
 
     public function getRun(string $companySlug, string $runUuid): ObservedRun
@@ -258,13 +256,17 @@ final class WorkflowTimingClient
         }
         $path = '/workflow-timings/definitions/' . rawurlencode($workflowKey) . '/evaluation?'
             . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
-        return Evaluation::fromPayload($this->requiredResponse('GET', $path));
+        return Evaluation::fromPayload(
+            Http::requestStructured($this->baseUrl, $this->token, $this->transport, 'GET', $path),
+        );
     }
 
-    /** rebuild deterministically rebuilds one run's projections from its ledger. */
-    public function rebuild(string $companySlug, string $runUuid): void
+    /** rebuild deterministically rebuilds one run's projections from its ledger and reports what it wrote. */
+    public function rebuild(string $companySlug, string $runUuid): RebuildResult
     {
-        $this->request('POST', $this->resource("/runs/{$runUuid}/rebuild", $companySlug));
+        return RebuildResult::fromPayload(
+            $this->requiredResponse('POST', $this->resource("/runs/{$runUuid}/rebuild", $companySlug)),
+        );
     }
 
     /** @return array<string, mixed>|null */

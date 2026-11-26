@@ -364,6 +364,20 @@ final class WorkflowTimingClientTest extends TestCase
         );
     }
 
+    public function testEvaluationKeepsAnEmptyFoldIntervalAnObject(): void
+    {
+        $calls = [];
+        $body = $this->fixture('api/examples/getWorkflowTimingEvaluation.json')['maximal'];
+        $body['artifact']['evaluation']['folds'][0]['shrinkage_interval'] = new \stdClass();
+        $client = $this->client($calls, fn (): array => ['status' => 200, 'body' => json_encode($body, JSON_THROW_ON_ERROR)]);
+
+        $evaluation = $client->adminWorkflowTimings()->evaluation('acme', 'hosting.reconcile');
+
+        $this->assertTrue($evaluation->isAvailable());
+        $this->assertNotNull($evaluation->artifact);
+        $this->assertNull($evaluation->artifact->evaluation->folds[0]->shrinkageInterval->p10Ms);
+    }
+
     /** @return array<string, mixed> */
     private function fixture(string $name): array
     {

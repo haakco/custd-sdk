@@ -23,7 +23,9 @@ final class ReportingPackPreviewTest extends TestCase
             ],
         ]), false));
 
-        self::assertSame(42.0, $response->value->value);
-        self::assertCount(1, $response->buckets ?? []);
+        self::assertSame(42.0, $response->data->value->value);
+        self::assertCount(1, $response->data->buckets);
+        self::assertNull($response->executive);
+        self::assertNull($response->presentation);
     }
 }

@@ -4,8 +4,31 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Reporting;
 
+use HaakCo\Custd\Admin\ReportingPack\ReportingPackPreviewRequest;
+use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\Data\DashboardDefinition;
+use HaakCo\Custd\Reporting\Data\JobResponse;
+use HaakCo\Custd\Reporting\Data\PreparedDataOutput;
+use HaakCo\Custd\Reporting\Data\PreparedDataOutputListResponse;
+use HaakCo\Custd\Reporting\Data\PreparedDataQueryEnvelope;
+use HaakCo\Custd\Reporting\Data\PreparedDataReceipt;
+use HaakCo\Custd\Reporting\Data\ReportExportCancelRequest;
+use HaakCo\Custd\Reporting\Data\ReportExportCreateRequest;
+use HaakCo\Custd\Reporting\Data\ReportExportList;
+use HaakCo\Custd\Reporting\Data\ReportingQueryRequest;
+use HaakCo\Custd\Reporting\Data\SubjectInsightRequest;
+use HaakCo\Custd\Reporting\Data\SubjectInsightResponse;
+
+/**
+ * Client reads tenant reporting on the Analytics API: dashboard definitions, rendered queries, subject insights,
+ * report exports and prepared data outputs. A failed request raises RequestException with the server's
+ * retryability and next action. A rendered result whose trust diagnostics carry a raw payload, credential or
+ * personal field is refused rather than returned.
+ */
 final class Client
 {
+    private const MAX_DOWNLOAD_BYTES = 64 * 1024 * 1024;
+
     /** @var callable|null */
     private $httpClient;
 
@@ -18,116 +41,139 @@ final class Client
     }
 
     /**
-     * @return array<string, mixed>
+     * Get one dashboard definition.
      */
-    public function dashboard(string $key): array
+    public function dashboard(string $key): DashboardDefinition
     {
-        return $this->request("GET", "/api/v1/reporting/dashboards/" . rawurlencode($key));
+        return DashboardDefinition::fromPayload($this->object("GET", "/api/v1/reporting/dashboards/" . rawurlencode($key)));
     }
 
-    /** @param array{dashboardKey: string, formats: list<string>, parameters: array<string, mixed>, idempotencyKey?: string} $request
-     * @return array<string, mixed> */
-    public function createExport(array $request): array
+    /**
+     * Queue a report export of 1 to 8 formats.
+     */
+    public function createExport(ReportExportCreateRequest $request): JobResponse
     {
-        if (($request["dashboardKey"] ?? "") === "" || !isset($request["formats"]) || count($request["formats"]) < 1 || count($request["formats"]) > 8) {
+        if ($request->dashboardKey === "" || count($request->formats) < 1 || count($request->formats) > 8) {
             throw new \InvalidArgumentException("custd: report export requires a dashboard key and 1 to 8 formats");
         }
-        return $this->request("POST", "/api/v1/reporting/exports", $request);
+
+        return JobResponse::fromPayload($this->object("POST", "/api/v1/reporting/exports", $request->serialise()));
     }
 
-    /** @return list<array<string, mixed>> */
-    public function listExports(int $limit = 50): array
+    /**
+     * List the tenant's report exports, newest first; the server accepts a limit of 1 to 100.
+     */
+    public function listExports(int $limit = 50): ReportExportList
     {
         if ($limit < 1 || $limit > 100) {
             throw new \InvalidArgumentException("custd: report export limit must be between 1 and 100");
         }
-        $response = $this->request("GET", "/api/v1/reporting/exports?limit={$limit}");
-        return array_values($response);
+
+        return ReportExportList::fromPayload($this->object("GET", "/api/v1/reporting/exports?limit={$limit}"));
     }
 
-    /** @return array<string, mixed> */
-    public function getExport(string $exportId): array
+    /**
+     * Get one report export.
+     */
+    public function getExport(string $exportId): JobResponse
     {
         self::validateUuid($exportId, "exportId");
-        return $this->request("GET", "/api/v1/reporting/exports/" . rawurlencode($exportId));
+
+        return JobResponse::fromPayload($this->object("GET", "/api/v1/reporting/exports/" . rawurlencode($exportId)));
     }
 
-    /** @return array<string, mixed> */
-    public function cancelExport(string $exportId, string $reason = ""): array
+    /**
+     * Cancel a queued or running report export.
+     */
+    public function cancelExport(string $exportId, ReportExportCancelRequest $request = new ReportExportCancelRequest()): JobResponse
     {
         self::validateUuid($exportId, "exportId");
-        return $this->request("POST", "/api/v1/reporting/exports/" . rawurlencode($exportId) . "/cancel", ["reason" => $reason]);
+
+        return JobResponse::fromPayload($this->object("POST", "/api/v1/reporting/exports/" . rawurlencode($exportId) . "/cancel", $request->serialise()));
     }
 
+    /**
+     * Download one export artifact's bytes, at most 64 MiB.
+     */
     public function downloadExport(string $exportId, string $artifactId): string
     {
         self::validateUuid($exportId, "exportId");
         self::validateUuid($artifactId, "artifactId");
         $response = $this->rawRequest("GET", "/api/v1/reporting/exports/" . rawurlencode($exportId) . "/artifacts/" . rawurlencode($artifactId));
-        if (strlen($response) > 64 * 1024 * 1024) {
+        if (strlen($response) > self::MAX_DOWNLOAD_BYTES) {
             throw new \RuntimeException("custd: report export download exceeds 64 MiB");
         }
+
         return $response;
     }
 
     /**
-     * @param array<string, mixed> $query
-     * @return array<string, mixed>
+     * Render one reporting query.
      */
-    public function query(array $query): array
+    public function query(ReportingQueryRequest $request): RenderedWidgetData
     {
-        $widget = $this->request("POST", "/api/v1/reporting/query", $query);
-        self::validateRenderedWidgetData($widget, "custd: reporting query response contains malformed rendered widget data");
-        return $widget;
+        return self::renderedWidgetData($this->object("POST", "/api/v1/reporting/query", $request->serialise()));
     }
 
     /**
-     * @param array{template: string, subject: string, from?: string, to?: string, rangeDays?: int} $request
-     * @return array{data: array<string, mixed>}
+     * Render one query against a pack definition that has not been published. The tenant must be
+     * the credential's own unless the caller is a system administrator.
      */
-    public function subjectInsight(array $request): array
+    public function previewDraft(ReportingPackPreviewRequest $request): RenderedWidgetData
+    {
+        return self::renderedWidgetData($this->object("POST", "/api/v1/reporting/draft-preview", $request->serialise()));
+    }
+
+    /**
+     * Render one subject's insight over rangeDays, or over from and to (RFC 3339, at most 366 days apart).
+     */
+    public function subjectInsight(SubjectInsightRequest $request): SubjectInsightResponse
     {
         self::validateSubjectInsightRequest($request);
-        $response = $this->request("POST", "/api/v1/reporting/insights/subject", $request);
-        self::validateSubjectInsightResponse($response);
+        $payload = $this->object("POST", "/api/v1/reporting/insights/subject", $request->serialise());
+        self::refuseUnsafeTrust(Fields::object($payload, "data"));
 
-        /** @var array{data: array<string, mixed>} $response */
-        return $response;
-    }
-
-    /** @return array<string, mixed> */
-    public function receipt(string $receiptUuid): array
-    {
-        self::validateUuid($receiptUuid, "receiptUuid");
-        return $this->request("GET", "/api/v1/processing/" . rawurlencode($receiptUuid));
-    }
-
-    /** @return array{outputs: list<array<string, mixed>>|null} */
-    public function outputs(): array
-    {
-        $response = $this->request("GET", "/api/v1/reporting/outputs");
-        $outputs = $response["outputs"] ?? null;
-        if ($outputs !== null && !is_array($outputs)) {
-            throw new \RuntimeException("custd: prepared-data outputs response is malformed");
-        }
-        return ["outputs" => $outputs === null ? null : array_values($outputs)];
-    }
-
-    /** @return array<string, mixed> */
-    public function output(string $outputUuid): array
-    {
-        self::validateUuid($outputUuid, "outputUuid");
-        return $this->request("GET", "/api/v1/reporting/outputs/" . rawurlencode($outputUuid));
+        return SubjectInsightResponse::fromPayload($payload);
     }
 
     /**
-     * @param array<string, mixed> $query
-     * @return array<string, mixed>
+     * Get a prepared-data processing receipt.
      */
-    public function queryOutput(string $outputUuid, array $query): array
+    public function receipt(string $receiptUuid): PreparedDataReceipt
+    {
+        self::validateUuid($receiptUuid, "receiptUuid");
+
+        return PreparedDataReceipt::fromPayload($this->object("GET", "/api/v1/processing/" . rawurlencode($receiptUuid)));
+    }
+
+    /**
+     * List the tenant's prepared data outputs.
+     */
+    public function outputs(): PreparedDataOutputListResponse
+    {
+        return PreparedDataOutputListResponse::fromPayload($this->object("GET", "/api/v1/reporting/outputs"));
+    }
+
+    /**
+     * Get one prepared data output's status.
+     */
+    public function output(string $outputUuid): PreparedDataOutput
     {
         self::validateUuid($outputUuid, "outputUuid");
-        return $this->request("POST", "/api/v1/reporting/outputs/" . rawurlencode($outputUuid) . "/query", $query);
+
+        return PreparedDataOutput::fromPayload($this->object("GET", "/api/v1/reporting/outputs/" . rawurlencode($outputUuid)));
+    }
+
+    /**
+     * Render one query against a prepared data output.
+     */
+    public function queryOutput(string $outputUuid, ReportingQueryRequest $request): PreparedDataQueryEnvelope
+    {
+        self::validateUuid($outputUuid, "outputUuid");
+        $payload = $this->object("POST", "/api/v1/reporting/outputs/" . rawurlencode($outputUuid) . "/query", $request->serialise());
+        self::refuseUnsafeTrust(Fields::object($payload, "data"));
+
+        return PreparedDataQueryEnvelope::fromPayload($payload);
     }
 
     private static function validateUuid(string $value, string $field): void
@@ -137,21 +183,29 @@ final class Client
         }
     }
 
-    /**
-     * @param array<string, mixed>|null $body
-     * @return array<string, mixed>
-     */
-    private function request(string $method, string $path, ?array $body = null): array
+    private static function renderedWidgetData(\stdClass $payload): RenderedWidgetData
     {
-        $responseBody = $this->rawRequest($method, $path, $body);
-        if ($responseBody === "") {
-            return [];
+        self::refuseUnsafeTrust($payload);
+
+        return RenderedWidgetData::fromPayload($payload);
+    }
+
+    private static function refuseUnsafeTrust(\stdClass $data): void
+    {
+        if (self::containsUnsafeTrustKey($data->trust ?? null)) {
+            throw new \RuntimeException("custd: unsafe reporting trust diagnostics");
         }
-        $decoded = json_decode($responseBody, true, flags: JSON_THROW_ON_ERROR);
-        if (!is_array($decoded)) {
-            throw new \RuntimeException("custd: reporting response body must be JSON object");
-        }
-        return $decoded;
+    }
+
+    /** @param array<string, mixed>|null $body */
+    private function object(string $method, string $path, ?array $body = null): \stdClass
+    {
+        $responseBody = $this->rawRequest($method, $path, $body === [] ? null : $body);
+
+        return Fields::jsonObject(
+            $responseBody === "" ? new \stdClass() : json_decode($responseBody, false, flags: JSON_THROW_ON_ERROR),
+            "reporting response",
+        );
     }
 
     /** @param array<string, mixed>|null $body */
@@ -186,6 +240,9 @@ final class Client
 
     private static function containsUnsafeTrustKey(mixed $value): bool
     {
+        if ($value instanceof \stdClass) {
+            $value = get_object_vars($value);
+        }
         if (!is_array($value)) {
             return false;
         }
@@ -209,98 +266,34 @@ final class Client
         return false;
     }
 
-    /** @param array<string, mixed> $request */
-    private static function validateSubjectInsightRequest(array $request): void
+    private static function validateSubjectInsightRequest(SubjectInsightRequest $request): void
     {
-        $unknown = array_diff(array_keys($request), ["template", "subject", "from", "to", "rangeDays"]);
-        if ($unknown !== []) {
-            throw new \InvalidArgumentException("custd: subject insight request contains unsupported fields");
-        }
-        if (!is_string($request["template"] ?? null) || $request["template"] === "") {
-            throw new \InvalidArgumentException("custd: subject insight template is required");
-        }
-        if (preg_match('/^[a-z][a-z0-9_]{0,127}$/', $request["template"]) !== 1) {
+        if (preg_match('/^[a-z][a-z0-9_]{0,127}$/', $request->template) !== 1) {
             throw new \InvalidArgumentException("custd: subject insight template is invalid");
         }
-        if (!is_string($request["subject"] ?? null) || trim($request["subject"]) === "" || strlen($request["subject"]) > 512) {
+        if (trim($request->subject) === "" || strlen($request->subject) > 512) {
             throw new \InvalidArgumentException("custd: subject insight subject is required");
         }
-        $hasRangeDays = array_key_exists("rangeDays", $request);
-        $hasFrom = array_key_exists("from", $request);
-        $hasTo = array_key_exists("to", $request);
+        $hasRangeDays = $request->rangeDays !== null;
+        $hasFrom = $request->from !== null;
+        $hasTo = $request->to !== null;
         if ($hasRangeDays === ($hasFrom || $hasTo) || $hasFrom !== $hasTo) {
             throw new \InvalidArgumentException("custd: subject insight requires rangeDays or both from and to");
         }
-        if ($hasRangeDays && (!is_int($request["rangeDays"]) || $request["rangeDays"] < 1 || $request["rangeDays"] > 366)) {
+        if ($hasRangeDays && ($request->rangeDays < 1 || $request->rangeDays > 366)) {
             throw new \InvalidArgumentException("custd: subject insight rangeDays must be between 1 and 366");
         }
-        if ($hasFrom) {
-            $from = self::parseRfc3339($request["from"]);
-            $to = self::parseRfc3339($request["to"]);
-            $seconds = $to->getTimestamp() - $from->getTimestamp();
+        if ($request->from !== null && $request->to !== null) {
+            $seconds = self::parseRfc3339($request->to)->getTimestamp() - self::parseRfc3339($request->from)->getTimestamp();
             if ($seconds <= 0 || $seconds > 366 * 86400) {
                 throw new \InvalidArgumentException("custd: subject insight date range must be positive and at most 366 days");
             }
         }
     }
 
-    /** @param array<string, mixed> $response */
-    private static function validateSubjectInsightResponse(array $response): void
+    private static function parseRfc3339(string $value): \DateTimeImmutable
     {
-        self::validateRenderedWidgetData(
-            $response["data"] ?? null,
-            "custd: subject insight response contains malformed rendered widget data",
-        );
-    }
-
-    /** @param mixed $data */
-    private static function validateRenderedWidgetData(mixed $data, string $message): void
-    {
-        $required = ["buckets", "value", "queryDurationMs", "snapshotAgeMs", "eventLagP95Ms"];
-        if (!is_array($data) || array_diff($required, array_keys($data)) !== []) {
-            throw new \RuntimeException($message);
-        }
-        if (!is_array($data["buckets"]) || !self::isRenderedMetricValue($data["value"])) {
-            throw new \RuntimeException($message);
-        }
-        foreach ($data["buckets"] as $bucket) {
-            if (!is_array($bucket) || array_diff(["date", "value", "source", "queryDurationMs"], array_keys($bucket)) !== []
-                || !is_string($bucket["date"]) || !is_string($bucket["source"]) || !is_int($bucket["queryDurationMs"])
-                || !self::isRenderedMetricValue($bucket["value"])) {
-                throw new \RuntimeException($message);
-            }
-        }
-        foreach (["queryDurationMs", "snapshotAgeMs", "eventLagP95Ms"] as $field) {
-            if (!is_int($data[$field])) {
-                throw new \RuntimeException($message);
-            }
-        }
-        if (self::containsUnsafeTrustKey($data["trust"] ?? null)) {
-            throw new \RuntimeException("custd: unsafe reporting trust diagnostics");
-        }
-        if (!self::hasValidOptionalRenderedFields($data)) {
-            throw new \RuntimeException($message);
-        }
-    }
-
-    private static function isRenderedMetricValue(mixed $value): bool
-    {
-        if (!is_array($value)
-            || array_diff(["value", "unit", "sampleCount", "dataSufficiency", "complete"], array_keys($value)) !== []) {
-            return false;
-        }
-
-        return (is_int($value["value"]) || is_float($value["value"]))
-            && is_string($value["unit"])
-            && is_int($value["sampleCount"])
-            && is_string($value["dataSufficiency"])
-            && is_bool($value["complete"]);
-    }
-
-    private static function parseRfc3339(mixed $value): \DateTimeImmutable
-    {
-        if (!is_string($value)
-            || preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/', $value) !== 1) {
+        if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/', $value) !== 1) {
             throw new \InvalidArgumentException("custd: subject insight from and to must be RFC3339 timestamps");
         }
         $format = str_contains($value, ".") ? "!Y-m-d\\TH:i:s.uP" : "!Y-m-d\\TH:i:sP";
@@ -311,114 +304,5 @@ final class Client
         }
 
         return $parsed;
-    }
-
-    /** @param array<string, mixed> $data */
-    private static function hasValidOptionalRenderedFields(array $data): bool
-    {
-        foreach (["deltaLabel", "secondaryLabel"] as $field) {
-            if (array_key_exists($field, $data) && !is_string($data[$field])) {
-                return false;
-            }
-        }
-        if (array_key_exists("parquetUriCount", $data) && !is_int($data["parquetUriCount"])) {
-            return false;
-        }
-        if (array_key_exists("delta", $data) && !self::isRenderedMetricValue($data["delta"])) {
-            return false;
-        }
-        if (array_key_exists("deltaPercent", $data) && !is_int($data["deltaPercent"]) && !is_float($data["deltaPercent"])) {
-            return false;
-        }
-        if (array_key_exists("warnings", $data)
-            && (!is_array($data["warnings"]) || array_filter($data["warnings"], fn (mixed $item): bool => !is_string($item)) !== [])) {
-            return false;
-        }
-        if (array_key_exists("sources", $data)) {
-            if (!is_array($data["sources"])) {
-                return false;
-            }
-            foreach ($data["sources"] as $source) {
-                if (!self::isReportingSource($source)) {
-                    return false;
-                }
-            }
-        }
-        if (array_key_exists("metadata", $data) && !self::isReportingMetadata($data["metadata"])) {
-            return false;
-        }
-
-        return !array_key_exists("trust", $data) || self::isReportingTrust($data["trust"]);
-    }
-
-    private static function isReportingMetadata(mixed $value): bool
-    {
-        if (!is_array($value) || !is_string($value["resolvedTemplate"] ?? null)) {
-            return false;
-        }
-        foreach (["effectiveMaxRows", "returnedRows", "returnedBuckets", "coveredWindows"] as $field) {
-            if (!is_int($value[$field] ?? null)) {
-                return false;
-            }
-        }
-
-        return self::hasOptionalStringFields($value, ["rangeStart", "rangeEnd"]);
-    }
-
-    private static function isReportingSource(mixed $value): bool
-    {
-        return is_array($value)
-            && is_string($value["kind"] ?? null)
-            && is_int($value["count"] ?? null)
-            && is_string($value["completeness"] ?? null)
-            && self::hasOptionalStringFields($value, ["coverageStart", "coverageEnd"]);
-    }
-
-    private static function isReportingTrust(mixed $value): bool
-    {
-        if (!is_array($value)) {
-            return false;
-        }
-        foreach (["status", "dataFreshness", "retryability", "rollupState", "coverage", "captureState", "consentState", "exportState"] as $field) {
-            if (!is_string($value[$field] ?? null)) {
-                return false;
-            }
-        }
-        if (!self::isReportingNextAction($value["nextAction"] ?? null)) {
-            return false;
-        }
-        if (!self::hasOptionalStringFields(
-            $value,
-            ["lastExport", "schemaVersion", "contractVersion", "permissionClass", "partialReason", "unavailableReason"],
-        )) {
-            return false;
-        }
-
-        return !array_key_exists("queryWarnings", $value)
-            || is_array($value["queryWarnings"])
-            && array_filter($value["queryWarnings"], fn (mixed $item): bool => !is_string($item)) === [];
-    }
-
-    private static function isReportingNextAction(mixed $value): bool
-    {
-        return is_array($value)
-            && is_string($value["action"] ?? null)
-            && (!array_key_exists("pollAfterSeconds", $value) || is_int($value["pollAfterSeconds"]))
-            && (!array_key_exists("maxRetries", $value) || is_int($value["maxRetries"]));
-    }
-
-    /**
-     * @param array<string, mixed> $value
-     * @param list<string> $fields
-     */
-    private static function hasOptionalStringFields(array $value, array $fields): bool
-    {
-        foreach ($fields as $field) {
-            if (array_key_exists($field, $value) && !is_string($value[$field])) {
-                return false;
-            }
-        }
-
-        return true;
     }
 }

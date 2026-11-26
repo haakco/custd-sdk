@@ -20,6 +20,7 @@ final readonly class SiteDomainChecks
         public ?SiteIncident $openIncident = null,
         public ?SiteChromeUx $chromeUx = null,
         public ?SiteRegistration $registration = null,
+        public ?SiteHttpExpectations $httpExpectations = null,
     ) {
     }
 
@@ -28,6 +29,7 @@ final readonly class SiteDomainChecks
         $incident = Fields::optionalObject($payload, 'openIncident');
         $chromeUx = Fields::optionalObject($payload, 'chromeUx');
         $registration = Fields::optionalObject($payload, 'registration');
+        $httpExpectations = Fields::optionalObject($payload, 'httpExpectations');
 
         return new self(
             SiteCheckMode::from(Fields::string($payload, 'mode')),
@@ -37,6 +39,7 @@ final readonly class SiteDomainChecks
             $incident === null ? null : SiteIncident::fromPayload($incident),
             $chromeUx === null ? null : SiteChromeUx::fromPayload($chromeUx),
             $registration === null ? null : SiteRegistration::fromPayload($registration),
+            $httpExpectations === null ? null : SiteHttpExpectations::fromPayload($httpExpectations),
         );
     }
 }

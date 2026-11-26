@@ -8,7 +8,7 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteIncident is one outage, from the first failed check until the first check
- * that passed. resolvedAt is null while it is open.
+ * that passed. resolvedAt is null while it is open; acknowledgedAt is set once someone acknowledged it.
  */
 final readonly class SiteIncident
 {
@@ -19,6 +19,7 @@ final readonly class SiteIncident
         public string $cause,
         public int $failedChecks,
         public ?string $resolvedAt = null,
+        public ?string $acknowledgedAt = null,
     ) {
     }
 
@@ -31,6 +32,7 @@ final readonly class SiteIncident
             Fields::string($payload, 'cause'),
             Fields::integer($payload, 'failedChecks'),
             Fields::optionalString($payload, 'resolvedAt'),
+            Fields::optionalString($payload, 'acknowledgedAt'),
         );
     }
 }

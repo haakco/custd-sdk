@@ -7,7 +7,8 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 use HaakCo\Custd\Fields;
 
 /** SiteKeywordList is a named list of keywords a Site keeps; seedTerm is its optional topic;
- * related is Bing's related keywords for the seed term, null until read. */
+ * related is Bing's related keywords for the seed term, null until read; marketSample is the
+ * independent result sample for the seed, present only when marketSampleEnabled allows it. */
 final readonly class SiteKeywordList
 {
     /** @param list<string> $keywords */
@@ -18,12 +19,15 @@ final readonly class SiteKeywordList
         public string $updatedAt,
         public ?string $seedTerm = null,
         public ?SiteRelatedKeywords $related = null,
+        public bool $marketSampleEnabled = false,
+        public ?SiteMarketSample $marketSample = null,
     ) {
     }
 
     public static function fromPayload(\stdClass $payload): self
     {
         $related = Fields::optionalObject($payload, 'related');
+        $marketSample = Fields::optionalObject($payload, 'marketSample');
 
         return new self(
             Fields::string($payload, 'name'),
@@ -32,6 +36,8 @@ final readonly class SiteKeywordList
             Fields::string($payload, 'updatedAt'),
             Fields::optionalString($payload, 'seedTerm'),
             $related === null ? null : SiteRelatedKeywords::fromPayload($related),
+            Fields::optionalBoolean($payload, 'marketSampleEnabled') ?? false,
+            $marketSample === null ? null : SiteMarketSample::fromPayload($marketSample),
         );
     }
 }

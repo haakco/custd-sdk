@@ -4,127 +4,80 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Admin\Retention\RetentionPolicy;
+use HaakCo\Custd\Admin\Retention\RetentionPolicyListResponse;
+use HaakCo\Custd\Admin\Retention\RetentionPolicyUpsertRequest;
+use HaakCo\Custd\Admin\Retention\RetentionRunPreview;
+use HaakCo\Custd\Admin\Retention\RetentionRunsListResponse;
+
 /**
- * RetentionClient owns per-tenant retention policies. Effective-tenant
- * authority is enforced server-side; wrong-tenant requests return 404.
+ * RetentionClient owns per-tenant retention policies. Effective-tenant authority is enforced server-side;
+ * wrong-tenant requests return 404. Preview and apply estimates are server-issued: surface them verbatim and never
+ * round or re-derive the per-store counts.
  */
 final class RetentionClient
 {
-    /** @var string|callable():string Bearer token, or a provider run per request. */
-    private readonly mixed $token;
+    private readonly ApiHttp $http;
 
-    public function __construct(
-        private readonly string $baseUrl,
-        string|callable $token,
-        private readonly mixed $transport,
-    ) {
-        $this->token = $token;
+    /** @param string|callable():string $token Bearer token, or a provider run per request. */
+    public function __construct(string $baseUrl, string|callable $token, ?callable $transport = null)
+    {
+        $this->http = new ApiHttp($baseUrl, $token, $transport);
     }
 
     /**
-     * @return array<string, mixed>
+     * List bounded retention policies.
      */
-    public function list(): array
+    public function list(): RetentionPolicyListResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/retention/policies"
-        ) ?? ["policies" => []];
+        return RetentionPolicyListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/retention/policies', [], null));
     }
 
     /**
-     * @return array<string, mixed>
+     * Get a tenant's bounded retention policies.
      */
-    public function get(string $tenantSlug): array
+    public function get(string $tenantSlug): RetentionPolicyListResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/retention/policies/" . rawurlencode($tenantSlug)
-        ) ?? ["policies" => []];
+        return RetentionPolicyListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/retention/policies/' . rawurlencode($tenantSlug), [], null));
     }
 
     /**
-     * @param array<string, mixed> $request
-     * @return array<string, mixed>
+     * Create or replace a tenant's bounded retention policy.
      */
-    public function upsert(string $tenantSlug, array $request): array
+    public function upsert(string $tenantSlug, RetentionPolicyUpsertRequest $request): RetentionPolicy
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "PUT",
-            "/retention/policies/" . rawurlencode($tenantSlug),
-            $request
-        ) ?? [];
+        return RetentionPolicy::fromPayload($this->http->object('PUT', '/api/v1/admin/retention/policies/' . rawurlencode($tenantSlug), [], $request->serialise()));
     }
 
+    /**
+     * Delete a tenant's bounded retention policy.
+     */
     public function delete(string $tenantSlug): void
     {
-        Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "DELETE",
-            "/retention/policies/" . rawurlencode($tenantSlug)
-        );
+        $this->http->none('DELETE', '/api/v1/admin/retention/policies/' . rawurlencode($tenantSlug), [], null);
     }
 
     /**
-     * Preview asks the server to compute a deletion estimate without applying
-     * it. The estimate is server-issued; the SDK must surface it verbatim and
-     * never round or re-derive the per-store counts.
-     *
-     * @return array<string, mixed>
+     * Preview a tenant retention run.
      */
-    public function preview(string $tenantSlug): array
+    public function preview(string $tenantSlug): RetentionRunPreview
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/retention/policies/" . rawurlencode($tenantSlug) . "/preview"
-        ) ?? [];
+        return RetentionRunPreview::fromPayload($this->http->object('POST', '/api/v1/admin/retention/policies/' . rawurlencode($tenantSlug) . '/preview', [], null));
     }
 
     /**
-     * Apply submits the destructive retention run. The server is the authority
-     * for whether deletion actually happens; the SDK must not pre-announce state.
-     *
-     * @return array<string, mixed>
+     * Apply a tenant retention run.
      */
-    public function apply(string $tenantSlug): array
+    public function apply(string $tenantSlug): RetentionRunPreview
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/retention/policies/" . rawurlencode($tenantSlug) . "/apply"
-        ) ?? [];
+        return RetentionRunPreview::fromPayload($this->http->object('POST', '/api/v1/admin/retention/policies/' . rawurlencode($tenantSlug) . '/apply', [], null));
     }
 
     /**
-     * ListRuns returns the retention runs for a single tenant. Empty runs list
-     * is the canonical "no runs yet" response, not an error.
-     *
-     * @return array<string, mixed>
+     * List tenant retention runs.
      */
-    public function listRuns(string $tenantSlug): array
+    public function listRuns(string $tenantSlug, ?int $limit = null, ?int $offset = null): RetentionRunsListResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/retention/policies/" . rawurlencode($tenantSlug) . "/runs"
-        ) ?? ["runs" => []];
+        return RetentionRunsListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/retention/policies/' . rawurlencode($tenantSlug) . '/runs', ['limit' => $limit, 'offset' => $offset], null));
     }
 }

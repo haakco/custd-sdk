@@ -13,7 +13,7 @@ final class AdminTransportRecorder
     /** @var array<int, array{method:string, url:string, body:mixed, token:string, headers:array<string, string>}> */
     public array $calls = [];
 
-    /** @param list<array{0: string, 1: string, 2?: array<string, string>}> $queue */
+    /** @param list<array{0: int, 1: string, 2?: array<string, string>}> $queue */
     public function __construct(public array $queue)
     {
     }

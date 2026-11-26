@@ -6,213 +6,205 @@ namespace HaakCo\Custd\Admin;
 
 use HaakCo\Custd\Admin\Prediction\DurationEvaluationRequest;
 use HaakCo\Custd\Admin\Prediction\DurationEvaluationResponse;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionActivateRequest;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionDefinition;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionDefinitionCreateRequest;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionDefinitionListResponse;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionDefinitionUpdateRequest;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionEvaluationSummary;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionOutcomeListResponse;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionPauseRequest;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionRunListResponse;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionRunNowRequest;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionThresholdEventListResponse;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionVersion;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionVersionPublishRequest;
+use HaakCo\Custd\Admin\Prediction\MeasurementSignalSource;
+use HaakCo\Custd\Admin\Prediction\MeasurementSignalSourceCreateRequest;
+use HaakCo\Custd\Admin\Prediction\MeasurementSignalSourceListResponse;
 
 /**
- * PredictionClient owns the tenant-scoped configurable signal prediction
- * lifecycle. The company slug is sent explicitly on every request.
+ * PredictionClient owns the tenant-scoped configurable signal prediction lifecycle: definitions and their
+ * immutable versions, runs, outcomes, evaluations, threshold events and signal sources. The company slug is sent
+ * explicitly on every request. List responses are envelopes; follow nextPageToken while it is set.
  */
 final class PredictionClient
 {
-    /** @var string|callable():string Bearer token, or a provider run per request. */
-    private readonly mixed $token;
+    private readonly ApiHttp $http;
 
-    public function __construct(
-        private readonly string $baseUrl,
-        string|callable $token,
-        private readonly mixed $transport,
-    ) {
-        $this->token = $token;
-    }
-
-    /** @return array<string, mixed> */
-    public function listDefinitions(string $companySlug, ?int $pageSize = null, ?string $pageToken = null): array
+    /** @param string|callable():string $token Bearer token, or a provider run per request. */
+    public function __construct(string $baseUrl, string|callable $token, ?callable $transport = null)
     {
-        return $this->request("GET", $this->collection("/definitions", $companySlug, $pageSize, $pageToken)) ?? [];
-    }
-
-    /** @return array<string, mixed> */
-    public function getDefinition(string $companySlug, string $definitionUuid): array
-    {
-        return $this->request("GET", $this->resource("/definitions/{$definitionUuid}", $companySlug)) ?? [];
+        $this->http = new ApiHttp($baseUrl, $token, $transport);
     }
 
     /**
-     * @param array<string, mixed> $body
-     * @return array<string, mixed>
+     * List tenant-scoped prediction definitions.
      */
-    public function createDefinition(string $companySlug, array $body): array
+    public function listDefinitions(string $companySlug, ?int $pageSize = null, ?string $pageToken = null): MeasurementPredictionDefinitionListResponse
     {
-        return $this->request("POST", $this->collection("/definitions", $companySlug), $body) ?? [];
+        return MeasurementPredictionDefinitionListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/measurement/predictions/definitions', ['pageSize' => $pageSize, 'pageToken' => $pageToken, 'companySlug' => $companySlug], null));
     }
 
     /**
-     * @param array<string, mixed> $body
-     * @return array<string, mixed>
+     * Get a tenant-scoped prediction definition.
      */
-    public function updateDefinition(string $companySlug, string $definitionUuid, array $body): array
+    public function getDefinition(string $companySlug, string $definitionUuid): MeasurementPredictionDefinition
     {
-        return $this->request("PATCH", $this->resource("/definitions/{$definitionUuid}", $companySlug), $body) ?? [];
-    }
-
-    /** @return array<string, mixed> */
-    public function getVersion(string $companySlug, string $definitionUuid, string $versionUuid): array
-    {
-        return $this->request(
-            "GET",
-            $this->resource("/definitions/{$definitionUuid}/versions/{$versionUuid}", $companySlug),
-        ) ?? [];
+        return MeasurementPredictionDefinition::fromPayload($this->http->object('GET', '/api/v1/admin/measurement/predictions/definitions/' . rawurlencode($definitionUuid), ['companySlug' => $companySlug], null));
     }
 
     /**
-     * @param array<string, mixed> $body
-     * @return array<string, mixed>
+     * Create a tenant-scoped prediction definition (draft).
      */
-    public function publishVersion(string $companySlug, string $definitionUuid, array $body): array
+    public function createDefinition(string $companySlug, MeasurementPredictionDefinitionCreateRequest $request): MeasurementPredictionDefinition
     {
-        return $this->request("POST", $this->resource("/definitions/{$definitionUuid}/publish", $companySlug), $body) ?? [];
+        return MeasurementPredictionDefinition::fromPayload($this->http->object('POST', '/api/v1/admin/measurement/predictions/definitions', ['companySlug' => $companySlug], $request->serialise()));
     }
 
     /**
-     * @param array<string, mixed> $body
-     * @return array<string, mixed>
+     * Update a tenant-scoped prediction definition draft.
      */
-    public function activateVersion(string $companySlug, string $definitionUuid, array $body): array
+    public function updateDefinition(string $companySlug, string $definitionUuid, MeasurementPredictionDefinitionUpdateRequest $request): MeasurementPredictionDefinition
     {
-        return $this->request("POST", $this->resource("/definitions/{$definitionUuid}/activate", $companySlug), $body) ?? [];
+        return MeasurementPredictionDefinition::fromPayload($this->http->object('PATCH', '/api/v1/admin/measurement/predictions/definitions/' . rawurlencode($definitionUuid), ['companySlug' => $companySlug], $request->serialise()));
     }
 
     /**
-     * @param array<string, mixed> $body
-     * @return array<string, mixed>
+     * Get an immutable prediction definition version.
      */
-    public function rollbackVersion(string $companySlug, string $definitionUuid, array $body): array
+    public function getVersion(string $companySlug, string $definitionUuid, string $versionUuid): MeasurementPredictionVersion
     {
-        return $this->request("POST", $this->resource("/definitions/{$definitionUuid}/rollback", $companySlug), $body) ?? [];
-    }
-
-    /** @param array<string, mixed> $body */
-    public function pauseDefinition(string $companySlug, string $definitionUuid, array $body = []): void
-    {
-        $this->request("POST", $this->resource("/definitions/{$definitionUuid}/pause", $companySlug), $body);
-    }
-
-    public function resumeDefinition(string $companySlug, string $definitionUuid): void
-    {
-        $this->request("POST", $this->resource("/definitions/{$definitionUuid}/resume", $companySlug));
-    }
-
-    public function archiveDefinition(string $companySlug, string $definitionUuid): void
-    {
-        $this->request("POST", $this->resource("/definitions/{$definitionUuid}/archive", $companySlug));
-    }
-
-    /** @param array<string, mixed> $body */
-    public function runNow(string $companySlug, string $definitionUuid, array $body = []): void
-    {
-        $this->request("POST", $this->resource("/definitions/{$definitionUuid}/run-now", $companySlug), $body);
-    }
-
-    /** @return array<string, mixed>|array<int, array<string, mixed>> */
-    public function listRuns(string $companySlug, string $definitionUuid, ?int $pageSize = null): array
-    {
-        return $this->request("GET", $this->collection("/definitions/{$definitionUuid}/runs", $companySlug, $pageSize)) ?? [];
-    }
-
-    /** @return array<string, mixed>|array<int, array<string, mixed>> */
-    public function listOutcomes(string $companySlug, string $definitionUuid, ?int $pageSize = null): array
-    {
-        return $this->request("GET", $this->collection("/definitions/{$definitionUuid}/outcomes", $companySlug, $pageSize)) ?? [];
-    }
-
-    /** @return array<string, mixed> */
-    public function getEvaluation(string $companySlug, string $definitionUuid): array
-    {
-        return $this->request("GET", $this->resource("/definitions/{$definitionUuid}/evaluations", $companySlug)) ?? [];
-    }
-
-    /** @return array<string, mixed>|array<int, array<string, mixed>> */
-    public function listThresholdEvents(string $companySlug, string $definitionUuid, ?int $pageSize = null): array
-    {
-        return $this->request("GET", $this->collection("/definitions/{$definitionUuid}/threshold-events", $companySlug, $pageSize)) ?? [];
-    }
-
-    /** @return array<string, mixed>|array<int, array<string, mixed>> */
-    public function listSignalSources(string $companySlug, ?int $pageSize = null, ?string $pageToken = null): array
-    {
-        return $this->request("GET", $this->collection("/sources", $companySlug, $pageSize, $pageToken)) ?? [];
-    }
-
-    /** @return array<string, mixed> */
-    public function getSignalSource(string $companySlug, string $sourceUuid): array
-    {
-        return $this->request("GET", $this->resource("/sources/{$sourceUuid}", $companySlug)) ?? [];
+        return MeasurementPredictionVersion::fromPayload($this->http->object('GET', '/api/v1/admin/measurement/predictions/definitions/' . rawurlencode($definitionUuid) . '/versions/' . rawurlencode($versionUuid), ['companySlug' => $companySlug], null));
     }
 
     /**
-     * @param array<string, mixed> $body
-     * @return array<string, mixed>
+     * Compile and publish a candidate version (immutable).
      */
-    public function createSignalSource(string $companySlug, array $body): array
+    public function publishVersion(string $companySlug, string $definitionUuid, MeasurementPredictionVersionPublishRequest $request): MeasurementPredictionVersion
     {
-        return $this->request("POST", $this->collection("/sources", $companySlug), $body) ?? [];
+        return MeasurementPredictionVersion::fromPayload($this->http->object('POST', '/api/v1/admin/measurement/predictions/definitions/' . rawurlencode($definitionUuid) . '/publish', ['companySlug' => $companySlug], $request->serialise()));
     }
 
+    /**
+     * Activate an immutable version (writes partial-unique-index active row).
+     */
+    public function activateVersion(string $companySlug, string $definitionUuid, MeasurementPredictionActivateRequest $request): MeasurementPredictionVersion
+    {
+        return MeasurementPredictionVersion::fromPayload($this->http->object('POST', '/api/v1/admin/measurement/predictions/definitions/' . rawurlencode($definitionUuid) . '/activate', ['companySlug' => $companySlug], $request->serialise()));
+    }
+
+    /**
+     * Pause tenant-scoped prediction runs.
+     */
+    public function pauseDefinition(string $companySlug, string $definitionUuid, MeasurementPredictionPauseRequest $request = new MeasurementPredictionPauseRequest()): void
+    {
+        $this->http->none('POST', '/api/v1/admin/measurement/predictions/definitions/' . rawurlencode($definitionUuid) . '/pause', ['companySlug' => $companySlug], $request->serialise());
+    }
+
+    /**
+     * Resume tenant-scoped prediction runs.
+     */
+    public function resumeDefinition(string $companySlug, string $definitionUuid, MeasurementPredictionPauseRequest $request = new MeasurementPredictionPauseRequest()): void
+    {
+        $this->http->none('POST', '/api/v1/admin/measurement/predictions/definitions/' . rawurlencode($definitionUuid) . '/resume', ['companySlug' => $companySlug], $request->serialise());
+    }
+
+    /**
+     * Archive a tenant-scoped prediction definition while retaining its history.
+     */
+    public function archiveDefinition(string $companySlug, string $definitionUuid, MeasurementPredictionPauseRequest $request = new MeasurementPredictionPauseRequest()): void
+    {
+        $this->http->none('POST', '/api/v1/admin/measurement/predictions/definitions/' . rawurlencode($definitionUuid) . '/archive', ['companySlug' => $companySlug], $request->serialise());
+    }
+
+    /**
+     * Enqueue a forced evaluation through the scheduler.
+     */
+    public function runNow(string $companySlug, string $definitionUuid, MeasurementPredictionRunNowRequest $request = new MeasurementPredictionRunNowRequest()): void
+    {
+        $this->http->none('POST', '/api/v1/admin/measurement/predictions/definitions/' . rawurlencode($definitionUuid) . '/run-now', ['companySlug' => $companySlug], $request->serialise());
+    }
+
+    /**
+     * List bounded prediction run history.
+     */
+    public function listRuns(string $companySlug, string $definitionUuid, ?int $pageSize = null): MeasurementPredictionRunListResponse
+    {
+        return MeasurementPredictionRunListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/measurement/predictions/definitions/' . rawurlencode($definitionUuid) . '/runs', ['pageSize' => $pageSize, 'companySlug' => $companySlug], null));
+    }
+
+    /**
+     * List bounded prediction outcome history.
+     */
+    public function listOutcomes(string $companySlug, string $definitionUuid, ?int $pageSize = null): MeasurementPredictionOutcomeListResponse
+    {
+        return MeasurementPredictionOutcomeListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/measurement/predictions/definitions/' . rawurlencode($definitionUuid) . '/outcomes', ['pageSize' => $pageSize, 'companySlug' => $companySlug], null));
+    }
+
+    /**
+     * Get the latest bounded evaluation summary.
+     */
+    public function getEvaluation(string $companySlug, string $definitionUuid): MeasurementPredictionEvaluationSummary
+    {
+        return MeasurementPredictionEvaluationSummary::fromPayload($this->http->object('GET', '/api/v1/admin/measurement/predictions/definitions/' . rawurlencode($definitionUuid) . '/evaluations', ['companySlug' => $companySlug], null));
+    }
+
+    /**
+     * List durable prediction threshold events.
+     */
+    public function listThresholdEvents(string $companySlug, string $definitionUuid, ?int $pageSize = null): MeasurementPredictionThresholdEventListResponse
+    {
+        return MeasurementPredictionThresholdEventListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/measurement/predictions/definitions/' . rawurlencode($definitionUuid) . '/threshold-events', ['pageSize' => $pageSize, 'companySlug' => $companySlug], null));
+    }
+
+    /**
+     * List tenant-scoped signal sources.
+     */
+    public function listSignalSources(string $companySlug, ?int $pageSize = null, ?string $pageToken = null): MeasurementSignalSourceListResponse
+    {
+        return MeasurementSignalSourceListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/measurement/predictions/sources', ['pageSize' => $pageSize, 'pageToken' => $pageToken, 'companySlug' => $companySlug], null));
+    }
+
+    /**
+     * Get a tenant-scoped signal source.
+     */
+    public function getSignalSource(string $companySlug, string $sourceUuid): MeasurementSignalSource
+    {
+        return MeasurementSignalSource::fromPayload($this->http->object('GET', '/api/v1/admin/measurement/predictions/sources/' . rawurlencode($sourceUuid), ['companySlug' => $companySlug], null));
+    }
+
+    /**
+     * Create a tenant-scoped signal source.
+     */
+    public function createSignalSource(string $companySlug, MeasurementSignalSourceCreateRequest $request): MeasurementSignalSource
+    {
+        return MeasurementSignalSource::fromPayload($this->http->object('POST', '/api/v1/admin/measurement/predictions/sources', ['companySlug' => $companySlug], $request->serialise()));
+    }
+
+    /**
+     * Activate a tenant-scoped signal source.
+     */
     public function activateSignalSource(string $companySlug, string $sourceUuid): void
     {
-        $this->request("POST", $this->resource("/sources/{$sourceUuid}/activate", $companySlug));
+        $this->http->none('POST', '/api/v1/admin/measurement/predictions/sources/' . rawurlencode($sourceUuid) . '/activate', ['companySlug' => $companySlug], null);
     }
 
+    /**
+     * Archive a tenant-scoped signal source while retaining its history.
+     */
     public function archiveSignalSource(string $companySlug, string $sourceUuid): void
     {
-        $this->request("POST", $this->resource("/sources/{$sourceUuid}/archive", $companySlug));
+        $this->http->none('POST', '/api/v1/admin/measurement/predictions/sources/' . rawurlencode($sourceUuid) . '/archive', ['companySlug' => $companySlug], null);
     }
 
     /**
-     * Evaluate one duration history with the server's chronological
-     * rolling-origin fold. The response is typed: the caller reads prediction
-     * error and interval containment from named fields, and the version evidence
-     * says which immutable version produced them.
+     * Evaluate one duration history with the server's chronological rolling-origin fold. The caller reads
+     * prediction error and interval containment from named fields, and the version evidence says which immutable
+     * version produced them.
      */
-    public function evaluateDurationHistory(
-        string $companySlug,
-        string $definitionUuid,
-        DurationEvaluationRequest $body,
-    ): DurationEvaluationResponse {
-        $path = $this->resource("/definitions/{$definitionUuid}/duration-evaluations", $companySlug);
-        return DurationEvaluationResponse::fromPayload(
-            $this->request("POST", $path, $body->toPayload()) ?? [],
-        );
-    }
-
-    /**
-     * @param array<string, mixed>|null $body
-     * @return array<string, mixed>|null
-     */
-    private function request(string $method, string $path, ?array $body = null): ?array
+    public function evaluateDurationHistory(string $companySlug, string $definitionUuid, DurationEvaluationRequest $body): DurationEvaluationResponse
     {
-        return Http::request($this->baseUrl, $this->token, $this->transport, $method, $path, $body);
-    }
-
-    private function collection(string $path, string $companySlug, ?int $pageSize = null, ?string $pageToken = null): string
-    {
-        $query = ["companySlug" => $companySlug];
-        if ($pageSize !== null) {
-            $query["pageSize"] = $pageSize;
-        }
-        if ($pageToken !== null) {
-            $query["pageToken"] = $pageToken;
-        }
-        return "/measurement/predictions" . $path . "?" . http_build_query($query, "", "&", PHP_QUERY_RFC3986);
-    }
-
-    private function resource(string $path, string $companySlug): string
-    {
-        $segments = explode("/", $path);
-        foreach ($segments as $index => $segment) {
-            if ($index > 0) {
-                $segments[$index] = rawurlencode($segment);
-            }
-        }
-        return $this->collection(implode("/", $segments), $companySlug);
+        return DurationEvaluationResponse::fromPayload($this->http->object('POST', '/api/v1/admin/measurement/predictions/definitions/' . rawurlencode($definitionUuid) . '/duration-evaluations', ['companySlug' => $companySlug], $body->toPayload()));
     }
 }

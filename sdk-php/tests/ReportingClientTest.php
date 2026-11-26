@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\CustdClient;
+use HaakCo\Custd\Reporting\Data\ExportQueryParameters;
+use HaakCo\Custd\Reporting\Data\ReportExportCancelRequest;
+use HaakCo\Custd\Reporting\Data\ReportExportCreateRequest;
+use HaakCo\Custd\Reporting\Data\ReportingQueryRequest;
+use HaakCo\Custd\Reporting\Data\SubjectInsightRequest;
 use HaakCo\Custd\Reporting\RequestException;
 use PHPUnit\Framework\TestCase;
 
@@ -31,10 +36,13 @@ final class ReportingClientTest extends TestCase
     {
         $id = "123e4567-e89b-42d3-a456-426614174000";
         $calls = [];
-        $client = $this->clientWithResponse(["id" => $id, "state" => "queued"], $calls);
-        $client->reporting()->createExport(["dashboardKey" => "executive", "formats" => ["csv"], "parameters" => []]);
+        $client = $this->clientWithResponse($this->maximal("getReportExport"), $calls);
+        $created = $client->reporting()->createExport(new ReportExportCreateRequest("executive", ["csv"], new ExportQueryParameters(rangeDays: 7)));
         $client->reporting()->getExport($id);
-        $client->reporting()->cancelExport($id, "done");
+        $client->reporting()->cancelExport($id, new ReportExportCancelRequest("done"));
+        self::assertSame("example", $created->id);
+        self::assertSame(["dashboardKey" => "executive", "formats" => ["csv"], "parameters" => ["rangeDays" => 7]], $calls[0]["body"]);
+        self::assertSame(["reason" => "done"], $calls[2]["body"]);
         self::assertSame([
             "http://localhost:8080/api/v1/reporting/exports",
             "http://localhost:8080/api/v1/reporting/exports/{$id}",
@@ -45,18 +53,20 @@ final class ReportingClientTest extends TestCase
     {
         $uuid = "33333333-3333-4333-8333-333333333333";
         $calls = [];
-        $client = $this->clientWithResponse(["outputUuid" => $uuid, "processingState" => "ready"], $calls);
-        self::assertSame($uuid, $client->reporting()->output($uuid)["outputUuid"]);
+        $client = $this->clientWithResponse($this->maximal("getPreparedDataOutput"), $calls);
+        self::assertSame("accepted", $client->reporting()->output($uuid)->processingState);
         self::assertSame("http://localhost:8080/api/v1/reporting/outputs/{$uuid}", $calls[0]["url"]);
     }
 
     public function testOutputsPreservesNullableListEnvelope(): void
     {
-        foreach ([null, [["outputUuid" => "33333333-3333-4333-8333-333333333333", "warnings" => null]]] as $outputs) {
-            $calls = [];
-            $client = $this->clientWithResponse(["outputs" => $outputs], $calls);
-            self::assertSame(["outputs" => $outputs], $client->reporting()->outputs());
-        }
+        $calls = [];
+        $client = $this->clientWithResponse(["outputs" => null], $calls);
+        self::assertSame([], $client->reporting()->outputs()->outputs);
+        $output = $this->maximal("getPreparedDataOutput");
+        $output["warnings"] = null;
+        $client = $this->clientWithResponse(["outputs" => [$output]], $calls);
+        self::assertSame([], $client->reporting()->outputs()->outputs[0]->warnings);
     }
 
     public function testSubjectInsightSendsClosedRequestAndReturnsRenderedData(): void
@@ -68,48 +78,26 @@ final class ReportingClientTest extends TestCase
             $client = $this->clientWithFixture("reporting-subject-insight-response.json", $calls);
             $request = $this->fixture($fixture);
 
-            $result = $client->reporting()->subjectInsight($request);
+            $result = $client->reporting()->subjectInsight(new SubjectInsightRequest(...$request));
 
-            self::assertSame($response["data"], $result["data"]);
+            self::assertSame((float) $response["data"]["value"]["value"], $result->data->value->value);
             self::assertSame("POST", $calls[0]["method"]);
             self::assertSame("http://localhost:8080/api/v1/reporting/insights/subject", $calls[0]["url"]);
-            self::assertSame($request, $calls[0]["body"]);
+            self::assertEquals($request, $calls[0]["body"]);
         }
     }
 
-    public function testSubjectInsightRejectsMissingSubjectAndUnknownFields(): void
+    public function testSubjectInsightRejectsInvalidSubjectAndRange(): void
     {
         foreach ([
-            $this->fixture("invalid-reporting-subject-insight-missing-subject.json"),
-            ["template" => "subject_activity", "subject" => "subject_7f3b", "filters" => []],
-            ["template" => "subject_activity", "subject" => "subject_7f3b", "from" => "2026-07-01T00:00:00Z"],
-            [
-                "template" => "subject_activity",
-                "subject" => "subject_7f3b",
-                "from" => "2026-07-01T00:00:00Z",
-                "to" => "2026-07-18T00:00:00Z",
-                "rangeDays" => 18,
-            ],
-            ["template" => "Invalid", "subject" => "subject_7f3b", "rangeDays" => 7],
-            [
-                "template" => "subject_activity",
-                "subject" => "subject_7f3b",
-                "from" => "2026-07-18T00:00:00Z",
-                "to" => "2026-07-01T00:00:00Z",
-            ],
-            ["template" => "subject_activity", "subject" => "subject_7f3b", "rangeDays" => true],
-            [
-                "template" => "subject_activity",
-                "subject" => "subject_7f3b",
-                "from" => "2026-02-30T00:00:00Z",
-                "to" => "2026-03-01T00:00:00Z",
-            ],
-            [
-                "template" => "subject_activity",
-                "subject" => "subject_7f3b",
-                "from" => "2026-02-01T00:00Z",
-                "to" => "2026-03-01T00:00:00Z",
-            ],
+            new SubjectInsightRequest(subject: " ", template: "subject_activity", rangeDays: 7),
+            new SubjectInsightRequest(subject: "subject_7f3b", template: "subject_activity", from: "2026-07-01T00:00:00Z"),
+            new SubjectInsightRequest(subject: "subject_7f3b", template: "subject_activity", from: "2026-07-01T00:00:00Z", rangeDays: 18, to: "2026-07-18T00:00:00Z"),
+            new SubjectInsightRequest(subject: "subject_7f3b", template: "Invalid", rangeDays: 7),
+            new SubjectInsightRequest(subject: "subject_7f3b", template: "subject_activity", from: "2026-07-18T00:00:00Z", to: "2026-07-01T00:00:00Z"),
+            new SubjectInsightRequest(subject: "subject_7f3b", template: "subject_activity", rangeDays: 0),
+            new SubjectInsightRequest(subject: "subject_7f3b", template: "subject_activity", from: "2026-02-30T00:00:00Z", to: "2026-03-01T00:00:00Z"),
+            new SubjectInsightRequest(subject: "subject_7f3b", template: "subject_activity", from: "2026-02-01T00:00Z", to: "2026-03-01T00:00:00Z"),
         ] as $request) {
             $calls = [];
             $client = $this->clientWithResponse([], $calls);
@@ -127,13 +115,9 @@ final class ReportingClientTest extends TestCase
         $calls = [];
         $client = $this->clientWithFixture("invalid-reporting-subject-insight-response.json", $calls);
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage("rendered widget");
-        $client->reporting()->subjectInsight([
-            "template" => "subject_activity",
-            "subject" => "subject_7f3b",
-            "rangeDays" => 7,
-        ]);
+        $this->expectException(\UnexpectedValueException::class);
+        $this->expectExceptionMessage("response field value is required");
+        $client->reporting()->subjectInsight(new SubjectInsightRequest(subject: "subject_7f3b", template: "subject_activity", rangeDays: 7));
     }
 
     public function testSubjectInsightRejectsUnsafeTrustDiagnostics(): void
@@ -145,7 +129,7 @@ final class ReportingClientTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage("unsafe reporting trust diagnostics");
-        $client->reporting()->subjectInsight($this->fixture("reporting-subject-insight-request.json"));
+        $client->reporting()->subjectInsight($this->subjectRequest());
     }
 
     public function testSubjectInsightRejectsMalformedOptionalRenderedData(): void
@@ -155,9 +139,9 @@ final class ReportingClientTest extends TestCase
         $response["data"]["metadata"] = ["resolvedTemplate" => "learning_subject"];
         $client = $this->clientWithResponse($response, $calls);
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage("malformed rendered widget data");
-        $client->reporting()->subjectInsight($this->fixture("reporting-subject-insight-request.json"));
+        $this->expectException(\UnexpectedValueException::class);
+        $this->expectExceptionMessage("response field coveredWindows is required");
+        $client->reporting()->subjectInsight($this->subjectRequest());
     }
 
     public function testSubjectInsightPropagatesReportingAuthError(): void
@@ -167,7 +151,7 @@ final class ReportingClientTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage("status 403");
-        $client->reporting()->subjectInsight($this->fixture("reporting-subject-insight-request.json"));
+        $client->reporting()->subjectInsight($this->subjectRequest());
     }
 
     public function testDashboardReadsGenericPackDashboard(): void
@@ -177,13 +161,13 @@ final class ReportingClientTest extends TestCase
 
         $dashboard = $client->reporting()->dashboard("security_operations");
 
-        self::assertSame("security_operations", $dashboard["key"]);
-        self::assertSame("14d", $dashboard["defaultRange"]);
-        self::assertSame(300, $dashboard["refreshSeconds"]);
-        self::assertSame(["reporting:read"], $dashboard["requiredScopes"]);
-        self::assertSame("security_events", $dashboard["widgets"][0]["template"]);
-        self::assertSame(["event_count"], $dashboard["widgets"][0]["metrics"]);
-        self::assertSame(["severity"], $dashboard["widgets"][0]["dimensions"]);
+        self::assertSame("security_operations", $dashboard->key);
+        self::assertSame("14d", $dashboard->defaultRange);
+        self::assertSame(300, $dashboard->refreshSeconds);
+        self::assertSame(["reporting:read"], $dashboard->requiredScopes);
+        self::assertSame("security_events", $dashboard->widgets[0]->template);
+        self::assertSame(["event_count"], $dashboard->widgets[0]->metrics);
+        self::assertSame(["severity"], $dashboard->widgets[0]->dimensions);
         self::assertSame("GET", $calls[0]["method"]);
         self::assertSame("http://localhost:8080/api/v1/reporting/dashboards/security_operations", $calls[0]["url"]);
     }
@@ -194,34 +178,34 @@ final class ReportingClientTest extends TestCase
         $client = $this->clientWithFixture("reporting-query-rendered.json", $calls);
 
         $request = $this->fixture("reporting-query-security.json");
-        $widget = $client->reporting()->query($request);
+        $widget = $client->reporting()->query(new ReportingQueryRequest(...$request));
 
-        self::assertSame(50, $widget["value"]["value"]);
-        self::assertSame(50, $widget["value"]["sampleCount"]);
-        self::assertTrue($widget["value"]["complete"]);
-        self::assertFalse($widget["value"]["truncated"]);
-        self::assertSame(42, $widget["queryDurationMs"]);
-        self::assertSame(1, $widget["parquetUriCount"]);
-        self::assertSame(120000, $widget["snapshotAgeMs"]);
-        self::assertSame(8000, $widget["eventLagP95Ms"]);
-        self::assertSame(25, $widget["delta"]["value"]);
-        self::assertSame(100, $widget["deltaPercent"]);
-        self::assertSame("vs previous period", $widget["deltaLabel"]);
-        self::assertSame("auto", $widget["buckets"][0]["source"]);
-        self::assertTrue($widget["buckets"][0]["value"]["complete"]);
-        self::assertSame(42, $widget["buckets"][0]["queryDurationMs"]);
-        self::assertSame(1, $widget["buckets"][0]["parquetUriCount"]);
-        self::assertSame("healthy", $widget["trust"]["status"]);
-        self::assertSame("complete", $widget["trust"]["rollupState"]);
-        self::assertSame("none", $widget["trust"]["retryability"]);
-        self::assertSame("none", $widget["trust"]["nextAction"]["action"]);
-        self::assertSame("security-event/1.0.0", $widget["trust"]["schemaVersion"]);
-        self::assertSame("complete", $widget["trust"]["coverage"]);
-        self::assertSame("reporting.read", $widget["trust"]["permissionClass"]);
-        self::assertSame([], $widget["trust"]["queryWarnings"]);
+        self::assertSame(50.0, $widget->value->value);
+        self::assertSame(50, $widget->value->sampleCount);
+        self::assertTrue($widget->value->complete);
+        self::assertFalse($widget->value->truncated);
+        self::assertSame(42, $widget->queryDurationMs);
+        self::assertSame(1, $widget->parquetUriCount);
+        self::assertSame(120000, $widget->snapshotAgeMs);
+        self::assertSame(8000, $widget->eventLagP95Ms);
+        self::assertSame(25.0, $widget->delta?->value);
+        self::assertSame(100.0, $widget->deltaPercent);
+        self::assertSame("vs previous period", $widget->deltaLabel);
+        self::assertSame("auto", $widget->buckets[0]->source);
+        self::assertTrue($widget->buckets[0]->value->complete);
+        self::assertSame(42, $widget->buckets[0]->queryDurationMs);
+        self::assertSame(1, $widget->buckets[0]->parquetUriCount);
+        self::assertSame("healthy", $widget->trust?->status);
+        self::assertSame("complete", $widget->trust->rollupState);
+        self::assertSame("none", $widget->trust->retryability);
+        self::assertSame("none", $widget->trust->nextAction->action);
+        self::assertSame("security-event/1.0.0", $widget->trust->schemaVersion);
+        self::assertSame("complete", $widget->trust->coverage);
+        self::assertSame("reporting.read", $widget->trust->permissionClass);
+        self::assertSame([], $widget->trust->queryWarnings);
         self::assertSame("POST", $calls[0]["method"]);
         self::assertSame("http://localhost:8080/api/v1/reporting/query", $calls[0]["url"]);
-        self::assertSame($request, $calls[0]["body"]);
+        self::assertEquals($request, $calls[0]["body"]);
     }
 
     public function testQuerySerializesMaxRowsWithoutRowLimit(): void
@@ -230,9 +214,9 @@ final class ReportingClientTest extends TestCase
         $client = $this->clientWithFixture("reporting-query-rendered.json", $calls);
         $request = $this->fixture("reporting-query-max-rows.json");
 
-        $client->reporting()->query($request);
+        $client->reporting()->query(new ReportingQueryRequest(...$request));
 
-        self::assertSame($request, $calls[0]["body"]);
+        self::assertEquals($request, $calls[0]["body"]);
         self::assertSame(50, $calls[0]["body"]["maxRows"]);
         self::assertArrayNotHasKey("rowLimit", $calls[0]["body"]);
     }
@@ -243,11 +227,7 @@ final class ReportingClientTest extends TestCase
         $client = $this->clientWithFixture("reporting-query-unsafe-trust.json", $calls);
 
         try {
-            $client->reporting()->query([
-                "template" => "awthy_secure_checkout_flow",
-                "metrics" => ["flow_completion_rate"],
-                "rangeDays" => 1,
-            ]);
+            $client->reporting()->query(new ReportingQueryRequest(metrics: ["flow_completion_rate"], template: "awthy_secure_checkout_flow", rangeDays: 1));
             self::fail("Query returned no error for unsafe trust diagnostics");
         } catch (\RuntimeException $error) {
             $message = $error->getMessage();
@@ -295,6 +275,17 @@ final class ReportingClientTest extends TestCase
                 return ["status" => $status, "body" => json_encode($response, flags: JSON_THROW_ON_ERROR)];
             },
         ]);
+    }
+
+    private function subjectRequest(): SubjectInsightRequest
+    {
+        return new SubjectInsightRequest(...$this->fixture("reporting-subject-insight-request.json"));
+    }
+
+    /** @return array<string, mixed> */
+    private function maximal(string $operationId): array
+    {
+        return $this->fixture("api/examples/{$operationId}.json")["maximal"];
     }
 
     /**

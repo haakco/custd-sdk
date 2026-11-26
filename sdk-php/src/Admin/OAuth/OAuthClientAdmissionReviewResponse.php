@@ -1,0 +1,24 @@
+<?php
+
+declare(strict_types=1);
+
+namespace HaakCo\Custd\Admin\OAuth;
+
+use HaakCo\Custd\Fields;
+
+final readonly class OAuthClientAdmissionReviewResponse
+{
+    public function __construct(
+        public OAuthClientAdmission $admission,
+        public OAuthClientAdmissionMetadata $metadata,
+    ) {
+    }
+
+    public static function fromPayload(\stdClass $payload): self
+    {
+        return new self(
+            OAuthClientAdmission::fromPayload(Fields::object($payload, 'admission')),
+            OAuthClientAdmissionMetadata::fromPayload(Fields::object($payload, 'metadata')),
+        );
+    }
+}

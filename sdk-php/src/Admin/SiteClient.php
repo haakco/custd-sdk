@@ -4,78 +4,71 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Admin\Site\Site;
+use HaakCo\Custd\Admin\Site\SiteCreateRequest;
+use HaakCo\Custd\Admin\Site\SiteCreateResponse;
+use HaakCo\Custd\Admin\Site\SiteListResponse;
+use HaakCo\Custd\Admin\Site\SiteUpdateRequest;
+use HaakCo\Custd\Admin\Site\SiteWriteKeyResponse;
+
+/**
+ * SiteClient creates, lists, changes and deletes the tenant's Sites and rotates their write keys.
+ */
 final class SiteClient
 {
-    /** @var string|callable():string Bearer token, or a provider run per request. */
-    private readonly mixed $token;
+    private readonly ApiHttp $http;
 
-    public function __construct(
-        private readonly string $baseUrl,
-        string|callable $token,
-        private readonly mixed $transport,
-    ) {
-        $this->token = $token;
+    /** @param string|callable():string $token Bearer token, or a provider run per request. */
+    public function __construct(string $baseUrl, string|callable $token, ?callable $transport = null)
+    {
+        $this->http = new ApiHttp($baseUrl, $token, $transport);
     }
 
     /**
-     * @param array<string, mixed> $site
-     * @return array<string, mixed>
+     * Update site config.
      */
-    public function create(array $site): array
+    public function update(string $siteUuid, SiteUpdateRequest $request): Site
     {
-        return Http::request($this->baseUrl, $this->token, $this->transport, "POST", "/sites", $site) ?? [];
+        return Site::fromPayload($this->http->object('PATCH', '/api/v1/admin/sites/' . rawurlencode($siteUuid), [], $request->serialise()));
     }
 
     /**
-     * @return array<string, mixed>
+     * Create a site.
      */
-    public function list(): array
+    public function create(SiteCreateRequest $request): SiteCreateResponse
     {
-        $response = Http::request($this->baseUrl, $this->token, $this->transport, "GET", "/sites")
-            ?? ["sites" => []];
-        if (isset($response["sites"]) && is_array($response["sites"])) {
-            $response["sites"] = array_map(self::publicSite(...), $response["sites"]);
-        }
-        return $response;
+        return SiteCreateResponse::fromPayload($this->http->object('POST', '/api/v1/admin/sites', [], $request->serialise()));
     }
 
     /**
-     * @return array<string, mixed>
+     * List sites.
      */
-    public function get(string $siteUuid): array
+    public function list(): SiteListResponse
     {
-        return self::publicSite(
-            Http::request($this->baseUrl, $this->token, $this->transport, "GET", "/sites/" . rawurlencode($siteUuid))
-                ?? []
-        );
+        return SiteListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/sites', [], null));
     }
 
+    /**
+     * Get a site.
+     */
+    public function get(string $siteUuid): Site
+    {
+        return Site::fromPayload($this->http->object('GET', '/api/v1/admin/sites/' . rawurlencode($siteUuid), [], null));
+    }
+
+    /**
+     * Delete a site.
+     */
     public function delete(string $siteUuid): void
     {
-        Http::request($this->baseUrl, $this->token, $this->transport, "DELETE", "/sites/" . rawurlencode($siteUuid));
+        $this->http->none('DELETE', '/api/v1/admin/sites/' . rawurlencode($siteUuid), [], null);
     }
 
     /**
-     * @return array<string, mixed>
+     * Rotate site write key.
      */
-    public function rotateWriteKey(string $siteUuid): array
+    public function rotateWriteKey(string $siteUuid): SiteWriteKeyResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/sites/" . rawurlencode($siteUuid) . "/rotate-write-key"
-        ) ?? [];
-    }
-
-    /**
-     * @param array<string, mixed> $site
-     * @return array<string, mixed>
-     */
-    private static function publicSite(array $site): array
-    {
-        unset($site["writeKey"]);
-        return $site;
+        return SiteWriteKeyResponse::fromPayload($this->http->object('POST', '/api/v1/admin/sites/' . rawurlencode($siteUuid) . '/rotate-write-key', [], null));
     }
 }

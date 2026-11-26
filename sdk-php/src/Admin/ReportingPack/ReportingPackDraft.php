@@ -6,7 +6,10 @@ namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
 
-/** ReportingPackDraft is one platform-global reporting-pack draft. */
+/**
+ * ReportingPackDraft is one platform-global reporting-pack draft. `validationError` names why it
+ * cannot be published, and is null when it can.
+ */
 final readonly class ReportingPackDraft
 {
     public function __construct(
@@ -15,6 +18,7 @@ final readonly class ReportingPackDraft
         public PackDefinition $definition,
         public ?string $createdAt = null,
         public ?string $updatedAt = null,
+        public ?string $validationError = null,
     ) {
     }
 
@@ -26,6 +30,7 @@ final readonly class ReportingPackDraft
             PackDefinition::fromPayload(Fields::object($payload, 'definition')),
             Fields::optionalString($payload, 'createdAt'),
             Fields::optionalString($payload, 'updatedAt'),
+            Fields::optionalString($payload, 'validationError'),
         );
     }
 }

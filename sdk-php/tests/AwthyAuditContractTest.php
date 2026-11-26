@@ -289,7 +289,7 @@ final class AwthyAuditContractTest extends TestCase
 
                 return [
                     "status" => 202,
-                    "body" => '{"success":true,"redactionId":"01957abc-0000-0000-0000-000000000099","results":[{"selectors":{"localAuditEventId":"evt-local-1"},"status":"redacted"}]}',
+                    "body" => '{"success":true,"redactionId":"01957abc-0000-0000-0000-000000000099","resultShape":"field_redaction","results":[{"selectors":{"localAuditEventId":"evt-local-1"},"status":"redacted"}]}',
                 ];
             },
         ]);
@@ -309,8 +309,9 @@ final class AwthyAuditContractTest extends TestCase
         $this->assertSame("http://localhost:8080/api/v1/managed-audit/redactions", $calls[0]["url"]);
         $this->assertSame("token", $calls[0]["token"]);
         $this->assertSame($request->toArray(), $calls[0]["payload"]);
-        $this->assertTrue($response["success"]);
-        $this->assertSame("redacted", $response["results"][0]["status"]);
+        $this->assertTrue($response->success);
+        $this->assertSame("redacted", $response->results[0]->status);
+        $this->assertSame(["localAuditEventId" => "evt-local-1"], $response->results[0]->selectors);
     }
 
     public function testClientRetriesAwthyRedactionOnRetryableFailures(): void
@@ -324,7 +325,7 @@ final class AwthyAuditContractTest extends TestCase
                     throw new RetryableException("offline");
                 }
 
-                return ["status" => 202, "body" => '{"success":true,"results":[]}'];
+                return ["status" => 202, "body" => '{"success":true,"redactionId":"01957abc-0000-0000-0000-000000000099","resultShape":"field_redaction","results":[]}'];
             },
         ]);
 

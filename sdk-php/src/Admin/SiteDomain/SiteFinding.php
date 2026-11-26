@@ -9,7 +9,7 @@ use HaakCo\Custd\Fields;
 /**
  * SiteFinding is one problem an audit found on a verified domain, with the fix. recheckable says a
  * one-page recheck decides its rule, so requestPageRecheck can confirm the fix; it reads false from
- * a server before 3.51.
+ * a server before 3.51. dismissible says the finding's rule accepts a dismissal.
  */
 final readonly class SiteFinding
 {
@@ -26,6 +26,7 @@ final readonly class SiteFinding
         public SiteFindingHistory $history,
         public bool $recheckable = false,
         public ?SiteFindingSuggestion $suggestion = null,
+        public bool $dismissible = false,
     ) {
     }
 
@@ -46,6 +47,7 @@ final readonly class SiteFinding
             SiteFindingHistory::fromPayload(Fields::object($payload, 'history')),
             Fields::optionalBoolean($payload, 'recheckable') ?? false,
             $suggestion === null ? null : SiteFindingSuggestion::fromPayload($suggestion),
+            Fields::optionalBoolean($payload, 'dismissible') ?? false,
         );
     }
 }

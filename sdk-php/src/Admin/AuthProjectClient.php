@@ -435,6 +435,134 @@ final class AuthProjectClient
         return AuthDomainBinding::fromPayload($this->call("POST", $path, null, $options));
     }
 
+    /** Reserve a verified hostname for the environment. Sending the same binding again is safe. */
+    public function bindEnvironmentAuthDomain(
+        string $projectId,
+        string $environmentId,
+        AuthProject\BindAuthDomainRequest $request,
+        ?RequestOptions $options = null,
+    ): AuthDomainBinding {
+        return $this->authDomain("PUT", $projectId, $environmentId, "", $request->serialise(), $options);
+    }
+
+    /**
+     * Reserve a platform-generated issuer hostname (env-<environment uuid>.issuers.custd.com) for an
+     * installed environment. System administrators and the platform operator only.
+     */
+    public function mintEnvironmentAuthDomain(
+        string $projectId,
+        string $environmentId,
+        AuthProject\MintAuthDomainRequest $request,
+        ?RequestOptions $options = null,
+    ): AuthDomainBinding {
+        return $this->authDomain("POST", $projectId, $environmentId, "/mint", $request->serialise(), $options);
+    }
+
+    /** Request a new DNS and route check without changing the TXT challenge. */
+    public function retryEnvironmentAuthDomain(string $projectId, string $environmentId, ?RequestOptions $options = null): AuthDomainBinding
+    {
+        return $this->authDomain("POST", $projectId, $environmentId, "/retry", null, $options);
+    }
+
+    /** Withdraw admissions while keeping the hostname reservation. */
+    public function disableEnvironmentAuthDomain(string $projectId, string $environmentId, ?RequestOptions $options = null): AuthDomainBinding
+    {
+        return $this->authDomain("POST", $projectId, $environmentId, "/disable", null, $options);
+    }
+
+    /** Withdraw admissions and schedule teardown; the hostname stays reserved until teardown is observed. */
+    public function releaseEnvironmentAuthDomain(string $projectId, string $environmentId, ?RequestOptions $options = null): AuthDomainBinding
+    {
+        return $this->authDomain("POST", $projectId, $environmentId, "/release", null, $options);
+    }
+
+    /** Pin one realm component to an exact incident image identity. System administrators and the platform operator only. */
+    public function setEnvironmentAuthDomainImageOverride(
+        string $projectId,
+        string $environmentId,
+        AuthProject\AuthDomainImageOverrideRequest $request,
+        ?RequestOptions $options = null,
+    ): AuthDomainBinding {
+        return $this->authDomain("PUT", $projectId, $environmentId, "/image-override", $request->serialise(), $options);
+    }
+
+    /** End the incident image override, returning the realm to the current release default. */
+    public function clearEnvironmentAuthDomainImageOverride(
+        string $projectId,
+        string $environmentId,
+        ?RequestOptions $options = null,
+    ): AuthDomainBinding {
+        return $this->authDomain("DELETE", $projectId, $environmentId, "/image-override", null, $options);
+    }
+
+    /** List the application items the environment owns or has shared with it. */
+    public function listEnvironmentAppLinks(
+        string $projectId,
+        string $environmentId,
+        ?RequestOptions $options = null,
+    ): AuthProject\AppLinkList {
+        return AuthProject\AppLinkList::fromPayload(
+            $this->call("GET", self::environmentPath($projectId, $environmentId) . "/app-links", null, $options)
+        );
+    }
+
+    /**
+     * Upload the realm logo as one multipart "logo" part. Custd reads the real image format from the
+     * bytes, so the filename only labels the upload.
+     */
+    public function setEnvironmentBrandLogo(
+        string $projectId,
+        string $environmentId,
+        string $filename,
+        string $bytes,
+        ?RequestOptions $options = null,
+    ): AuthProject\BrandLogo {
+        $boundary = "custd-" . bin2hex(random_bytes(12));
+        $body = "--{$boundary}\r\n"
+            . "Content-Disposition: form-data; name=\"logo\"; filename=\"" . addcslashes($filename, "\"\\\r\n") . "\"\r\n"
+            . "Content-Type: application/octet-stream\r\n\r\n"
+            . $bytes . "\r\n--{$boundary}--\r\n";
+
+        return AuthProject\BrandLogo::fromPayload(Http::requestRaw(
+            $this->baseUrl,
+            $this->token,
+            $this->transport,
+            "POST",
+            self::environmentPath($projectId, $environmentId) . "/brand/logo",
+            $body,
+            "multipart/form-data; boundary={$boundary}",
+            "/api/v1/admin",
+            null,
+            self::owningUserUuid($options),
+        ));
+    }
+
+    /** Remove the realm's stored logo. */
+    public function clearEnvironmentBrandLogo(string $projectId, string $environmentId, ?RequestOptions $options = null): void
+    {
+        $this->call("DELETE", self::environmentPath($projectId, $environmentId) . "/brand/logo", null, $options);
+    }
+
+    /** Publish and promote the environment's hosted releases. */
+    public function releases(): AuthProjectReleaseClient
+    {
+        return new AuthProjectReleaseClient($this->baseUrl, $this->token, $this->transport);
+    }
+
+    /** @param array<string, mixed>|null $body */
+    private function authDomain(
+        string $method,
+        string $projectId,
+        string $environmentId,
+        string $suffix,
+        ?array $body,
+        ?RequestOptions $options,
+    ): AuthDomainBinding {
+        $path = self::environmentPath($projectId, $environmentId) . "/domain" . $suffix;
+
+        return AuthDomainBinding::fromPayload($this->call($method, $path, $body, $options));
+    }
+
     /** Read the environment's supported auth configuration. */
     public function getEnvironmentCapability(
         string $projectId,

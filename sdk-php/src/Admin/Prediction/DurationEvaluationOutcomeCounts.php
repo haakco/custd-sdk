@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin\Prediction;
 
-use HaakCo\Custd\Admin\TimePlan\Payload;
+use HaakCo\Custd\Fields;
 
 /**
  * DurationEvaluationOutcomeCounts is the closed terminal-outcome tally an
@@ -22,15 +22,14 @@ final readonly class DurationEvaluationOutcomeCounts
     ) {
     }
 
-    /** @param array<string, mixed> $payload */
-    public static function fromPayload(array $payload): self
+    public static function fromPayload(\stdClass $payload): self
     {
         return new self(
-            Payload::integer($payload, "eligible"),
-            Payload::integer($payload, "skipped"),
-            Payload::integer($payload, "cancelled"),
-            Payload::integer($payload, "notRun"),
-            Payload::integer($payload, "censored"),
+            Fields::integer($payload, 'eligible'),
+            Fields::integer($payload, 'skipped'),
+            Fields::integer($payload, 'cancelled'),
+            Fields::integer($payload, 'notRun'),
+            Fields::integer($payload, 'censored'),
         );
     }
 }

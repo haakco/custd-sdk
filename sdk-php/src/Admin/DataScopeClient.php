@@ -25,7 +25,8 @@ use HaakCo\Custd\Fields;
  *
  * The routes are addressed by external UUIDs; the immutable scope/resource codes
  * are the selectors event and query traffic use. Client-side checks are
- * shape-only; the server is the authority on what a principal may hold.
+ * shape-only; the server is the authority on what a principal may hold. A
+ * system administrator names the tenant with companySlug.
  */
 final class DataScopeClient
 {
@@ -47,108 +48,101 @@ final class DataScopeClient
     }
 
     /** Create a parent-company data scope. */
-    public function createScope(CreateScopeRequest $request): Scope
+    public function createScope(CreateScopeRequest $request, ?string $companySlug = null): Scope
     {
-        return Scope::fromPayload($this->sendStructured('POST', '/data-scopes', $request->serialise()));
+        return Scope::fromPayload($this->sendStructured('POST', self::tenant('/data-scopes', $companySlug), $request->serialise()));
     }
 
     /** List the parent company's data scopes. */
-    public function listScopes(bool $includeDisabled = false): ScopeList
+    public function listScopes(bool $includeDisabled = false, ?string $companySlug = null): ScopeList
     {
         return ScopeList::fromPayload(
-            $this->sendStructured('GET', '/data-scopes' . self::includeDisabled($includeDisabled))
+            $this->sendStructured('GET', self::tenant('/data-scopes', $companySlug, $includeDisabled))
         );
     }
 
     /** Return one data scope by its external UUID. */
-    public function getScope(string $uuid): Scope
+    public function getScope(string $uuid, ?string $companySlug = null): Scope
     {
-        return Scope::fromPayload($this->sendStructured('GET', '/data-scopes/' . rawurlencode($uuid)));
+        return Scope::fromPayload($this->sendStructured('GET', self::tenant('/data-scopes/' . rawurlencode($uuid), $companySlug)));
     }
 
     /** Change the editable fields of a scope. */
-    public function updateScope(string $uuid, UpdateScopeRequest $request): Scope
+    public function updateScope(string $uuid, UpdateScopeRequest $request, ?string $companySlug = null): Scope
     {
         return Scope::fromPayload(
-            $this->sendStructured('PATCH', '/data-scopes/' . rawurlencode($uuid), $request->serialise())
+            $this->sendStructured('PATCH', self::tenant('/data-scopes/' . rawurlencode($uuid), $companySlug), $request->serialise())
         );
     }
 
     /** Disable a data scope. The route returns 204 No Content. */
-    public function disableScope(string $uuid): void
+    public function disableScope(string $uuid, ?string $companySlug = null): void
     {
-        $this->send('POST', '/data-scopes/' . rawurlencode($uuid) . '/disable');
+        $this->send('POST', self::tenant('/data-scopes/' . rawurlencode($uuid) . '/disable', $companySlug));
     }
 
     /** Create a resource inside a scope. The scope is taken from the route. */
-    public function createResource(string $scopeUuid, CreateResourceRequest $request): ScopeResource
+    public function createResource(string $scopeUuid, CreateResourceRequest $request, ?string $companySlug = null): ScopeResource
     {
         return ScopeResource::fromPayload(
-            $this->sendStructured('POST', self::resourceCollection($scopeUuid), $request->serialise())
+            $this->sendStructured('POST', self::tenant(self::resourceCollection($scopeUuid), $companySlug), $request->serialise())
         );
     }
 
     /** List the resources inside a scope. */
-    public function listResources(string $scopeUuid, bool $includeDisabled = false): ScopeResourceList
+    public function listResources(string $scopeUuid, bool $includeDisabled = false, ?string $companySlug = null): ScopeResourceList
     {
         return ScopeResourceList::fromPayload(
-            $this->sendStructured('GET', self::resourceCollection($scopeUuid) . self::includeDisabled($includeDisabled))
+            $this->sendStructured('GET', self::tenant(self::resourceCollection($scopeUuid), $companySlug, $includeDisabled))
         );
     }
 
     /** Return one resource inside a scope by its external UUID. */
-    public function getResource(string $scopeUuid, string $resourceUuid): ScopeResource
+    public function getResource(string $scopeUuid, string $resourceUuid, ?string $companySlug = null): ScopeResource
     {
         return ScopeResource::fromPayload(
-            $this->sendStructured('GET', self::resourcePath($scopeUuid, $resourceUuid))
+            $this->sendStructured('GET', self::tenant(self::resourcePath($scopeUuid, $resourceUuid), $companySlug))
         );
     }
 
     /** Change the editable fields of a resource. */
-    public function updateResource(string $scopeUuid, string $resourceUuid, UpdateResourceRequest $request): ScopeResource
+    public function updateResource(string $scopeUuid, string $resourceUuid, UpdateResourceRequest $request, ?string $companySlug = null): ScopeResource
     {
         return ScopeResource::fromPayload(
-            $this->sendStructured('PATCH', self::resourcePath($scopeUuid, $resourceUuid), $request->serialise())
+            $this->sendStructured('PATCH', self::tenant(self::resourcePath($scopeUuid, $resourceUuid), $companySlug), $request->serialise())
         );
     }
 
     /** Disable a resource. The route returns 204 No Content. */
-    public function disableResource(string $scopeUuid, string $resourceUuid): void
+    public function disableResource(string $scopeUuid, string $resourceUuid, ?string $companySlug = null): void
     {
-        $this->send('POST', self::resourcePath($scopeUuid, $resourceUuid) . '/disable');
+        $this->send('POST', self::tenant(self::resourcePath($scopeUuid, $resourceUuid) . '/disable', $companySlug));
     }
 
     /** List one principal's explicit grants. */
-    public function listGrants(PrincipalRef $principal): GrantList
+    public function listGrants(PrincipalRef $principal, ?string $companySlug = null): GrantList
     {
-        $params = ['kind' => $principal->kind];
-        if ($principal->userUuid !== null) {
-            $params['userUuid'] = $principal->userUuid;
-        }
-        if ($principal->clientId !== null) {
-            $params['clientId'] = $principal->clientId;
-        }
+        $query = ['kind' => $principal->kind, 'userUuid' => $principal->userUuid, 'clientId' => $principal->clientId, 'companySlug' => $companySlug];
 
-        return GrantList::fromPayload(
-            $this->sendStructured('GET', '/data-scope-grants?' . http_build_query($params))
-        );
+        return GrantList::fromPayload($this->sendStructured('GET', ApiHttp::withQuery('/data-scope-grants', $query)));
     }
 
     /** Create one explicit principal grant. */
-    public function createGrant(Grant $grant): Grant
+    public function createGrant(Grant $grant, ?string $companySlug = null): Grant
     {
-        return Grant::fromPayload($this->sendStructured('POST', '/data-scope-grants', $grant->serialise()));
+        return Grant::fromPayload($this->sendStructured('POST', self::tenant('/data-scope-grants', $companySlug), $grant->serialise()));
     }
 
     /** Revoke one explicit principal grant. The route returns 204 No Content. */
-    public function revokeGrant(Grant $grant): void
+    public function revokeGrant(Grant $grant, ?string $companySlug = null): void
     {
-        $this->send('POST', '/data-scope-grants/revoke', $grant->serialise());
+        $this->send('POST', self::tenant('/data-scope-grants/revoke', $companySlug), $grant->serialise());
     }
 
-    private static function includeDisabled(bool $include): string
+    /** tenant adds the system administrator's tenant override and, for a list, includeDisabled. */
+    private static function tenant(string $path, ?string $companySlug, bool $includeDisabled = false): string
     {
-        return $include ? '?includeDisabled=true' : '';
+        return ApiHttp::withQuery($path, ['includeDisabled' => $includeDisabled ? true : null, 'companySlug' => $companySlug]);
     }
 
     private static function resourceCollection(string $scopeUuid): string

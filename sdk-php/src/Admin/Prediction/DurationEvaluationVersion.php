@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin\Prediction;
 
-use HaakCo\Custd\Admin\TimePlan\Payload;
+use HaakCo\Custd\Fields;
 
 /**
  * DurationEvaluationVersion identifies the immutable prediction version an
@@ -21,14 +21,13 @@ final readonly class DurationEvaluationVersion
     ) {
     }
 
-    /** @param array<string, mixed> $payload */
-    public static function fromPayload(array $payload): self
+    public static function fromPayload(\stdClass $payload): self
     {
         return new self(
-            Payload::string($payload, "uuid"),
-            Payload::integer($payload, "versionNumber"),
-            Payload::string($payload, "status"),
-            Payload::string($payload, "createdAt"),
+            Fields::string($payload, 'uuid'),
+            Fields::integer($payload, 'versionNumber'),
+            Fields::string($payload, 'status'),
+            Fields::string($payload, 'createdAt'),
         );
     }
 }

@@ -149,6 +149,7 @@ final class AuthProjectSurfaceTest extends TestCase
                 "expected" => ["gateway" => "registry.example.test/gateway:1", "hydra" => "registry.example.test/hydra:1"],
                 "running" => ["gateway" => "registry.example.test/gateway:0", "hydra" => "registry.example.test/hydra:0"],
                 "convergence" => "drifted",
+                "source" => "release-default",
             ],
             "dnsProof" => ["recordName" => "_custd-auth.auth.example.test", "recordValue" => "ownership-proof"],
             "createdAt" => "2026-11-20T00:00:00Z",
@@ -505,6 +506,7 @@ final class AuthProjectSurfaceTest extends TestCase
                 "slug" => "hosting-eu",
                 "name" => "Hosting EU",
                 "released" => ["environments" => 2, "directories" => 2, "organisations" => 2, "memberships" => 1, "invitations" => 3, "audienceBindings" => 1, "operations" => 4],
+                "hosting" => [["environmentId" => "environment-1", "slug" => "staging", "removed" => ["releases" => 1, "releaseObjects" => 2, "shareCardObjects" => 0, "sites" => 1, "requestSummaries" => 0, "items" => 3, "links" => 0, "collectionEntries" => 0, "measurementProjects" => 0, "meetings" => 0, "uncertaintyModels" => 0, "alertRules" => 1, "alertSubscriptions" => 0, "alertWebhooks" => 0, "alertDeliveries" => 0]]],
             ]],
             ["body" => [
                 "projectId" => "project-1",
@@ -513,6 +515,7 @@ final class AuthProjectSurfaceTest extends TestCase
                 "slug" => "staging",
                 "name" => "Staging",
                 "released" => ["directories" => 1, "organisations" => 1, "memberships" => 0, "invitations" => 1, "audienceBindings" => 1, "operations" => 2, "profileValues" => 3],
+                "hosting" => ["releases" => 1, "releaseObjects" => 2, "shareCardObjects" => 0, "sites" => 1, "requestSummaries" => 0, "items" => 3, "links" => 0, "collectionEntries" => 0, "measurementProjects" => 0, "meetings" => 0, "uncertaintyModels" => 0, "alertRules" => 1, "alertSubscriptions" => 0, "alertWebhooks" => 0, "alertDeliveries" => 0],
             ]],
         ], $calls);
         $projects = $client->adminAuthProjects();
@@ -529,6 +532,8 @@ final class AuthProjectSurfaceTest extends TestCase
         self::assertSame(["confirmSlug" => "hosting-eu"], $calls[0]["body"]);
         self::assertSame(2, $deletion->released->environments);
         self::assertSame(3, $environment->released->profileValues);
+        self::assertSame(2, $deletion->hosting[0]->removed->releaseObjects);
+        self::assertSame(3, $environment->hosting->items);
     }
 
     public function testOffboardsEnvironmentRetainingData(): void
@@ -544,6 +549,7 @@ final class AuthProjectSurfaceTest extends TestCase
             "loginPaused" => true,
             "revision" => 8,
             "clientCleanup" => ["status" => "complete", "clientsRemoved" => 2, "errorCategory" => ""],
+            "hosting" => ["status" => "complete", "activeReleases" => 1, "sites" => 1, "alertRules" => 2, "alertDeliveries" => 0],
             "retained" => [
                 "directories" => 1,
                 "organisations" => 1,
@@ -576,6 +582,8 @@ final class AuthProjectSurfaceTest extends TestCase
         self::assertSame(1, $offboarding->retained->reservedSlots);
         self::assertSame(5, $offboarding->retained->profileValues);
         self::assertSame(3, $offboarding->retained->memberships);
+        self::assertSame("complete", $offboarding->hosting->status);
+        self::assertNull($offboarding->hosting->errorCategory);
     }
 
 

@@ -4,13 +4,22 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Admin\Audit\AuditEvent;
+use HaakCo\Custd\Admin\Audit\AuditEventQuery;
+use HaakCo\Custd\Admin\Audit\AuditExport;
+use HaakCo\Custd\Admin\Audit\AuditListResponse;
+use HaakCo\Custd\Admin\Audit\ReportingPackAuditListResponse;
+
+/**
+ * AuditClient reads the tenant or global audit trail, exports it, and reads a reporting pack's audit events. The
+ * DTOs carry only the fields the server documents, so a field the server adds later is never passed on
+ * unreviewed. Every event's eventId must be a UUID.
+ */
 final class AuditClient
 {
-    private const FILTER_QUERY_KEYS = [
-        "scope", "companySlug", "affectedTenantSlug", "since", "until", "actorKind", "actorReference", "action",
-        "resourceType", "resourceId", "outcome", "correlationId",
-    ];
-    private const LIST_QUERY_KEYS = [...self::FILTER_QUERY_KEYS, "limit", "cursor"];
+    private const FORMATS = ['csv', 'json'];
+
+    private readonly ApiHttp $http;
 
     /** @var string|callable():string Bearer token, or a provider run per request. */
     private readonly mixed $token;
@@ -18,246 +27,66 @@ final class AuditClient
     public function __construct(
         private readonly string $baseUrl,
         string|callable $token,
-        private readonly mixed $transport,
+        private readonly mixed $transport = null,
     ) {
         $this->token = $token;
+        $this->http = new ApiHttp($baseUrl, $token, $transport);
     }
 
     /**
-     * @param array<string, mixed> $options
-     * @return array<string, mixed>
+     * List audit events, newest first. Follow nextCursor while it is set.
      */
-    public function listEvents(array $options = []): array
+    public function listEvents(AuditEventQuery $query = new AuditEventQuery()): AuditListResponse
     {
-        $response = Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/audit/events" . self::query($options),
-        ) ?? ["events" => [], "nextCursor" => ["cursor" => ""]];
-        return self::safeList($response);
+        $response = AuditListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/audit/events', $query->page(), null));
+        array_map(self::checkEventId(...), $response->events);
+
+        return $response;
     }
 
     /**
-     * @param array<string, mixed> $options
-     * @return array<string, mixed>
+     * Get one audit event. Scope is tenant or global; a system administrator names the tenant with companySlug.
      */
-    public function getEvent(string $eventId, array $options = []): array
+    public function getEvent(string $eventId, ?string $scope = null, ?string $companySlug = null): AuditEvent
     {
-        $response = Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/audit/events/" . rawurlencode($eventId) . self::lookupQuery($options),
-        ) ?? [];
-        return self::safeEvent($response);
+        $event = AuditEvent::fromPayload($this->http->object('GET', '/api/v1/admin/audit/events/' . rawurlencode($eventId), ['scope' => $scope, 'companySlug' => $companySlug], null));
+        self::checkEventId($event);
+
+        return $event;
     }
 
     /**
-     * Return the server-generated bounded CSV or JSON export without decoding
-     * it. The response contains the raw body and normalized response headers.
-     *
-     * @param array<string, mixed> $options
-     * @return array{body:string, headers:array<string, string>}
+     * Export the filtered audit trail as csv or json without decoding it. The query's limit and cursor are not
+     * sent: an export is bounded by the server.
      */
-    public function exportEvents(array $options = [], string $format = "json"): array
+    public function exportEvents(AuditEventQuery $query = new AuditEventQuery(), string $format = 'json'): AuditExport
     {
-        if ($format !== "csv" && $format !== "json") {
-            throw new \InvalidArgumentException("custd: audit export format must be csv or json");
+        if (!in_array($format, self::FORMATS, true)) {
+            throw new \InvalidArgumentException('custd: audit export format must be csv or json');
         }
-        $query = self::query($options, false);
-        $separator = $query === "" ? "?" : "&";
-        return Http::binaryRequest(
+        $export = Http::binaryRequest(
             $this->baseUrl,
             $this->token,
             $this->transport,
-            "GET",
-            "/audit/events/export" . $query . $separator . "format=" . $format,
+            'GET',
+            ApiHttp::withQuery('/audit/events/export', $query->filters() + ['format' => $format]),
         );
-    }
 
-    /** @return array<string, mixed> */
-    public function listReportingPackEvents(string $packKey): array
-    {
-        $response = Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/reporting-packs/audit-events?packKey=" . rawurlencode($packKey),
-        ) ?? ["events" => []];
-        $events = $response["events"] ?? [];
-        if (!is_array($events)) {
-            throw new \UnexpectedValueException("custd: reporting-pack audit list response events must be an array");
-        }
-        $safeEvents = [];
-        foreach (array_values($events) as $event) {
-            if (!is_array($event)) {
-                throw new \UnexpectedValueException("custd: reporting-pack audit event response must be an object");
-            }
-            $safeEvents[] = array_intersect_key($event, array_flip([
-                "action", "actorReference", "actorDisplayName", "resourceType", "resourceId", "packKey", "createdAt",
-            ]));
-        }
-        return ["events" => $safeEvents];
-    }
-
-    /** @param array<string, mixed> $options */
-    private static function query(array $options, bool $includePagination = true): string
-    {
-        $query = [];
-        foreach ($includePagination ? self::LIST_QUERY_KEYS : self::FILTER_QUERY_KEYS as $key) {
-            if (array_key_exists($key, $options) && $options[$key] !== null && $options[$key] !== "") {
-                if (!is_scalar($options[$key])) {
-                    throw new \InvalidArgumentException("custd: audit query value {$key} must be scalar");
-                }
-                $query[$key] = $options[$key];
-            }
-        }
-        return $query === [] ? "" : "?" . http_build_query($query, "", "&", PHP_QUERY_RFC3986);
-    }
-
-    /** @param array<string, mixed> $options */
-    private static function lookupQuery(array $options): string
-    {
-        $lookup = [];
-        foreach (["scope", "companySlug"] as $key) {
-            if (array_key_exists($key, $options) && $options[$key] !== null && $options[$key] !== "") {
-                if (!is_scalar($options[$key])) {
-                    throw new \InvalidArgumentException("custd: audit query value {$key} must be scalar");
-                }
-                $lookup[$key] = $options[$key];
-            }
-        }
-        return $lookup === [] ? "" : "?" . http_build_query($lookup, "", "&", PHP_QUERY_RFC3986);
+        return new AuditExport($export['body'], $export['headers']);
     }
 
     /**
-     * @param array<string, mixed> $response
-     * @return array<string, mixed>
+     * List a reporting pack's audit events.
      */
-    private static function safeList(array $response): array
+    public function listReportingPackEvents(string $packKey): ReportingPackAuditListResponse
     {
-        $events = $response["events"] ?? [];
-        if (!is_array($events)) {
-            throw new \UnexpectedValueException("custd: audit list response events must be an array");
-        }
-        $safeEvents = array_map(static function (mixed $event): array {
-            if (!is_array($event)) {
-                throw new \UnexpectedValueException("custd: audit event response must be an object");
-            }
-            return self::safeEvent($event);
-        }, array_values($events));
-        $safe = [
-            "events" => $safeEvents,
-            "nextCursor" => is_array($response["nextCursor"] ?? null)
-                ? ["cursor" => (string) (($response["nextCursor"]["cursor"] ?? ""))]
-                : ["cursor" => ""],
-        ];
-        if (is_string($response["coverageBeginsAt"] ?? null)) {
-            $safe["coverageBeginsAt"] = $response["coverageBeginsAt"];
-        }
-        $retention = self::safeRetention($response["retention"] ?? null);
-        if ($retention !== null) {
-            $safe["retention"] = $retention;
-        }
-        return $safe;
+        return ReportingPackAuditListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/reporting-packs/audit-events', ['packKey' => $packKey], null));
     }
 
-    /**
-     * @param array<string, mixed> $event
-     * @return array<string, mixed>
-     */
-    private static function safeEvent(array $event): array
+    private static function checkEventId(AuditEvent $event): void
     {
-        $eventId = $event["eventId"] ?? null;
-        if (!is_string($eventId) || preg_match(
-            "/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i",
-            $eventId,
-        ) !== 1) {
-            throw new \UnexpectedValueException("custd: audit event response eventId must be a UUID");
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $event->eventId) !== 1) {
+            throw new \UnexpectedValueException('custd: audit event response eventId must be a UUID');
         }
-        $safe = [];
-        foreach ([
-            "eventId", "tenantSlug", "actorKind", "actorReference", "actorDisplayName", "action", "resourceType",
-            "resourceId", "outcome", "correlationId", "operationId", "createdAt",
-        ] as $key) {
-            if (array_key_exists($key, $event)) {
-                $safe[$key] = $event[$key];
-            }
-        }
-        if (is_array($event["actorRoles"] ?? null)) {
-            $safe["actorRoles"] = array_values(array_filter($event["actorRoles"], "is_string"));
-        }
-        if (is_array($event["changes"] ?? null)) {
-            $safeChanges = [];
-            foreach ($event["changes"] as $change) {
-                if (!is_array($change) || !is_string($change["field"] ?? null)) {
-                    continue;
-                }
-                $safeChange = ["field" => $change["field"]];
-                if (array_key_exists("before", $change)) {
-                    $safeChange["before"] = $change["before"];
-                }
-                if (array_key_exists("after", $change)) {
-                    $safeChange["after"] = $change["after"];
-                }
-                $safeChanges[] = $safeChange;
-            }
-            $safe["changes"] = $safeChanges;
-        }
-        if (is_array($event["details"] ?? null) && !array_is_list($event["details"])) {
-            $safe["details"] = $event["details"];
-        }
-        $network = self::safeNetwork($event["network"] ?? null);
-        if ($network !== null) {
-            $safe["network"] = $network;
-        }
-        return $safe;
-    }
-
-    /**
-     * @param mixed $value
-     * @return array<string, string>|null
-     */
-    private static function safeNetwork(mixed $value): ?array
-    {
-        if (!is_array($value)) {
-            return null;
-        }
-        $ipState = $value["ipAddressState"] ?? null;
-        $userAgentState = $value["userAgentState"] ?? null;
-        $states = ["available", "redacted", "not_recorded"];
-        if (!is_string($ipState) || !in_array($ipState, $states, true) ||
-            !is_string($userAgentState) || !in_array($userAgentState, $states, true)) {
-            return null;
-        }
-        $network = ["ipAddressState" => $ipState, "userAgentState" => $userAgentState];
-        if (is_string($value["ipAddress"] ?? null)) {
-            $network["ipAddress"] = $value["ipAddress"];
-        }
-        if (is_string($value["userAgent"] ?? null)) {
-            $network["userAgent"] = $value["userAgent"];
-        }
-        return $network;
-    }
-
-    /**
-     * @param mixed $value
-     * @return array<string, int>|null
-     */
-    private static function safeRetention(mixed $value): ?array
-    {
-        if (!is_array($value) || !is_int($value["eventMaxAgeSeconds"] ?? null) ||
-            !is_int($value["ipAddressMaxAgeSeconds"] ?? null) || !is_int($value["userAgentMaxAgeSeconds"] ?? null)) {
-            return null;
-        }
-        return [
-            "eventMaxAgeSeconds" => $value["eventMaxAgeSeconds"],
-            "ipAddressMaxAgeSeconds" => $value["ipAddressMaxAgeSeconds"],
-            "userAgentMaxAgeSeconds" => $value["userAgentMaxAgeSeconds"],
-        ];
     }
 }

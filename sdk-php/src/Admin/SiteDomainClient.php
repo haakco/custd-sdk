@@ -20,6 +20,10 @@ use HaakCo\Custd\Admin\SiteDomain\SiteDomainList;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingImpact;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingList;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingState;
+use HaakCo\Custd\Admin\SiteDomain\SiteFindingDismissal;
+use HaakCo\Custd\Admin\SiteDomain\SiteFindingDismissalList;
+use HaakCo\Custd\Admin\SiteDomain\SiteFindingDismissalRequest;
+use HaakCo\Custd\Admin\SiteDomain\SiteIncident;
 use HaakCo\Custd\Admin\SiteDomain\SiteIncidentList;
 use HaakCo\Custd\Admin\SiteDomain\SiteIndexNowState;
 use HaakCo\Custd\Admin\SiteDomain\SiteIndexNowSubmission;
@@ -194,6 +198,12 @@ final class SiteDomainClient
         return new SiteAIClient($this->http);
     }
 
+    /** Keep a domain's scheduled-job heartbeats, private uptime agent and maintenance windows. */
+    public function monitoring(): SiteMonitoringClient
+    {
+        return new SiteMonitoringClient($this->http);
+    }
+
     /** Read the state of every Site Insights scheduled task. System administrators only. */
     public function getSiteInsightsTasks(): SiteInsightsTasks
     {
@@ -239,9 +249,9 @@ final class SiteDomainClient
      * site-bound credential holding site_domains.attest may attest, and only its own Site's
      * domains: any other caller gets 403, another Site's domain 404.
      */
-    public function attest(string $domainUuid): SiteDomain
+    public function attest(string $domainUuid, ?string $companySlug = null): SiteDomain
     {
-        return SiteDomain::fromPayload($this->send('POST', self::item($domainUuid) . '/attestation', [], null));
+        return SiteDomain::fromPayload($this->send('POST', self::item($domainUuid) . '/attestation', [], $companySlug));
     }
 
     /** Converge the browser collector of the verified domain owned by this Site credential. */
@@ -253,9 +263,9 @@ final class SiteDomainClient
     }
 
     /** Withdraw this credential's attestation; the domain stays verified only by its own proof or a verified parent. */
-    public function unattest(string $domainUuid): SiteDomain
+    public function unattest(string $domainUuid, ?string $companySlug = null): SiteDomain
     {
-        return SiteDomain::fromPayload($this->send('DELETE', self::item($domainUuid) . '/attestation', [], null));
+        return SiteDomain::fromPayload($this->send('DELETE', self::item($domainUuid) . '/attestation', [], $companySlug));
     }
 
     /**
@@ -327,6 +337,53 @@ final class SiteDomainClient
         return SiteIncidentList::fromPayload(
             $this->send('GET', self::item($domainUuid) . '/incidents', [], $companySlug)
         );
+    }
+
+    /** Record acknowledgment of an open uptime incident. */
+    public function acknowledgeIncident(string $domainUuid, string $incidentUuid, ?string $companySlug = null): SiteIncident
+    {
+        return SiteIncident::fromPayload(
+            $this->send('POST', self::item($domainUuid) . '/incidents/' . rawurlencode($incidentUuid) . '/acknowledgment', [], $companySlug)
+        );
+    }
+
+    /** Queue an uptime check for a verified domain with active checks. The route answers 202 with the domain. */
+    public function requestUptimeCheck(string $domainUuid, ?string $companySlug = null): SiteDomain
+    {
+        return SiteDomain::fromPayload($this->send('POST', self::item($domainUuid) . '/uptime-check', [], $companySlug));
+    }
+
+    /** Mark the domain verified on a HaakCo system administrator's confirmation. */
+    public function approve(string $domainUuid, ?string $companySlug = null): SiteDomain
+    {
+        return SiteDomain::fromPayload($this->send('POST', self::item($domainUuid) . '/approval', [], $companySlug));
+    }
+
+    /** Withdraw a HaakCo system administrator's approval of the domain. */
+    public function withdrawApproval(string $domainUuid, ?string $companySlug = null): SiteDomain
+    {
+        return SiteDomain::fromPayload($this->send('DELETE', self::item($domainUuid) . '/approval', [], $companySlug));
+    }
+
+    public function listFindingDismissals(string $domainUuid, ?string $companySlug = null): SiteFindingDismissalList
+    {
+        return SiteFindingDismissalList::fromPayload(
+            $this->send('GET', self::item($domainUuid) . '/finding-dismissals', [], $companySlug)
+        );
+    }
+
+    /** Dismiss an observed audit finding's rule, or its URL, with a reason. */
+    public function dismissFinding(string $domainUuid, SiteFindingDismissalRequest $request, ?string $companySlug = null): SiteFindingDismissal
+    {
+        return SiteFindingDismissal::fromPayload(
+            $this->send('POST', self::item($domainUuid) . '/finding-dismissals', [], $companySlug, $request->serialise())
+        );
+    }
+
+    /** Restore a dismissed finding to active reporting if it is still observed. */
+    public function restoreFinding(string $domainUuid, string $dismissalUuid, ?string $companySlug = null): void
+    {
+        $this->http->sendNoContent('DELETE', self::item($domainUuid) . '/finding-dismissals/' . rawurlencode($dismissalUuid), [], $companySlug);
     }
 
     /** Read which search providers this deployment can import from, and the Google service account to add. */

@@ -18,7 +18,7 @@ final class RetryBackoffTest extends TestCase
     {
         $delays = [];
         $client = $this->clientWithResponses(
-            [["status" => 503, "body" => ""], ["status" => 202, "body" => ""]],
+            [["status" => 503, "body" => ""], ["status" => 202, "body" => '{"success":true,"eventUuid":"evt-1"}']],
             sleeper: function (int $delayMs) use (&$delays): void {
                 $delays[] = $delayMs;
             },
@@ -26,7 +26,7 @@ final class RetryBackoffTest extends TestCase
 
         $result = $client->ingestEvent($this->validEvent());
 
-        $this->assertSame(202, $result["status"]);
+        $this->assertSame("evt-1", $result->eventUuid);
         $this->assertCount(1, $delays, "One retry should trigger exactly one backoff.");
         $this->assertGreaterThan(0, $delays[0]);
     }
@@ -35,7 +35,7 @@ final class RetryBackoffTest extends TestCase
     {
         $calls = 0;
         $client = $this->clientWithResponses(
-            [["status" => 503, "body" => ""], ["status" => 202, "body" => ""]],
+            [["status" => 503, "body" => ""], ["status" => 202, "body" => '{"success":true,"eventUuid":"evt-1"}']],
             sleeper: static fn (int $delayMs): null => null,
             onCall: function () use (&$calls): void {
                 $calls++;
@@ -44,7 +44,7 @@ final class RetryBackoffTest extends TestCase
 
         $result = $client->ingestEvent($this->validEvent());
 
-        $this->assertSame(202, $result["status"]);
+        $this->assertSame("evt-1", $result->eventUuid);
         $this->assertSame(2, $calls, "A no-op sleeper must still allow the retry to run.");
     }
 

@@ -64,6 +64,7 @@ final class Http
      *     see {@see request}.
      * @param callable|null $transport
      * @param array<string, mixed>|null $body
+     * @param array<string, string> $headers Extra request headers, such as the acting company.
      */
     public static function requestStructured(
         string $baseUrl,
@@ -72,6 +73,47 @@ final class Http
         string $method,
         string $path,
         ?array $body = null,
+        string $prefix = "/api/v1/admin",
+        ?string $idempotencyKey = null,
+        ?string $owningUserUuid = null,
+        array $headers = [],
+    ): mixed {
+        $responseBody = self::readBody(
+            $baseUrl,
+            $token,
+            $transport,
+            $method,
+            $path,
+            $body,
+            $prefix,
+            $idempotencyKey,
+            $owningUserUuid,
+            null,
+            $headers,
+        );
+        if ($responseBody === null) {
+            return null;
+        }
+        return json_decode($responseBody, false, flags: JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * requestRaw sends an already encoded body (an upload) with its own content
+     * type and decodes the answer as {@see requestStructured} does. A transport
+     * receives the body as a string and the content type in its headers.
+     *
+     * @param string|callable():string $token A bearer token or a token provider;
+     *     see {@see request}.
+     * @param callable|null $transport
+     */
+    public static function requestRaw(
+        string $baseUrl,
+        string|callable $token,
+        ?callable $transport,
+        string $method,
+        string $path,
+        string $body,
+        string $contentType,
         string $prefix = "/api/v1/admin",
         ?string $idempotencyKey = null,
         ?string $owningUserUuid = null,
@@ -86,6 +128,7 @@ final class Http
             $prefix,
             $idempotencyKey,
             $owningUserUuid,
+            $contentType,
         );
         if ($responseBody === null) {
             return null;
@@ -98,8 +141,11 @@ final class Http
      * and shape-preserving decoders. It returns the raw success body, or null for
      * an empty or 204 response.
      *
+     * A string body is sent as is with $contentType; an array body is JSON.
+     *
      * @param string|callable():string $token
-     * @param array<string, mixed>|null $body
+     * @param array<string, mixed>|string|null $body
+     * @param array<string, string> $extraHeaders
      */
     private static function readBody(
         string $baseUrl,
@@ -107,13 +153,18 @@ final class Http
         ?callable $transport,
         string $method,
         string $path,
-        ?array $body,
+        array|string|null $body,
         string $prefix,
         ?string $idempotencyKey,
         ?string $owningUserUuid,
+        ?string $contentType = null,
+        array $extraHeaders = [],
     ): ?string {
         $url = rtrim($baseUrl, "/") . $prefix . $path;
-        $headers = [];
+        $headers = $extraHeaders;
+        if ($contentType !== null) {
+            $headers["Content-Type"] = $contentType;
+        }
         if ($idempotencyKey !== null && trim($idempotencyKey) !== "") {
             $headers["Idempotency-Key"] = trim($idempotencyKey);
         }
@@ -124,7 +175,19 @@ final class Http
         $result = $transport
             ? $transport($method, $url, $body, $token, $headers)
             : self::curlRequest($method, $url, $body, $token, $headers);
+        return self::successBody($result);
+    }
+
+    /**
+     * successBody checks a transport result: a failure status throws the typed refusal, and a
+     * success returns its body, or null for an empty or 204 answer.
+     *
+     * @internal
+     */
+    public static function successBody(mixed $result): ?string
+    {
         $status = self::status($result);
+        /** @var array{status:int, body:string} $result */
         if ($status >= 400) {
             $workflowError = self::workflowError($result["body"], $status);
             if ($workflowError !== null) {
@@ -268,29 +331,30 @@ final class Http
      *
      * @return array<int, string>
      */
-    private static function baseHeaders(string $token): array
+    private static function baseHeaders(string $token, string $contentType = "application/json"): array
     {
         return [
-            "Content-Type: application/json",
+            "Content-Type: " . $contentType,
             "Authorization: Bearer " . $token,
             "X-Custd-Sdk: " . CustdClient::PRODUCT . "/" . CustdClient::VERSION,
         ];
     }
 
     /**
-     * @param array<string, mixed>|null $body
+     * @param array<string, mixed>|string|null $body
      * @param array<string, string> $extraHeaders
      * @return array{status:int, body:string}
      */
     private static function curlRequest(
         string $method,
         string $url,
-        ?array $body,
+        array|string|null $body,
         string $token,
         array $extraHeaders = [],
     ): array {
         $ch = curl_init($url);
-        $headers = self::baseHeaders($token);
+        $headers = self::baseHeaders($token, $extraHeaders["Content-Type"] ?? "application/json");
+        unset($extraHeaders["Content-Type"]);
         foreach ($extraHeaders as $name => $value) {
             $headers[] = $name . ": " . $value;
         }
@@ -301,7 +365,7 @@ final class Http
             CURLOPT_TIMEOUT => 15,
         ];
         if ($body !== null) {
-            $options[CURLOPT_POSTFIELDS] = json_encode($body, JSON_THROW_ON_ERROR);
+            $options[CURLOPT_POSTFIELDS] = is_string($body) ? $body : json_encode($body, JSON_THROW_ON_ERROR);
         }
         curl_setopt_array($ch, $options);
         $response = curl_exec($ch);

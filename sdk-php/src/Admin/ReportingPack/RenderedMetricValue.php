@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\TemporalTrust;
 
 /** RenderedMetricValue is one rendered metric reading. */
 final readonly class RenderedMetricValue
@@ -16,11 +17,15 @@ final readonly class RenderedMetricValue
         public string $dataSufficiency,
         public bool $complete,
         public ?bool $truncated = null,
+        public ?string $currency = null,
+        public ?TemporalTrust $trust = null,
     ) {
     }
 
     public static function fromPayload(\stdClass $payload): self
     {
+        $trust = Fields::optionalObject($payload, 'trust');
+
         return new self(
             Fields::number($payload, 'value'),
             Fields::string($payload, 'unit'),
@@ -28,23 +33,8 @@ final readonly class RenderedMetricValue
             Fields::string($payload, 'dataSufficiency'),
             Fields::boolean($payload, 'complete'),
             Fields::optionalBoolean($payload, 'truncated'),
+            Fields::optionalString($payload, 'currency'),
+            $trust === null ? null : TemporalTrust::fromPayload($trust),
         );
-    }
-
-    /** @return array<string, mixed> */
-    public function serialise(): array
-    {
-        $payload = [
-            'value' => $this->value,
-            'unit' => $this->unit,
-            'sampleCount' => $this->sampleCount,
-            'dataSufficiency' => $this->dataSufficiency,
-            'complete' => $this->complete,
-        ];
-        if ($this->truncated !== null) {
-            $payload['truncated'] = $this->truncated;
-        }
-
-        return $payload;
     }
 }

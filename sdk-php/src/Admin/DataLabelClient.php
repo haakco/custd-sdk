@@ -4,106 +4,151 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Admin\DataLabel\DataLabelAssignmentListResponse;
+use HaakCo\Custd\Admin\DataLabel\DataLabelCatalogueResponse;
+use HaakCo\Custd\Admin\DataLabel\DataLabelDefinition;
+use HaakCo\Custd\Admin\DataLabel\DataLabelDefinitionCreateRequest;
+use HaakCo\Custd\Admin\DataLabel\DataLabelDefinitionListResponse;
+use HaakCo\Custd\Admin\DataLabel\DataLabelDefinitionUpdateRequest;
+use HaakCo\Custd\Admin\DataLabel\DataLabelUsageListResponse;
+use HaakCo\Custd\Admin\DataLabel\DataLabelValue;
+use HaakCo\Custd\Admin\DataLabel\DataLabelValueCreateRequest;
+use HaakCo\Custd\Admin\DataLabel\DataLabelValueUpdateRequest;
+use HaakCo\Custd\Admin\DataLabel\EventTypeDataLabelDefaultRequest;
+use HaakCo\Custd\Admin\DataLabel\SchemaFieldDataLabelAssignmentRequest;
+
+/**
+ * DataLabelClient keeps the tenant's data label definitions and values, their defaults on event types and their
+ * assignments to schema fields, and reads the label catalogue and usage. A system administrator names the tenant
+ * with companySlug.
+ */
 final class DataLabelClient
 {
-    /** @var string|callable():string Bearer token, or a provider run per request. */
-    private readonly mixed $token;
+    private readonly ApiHttp $http;
 
-    public function __construct(
-        private readonly string $baseUrl,
-        string|callable $token,
-        private readonly mixed $transport,
-    ) {
-        $this->token = $token;
-    }
-
-    /** @return array<string, mixed> */
-    public function list(bool $includeDisabled = false): array
+    /** @param string|callable():string $token Bearer token, or a provider run per request. */
+    public function __construct(string $baseUrl, string|callable $token, ?callable $transport = null)
     {
-        $query = $includeDisabled ? "?includeDisabled=true" : "";
-        return Http::request($this->baseUrl, $this->token, $this->transport, "GET", "/data-labels{$query}") ?? ["definitions" => []];
-    }
-
-    /** @return array<string, mixed> */
-    public function catalogue(bool $includeDisabled = false): array
-    {
-        $query = $includeDisabled ? "?includeDisabled=true" : "";
-        return Http::request($this->baseUrl, $this->token, $this->transport, "GET", "/data-labels/catalogue{$query}") ?? [];
-    }
-
-    /** @return array<string, mixed> */
-    public function get(string $uuid, bool $includeDisabled = false): array
-    {
-        $query = $includeDisabled ? "?includeDisabled=true" : "";
-        return Http::request($this->baseUrl, $this->token, $this->transport, "GET", "/data-labels/" . rawurlencode($uuid) . $query) ?? [];
+        $this->http = new ApiHttp($baseUrl, $token, $transport);
     }
 
     /**
-     * @param array<string, mixed> $body
-     * @return array<string, mixed>
+     * List data labels.
      */
-    public function create(array $body): array
+    public function list(?bool $includeDisabled = null, ?string $companySlug = null): DataLabelDefinitionListResponse
     {
-        return Http::request($this->baseUrl, $this->token, $this->transport, "POST", "/data-labels", $body) ?? [];
+        return DataLabelDefinitionListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/data-labels', ['includeDisabled' => $includeDisabled, 'companySlug' => $companySlug], null));
     }
+
     /**
-     * @param array<string, mixed> $body
-     * @return array<string, mixed>
+     * Get data-label catalogue.
      */
-    public function update(string $uuid, array $body): array
+    public function catalogue(?bool $includeDisabled = null, ?string $companySlug = null): DataLabelCatalogueResponse
     {
-        return Http::request($this->baseUrl, $this->token, $this->transport, "PATCH", "/data-labels/" . rawurlencode($uuid), $body) ?? [];
+        return DataLabelCatalogueResponse::fromPayload($this->http->object('GET', '/api/v1/admin/data-labels/catalogue', ['includeDisabled' => $includeDisabled, 'companySlug' => $companySlug], null));
     }
-    public function disable(string $uuid): void
-    {
-        Http::request($this->baseUrl, $this->token, $this->transport, "POST", "/data-labels/" . rawurlencode($uuid) . "/disable");
-    }
+
     /**
-     * @param array<string, mixed> $body
-     * @return array<string, mixed>
+     * Get data label.
      */
-    public function createValue(string $uuid, array $body): array
+    public function get(string $definitionUuid, ?bool $includeDisabled = null, ?string $companySlug = null): DataLabelDefinition
     {
-        return Http::request($this->baseUrl, $this->token, $this->transport, "POST", "/data-labels/" . rawurlencode($uuid) . "/values", $body) ?? [];
+        return DataLabelDefinition::fromPayload($this->http->object('GET', '/api/v1/admin/data-labels/' . rawurlencode($definitionUuid), ['includeDisabled' => $includeDisabled, 'companySlug' => $companySlug], null));
     }
+
     /**
-     * @param array<string, mixed> $body
-     * @return array<string, mixed>
+     * Create data label.
      */
-    public function updateValue(string $uuid, array $body): array
+    public function create(DataLabelDefinitionCreateRequest $request, ?string $companySlug = null): DataLabelDefinition
     {
-        return Http::request($this->baseUrl, $this->token, $this->transport, "PATCH", "/data-label-values/" . rawurlencode($uuid), $body) ?? [];
+        return DataLabelDefinition::fromPayload($this->http->object('POST', '/api/v1/admin/data-labels', ['companySlug' => $companySlug], $request->serialise()));
     }
-    public function disableValue(string $uuid): void
+
+    /**
+     * Update data label metadata.
+     */
+    public function update(string $definitionUuid, DataLabelDefinitionUpdateRequest $request, ?string $companySlug = null): DataLabelDefinition
     {
-        Http::request($this->baseUrl, $this->token, $this->transport, "POST", "/data-label-values/" . rawurlencode($uuid) . "/disable");
+        return DataLabelDefinition::fromPayload($this->http->object('PATCH', '/api/v1/admin/data-labels/' . rawurlencode($definitionUuid), ['companySlug' => $companySlug], $request->serialise()));
     }
-    /** @return array<string, mixed> */
-    public function listUsage(): array
+
+    /**
+     * Disable data label.
+     */
+    public function disable(string $definitionUuid, ?string $companySlug = null): void
     {
-        return Http::request($this->baseUrl, $this->token, $this->transport, "GET", "/data-labels/usage") ?? ["usage" => []];
+        $this->http->none('POST', '/api/v1/admin/data-labels/' . rawurlencode($definitionUuid) . '/disable', ['companySlug' => $companySlug], null);
     }
-    /** @return array<string, mixed> */
-    public function listAssignments(): array
+
+    /**
+     * Create data-label value.
+     */
+    public function createValue(string $definitionUuid, DataLabelValueCreateRequest $request, ?string $companySlug = null): DataLabelValue
     {
-        return Http::request($this->baseUrl, $this->token, $this->transport, "GET", "/data-label-assignments") ?? ["eventTypeDefaults" => [], "schemaFieldAssignments" => []];
+        return DataLabelValue::fromPayload($this->http->object('POST', '/api/v1/admin/data-labels/' . rawurlencode($definitionUuid) . '/values', ['companySlug' => $companySlug], $request->serialise()));
     }
-    /** @param array<string, mixed> $body */
-    public function setEventTypeDefault(string $slug, string $definitionUuid, array $body): void
+
+    /**
+     * Update data-label value.
+     */
+    public function updateValue(string $valueUuid, DataLabelValueUpdateRequest $request, ?string $companySlug = null): DataLabelValue
     {
-        Http::request($this->baseUrl, $this->token, $this->transport, "PUT", "/event-types/" . rawurlencode($slug) . "/data-label-defaults/" . rawurlencode($definitionUuid), $body);
+        return DataLabelValue::fromPayload($this->http->object('PATCH', '/api/v1/admin/data-label-values/' . rawurlencode($valueUuid), ['companySlug' => $companySlug], $request->serialise()));
     }
-    public function removeEventTypeDefault(string $slug, string $definitionUuid): void
+
+    /**
+     * Disable data-label value.
+     */
+    public function disableValue(string $valueUuid, ?string $companySlug = null): void
     {
-        Http::request($this->baseUrl, $this->token, $this->transport, "DELETE", "/event-types/" . rawurlencode($slug) . "/data-label-defaults/" . rawurlencode($definitionUuid));
+        $this->http->none('POST', '/api/v1/admin/data-label-values/' . rawurlencode($valueUuid) . '/disable', ['companySlug' => $companySlug], null);
     }
-    /** @param array<string, mixed> $body */
-    public function setSchemaFieldAssignment(string $schemaUuid, array $body): void
+
+    /**
+     * List data-label usage.
+     */
+    public function listUsage(?string $companySlug = null): DataLabelUsageListResponse
     {
-        Http::request($this->baseUrl, $this->token, $this->transport, "PUT", "/event-schemas/" . rawurlencode($schemaUuid) . "/field-data-labels", $body);
+        return DataLabelUsageListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/data-labels/usage', ['companySlug' => $companySlug], null));
     }
-    public function removeSchemaFieldAssignment(string $assignmentUuid): void
+
+    /**
+     * List data-label assignments.
+     */
+    public function listAssignments(?string $companySlug = null): DataLabelAssignmentListResponse
     {
-        Http::request($this->baseUrl, $this->token, $this->transport, "DELETE", "/data-label-assignments/schema-fields/" . rawurlencode($assignmentUuid));
+        return DataLabelAssignmentListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/data-label-assignments', ['companySlug' => $companySlug], null));
+    }
+
+    /**
+     * Set event-type data-label default.
+     */
+    public function setEventTypeDefault(string $slug, string $definitionUuid, EventTypeDataLabelDefaultRequest $request, ?string $companySlug = null): void
+    {
+        $this->http->none('PUT', '/api/v1/admin/event-types/' . rawurlencode($slug) . '/data-label-defaults/' . rawurlencode($definitionUuid), ['companySlug' => $companySlug], $request->serialise());
+    }
+
+    /**
+     * Remove event-type data-label default.
+     */
+    public function removeEventTypeDefault(string $slug, string $definitionUuid, ?string $companySlug = null): void
+    {
+        $this->http->none('DELETE', '/api/v1/admin/event-types/' . rawurlencode($slug) . '/data-label-defaults/' . rawurlencode($definitionUuid), ['companySlug' => $companySlug], null);
+    }
+
+    /**
+     * Set schema-field data label.
+     */
+    public function setSchemaFieldAssignment(string $schemaUuid, SchemaFieldDataLabelAssignmentRequest $request, ?string $companySlug = null): void
+    {
+        $this->http->none('PUT', '/api/v1/admin/event-schemas/' . rawurlencode($schemaUuid) . '/field-data-labels', ['companySlug' => $companySlug], $request->serialise());
+    }
+
+    /**
+     * Remove schema-field data label.
+     */
+    public function removeSchemaFieldAssignment(string $assignmentUuid, ?string $companySlug = null): void
+    {
+        $this->http->none('DELETE', '/api/v1/admin/data-label-assignments/schema-fields/' . rawurlencode($assignmentUuid), ['companySlug' => $companySlug], null);
     }
 }

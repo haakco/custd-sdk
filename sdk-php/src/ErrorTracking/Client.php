@@ -83,7 +83,7 @@ final class Client
         try {
             $received = 0;
             curl_setopt_array($handle, [
-                CURLOPT_POST => true,
+                CURLOPT_CUSTOMREQUEST => $request->method,
                 CURLOPT_POSTFIELDS => $request->body,
                 CURLOPT_HTTPHEADER => ['Content-Type: text/plain'],
                 CURLOPT_CONNECTTIMEOUT_MS => 500,

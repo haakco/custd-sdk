@@ -4,79 +4,55 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\Admin\Privacy\PrivacyErasureCreateRequest;
+use HaakCo\Custd\Admin\Privacy\PrivacyErasureForceResponse;
+use HaakCo\Custd\Admin\Privacy\PrivacyErasureListResponse;
+use HaakCo\Custd\Admin\Privacy\PrivacyErasureResponse;
+
 /**
- * PrivacyErasureClient owns per-tenant subject erasure requests. Erasures
- * are forward-only: there is no cancel or retry surface because the server
- * contract has none. force is the bounded operator action.
+ * PrivacyErasureClient owns per-tenant subject erasure requests. Erasures are forward-only: there is no cancel or
+ * retry surface because the server contract has none. force is the bounded operator action. A system
+ * administrator names the tenant with companySlug.
  */
 final class PrivacyErasureClient
 {
-    /** @var string|callable():string Bearer token, or a provider run per request. */
-    private readonly mixed $token;
+    private readonly ApiHttp $http;
 
-    public function __construct(
-        private readonly string $baseUrl,
-        string|callable $token,
-        private readonly mixed $transport,
-    ) {
-        $this->token = $token;
+    /** @param string|callable():string $token Bearer token, or a provider run per request. */
+    public function __construct(string $baseUrl, string|callable $token, ?callable $transport = null)
+    {
+        $this->http = new ApiHttp($baseUrl, $token, $transport);
     }
 
     /**
-     * @param array<string, mixed> $request
-     * @return array<string, mixed>
+     * Create privacy erasure request.
      */
-    public function create(array $request): array
+    public function create(PrivacyErasureCreateRequest $request): PrivacyErasureResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/privacy/erasures",
-            $request
-        ) ?? [];
+        return PrivacyErasureResponse::fromPayload($this->http->object('POST', '/api/v1/admin/privacy/erasures', [], $request->serialise()));
     }
 
     /**
-     * @return array<string, mixed>
+     * List privacy erasure requests.
      */
-    public function list(): array
+    public function list(?string $companySlug = null): PrivacyErasureListResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/privacy/erasures"
-        ) ?? ["erasures" => []];
+        return PrivacyErasureListResponse::fromPayload($this->http->object('GET', '/api/v1/admin/privacy/erasures', ['companySlug' => $companySlug], null));
     }
 
     /**
-     * @return array<string, mixed>
+     * Get privacy erasure request.
      */
-    public function get(string $requestUuid): array
+    public function get(string $requestUuid, ?string $companySlug = null): PrivacyErasureResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "GET",
-            "/privacy/erasures/" . rawurlencode($requestUuid)
-        ) ?? [];
+        return PrivacyErasureResponse::fromPayload($this->http->object('GET', '/api/v1/admin/privacy/erasures/' . rawurlencode($requestUuid), ['companySlug' => $companySlug], null));
     }
 
     /**
-     * @return array<string, mixed>
+     * Force privacy erasure request.
      */
-    public function force(string $requestUuid): array
+    public function force(string $requestUuid, ?string $companySlug = null): PrivacyErasureForceResponse
     {
-        return Http::request(
-            $this->baseUrl,
-            $this->token,
-            $this->transport,
-            "POST",
-            "/privacy/erasures/" . rawurlencode($requestUuid) . "/force"
-        ) ?? [];
+        return PrivacyErasureForceResponse::fromPayload($this->http->object('POST', '/api/v1/admin/privacy/erasures/' . rawurlencode($requestUuid) . '/force', ['companySlug' => $companySlug], null));
     }
 }

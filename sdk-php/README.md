@@ -88,17 +88,18 @@ $client = new CustdClient("http://localhost:8087", null, [
 Provisioned producer bundle (no manual OAuth mapping):
 
 ```php
-$client = CustdClient::fromProvisionedProducer($credentials);
+// $producer is the ProvisionedProducer that provisioning()->provisionProducer() returned.
+$client = CustdClient::fromProvisionedProducer($producer);
 $client->track([
     "eventTypeSlug" => "order.completed",
     "schemaVersion" => "1.0.0",
-    "companySlug" => $credentials["companySlug"],
+    "companySlug" => $producer->companySlug,
     "context" => ["device" => ["type" => "server"]],
     "payload" => ["orderTotal" => 42],
 ]);
 ```
 
-Use `CustdClient::redactedProvisionedProducer($credentials)` to show the bundle
+Use `CustdClient::redactedProvisionedProducer($producer)` to show the bundle
 on a dashboard without exposing the client secret.
 
 Dogfood producers can use `CustdClient::createDogfoodEvent`:
@@ -237,8 +238,9 @@ Authy paid gates, audit export destinations, or privacy-erasure propagation.
 ## Browser Site Admin Helpers
 
 Server-side admin code can use `$client->adminSites()` to create, list, get,
-delete, and rotate browser tracker Sites. `create()` returns the public write
-key once. `list()` and `get()` return Site metadata without the write key.
+update, delete, and rotate browser tracker Sites. Requests and answers are typed
+DTOs under `HaakCo\Custd\Admin\Site`. `create()` returns the public write key
+once. `list()` and `get()` return `Site` metadata, which has no write-key field.
 `rotateWriteKey()` returns the replacement write key once; update tracker config
 and stop using the old key after rotation.
 
@@ -285,22 +287,25 @@ A server that already holds a producer-provisioning credential (a broker) mints
 one credential per site, and Custd creates the Site for it:
 
 ```php
-$issued = $broker->provisioning()->provisionProducer([
-    'companySlug' => 'acme',
-    'producerSlug' => 'store-123-site',
-    'displayName' => 'Store 123',
-    'scopeTemplate' => \HaakCo\Custd\Provisioning\Client::SCOPE_TEMPLATE_SITE_INSIGHTS,
-]);
+use HaakCo\Custd\Provisioning\Client;
+use HaakCo\Custd\Provisioning\ProvisionProducerRequest;
+
+$issued = $broker->provisioning()->provisionProducer(new ProvisionProducerRequest(
+    companySlug: 'acme',
+    producerSlug: 'store-123-site',
+    displayName: 'Store 123',
+    scopeTemplate: Client::SCOPE_TEMPLATE_SITE_INSIGHTS,
+));
 ```
 
-The returned client id and secret get a token with `site_domains.manage`. With
+The returned `$issued->clientId` and `$issued->clientSecret` (shown once) get a token with `site_domains.manage`. With
 it, `create(CreateSiteDomainRequest::forOwnSite('www.example.com'))` and
 `list()` work on that Site without naming it; every other domain operation works
 as above, and another Site's domain answers as not found. Repeating the
 provisioning call keeps the same Site; revoking the producer removes the Site and
 its domains. A tenant administrator can instead bind a credential to an existing
-Site with `adminOAuthClients()->create([... 'purposeProfile' =>
-OAuthClient::PURPOSE_SITE_INSIGHTS, 'siteUuid' => $siteUuid])`.
+Site with `adminOAuthClients()->create(new OAuthClientCreateRequest(...,
+purposeProfile: OAuthClient::PURPOSE_SITE_INSIGHTS, siteUuid: $siteUuid), $idempotencyKey)`.
 
 A host that proves domain ownership itself (a TXT challenge, registrar control or
 managed DNS) mints with `Client::SCOPE_TEMPLATE_SITE_INSIGHTS_ATTESTING` instead,
@@ -420,25 +425,26 @@ measures two drafts as the `content.near-duplicate` rule does; `sharedPercent` i
 reads the last saved observations of two pages on the verified domain. It includes each page's
 state and observation time when known, and omits a comparison for unread or unavailable pages.
 
-## Schema Admin Helpers
+## Event schemas
 
-Use `$client->adminSchemas()` from setup code:
-
-Supported feature parity and intentionally missing helpers are documented in the SDK
-root README.
+`$client->schemas()` registers and manages the tenant's event schemas on the schema registry
+(`/api/v1/schemas`). The credential names the tenant, so no slug is supplied:
 
 ```php
-$client->adminSchemas()->register([
-    "eventTypeSlug" => "courib.delivery.created",
-    "version" => "1.0.0",
-    "jsonSchema" => ["type" => "object"],
-]);
+use HaakCo\Custd\Schemas\EventSchemaCheckRequest;
+use HaakCo\Custd\Schemas\EventSchemaRegisterRequest;
 
-$client->adminSchemas()->createVersion("courib.delivery.created", [
-    "version" => "1.1.0",
-    "jsonSchema" => ["type" => "object"],
-]);
+$check = $client->schemas()->dryRun(new EventSchemaCheckRequest(
+    "courib.delivery.created", "1.1.0", '{"type":"object"}',
+));
+$client->schemas()->register(new EventSchemaRegisterRequest(
+    "courib.delivery.created", "Delivery created", "1.1.0", '{"type":"object"}',
+));
+$client->schemas()->listVersions("courib.delivery.created");
 ```
+
+`validate()`, `infer()`, `activate()`, `enable()`, `disable()` and `disableEventType()` cover the
+rest of the routes.
 
 ## Workflow timing imports
 
@@ -493,36 +499,59 @@ The PHP SDK exposes typed admin clients for the five lifecycle
 namespaces. Forward-only: no deprecated aliases.
 
 ```php
-$admin = $client->admin();
+// Tenant storage: list/create/get/revoke, typed under Admin\TenantStorage; create takes no fields.
+$locations = $client->adminTenantStorage()->list();
 
-// Tenant storage: list/create/get/revoke.
-$loc = $admin->getTenantStorage()->create([
-    "tenantSlug"    => "acme",
-    "clientLocation" => "s3://acme-prod-warehouse/events/",
-]);
+// Subject exports: queue, read, cancel and download one artifact scope (an expired one answers 410 Gone).
+$exp = $client->adminSubjectExports()->create(new SubjectExportCreateRequest(
+    idempotencyKey: "acme-2026-07-31",
+    opaqueSubjectId: "subject-7f3b",
+    scope: SubjectExportClient::SCOPE_BOTH,
+), companySlug: "acme");
+$artifact = $client->adminSubjectExports()->download($exp->id, SubjectExportClient::SCOPE_PORTABILITY, "acme");
 
-// Subject exports: full request lifecycle.
-$exp = $admin->getSubjectExport()->create([
-    "tenantSlug" => "acme",
-    "subject"    => ["type" => "userUuid", "value" => "01J5..."],
-    "scope"      => "portability",
-    "idempotencyKey" => "acme-2026-07-31",
-]);
+// Physical erasures: NO cancel/retry. A force that could not run names the safe next action.
+$force = $client->adminPrivacyErasures()->force($erasureUuid);
+$next = $force->safeNextAction;
 
-// Physical erasures: NO cancel/retry.
-$force = $admin->getPrivacyErasure()->force("pe_01J5...");
+// Retention policies: list/get/upsert/delete + preview/apply/listRuns (page with limit/offset).
+$runs = $client->adminRetention()->listRuns("acme", limit: 50);
 
-// Retention policies: list/get/upsert/delete + preview/apply/listRuns.
-$runs = $admin->getRetention()->listRuns("acme");
-
-// Offboarding: full request lifecycle + schedules.
-$sched = $admin->getOffboarding()->schedule([
-    "tenantSlug" => "acme",
-    "effectiveAt" => "2026-12-31T00:00:00Z",
-    "gracePeriodDays" => 7,
-    "reason"     => "contract_end",
-]);
+// Offboarding: full request lifecycle + schedules, typed under Admin\Offboarding.
+$sched = $client->adminOffboarding()->schedule(new OffboardingScheduleRequest(
+    effectiveAt: "2026-12-31T00:00:00Z",
+    gracePeriodDays: 7,
+    reason: "contract_end",
+    tenantSlug: "acme",
+));
 ```
+
+## Typed operator, app and ingest clients
+
+Each client below takes and returns named DTOs from the namespace beside it, and
+a system administrator names the tenant with the optional `companySlug` argument
+where the route accepts one.
+
+- Hosted apps: `adminApps()`. App data from a hosted app's server side:
+  `appItems($siteKey, $origin, $userToken)` (Site key, link token or signed-in
+  user token; never this client's credential), `appProfile($accessToken)` and the
+  credential-free `publicReads()`.
+- People and access: `adminUsers()`, `adminSupportAccess()`, `adminClientSetup()`,
+  `adminStorage()`, `adminOAuthClientAdmissions()`.
+- Measurement, plans and models: `adminMeasurementWork()`, `measurement()`,
+  `adminTimePlanOperations()`, `adminUncertaintyModels()`.
+- Reporting and analytics: `adminReportingGenerations()`, `reportingData()`,
+  `adminAccountingEvidence()`, `analyticsReads()`, `reporting()->previewDraft()`.
+- Operations: `adminOperations()`, `adminSchemaActions()`, `adminEventConfig()`,
+  `adminEnvironmentPolicy()`, `adminPrivacy()`, `adminErrorIssues()`,
+  `adminManagedAudit()`, `adminSystemUsage()`.
+- Email and notifications: `adminEmailRelay()`, `adminNotifications()`,
+  `adminCampaignEmail()`.
+- Ingest: `ingestOperations()` (monitoring, diagnostics, cleanup plans and jobs)
+  and `collectEvent()` / `collectEvents()` for the public browser collector. A
+  system administrator's cleanup jobs act for the `acting_company_slug` client
+  option, which is sent as `X-Custd-Effective-Company` on the cleanup-job list,
+  read, proof and cancel calls only.
 
 ## Time-plan administration
 

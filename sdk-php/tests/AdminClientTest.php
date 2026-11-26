@@ -4,7 +4,26 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Tests;
 
+use HaakCo\Custd\Admin\DataLabel\DataLabelDefinitionCreateRequest;
+use HaakCo\Custd\Admin\DataLabel\DataLabelDefinitionUpdateRequest;
+use HaakCo\Custd\Admin\DataLabel\DataLabelValueCreateRequest;
+use HaakCo\Custd\Admin\DataLabel\DataLabelValueUpdateRequest;
+use HaakCo\Custd\Admin\DataLabel\EventTypeDataLabelDefaultRequest;
+use HaakCo\Custd\Admin\DataLabel\SchemaFieldDataLabelAssignmentRequest;
+use HaakCo\Custd\Admin\Measurement\MeasurementObservationBulkRequest;
+use HaakCo\Custd\Admin\Measurement\MeasurementObservationRow;
+use HaakCo\Custd\Admin\Measurement\MeasurementProjectCreateRequest;
+use HaakCo\Custd\Admin\Measurement\MeasurementSeriesCreateRequest;
+use HaakCo\Custd\Admin\Measurement\MeasurementTargetCreateRequest;
+use HaakCo\Custd\Admin\OAuth\OAuthClientCreateRequest;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionDefinitionCreateRequest;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionRunNowRequest;
+use HaakCo\Custd\Admin\Site\SiteCreateRequest;
+use HaakCo\Custd\Admin\Site\SiteIngestTarget;
+use HaakCo\Custd\Admin\Tenant\TenantCreateRequest;
 use HaakCo\Custd\CustdClient;
+use HaakCo\Custd\Schemas\EventSchemaCheckRequest;
+use HaakCo\Custd\Schemas\EventSchemaRegisterRequest;
 use HaakCo\Custd\Admin\TimePlanClient;
 use HaakCo\Custd\Admin\TimePlan\AnnotationSchema;
 use HaakCo\Custd\Admin\TimePlan\AnnotationInput;
@@ -23,39 +42,34 @@ final class AdminClientTest extends TestCase
         $client = new CustdClient("http://localhost:8080", "admin-token", [
             "admin_http_client" => function (string $method, string $url, ?array $body) use (&$calls): array {
                 $calls[] = [$method, str_replace("http://localhost:8080", "", $url), $body];
-                if ($method === "GET" && str_ends_with($url, "/data-labels")) {
-                    return ["status" => 200, "body" => '{"definitions":[]}'];
-                }
-                if ($method === "GET" && str_contains($url, "/catalogue")) {
-                    return ["status" => 200, "body" => '{"catalogue":{"labels":[]},"assignments":[],"reportingPacks":[],"fingerprint":"sha256"}'];
-                }
-                if ($method === "GET" && str_ends_with($url, "/usage")) {
-                    return ["status" => 200, "body" => '{"usage":[]}'];
-                }
-                if ($method === "GET" && str_ends_with($url, "/data-label-assignments")) {
-                    return ["status" => 200, "body" => '{"eventTypeDefaults":[],"schemaFieldAssignments":[]}'];
-                }
-                return ["status" => 204, "body" => ""];
+                $path = (string) parse_url($url, PHP_URL_PATH);
+                $example = match (true) {
+                    $method === "GET" && str_ends_with($path, "/data-labels") => "listDataLabels",
+                    $method === "GET" && str_ends_with($path, "/catalogue") => "getDataLabelCatalogue",
+                    $method === "GET" && str_ends_with($path, "/usage") => "listDataLabelUsage",
+                    $method === "GET" && str_ends_with($path, "/data-label-assignments") => "listDataLabelAssignments",
+                    $method === "GET" || $method === "PATCH" && str_contains($path, "/data-labels/") || $method === "POST" && str_ends_with($path, "/data-labels") => "getDataLabel",
+                    $method === "POST" && str_ends_with($path, "/values") || $method === "PATCH" => "createDataLabelValue",
+                    default => null,
+                };
+                return $example === null ? ["status" => 204, "body" => ""] : ["status" => 200, "body" => self::maximal($example)];
             },
         ]);
         $labels = $client->adminDataLabels();
-        $create = ["key" => "app.plan", "displayName" => "Plan", "description" => "Plan", "allowedScopes" => ["event"], "sensitivity" => "internal", "intendedUse" => "Reporting", "synonyms" => [], "propagationPolicy" => "none"];
-        $update = $create;
-        unset($update["key"]);
         $labels->list(true);
         $labels->catalogue(true);
         $labels->get("definition/1", true);
-        $labels->create($create);
-        $labels->update("definition/1", $update);
+        $labels->create(new DataLabelDefinitionCreateRequest(["event"], "Plan", "Plan", "Reporting", "app.plan", "none", "internal", []));
+        $labels->update("definition/1", new DataLabelDefinitionUpdateRequest(["event"], "Plan", "Plan", "Reporting", "none", "internal", []));
         $labels->disable("definition/1");
-        $labels->createValue("definition/1", ["value" => "paid", "displayName" => "Paid", "description" => "Paid"]);
-        $labels->updateValue("value/1", ["displayName" => "Paid", "description" => "Updated"]);
+        $labels->createValue("definition/1", new DataLabelValueCreateRequest("Paid", "Paid", "paid"));
+        $labels->updateValue("value/1", new DataLabelValueUpdateRequest("Updated", "Paid"));
         $labels->disableValue("value/1");
         $labels->listUsage();
         $labels->listAssignments();
-        $labels->setEventTypeDefault("page/view", "definition/1", ["valueUuid" => "value-1"]);
+        $labels->setEventTypeDefault("page/view", "definition/1", new EventTypeDataLabelDefaultRequest("value-1"));
         $labels->removeEventTypeDefault("page/view", "definition/1");
-        $labels->setSchemaFieldAssignment("schema/1", ["fieldPath" => "/user/id", "definitionUuid" => "definition-1", "valueUuid" => "value-1"]);
+        $labels->setSchemaFieldAssignment("schema/1", new SchemaFieldDataLabelAssignmentRequest("definition-1", "/user/id", "value-1"));
         $labels->removeSchemaFieldAssignment("assignment/1");
         $this->assertSame([
             ["GET", "/api/v1/admin/data-labels?includeDisabled=true"], ["GET", "/api/v1/admin/data-labels/catalogue?includeDisabled=true"],
@@ -66,6 +80,7 @@ final class AdminClientTest extends TestCase
             ["PUT", "/api/v1/admin/event-types/page%2Fview/data-label-defaults/definition%2F1"], ["DELETE", "/api/v1/admin/event-types/page%2Fview/data-label-defaults/definition%2F1"],
             ["PUT", "/api/v1/admin/event-schemas/schema%2F1/field-data-labels"], ["DELETE", "/api/v1/admin/data-label-assignments/schema-fields/assignment%2F1"],
         ], array_map(static fn (array $call): array => [$call[0], $call[1]], $calls));
+        $this->assertSame(["definitionUuid" => "definition-1", "fieldPath" => "/user/id", "valueUuid" => "value-1"], $calls[13][2]);
     }
 
     public function testTimePlanAdminRoutesKeepTenantScopeAndTypedLifecyclePaths(): void
@@ -210,18 +225,19 @@ final class AdminClientTest extends TestCase
                 $calls[] = compact("method", "url", "body", "token");
                 return [
                     "status" => 201,
-                    "body" => '{"slug":"acme","companyName":"Acme Inc","enabled":true}',
+                    "body" => '{"slug":"acme","companyName":"Acme Inc","enabled":true,"companyId":7,'
+                        . '"companyUuid":"c-1","purpose":"customer","autoCreateEnvironments":true}',
                 ];
             },
         ]);
 
-        $tenant = $client->adminTenants()->create(["slug" => "acme", "companyName" => "Acme Inc"]);
+        $tenant = $client->adminTenants()->create(new TenantCreateRequest(companyName: "Acme Inc", slug: "acme"));
 
-        $this->assertSame("acme", $tenant["slug"]);
+        $this->assertSame("acme", $tenant->slug);
         $this->assertSame("POST", $calls[0]["method"]);
         $this->assertSame("http://localhost:8080/api/v1/admin/tenants", $calls[0]["url"]);
         $this->assertSame("admin-token", $calls[0]["token"]);
-        $this->assertSame(["slug" => "acme", "companyName" => "Acme Inc"], $calls[0]["body"]);
+        $this->assertSame(["companyName" => "Acme Inc", "slug" => "acme"], $calls[0]["body"]);
     }
 
     public function testOAuthClientListDoesNotExposeClientSecret(): void
@@ -229,11 +245,11 @@ final class AdminClientTest extends TestCase
         $responses = [
             [
                 "status" => 201,
-                "body" => '{"clientId":"custd-acme","companySlug":"acme","scopes":["events.write"],"clientSecret":"secret"}',
+                "body" => '{"clientId":"custd-acme","companySlug":"acme","profile":"producer","scopes":["events.write"],"clientSecret":"secret"}',
             ],
             [
                 "status" => 200,
-                "body" => '{"clients":[{"clientId":"custd-acme","companySlug":"acme","scopes":["events.write"]}]}',
+                "body" => '{"clients":[{"clientId":"custd-acme","companySlug":"acme","profile":"producer","scopes":["events.write"]}]}',
             ],
         ];
         $client = new CustdClient("http://localhost:8080", "admin-token", [
@@ -242,15 +258,15 @@ final class AdminClientTest extends TestCase
             },
         ]);
 
-        $created = $client->adminOAuthClients()->create([
-            "clientId" => "custd-acme",
-            "companySlug" => "acme",
-            "scopes" => ["events.write"],
-        ]);
+        $created = $client->adminOAuthClients()->create(
+            new OAuthClientCreateRequest(clientId: "custd-acme", companySlug: "acme", profile: "producer", scopes: ["events.write"]),
+            "create-custd-acme",
+        );
         $list = $client->adminOAuthClients()->list();
 
-        $this->assertSame("secret", $created["clientSecret"]);
-        $this->assertArrayNotHasKey("clientSecret", $list["clients"][0]);
+        $this->assertSame("secret", $created->clientSecret);
+        // A listed client is an OAuthClientRecord, which has no secret field at all.
+        $this->assertArrayNotHasKey("clientSecret", get_object_vars($list->clients[0]));
     }
 
     public function testAdminSitesManageBrowserSites(): void
@@ -258,7 +274,7 @@ final class AdminClientTest extends TestCase
         $responses = [
             [
                 "status" => 201,
-                "body" => '{"siteUuid":"site-123","companySlug":"acme","name":"Docs","identityMode":"cookieless","allowedOrigins":["https://example.com"],"rateLimitPerMinute":600,"retentionDays":365,"ingestTarget":{"scopeUuid":"11111111-1111-4111-8111-111111111111","resourceUuid":"22222222-2222-4222-8222-222222222222","scopeCode":"acme-store","resourceCode":"srv-01"},"writeKey":"site_pk_test"}',
+                "body" => '{"siteUuid":"site-123","companySlug":"acme","name":"Docs","identityMode":"cookieless","allowedOrigins":["https://example.com"],"allowedEnvironments":["production"],"environment":"production","enabled":true,"rateLimitPerMinute":600,"retentionDays":365,"ingestTarget":{"scopeUuid":"11111111-1111-4111-8111-111111111111","resourceUuid":"22222222-2222-4222-8222-222222222222","scopeCode":"acme-store","resourceCode":"srv-01"},"writeKey":"site_pk_test"}',
             ],
             ["status" => 200, "body" => '{"writeKey":"site_pk_next"}'],
         ];
@@ -270,22 +286,23 @@ final class AdminClientTest extends TestCase
             },
         ]);
 
-        $created = $client->adminSites()->create([
-            "companySlug" => "acme",
-            "name" => "Docs",
-            "identityMode" => "cookieless",
-            "allowedOrigins" => ["https://example.com"],
-            "ingestTarget" => [
-                "scopeUuid" => "11111111-1111-4111-8111-111111111111",
-                "resourceUuid" => "22222222-2222-4222-8222-222222222222",
-            ],
-        ]);
+        $created = $client->adminSites()->create(new SiteCreateRequest(
+            allowedOrigins: ["https://example.com"],
+            companySlug: "acme",
+            environment: "production",
+            identityMode: "cookieless",
+            ingestTarget: new SiteIngestTarget(
+                resourceUuid: "22222222-2222-4222-8222-222222222222",
+                scopeUuid: "11111111-1111-4111-8111-111111111111",
+            ),
+            name: "Docs",
+        ));
         $rotated = $client->adminSites()->rotateWriteKey("site-123");
 
-        $this->assertSame("site_pk_test", $created["writeKey"]);
-        $this->assertSame("srv-01", $created["ingestTarget"]["resourceCode"]);
+        $this->assertSame("site_pk_test", $created->writeKey);
+        $this->assertSame("srv-01", $created->ingestTarget?->resourceCode);
         $this->assertSame("22222222-2222-4222-8222-222222222222", $calls[0]["body"]["ingestTarget"]["resourceUuid"]);
-        $this->assertSame("site_pk_next", $rotated["writeKey"]);
+        $this->assertSame("site_pk_next", $rotated->writeKey);
         $this->assertSame("http://localhost:8080/api/v1/admin/sites", $calls[0]["url"]);
     }
 
@@ -300,6 +317,8 @@ final class AdminClientTest extends TestCase
             "rateLimitPerMinute" => 600,
             "retentionDays" => 365,
             "enabled" => true,
+            "environment" => "production",
+            "allowedEnvironments" => ["production"],
             "ingestTarget" => [
                 "scopeUuid" => "11111111-1111-4111-8111-111111111111",
                 "resourceUuid" => "22222222-2222-4222-8222-222222222222",
@@ -325,9 +344,10 @@ final class AdminClientTest extends TestCase
         $got = $client->adminSites()->get("site-123");
         $client->adminSites()->delete("site-123");
 
-        $this->assertArrayNotHasKey("writeKey", $listed["sites"][0]);
-        $this->assertArrayNotHasKey("writeKey", $got);
-        $this->assertSame("acme-store", $got["ingestTarget"]["scopeCode"]);
+        // A listed or read Site has no write-key field, even when the server sends one.
+        $this->assertArrayNotHasKey("writeKey", get_object_vars($listed->sites[0]));
+        $this->assertArrayNotHasKey("writeKey", get_object_vars($got));
+        $this->assertSame("acme-store", $got->ingestTarget?->scopeCode);
         $this->assertSame([
             ["GET", "http://localhost:8080/api/v1/admin/sites"],
             ["GET", "http://localhost:8080/api/v1/admin/sites/site-123"],
@@ -338,52 +358,41 @@ final class AdminClientTest extends TestCase
         ));
     }
 
-    public function testAdminSchemasRegisterAndVersionSchemas(): void
+    public function testSchemasDecodeTheSchemaRegistryShapes(): void
     {
+        $issue = '{"path":"/a","keyword":"type","message":"bad","schemaLocation":"#","instanceLocation":"/a","severity":"error"}';
         $responses = [
-            [
-                "status" => 200,
-                "body" => '{"schemas":[{"eventTypeSlug":"courib.delivery.created","version":"1.0.0"}]}',
-            ],
-            [
-                "status" => 201,
-                "body" => '{"eventTypeSlug":"courib.delivery.created","version":"1.0.0","jsonSchema":{"type":"object"}}',
-            ],
-            [
-                "status" => 201,
-                "body" => '{"eventTypeSlug":"courib.delivery.created","version":"1.1.0","jsonSchema":{"type":"object"}}',
-            ],
+            '[{"slug":"courib.delivery.created","name":"Delivery created","enabled":true}]',
+            'null',
+            '{"type":"object","required":["id"]}',
+            '{"slug":"courib.delivery.created","name":"Delivery created","enabled":true}',
+            '{"valid":false,"schemaValid":true,"issues":[' . $issue . '],"warnings":null,'
+                . '"exampleResults":[{"index":0,"valid":false,"issueCodes":["type"],"issues":[' . $issue . ']}],'
+                . '"normalizedSchema":"{}","dialect":"2020-12","checksum":"c","wouldCreateEventType":false,'
+                . '"wouldCreateVersion":true,"conflicts":[{"field":"id","message":"type changed"}],'
+                . '"validatorEngine":"e","validatorVersion":"1","schemaChecksum":"c","schemaDialect":"2020-12"}',
         ];
-        $calls = [];
         $client = new CustdClient("http://localhost:8080", "admin-token", [
-            "admin_http_client" => function (string $method, string $url, ?array $body, string $token) use (&$responses, &$calls): array {
-                $calls[] = compact("method", "url", "body", "token");
-                return array_shift($responses);
+            "admin_http_client" => static function () use (&$responses): array {
+                return ["status" => 200, "body" => array_shift($responses)];
             },
         ]);
+        $schemas = $client->schemas();
 
-        $list = $client->adminSchemas()->list();
-        $registered = $client->adminSchemas()->register([
-            "eventTypeSlug" => "courib.delivery.created",
-            "version" => "1.0.0",
-            "jsonSchema" => ["type" => "object"],
-        ]);
-        $next = $client->adminSchemas()->createVersion("courib.delivery.created", [
-            "version" => "1.1.0",
-            "jsonSchema" => ["type" => "object"],
-        ]);
-
-        $this->assertSame("courib.delivery.created", $list["schemas"][0]["eventTypeSlug"]);
-        $this->assertSame("1.0.0", $registered["version"]);
-        $this->assertSame("1.1.0", $next["version"]);
-        $this->assertSame([
-            ["GET", "http://localhost:8080/api/v1/admin/schemas"],
-            ["POST", "http://localhost:8080/api/v1/admin/schemas"],
-            ["POST", "http://localhost:8080/api/v1/admin/schemas/courib.delivery.created/versions"],
-        ], array_map(
-            static fn (array $call): array => [$call["method"], $call["url"]],
-            $calls,
-        ));
+        $this->assertSame("courib.delivery.created", $schemas->list()->eventTypes[0]->slug);
+        $this->assertSame([], $schemas->listVersions("courib.delivery.created")->versions);
+        $this->assertSame(["id"], $schemas->get("courib.delivery.created", "1.0.0")->schema->required);
+        $this->assertTrue($schemas->register(new EventSchemaRegisterRequest(
+            "courib.delivery.created",
+            "Delivery created",
+            "1.0.0",
+            '{"type":"object"}',
+        ))->enabled);
+        $check = $schemas->dryRun(new EventSchemaCheckRequest("courib.delivery.created", "1.1.0", '{"type":"object"}'));
+        $this->assertSame("error", $check->issues[0]->severity);
+        $this->assertSame([], $check->warnings);
+        $this->assertSame(["type"], $check->exampleResults[0]->issueCodes);
+        $this->assertSame("id", $check->conflicts[0]->field);
     }
 
     public function testAdminMeasurementProjectsCreateUsesAdminApi(): void
@@ -394,32 +403,21 @@ final class AdminClientTest extends TestCase
                 $calls[] = compact("method", "url", "body", "token");
                 return [
                     "status" => 201,
-                    "body" => '{"projectUuid":"project-123","projectCode":"checkout-runway","name":"Checkout Runway","kind":"deadline_forecast","status":"active"}',
+                    "body" => self::maximal("createMeasurementProject"),
                 ];
             },
         ]);
 
-        $project = $client->adminMeasurementProjects()->create([
-            "projectCode" => "checkout-runway",
-            "name" => "Checkout Runway",
-            "kind" => "deadline_forecast",
-            "series" => [[
-                "seriesCode" => "checkout-completions",
-                "name" => "Checkout completions",
-                "unitSlug" => "count",
-                "completionDirection" => "increase",
-                "source" => "manual",
-            ]],
-            "target" => [
-                "targetCode" => "release",
-                "name" => "Release",
-                "targetValue" => 100,
-                "targetDate" => "2026-08-31T00:00:00Z",
-                "state" => "active",
-            ],
-        ]);
+        $project = $client->adminMeasurementProjects()->create(new MeasurementProjectCreateRequest(
+            kind: "deadline_forecast",
+            name: "Checkout Runway",
+            projectCode: "checkout-runway",
+            series: [new MeasurementSeriesCreateRequest("increase", "Checkout completions", "checkout-completions", "manual", "count")],
+            target: new MeasurementTargetCreateRequest("Release", "active", "release", 100.0, "2026-08-31T00:00:00Z"),
+        ));
 
-        $this->assertSame("project-123", $project["projectUuid"]);
+        $this->assertSame("example", $project->projectUuid);
+        $this->assertSame("release", $calls[0]["body"]["target"]["targetCode"]);
         $this->assertSame("POST", $calls[0]["method"]);
         $this->assertSame("http://localhost:8080/api/v1/admin/measurement/projects", $calls[0]["url"]);
     }
@@ -427,9 +425,9 @@ final class AdminClientTest extends TestCase
     public function testAdminMeasurementPredictionsKeepCompanyScopeAndSourceArrays(): void
     {
         $responses = [
-            ["status" => 201, "body" => '{"uuid":"definition-1","status":"draft"}'],
-            ["status" => 200, "body" => '[{"uuid":"source-1","source_mode":"http_json"}]'],
-            ["status" => 202, "body" => '{}'],
+            ["status" => 201, "body" => self::maximal("createPredictionDefinition")],
+            ["status" => 200, "body" => self::maximal("listPredictionSources")],
+            ["status" => 202, "body" => ''],
         ];
         $calls = [];
         $client = new CustdClient("http://localhost:8080", "admin-token", [
@@ -439,18 +437,19 @@ final class AdminClientTest extends TestCase
             },
         ]);
 
-        $definition = $client->adminMeasurementPredictions()->createDefinition("acme", [
-            "definition_key" => "quota", "display_name" => "Quota",
-        ]);
+        $definition = $client->adminMeasurementPredictions()->createDefinition("acme", new MeasurementPredictionDefinitionCreateRequest("quota", "Quota"));
         $sources = $client->adminMeasurementPredictions()->listSignalSources("acme", 10, "next");
-        $client->adminMeasurementPredictions()->runNow("acme", "definition-1", ["worker_id" => "proof"]);
+        $client->adminMeasurementPredictions()->runNow("acme", "definition-1", new MeasurementPredictionRunNowRequest("proof"));
 
-        $this->assertSame("definition-1", $definition["uuid"]);
-        $this->assertSame("source-1", $sources[0]["uuid"]);
+        $this->assertSame("example", $definition->uuid);
+        $this->assertSame(["definition_key" => "quota", "display_name" => "Quota"], $calls[0]["body"]);
+        $this->assertSame("example", $sources->sources[0]->uuid);
+        $this->assertSame("example", $sources->nextPageToken);
         $this->assertSame(
-            "http://localhost:8080/api/v1/admin/measurement/predictions/sources?companySlug=acme&pageSize=10&pageToken=next",
+            "http://localhost:8080/api/v1/admin/measurement/predictions/sources?pageSize=10&pageToken=next&companySlug=acme",
             $calls[1]["url"],
         );
+        $this->assertSame(["worker_id" => "proof"], $calls[2]["body"]);
     }
 
     public function testAdminMeasurementObservationBulkValidatesRowResults(): void
@@ -466,15 +465,13 @@ final class AdminClientTest extends TestCase
             },
         ]);
 
-        $response = $client->adminMeasurementProjects()->submitObservations("checkout-runway", [
-            "rows" => [
-                $this->measurementObservation("2026-07-01T00:00:00Z"),
-                $this->measurementObservation("not-a-timestamp"),
-            ],
-        ]);
+        $response = $client->adminMeasurementProjects()->submitObservations("checkout-runway", new MeasurementObservationBulkRequest([
+            $this->measurementObservation("2026-07-01T00:00:00Z"),
+            $this->measurementObservation("not-a-timestamp"),
+        ]));
 
-        $this->assertSame(1, $response["accepted"]);
-        $this->assertFalse($response["results"][1]["success"]);
+        $this->assertSame(1, $response->accepted);
+        $this->assertFalse($response->results[1]->success);
         $this->assertSame(
             "http://localhost:8080/api/v1/admin/measurement/projects/checkout-runway/observations:bulk",
             $calls[0]["url"],
@@ -500,7 +497,7 @@ final class AdminClientTest extends TestCase
             2,
         );
 
-        $this->assertSame(1, $response["rejected"]);
+        $this->assertSame(1, $response->rejected);
         $this->assertSame(["csv" => "seriesUuid,observedAt,value\ncheckout-completions,2026-07-01T00:00:00Z,42.5\n"], $calls[0]["body"]);
         $this->assertSame(
             "http://localhost:8080/api/v1/admin/measurement/projects/checkout-runway/observations:csv",
@@ -511,7 +508,7 @@ final class AdminClientTest extends TestCase
     public function testAdminMeasurementRejectsMismatchedResultCount(): void
     {
         $client = new CustdClient("http://localhost:8080", "admin-token", [
-            "admin_http_client" => fn (): array => ["status" => 202, "body" => '{"results":[]}'],
+            "admin_http_client" => fn (): array => ["status" => 202, "body" => '{"importId":"import-1","accepted":0,"rejected":0,"results":[]}'],
         ]);
 
         $this->expectException(\RuntimeException::class);
@@ -528,7 +525,7 @@ final class AdminClientTest extends TestCase
         $client = new CustdClient("http://localhost:8080", "admin-token", [
             "admin_http_client" => fn (): array => [
                 "status" => 202,
-                "body" => '{"results":[{"rowIndex":1,"success":true,"status":202}]}',
+                "body" => '{"importId":"import-1","accepted":1,"rejected":0,"results":[{"rowIndex":1,"success":true,"status":202}]}',
             ],
         ]);
 
@@ -554,7 +551,7 @@ final class AdminClientTest extends TestCase
         ]);
 
         try {
-            $client->adminTenants()->create(["slug" => "acme", "companyName" => "Acme Inc"]);
+            $client->adminTenants()->create(new TenantCreateRequest(companyName: "Acme Inc", slug: "acme"));
             $this->fail("expected RuntimeException on RFC 9457 admin error");
         } catch (\RuntimeException $err) {
             self::assertStringContainsString("tenant slug already exists", $err->getMessage());
@@ -563,15 +560,16 @@ final class AdminClientTest extends TestCase
         }
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function measurementObservation(string $observedAt): array
+    private function measurementObservation(string $observedAt): MeasurementObservationRow
     {
-        return [
-            "seriesUuid" => "checkout-completions",
-            "observedAt" => $observedAt,
-            "value" => 42,
-        ];
+        return new MeasurementObservationRow($observedAt, "checkout-completions", 42.0);
+    }
+
+    /** maximal is an operation's server-shaped example body, carrying every field. */
+    private static function maximal(string $operationId): string
+    {
+        $example = json_decode((string) file_get_contents(__DIR__ . "/../../contract-fixtures/api/examples/{$operationId}.json"), false, 512, JSON_THROW_ON_ERROR);
+
+        return json_encode($example->maximal, JSON_THROW_ON_ERROR);
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Tests;
 
+use HaakCo\Custd\Analytics\AnalyticsEventsQueryRequest;
 use HaakCo\Custd\Analytics\Client as AnalyticsClient;
 use HaakCo\Custd\Analytics\RangeQueryRequest;
 use HaakCo\Custd\Analytics\RangeQueryResponse;
@@ -18,58 +19,35 @@ final class AnalyticsClientTest extends TestCase
         $calls = [];
         $client = $this->clientWithResponse($this->response(), $calls);
 
-        $response = $client->analytics()->query([
-            "date" => "2026-09-14",
-            "eventType" => "page_view",
-            "limit" => 50,
-        ]);
+        $response = $client->analytics()->query(new AnalyticsEventsQueryRequest("2026-09-14", eventType: "page_view", limit: 50));
 
         // The tenant route, not the admin one: the credential already names the tenant.
         self::assertSame(["http://localhost:8080/api/v1/analytics/query"], array_column($calls, "url"));
         self::assertSame(["POST"], array_column($calls, "method"));
         // The server's own completeness and freshness assessment is surfaced verbatim;
         // the SDK must not substitute a confidence judgement of its own.
-        self::assertTrue($response["sources"][0]["complete"]);
-        self::assertTrue($response["sources"][0]["fresh"]);
-        self::assertSame(20, $response["timing"]["eventLagP95Ms"]);
-        self::assertSame([["eventTypeSlug" => "page_view", "payload" => ["path" => "/"]]], $response["results"]);
-    }
-
-    public function testSerialisesOnlyDocumentedPublicFields(): void
-    {
-        $calls = [];
-        $client = $this->clientWithResponse($this->response(), $calls);
-
-        // anonymousId is an internal exact-subject predicate and countOnly is an internal
-        // flag. Both are absent from the service's public JSON contract, so a caller must
-        // not be able to smuggle them onto the wire by passing extra entries.
-        $client->analytics()->query([
-            "date" => "2026-09-14",
-            "anonymousId" => "subject-1",
-            "countOnly" => true,
-        ]);
-
-        self::assertSame(["date" => "2026-09-14"], $calls[0]["body"]);
+        self::assertTrue($response->sources[0]->complete);
+        self::assertTrue($response->sources[0]->fresh);
+        self::assertSame(20, $response->timing->eventLagP95Ms);
+        self::assertSame([["eventTypeSlug" => "page_view", "payload" => ["path" => "/"]]], $response->results);
+        self::assertSame(["date" => "2026-09-14", "eventType" => "page_view", "limit" => 50], $calls[0]["body"]);
     }
 
     public function testRejectsInvalidRequestsBeforeSending(): void
     {
         $tooMany = array_fill(0, AnalyticsClient::MAX_LABEL_FILTERS + 1, ["key" => "k", "value" => "v"]);
         $cases = [
-            "missing date" => [],
-            "too many label filters" => ["date" => "2026-09-14", "labelFilters" => $tooMany],
-            "unknown source" => ["date" => "2026-09-14", "source" => "not-a-source"],
+            "missing date" => static fn (): AnalyticsEventsQueryRequest => new AnalyticsEventsQueryRequest(""),
+            "too many label filters" => static fn (): AnalyticsEventsQueryRequest => new AnalyticsEventsQueryRequest("2026-09-14", labelFilters: $tooMany),
+            "unknown source" => static fn (): AnalyticsEventsQueryRequest => new AnalyticsEventsQueryRequest("2026-09-14", source: "not-a-source"),
         ];
 
-        foreach ($cases as $name => $request) {
-            $calls = [];
-            $client = $this->clientWithResponse($this->response(), $calls);
-
+        foreach ($cases as $name => $build) {
             try {
-                $client->analytics()->query($request);
+                $build();
                 self::fail("expected {$name} to be rejected");
             } catch (\InvalidArgumentException) {
-                self::assertSame([], $calls, "{$name} should not cost a request");
+                $this->addToAssertionCount(1);
             }
         }
     }
@@ -84,7 +62,7 @@ final class AnalyticsClientTest extends TestCase
         );
 
         try {
-            $client->analytics()->query(["date" => "2026-09-14"]);
+            $client->analytics()->query(new AnalyticsEventsQueryRequest("2026-09-14"));
             self::fail("expected analytics RequestException");
         } catch (RequestException $error) {
             self::assertTrue($error->unavailable());
