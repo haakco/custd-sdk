@@ -433,11 +433,13 @@ with record_metadata() as recorder:
     except RequestError as error:
         if error.code == MACHINE_ACCESS_BLOCKED_CODE:
             print(error.machine_access)  # area, blockedBy (company, machine or support_automation)
-        print(error.trace_id, recorder.request_id)  # quote either in a support request
+        print(error.request_id)  # quote it in a support request
+print(recorder.request_id)
 ```
 
 `record_metadata()` records the `X-Request-Id` of every answer inside the block, refusals
-included. A `RequestError` carries the problem's `trace_id` and the flat envelope's `request_id`.
+included. A `RequestError` carries `request_id` (the `X-Request-Id`, else the flat envelope's
+`requestId`, else the problem's `traceId`) and the problem's `trace_id`.
 
 ## Auth-project admin helpers
 

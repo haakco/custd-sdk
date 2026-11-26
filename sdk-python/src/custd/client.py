@@ -166,14 +166,20 @@ def record_metadata() -> Iterator[MetadataRecorder]:
         _METADATA_RECORDER.reset(token)
 
 
+# The X-Request-Id of the last answer in this context, so the error built from it can carry it.
+_ANSWER_REQUEST_ID: ContextVar[str] = ContextVar("custd_answer_request_id", default="")
+
+
 def _record_request_id(headers: object) -> None:
+    request_id = ""
+    if isinstance(headers, Mapping):
+        request_id = next(
+            (str(value) for name, value in headers.items() if str(name).lower() == REQUEST_ID_HEADER and value), ""
+        )
+    _ANSWER_REQUEST_ID.set(request_id)
     recorder = _METADATA_RECORDER.get()
-    if recorder is None or not isinstance(headers, Mapping):
-        return
-    for name, value in headers.items():
-        if str(name).lower() == REQUEST_ID_HEADER and value:
-            recorder.request_id = str(value)
-            return
+    if recorder is not None and request_id:
+        recorder.request_id = request_id
 
 
 def _recording_admin_transport(transport: "AdminTransport") -> "AdminTransport":
@@ -676,9 +682,9 @@ class MachineAccessBlock(TypedDict):
 class RequestError(RuntimeError):
     """A refused or failed call.
 
-    ``trace_id`` is the problem's ``traceId`` and ``request_id`` the flat envelope's ``requestId``:
-    the identifier to quote in a support request. ``machine_access`` is set when a machine access
-    setting refused the call (code ``machine_access_blocked``).
+    ``request_id`` is the identifier to quote in a support request: the answer's ``X-Request-Id``,
+    else the flat envelope's ``requestId``, else the problem's ``traceId``. ``machine_access`` is set
+    when a machine access setting refused the call (code ``machine_access_blocked``).
     """
 
     def __init__(
@@ -785,9 +791,14 @@ def _problem_error(message: str, status: int, payload: dict[str, Any]) -> Reques
         retryability=_problem_retryability(payload, status),
         next_action=next_action if isinstance(next_action, dict) else None,
         trace_id=_text(payload, "traceId"),
-        request_id=_text(payload, "requestId"),
+        request_id=_refusal_request_id(payload),
         machine_access=_machine_access_block(payload),
     )
+
+
+def _refusal_request_id(payload: dict[str, Any]) -> str | None:
+    """The ID to quote: the answer's X-Request-Id, else the flat envelope's requestId, else the traceId."""
+    return _ANSWER_REQUEST_ID.get() or _text(payload, "requestId") or _text(payload, "traceId")
 
 
 def admin_request_error(status: int, body: object) -> RequestError:
@@ -804,7 +815,7 @@ def admin_request_error(status: int, body: object) -> RequestError:
         safe_next_action=_text(payload, "safe_next_action"),
         reason=reason_text,
         trace_id=_text(payload, "traceId"),
-        request_id=_text(payload, "requestId"),
+        request_id=_refusal_request_id(payload),
     )
 
 
@@ -1466,7 +1477,7 @@ class ProvisioningClient:
         )
         status = int(result["status"])
         if status >= 400:
-            raise RequestError(f"custd: provisioning request failed with status {status}")
+            raise problem_request_error(status, result.get("body"), "provisioning")
         body = result.get("body")
         if status == 204 or body in (None, ""):
             return {}
@@ -2837,7 +2848,7 @@ def make_default_transport(compression: dict[str, Any]) -> Transport:
 default_transport = make_default_transport(normalize_compression(None))
 
 
-def default_admin_transport(
+def _send_admin(
     method: str,
     url: str,
     payload: dict[str, Any] | bytes | None,
@@ -2872,6 +2883,10 @@ def default_admin_transport(
         raise RetryableError(f"custd: admin request failed: {err}") from err
 
 
+# Every answer records its request ID, so a refusal built from it carries the ID to quote.
+default_admin_transport = _recording_admin_transport(_send_admin)
+
+
 def default_admin_stream_transport(method: str, url: str, headers: dict[str, str], timeout: float) -> AdminStream:
     request = urllib.request.Request(url, headers=headers, method=method)
     try:
@@ -2891,7 +2906,7 @@ class _KeepRedirect(urllib.request.HTTPRedirectHandler):
 _NO_REDIRECT_OPENER = urllib.request.build_opener(_KeepRedirect)
 
 
-def no_redirect_transport(
+def _send_without_redirect(
     method: str,
     url: str,
     payload: dict[str, Any] | bytes | None,
@@ -2913,6 +2928,9 @@ def no_redirect_transport(
         return {"status": err.code, "body": err.read().decode("utf-8"), "headers": dict(err.headers.items())}
     except urllib.error.URLError as err:
         raise RetryableError(f"custd: request failed: {err}") from err
+
+
+no_redirect_transport = _recording_admin_transport(_send_without_redirect)
 
 
 def quote_path(value: str) -> str:

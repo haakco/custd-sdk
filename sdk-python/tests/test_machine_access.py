@@ -26,9 +26,11 @@ def fixture(name: str) -> str:
     return (FIXTURES / name).read_text(encoding="utf-8")
 
 
-def client_answering(status: int, body: str) -> CustdClient:
+def client_answering(status: int, body: str, request_id: str = "req-header-1") -> CustdClient:
+    answer_headers = {"X-Request-Id": request_id} if request_id else {}
+
     def transport(method: str, url: str, payload: Any, headers: dict[str, str], timeout: float) -> dict[str, Any]:
-        return {"status": status, "body": body, "headers": {"X-Request-Id": "req-header-1"}}
+        return {"status": status, "body": body, "headers": answer_headers}
 
     return CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
 
@@ -40,6 +42,7 @@ class MachineAccessRefusalTest(unittest.TestCase):
             "admin request": lambda c: c.admin.request("GET", "/reporting/packs"),
             "typed /api/v1 route": lambda c: c.admin.machine_access.get(),
             "reporting": lambda c: c.reporting.list_dashboards(),
+            "provisioning": lambda c: c.provisioning.data_spaces.get_signing_status("acme", "parent"),
         }
         for name, call in calls.items():
             with self.subTest(name), self.assertRaises(RequestError) as raised:
@@ -49,6 +52,7 @@ class MachineAccessRefusalTest(unittest.TestCase):
             self.assertEqual(MACHINE_ACCESS_BLOCKED_CODE, error.code)
             self.assertEqual("none", error.retryability)
             self.assertEqual("req-machine-access-1", error.trace_id)
+            self.assertEqual("req-header-1", error.request_id)
             self.assertEqual(
                 {"area": "reporting", "blockedBy": "machine", "companySlug": "acme", "clientId": "ci-reporting"},
                 error.machine_access,
@@ -64,10 +68,10 @@ class MachineAccessRefusalTest(unittest.TestCase):
         self.assertEqual("req-machine-access-2", error.trace_id)
         self.assertIsNone(error.machine_access)
 
-    def test_flat_envelope_keeps_its_request_id(self) -> None:
+    def test_flat_envelope_request_id_stands_in_without_the_header(self) -> None:
         body = json.dumps({"error": "erasure refused", "code": "erasure_locked", "requestId": "req-flat-1"})
         with self.assertRaises(RequestError) as raised:
-            client_answering(409, body).admin.request("POST", "/privacy/erasures")
+            client_answering(409, body, request_id="").admin.request("POST", "/privacy/erasures")
         self.assertEqual("req-flat-1", raised.exception.request_id)
         self.assertEqual("erasure_locked", raised.exception.code)
 
