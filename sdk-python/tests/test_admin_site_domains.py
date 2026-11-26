@@ -347,7 +347,7 @@ class SitePageToolsTest(unittest.TestCase):
         self.assertIn('href="https://example.com/plans"', canonical["remedy"]["generated"]["code"])
         self.assertEqual(13, result["page"]["wordCount"])
 
-        self.assertEqual({"kind": "", "element": ""}, PAGE_TOOLS["remedyUnknownRule"])
+        self.assertEqual({"element": ""}, PAGE_TOOLS["remedyUnknownRule"])
         domains, _ = site_domains(200, {"findings": [PAGE_TOOLS["findingWithGeneratedFix"]]})
         finding = domains.list_findings(DOMAIN)["findings"][0]
         self.assertEqual("<link rel=\"canonical\">", finding["remedy"]["element"])

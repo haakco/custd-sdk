@@ -144,6 +144,12 @@ class AdminClientTest(unittest.TestCase):
         self.assertIsNone(view["relay"])
         self.assertEqual("custd", view["effective"]["relay"])
 
+    def test_audit_last_page_leaves_cursor_absent(self):
+        transport = CapturingAdminTransport([{"status": 200, "body": {"events": [], "nextCursor": {}}}])
+        client = CustdClient(base_url="http://localhost:8080", token="admin-token", admin_transport=transport)
+
+        self.assertEqual({}, client.admin.audit.list_events()["nextCursor"])
+
     def test_audit_reader_rejects_non_uuid_event_id(self):
         transport = CapturingAdminTransport([
             {"status": 200, "body": {"events": [{"eventId": "ev-1"}], "nextCursor": {"cursor": ""}}},

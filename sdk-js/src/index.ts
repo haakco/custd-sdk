@@ -1928,8 +1928,9 @@ export type AdminAuditDomainHistory = {
   createdAt: string;
 };
 
+/** The next page's cursor; `cursor` is absent on the last page. */
 export type AdminAuditListCursor = {
-  cursor: string;
+  cursor?: string;
 };
 
 export type AdminAuditOutcome = "attempted" | "success" | "failure" | "denied" | "pending" | "unknown";
@@ -4925,7 +4926,7 @@ class AdminAuditNamespace {
     const retention = mapAdminAuditRetention(response.retention);
     return {
       events: (response.events ?? []).map(mapAdminAuditEvent),
-      nextCursor: response.nextCursor ?? { cursor: "" },
+      nextCursor: response.nextCursor ?? {},
       ...(typeof response.coverageBeginsAt === "string" ? { coverageBeginsAt: response.coverageBeginsAt } : {}),
       ...(retention === undefined ? {} : { retention }),
     };

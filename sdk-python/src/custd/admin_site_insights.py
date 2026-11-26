@@ -108,7 +108,7 @@ SiteRobotsDirective = Literal["allow", "disallow"]
 
 
 # What a finding's fix changes. The server may add kinds, and a rule without a remedy shape
-# sends an empty kind, so these are plain strings rather than a closed type.
+# sends no kind, so these are plain strings rather than a closed type.
 SITE_REMEDY_KIND_MARKUP: SiteRemedyKind = "markup"
 SITE_REMEDY_KIND_SETTING: SiteRemedyKind = "setting"
 SITE_REMEDY_KIND_CONTENT: SiteRemedyKind = "content"
@@ -201,10 +201,10 @@ class SiteGeneratedFix(TypedDict):
 class SiteRemedy(TypedDict):
     """What a finding's fix changes; ``generated`` is present only when the rule has a generator.
 
-    A rule without a remedy shape sends an empty ``kind`` and ``element``.
+    A rule without a remedy shape sends no ``kind`` and an empty ``element``.
     """
 
-    kind: SiteRemedyKind
+    kind: NotRequired[SiteRemedyKind]
     element: str
     generated: NotRequired[SiteGeneratedFix]
 

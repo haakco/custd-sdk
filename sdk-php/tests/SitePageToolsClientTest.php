@@ -42,7 +42,7 @@ final class SitePageToolsClientTest extends TestCase
         self::assertSame(SiteRemedyKind::MARKUP, $generated->remedy->kind);
         self::assertSame(SiteGeneratedFixFormat::HTML, $generated->remedy->generated?->format);
         self::assertSame('<link rel="canonical" href="https://example.com/plans">', $generated->remedy->generated->code);
-        self::assertSame('', $unknown->kind);
+        self::assertNull($unknown->kind);
         self::assertNull($unknown->generated);
         self::assertSame(SiteRemedyKind::CONTENT, $listed[0]->remedy->kind);
         self::assertSame(SiteRemedyKind::SERVER, $listed[1]->remedy->kind);

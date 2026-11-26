@@ -1620,7 +1620,7 @@ class AdminAuditNamespace {
         const retention = mapAdminAuditRetention(response.retention);
         return {
             events: (response.events ?? []).map(mapAdminAuditEvent),
-            nextCursor: response.nextCursor ?? { cursor: "" },
+            nextCursor: response.nextCursor ?? {},
             ...(typeof response.coverageBeginsAt === "string" ? { coverageBeginsAt: response.coverageBeginsAt } : {}),
             ...(retention === undefined ? {} : { retention }),
         };

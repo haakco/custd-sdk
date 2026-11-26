@@ -57,7 +57,9 @@ pub struct SiteRemedy {
     pub element: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generated: Option<SiteGeneratedFix>,
-    pub kind: SiteRemedyKind,
+    /// Absent when Custd has no remedy shape for the rule.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<SiteRemedyKind>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

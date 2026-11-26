@@ -885,8 +885,9 @@ export type AdminAuditDomainHistory = {
     streamVersion?: number;
     createdAt: string;
 };
+/** The next page's cursor; `cursor` is absent on the last page. */
 export type AdminAuditListCursor = {
-    cursor: string;
+    cursor?: string;
 };
 export type AdminAuditOutcome = "attempted" | "success" | "failure" | "denied" | "pending" | "unknown";
 export type AdminAuditDisclosureState = "available" | "redacted" | "not_recorded";

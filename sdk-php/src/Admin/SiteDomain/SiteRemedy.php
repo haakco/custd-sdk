@@ -8,16 +8,16 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteRemedy says what a finding's fix changes; the recommendation itself is the finding's fix
- * text. kind and element are empty for a rule Custd has no remedy shape for. generated is
+ * text. kind is null and element empty for a rule Custd has no remedy shape for. generated is
  * ready-to-copy code for rules with a generator, never a published change.
  */
 final readonly class SiteRemedy
 {
     /**
-     * @param SiteRemedyKind::* $kind
+     * @param SiteRemedyKind::*|null $kind
      */
     public function __construct(
-        public string $kind,
+        public ?string $kind,
         public string $element,
         public ?SiteGeneratedFix $generated = null,
     ) {
@@ -28,7 +28,7 @@ final readonly class SiteRemedy
         $generated = Fields::optionalObject($payload, 'generated');
 
         return new self(
-            Fields::string($payload, 'kind'),
+            Fields::optionalString($payload, 'kind'),
             Fields::string($payload, 'element'),
             $generated === null ? null : SiteGeneratedFix::fromPayload($generated),
         );

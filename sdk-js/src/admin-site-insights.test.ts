@@ -65,7 +65,7 @@ describe("site insights page tools", () => {
       code: '<link rel="canonical" href="https://example.com/plans">',
     });
     const unknown = tools.remedyUnknownRule as SiteRemedy;
-    expect(unknown).toEqual({ kind: "", element: "" });
+    expect(unknown).toEqual({ element: "" });
     expect(unknown.generated).toBeUndefined();
   });
 

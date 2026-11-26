@@ -252,12 +252,13 @@ class AuditAdminClient:
         if not isinstance(events, list):
             raise ValueError("custd: audit list response events must be an array")
         cursor = response.get("nextCursor")
-        if not isinstance(cursor, Mapping):
-            cursor = {"cursor": ""}
+        next_cursor: AuditListCursor = {}
+        if isinstance(cursor, Mapping) and isinstance(cursor.get("cursor"), str) and cursor["cursor"]:
+            next_cursor["cursor"] = cursor["cursor"]
         retention = _safe_retention(response.get("retention"))
         result: AuditListResponse = {
             "events": [_safe_event(event) for event in events],
-            "nextCursor": {"cursor": str(cursor.get("cursor", ""))},
+            "nextCursor": next_cursor,
         }
         if isinstance(response.get("coverageBeginsAt"), str):
             result["coverageBeginsAt"] = response["coverageBeginsAt"]

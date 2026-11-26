@@ -836,8 +836,10 @@ type AuditDomainHistory struct {
 	StreamVersion int64  `json:"streamVersion,omitempty"`
 }
 
+// AuditListCursor is the next page's cursor; Cursor is empty, and absent on the wire, on the last
+// page.
 type AuditListCursor struct {
-	Cursor string `json:"cursor"`
+	Cursor string `json:"cursor,omitempty"`
 }
 
 type AuditListResponse struct {

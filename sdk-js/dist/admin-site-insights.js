@@ -18,7 +18,7 @@ export const SITE_SEARCH_INSPECTION_URL_INVALID_CODE = "site_search_inspection_u
 export const SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE = "site_search_inspection_not_connected";
 /** A 429 on requestSearchInspection: the tenant's daily URL inspections are used up. */
 export const SITE_SEARCH_INSPECTION_LIMIT_CODE = "site_search_inspection_limit";
-/** What a fix changes. An unknown rule carries an empty kind. */
+/** What a fix changes. A rule without a remedy shape carries no kind. */
 export const SiteRemedyKind = {
     Markup: "markup",
     Setting: "setting",

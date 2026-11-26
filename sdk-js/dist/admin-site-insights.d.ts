@@ -16,7 +16,7 @@ export declare const SITE_SEARCH_INSPECTION_URL_INVALID_CODE = "site_search_insp
 export declare const SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE = "site_search_inspection_not_connected";
 /** A 429 on requestSearchInspection: the tenant's daily URL inspections are used up. */
 export declare const SITE_SEARCH_INSPECTION_LIMIT_CODE = "site_search_inspection_limit";
-/** What a fix changes. An unknown rule carries an empty kind. */
+/** What a fix changes. A rule without a remedy shape carries no kind. */
 export declare const SiteRemedyKind: {
     readonly Markup: "markup";
     readonly Setting: "setting";
@@ -38,8 +38,8 @@ export type SiteGeneratedFix = {
 };
 /** What a finding's fix changes; the recommendation itself is the finding's `fix` text. */
 export type SiteRemedy = {
-    /** A SiteRemedyKind value, or empty for a rule without a remedy shape. */
-    kind: SiteRemedyKind | "";
+    /** A SiteRemedyKind value; absent for a rule without a remedy shape. */
+    kind?: SiteRemedyKind;
     /** The element, file or setting the fix changes. */
     element: string;
     /** Present only for rules with a generator that saw enough to fill it in. */
