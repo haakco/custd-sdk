@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Analytics;
 
+use HaakCo\Custd\MetadataRecorder;
+use HaakCo\Custd\Problem;
+
 /**
  * Queries this tenant's own events through POST /api/v1/analytics/query.
  *
@@ -109,6 +112,7 @@ final class Client
         } catch (\Throwable $error) {
             throw new RequestException("custd: analytics transport unavailable", null, "transport_unavailable", "bounded", null, $error);
         }
+        MetadataRecorder::capture($response["headers"] ?? null);
         $status = (int) ($response["status"] ?? 0);
         if ($status >= 400) {
             $decoded = json_decode((string) ($response["body"] ?? ""), true);
@@ -119,7 +123,7 @@ final class Client
             $nextAction = is_array($problem["nextAction"] ?? null) ? $problem["nextAction"] : null;
             $code = is_string($problem["code"] ?? null) ? $problem["code"] : null;
             $detail = is_string($problem["detail"] ?? null) ? $problem["detail"] : "custd: analytics request failed with status {$status}";
-            throw new RequestException($detail, $status, $code, $retryability, $nextAction);
+            throw new RequestException($detail, $status, $code, $retryability, $nextAction, null, Problem::fromArray($problem));
         }
         $responseBody = $response["body"] ?? "";
 

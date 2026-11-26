@@ -11,7 +11,15 @@ namespace HaakCo\Custd;
  */
 final class Problem
 {
+    /** A machine access setting refused the request; {@see self::$machineAccess} names the area and setting. */
+    public const MACHINE_ACCESS_BLOCKED_CODE = "machine_access_blocked";
+    /** The machine access policy could not be read; the gate fails closed and the call may be retried. */
+    public const MACHINE_ACCESS_UNAVAILABLE_CODE = "machine_access_unavailable";
+
     /**
+     * $traceId is the identifier the server logged the request under, and $requestId the flat error
+     * envelope's; quote either in a support request. $retryability is "none" or "bounded" when sent.
+     *
      * @param array<string, string> $fields
      */
     public function __construct(
@@ -23,6 +31,9 @@ final class Problem
         public readonly string $instance = "",
         public readonly string $traceId = "",
         public readonly array $fields = [],
+        public readonly string $requestId = "",
+        public readonly string $retryability = "",
+        public readonly ?MachineAccessBlock $machineAccess = null,
     ) {
     }
 
@@ -69,6 +80,11 @@ final class Problem
             instance: (string) ($decoded["instance"] ?? ""),
             traceId: (string) ($decoded["traceId"] ?? ""),
             fields: $fields,
+            requestId: is_string($decoded["requestId"] ?? null) ? $decoded["requestId"] : "",
+            retryability: is_string($decoded["retryability"] ?? null) ? $decoded["retryability"] : "",
+            machineAccess: is_array($decoded["machineAccess"] ?? null)
+                ? MachineAccessBlock::fromArray($decoded["machineAccess"])
+                : null,
         );
 
         if (

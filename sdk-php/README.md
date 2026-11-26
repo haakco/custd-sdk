@@ -546,7 +546,7 @@ where the route accepts one.
   `$session->binding()` server-side and `resumeSiteAIOwnerSession()` on a later
   request).
 - People and access: `adminUsers()`, `adminSupportAccess()`, `adminClientSetup()`,
-  `adminStorage()`, `adminOAuthClientAdmissions()`.
+  `adminStorage()`, `adminOAuthClientAdmissions()`, `adminMachineAccess()`.
 - Measurement, plans and models: `adminMeasurementWork()`, `measurement()`,
   `adminTimePlanOperations()`, `adminUncertaintyModels()`.
 - Reporting and analytics: `adminReportingGenerations()`, `reportingData()`,
@@ -577,6 +577,40 @@ $entry = $client->appProfile($accessToken)->createAccountEntry(new AppAccountEnt
 ));
 // Render <form method="post" action="$entry->actionUrl"> with a hidden "ticket" field.
 ```
+
+## Machine access and request IDs
+
+`adminMachineAccess()` sets what the company's machine credentials may do per feature area.
+The policy only narrows a client's scopes, never widens them. A blocked call throws
+`AdminProblemException` (or the reporting and analytics `RequestException`, whose `problem`
+holds the same data) with `Problem::MACHINE_ACCESS_BLOCKED_CODE` and a `machineAccess` block.
+
+```php
+use HaakCo\Custd\Admin\AdminProblemException;
+use HaakCo\Custd\Admin\MachineAccess\MachineAccessAreaSetting as Area;
+use HaakCo\Custd\Admin\MachineAccess\MachineAccessCompanyUpdateRequest;
+use HaakCo\Custd\Admin\MachineAccess\MachineAccessMachineUpdateRequest;
+use HaakCo\Custd\MetadataRecorder;
+use HaakCo\Custd\Problem;
+
+$access = $client->adminMachineAccess();
+$access->update(new MachineAccessCompanyUpdateRequest(areas: [new Area('privacy_erasure', 'blocked')]));
+$access->updateOverride('ci-deploy', new MachineAccessMachineUpdateRequest([new Area('reporting', 'allowed')]));
+$effective = $access->getEffective('ci-deploy'); // per area: allowed, decidedBy
+
+$recorder = new MetadataRecorder();
+try {
+    $recorder->record(fn () => $client->adminReportingPacks()->listDrafts());
+} catch (AdminProblemException $error) {
+    if ($error->problem->code === Problem::MACHINE_ACCESS_BLOCKED_CODE) {
+        echo $error->problem->machineAccess?->blockedBy; // company, machine or support_automation
+    }
+    echo $error->problem->traceId, ' ', $recorder->requestId; // quote either in a support request
+}
+```
+
+`MetadataRecorder::record()` captures the `X-Request-Id` of every answer made inside the call,
+refusals included. A custom transport reports it by returning `headers` with its answer.
 
 ## Time-plan administration
 

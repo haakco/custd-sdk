@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Analytics;
 
+use HaakCo\Custd\Problem;
 use HaakCo\Custd\Retryability;
 
+/**
+ * $problem is the decoded refusal, with its traceId and, for a machine access refusal, machineAccess.
+ */
 final class RequestException extends \RuntimeException
 {
     /**
@@ -19,6 +23,7 @@ final class RequestException extends \RuntimeException
         public readonly string $retryability = "none",
         public readonly ?array $nextAction = null,
         ?\Throwable $previous = null,
+        public readonly ?Problem $problem = null,
     ) {
         parent::__construct($message, 0, $previous);
     }

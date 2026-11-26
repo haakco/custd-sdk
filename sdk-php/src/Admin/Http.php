@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin;
 
 use HaakCo\Custd\CustdClient;
+use HaakCo\Custd\MetadataRecorder;
 use HaakCo\Custd\Problem;
 
 final class Http
@@ -185,7 +186,8 @@ final class Http
     public static function successBody(mixed $result): ?string
     {
         $status = self::status($result);
-        /** @var array{status:int, body:string} $result */
+        /** @var array{status:int, body:string, headers?:mixed} $result */
+        MetadataRecorder::capture($result["headers"] ?? null);
         if ($status >= 400) {
             $workflowError = self::workflowError($result["body"], $status);
             if ($workflowError !== null) {
@@ -369,7 +371,7 @@ final class Http
     /**
      * @param array<string, mixed>|string|null $body
      * @param array<string, string> $extraHeaders
-     * @return array{status:int, body:string}
+     * @return array{status:int, body:string, headers:array<string, string>}
      */
     private static function curlRequest(
         string $method,
@@ -379,6 +381,8 @@ final class Http
         array $extraHeaders = [],
     ): array {
         $ch = curl_init($url);
+        /** @var array<string, string> $responseHeaders */
+        $responseHeaders = [];
         $headers = self::baseHeaders($token, $extraHeaders["Content-Type"] ?? "application/json");
         unset($extraHeaders["Content-Type"]);
         foreach ($extraHeaders as $name => $value) {
@@ -389,6 +393,7 @@ final class Http
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_TIMEOUT => 15,
+            CURLOPT_HEADERFUNCTION => MetadataRecorder::curlHeaderCollector($responseHeaders),
         ];
         if ($body !== null) {
             $options[CURLOPT_POSTFIELDS] = is_string($body) ? $body : json_encode($body, JSON_THROW_ON_ERROR);
@@ -401,6 +406,7 @@ final class Http
         return [
             "status" => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE),
             "body" => is_string($response) ? $response : "",
+            "headers" => $responseHeaders,
         ];
     }
 
@@ -425,13 +431,7 @@ final class Http
             CURLOPT_CONNECTTIMEOUT => 15,
             CURLOPT_LOW_SPEED_LIMIT => 1,
             CURLOPT_LOW_SPEED_TIME => 30,
-            CURLOPT_HEADERFUNCTION => static function ($unused, string $line) use (&$responseHeaders): int {
-                $separator = strpos($line, ":");
-                if ($separator !== false) {
-                    $responseHeaders[strtolower(trim(substr($line, 0, $separator)))] = trim(substr($line, $separator + 1));
-                }
-                return strlen($line);
-            },
+            CURLOPT_HEADERFUNCTION => MetadataRecorder::curlHeaderCollector($responseHeaders),
             CURLOPT_WRITEFUNCTION => static function ($handle, string $chunk) use ($write, &$refusal, &$failure): int {
                 if ((int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE) >= 400) {
                     $refusal = substr($refusal . $chunk, 0, 65536);
@@ -453,7 +453,11 @@ final class Http
         if ($completed === false) {
             throw new \RuntimeException("custd: admin download failed: " . curl_error($ch));
         }
-        self::successBody(["status" => (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE), "body" => $refusal]);
+        self::successBody([
+            "status" => (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE),
+            "body" => $refusal,
+            "headers" => $responseHeaders,
+        ]);
 
         return $responseHeaders;
     }

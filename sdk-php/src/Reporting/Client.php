@@ -6,6 +6,8 @@ namespace HaakCo\Custd\Reporting;
 
 use HaakCo\Custd\Admin\ReportingPack\ReportingPackPreviewRequest;
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\MetadataRecorder;
+use HaakCo\Custd\Problem;
 use HaakCo\Custd\Reporting\Data\DashboardDefinition;
 use HaakCo\Custd\Reporting\Data\JobResponse;
 use HaakCo\Custd\Reporting\Data\PreparedDataOutput;
@@ -225,6 +227,7 @@ final class Client
         } catch (\Throwable $error) {
             throw new RequestException("custd: reporting transport unavailable", null, "transport_unavailable", "bounded", null, $error);
         }
+        MetadataRecorder::capture($response["headers"] ?? null);
         $status = (int) ($response["status"] ?? 0);
         if ($status >= 400) {
             $decoded = json_decode((string) ($response["body"] ?? ""), true);
@@ -235,7 +238,7 @@ final class Client
             $nextAction = is_array($problem["nextAction"] ?? null) ? $problem["nextAction"] : null;
             $code = is_string($problem["code"] ?? null) ? $problem["code"] : null;
             $detail = is_string($problem["detail"] ?? null) ? $problem["detail"] : "custd: reporting request failed with status {$status}";
-            throw new RequestException($detail, $status, $code, $retryability, $nextAction);
+            throw new RequestException($detail, $status, $code, $retryability, $nextAction, null, Problem::fromArray($problem));
         }
         $responseBody = $response["body"] ?? "";
         return $status === 204 ? "" : (string) $responseBody;

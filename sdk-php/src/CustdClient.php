@@ -297,6 +297,11 @@ final class CustdClient
         return new Admin\SupportAccessClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
+    public function adminMachineAccess(): Admin\MachineAccessClient
+    {
+        return new Admin\MachineAccessClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
     public function adminClientSetup(): Admin\ClientSetupClient
     {
         return new Admin\ClientSetupClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
@@ -575,6 +580,8 @@ final class CustdClient
         if (is_callable($this->httpClient)) {
             $result = $this->normalizeHttpClientResult(($this->httpClient)($url, $payload, $writeKey, $headers, "POST"));
         } else {
+            /** @var array<string, string> $responseHeaders */
+            $responseHeaders = [];
             $ch = curl_init($url);
             curl_setopt_array($ch, [
                 CURLOPT_CUSTOMREQUEST => "POST",
@@ -587,8 +594,10 @@ final class CustdClient
                 ],
                 CURLOPT_POSTFIELDS => json_encode($payload, JSON_THROW_ON_ERROR),
                 CURLOPT_TIMEOUT => 15,
+                CURLOPT_HEADERFUNCTION => MetadataRecorder::curlHeaderCollector($responseHeaders),
             ]);
             $response = curl_exec($ch);
+            MetadataRecorder::capture($responseHeaders);
             if ($response === false) {
                 throw new \RuntimeException("custd: collector request failed: " . curl_error($ch));
             }
@@ -693,6 +702,8 @@ final class CustdClient
         foreach ($headers as $name => $value) {
             $curlHeaders[] = $name . ": " . $value;
         }
+        /** @var array<string, string> $responseHeaders */
+        $responseHeaders = [];
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => "POST",
@@ -700,8 +711,10 @@ final class CustdClient
             CURLOPT_HTTPHEADER => $curlHeaders,
             CURLOPT_POSTFIELDS => $content,
             CURLOPT_TIMEOUT => 15,
+            CURLOPT_HEADERFUNCTION => MetadataRecorder::curlHeaderCollector($responseHeaders),
         ]);
         $response = curl_exec($ch);
+        MetadataRecorder::capture($responseHeaders);
         if ($response === false) {
             // A transport failure cannot prove whether the upload landed.
             throw new RawAcceptanceUnknownException(
@@ -1169,6 +1182,10 @@ final class CustdClient
         $url = $this->baseUrl . "/api/v1/events";
         $payload = json_encode($event, JSON_THROW_ON_ERROR);
 
+        /** @var array<string, string> $responseHeaders */
+
+        $responseHeaders = [];
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => "POST",
@@ -1176,9 +1193,13 @@ final class CustdClient
             CURLOPT_HTTPHEADER => $this->requestHeaders(),
             CURLOPT_POSTFIELDS => $payload,
             CURLOPT_TIMEOUT => 15,
+
+            CURLOPT_HEADERFUNCTION => MetadataRecorder::curlHeaderCollector($responseHeaders),
         ]);
 
         $response = curl_exec($ch);
+
+        MetadataRecorder::capture($responseHeaders);
         if ($response === false) {
             $err = curl_error($ch);
             throw new RetryableException("custd: request failed: {$err}");
@@ -1216,6 +1237,10 @@ final class CustdClient
         $body = json_encode($payload, JSON_THROW_ON_ERROR);
         [$sendBody, $encodingHeaders] = $this->compressBatchBody($body);
 
+        /** @var array<string, string> $responseHeaders */
+
+        $responseHeaders = [];
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => "POST",
@@ -1223,9 +1248,13 @@ final class CustdClient
             CURLOPT_HTTPHEADER => array_merge($this->requestHeaders(), $encodingHeaders),
             CURLOPT_POSTFIELDS => $sendBody,
             CURLOPT_TIMEOUT => 15,
+
+            CURLOPT_HEADERFUNCTION => MetadataRecorder::curlHeaderCollector($responseHeaders),
         ]);
 
         $response = curl_exec($ch);
+
+        MetadataRecorder::capture($responseHeaders);
         if ($response === false) {
             $err = curl_error($ch);
             throw new RetryableException("custd: request failed: {$err}");
@@ -1329,6 +1358,8 @@ final class CustdClient
         }
 
         $body = json_encode($payload, JSON_THROW_ON_ERROR);
+        /** @var array<string, string> $responseHeaders */
+        $responseHeaders = [];
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => "POST",
@@ -1336,9 +1367,12 @@ final class CustdClient
             CURLOPT_HTTPHEADER => $this->requestHeaders(),
             CURLOPT_POSTFIELDS => $body,
             CURLOPT_TIMEOUT => 15,
+            CURLOPT_HEADERFUNCTION => MetadataRecorder::curlHeaderCollector($responseHeaders),
         ]);
 
         $response = curl_exec($ch);
+
+        MetadataRecorder::capture($responseHeaders);
         if ($response === false) {
             $err = curl_error($ch);
             throw new RetryableException("custd: request failed: {$err}");
@@ -1467,10 +1501,10 @@ final class CustdClient
 
         if ($status >= 400) {
             $problem = Problem::parse($body);
-            $message = $problem !== null
-                ? $problem->message()
-                : "request failed with status {$status}";
-            throw new \RuntimeException("custd: {$message}");
+            if ($problem !== null) {
+                throw new Admin\AdminProblemException($status, $problem);
+            }
+            throw new \RuntimeException("custd: request failed with status {$status}");
         }
     }
 
@@ -1492,6 +1526,7 @@ final class CustdClient
                 "custd: http_client callable must return array{status:int, body:string}"
             );
         }
+        MetadataRecorder::capture($result["headers"] ?? null);
         return ["status" => $result["status"], "body" => $result["body"]];
     }
 

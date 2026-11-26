@@ -8,6 +8,7 @@ use HaakCo\Custd\Admin\ApiHttp;
 use HaakCo\Custd\Admin\Http;
 use HaakCo\Custd\CustdClient;
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\MetadataRecorder;
 
 /**
  * AppHttp sends the hosted-app routes. They never carry the operator's credential: each request
@@ -75,6 +76,7 @@ final class AppHttp
         $result = $this->transport !== null
             ? ($this->transport)($method, $url, $body, $bearer, $headers)
             : self::curl($method, $url, $body, $bearer, $headers);
+        MetadataRecorder::capture($result['headers'] ?? null);
 
         return $result;
     }
@@ -104,14 +106,7 @@ final class AppHttp
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => $lines,
             CURLOPT_TIMEOUT => 15,
-            CURLOPT_HEADERFUNCTION => static function ($unused, string $line) use (&$responseHeaders): int {
-                $separator = strpos($line, ':');
-                if ($separator !== false) {
-                    $responseHeaders[strtolower(trim(substr($line, 0, $separator)))] = trim(substr($line, $separator + 1));
-                }
-
-                return strlen($line);
-            },
+            CURLOPT_HEADERFUNCTION => MetadataRecorder::curlHeaderCollector($responseHeaders),
         ];
         if ($body !== null) {
             $options[CURLOPT_POSTFIELDS] = is_string($body) ? $body : json_encode($body, JSON_THROW_ON_ERROR);

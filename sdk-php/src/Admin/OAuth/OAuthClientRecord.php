@@ -18,6 +18,7 @@ final readonly class OAuthClientRecord
         public array $scopes,
         public ?string $environment = null,
         public ?string $purposeProfile = null,
+        public ?string $createdAt = null,
     ) {
     }
 
@@ -30,6 +31,7 @@ final readonly class OAuthClientRecord
             Fields::strings($payload, 'scopes'),
             Fields::optionalString($payload, 'environment'),
             Fields::optionalString($payload, 'purposeProfile'),
+            Fields::optionalString($payload, 'createdAt'),
         );
     }
 }
