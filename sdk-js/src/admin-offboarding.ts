@@ -1,6 +1,7 @@
 // OffboardingClient owns the offboarding schedule and one-off request
 // surfaces. Its types mirror the current admin-api JSON wire contract.
 
+import { type CustdDownloadStream, readDownloadStream } from "./download-stream.js";
 import type { RequestOptions } from "./index.js";
 
 export type OffboardingSchedule = {
@@ -106,6 +107,16 @@ export type OffboardingDownloadResponse = {
   byteSize: number;
 };
 
+/**
+ * The offboarding bundle as it arrives. The body errors if it runs past or ends short of
+ * `byteSize`; `checksumSha256` is the server's digest, which the caller checks against the
+ * bytes it stored before acknowledging the export.
+ */
+export type OffboardingDownloadStream = CustdDownloadStream & {
+  byteSize: number;
+  checksumSha256: string;
+};
+
 export type OffboardingAcknowledgeResponse = OffboardingRequest;
 
 // Execute and retry return the same content-free receipt shape as GET receipt.
@@ -139,7 +150,10 @@ export type OffboardingReceiptResponse = {
 };
 
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
-type AdminDownloader = (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>;
+type AdminDownloader = (path: string, options?: RequestOptions) => Promise<OffboardingDownloadStream>;
+
+/** The largest bundle download() holds in memory; downloadStream() has no limit. */
+const maxBufferedDownloadBytes = 64 * 1024 * 1024;
 
 type WirePreviewStore = {
   store: string;
@@ -276,9 +290,24 @@ export class OffboardingClient {
     return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/export`, undefined, options);
   }
 
-  // download returns authenticated bytes with verified checksum and length.
-  download(requestUuid: string, options?: RequestOptions): Promise<OffboardingDownloadResponse> {
+  // downloadStream returns the bundle as it arrives, for a bundle too large to hold in memory.
+  // Pass options.signal to stop the transfer.
+  downloadStream(requestUuid: string, options?: RequestOptions): Promise<OffboardingDownloadStream> {
     return this.downloadBinary(`/offboarding/requests/${encodeURIComponent(requestUuid)}/download`, options);
+  }
+
+  // download returns authenticated bytes with verified checksum and length, up to 64 MiB.
+  async download(requestUuid: string, options?: RequestOptions): Promise<OffboardingDownloadResponse> {
+    const stream = await this.downloadStream(requestUuid, options);
+    if (stream.byteSize > maxBufferedDownloadBytes) {
+      await stream.body.cancel();
+      throw new Error("custd: offboarding download exceeds 64 MiB");
+    }
+    const bytes = await readDownloadStream(stream.body, maxBufferedDownloadBytes, "offboarding download");
+    if ((await sha256Hex(bytes)) !== stream.checksumSha256) {
+      throw new Error("custd: offboarding download checksum mismatch");
+    }
+    return { bytes, checksumSha256: stream.checksumSha256, byteSize: stream.byteSize };
   }
 
   // acknowledge records that the export was downloaded successfully and its
@@ -325,4 +354,9 @@ export class OffboardingClient {
       options,
     ).then(mapReceipt);
   }
+}
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const digest = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", Uint8Array.from(bytes).buffer));
+  return Array.from(digest, (value) => value.toString(16).padStart(2, "0")).join("");
 }

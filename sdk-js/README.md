@@ -761,6 +761,14 @@ const request = await admin.offboarding.requestOffboarding(
   { confirmation: "acme" },
   { idempotencyKey: "acme-offboarding-2026-12-31" },
 );
+
+// Large downloads stream: the body arrives as a ReadableStream with the server's request id.
+// download() buffers and verifies a bundle up to 64 MiB; downloadStream() leaves the checksum
+// (stream.checksumSha256) for the caller to check against what it stored.
+const bundle = await admin.offboarding.downloadStream(request.requestUuid, { signal });
+await bundle.body.pipeTo(fileWritable);
+const auditExport = await admin.audit.exportEvents({ environmentId: "env-1" }, "csv");
+console.log(auditExport.requestId, auditExport.contentType);
 ```
 
 ## Time-plan administration

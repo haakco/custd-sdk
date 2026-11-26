@@ -59,6 +59,7 @@ export const auditFilter = {
   resourceId: "resource-1",
   outcome: "success",
   correlationId: "correlation-1",
+  environmentId: "environment-1",
   limit: 10,
   cursor: "cursor-1",
 } as const;

@@ -32,7 +32,8 @@ export type EmailRelayEffectiveSender = {
   hasCredential: boolean;
 };
 
-export type EmailRelayView = { relay: EmailRelay; effective: EmailRelayEffectiveSender };
+/** The tenant's relay and the sender the next message would use. `relay` is null when the tenant uses Custd's relay. */
+export type EmailRelayView = { relay: EmailRelay | null; effective: EmailRelayEffectiveSender };
 
 export type EmailRelayWriteRequest = {
   host: string;

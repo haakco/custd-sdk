@@ -148,11 +148,19 @@ export type TimePlanDefinition = {
   horizonMs: number;
   defaultStartsAt?: string;
   defaultEndsAt?: string;
+  /** Leaving it out applies `proportional_current`, the only mode. */
   redistributionMode?: string;
+  /** Definition v1 refuses true; leave it out. */
   autoAdvance?: boolean;
   annotationSchema?: TimePlanAnnotationSchema;
   thresholdCues?: TimePlanThresholdCue[];
   blocks: TimePlanDefinitionBlock[];
+};
+
+/** A stored plan's definition: the server always reports the redistribution mode and auto-advance it applied. */
+export type TimePlanStoredDefinition = TimePlanDefinition & {
+  redistributionMode: string;
+  autoAdvance: boolean;
 };
 
 export type TimePlanDraftRequest = {
@@ -174,10 +182,10 @@ export type TimePlan = {
   uuid: string;
   planKey: string;
   name: string;
-  description?: string;
+  description: string;
   status: string;
   draftRevision: number;
-  definition: TimePlanDefinition;
+  definition: TimePlanStoredDefinition;
   updatedAt: string;
 };
 

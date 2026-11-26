@@ -501,6 +501,28 @@ describe("admin auth projects", () => {
     expect(operation.replayed).toBe(false);
   });
 
+  it("leaves out the realm fields an apply keeps and sends the empty values that clear them", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ id: "op-1", revision: 7 }), { status: 200 }));
+    const client = newClient(fetchImpl);
+    const keeping = { identityMode: "isolated", registrationPolicy: "invite_only", audiences: null } as const;
+    const clearing = { ...keeping, entryPath: "", brandAccent: "", signInMethods: [], profileFields: [] };
+
+    for (const state of [keeping, { ...clearing, loginPaused: false }] satisfies AuthProjectDesiredState[]) {
+      await client.admin.authProjects.applyEnvironmentDesiredState(
+        "project-1",
+        "environment-1",
+        { desiredState: state, expectedRevision: 6 },
+        { idempotencyKey: "idem-apply" },
+      );
+    }
+
+    expect(JSON.parse(String(sentRequest(fetchImpl, 0).init.body)).desiredState).toEqual(keeping);
+    expect(JSON.parse(String(sentRequest(fetchImpl, 1).init.body)).desiredState).toEqual({
+      ...clearing,
+      loginPaused: false,
+    });
+  });
+
   it("previews the environment desired state", async () => {
     const fetchImpl = mockFetch({
       projectId: "project-1",

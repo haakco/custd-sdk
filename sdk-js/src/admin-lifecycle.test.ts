@@ -386,6 +386,36 @@ describe("OffboardingClient", () => {
     await expect(client.admin.offboarding.download("request-1")).rejects.toThrow(/offboarding download/);
   });
 
+  it("streams the bundle with the response metadata and errors a body that ends short", async () => {
+    const checksum = "a".repeat(64);
+    const respond = (length: string) =>
+      new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: {
+          "Content-Length": length,
+          "Content-Type": "application/octet-stream",
+          "X-Checksum-SHA256": checksum,
+          "X-Request-Id": "req-download",
+        },
+      });
+    let length = "3";
+    globalThis.fetch = vi.fn(async () => respond(length)) as unknown as typeof fetch;
+    const client = new CustdClient({ baseUrl: BASE_URL, getToken: () => "admin-token" });
+
+    const stream = await client.admin.offboarding.downloadStream("request-1");
+    expect(stream).toMatchObject({
+      byteSize: 3,
+      checksumSha256: checksum,
+      contentType: "application/octet-stream",
+      requestId: "req-download",
+    });
+    expect(new Uint8Array(await new Response(stream.body).arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+
+    length = "4";
+    const short = await client.admin.offboarding.downloadStream("request-1");
+    await expect(new Response(short.body).arrayBuffer()).rejects.toThrow(/content length mismatch/);
+  });
+
   it("confirmRequest surfaces the erasure-incomplete safeNextAction guidance", async () => {
     // OffboardingWorkflowConflictResponse: the workflow guidance a refused transition carries.
     const body = {

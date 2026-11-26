@@ -321,10 +321,16 @@ describe("admin audit", () => {
       resourceId: "acme",
       outcome: "success",
       correlationId: "req-1",
+      environmentId: "environment-1",
       limit: 50,
       cursor: "next",
     };
     const events = await client.admin.audit.listEvents(options);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("&environmentId=environment-1&limit=50&cursor=next"),
+      expect.objectContaining({ method: "GET" }),
+    );
     expect(events.nextCursor.cursor).toBe("next");
     expect(events.coverageBeginsAt).toBe("2026-07-01T00:00:00Z");
     expect(events.retention?.eventMaxAgeSeconds).toBe(31536000);
@@ -346,11 +352,12 @@ describe("admin audit", () => {
     expect(one.eventId).toBe("01957abc-0000-7000-8000-000000000001");
     expect(one).not.toHaveProperty("metadata");
     const exported = await client.admin.audit.exportEvents({ ...options }, "csv");
-    expect(new TextDecoder().decode(exported.bytes)).toBe(
+    expect(exported.contentType).toBe("application/json");
+    expect(await new Response(exported.body).text()).toBe(
       "eventId,tenantSlug\n01957abc-0000-7000-8000-000000000001,acme\n",
     );
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:8080/api/v1/admin/audit/events/export?scope=global&companySlug=acme&affectedTenantSlug=acme&since=2026-07-01T00%3A00%3A00Z&until=2026-08-01T00%3A00%3A00Z&actorKind=user&actorReference=actor-0123456789ab&action=tenant.create&resourceType=tenant&resourceId=acme&outcome=success&correlationId=req-1&format=csv",
+      "http://localhost:8080/api/v1/admin/audit/events/export?scope=global&companySlug=acme&affectedTenantSlug=acme&since=2026-07-01T00%3A00%3A00Z&until=2026-08-01T00%3A00%3A00Z&actorKind=user&actorReference=actor-0123456789ab&action=tenant.create&resourceType=tenant&resourceId=acme&outcome=success&correlationId=req-1&environmentId=environment-1&format=csv",
       expect.objectContaining({ method: "GET" }),
     );
     const rpEvents = await client.admin.audit.listReportingPackEvents("security");

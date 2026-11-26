@@ -298,24 +298,34 @@ export type AuthProjectProfileField = {
  * fields alone: `audiences` carries the audience binding, and the remaining
  * fields carry the rest. The legal scalar vocabularies are read from the
  * environment's capability operation, not fixed here.
+ *
+ * The realm fields `loginPaused`, `entryPath`, `brandAccent`, `signInMethods` and
+ * `profileFields` follow one rule: leaving a field out, or sending null, keeps the
+ * stored value; `""` or `[]` clears it; `loginPaused` true or false sets the pause.
+ * A tool that manages only its own sections therefore never wipes the others.
  */
 export type AuthProjectDesiredState = {
   identityMode: AuthProjectIdentityMode;
   registrationPolicy: string;
-  loginPaused: boolean;
+  /** Pauses the realm's sign-in. Leaving it out keeps the stored pause. */
+  loginPaused?: boolean | null;
   audiences: AuthProjectAudienceBinding[] | null;
-  profileFields: AuthProjectProfileField[] | null;
-  /** The realm's public entry path; empty when it has none. */
-  entryPath?: string;
-  /** The sign-in accent as #rrggbb; empty for the shared default. */
-  brandAccent?: string;
+  /** The profile-field policy, replaced in full when sent. Leaving it out keeps it; `[]` clears it. */
+  profileFields?: AuthProjectProfileField[] | null;
+  /** The realm's public entry path. Leaving it out keeps it; `""` clears it. */
+  entryPath?: string | null;
+  /** The sign-in accent as #rrggbb. Leaving it out keeps it; `""` restores the shared default. */
+  brandAccent?: string | null;
   /** The application name shown on invitations and hosted sign-in; empty when none is chosen. */
   displayName?: string;
   /** Which surface owns the display name: `application` or `hosting`. Provenance, never authority. */
   displayNameSource?: string;
   /** With an empty displayName and a declared source, gives up a name that source set. Never returned. */
   withdrawDisplayName?: boolean;
-  /** Narrows the offered sign-in methods; empty offers whatever the credential store can complete. */
+  /**
+   * Narrows the offered sign-in methods. Leaving it out keeps the stored set; `[]` clears it, which
+   * offers whatever the credential store can complete.
+   */
   signInMethods?: string[] | null;
   /** The remembered-session offer. Leaving it out keeps the stored setting. */
   applicationSessionPolicy?: AuthProjectApplicationSessionPolicy;
@@ -326,6 +336,19 @@ export type AuthProjectDesiredState = {
    * stored section, so an apply cannot switch an app off by omission.
    */
   hosting?: AuthProjectHosting;
+};
+
+/**
+ * The environment configuration a status reports. It always carries the realm fields an
+ * apply may leave out: `entryPath` and `brandAccent` are `""` when unset, and `loginPaused`
+ * is false when sign-in is not paused.
+ */
+export type AuthProjectConfiguredState = AuthProjectDesiredState & {
+  loginPaused: boolean;
+  profileFields: AuthProjectProfileField[] | null;
+  entryPath: string;
+  brandAccent: string;
+  signInMethods: string[] | null;
 };
 
 export type AuthProjectApplicationSessionPolicy = "offer_remember_me" | "short_only";
@@ -469,7 +492,7 @@ export type AuthProjectStatus = {
   projectId: string;
   environmentId: string;
   revision: number;
-  desired: AuthProjectDesiredState;
+  desired: AuthProjectConfiguredState;
   reconciled: boolean;
   reconcileNote: string;
   loginReady: boolean;

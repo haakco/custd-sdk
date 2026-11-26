@@ -4,7 +4,7 @@ import { DataLabelAdminClient } from "./admin-data-labels.js";
 import { DataScopeAdminClient, validDataScopeCode } from "./admin-data-scopes.js";
 import {
   OffboardingClient,
-  type OffboardingDownloadResponse,
+  type OffboardingDownloadStream,
   type OffboardingReceiptPerStore,
 } from "./admin-offboarding.js";
 import { PredictionAdminClient } from "./admin-predictions.js";
@@ -14,6 +14,7 @@ import { SiteDomainAdminClient } from "./admin-site-domains.js";
 import { SiteInsightsAdminClient } from "./admin-site-insights-tasks.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+import { type CustdDownloadStream, responseDownloadStream } from "./download-stream.js";
 import { isLocalHostname } from "./secure-url.js";
 
 export {
@@ -242,6 +243,7 @@ export {
   type AuthProjectClientSyncRegistration,
   type AuthProjectClientSyncReport,
   type AuthProjectClientSyncRequest,
+  type AuthProjectConfiguredState,
   type AuthProjectCreateRequest,
   type AuthProjectCreation,
   type AuthProjectDeletion,
@@ -366,6 +368,7 @@ export {
   type OffboardingCancelRequest,
   OffboardingClient,
   type OffboardingDownloadResponse,
+  type OffboardingDownloadStream,
   type OffboardingExecuteResponse,
   type OffboardingExportResponse,
   type OffboardingPreviewExclusion,
@@ -873,6 +876,7 @@ export {
   type TimePlanRun,
   type TimePlanRunBlock,
   type TimePlanRunRequest,
+  type TimePlanStoredDefinition,
   type TimePlanThresholdCue,
   type TimePlanThresholdCueSeverity,
   type TimePlanTransition,
@@ -949,6 +953,7 @@ export {
   type SignOutResult,
   signInConfigFromDiscovery,
 } from "./browser-sign-in.js";
+export type { CustdDownloadStream } from "./download-stream.js";
 export {
   DEFAULT_PARSER_FRAMING_MAX_LINES,
   DEFAULT_PARSER_FRAMING_MAX_RECORD_BYTES,
@@ -1944,14 +1949,14 @@ export type AdminAuditListOptions = {
   resourceId?: string;
   outcome?: AdminAuditOutcome;
   correlationId?: string;
+  /** Only events attributed to this auth-project environment (realm). */
+  environmentId?: string;
   limit?: number;
   cursor?: string;
 };
 
-export type AdminAuditExportResponse = {
-  bytes: Uint8Array;
-  contentType: string;
-};
+/** The audit export as it arrives, in the requested format, with the server's request id. */
+export type AdminAuditExportResponse = CustdDownloadStream;
 
 export type AdminReportingPackAuditEvent = {
   action: string;
@@ -2555,19 +2560,19 @@ export type ReportingPackMaterializationProvenance = {
 export type ReportingPackRollupProvenance = {
   generationId: number;
   definitionFingerprint: string;
-  tenantSlug?: string;
+  tenantSlug: string;
   materializations: ReportingPackMaterializationProvenance[];
 };
 
 export type ProducerReservation = {
   producerSlug: string;
   parentCompanySlug: string;
-  childCompanySlug?: string;
+  childCompanySlug: string;
   claimedByClientId?: string;
   status: "pending" | "claimed" | "released" | "expired";
-  reservedAt?: string;
-  expiresAt?: string;
-  maxTtlSeconds?: number;
+  reservedAt: string;
+  expiresAt: string;
+  maxTtlSeconds: number;
 };
 
 export type ProducerReservationListResponse = {
@@ -3490,7 +3495,7 @@ export class CustdClient {
     return `${route}?${params.toString()}`;
   }
 
-  private async offboardingDownload(path: string, options?: RequestOptions): Promise<OffboardingDownloadResponse> {
+  private async adminDownload(path: string, operation: string, options?: RequestOptions): Promise<Response> {
     const token = await this.getToken(options);
     const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${this.actingCompanyPath(path)}`, {
       method: "GET",
@@ -3498,43 +3503,29 @@ export class CustdClient {
       signal: options?.signal,
     });
     if (!response.ok) {
-      throw new Error(`custd: offboarding download failed with status ${response.status}`);
+      throw new Error(`custd: ${operation} failed with status ${response.status}`);
     }
+    return response;
+  }
+
+  private async offboardingDownload(path: string, options?: RequestOptions): Promise<OffboardingDownloadStream> {
+    const response = await this.adminDownload(path, "offboarding download", options);
     const lengthHeader = response.headers.get("content-length")?.trim() ?? "";
     const byteSize = Number(lengthHeader);
+    const checksumSha256 = (response.headers.get("x-checksum-sha256") ?? "").trim().toLowerCase();
     if (!/^\d+$/.test(lengthHeader) || !Number.isSafeInteger(byteSize)) {
+      await response.body?.cancel();
       throw new Error("custd: offboarding download content length is invalid");
     }
-    if (byteSize > maxOffboardingDownloadBytes) {
-      throw new Error("custd: offboarding download exceeds 64 MiB");
-    }
-    const bytes = await readBoundedResponse(response, maxOffboardingDownloadBytes, "offboarding download");
-    if (bytes.byteLength !== byteSize) {
-      throw new Error("custd: offboarding download content length mismatch");
-    }
-    const checksumSha256 = (response.headers.get("x-checksum-sha256") ?? "").trim().toLowerCase();
     if (!/^[a-f0-9]{64}$/.test(checksumSha256)) {
+      await response.body?.cancel();
       throw new Error("custd: offboarding download checksum header is invalid");
     }
-    const actual = await sha256Hex(bytes);
-    if (actual !== checksumSha256) {
-      throw new Error("custd: offboarding download checksum mismatch");
-    }
-    return { bytes, checksumSha256, byteSize };
+    return { ...responseDownloadStream(response, "offboarding download", byteSize), byteSize, checksumSha256 };
   }
 
   private async auditExportDownload(path: string, options?: RequestOptions): Promise<AdminAuditExportResponse> {
-    const token = await this.getToken(options);
-    const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${this.actingCompanyPath(path)}`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
-      signal: options?.signal,
-    });
-    if (!response.ok) {
-      throw new Error(`custd: audit export failed with status ${response.status}`);
-    }
-    const bytes = await readBoundedResponse(response, maxAuditExportBytes, "audit export download");
-    return { bytes, contentType: response.headers.get("content-type") ?? "" };
+    return responseDownloadStream(await this.adminDownload(path, "audit export", options), "audit export");
   }
 
   private async apiRequest<T>(
@@ -3685,46 +3676,12 @@ function requestBody(body: unknown): BodyInit | undefined {
   return JSON.stringify(body);
 }
 
-async function readBoundedResponse(response: Response, maxBytes: number, operation: string): Promise<Uint8Array> {
-  if (!response.body) {
-    return new Uint8Array();
-  }
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > maxBytes) {
-      await reader.cancel();
-      throw new Error(`custd: ${operation} exceeds 64 MiB`);
-    }
-    chunks.push(value);
-  }
-  const result = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return result;
-}
-
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", Uint8Array.from(bytes).buffer));
-  return Array.from(digest, (value) => value.toString(16).padStart(2, "0")).join("");
-}
-
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type AdminAuditDownloader = (path: string, options?: RequestOptions) => Promise<AdminAuditExportResponse>;
 type NonAdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type SchemaRequester = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 type APIRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 type APIDownloader = (path: string, options?: RequestOptions) => Promise<Uint8Array>;
-
-const maxOffboardingDownloadBytes = 64 * 1024 * 1024;
-const maxAuditExportBytes = 64 * 1024 * 1024;
 
 export interface ReportExportCreateRequest {
   dashboardKey: string;
@@ -4260,7 +4217,7 @@ class AdminNamespace {
   constructor(
     request: AdminRequester,
     nonAdminRequest: NonAdminRequester,
-    offboardingDownload: (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>,
+    offboardingDownload: (path: string, options?: RequestOptions) => Promise<OffboardingDownloadStream>,
     auditExportDownload: AdminAuditDownloader,
   ) {
     this.dataLabels = new DataLabelAdminClient(request);
@@ -4905,6 +4862,7 @@ class AdminAuditNamespace {
     if (options.resourceId) params.set("resourceId", options.resourceId);
     if (options.outcome) params.set("outcome", options.outcome);
     if (options.correlationId) params.set("correlationId", options.correlationId);
+    if (options.environmentId) params.set("environmentId", options.environmentId);
     if (includePagination && typeof options.limit === "number") params.set("limit", String(options.limit));
     if (includePagination && options.cursor) params.set("cursor", options.cursor);
     const query = params.toString();

@@ -2,6 +2,7 @@ import {
   type OffboardingAcknowledgeResponse,
   OffboardingClient,
   type OffboardingDownloadResponse,
+  type OffboardingDownloadStream,
   type OffboardingExecuteResponse,
   type OffboardingExportResponse,
   type OffboardingPreviewResponse,
@@ -24,10 +25,7 @@ export type BackendLifecycleRequester = <T>(
   options?: RequestOptions,
 ) => Promise<T>;
 
-export type BackendLifecycleDownloader = (
-  path: string,
-  options?: RequestOptions,
-) => Promise<OffboardingDownloadResponse>;
+export type BackendLifecycleDownloader = (path: string, options?: RequestOptions) => Promise<OffboardingDownloadStream>;
 
 export type OneTimeCredentialSecret = {
   tenantSlug: string;
