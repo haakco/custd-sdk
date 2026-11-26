@@ -260,7 +260,7 @@ export class BrowserSignIn {
         const refreshToken = typeof body.refresh_token === "string" ? body.refresh_token : previousRefreshToken;
         if (refreshToken)
             session.refreshToken = refreshToken;
-        const idToken = typeof body.id_token === "string" ? body.id_token : this.currentSession()?.idToken;
+        const idToken = sessionIdToken(body.id_token, this.currentSession()?.idToken);
         if (idToken)
             session.idToken = idToken;
         return session;
@@ -384,4 +384,27 @@ function defaultStorage() {
             items.delete(key);
         },
     };
+}
+/**
+ * The ID token kept for sign-out. A refreshed ID token carries no `sid`, and the provider refuses an
+ * end-session request whose hint has none, so the sign-in token stays until a new one names a session.
+ */
+function sessionIdToken(issued, previous) {
+    if (typeof issued !== "string")
+        return previous;
+    if (previous && !idTokenHasSessionId(issued) && idTokenHasSessionId(previous))
+        return previous;
+    return issued;
+}
+function idTokenHasSessionId(token) {
+    const payload = token.split(".")[1];
+    if (!payload)
+        return false;
+    try {
+        const claims = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+        return typeof claims === "object" && claims !== null && typeof claims.sid === "string";
+    }
+    catch {
+        return false;
+    }
 }

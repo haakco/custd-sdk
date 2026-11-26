@@ -182,6 +182,32 @@ describe("BrowserSignIn", () => {
     expect(navigate).toHaveBeenCalledWith(result.endSessionUrl);
   });
 
+  it("keeps the sign-in ID token for sign-out when a refresh returns one without a session id", async () => {
+    const idToken = (claims: Record<string, unknown>) =>
+      `e30.${btoa(JSON.stringify(claims)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_")}.sig`;
+    const signedIn = idToken({ sub: "u-1", sid: "session-1" });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        tokenResponse({
+          access_token: "a-1",
+          token_type: "bearer",
+          expires_in: 60,
+          refresh_token: "r-1",
+          id_token: signedIn,
+        }),
+      )
+      .mockResolvedValueOnce(
+        tokenResponse({ access_token: "a-2", token_type: "bearer", expires_in: 60, id_token: idToken({ sub: "u-1" }) }),
+      );
+    const { signIn } = setup(fetchMock);
+    await signIn.completeSignIn(await startAndCallback(signIn));
+    await signIn.refreshSession();
+
+    const url = new URL(signIn.signOut().endSessionUrl ?? "");
+    expect(url.searchParams.get("id_token_hint")).toBe(signedIn);
+  });
+
   it("reports a failed token exchange without the response body", async () => {
     const fetchMock = vi.fn(async () => tokenResponse({ error: "invalid_grant", secret: "do-not-leak" }, 400));
     const { signIn } = setup(fetchMock);
