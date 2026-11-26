@@ -228,6 +228,17 @@ class ReportingClientTest(unittest.TestCase):
         request_body = transport.calls[0][2]
         self.assertEqual(request, request_body)
 
+    def test_query_output_sends_the_callers_query_document_verbatim(self) -> None:
+        output_uuid = "33333333-3333-4333-8333-333333333333"
+        transport = FakeTransport({"data": fixture("reporting-query-rendered.json")})
+        client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)
+        document = {**fixture("reporting-query-security.json"), "futureOption": {"kept": True}}
+
+        client.reporting.query_output(output_uuid, document)
+
+        self.assertEqual(f"http://localhost:8080/api/v1/reporting/outputs/{output_uuid}/query", transport.calls[0][1])
+        self.assertEqual(document, transport.calls[0][2])
+
     def test_reporting_query_serializes_max_rows_without_row_limit(self) -> None:
         transport = FakeTransport(fixture("reporting-query-rendered.json"))
         client = CustdClient(base_url="http://localhost:8080", token="token", admin_transport=transport)

@@ -1418,7 +1418,10 @@ class ReportingClient:
         path = f"/reporting/outputs/{quote_path(output_uuid)}"
         return _decode_dto(PreparedDataOutputStatus, self._request("GET", path))
 
-    def query_output(self, output_uuid: str, request: ReportingQueryRequest) -> PreparedDataOutputQueryResponse:
+    def query_output(
+        self, output_uuid: str, request: ReportingQueryRequest | Mapping[str, Any]
+    ) -> PreparedDataOutputQueryResponse:
+        """Render one query against a prepared data output; a caller's own query document is sent verbatim."""
         validate_uuid(output_uuid, "output_uuid")
         path = f"/reporting/outputs/{quote_path(output_uuid)}/query"
         response = self._request("POST", path, dict(request))
