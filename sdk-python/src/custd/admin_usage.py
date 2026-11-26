@@ -161,6 +161,7 @@ class UsageAdminClient:
     def export_usage(self, query: UsageQuery | None = None, *, company_slug: str | None = None) -> UsageReport:
         """Export reconciled usage for any tenant as JSON; system administrators only."""
         path = _admin_usage_path("/usage/export", query, company_slug)
+        path += ("&" if "?" in path else "?") + "format=json"
         return _validate_usage_report(self._admin.request("GET", path))
 
     def list_storage_usage(self) -> StorageUsageSummary:

@@ -113,7 +113,7 @@ export declare class UsageAdminClient {
     get(query?: UsageQuery, options?: RequestOptions): Promise<UsageReport>;
     /** System administrators: attributed usage across tenants, or one company's. */
     listUsage(query?: UsageAdminQuery, options?: RequestOptions): Promise<UsageReport>;
-    /** System administrators: the same rows as `listUsage`, as a billing export. */
+    /** System administrators: the same rows as `listUsage`, as a JSON billing export. */
     exportUsage(query?: UsageAdminQuery, options?: RequestOptions): Promise<UsageReport>;
     /** System administrators: retained storage for every tenant. */
     listStorageUsage(options?: RequestOptions): Promise<StorageUsageSummary>;

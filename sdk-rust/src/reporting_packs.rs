@@ -1209,6 +1209,9 @@ impl ReportingPackAssetHierarchyEdgeMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ReportingPackSelectorDefinitionType {
+    /// An identity selector left unset; Custd keeps "" because it is part of the stored definition fingerprint.
+    #[serde(rename = "")]
+    Unset,
     #[serde(rename = "string")]
     String,
     #[serde(rename = "integer")]
@@ -1221,6 +1224,7 @@ impl ReportingPackSelectorDefinitionType {
     /// The wire value.
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::Unset => "",
             Self::String => "string",
             Self::Integer => "integer",
             Self::Number => "number",

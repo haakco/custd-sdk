@@ -795,13 +795,14 @@ impl CustdClient {
         &self,
         definition_uuid: &str,
         company_slug: Option<&str>,
+        page_size: Option<i64>,
     ) -> Result<MeasurementPredictionOutcomeListResponse> {
         let path = api_path(
             format!(
                 "/api/v1/admin/measurement/predictions/definitions/{}/outcomes",
                 percent_encode(definition_uuid)
             ),
-            &[],
+            &[("pageSize", page_size.map(|v| v.to_string()))],
             company_slug,
         );
         self.call(Method::Get, &path, NO_BODY)
@@ -812,13 +813,14 @@ impl CustdClient {
         &self,
         definition_uuid: &str,
         company_slug: Option<&str>,
+        page_size: Option<i64>,
     ) -> Result<MeasurementPredictionRunListResponse> {
         let path = api_path(
             format!(
                 "/api/v1/admin/measurement/predictions/definitions/{}/runs",
                 percent_encode(definition_uuid)
             ),
-            &[],
+            &[("pageSize", page_size.map(|v| v.to_string()))],
             company_slug,
         );
         self.call(Method::Get, &path, NO_BODY)

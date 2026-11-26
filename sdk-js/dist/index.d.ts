@@ -299,9 +299,29 @@ export type ProducerProvisionCreate = {
     displayName?: string;
     environment?: string;
     scopes?: string[];
-    scopeTemplate?: "events" | "schemas" | "managed-audit" | "managed-audit-reporting-read" | "managed-audit-reporting-subject-insight" | "managed-audit-event-read" | "site-insights" | "site-insights-read" | "site-ai-read";
+    scopeTemplate?: "events" | "schemas" | "managed-audit" | "managed-audit-reporting-read" | "managed-audit-reporting-subject-insight" | "managed-audit-event-read" | "site-insights" | "site-insights-read" | "site-ai-read" | "hosting-email-delivery" | "hosting-panel-read";
     /** Restricts the producer to these environments; omitted or empty allows every environment. */
     allowedEnvironments?: string[];
+};
+/** Where a data space erasure is in its life. */
+export type DataSpaceErasureStatus = "requested" | "erasing" | "completed" | "failed";
+/** The erasure request for one data space and how far it has got. */
+export type DataSpaceErasure = {
+    requestUuid: string;
+    dataSpaceSlug: string;
+    parentCompanySlug: string;
+    status: DataSpaceErasureStatus;
+    requestedAt: string;
+};
+/** Replaces a signing producer's Ed25519 public keys: one or two base64 keys, two while rotating. */
+export type ProducerSigningKeysUpdate = {
+    publicKeys: string[];
+};
+/** The public keys Custd now verifies a producer's signed events with. */
+export type ProducerSigningKeys = {
+    clientId: string;
+    companySlug: string;
+    publicKeys: string[];
 };
 export type ProducerProvisionPublicClient = {
     clientId: string;
@@ -2055,6 +2075,9 @@ declare class ProvisioningDataSpaceNamespace {
     /** Reads retained storage per data space. A system administrator names the parent tenant. */
     usage(parentCompanySlug?: string): Promise<DataSpaceUsageSummary>;
     revoke(slug: string, parentCompanySlug?: string): Promise<void>;
+    /** Asks Custd to erase everything a data space holds. The answer is the accepted request, not the finished erasure. */
+    erase(slug: string, parentCompanySlug?: string): Promise<DataSpaceErasure>;
+    getErasure(slug: string, parentCompanySlug?: string): Promise<DataSpaceErasure>;
 }
 declare class ProvisioningProducerNamespace {
     private readonly request;
@@ -2070,6 +2093,8 @@ declare class ProvisioningProducerNamespace {
      * operator deliberately restricts it.
      */
     updateEnvironment(clientId: string, environment: string): Promise<ProducerProvisionPublicClient>;
+    /** Replaces the public keys a producer minted with the hosting-email-delivery template signs with. */
+    setSigningKeys(clientId: string, update: ProducerSigningKeysUpdate): Promise<ProducerSigningKeys>;
     revoke(clientId: string): Promise<void>;
 }
 declare class AdminTenantNamespace {

@@ -151,14 +151,19 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/outcomes",
-            "/api/v1/admin/measurement/predictions/definitions/d-1/outcomes?companySlug=acme",
-            |c| drop(c.custd.list_prediction_outcomes("d-1", Some("acme"))),
+            "/api/v1/admin/measurement/predictions/definitions/d-1/outcomes?pageSize=10&companySlug=acme",
+            |c| {
+                drop(
+                    c.custd
+                        .list_prediction_outcomes("d-1", Some("acme"), Some(10)),
+                )
+            },
             round_trip::<MeasurementPredictionOutcomeListResponse>,
         ),
         row(
             "admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/runs",
-            "/api/v1/admin/measurement/predictions/definitions/d-1/runs?companySlug=acme",
-            |c| drop(c.custd.list_prediction_runs("d-1", Some("acme"))),
+            "/api/v1/admin/measurement/predictions/definitions/d-1/runs?pageSize=10&companySlug=acme",
+            |c| drop(c.custd.list_prediction_runs("d-1", Some("acme"), Some(10))),
             round_trip::<MeasurementPredictionRunListResponse>,
         ),
         row(

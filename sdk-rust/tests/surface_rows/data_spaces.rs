@@ -1,7 +1,7 @@
 use custd_sdk::{
-    DataSpace, DataSpaceCreateRequest, DataSpaceListResponse, DataSpaceUsageSummary,
-    ProducerReservation, ProducerReservationClaimRequest, ProducerReservationCreateRequest,
-    ProducerReservationListResponse,
+    DataSpace, DataSpaceCreateRequest, DataSpaceErasure, DataSpaceListResponse,
+    DataSpaceUsageSummary, ProducerReservation, ProducerReservationClaimRequest,
+    ProducerReservationCreateRequest, ProducerReservationListResponse,
 };
 
 use super::{body, round_trip};
@@ -36,6 +36,18 @@ pub fn rows() -> Vec<Row> {
             "admin-api DELETE /api/v1/data-spaces/{slug}",
             "/api/v1/data-spaces/s-1?parentCompanySlug=p-1",
             |c| drop(c.custd.revoke_data_space("s-1", Some("p-1"))),
+        ),
+        row(
+            "admin-api POST /api/v1/data-spaces/{slug}/erasure",
+            "/api/v1/data-spaces/s-1/erasure?parentCompanySlug=p-1",
+            |c| drop(c.custd.erase_data_space("s-1", Some("p-1"))),
+            round_trip::<DataSpaceErasure>,
+        ),
+        row(
+            "admin-api GET /api/v1/data-spaces/{slug}/erasure",
+            "/api/v1/data-spaces/s-1/erasure?parentCompanySlug=p-1",
+            |c| drop(c.custd.get_data_space_erasure("s-1", Some("p-1"))),
+            round_trip::<DataSpaceErasure>,
         ),
         row(
             "admin-api GET /api/v1/data-spaces/{slug}/producer-reservations",

@@ -1236,6 +1236,13 @@ class ProvisioningDataSpaceNamespace {
     revoke(slug, parentCompanySlug) {
         return this.request("DELETE", `/data-spaces/${encodeURIComponent(slug)}${parentQuery(parentCompanySlug)}`);
     }
+    /** Asks Custd to erase everything a data space holds. The answer is the accepted request, not the finished erasure. */
+    erase(slug, parentCompanySlug) {
+        return this.request("POST", `/data-spaces/${encodeURIComponent(slug)}/erasure${parentQuery(parentCompanySlug)}`);
+    }
+    getErasure(slug, parentCompanySlug) {
+        return this.request("GET", `/data-spaces/${encodeURIComponent(slug)}/erasure${parentQuery(parentCompanySlug)}`);
+    }
 }
 function parentQuery(parentCompanySlug) {
     return parentCompanySlug ? `?${new URLSearchParams({ parentCompanySlug })}` : "";
@@ -1274,6 +1281,12 @@ class ProvisioningProducerNamespace {
     async updateEnvironment(clientId, environment) {
         const path = `/producer-provisioning/${encodeURIComponent(clientId)}/environment`;
         return publicProducer(await this.request("PATCH", path, { environment }));
+    }
+    /** Replaces the public keys a producer minted with the hosting-email-delivery template signs with. */
+    async setSigningKeys(clientId, update) {
+        const path = `/producer-provisioning/${encodeURIComponent(clientId)}/signing-keys`;
+        const keys = await this.request("PUT", path, update);
+        return { ...keys, publicKeys: keys.publicKeys ?? [] };
     }
     revoke(clientId) {
         return this.request("DELETE", `/producer-provisioning/${encodeURIComponent(clientId)}`);

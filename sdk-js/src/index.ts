@@ -1271,9 +1271,35 @@ export type ProducerProvisionCreate = {
     | "managed-audit-event-read"
     | "site-insights"
     | "site-insights-read"
-    | "site-ai-read";
+    | "site-ai-read"
+    | "hosting-email-delivery"
+    | "hosting-panel-read";
   /** Restricts the producer to these environments; omitted or empty allows every environment. */
   allowedEnvironments?: string[];
+};
+
+/** Where a data space erasure is in its life. */
+export type DataSpaceErasureStatus = "requested" | "erasing" | "completed" | "failed";
+
+/** The erasure request for one data space and how far it has got. */
+export type DataSpaceErasure = {
+  requestUuid: string;
+  dataSpaceSlug: string;
+  parentCompanySlug: string;
+  status: DataSpaceErasureStatus;
+  requestedAt: string;
+};
+
+/** Replaces a signing producer's Ed25519 public keys: one or two base64 keys, two while rotating. */
+export type ProducerSigningKeysUpdate = {
+  publicKeys: string[];
+};
+
+/** The public keys Custd now verifies a producer's signed events with. */
+export type ProducerSigningKeys = {
+  clientId: string;
+  companySlug: string;
+  publicKeys: string[];
 };
 
 export type ProducerProvisionPublicClient = {
@@ -4387,6 +4413,15 @@ class ProvisioningDataSpaceNamespace {
   revoke(slug: string, parentCompanySlug?: string): Promise<void> {
     return this.request("DELETE", `/data-spaces/${encodeURIComponent(slug)}${parentQuery(parentCompanySlug)}`);
   }
+
+  /** Asks Custd to erase everything a data space holds. The answer is the accepted request, not the finished erasure. */
+  erase(slug: string, parentCompanySlug?: string): Promise<DataSpaceErasure> {
+    return this.request("POST", `/data-spaces/${encodeURIComponent(slug)}/erasure${parentQuery(parentCompanySlug)}`);
+  }
+
+  getErasure(slug: string, parentCompanySlug?: string): Promise<DataSpaceErasure> {
+    return this.request("GET", `/data-spaces/${encodeURIComponent(slug)}/erasure${parentQuery(parentCompanySlug)}`);
+  }
 }
 
 function parentQuery(parentCompanySlug?: string): string {
@@ -4434,6 +4469,13 @@ class ProvisioningProducerNamespace {
   async updateEnvironment(clientId: string, environment: string): Promise<ProducerProvisionPublicClient> {
     const path = `/producer-provisioning/${encodeURIComponent(clientId)}/environment`;
     return publicProducer(await this.request("PATCH", path, { environment }));
+  }
+
+  /** Replaces the public keys a producer minted with the hosting-email-delivery template signs with. */
+  async setSigningKeys(clientId: string, update: ProducerSigningKeysUpdate): Promise<ProducerSigningKeys> {
+    const path = `/producer-provisioning/${encodeURIComponent(clientId)}/signing-keys`;
+    const keys = await this.request<ProducerSigningKeys>("PUT", path, update);
+    return { ...keys, publicKeys: keys.publicKeys ?? [] };
   }
 
   revoke(clientId: string): Promise<void> {

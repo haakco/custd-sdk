@@ -223,12 +223,16 @@ class PredictionAdminClient:
             "POST", self._resource(f"/definitions/{definition_uuid}/run-now", company_slug), dict(body or {})
         )
 
-    def list_runs(self, company_slug: str, definition_uuid: str) -> PredictionRunListResponse:
-        path = self._resource(f"/definitions/{definition_uuid}/runs", company_slug)
+    def list_runs(
+        self, company_slug: str, definition_uuid: str, page_size: int | None = None
+    ) -> PredictionRunListResponse:
+        path = self._collection(f"/definitions/{quote_path(definition_uuid)}/runs", company_slug, page_size)
         return decode(PredictionRunListResponse, self._admin.request("GET", path))
 
-    def list_outcomes(self, company_slug: str, definition_uuid: str) -> PredictionOutcomeListResponse:
-        path = self._resource(f"/definitions/{definition_uuid}/outcomes", company_slug)
+    def list_outcomes(
+        self, company_slug: str, definition_uuid: str, page_size: int | None = None
+    ) -> PredictionOutcomeListResponse:
+        path = self._collection(f"/definitions/{quote_path(definition_uuid)}/outcomes", company_slug, page_size)
         return decode(PredictionOutcomeListResponse, self._admin.request("GET", path))
 
     def get_evaluation(self, company_slug: str, definition_uuid: str) -> PredictionEvaluationSummary:

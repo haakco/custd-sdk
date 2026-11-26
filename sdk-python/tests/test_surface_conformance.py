@@ -404,6 +404,16 @@ ROUTES: dict[str, RouteCase] = {
     "admin-api DELETE /api/v1/data-spaces/{slug}": RouteCase(
         "/api/v1/data-spaces/acme", lambda c: c.provisioning.data_spaces.revoke("acme")
     ),
+    "admin-api POST /api/v1/data-spaces/{slug}/erasure": RouteCase(
+        "/api/v1/data-spaces/acme/erasure", lambda c: c.provisioning.data_spaces.erase("acme")
+    ),
+    "admin-api GET /api/v1/data-spaces/{slug}/erasure": RouteCase(
+        "/api/v1/data-spaces/acme/erasure", lambda c: c.provisioning.data_spaces.get_erasure("acme")
+    ),
+    "admin-api PUT /api/v1/producer-provisioning/{clientId}/signing-keys": RouteCase(
+        f"/api/v1/producer-provisioning/{U}/signing-keys",
+        lambda c: c.provisioning.producers.set_signing_keys(U, {"publicKeys": ["AAAA"]}),
+    ),
     "admin-api DELETE /api/v1/site-domains/keyword-lists": RouteCase(
         "/api/v1/site-domains/keyword-lists", lambda c: c.admin.site_domains.delete_keyword_list("sample")
     ),
@@ -2474,7 +2484,17 @@ QUERY_CASES: dict[str, Callable[[CustdClient], object]] = {
     "admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/threshold-events": (
         lambda c: c.admin.predictions.list_threshold_events("acme", U, page_size=10)
     ),
+    "admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/runs": (
+        lambda c: c.admin.predictions.list_runs("acme", U, page_size=10)
+    ),
+    "admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/outcomes": (
+        lambda c: c.admin.predictions.list_outcomes("acme", U, page_size=10)
+    ),
     "admin-api DELETE /api/v1/data-spaces/{slug}": lambda c: c.provisioning.data_spaces.revoke("acme", "parent"),
+    "admin-api POST /api/v1/data-spaces/{slug}/erasure": lambda c: c.provisioning.data_spaces.erase("acme", "parent"),
+    "admin-api GET /api/v1/data-spaces/{slug}/erasure": (
+        lambda c: c.provisioning.data_spaces.get_erasure("acme", "parent")
+    ),
     "admin-api GET /api/v1/admin/audit/events/export": lambda c: c.admin.audit.export_events(AUDIT_FILTERS),
     "admin-api GET /api/v1/admin/audit/events/{eventId}": lambda c: c.admin.audit.get_event(U, {"scope": "tenant"}),
     "admin-api GET /api/v1/admin/audit/events": (

@@ -5,7 +5,8 @@
 use custd_sdk::{
     AuditEventExport, AuditEventsFormat, AuditListResponse, ImpersonationSessionCreateRequest,
     NotificationDeliveryReplayRequest, OffboardingDownload, ProducerProvisionRequest,
-    RetentionRunListResponse, RetentionRunPreview, TenantOffboardingReceipt,
+    RetentionRunListResponse, RetentionRunPreview, ScheduledTaskRunResponse,
+    TenantOffboardingReceipt,
 };
 
 use super::{audit_query, round_trip};
@@ -69,10 +70,11 @@ pub fn rows() -> Vec<Row> {
             "/api/v1/admin/scheduled-tasks/t-1/resume",
             |c| drop(c.custd.resume_scheduled_task("t-1")),
         ),
-        bodiless(
+        row(
             "admin-api POST /api/v1/admin/scheduled-task-runs/{runUuid}/retry",
             "/api/v1/admin/scheduled-task-runs/r-1/retry",
             |c| drop(c.custd.retry_scheduled_task_run("r-1")),
+            round_trip::<ScheduledTaskRunResponse>,
         ),
         bodiless(
             "admin-api POST /api/v1/admin/notification-deliveries/{uuid}/replay",

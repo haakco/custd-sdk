@@ -34,6 +34,15 @@ final class Client
     /** Read a tenant’s Site Insights AI settings and usage. */
     public const SCOPE_TEMPLATE_SITE_AI_READ = 'site-ai-read';
 
+    /**
+     * Write only hosting-email-delivery events into an owned data space, each verified with the keys
+     * set by setProducerSigningKeys().
+     */
+    public const SCOPE_TEMPLATE_HOSTING_EMAIL_DELIVERY = 'hosting-email-delivery';
+
+    /** The read-only credential a parent's panel reads one data space's reporting and Site Insights with. */
+    public const SCOPE_TEMPLATE_HOSTING_PANEL_READ = 'hosting-panel-read';
+
     public function __construct(
         private readonly string $baseUrl,
         private readonly string $token,
@@ -67,6 +76,21 @@ final class Client
     public function revokeDataSpace(string $slug, ?string $parentCompanySlug = null): void
     {
         $this->sendNoContent("DELETE", self::withQuery(self::dataSpace($slug), "parentCompanySlug", $parentCompanySlug));
+    }
+
+    /** Ask Custd to erase every event and record a data space holds. The answer is accepted, not finished. */
+    public function eraseDataSpace(string $slug, ?string $parentCompanySlug = null): DataSpaceErasure
+    {
+        return DataSpaceErasure::fromPayload(
+            $this->send("POST", self::withQuery(self::dataSpace($slug) . "/erasure", "parentCompanySlug", $parentCompanySlug))
+        );
+    }
+
+    public function getDataSpaceErasure(string $slug, ?string $parentCompanySlug = null): DataSpaceErasure
+    {
+        return DataSpaceErasure::fromPayload(
+            $this->send("GET", self::withQuery(self::dataSpace($slug) . "/erasure", "parentCompanySlug", $parentCompanySlug))
+        );
     }
 
     /** Hold a producer slug in a data space until it is claimed, released or expires. */
@@ -138,6 +162,14 @@ final class Client
     {
         return Producer::fromPayload(
             $this->send("PATCH", self::producer($clientId) . "/environment", $request->serialise())
+        );
+    }
+
+    /** Replace the public keys a signing producer's events are verified with. */
+    public function setProducerSigningKeys(string $clientId, ProducerSigningKeysUpdateRequest $request): ProducerSigningKeys
+    {
+        return ProducerSigningKeys::fromPayload(
+            $this->send("PUT", self::producer($clientId) . "/signing-keys", $request->serialise())
         );
     }
 
