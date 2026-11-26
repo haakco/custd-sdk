@@ -64,12 +64,12 @@ const SiteSearchPoolQueryInvalidCode = "site_search_pool_query_invalid"
 
 // AdminSiteSearchPoolSetting is whether the tenant has joined the shared search pool, with the
 // rules the pool applies and the terms a join accepts. JoinedAt and AcceptedTermsVersion are empty
-// while not joined; TermsVersion is the version a join must name, empty from an older server.
+// while not joined; TermsVersion is the version a join must name.
 type AdminSiteSearchPoolSetting struct {
 	Joined               bool       `json:"joined"`
 	JoinedAt             *time.Time `json:"joinedAt,omitempty"`
 	AcceptedTermsVersion string     `json:"acceptedTermsVersion,omitempty"`
-	TermsVersion         string     `json:"termsVersion,omitempty"`
+	TermsVersion         string     `json:"termsVersion"`
 	MinContributors      int        `json:"minContributors"`
 	MinImpressions       int        `json:"minImpressions"`
 	WindowDays           int        `json:"windowDays"`

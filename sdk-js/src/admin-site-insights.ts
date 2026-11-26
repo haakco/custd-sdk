@@ -136,7 +136,7 @@ export type SitePageFacts = {
   wordCount: number;
   readability: SitePageReadability;
   /** The og:image a fix would name: the largest declared image, else the first unsized one; never fetched. */
-  shareImage?: string;
+  shareImage: string;
   /** FAQPage JSON-LD from the page's question headings; Google shows no FAQ rich results since 7 May 2026. */
   faqSchema?: SiteGeneratedFix;
 };
@@ -196,8 +196,8 @@ export type SitePhraseUse = {
   count: number;
   /** Words of visible text the count is out of. */
   wordCount: number;
-  /** count over wordCount as a percentage; absent when the draft has no words. */
-  densityPercent?: number;
+  /** count over wordCount as a percentage; 0 when the draft has no words. */
+  densityPercent: number;
 };
 
 /** What the page checks found on one page, without the rest of the site. The draft tools are absent unless asked for. */
@@ -224,14 +224,14 @@ export type SiteWordingCompareRequest = {
 /**
  * How much wording two texts share, measured as the content.near-duplicate rule does; wording
  * overlap, not plagiarism. Texts under minWords are not compared: compared is false and
- * sharedPercent absent.
+ * sharedPercent 0.
  */
 export type SiteWordingCompare = {
   firstWords: number;
   secondWords: number;
   minWords: number;
   compared: boolean;
-  sharedPercent?: number;
+  sharedPercent: number;
   thresholdPercent: number;
   nearDuplicate: boolean;
 };
@@ -456,14 +456,11 @@ export type SiteLighthousePageComparison = {
 export type SiteLighthouseHistory = {
   domainUuid: string;
   days: number;
-  /**
-   * The page the runs measured: the home page unless the read named an extra page.
-   * Absent on servers before per-page Lighthouse.
-   */
-  url?: string;
+  /** The page the runs measured: the home page unless the read named an extra page. */
+  url: string;
   runs: SiteLighthouseRun[];
-  /** Every measured page compared per profile. Absent on servers before per-page Lighthouse, which means none. */
-  pages?: SiteLighthousePageComparison[];
+  /** Every measured page compared per profile. */
+  pages: SiteLighthousePageComparison[];
 };
 
 export type SiteReportUptime = {
@@ -518,11 +515,8 @@ export type SiteReportAudit = {
 export type SiteReport = {
   host: string;
   generatedAt: string;
-  /**
-   * A SiteReportTemplate value; executive leaves out the technical appendix. Absent on servers
-   * before the template field; the server's default template is full.
-   */
-  template?: "executive" | "full";
+  /** A SiteReportTemplate value; executive leaves out the technical appendix. */
+  template: "executive" | "full";
   uptime: SiteReportUptime;
   certificate: SiteReportCertificate;
   speed: SiteReportSpeed[];

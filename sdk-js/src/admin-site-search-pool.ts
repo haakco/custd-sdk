@@ -53,8 +53,8 @@ export type SearchPoolSetting = {
   joined: boolean;
   /** Absent while not joined. */
   joinedAt?: string;
-  /** The terms version joining needs now. Absent from an older server. */
-  termsVersion?: string;
+  /** The terms version joining needs now. */
+  termsVersion: string;
   /** The terms version the tenant accepted when it joined; absent while not joined. */
   acceptedTermsVersion?: string;
   minContributors: number;

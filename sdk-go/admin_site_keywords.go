@@ -166,7 +166,9 @@ func (c *SiteDomainAdminClient) ListKeywordLists(ctx context.Context, siteUUID s
 func (c *SiteDomainAdminClient) SaveKeywordList(
 	ctx context.Context, siteUUID string, req AdminSiteKeywordListRequest,
 ) (*AdminSiteKeywordList, error) {
-	body := AdminSiteKeywordListRequest{Name: req.Name, SeedTerm: req.SeedTerm, Keywords: nonNilSlice(req.Keywords)}
+	body := AdminSiteKeywordListRequest{
+		Name: req.Name, SeedTerm: req.SeedTerm, Keywords: nonNilSlice(req.Keywords), MarketSampleEnabled: req.MarketSampleEnabled,
+	}
 	var list AdminSiteKeywordList
 	err := c.request(ctx, http.MethodPut, siteScopedPath(siteKeywordListsRoute, siteUUID, nil), body, &list)
 	return &list, err

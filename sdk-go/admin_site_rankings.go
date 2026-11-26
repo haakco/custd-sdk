@@ -107,10 +107,10 @@ const (
 
 // AdminSiteRankings are a domain's tracked keywords over From..To; SourceFailure says why a
 // failing Search Console connection failed. Pool is AdminSiteSearchPoolJoined or
-// AdminSiteSearchPoolNotJoined, and empty from a server that predates the shared search pool.
+// AdminSiteSearchPoolNotJoined.
 type AdminSiteRankings struct {
 	Source        AdminSiteRankingsSource       `json:"source"`
-	Pool          AdminSiteSearchPoolMembership `json:"pool,omitempty"`
+	Pool          AdminSiteSearchPoolMembership `json:"pool"`
 	SourceFailure string                        `json:"sourceFailure,omitempty"`
 	From          string                        `json:"from"`
 	To            string                        `json:"to"`

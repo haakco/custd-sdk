@@ -90,8 +90,8 @@ export type SiteRankings = {
   /** A SiteRankingsSource value. */
   source: SiteRankingsSource;
   sourceFailure?: string;
-  /** A SearchPoolAccess value; absent from servers before the shared search pool. */
-  pool?: SearchPoolAccess;
+  /** A SearchPoolAccess value. */
+  pool: SearchPoolAccess;
   from: string;
   to: string;
   maxKeywords: number;

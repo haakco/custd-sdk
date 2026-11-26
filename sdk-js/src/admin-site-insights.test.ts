@@ -150,7 +150,7 @@ describe("site insights page tools", () => {
     expect(unavailable).toEqual(tools.observedWordingUnavailable);
     expect(short.first.state).toBe("short");
     expect(short.comparison).toMatchObject({ firstWords: 80, compared: false });
-    expect(short.comparison).not.toHaveProperty("sharedPercent");
+    expect(short.comparison?.sharedPercent).toBe(0);
     const route =
       `GET ${item}/page-wording?firstUrl=${encodeURIComponent(query.firstUrl)}` +
       `&secondUrl=${encodeURIComponent(query.secondUrl)}`;
@@ -186,13 +186,13 @@ describe("site insights page tools", () => {
     expect(compared.nearDuplicate).toBe(true);
     const short = await domains.compareWording(domainUuid, { first: "a", second: "b" });
     expect(short.compared).toBe(false);
-    expect(short).not.toHaveProperty("sharedPercent");
+    expect(short.sharedPercent).toBe(0);
     const wordless = await domains.checkPage(domainUuid, {
       url: "https://example.com/plans",
       html: "<p></p>",
       phrase: "x",
     });
-    expect(wordless.phrase).not.toHaveProperty("densityPercent");
+    expect(wordless.phrase?.densityPercent).toBe(0);
 
     const sent = calls();
     expect(sent.map((call) => call.route)).toEqual([

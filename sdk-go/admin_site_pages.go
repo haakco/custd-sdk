@@ -114,7 +114,7 @@ type AdminSitePageFacts struct {
 	Headings    []AdminSitePageHeading   `json:"headings"`
 	WordCount   int                      `json:"wordCount"`
 	Readability AdminSitePageReadability `json:"readability"`
-	ShareImage  string                   `json:"shareImage,omitempty"`
+	ShareImage  string                   `json:"shareImage"`
 	FAQSchema   *AdminSiteGeneratedFix   `json:"faqSchema,omitempty"`
 }
 
@@ -214,27 +214,15 @@ type AdminSitePageCheck struct {
 }
 
 // AdminSitePhraseUse is where one phrase appears in a draft and how often, with no target or
-// verdict. DensityPercent is Count over WordCount as a percentage, nil when the draft has no words.
+// verdict. DensityPercent is Count over WordCount as a percentage, 0 when the draft has no words.
 type AdminSitePhraseUse struct {
-	Phrase         string   `json:"phrase"`
-	InTitle        bool     `json:"inTitle"`
-	InDescription  bool     `json:"inDescription"`
-	InH1           bool     `json:"inH1"`
-	Count          int      `json:"count"`
-	WordCount      int      `json:"wordCount"`
-	DensityPercent *float64 `json:"densityPercent,omitempty"`
-}
-
-// UnmarshalJSON drops the density the server sends as 0 for a draft without words.
-func (p *AdminSitePhraseUse) UnmarshalJSON(data []byte) error {
-	type wire AdminSitePhraseUse
-	if err := unmarshalResponse(data, (*wire)(p)); err != nil {
-		return err
-	}
-	if p.WordCount == 0 {
-		p.DensityPercent = nil
-	}
-	return nil
+	Phrase         string  `json:"phrase"`
+	InTitle        bool    `json:"inTitle"`
+	InDescription  bool    `json:"inDescription"`
+	InH1           bool    `json:"inH1"`
+	Count          int     `json:"count"`
+	WordCount      int     `json:"wordCount"`
+	DensityPercent float64 `json:"densityPercent"`
 }
 
 // AdminSitePageCheckRequest checks HTML as if URL, on the domain's host, served it. HTML is the
@@ -259,27 +247,15 @@ type AdminSiteWordingCompareRequest struct {
 
 // AdminSiteWordingCompare is how much wording two texts share, measured as the crawl's
 // content.near-duplicate rule measures it; wording overlap, not plagiarism. Texts under MinWords
-// are not compared: Compared is false and SharedPercent nil.
+// are not compared: Compared is false and SharedPercent 0.
 type AdminSiteWordingCompare struct {
 	FirstWords       int  `json:"firstWords"`
 	SecondWords      int  `json:"secondWords"`
 	MinWords         int  `json:"minWords"`
 	Compared         bool `json:"compared"`
-	SharedPercent    *int `json:"sharedPercent,omitempty"`
+	SharedPercent    int  `json:"sharedPercent"`
 	ThresholdPercent int  `json:"thresholdPercent"`
 	NearDuplicate    bool `json:"nearDuplicate"`
-}
-
-// UnmarshalJSON drops the share the server sends as 0 when it did not compare the texts.
-func (w *AdminSiteWordingCompare) UnmarshalJSON(data []byte) error {
-	type wire AdminSiteWordingCompare
-	if err := unmarshalResponse(data, (*wire)(w)); err != nil {
-		return err
-	}
-	if !w.Compared {
-		w.SharedPercent = nil
-	}
-	return nil
 }
 
 // AdminSitePageWordingQuery names two distinct absolute URLs on the same verified domain.

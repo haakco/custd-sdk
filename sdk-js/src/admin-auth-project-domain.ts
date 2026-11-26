@@ -32,6 +32,7 @@ export const AUTH_PROJECT_DOMAIN_CONVERGENCES = {
   drifted: "drifted",
   notRunning: "not-running",
   unverified: "unverified",
+  rollingOut: "rolling-out",
 } as const;
 
 export type AuthProjectDomainConvergence =
