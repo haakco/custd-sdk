@@ -168,7 +168,7 @@ final readonly class DesiredState
         return new self(
             Fields::string($payload, "identityMode"),
             Fields::string($payload, "registrationPolicy"),
-            Fields::boolean($payload, "loginPaused"),
+            Fields::optionalBoolean($payload, "loginPaused"),
             $audiences === null ? null : array_map(AudienceBinding::fromPayload(...), $audiences),
             $profileFields === null ? null : array_map(ProfileField::fromPayload(...), $profileFields),
             self::unsetWhenEmpty(Fields::optionalString($payload, "displayName")),
