@@ -16,7 +16,8 @@ use crate::transport::{Method, percent_encode};
 #[serde(rename_all = "camelCase")]
 pub struct EmailRelayView {
     pub effective: EmailRelayEffectiveSender,
-    pub relay: EmailRelay,
+    /// The tenant's own relay; `None` when the tenant sends through Custd's relay.
+    pub relay: Option<EmailRelay>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

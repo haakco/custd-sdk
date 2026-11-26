@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 use crate::error::{ApiError, Error, Problem};
-use crate::transport::{HttpRequest, HttpResponse, Method, Transport, UreqTransport};
+use crate::transport::{HttpRequest, HttpResponse, HttpStream, Method, Transport, UreqTransport};
 use crate::{Result, SDK_IDENTITY};
 
 /// The signed-in Custd API: measurement projects, observations, estimates and forecasts.
@@ -112,6 +112,29 @@ impl CustdClient {
             request.body = Some(bytes);
         }
         execute(self.transport.as_ref(), &request)
+    }
+
+    /// Sends a bodiless GET and returns a success answer with its body unread. Any other answer
+    /// is read whole and becomes [`Error::Api`], so a problem body never reaches a download.
+    pub(crate) fn stream_get(&self, path: &str) -> Result<HttpStream> {
+        let headers = vec![("Authorization", format!("Bearer {}", self.access_token))];
+        let request = json_request(
+            Method::Get,
+            format!("{}{path}", self.base_url),
+            headers,
+            None::<&()>,
+        )?;
+        let transport_error =
+            |error: crate::transport::TransportError| Error::Transport(error.message().to_owned());
+        let stream = self.transport.stream(&request).map_err(transport_error)?;
+        let status = stream.status;
+        if (200..300).contains(&status) {
+            return Ok(stream);
+        }
+        checked(stream.buffered().map_err(transport_error)?)?;
+        Err(Error::InvalidResponse(format!(
+            "a download answered HTTP {status}"
+        )))
     }
 }
 

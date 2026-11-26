@@ -359,6 +359,8 @@ pub struct AuditEventQuery {
     pub outcome: Option<String>,
     /// Optional request or operation correlation filter.
     pub correlation_id: Option<String>,
+    /// Optional auth-project environment (realm) filter.
+    pub environment_id: Option<String>,
     /// Page size 1-1000. Defaults to 100 when zero.
     pub limit: Option<i64>,
     /// Opaque keyset cursor returned by the prior page.
@@ -386,6 +388,7 @@ impl CustdClient {
                 ("resourceId", query.resource_id.clone()),
                 ("outcome", query.outcome.clone()),
                 ("correlationId", query.correlation_id.clone()),
+                ("environmentId", query.environment_id.clone()),
                 ("limit", query.limit.map(|v| v.to_string())),
                 ("cursor", query.cursor.clone()),
             ],

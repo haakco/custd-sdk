@@ -3,11 +3,13 @@
 mod support;
 
 use custd_sdk::{
-    AppClient, AppItemRunCreateRequest, AuthDirectoryAction, AuthProjectDirectoryRequest,
-    CustdClient, ImageFile, SiteAIConsentAction, SiteAIConsentRequest, SiteAIOwnerHandoffResponse,
-    SiteMonitorDestination, get_private_uptime_work, read_auth_domain_monitoring_inventory,
-    read_shared_site_report, redeem_site_ai_owner_handoff,
+    AppClient, AppItemRunCreateRequest, AuditEventExport, AuditEventQuery, AuditEventsFormat,
+    AuthDirectoryAction, AuthProjectDesiredState, AuthProjectDirectoryRequest, CustdClient,
+    EmailRelayView, ImageFile, OffboardingDownload, SiteAIConsentAction, SiteAIConsentRequest,
+    SiteAIOwnerHandoffResponse, SiteMonitorDestination, get_private_uptime_work,
+    read_auth_domain_monitoring_inventory, read_shared_site_report, redeem_site_ai_owner_handoff,
 };
+use serde_json::json;
 use support::{Answer, FakeServer, answer};
 
 #[test]
@@ -130,12 +132,13 @@ fn an_owned_item_names_itself_after_the_query() {
 }
 
 #[test]
-fn offboarding_downloads_are_checked_against_their_checksum_header() {
+fn offboarding_downloads_stream_to_the_writer_checked_against_their_checksum_header() {
     let archive = |checksum: &'static str| Answer {
         status: 200,
         headers: vec![
             ("Content-Type", "application/zip"),
             ("X-Checksum-SHA256", checksum),
+            ("X-Request-Id", "req-1"),
         ],
         body: "archive".to_owned(),
     };
@@ -144,22 +147,156 @@ fn offboarding_downloads_are_checked_against_their_checksum_header() {
         archive(good),
         archive("0000000000000000000000000000000000000000000000000000000000000000"),
         answer(200, "archive"),
+        answer(404, r#"{"title":"Not Found","status":404}"#),
     ]);
     let client = CustdClient::new(&server.base_url, "t");
 
-    let download = client.download_offboarding("r-1").unwrap();
+    let mut written = Vec::new();
+    let download = client.download_offboarding("r-1", &mut written).unwrap();
+    assert_eq!(written, b"archive");
+    assert_eq!(
+        download,
+        OffboardingDownload {
+            content_type: "application/zip".to_owned(),
+            request_id: Some("req-1".to_owned()),
+            checksum_sha256: good.to_owned(),
+            byte_size: 7,
+        }
+    );
+    for refused in [
+        "checksum mismatch",
+        "checksum header is invalid",
+        "HTTP 404",
+    ] {
+        let mut sink = Vec::new();
+        let error = client
+            .download_offboarding("r-1", &mut sink)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains(refused), "{error}");
+        if refused != "checksum mismatch" {
+            assert!(sink.is_empty(), "{refused} wrote {sink:?}");
+        }
+    }
+}
+
+#[test]
+fn audit_exports_stream_to_the_writer_with_their_metadata_and_realm_filter() {
+    let server = FakeServer::start(vec![Answer {
+        status: 200,
+        headers: vec![("Content-Type", "text/csv"), ("X-Request-Id", "req-2")],
+        body: "recordType,eventId\n".to_owned(),
+    }]);
+    let client = CustdClient::new(&server.base_url, "t");
+    let query = AuditEventQuery {
+        environment_id: Some("env-1".to_owned()),
+        ..AuditEventQuery::default()
+    };
+
+    let mut written = Vec::new();
+    let export = client
+        .export_audit_events(&query, AuditEventsFormat::Csv, None, &mut written)
+        .unwrap();
+
+    assert_eq!(written, b"recordType,eventId\n");
+    assert_eq!(
+        export,
+        AuditEventExport {
+            content_type: "text/csv".to_owned(),
+            request_id: Some("req-2".to_owned()),
+        }
+    );
+    assert_eq!(
+        server.next().target,
+        "/api/v1/admin/audit/events/export?environmentId=env-1&format=csv"
+    );
+}
+
+#[test]
+fn a_realm_apply_sends_only_the_fields_it_sets_and_empty_values_clear() {
+    let status: AuthProjectDesiredState = serde_json::from_str(
+        r##"{"audiences":[],"brandAccent":"#112233","displayName":"","displayNameSource":"application","entryPath":"/go","identityMode":"isolated","loginPaused":true,"profileFields":[],"registrationPolicy":"invite_only","signInMethods":["password"]}"##,
+    )
+    .unwrap();
     assert_eq!(
         (
-            download.bytes.as_slice(),
-            download.byte_size,
-            download.checksum_sha256.as_str()
+            status.entry_path.as_deref(),
+            status.login_paused,
+            status.sign_in_methods.as_deref()
         ),
-        (b"archive".as_slice(), 7, good)
+        (
+            Some("/go"),
+            Some(true),
+            Some(["password".to_owned()].as_slice())
+        )
     );
-    for refused in ["checksum mismatch", "checksum header is invalid"] {
-        let error = client.download_offboarding("r-1").unwrap_err().to_string();
-        assert!(error.contains(refused), "{error}");
+
+    let keep = AuthProjectDesiredState {
+        entry_path: None,
+        brand_accent: None,
+        login_paused: None,
+        sign_in_methods: None,
+        profile_fields: None,
+        ..status.clone()
+    };
+    let sent = serde_json::to_value(&keep).unwrap();
+    for field in [
+        "entryPath",
+        "brandAccent",
+        "loginPaused",
+        "signInMethods",
+        "profileFields",
+    ] {
+        assert!(sent.get(field).is_none(), "{field} was sent: {sent}");
     }
+
+    let clear = AuthProjectDesiredState {
+        entry_path: Some(String::new()),
+        brand_accent: Some(String::new()),
+        login_paused: Some(false),
+        sign_in_methods: Some(Vec::new()),
+        profile_fields: Some(Vec::new()),
+        ..status
+    };
+    let sent = serde_json::to_value(&clear).unwrap();
+    assert_eq!(
+        [
+            &sent["entryPath"],
+            &sent["brandAccent"],
+            &sent["loginPaused"],
+            &sent["signInMethods"],
+            &sent["profileFields"]
+        ],
+        [
+            &json!(""),
+            &json!(""),
+            &json!(false),
+            &json!([]),
+            &json!([])
+        ]
+    );
+}
+
+#[test]
+fn an_email_relay_view_without_a_tenant_relay_decodes_the_null_relay() {
+    let view: EmailRelayView = serde_json::from_str(
+        r#"{"relay":null,"effective":{"fromAddress":"a@custd.dev","fromDisplayName":"Custd","hasCredential":true,"relay":"custd"}}"#,
+    )
+    .unwrap();
+    assert_eq!(view.relay, None);
+    assert_eq!(serde_json::to_value(&view).unwrap()["relay"], json!(null));
+}
+
+#[test]
+fn a_prepared_data_query_sends_the_callers_document_verbatim() {
+    let server = FakeServer::start(vec![answer(204, "")]);
+    let client = CustdClient::new(&server.base_url, "t");
+    let document = json!({"template": "x", "metrics": ["m"], "futureOption": {"k": 1}});
+
+    drop(client.query_prepared_data_output("o-1", &document));
+
+    let sent: serde_json::Value = serde_json::from_str(&server.next().body).unwrap();
+    assert_eq!(sent, document);
 }
 
 #[test]

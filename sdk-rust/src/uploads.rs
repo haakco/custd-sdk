@@ -1,10 +1,13 @@
 //! Routes whose body is not JSON: images, hosted-app release files, report export downloads, the
-//! audit-event export and offboarding export downloads.
+//! audit-event export and offboarding export downloads. The audit export and the offboarding
+//! archive stream into the caller's writer instead of memory.
+
+use std::io::{self, Read, Write};
 
 use crate::api_path::api_path;
 use crate::client::{CustdClient, decode};
 use crate::error::Error;
-use crate::transport::{HttpResponse, Method, percent_encode};
+use crate::transport::{HttpResponse, HttpStream, Method, percent_encode};
 use crate::{
     AuditEventQuery, AuditEventsFormat, AuthProjectAppUploadedFile, AuthProjectBrandLogo,
     CurrentApplicationProfile, Result,
@@ -20,20 +23,22 @@ pub struct ReportExportDownload {
     pub bytes: Vec<u8>,
 }
 
-/// Exported audit events (CSV or JSON) and their media type.
+/// What an audit export answered with; the events themselves went to the caller's writer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuditEventExport {
     pub content_type: String,
-    pub bytes: Vec<u8>,
+    /// The server's `X-Request-Id`, when it sent one.
+    pub request_id: Option<String>,
 }
 
-/// A tenant offboarding export archive, its media type and the integrity metadata it was checked
-/// against: the server's `X-Checksum-SHA256` and `Content-Length` headers.
+/// What a tenant offboarding archive download answered with, checked against the server's
+/// `X-Checksum-SHA256` and `Content-Length` headers; the archive went to the caller's writer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OffboardingDownload {
     pub content_type: String,
-    pub bytes: Vec<u8>,
-    /// Lowercase hex SHA-256 of `bytes`.
+    /// The server's `X-Request-Id`, when it sent one.
+    pub request_id: Option<String>,
+    /// Lowercase hex SHA-256 of the archive.
     pub checksum_sha256: String,
     pub byte_size: u64,
 }
@@ -102,13 +107,14 @@ impl CustdClient {
         })
     }
 
-    /// Export the audit events the filters select, as CSV or JSON. The page fields `limit` and
-    /// `cursor` do not apply to an export and are not sent.
+    /// Export the audit events the filters select, as CSV or JSON, streaming them into `sink`.
+    /// The page fields `limit` and `cursor` do not apply to an export and are not sent.
     pub fn export_audit_events(
         &self,
         query: &AuditEventQuery,
         format: AuditEventsFormat,
         company_slug: Option<&str>,
+        sink: &mut impl Write,
     ) -> Result<AuditEventExport> {
         let path = api_path(
             "/api/v1/admin/audit/events/export".to_owned(),
@@ -124,25 +130,53 @@ impl CustdClient {
                 ("resourceId", query.resource_id.clone()),
                 ("outcome", query.outcome.clone()),
                 ("correlationId", query.correlation_id.clone()),
+                ("environmentId", query.environment_id.clone()),
                 ("format", Some(format.as_str().to_owned())),
             ],
             company_slug,
         );
-        let response = self.send_bytes(Method::Get, &path, None)?;
+        let mut stream = self.stream_get(&path)?;
+        copy_download(&mut stream, sink)?;
         Ok(AuditEventExport {
-            content_type: content_type_of(&response),
-            bytes: response.body,
+            content_type: stream_content_type(&stream),
+            request_id: stream.header(REQUEST_ID_HEADER).map(str::to_owned),
         })
     }
 
-    /// Download a finished offboarding request's export archive. A missing or inconsistent checksum
-    /// or length header is refused, so a truncated or altered archive never reaches the caller.
-    pub fn download_offboarding(&self, request_uuid: &str) -> Result<OffboardingDownload> {
+    /// Download a finished offboarding request's export archive, streaming it into `sink`. A
+    /// missing or invalid checksum or length header is refused before anything is written. The
+    /// checksum and length are verified once the archive has arrived; on a mismatch the error is
+    /// returned after the bytes were written, so the caller must discard what `sink` received.
+    pub fn download_offboarding(
+        &self,
+        request_uuid: &str,
+        sink: &mut impl Write,
+    ) -> Result<OffboardingDownload> {
         let path = format!(
             "/api/v1/admin/offboarding/requests/{}/download",
             percent_encode(request_uuid)
         );
-        verified_offboarding_download(self.send_bytes(Method::Get, &path, None)?)
+        let mut stream = self.stream_get(&path)?;
+        let (checksum_sha256, byte_size) = offboarding_integrity(&stream)?;
+        let mut hashed = HashingWriter {
+            inner: sink,
+            digest: ring::digest::Context::new(&ring::digest::SHA256),
+        };
+        let written = copy_download(&mut stream, &mut hashed)?;
+        let invalid =
+            |message: &str| Error::InvalidResponse(format!("offboarding download {message}"));
+        if hex(hashed.digest.finish().as_ref()) != checksum_sha256 {
+            return Err(invalid("checksum mismatch"));
+        }
+        if written != byte_size {
+            return Err(invalid("content length mismatch"));
+        }
+        Ok(OffboardingDownload {
+            content_type: stream_content_type(&stream),
+            request_id: stream.header(REQUEST_ID_HEADER).map(str::to_owned),
+            checksum_sha256,
+            byte_size,
+        })
     }
 
     /// Read the signed-in member's profile photo. The client's token is the member's application
@@ -185,37 +219,70 @@ impl CustdClient {
     }
 }
 
-fn verified_offboarding_download(response: HttpResponse) -> Result<OffboardingDownload> {
+const REQUEST_ID_HEADER: &str = "x-request-id";
+
+/// The SHA-256 checksum and byte length the server declared for an offboarding archive.
+fn offboarding_integrity(stream: &HttpStream) -> Result<(String, u64)> {
     let invalid = |message: &str| Error::InvalidResponse(format!("offboarding download {message}"));
-    let byte_size: u64 = response
+    let byte_size: u64 = stream
         .header("content-length")
         .and_then(|value| value.trim().parse().ok())
         .ok_or_else(|| invalid("content length is invalid"))?;
-    let checksum = response
+    let checksum_sha256 = stream
         .header("x-checksum-sha256")
         .map(|value| value.trim().to_ascii_lowercase())
         .filter(|value| value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit()))
         .ok_or_else(|| invalid("checksum header is invalid"))?;
-    if checksum != sha256_hex(&response.body) {
-        return Err(invalid("checksum mismatch"));
-    }
-    if byte_size != response.body.len() as u64 {
-        return Err(invalid("content length mismatch"));
-    }
-    Ok(OffboardingDownload {
-        content_type: content_type_of(&response),
-        bytes: response.body,
-        checksum_sha256: checksum,
-        byte_size,
-    })
+    Ok((checksum_sha256, byte_size))
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    ring::digest::digest(&ring::digest::SHA256, bytes)
-        .as_ref()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
+/// Copies a download body into the caller's writer, keeping the read and write failures apart.
+fn copy_download(stream: &mut HttpStream, sink: &mut impl Write) -> Result<u64> {
+    let mut buffer = [0u8; 64 * 1024];
+    let mut written = 0u64;
+    loop {
+        let read = match stream.body.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(read) => read,
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(Error::Transport(format!("reading the download: {error}"))),
+        };
+        sink.write_all(&buffer[..read])
+            .map_err(|error| Error::Transport(format!("writing the download: {error}")))?;
+        written += read as u64;
+    }
+    sink.flush()
+        .map_err(|error| Error::Transport(format!("writing the download: {error}")))?;
+    Ok(written)
+}
+
+/// A writer that hashes what passes through it.
+struct HashingWriter<'a, W: Write> {
+    inner: &'a mut W,
+    digest: ring::digest::Context,
+}
+
+impl<W: Write> Write for HashingWriter<'_, W> {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        let written = self.inner.write(bytes)?;
+        self.digest.update(&bytes[..written]);
+        Ok(written)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn stream_content_type(stream: &HttpStream) -> String {
+    stream
+        .header("content-type")
+        .unwrap_or("application/octet-stream")
+        .to_owned()
 }
 
 fn content_type_of(response: &HttpResponse) -> String {

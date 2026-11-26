@@ -1974,11 +1974,12 @@ impl CustdClient {
         self.call(Method::Get, &path, NO_BODY)
     }
 
-    /// Run prepared-data output query.
+    /// Run prepared-data output query. `request` is a [`ReportingQueryRequest`] or the caller's
+    /// own query document (such as a `serde_json::Value`), which is sent verbatim.
     pub fn query_prepared_data_output(
         &self,
         output_uuid: &str,
-        request: &ReportingQueryRequest,
+        request: &impl Serialize,
     ) -> Result<PreparedDataQueryEnvelope> {
         let path = api_path(
             format!(

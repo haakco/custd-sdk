@@ -235,19 +235,30 @@ pub struct AuthProjectDesiredState {
     pub application_session_policy: Option<AuthProjectDesiredStateApplicationSessionPolicy>,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub audiences: Vec<AuthProjectAudienceBinding>,
-    pub brand_accent: String,
+    /// The sign-in accent as `#rrggbb`. An apply that leaves it `None` keeps the stored accent;
+    /// `Some("")` clears it. A status always reports it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brand_accent: Option<String>,
     pub display_name: String,
     pub display_name_source: String,
-    pub entry_path: String,
+    /// The public entry path. An apply that leaves it `None` keeps the stored path; `Some("")`
+    /// clears it. A status always reports it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entry_path: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hosting: Option<AuthProjectHosting>,
     pub identity_mode: AuthProjectCreateRequestIdentityMode,
-    pub login_paused: bool,
-    #[serde(default, deserialize_with = "null_as_empty")]
-    pub profile_fields: Vec<AuthProjectProfileField>,
+    /// Whether sign-in is paused. An apply that leaves it `None` keeps the stored pause.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub login_paused: Option<bool>,
+    /// An apply that leaves it `None` keeps the stored fields; `Some(vec![])` clears them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_fields: Option<Vec<AuthProjectProfileField>>,
     pub registration_policy: AuthProjectDesiredStateRegistrationPolicy,
-    #[serde(default, deserialize_with = "null_as_empty")]
-    pub sign_in_methods: Vec<String>,
+    /// An apply that leaves it `None` keeps the stored methods; `Some(vec![])` clears the
+    /// narrowing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sign_in_methods: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub social_sign_in: Option<AuthProjectSocialSignIn>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

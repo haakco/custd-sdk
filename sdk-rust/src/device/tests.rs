@@ -37,6 +37,13 @@ impl Transport for FakeTransport {
             .pop_front()
             .expect("unexpected request")
     }
+
+    fn stream(
+        &self,
+        _request: &HttpRequest,
+    ) -> std::result::Result<crate::transport::HttpStream, TransportError> {
+        unreachable!("login never streams a download")
+    }
 }
 
 struct FakeClock {

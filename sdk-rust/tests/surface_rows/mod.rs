@@ -82,6 +82,7 @@ pub fn audit_query() -> AuditEventQuery {
         resource_id: text("i-1"),
         outcome: text("o-1"),
         correlation_id: text("c-1"),
+        environment_id: text("e-1"),
         limit: Some(7),
         cursor: text("n-1"),
     }

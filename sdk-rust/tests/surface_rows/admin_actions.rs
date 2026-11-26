@@ -106,12 +106,13 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api GET /api/v1/admin/audit/events/export",
-            "/api/v1/admin/audit/events/export?scope=tenant&affectedTenantSlug=acme&since=s-1&until=u-1&actorKind=k-1&actorReference=r-1&action=a-1&resourceType=t-1&resourceId=i-1&outcome=o-1&correlationId=c-1&format=csv&companySlug=acme",
+            "/api/v1/admin/audit/events/export?scope=tenant&affectedTenantSlug=acme&since=s-1&until=u-1&actorKind=k-1&actorReference=r-1&action=a-1&resourceType=t-1&resourceId=i-1&outcome=o-1&correlationId=c-1&environmentId=e-1&format=csv&companySlug=acme",
             |c| {
                 drop::<Result<AuditEventExport, _>>(c.custd.export_audit_events(
                     &audit_query(),
                     AuditEventsFormat::Csv,
                     Some("acme"),
+                    &mut Vec::new(),
                 ))
             },
             round_trip::<AuditListResponse>,
@@ -119,7 +120,11 @@ pub fn rows() -> Vec<Row> {
         bodiless(
             "admin-api GET /api/v1/admin/offboarding/requests/{requestUuid}/download",
             "/api/v1/admin/offboarding/requests/r-1/download",
-            |c| drop::<Result<OffboardingDownload, _>>(c.custd.download_offboarding("r-1")),
+            |c| {
+                drop::<Result<OffboardingDownload, _>>(
+                    c.custd.download_offboarding("r-1", &mut Vec::new()),
+                )
+            },
         ),
     ]
 }

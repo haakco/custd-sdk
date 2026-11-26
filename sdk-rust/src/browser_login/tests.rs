@@ -29,6 +29,13 @@ impl Transport for TestTokenEndpoint {
                 .to_vec(),
         })
     }
+
+    fn stream(
+        &self,
+        _request: &HttpRequest,
+    ) -> std::result::Result<crate::transport::HttpStream, TransportError> {
+        unreachable!("login never streams a download")
+    }
 }
 
 fn discovery() -> HostedAppSignIn {

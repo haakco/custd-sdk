@@ -10,7 +10,7 @@ pub fn rows() -> Vec<Row> {
     vec![
         row(
             "admin-api GET /api/v1/admin/audit/events",
-            "/api/v1/admin/audit/events?scope=tenant&affectedTenantSlug=acme&since=s-1&until=u-1&actorKind=k-1&actorReference=r-1&action=a-1&resourceType=t-1&resourceId=i-1&outcome=o-1&correlationId=c-1&limit=7&cursor=n-1&companySlug=acme",
+            "/api/v1/admin/audit/events?scope=tenant&affectedTenantSlug=acme&since=s-1&until=u-1&actorKind=k-1&actorReference=r-1&action=a-1&resourceType=t-1&resourceId=i-1&outcome=o-1&correlationId=c-1&environmentId=e-1&limit=7&cursor=n-1&companySlug=acme",
             |c| drop(c.custd.list_audit_events(&audit_query(), Some("acme"))),
             round_trip::<AuditListResponse>,
         ),
