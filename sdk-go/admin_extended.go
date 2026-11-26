@@ -1302,15 +1302,6 @@ func writeVerifiedOffboardingDownload(download *adminDownload, w io.Writer) (*Of
 	}, nil
 }
 
-func responseHeader(headers map[string]string, name string) string {
-	for key, value := range headers {
-		if strings.EqualFold(key, name) {
-			return value
-		}
-	}
-	return ""
-}
-
 // Acknowledge records that the export was downloaded successfully and its
 // inventory was confirmed. It must not be called merely after Preview.
 func (c *OffboardingAdminClient) Acknowledge(

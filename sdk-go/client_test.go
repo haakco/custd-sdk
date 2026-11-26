@@ -409,9 +409,9 @@ func TestRetryOnTransportError(t *testing.T) {
 			MaxDelay:    time.Millisecond,
 			Jitter:      0,
 		},
-		HTTPClient: retryableTransportDoer(func() int32 {
+		HTTPClient: fakeTransport(retryableTransportDoer(func() int32 {
 			return attempts.Add(1)
-		}),
+		})),
 	})
 	defer func() { _ = client.Close(context.Background()) }()
 
@@ -441,7 +441,7 @@ func TestRetryAfterLostResponseReusesEventUUID(t *testing.T) {
 			MaxDelay:    time.Millisecond,
 			Jitter:      0,
 		},
-		HTTPClient: &doer,
+		HTTPClient: fakeTransport(&doer),
 	})
 	defer func() { _ = client.Close(context.Background()) }()
 
@@ -521,11 +521,11 @@ func TestFlushRejectsBatchResultMissingEventUUID(t *testing.T) {
 
 type retryableTransportDoer func() int32
 
-func (d retryableTransportDoer) Do(*HTTPRequest) (*HTTPResponse, error) {
+func (d retryableTransportDoer) Do(*fakeRequest) (*fakeResponse, error) {
 	if d() == 1 {
 		return nil, errors.New("EOF")
 	}
-	return &HTTPResponse{StatusCode: http.StatusAccepted, Body: []byte(`{"success":true}`)}, nil
+	return &fakeResponse{StatusCode: http.StatusAccepted, Body: []byte(`{"success":true}`)}, nil
 }
 
 type lostResponseDoer struct {
@@ -535,7 +535,7 @@ type lostResponseDoer struct {
 	secondEventUUID string
 }
 
-func (d *lostResponseDoer) Do(req *HTTPRequest) (*HTTPResponse, error) {
+func (d *lostResponseDoer) Do(req *fakeRequest) (*fakeResponse, error) {
 	attempt := d.attempts.Add(1)
 	eventUUID := firstBatchEventUUID(d.t, req.Body)
 	if attempt == 1 {
@@ -543,7 +543,7 @@ func (d *lostResponseDoer) Do(req *HTTPRequest) (*HTTPResponse, error) {
 		return nil, errors.New("EOF after server accepted request")
 	}
 	d.secondEventUUID = eventUUID
-	return &HTTPResponse{StatusCode: http.StatusAccepted, Body: []byte(`{"success":true}`)}, nil
+	return &fakeResponse{StatusCode: http.StatusAccepted, Body: []byte(`{"success":true}`)}, nil
 }
 
 func firstBatchEventUUID(t *testing.T, body []byte) string {

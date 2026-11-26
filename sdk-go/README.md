@@ -98,6 +98,12 @@ without exposing the client secret.
 The client rejects plaintext non-local Custd and token URLs. Localhost HTTP is
 allowed for development.
 
+Own transport: set `HTTPClient` to anything with `Do(*http.Request) (*http.Response, error)`,
+such as an `*http.Client`, to send every Custd request through it. It then owns
+authentication, timeouts and redirects. It answers with the unread response, so
+`Offboarding.Download`, `Audit.ExportEvents` and usage exports stream straight to the
+caller's writer without being held in memory.
+
 Dogfood producers can use `NewDogfoodEvent` to build the canonical event shape
 with `sourceSystem`, `sourceCompany`, `environment`, `schemaVersion`, and
 `correlationId` in the payload while keeping `companySlug` on the envelope.
