@@ -12,6 +12,7 @@ use HaakCo\Custd\Reporting\Data\PreparedDataOutput;
 use HaakCo\Custd\Reporting\Data\PreparedDataOutputListResponse;
 use HaakCo\Custd\Reporting\Data\PreparedDataQueryEnvelope;
 use HaakCo\Custd\Reporting\Data\PreparedDataReceipt;
+use HaakCo\Custd\Reporting\Data\ReportingQueryDocument;
 use HaakCo\Custd\Reporting\Data\ReportExportCancelRequest;
 use HaakCo\Custd\Reporting\Data\ReportExportCreateRequest;
 use HaakCo\Custd\Reporting\Data\ReportExportList;
@@ -165,12 +166,14 @@ final class Client
     }
 
     /**
-     * Render one query against a prepared data output.
+     * Render one query against a prepared data output. A ReportingQueryDocument reaches the transport as
+     * its JSON text, unchanged; a ReportingQueryRequest as an array.
      */
-    public function queryOutput(string $outputUuid, ReportingQueryRequest $request): PreparedDataQueryEnvelope
+    public function queryOutput(string $outputUuid, ReportingQueryRequest|ReportingQueryDocument $request): PreparedDataQueryEnvelope
     {
         self::validateUuid($outputUuid, "outputUuid");
-        $payload = $this->object("POST", "/api/v1/reporting/outputs/" . rawurlencode($outputUuid) . "/query", $request->serialise());
+        $body = $request instanceof ReportingQueryDocument ? $request->json : $request->serialise();
+        $payload = $this->object("POST", "/api/v1/reporting/outputs/" . rawurlencode($outputUuid) . "/query", $body);
         self::refuseUnsafeTrust(Fields::object($payload, "data"));
 
         return PreparedDataQueryEnvelope::fromPayload($payload);
@@ -197,8 +200,8 @@ final class Client
         }
     }
 
-    /** @param array<string, mixed>|null $body */
-    private function object(string $method, string $path, ?array $body = null): \stdClass
+    /** @param array<string, mixed>|string|null $body A string is already-encoded JSON. */
+    private function object(string $method, string $path, array|string|null $body = null): \stdClass
     {
         $responseBody = $this->rawRequest($method, $path, $body === [] ? null : $body);
 
@@ -208,8 +211,8 @@ final class Client
         );
     }
 
-    /** @param array<string, mixed>|null $body */
-    private function rawRequest(string $method, string $path, ?array $body = null): string
+    /** @param array<string, mixed>|string|null $body */
+    private function rawRequest(string $method, string $path, array|string|null $body = null): string
     {
         if ($this->httpClient === null) {
             throw new \RuntimeException("custd: reporting requires an admin_http_client transport");

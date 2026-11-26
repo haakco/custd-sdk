@@ -8,6 +8,7 @@ use HaakCo\Custd\CustdClient;
 use HaakCo\Custd\Reporting\Data\ExportQueryParameters;
 use HaakCo\Custd\Reporting\Data\ReportExportCancelRequest;
 use HaakCo\Custd\Reporting\Data\ReportExportCreateRequest;
+use HaakCo\Custd\Reporting\Data\ReportingQueryDocument;
 use HaakCo\Custd\Reporting\Data\ReportingQueryRequest;
 use HaakCo\Custd\Reporting\Data\SubjectInsightRequest;
 use HaakCo\Custd\Reporting\RequestException;
@@ -206,6 +207,27 @@ final class ReportingClientTest extends TestCase
         self::assertSame("POST", $calls[0]["method"]);
         self::assertSame("http://localhost:8080/api/v1/reporting/query", $calls[0]["url"]);
         self::assertEquals($request, $calls[0]["body"]);
+    }
+
+    /** A caller's own query document is sent byte for byte, so an empty object stays an object. */
+    public function testPreparedDataQuerySendsTheCallersDocumentVerbatim(): void
+    {
+        $document = '{"metrics":["sessions"],"template":"kpi_tiles","filters":[],"options":{}}';
+        $sent = [];
+        $envelope = (string) json_encode($this->maximal("queryPreparedDataOutput"), JSON_THROW_ON_ERROR);
+        $client = new CustdClient("http://localhost:8080", "token", [
+            "admin_http_client" => static function (string $method, string $url, array|string|null $body) use (&$sent, $envelope): array {
+                $sent[] = $body;
+
+                return ["status" => 200, "body" => $envelope];
+            },
+        ]);
+
+        $client->reporting()->queryOutput("01957abc-0000-4000-8000-000000000001", ReportingQueryDocument::fromJson($document));
+
+        self::assertSame([$document], $sent);
+        $this->expectException(\InvalidArgumentException::class);
+        ReportingQueryDocument::fromJson('["not", "an", "object"]');
     }
 
     public function testQuerySerializesMaxRowsWithoutRowLimit(): void
