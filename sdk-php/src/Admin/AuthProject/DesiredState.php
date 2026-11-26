@@ -25,17 +25,17 @@ use HaakCo\Custd\Fields;
  * an unnamed realm as `""`, which this class reads as a null name: applied again,
  * the reported source alone clears the name that is already clear.
  *
- * The remaining sections are sent only when set: `entryPath` is the realm's public entry path,
- * `brandAccent` its `#rrggbb` sign-in accent, `signInMethods` narrows the sign-in methods it offers,
- * `applicationSessionPolicy` is `offer_remember_me` or `short_only`, `hosting` serves the environment
- * as a hosted application and `socialSignIn` is the social providers it offers.
+ * The remaining sections: `entryPath` is the realm's public entry path, `brandAccent` its `#rrggbb`
+ * sign-in accent, `signInMethods` narrows the sign-in methods it offers, `applicationSessionPolicy` is
+ * `offer_remember_me` or `short_only`, `hosting` serves the environment as a hosted application and
+ * `socialSignIn` is the social providers it offers.
  *
- * What an unset section means follows Custd's apply. `entryPath`, `brandAccent` and `signInMethods`
- * have no keep: Custd stores an omitted, empty or null value as unset, so an apply that leaves them
- * unset clears them. A status reports an unset value as `""` or an empty list, and this class reads
- * that as null and never sends it, so a desired state read from a status and applied again is a
- * no-op, and it compares equal to one that never named the section. A null
- * `applicationSessionPolicy`, `hosting` or `socialSignIn` keeps the stored section.
+ * Custd's realm-field rule governs `loginPaused`, `entryPath`, `brandAccent`, `signInMethods` and
+ * `profileFields`: null is left out of the apply and keeps the stored value, an explicit `""` or `[]`
+ * clears it, and `loginPaused` true or false sets the pause. So a caller that names only its own sections
+ * never wipes what the client set. A status always reports those fields, unset ones as `""` or an empty
+ * list, and this class keeps the values it reads, so a desired state read from a status and applied again
+ * is a no-op. A null `applicationSessionPolicy`, `hosting` or `socialSignIn` keeps the stored section.
  */
 final readonly class DesiredState
 {
@@ -47,9 +47,12 @@ final readonly class DesiredState
     private const DISPLAY_NAME_SOURCES = ["application", "hosting"];
 
     /**
+     * @param bool|null $loginPaused True or false sets the pause; null keeps the stored pause.
      * @param list<AudienceBinding>|null $audiences
-     * @param list<ProfileField>|null $profileFields
-     * @param list<string>|null $signInMethods
+     * @param list<ProfileField>|null $profileFields Null keeps the stored policy; `[]` clears it.
+     * @param string|null $entryPath Null keeps the stored path; `""` clears it.
+     * @param string|null $brandAccent Null keeps the stored accent; `""` clears it.
+     * @param list<string>|null $signInMethods Null keeps the stored methods; `[]` clears them.
      * @param string|null $displayName Customer-facing application name; `""` clears it and null
      *                                 keeps the stored name.
      * @param AuthProjectDisplayNameSource::*|''|null $displayNameSource `application` or `hosting`.
@@ -64,7 +67,7 @@ final readonly class DesiredState
     public function __construct(
         public string $identityMode,
         public string $registrationPolicy,
-        public bool $loginPaused,
+        public ?bool $loginPaused = null,
         public ?array $audiences = null,
         public ?array $profileFields = null,
         public ?string $displayName = null,
@@ -94,14 +97,19 @@ final readonly class DesiredState
         $payload = [
             "identityMode" => $this->identityMode,
             "registrationPolicy" => $this->registrationPolicy,
-            "loginPaused" => $this->loginPaused,
-            "audiences" => $this->audiences === null
-                ? null
-                : array_map(static fn (AudienceBinding $binding): array => $binding->toPayload(), $this->audiences),
-            "profileFields" => $this->profileFields === null
-                ? null
-                : array_map(static fn (ProfileField $field): array => $field->toPayload(), $this->profileFields),
         ];
+        if ($this->loginPaused !== null) {
+            $payload["loginPaused"] = $this->loginPaused;
+        }
+        $payload["audiences"] = $this->audiences === null
+            ? null
+            : array_map(static fn (AudienceBinding $binding): array => $binding->toPayload(), $this->audiences);
+        if ($this->profileFields !== null) {
+            $payload["profileFields"] = array_map(
+                static fn (ProfileField $field): array => $field->toPayload(),
+                $this->profileFields,
+            );
+        }
         // Both fields are omitted when unknown, so a consumer that has not been
         // taught the display name sends nothing and the stored name survives.
         if ($this->displayName !== null) {
@@ -125,10 +133,18 @@ final readonly class DesiredState
      */
     private function withSections(array $payload): array
     {
-        $sections = [
+        // A sent empty value clears a realm field, so only null is left out of these three.
+        $realmFields = [
             "entryPath" => $this->entryPath,
             "brandAccent" => $this->brandAccent,
             "signInMethods" => $this->signInMethods,
+        ];
+        foreach ($realmFields as $key => $value) {
+            if ($value !== null) {
+                $payload[$key] = $value;
+            }
+        }
+        $sections = [
             "applicationSessionPolicy" => $this->applicationSessionPolicy,
             "hosting" => $this->hosting?->toPayload(),
             "socialSignIn" => $this->socialSignIn?->toPayload(),
@@ -158,25 +174,19 @@ final readonly class DesiredState
             self::unsetWhenEmpty(Fields::optionalString($payload, "displayName")),
             Fields::optionalString($payload, "displayNameSource"),
             false,
-            self::unsetWhenEmpty(Fields::optionalString($payload, "entryPath")),
-            self::unsetWhenEmpty(Fields::optionalString($payload, "brandAccent")),
-            self::unsetWhenEmpty(Fields::optionalStrings($payload, "signInMethods")),
+            Fields::optionalString($payload, "entryPath"),
+            Fields::optionalString($payload, "brandAccent"),
+            Fields::optionalStrings($payload, "signInMethods"),
             Fields::optionalString($payload, "applicationSessionPolicy"),
             $hosting === null ? null : Hosting::fromPayload($hosting),
             $socialSignIn === null ? null : SocialSignIn::fromPayload($socialSignIn),
         );
     }
 
-    /**
-     * Custd reports an unset name, entry path, accent or method list as empty; null is this class's unset.
-     *
-     * @template T of string|list<string>
-     * @param T|null $value
-     * @return T|null
-     */
-    private static function unsetWhenEmpty(string|array|null $value): string|array|null
+    /** Custd reports an unset name as `""`; null is this class's unknown name. */
+    private static function unsetWhenEmpty(?string $value): ?string
     {
-        return $value === "" || $value === [] ? null : $value;
+        return $value === "" ? null : $value;
     }
 
     private static function assertDisplayNameSource(string $source): void

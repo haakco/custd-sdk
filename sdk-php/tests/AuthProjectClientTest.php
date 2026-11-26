@@ -556,31 +556,46 @@ final class AuthProjectClientTest extends TestCase
 
     /**
      * The desired state a status reports for a realm nobody has configured, as desiredStateFromStore writes it:
-     * every presentation field present, unset ones empty, the stored session policy and an empty provider list.
-     * Custd stores an omitted, empty or null name, entry path, accent and method list alike as unset, so reading
-     * them as unset keeps a read-then-apply a no-op; the session policy and social sign-in are always reported.
+     * every presentation field present, unset ones empty. The entry path, accent and method list are read as
+     * the values the status sends, so applying the read state again re-sends the same empties and changes nothing.
      */
-    public function testReadsAnUntouchedRealmsReportedStateAsUnsetSections(): void
+    public function testReadsAnUntouchedRealmsReportedStateAsTheValuesSent(): void
     {
         $observed = DesiredState::fromPayload(json_decode('{"identityMode":"isolated","registrationPolicy":"invite_only",
             "loginPaused":false,"entryPath":"","brandAccent":"","displayName":"","displayNameSource":"application",
             "audiences":[],"profileFields":[],"signInMethods":[],"applicationSessionPolicy":"offer_remember_me",
             "socialSignIn":{"providers":[]}}', false, flags: JSON_THROW_ON_ERROR));
-        $configured = new DesiredState("isolated", "invite_only", false, entryPath: "/acme", brandAccent: "#112233", signInMethods: ["password"]);
 
         self::assertNull($observed->displayName);
-        self::assertNull($observed->entryPath);
-        self::assertNull($observed->brandAccent);
-        self::assertNull($observed->signInMethods);
+        self::assertSame("", $observed->entryPath);
+        self::assertSame("", $observed->brandAccent);
+        self::assertSame([], $observed->signInMethods);
+        self::assertFalse($observed->loginPaused);
         self::assertSame([
             "identityMode" => "isolated", "registrationPolicy" => "invite_only", "loginPaused" => false,
             "audiences" => [], "profileFields" => [], "displayNameSource" => "application",
+            "entryPath" => "", "brandAccent" => "", "signInMethods" => [],
             "applicationSessionPolicy" => "offer_remember_me", "socialSignIn" => ["providers" => []],
         ], $observed->toPayload());
-        self::assertSame(["entryPath" => "/acme", "brandAccent" => "#112233", "signInMethods" => ["password"]], array_intersect_key(
-            $configured->toPayload(),
-            ["entryPath" => true, "brandAccent" => true, "signInMethods" => true],
-        ));
+    }
+
+    /**
+     * Custd's realm-field rule: an omitted or null entry path, accent, method list, profile-field list or pause
+     * keeps the stored value, and "" or [] clears it. So null is left out of the apply and an empty value is sent.
+     */
+    public function testOmitsUnsetRealmFieldsAndSendsEmptyValuesToClearThem(): void
+    {
+        $keeping = new DesiredState("isolated", "invite_only", audiences: []);
+        $clearing = new DesiredState("isolated", "invite_only", true, [], [], entryPath: "", brandAccent: "", signInMethods: []);
+
+        self::assertSame(
+            ["identityMode" => "isolated", "registrationPolicy" => "invite_only", "audiences" => []],
+            $keeping->toPayload(),
+        );
+        self::assertSame([
+            "identityMode" => "isolated", "registrationPolicy" => "invite_only", "loginPaused" => true,
+            "audiences" => [], "profileFields" => [], "entryPath" => "", "brandAccent" => "", "signInMethods" => [],
+        ], $clearing->toPayload());
     }
 
     public function testSendsWithdrawalOnlyWhenAsked(): void
