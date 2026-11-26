@@ -101,7 +101,7 @@ func TestSitePageRecheckRoutesAndStates(t *testing.T) {
 	doer.status, doer.body = http.StatusOK, sitePageToolsFixture(t, "pageRecheckChecked")
 	checked, err := domains.GetPageRecheck(ctx, "d-1", queued.RecheckUUID)
 	if err != nil || checked.State != AdminSitePageRecheckChecked || checked.CheckedAt == nil ||
-		checked.OpenRules[0] != SiteRuleCanonicalMissing || checked.FixedRules[0] != SiteRuleTitleMissing {
+		checked.OpenRules[0] != string(SiteRuleCanonicalMissing) || checked.FixedRules[0] != string(SiteRuleTitleMissing) {
 		t.Fatalf("checked = %+v, %v", checked, err)
 	}
 	doer.body = sitePageToolsFixture(t, "pageRecheckFailed")

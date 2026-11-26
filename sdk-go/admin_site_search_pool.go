@@ -9,19 +9,25 @@ import (
 	"time"
 )
 
+// AdminSiteSearchPoolMembership is whether the tenant has joined the shared search pool.
+type AdminSiteSearchPoolMembership string
+
 // The values of AdminSiteRankings.Pool: whether the tenant has joined the shared search pool.
 const (
-	AdminSiteSearchPoolJoined    = "joined"
-	AdminSiteSearchPoolNotJoined = "not_joined"
+	AdminSiteSearchPoolJoined    AdminSiteSearchPoolMembership = "joined"
+	AdminSiteSearchPoolNotJoined AdminSiteSearchPoolMembership = "not_joined"
 )
+
+// AdminSiteSearchPoolDemandBand is a query's pooled impressions band.
+type AdminSiteSearchPoolDemandBand string
 
 // The demand bands of AdminSiteSearchPoolBand.DemandBand: a query's pooled impressions over the
 // pool's window.
 const (
-	AdminSiteSearchPoolDemand100To999  = "100_999"
-	AdminSiteSearchPoolDemand1KTo10K   = "1k_10k"
-	AdminSiteSearchPoolDemand10KTo100K = "10k_100k"
-	AdminSiteSearchPoolDemand100KPlus  = "100k_plus"
+	AdminSiteSearchPoolDemand100To999  AdminSiteSearchPoolDemandBand = "100_999"
+	AdminSiteSearchPoolDemand1KTo10K   AdminSiteSearchPoolDemandBand = "1k_10k"
+	AdminSiteSearchPoolDemand10KTo100K AdminSiteSearchPoolDemandBand = "10k_100k"
+	AdminSiteSearchPoolDemand100KPlus  AdminSiteSearchPoolDemandBand = "100k_plus"
 )
 
 // The shared search pool's rules and the bounds of ListSearchPoolQueries.
@@ -80,8 +86,8 @@ type AdminSiteSearchPoolPositions struct {
 
 // AdminSiteSearchPoolBand is one pooled query's bands, over every country and device.
 type AdminSiteSearchPoolBand struct {
-	DemandBand string                       `json:"demandBand"`
-	Positions  AdminSiteSearchPoolPositions `json:"positions"`
+	DemandBand AdminSiteSearchPoolDemandBand `json:"demandBand"`
+	Positions  AdminSiteSearchPoolPositions  `json:"positions"`
 }
 
 // AdminSiteSearchPoolQuery is one pooled query and its bands.

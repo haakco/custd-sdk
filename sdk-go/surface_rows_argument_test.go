@@ -249,7 +249,7 @@ var argumentSurfaceRows = []surfaceRow{
 		return err
 	}},
 	{id: "analytics-api POST /api/v1/reporting/exports", path: "/api/v1/reporting/exports", call: func(e *surfaceEnv) error {
-		_, err := e.client.Reporting.CreateExport(context.Background(), ReportExportCreateRequest{DashboardKey: "a1", Formats: []string{"csv"}})
+		_, err := e.client.Reporting.CreateExport(context.Background(), ReportExportCreateRequest{DashboardKey: "a1", Formats: []ExportFormat{FormatCSV}})
 		return err
 	}},
 	{id: "analytics-api GET /api/v1/reporting/exports/{exportID}", path: "/api/v1/reporting/exports/0195f0a0-0000-4000-8000-000000000001", call: func(e *surfaceEnv) error {

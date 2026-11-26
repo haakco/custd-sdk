@@ -26,13 +26,13 @@ type MeasurementProjectRun struct {
 }
 
 type MeasurementProjectUpdate struct {
-	DefinitionOfDone   string     `json:"definitionOfDone,omitempty"`
-	DeliveryTargetDate *time.Time `json:"deliveryTargetDate,omitempty"`
-	Description        string     `json:"description,omitempty"`
-	ForecastMethod     string     `json:"forecastMethod,omitempty"`
-	Name               string     `json:"name,omitempty"`
-	RunSimilar         *bool      `json:"runSimilar,omitempty"`
-	Status             string     `json:"status,omitempty"`
+	DefinitionOfDone   string                    `json:"definitionOfDone,omitempty"`
+	DeliveryTargetDate *time.Time                `json:"deliveryTargetDate,omitempty"`
+	Description        string                    `json:"description,omitempty"`
+	ForecastMethod     MeasurementForecastMethod `json:"forecastMethod,omitempty"`
+	Name               string                    `json:"name,omitempty"`
+	RunSimilar         *bool                     `json:"runSimilar,omitempty"`
+	Status             string                    `json:"status,omitempty"`
 }
 
 type MeasurementProjectComplete struct {

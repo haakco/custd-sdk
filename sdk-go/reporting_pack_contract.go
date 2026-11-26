@@ -792,9 +792,20 @@ type DashboardInteractionRule struct {
 	ResetBehavior     InteractionResetBehavior  `json:"resetBehavior"`
 }
 
+// DashboardRelativeRange is a relative range a shared dashboard may offer.
+type DashboardRelativeRange string
+
+const (
+	DashboardRelativeRange1Day   DashboardRelativeRange = "1d"
+	DashboardRelativeRange7Days  DashboardRelativeRange = "7d"
+	DashboardRelativeRange14Days DashboardRelativeRange = "14d"
+	DashboardRelativeRange30Days DashboardRelativeRange = "30d"
+	DashboardRelativeRange90Days DashboardRelativeRange = "90d"
+)
+
 // DashboardSharePolicy declares the bounded state a share URL may encode.
 type DashboardSharePolicy struct {
-	RelativeRanges    []string                    `json:"relativeRanges,omitempty"`
+	RelativeRanges    []DashboardRelativeRange    `json:"relativeRanges,omitempty"`
 	ComparisonPresets []DashboardComparisonPreset `json:"comparisonPresets,omitempty"`
 }
 
@@ -820,12 +831,41 @@ type ReportSectionDefinition struct {
 	Narrative  []NarrativeBlock    `json:"narrative,omitempty"`
 }
 
+// PresentationSummaryTemplateID names a preset's evidence summary template.
+type PresentationSummaryTemplateID string
+
+const (
+	PresentationSummaryForecastWindowEvidence       PresentationSummaryTemplateID = "forecast_window_evidence"
+	PresentationSummaryAnomalyReferenceEvidence     PresentationSummaryTemplateID = "anomaly_reference_evidence"
+	PresentationSummaryDescriptiveDriverEvidence    PresentationSummaryTemplateID = "descriptive_driver_evidence"
+	PresentationSummaryUncertaintyReferenceEvidence PresentationSummaryTemplateID = "uncertainty_reference_evidence"
+)
+
+// PresentationNonColorEncoding is how a preset encodes meaning without colour.
+type PresentationNonColorEncoding string
+
+const (
+	PresentationNonColorEncodingLineSymbolLabel   PresentationNonColorEncoding = "line_symbol_label"
+	PresentationNonColorEncodingSignedBarLabel    PresentationNonColorEncoding = "signed_bar_label"
+	PresentationNonColorEncodingBandBoundaryLabel PresentationNonColorEncoding = "band_boundary_label"
+)
+
+// PresentationPresetID names a presentation preset.
+type PresentationPresetID string
+
+const (
+	PresentationPresetForecastConvergenceV1  PresentationPresetID = "forecast_convergence_v1"
+	PresentationPresetAnomalyReferenceV1     PresentationPresetID = "anomaly_reference_v1"
+	PresentationPresetDescriptiveDriverV1    PresentationPresetID = "descriptive_driver_v1"
+	PresentationPresetUncertaintyReferenceV1 PresentationPresetID = "uncertainty_reference_v1"
+)
+
 // PresentationPresetSelection is the only visualization choice a pack may persist.
 type PresentationPresetSelection struct {
-	PresetID          string `json:"presetId"`
-	Version           int    `json:"version"`
-	NonColorEncoding  string `json:"nonColorEncoding"`
-	SummaryTemplateID string `json:"summaryTemplateId"`
+	PresetID          PresentationPresetID          `json:"presetId"`
+	Version           int                           `json:"version"`
+	NonColorEncoding  PresentationNonColorEncoding  `json:"nonColorEncoding"`
+	SummaryTemplateID PresentationSummaryTemplateID `json:"summaryTemplateId"`
 }
 
 // WidgetDefinition binds a template to a render kind and a metric subset.

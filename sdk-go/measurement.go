@@ -243,11 +243,20 @@ type MeasurementDecisionVariableResponse struct {
 	MeasurementCost  float64        `json:"measurementCost"`
 }
 
+// MeasurementForecastMethod is the method a measurement forecast uses.
+type MeasurementForecastMethod string
+
+const (
+	MeasurementForecastMethodBootstrapQuantile        MeasurementForecastMethod = "bootstrap_quantile"
+	MeasurementForecastMethodBayesianLinearRegression MeasurementForecastMethod = "bayesian_linear_regression"
+	MeasurementForecastMethodSeasonal7Day             MeasurementForecastMethod = "seasonal_7_day"
+)
+
 type MeasurementForecastRunRequest struct {
-	Seed         int64      `json:"seed,omitempty"`
-	SampleCount  int        `json:"sampleCount,omitempty"`
-	Method       string     `json:"method,omitempty"`
-	ForecastFrom *time.Time `json:"forecastFrom,omitempty"`
+	Seed         int64                     `json:"seed,omitempty"`
+	SampleCount  int                       `json:"sampleCount,omitempty"`
+	Method       MeasurementForecastMethod `json:"method,omitempty"`
+	ForecastFrom *time.Time                `json:"forecastFrom,omitempty"`
 }
 
 type MeasurementForecastRun struct {

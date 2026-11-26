@@ -14,18 +14,18 @@ const maxReportExportDownloadBytes = 64 << 20
 // the reporting library, so the shape is restated here field for field; a map would let a
 // caller send a selector the server ignores rather than rejects.
 type ReportExportParameters struct {
-	Filters    []RequestedFilter `json:"filters,omitempty"`
-	Selections []string          `json:"selections,omitempty"`
-	Comparison string            `json:"comparison,omitempty"`
-	From       string            `json:"from,omitempty"`
-	To         string            `json:"to,omitempty"`
-	RangeDays  int               `json:"rangeDays,omitempty"`
-	MaxRows    int               `json:"maxRows,omitempty"`
+	Filters    []RequestedFilter         `json:"filters,omitempty"`
+	Selections []string                  `json:"selections,omitempty"`
+	Comparison DashboardComparisonPreset `json:"comparison,omitempty"`
+	From       string                    `json:"from,omitempty"`
+	To         string                    `json:"to,omitempty"`
+	RangeDays  int                       `json:"rangeDays,omitempty"`
+	MaxRows    int                       `json:"maxRows,omitempty"`
 }
 
 type ReportExportCreateRequest struct {
 	DashboardKey   string                 `json:"dashboardKey"`
-	Formats        []string               `json:"formats"`
+	Formats        []ExportFormat         `json:"formats"`
 	Parameters     ReportExportParameters `json:"parameters"`
 	IdempotencyKey string                 `json:"idempotencyKey,omitempty"`
 }

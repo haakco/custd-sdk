@@ -185,7 +185,7 @@ func canonicalPackFixture() Pack {
 				ResetBehavior: ResetInteraction,
 			}},
 			SharePolicy: &DashboardSharePolicy{
-				RelativeRanges: []string{"7d"}, ComparisonPresets: []DashboardComparisonPreset{ComparisonPreviousPeriod},
+				RelativeRanges: []DashboardRelativeRange{DashboardRelativeRange7Days}, ComparisonPresets: []DashboardComparisonPreset{ComparisonPreviousPeriod},
 			},
 			Sections: []ReportSectionDefinition{{
 				Key: "lead", Title: "Lead", Layout: SectionLayoutLead, ColumnSpan: 1, WidgetKeys: []string{"overview"},

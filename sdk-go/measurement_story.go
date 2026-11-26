@@ -138,11 +138,30 @@ type PresentationPoint struct {
 	X            string  `json:"x"`
 }
 
+// PresentationLayerYKind is the kind of a presentation layer's y axis.
+type PresentationLayerYKind string
+
+const (
+	PresentationLayerYKindNumeric  PresentationLayerYKind = "numeric"
+	PresentationLayerYKindTemporal PresentationLayerYKind = "temporal"
+)
+
+// PresentationLayerRole is what a presentation layer draws.
+type PresentationLayerRole string
+
+const (
+	PresentationLayerRoleObservedProgress  PresentationLayerRole = "observed_progress"
+	PresentationLayerRolePreviousSnapshots PresentationLayerRole = "previous_snapshots"
+	PresentationLayerRoleOuterInterval     PresentationLayerRole = "outer_interval"
+	PresentationLayerRoleInnerInterval     PresentationLayerRole = "inner_interval"
+	PresentationLayerRoleMedian            PresentationLayerRole = "median"
+)
+
 type PresentationLayer struct {
-	Label  string              `json:"label"`
-	Points []PresentationPoint `json:"points"`
-	Role   string              `json:"role"`
-	YKind  string              `json:"yKind"`
+	Label  string                 `json:"label"`
+	Points []PresentationPoint    `json:"points"`
+	Role   PresentationLayerRole  `json:"role"`
+	YKind  PresentationLayerYKind `json:"yKind"`
 }
 
 type PresentationReference struct {

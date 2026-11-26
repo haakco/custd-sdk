@@ -572,7 +572,7 @@ func TestAuthProjectDesiredStateSendsWithdrawalOnlyWhenAsked(t *testing.T) {
 	if wire["withdrawDisplayName"] != true {
 		t.Fatalf("withdrawDisplayName = %v, want true", wire["withdrawDisplayName"])
 	}
-	if wire["displayNameSource"] != AuthProjectDisplayNameSourceHosting {
+	if wire["displayNameSource"] != string(AuthProjectDisplayNameSourceHosting) {
 		t.Fatalf("displayNameSource = %v, want hosting", wire["displayNameSource"])
 	}
 }

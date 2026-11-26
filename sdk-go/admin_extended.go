@@ -101,12 +101,27 @@ type SubjectExportStoreProgress struct {
 	LastCompletedAt    string `json:"lastCompletedAt,omitempty"`
 }
 
+// SubjectExportScope is what a subject export covers. A request may ask for both; each downloadable artifact is access or portability.
+type SubjectExportScope string
+
 // Subject export scopes. A request may ask for both; each downloadable artifact
 // is one of access or portability.
 const (
-	SubjectExportScopeAccess      = "access"
-	SubjectExportScopePortability = "portability"
-	SubjectExportScopeBoth        = "both"
+	SubjectExportScopeAccess      SubjectExportScope = "access"
+	SubjectExportScopePortability SubjectExportScope = "portability"
+	SubjectExportScopeBoth        SubjectExportScope = "both"
+)
+
+// SubjectExportState is where a subject export request stands.
+type SubjectExportState string
+
+const (
+	SubjectExportStateQueued    SubjectExportState = "queued"
+	SubjectExportStateRunning   SubjectExportState = "running"
+	SubjectExportStateComplete  SubjectExportState = "complete"
+	SubjectExportStateFailed    SubjectExportState = "failed"
+	SubjectExportStateCancelled SubjectExportState = "cancelled"
+	SubjectExportStateExpired   SubjectExportState = "expired"
 )
 
 // SubjectExport is the status of one subject export request. Scope is access,
@@ -115,8 +130,8 @@ const (
 type SubjectExport struct {
 	ID                 string                       `json:"id"`
 	OpaqueSubjectID    string                       `json:"opaqueSubjectId"`
-	Scope              string                       `json:"scope"`
-	State              string                       `json:"state"`
+	Scope              SubjectExportScope           `json:"scope"`
+	State              SubjectExportState           `json:"state"`
 	IdempotencyKey     string                       `json:"idempotencyKey"`
 	RequestedAt        string                       `json:"requestedAt"`
 	ExpiresAt          string                       `json:"expiresAt"`
@@ -135,26 +150,26 @@ type SubjectExportListResponse struct {
 // SubjectExportCreateRequest is the body for POST /admin/subject-exports.
 // IdempotencyKey is required for safe retries.
 type SubjectExportCreateRequest struct {
-	OpaqueSubjectID string `json:"opaqueSubjectId"`
-	Scope           string `json:"scope"`
-	IdempotencyKey  string `json:"idempotencyKey"`
+	OpaqueSubjectID string             `json:"opaqueSubjectId"`
+	Scope           SubjectExportScope `json:"scope"`
+	IdempotencyKey  string             `json:"idempotencyKey"`
 }
 
 // SubjectExportDownloadResponse is the body for GET
 // /admin/subject-exports/{requestId}/download: the stored artifact's identity,
 // location and integrity metadata. It names an object key, not a signed URL.
 type SubjectExportDownloadResponse struct {
-	ID              string `json:"id"`
-	RequestID       string `json:"requestId"`
-	Scope           string `json:"scope"`
-	ObjectKey       string `json:"objectKey"`
-	S3Key           string `json:"s3Key"`
-	EncryptionKeyID string `json:"encryptionKeyId"`
-	ChecksumSHA256  string `json:"checksumSha256"`
-	ByteSize        int64  `json:"byteSize"`
-	RecordCount     int64  `json:"recordCount"`
-	GeneratedAt     string `json:"generatedAt"`
-	ExpiresAt       string `json:"expiresAt"`
+	ID              string             `json:"id"`
+	RequestID       string             `json:"requestId"`
+	Scope           SubjectExportScope `json:"scope"`
+	ObjectKey       string             `json:"objectKey"`
+	S3Key           string             `json:"s3Key"`
+	EncryptionKeyID string             `json:"encryptionKeyId"`
+	ChecksumSHA256  string             `json:"checksumSha256"`
+	ByteSize        int64              `json:"byteSize"`
+	RecordCount     int64              `json:"recordCount"`
+	GeneratedAt     string             `json:"generatedAt"`
+	ExpiresAt       string             `json:"expiresAt"`
 }
 
 func (c *SubjectExportAdminClient) Create(
@@ -198,10 +213,10 @@ func (c *SubjectExportAdminClient) Cancel(ctx context.Context, requestID string)
 func (c *SubjectExportAdminClient) Download(
 	ctx context.Context,
 	requestID string,
-	scope string,
+	scope SubjectExportScope,
 ) (*SubjectExportDownloadResponse, error) {
 	var out SubjectExportDownloadResponse
-	path := "/subject-exports/" + url.PathEscape(requestID) + "/download?" + url.Values{"scope": {scope}}.Encode()
+	path := "/subject-exports/" + url.PathEscape(requestID) + "/download?" + url.Values{"scope": {string(scope)}}.Encode()
 	err := c.admin.request(ctx, http.MethodGet, path, nil, &out)
 	return &out, err
 }
@@ -440,13 +455,37 @@ type RetentionAdminClient struct {
 	admin *AdminClient
 }
 
+// RetentionClass is the class of stored data a retention policy governs.
+type RetentionClass string
+
+const (
+	RetentionClassRaw            RetentionClass = "raw"
+	RetentionClassArchive        RetentionClass = "archive"
+	RetentionClassMaterialized   RetentionClass = "materialized"
+	RetentionClassCache          RetentionClass = "cache"
+	RetentionClassObject         RetentionClass = "object"
+	RetentionClassAuditEvent     RetentionClass = "audit_event"
+	RetentionClassAuditIPAddress RetentionClass = "audit_ip_address"
+	RetentionClassAuditUserAgent RetentionClass = "audit_user_agent"
+)
+
+// RetentionScope is what a retention policy applies to.
+type RetentionScope string
+
+const (
+	RetentionScopeTenant    RetentionScope = "tenant"
+	RetentionScopeDataSpace RetentionScope = "data_space"
+	RetentionScopeEventType RetentionScope = "event_type"
+	RetentionScopeGlobal    RetentionScope = "global"
+)
+
 // RetentionPolicy is one bounded retention policy row. Scope is tenant,
 // data_space, event_type or global; RetentionClass names the classified store.
 type RetentionPolicy struct {
 	ID                 int64            `json:"id"`
 	CompanyID          int64            `json:"companyId,omitempty"`
-	Scope              string           `json:"scope"`
-	RetentionClass     string           `json:"retentionClass"`
+	Scope              RetentionScope   `json:"scope"`
+	RetentionClass     RetentionClass   `json:"retentionClass"`
 	MaxAgeSeconds      int64            `json:"maxAgeSeconds"`
 	Precedence         int64            `json:"precedence"`
 	LegalHold          bool             `json:"legalHold"`
@@ -464,15 +503,15 @@ type RetentionPolicy struct {
 // /admin/retention/policies/{tenantSlug}. LegalHold is operator-only and needs
 // a future LegalHoldUntil plus an opaque LegalHoldReference.
 type RetentionPolicyUpsertRequest struct {
-	Scope              string `json:"scope"`
-	RetentionClass     string `json:"retentionClass"`
-	MaxAgeSeconds      int64  `json:"maxAgeSeconds"`
-	Precedence         int64  `json:"precedence"`
-	LegalHold          bool   `json:"legalHold"`
-	LegalHoldUntil     string `json:"legalHoldUntil,omitempty"`
-	LegalHoldReference string `json:"legalHoldReference,omitempty"`
-	EffectiveAt        string `json:"effectiveAt,omitempty"`
-	ExpiresAt          string `json:"expiresAt,omitempty"`
+	Scope              RetentionScope `json:"scope"`
+	RetentionClass     RetentionClass `json:"retentionClass"`
+	MaxAgeSeconds      int64          `json:"maxAgeSeconds"`
+	Precedence         int64          `json:"precedence"`
+	LegalHold          bool           `json:"legalHold"`
+	LegalHoldUntil     string         `json:"legalHoldUntil,omitempty"`
+	LegalHoldReference string         `json:"legalHoldReference,omitempty"`
+	EffectiveAt        string         `json:"effectiveAt,omitempty"`
+	ExpiresAt          string         `json:"expiresAt,omitempty"`
 }
 
 // RetentionPolicyListResponse is the body for GET /admin/retention/policies
@@ -628,12 +667,20 @@ type StorageAlertAdminClient struct {
 	admin *AdminClient
 }
 
+// StorageAlertChannel is how a storage alert is delivered.
+type StorageAlertChannel string
+
+const (
+	StorageAlertChannelEmail   StorageAlertChannel = "email"
+	StorageAlertChannelWebhook StorageAlertChannel = "webhook"
+)
+
 type StorageAlertRule struct {
 	RuleID           string                  `json:"ruleId"`
 	TenantSlug       string                  `json:"tenantSlug"`
 	Metric           string                  `json:"metric"`
 	ThresholdPercent int                     `json:"thresholdPercent"`
-	Channel          string                  `json:"channel"`
+	Channel          StorageAlertChannel     `json:"channel"`
 	EmailRecipient   string                  `json:"emailRecipient,omitempty"`
 	Enabled          bool                    `json:"enabled"`
 	Evaluation       *StorageAlertEvaluation `json:"evaluation,omitempty"`
@@ -652,11 +699,11 @@ type StorageAlertEvaluation struct {
 // StorageAlertRuleCreateRequest is the body for POST
 // /admin/storage/alerts/{tenantSlug}. Channel is email or webhook.
 type StorageAlertRuleCreateRequest struct {
-	Metric           string `json:"metric"`
-	ThresholdPercent int    `json:"thresholdPercent"`
-	Channel          string `json:"channel"`
-	EmailRecipient   string `json:"emailRecipient"`
-	Enabled          bool   `json:"enabled"`
+	Metric           string              `json:"metric"`
+	ThresholdPercent int                 `json:"thresholdPercent"`
+	Channel          StorageAlertChannel `json:"channel"`
+	EmailRecipient   string              `json:"emailRecipient"`
+	Enabled          bool                `json:"enabled"`
 }
 
 type StorageAlertRuleListResponse struct {
@@ -817,6 +864,14 @@ type AuditListOptions struct {
 	Cursor             string
 }
 
+// AuditExportFormat is the file format an audit export is served in.
+type AuditExportFormat string
+
+const (
+	AuditExportFormatCSV  AuditExportFormat = "csv"
+	AuditExportFormatJSON AuditExportFormat = "json"
+)
+
 type AuditExportResponse struct {
 	Body        []byte
 	ContentType string
@@ -870,15 +925,15 @@ func (c *AuditAdminClient) GetEvent(ctx context.Context, eventID string, options
 	return &out, err
 }
 
-func (c *AuditAdminClient) ExportEvents(ctx context.Context, opts AuditListOptions, format string) (*AuditExportResponse, error) {
+func (c *AuditAdminClient) ExportEvents(ctx context.Context, opts AuditListOptions, format AuditExportFormat) (*AuditExportResponse, error) {
 	if format == "" {
-		format = "json"
+		format = AuditExportFormatJSON
 	}
-	if format != "csv" && format != "json" {
+	if format != AuditExportFormatCSV && format != AuditExportFormatJSON {
 		return nil, fmt.Errorf("custd: audit export format must be csv or json")
 	}
 	params := auditExportParams(opts)
-	params.Set("format", format)
+	params.Set("format", string(format))
 	path := "/audit/events/export?" + params.Encode()
 	body, headers, err := c.admin.requestBytes(ctx, http.MethodGet, path)
 	if err != nil {
@@ -924,12 +979,32 @@ type OffboardingCancelRequest struct {
 	Reason string `json:"reason"`
 }
 
+// OffboardingState is where a tenant offboarding request stands.
+type OffboardingState string
+
+const (
+	OffboardingStatePreview         OffboardingState = "preview"
+	OffboardingStateRequested       OffboardingState = "requested"
+	OffboardingStateExporting       OffboardingState = "exporting"
+	OffboardingStateExported        OffboardingState = "exported"
+	OffboardingStateConfirming      OffboardingState = "confirming"
+	OffboardingStateConfirmed       OffboardingState = "confirmed"
+	OffboardingStateWaiverRequested OffboardingState = "waiver_requested"
+	OffboardingStateWaiverApproved  OffboardingState = "waiver_approved"
+	OffboardingStateFencing         OffboardingState = "fencing"
+	OffboardingStateRevoking        OffboardingState = "revoking"
+	OffboardingStateDeleting        OffboardingState = "deleting"
+	OffboardingStateComplete        OffboardingState = "complete"
+	OffboardingStateFailed          OffboardingState = "failed"
+	OffboardingStateCancelled       OffboardingState = "cancelled"
+)
+
 // OffboardingRequest is the public request state returned by RequestOffboarding,
 // GetRequest, and the acknowledgement endpoint.
 type OffboardingRequest struct {
-	RequestUUID string `json:"requestUuid"`
-	State       string `json:"state"`
-	RequestedAt string `json:"requestedAt"`
+	RequestUUID string           `json:"requestUuid"`
+	State       OffboardingState `json:"state"`
+	RequestedAt string           `json:"requestedAt"`
 }
 
 // OffboardingRequestCreate carries the body for POST /offboarding. Confirmation
@@ -1126,7 +1201,7 @@ type OffboardingReceiptResponse struct {
 	RequestedByKind string                       `json:"requested_by_kind"`
 	RequestedAt     string                       `json:"requested_at"`
 	CompletedAt     string                       `json:"completed_at"`
-	FinalState      string                       `json:"final_state"`
+	FinalState      OffboardingState             `json:"final_state"`
 	PerStore        []OffboardingReceiptPerStore `json:"per_store"`
 	Waiver          *OffboardingWaiver           `json:"waiver,omitempty"`
 	SHA256          string                       `json:"sha256"`

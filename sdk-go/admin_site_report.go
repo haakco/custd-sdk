@@ -8,16 +8,22 @@ import (
 	"time"
 )
 
+// AdminSiteLighthouseProfile is the device profile a Lighthouse run used.
+type AdminSiteLighthouseProfile string
+
 // The Lighthouse profiles of AdminSiteLighthouseRun.Profile and AdminSiteReportSpeed.Profile.
 const (
-	AdminSiteLighthouseDesktop = "desktop"
-	AdminSiteLighthouseMobile  = "mobile"
+	AdminSiteLighthouseDesktop AdminSiteLighthouseProfile = "desktop"
+	AdminSiteLighthouseMobile  AdminSiteLighthouseProfile = "mobile"
 )
+
+// AdminSiteLighthouseOutcome is how a Lighthouse run ended.
+type AdminSiteLighthouseOutcome string
 
 // The outcomes of AdminSiteLighthouseRun.Outcome.
 const (
-	AdminSiteLighthouseSuccess = "success"
-	AdminSiteLighthouseFailed  = "failed"
+	AdminSiteLighthouseSuccess AdminSiteLighthouseOutcome = "success"
+	AdminSiteLighthouseFailed  AdminSiteLighthouseOutcome = "failed"
 )
 
 // AdminSiteUptimeWindow counts checks over one window. UpPercent is nil when there were none.
@@ -83,9 +89,9 @@ type AdminSiteLighthouseMetrics struct {
 
 // AdminSiteLighthouseRun is one scheduled lab run; a failed run says why in Failure.
 type AdminSiteLighthouseRun struct {
-	Profile     string                     `json:"profile"`
+	Profile     AdminSiteLighthouseProfile `json:"profile"`
 	ObservedAt  time.Time                  `json:"observedAt"`
-	Outcome     string                     `json:"outcome"`
+	Outcome     AdminSiteLighthouseOutcome `json:"outcome"`
 	Failure     string                     `json:"failure,omitempty"`
 	URL         string                     `json:"url"`
 	DurationMs  int                        `json:"durationMs"`
@@ -125,7 +131,7 @@ type AdminSiteReportCertificate struct {
 
 // AdminSiteReportSpeed is the latest successful Lighthouse run of one profile.
 type AdminSiteReportSpeed struct {
-	Profile    string                     `json:"profile"`
+	Profile    AdminSiteLighthouseProfile `json:"profile"`
 	ObservedAt time.Time                  `json:"observedAt"`
 	Scores     AdminSiteLighthouseScores  `json:"scores"`
 	Metrics    AdminSiteLighthouseMetrics `json:"metrics"`
@@ -164,7 +170,7 @@ type AdminSiteReport struct {
 	GeneratedAt time.Time `json:"generatedAt"`
 	// Template is an AdminSiteReportTemplate*; it is empty from servers before the template field,
 	// whose reports are the full template.
-	Template    string                     `json:"template,omitempty"`
+	Template    AdminSiteReportTemplate    `json:"template,omitempty"`
 	Uptime      AdminSiteReportUptime      `json:"uptime"`
 	Certificate AdminSiteReportCertificate `json:"certificate"`
 	Speed       []AdminSiteReportSpeed     `json:"speed"`
@@ -215,7 +221,7 @@ func (c *SiteDomainAdminClient) GetReportWithOptions(
 ) (*AdminSiteReport, error) {
 	var report AdminSiteReport
 	path := siteQueryPath(siteDomainPath(domainUUID)+"/report", url.Values{
-		"template": {options.Template}, "days": {sitePositiveInt(options.Days)},
+		"template": {string(options.Template)}, "days": {sitePositiveInt(options.Days)},
 	})
 	err := c.request(ctx, http.MethodGet, path, nil, &report)
 	return &report, err
