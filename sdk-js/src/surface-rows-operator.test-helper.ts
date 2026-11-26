@@ -78,6 +78,31 @@ export const operatorRows: RowArea = {
       query: { companySlug: "acme" },
       call: (c) => c.custd.admin.environmentPolicy.update({ autoCreateEnvironments: true }, "acme"),
     },
+    {
+      id: "admin-api GET /api/v1/admin/machine-access",
+      query: { companySlug: "acme" },
+      call: (c) => c.custd.admin.machineAccess.get("acme"),
+    },
+    {
+      id: "admin-api PUT /api/v1/admin/machine-access",
+      query: { companySlug: "acme" },
+      call: (c) => c.custd.admin.machineAccess.update({ allowSupportAutomation: true }, "acme"),
+    },
+    {
+      id: "admin-api GET /api/v1/admin/machine-access/clients/{clientId}",
+      params: { clientId: "client-1" },
+      call: (c) => c.custd.admin.machineAccess.getOverride("client-1"),
+    },
+    {
+      id: "admin-api PUT /api/v1/admin/machine-access/clients/{clientId}",
+      params: { clientId: "client-1" },
+      call: (c) => c.custd.admin.machineAccess.updateOverride("client-1", dto()),
+    },
+    {
+      id: "admin-api GET /api/v1/admin/machine-access/clients/{clientId}/effective",
+      params: { clientId: "client-1" },
+      call: (c) => c.custd.admin.machineAccess.getEffective("client-1"),
+    },
     { id: "admin-api GET /api/v1/admin/rls/status", call: (c) => c.custd.admin.rls.status() },
     {
       id: "admin-api POST /api/v1/admin/rls/reconciliation-plans",
@@ -170,6 +195,9 @@ export const operatorRows: RowArea = {
     "admin-api GET /api/v1/admin/environment-policy",
     "admin-api GET /api/v1/admin/ingest/claims/{tenantSlug}",
     "admin-api GET /api/v1/admin/jobs",
+    "admin-api GET /api/v1/admin/machine-access",
+    "admin-api GET /api/v1/admin/machine-access/clients/{clientId}",
+    "admin-api GET /api/v1/admin/machine-access/clients/{clientId}/effective",
     "admin-api GET /api/v1/admin/oauth-client-admissions",
     "admin-api GET /api/v1/admin/rls/reconciliation-plans/{planUuid}/proof",
     "admin-api GET /api/v1/admin/rls/status",
@@ -188,5 +216,7 @@ export const operatorRows: RowArea = {
     "admin-api POST /api/v1/admin/oauth-client-admissions/{admissionUuid}/revoke",
     "admin-api POST /api/v1/admin/rls/reconciliation-plans",
     "admin-api POST /api/v1/admin/rls/reconciliation-plans/{planUuid}/execute",
+    "admin-api PUT /api/v1/admin/machine-access",
+    "admin-api PUT /api/v1/admin/machine-access/clients/{clientId}",
   ],
 };

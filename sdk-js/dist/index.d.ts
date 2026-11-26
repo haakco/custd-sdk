@@ -22,6 +22,7 @@ import { ErrorIssueAdminClient } from "./admin-error-issues.js";
 import { EventTypeAdminClient } from "./admin-event-types.js";
 import { ImpersonationAdminClient } from "./admin-impersonation.js";
 import { IngestClaimAdminClient } from "./admin-ingest-claims.js";
+import { MachineAccessAdminClient, type MachineAccessBlock } from "./admin-machine-access.js";
 import { ManagedAuditAdminClient } from "./admin-managed-audit.js";
 import { AdminMeasurementNamespace } from "./admin-measurement-projects.js";
 import { NotificationDestinationAdminClient } from "./admin-notification-destinations.js";
@@ -153,6 +154,8 @@ export type ProblemDetails = {
         pollAfterSeconds?: number;
         maxRetries?: number;
     };
+    /** Present on a `machine_access_blocked` problem: the setting that refused the request. */
+    machineAccess?: MachineAccessBlock;
 };
 type EventResult = {
     eventUuid?: string;
@@ -411,14 +414,27 @@ export type RequestOptions = {
      * leaves it unset.
      */
     owningUserUuid?: string;
+    /**
+     * Receives the server's request identifier of this call's answer, accepted or refused, so a
+     * caller can quote the request the server logged. A refusal also carries it as `requestId`.
+     */
+    metadata?: ResponseMetadata;
+};
+/** The server-side identifiers of one answer. `requestId` is empty when the server sent none. */
+export type ResponseMetadata = {
+    requestId: string;
 };
 export declare class AdminWorkflowError extends Error {
     readonly status: number;
     readonly reason: string;
     readonly code: string;
     readonly safeNextAction: string;
+    /** The server's request identifier, to quote in a support request; empty when unknown. */
+    readonly requestId: string;
     readonly name = "AdminWorkflowError";
-    constructor(status: number, reason: string, code: string, safeNextAction: string);
+    constructor(status: number, reason: string, code: string, safeNextAction: string, 
+    /** The server's request identifier, to quote in a support request; empty when unknown. */
+    requestId?: string);
 }
 export declare class CustdRequestError extends Error {
     readonly status: number | null;
@@ -428,8 +444,14 @@ export declare class CustdRequestError extends Error {
     readonly problem?: ProblemDetails | undefined;
     readonly name = "CustdRequestError";
     readonly cause?: unknown;
+    /**
+     * The server's request identifier, to quote in a support request: X-Request-Id, or the
+     * problem's traceId where a browser cannot read that header. Empty when the server never answered.
+     */
+    readonly requestId: string;
     constructor(status: number | null, code: string, retryability: "none" | "bounded", nextAction: NonNullable<ProblemDetails["nextAction"]>, problem?: ProblemDetails | undefined, options?: {
         cause?: unknown;
+        requestId?: string;
     });
     get unavailable(): boolean;
 }
@@ -592,6 +614,8 @@ export type AdminOAuthClient = {
     environment?: string;
     profile?: string;
     purposeProfile?: string;
+    /** RFC 3339 creation time; tells apart two clients issued the same ID. */
+    createdAt?: string;
 };
 /** What a person needs to sign a CLI or app in with a newly created client. */
 export type AdminOAuthClientLoginSetup = {
@@ -2079,6 +2103,7 @@ declare class AdminNamespace {
     readonly supportAccess: SupportAccessAdminClient;
     readonly system: SystemAdminClient;
     readonly environmentPolicy: EnvironmentPolicyAdminClient;
+    readonly machineAccess: MachineAccessAdminClient;
     readonly rls: RlsAdminClient;
     readonly oauthClientAdmissions: OAuthClientAdmissionAdminClient;
     readonly sdkUsage: SdkUsageAdminClient;
@@ -2301,6 +2326,7 @@ export * from "./admin-error-issues.js";
 export * from "./admin-event-types.js";
 export * from "./admin-impersonation.js";
 export * from "./admin-ingest-claims.js";
+export * from "./admin-machine-access.js";
 export * from "./admin-managed-audit.js";
 export * from "./admin-measurement-projects.js";
 export * from "./admin-notification-destinations.js";

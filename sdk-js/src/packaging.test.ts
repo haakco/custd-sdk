@@ -79,6 +79,7 @@ describe("published package integrity", () => {
       "admin-event-types",
       "admin-impersonation",
       "admin-ingest-claims",
+      "admin-machine-access",
       "admin-managed-audit",
       "admin-measurement-projects",
       "admin-notification-destinations",

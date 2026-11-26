@@ -23,6 +23,7 @@ import { ErrorIssueAdminClient } from "./admin-error-issues.js";
 import { EventTypeAdminClient } from "./admin-event-types.js";
 import { ImpersonationAdminClient } from "./admin-impersonation.js";
 import { IngestClaimAdminClient } from "./admin-ingest-claims.js";
+import { MachineAccessAdminClient } from "./admin-machine-access.js";
 import { ManagedAuditAdminClient } from "./admin-managed-audit.js";
 import { AdminMeasurementNamespace } from "./admin-measurement-projects.js";
 import { NotificationDestinationAdminClient } from "./admin-notification-destinations.js";
@@ -101,7 +102,9 @@ export function createRawIngestRequest(input) {
     return { ...input, idempotencyKey: createRawRequestIdempotencyKey() };
 }
 export class AdminWorkflowError extends Error {
-    constructor(status, reason, code, safeNextAction) {
+    constructor(status, reason, code, safeNextAction, 
+    /** The server's request identifier, to quote in a support request; empty when unknown. */
+    requestId = "") {
         let message = `custd: ${reason || "admin workflow request failed"} (status ${status})`;
         if (code)
             message += ` [code=${code}]`;
@@ -112,6 +115,7 @@ export class AdminWorkflowError extends Error {
         this.reason = reason;
         this.code = code;
         this.safeNextAction = safeNextAction;
+        this.requestId = requestId;
         this.name = "AdminWorkflowError";
     }
 }
@@ -125,6 +129,7 @@ export class CustdRequestError extends Error {
         this.problem = problem;
         this.name = "CustdRequestError";
         this.cause = options?.cause;
+        this.requestId = options?.requestId ?? problem?.traceId ?? "";
     }
     get unavailable() {
         return (this.code === "oauth_unavailable" ||
@@ -645,9 +650,13 @@ export class CustdClient {
         catch (error) {
             throw transportRequestError(error);
         }
+        const requestId = response.headers.get(REQUEST_ID_HEADER) ?? "";
+        if (options?.metadata)
+            options.metadata.requestId = requestId;
         if (!response.ok) {
             const text = await response.text().catch(() => "");
             let errorCode = "";
+            let flatRequestId = "";
             let detail = "";
             let safeNextAction = "";
             let workflowEnvelope = false;
@@ -655,6 +664,7 @@ export class CustdClient {
                 try {
                     const parsed = JSON.parse(text);
                     errorCode = parsed.code || "";
+                    flatRequestId = parsed.requestId || "";
                     detail = parsed.detail || parsed.error || parsed.message || parsed.title || "";
                     safeNextAction = parsed.safeNextAction || parsed.safe_next_action || "";
                     workflowEnvelope = typeof parsed.error === "string" && (errorCode.length > 0 || safeNextAction.length > 0);
@@ -673,7 +683,7 @@ export class CustdClient {
                 message = `${message} [safeNextAction=${safeNextAction}]`;
             }
             if (workflowEnvelope) {
-                throw new AdminWorkflowError(response.status, detail, errorCode, safeNextAction);
+                throw new AdminWorkflowError(response.status, detail, errorCode, safeNextAction, requestId || flatRequestId);
             }
             throw await responseRequestError(response, errorCode || "request_failed", message, text);
         }
@@ -1128,6 +1138,7 @@ class AdminNamespace {
         this.supportAccess = new SupportAccessAdminClient(request);
         this.system = new SystemAdminClient(request);
         this.environmentPolicy = new EnvironmentPolicyAdminClient(request);
+        this.machineAccess = new MachineAccessAdminClient(request);
         this.rls = new RlsAdminClient(request);
         this.oauthClientAdmissions = new OAuthClientAdmissionAdminClient(request);
         this.sdkUsage = new SdkUsageAdminClient(request);
@@ -1945,6 +1956,7 @@ function requireNonNegativeInteger(value, operationKey) {
 }
 export class RetryableError extends Error {
 }
+const REQUEST_ID_HEADER = "x-request-id";
 function transportRequestError(error) {
     if (error instanceof Error && error.name === "AbortError")
         return error;
@@ -1969,7 +1981,10 @@ async function responseRequestError(response, fallbackCode, fallbackMessage, res
     const nextAction = problem?.nextAction ??
         (retryability === "bounded" ? { action: "retry", maxRetries: 1 } : { action: "none" });
     const code = problem?.code || fallbackCode;
-    const requestError = new CustdRequestError(response.status, code, retryability, nextAction, problem);
+    const requestId = response.headers.get(REQUEST_ID_HEADER) || problem?.traceId || "";
+    const requestError = new CustdRequestError(response.status, code, retryability, nextAction, problem, {
+        requestId,
+    });
     if (fallbackMessage)
         requestError.message = fallbackMessage;
     return requestError;
@@ -2205,6 +2220,7 @@ export * from "./admin-error-issues.js";
 export * from "./admin-event-types.js";
 export * from "./admin-impersonation.js";
 export * from "./admin-ingest-claims.js";
+export * from "./admin-machine-access.js";
 export * from "./admin-managed-audit.js";
 export * from "./admin-measurement-projects.js";
 export * from "./admin-notification-destinations.js";

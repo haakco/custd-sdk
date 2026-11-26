@@ -112,6 +112,7 @@ import { ErrorIssueAdminClient } from "./admin-error-issues.js";
 import { EventTypeAdminClient } from "./admin-event-types.js";
 import { ImpersonationAdminClient } from "./admin-impersonation.js";
 import { IngestClaimAdminClient } from "./admin-ingest-claims.js";
+import { MachineAccessAdminClient, type MachineAccessBlock } from "./admin-machine-access.js";
 import { ManagedAuditAdminClient } from "./admin-managed-audit.js";
 import { AdminMeasurementNamespace } from "./admin-measurement-projects.js";
 import { NotificationDestinationAdminClient } from "./admin-notification-destinations.js";
@@ -1083,6 +1084,8 @@ export type ProblemDetails = {
     pollAfterSeconds?: number;
     maxRetries?: number;
   };
+  /** Present on a `machine_access_blocked` problem: the setting that refused the request. */
+  machineAccess?: MachineAccessBlock;
 };
 
 type EventResult = {
@@ -1402,7 +1405,15 @@ export type RequestOptions = {
    * leaves it unset.
    */
   owningUserUuid?: string;
+  /**
+   * Receives the server's request identifier of this call's answer, accepted or refused, so a
+   * caller can quote the request the server logged. A refusal also carries it as `requestId`.
+   */
+  metadata?: ResponseMetadata;
 };
+
+/** The server-side identifiers of one answer. `requestId` is empty when the server sent none. */
+export type ResponseMetadata = { requestId: string };
 
 export class AdminWorkflowError extends Error {
   readonly name = "AdminWorkflowError";
@@ -1412,6 +1423,8 @@ export class AdminWorkflowError extends Error {
     readonly reason: string,
     readonly code: string,
     readonly safeNextAction: string,
+    /** The server's request identifier, to quote in a support request; empty when unknown. */
+    readonly requestId = "",
   ) {
     let message = `custd: ${reason || "admin workflow request failed"} (status ${status})`;
     if (code) message += ` [code=${code}]`;
@@ -1423,6 +1436,11 @@ export class AdminWorkflowError extends Error {
 export class CustdRequestError extends Error {
   readonly name = "CustdRequestError";
   readonly cause?: unknown;
+  /**
+   * The server's request identifier, to quote in a support request: X-Request-Id, or the
+   * problem's traceId where a browser cannot read that header. Empty when the server never answered.
+   */
+  readonly requestId: string;
 
   constructor(
     readonly status: number | null,
@@ -1430,10 +1448,11 @@ export class CustdRequestError extends Error {
     readonly retryability: "none" | "bounded",
     readonly nextAction: NonNullable<ProblemDetails["nextAction"]>,
     readonly problem?: ProblemDetails,
-    options?: { cause?: unknown },
+    options?: { cause?: unknown; requestId?: string },
   ) {
     super(`custd: request failed [code=${code}]`);
     this.cause = options?.cause;
+    this.requestId = options?.requestId ?? problem?.traceId ?? "";
   }
 
   get unavailable(): boolean {
@@ -1599,6 +1618,8 @@ export type AdminOAuthClient = {
   environment?: string;
   profile?: string;
   purposeProfile?: string;
+  /** RFC 3339 creation time; tells apart two clients issued the same ID. */
+  createdAt?: string;
 };
 
 /** What a person needs to sign a CLI or app in with a newly created client. */
@@ -3627,10 +3648,13 @@ export class CustdClient {
     } catch (error) {
       throw transportRequestError(error);
     }
+    const requestId = response.headers.get(REQUEST_ID_HEADER) ?? "";
+    if (options?.metadata) options.metadata.requestId = requestId;
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
       let errorCode = "";
+      let flatRequestId = "";
       let detail = "";
       let safeNextAction = "";
       let workflowEnvelope = false;
@@ -3644,8 +3668,10 @@ export class CustdClient {
             title?: string;
             safeNextAction?: string;
             safe_next_action?: string;
+            requestId?: string;
           };
           errorCode = parsed.code || "";
+          flatRequestId = parsed.requestId || "";
           detail = parsed.detail || parsed.error || parsed.message || parsed.title || "";
           safeNextAction = parsed.safeNextAction || parsed.safe_next_action || "";
           workflowEnvelope = typeof parsed.error === "string" && (errorCode.length > 0 || safeNextAction.length > 0);
@@ -3664,7 +3690,7 @@ export class CustdClient {
         message = `${message} [safeNextAction=${safeNextAction}]`;
       }
       if (workflowEnvelope) {
-        throw new AdminWorkflowError(response.status, detail, errorCode, safeNextAction);
+        throw new AdminWorkflowError(response.status, detail, errorCode, safeNextAction, requestId || flatRequestId);
       }
       throw await responseRequestError(response, errorCode || "request_failed", message, text);
     }
@@ -4274,6 +4300,7 @@ class AdminNamespace {
   readonly supportAccess: SupportAccessAdminClient;
   readonly system: SystemAdminClient;
   readonly environmentPolicy: EnvironmentPolicyAdminClient;
+  readonly machineAccess: MachineAccessAdminClient;
   readonly rls: RlsAdminClient;
   readonly oauthClientAdmissions: OAuthClientAdmissionAdminClient;
   readonly sdkUsage: SdkUsageAdminClient;
@@ -4324,6 +4351,7 @@ class AdminNamespace {
     this.supportAccess = new SupportAccessAdminClient(request);
     this.system = new SystemAdminClient(request);
     this.environmentPolicy = new EnvironmentPolicyAdminClient(request);
+    this.machineAccess = new MachineAccessAdminClient(request);
     this.rls = new RlsAdminClient(request);
     this.oauthClientAdmissions = new OAuthClientAdmissionAdminClient(request);
     this.sdkUsage = new SdkUsageAdminClient(request);
@@ -5340,6 +5368,8 @@ function requireNonNegativeInteger(value: unknown, operationKey?: RawRequestIdem
 
 export class RetryableError extends Error {}
 
+const REQUEST_ID_HEADER = "x-request-id";
+
 function transportRequestError(error: unknown): Error {
   if (error instanceof Error && error.name === "AbortError") return error;
   return new CustdRequestError(
@@ -5377,7 +5407,10 @@ async function responseRequestError(
     problem?.nextAction ??
     (retryability === "bounded" ? { action: "retry" as const, maxRetries: 1 } : { action: "none" as const });
   const code = problem?.code || fallbackCode;
-  const requestError = new CustdRequestError(response.status, code, retryability, nextAction, problem);
+  const requestId = response.headers.get(REQUEST_ID_HEADER) || problem?.traceId || "";
+  const requestError = new CustdRequestError(response.status, code, retryability, nextAction, problem, {
+    requestId,
+  });
   if (fallbackMessage) requestError.message = fallbackMessage;
   return requestError;
 }
@@ -5646,6 +5679,7 @@ export * from "./admin-error-issues.js";
 export * from "./admin-event-types.js";
 export * from "./admin-impersonation.js";
 export * from "./admin-ingest-claims.js";
+export * from "./admin-machine-access.js";
 export * from "./admin-managed-audit.js";
 export * from "./admin-measurement-projects.js";
 export * from "./admin-notification-destinations.js";
