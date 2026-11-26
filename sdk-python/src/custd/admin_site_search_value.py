@@ -2,30 +2,35 @@
 goal conversions of the pages search brings visitors to.
 
 A number the server could not measure is absent from the dict, never 0; a present 0 is a real 0.
-Enum-like strings are open sets: compare with the constants.
+Closed string sets are Literal aliases; a value a newer server adds still decodes.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Literal, NotRequired, TypedDict
 
 if TYPE_CHECKING:
     # admin_site_domains imports this module for its client's return types.
-    from .admin_site_domains import SiteSearchTotals
+    from .admin_site_domains import SiteSearchGranularity, SiteSearchProvider, SiteSearchTotals
+
+SiteFindingImpactStatus = Literal["open", "measured", "insufficient"]
+SiteSearchGoalStatus = Literal["measured", "partial", "unavailable"]
+SiteSearchImpactPeriodStatus = Literal["measured", "insufficient"]
+
 
 # A finding's search impact: still open, measured, or without enough imported days.
-SITE_SEARCH_IMPACT_OPEN = "open"
-SITE_SEARCH_IMPACT_MEASURED = "measured"
-SITE_SEARCH_IMPACT_INSUFFICIENT = "insufficient"
+SITE_SEARCH_IMPACT_OPEN: SiteFindingImpactStatus = "open"
+SITE_SEARCH_IMPACT_MEASURED: SiteFindingImpactStatus = "measured"
+SITE_SEARCH_IMPACT_INSUFFICIENT: SiteFindingImpactStatus = "insufficient"
 
 SITE_SEARCH_IMPACT_DEFAULT_DAYS = 28
 SITE_SEARCH_IMPACT_MIN_DAYS = 7
 SITE_SEARCH_IMPACT_MAX_DAYS = 90
 
 # Whether the goal conversions could be read whole, in part (a row bound), or not at all.
-SITE_SEARCH_VALUE_GOALS_MEASURED = "measured"
-SITE_SEARCH_VALUE_GOALS_PARTIAL = "partial"
-SITE_SEARCH_VALUE_GOALS_UNAVAILABLE = "unavailable"
+SITE_SEARCH_VALUE_GOALS_MEASURED: SiteSearchGoalStatus = "measured"
+SITE_SEARCH_VALUE_GOALS_PARTIAL: SiteSearchGoalStatus = "partial"
+SITE_SEARCH_VALUE_GOALS_UNAVAILABLE: SiteSearchGoalStatus = "unavailable"
 
 SITE_SEARCH_VALUE_DEFAULT_DAYS = 28
 SITE_SEARCH_VALUE_MAX_DAYS = 90
@@ -39,7 +44,7 @@ SiteSearchImpactWindow = TypedDict("SiteSearchImpactWindow", {"from": str, "to":
 class SiteSearchImpactPeriod(TypedDict):
     """One side of the fix; an insufficient period has no numbers and says why in ``reason``."""
 
-    status: str
+    status: SiteSearchImpactPeriodStatus
     coveredDays: int
     expectedDays: int
     reason: NotRequired[str]
@@ -51,10 +56,10 @@ class SiteSearchImpactPeriod(TypedDict):
 class SiteFindingImpactSource(TypedDict):
     """One provider's numbers for the finding's page before and after the fix."""
 
-    provider: str
+    provider: SiteSearchProvider
     source: str
-    granularity: str
-    status: str
+    granularity: SiteSearchGranularity
+    status: SiteSearchImpactPeriodStatus
     before: SiteSearchImpactPeriod
     after: SiteSearchImpactPeriod
 
@@ -69,7 +74,7 @@ class SiteFindingImpact(TypedDict):
     rule: str
     url: str
     pageUrl: str
-    status: str
+    status: SiteFindingImpactStatus
     windowDays: int
     sources: list[SiteFindingImpactSource]
     note: str
@@ -81,7 +86,7 @@ class SiteFindingImpact(TypedDict):
 class SiteSearchValuePage(TypedDict):
     """One search page; ``landings`` and ``goalConversions`` are absent when goals were not read for it."""
 
-    provider: str
+    provider: SiteSearchProvider
     source: str
     pageUrl: str
     path: str
@@ -100,7 +105,7 @@ class SiteSearchValue(_SiteSearchValueWindow):
     """The domain's top search pages and the named goals their visitors reached; ``attribution`` says how."""
 
     goals: list[str]
-    goalStatus: str
+    goalStatus: SiteSearchGoalStatus
     attribution: str
     pages: list[SiteSearchValuePage]
     goalReason: NotRequired[str]

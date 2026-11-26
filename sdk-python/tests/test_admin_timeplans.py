@@ -79,11 +79,18 @@ class TimePlanAdminClientTest(unittest.TestCase):
             _body(definition),
         )
 
+    def test_a_value_this_sdk_does_not_know_decodes_unchanged(self):
+        cue = TimePlanThresholdCue.from_payload({"remainingMs": 5000, "severity": "urgent"})
+        schema = TimePlanAnnotationSchema.from_payload({"allowedTypes": ["checklist"]})
+
+        self.assertEqual("urgent", cue.severity)
+        self.assertEqual(["checklist"], schema.allowedTypes)
+
     def test_threshold_cue_validation_rejects_untyped_or_ambiguous_values(self):
         with self.assertRaises(ValueError):
             TimePlanThresholdCue(remainingMs=5000, remainingFractionBps=100, severity="warning")
         with self.assertRaises(ValueError):
-            TimePlanAnnotationSchema(allowedTypes=["unsupported"])
+            TimePlanAnnotationSchema(allowedTypes=["note", "note"])
         with self.assertRaises(ValueError):
             TimePlanDefinition(
                 horizonMs=60000,

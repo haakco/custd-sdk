@@ -4,15 +4,19 @@ portfolio of domains, worst first.
 Custd ranks the actions once, in a fixed order that never depends on AI, so every product shows the
 same first action. A site-bound credential reads only its own Site; a ``site_insights.read``
 credential (scope template ``site-insights-read``) reads these two calls for every Site and nothing
-else. Kinds, places and statuses are open sets: compare with the constants and show an unknown kind
-by its ``title`` and ``why``.
+else. Kinds and places are open sets: compare with the constants and show an unknown kind by its
+``title`` and ``why``. Statuses and severities are Literal aliases; a new value still decodes.
 """
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import TYPE_CHECKING, NotRequired, TypedDict
 
 from .admin_site_ai import SiteAIMode
+
+if TYPE_CHECKING:
+    from .admin_site_domains import SiteUptimeStatus
+    from .admin_site_insights import SiteFindingSeverity
 
 # A next-actions read returns at most this many actions.
 SITE_NEXT_ACTIONS_MAX = 3
@@ -58,7 +62,7 @@ class SiteNextAction(TypedDict):
     kind: str
     title: str
     why: str
-    severity: str
+    severity: SiteFindingSeverity
     affectedCount: int
     target: SiteNextActionTarget
     recheckable: bool
@@ -74,7 +78,7 @@ class SiteNextActions(TypedDict):
     aiMode: NotRequired[SiteAIMode]
     domainUuid: str
     host: str
-    status: str
+    status: SiteUptimeStatus
     headline: str
     notChecked: list[str]
     actionCount: int
@@ -96,7 +100,7 @@ class SitePortfolioDomain(TypedDict):
     domainUuid: str
     siteUuid: str
     host: str
-    status: str
+    status: SiteUptimeStatus
     headline: str
     actionCount: int
     openFindings: SiteFindingCounts

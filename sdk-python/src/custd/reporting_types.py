@@ -6,11 +6,38 @@ build on them.
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
+
+CanonicalUnit = Literal["W", "kW", "Wh", "kWh", "V", "A", "L", "Cel", "By", "1"]
+PreparedDataNextActionKind = Literal["none", "poll", "retry", "rotate", "escalate"]
+RenderedEmailDeliveryOutcome = Literal["deferred", "remote_accepted", "terminal_failure"]
+RenderedUnit = Literal[
+    "currency_per_unit",
+    "count",
+    "milliseconds",
+    "bytes",
+    "percent",
+    "currency",
+    "W",
+    "kW",
+    "Wh",
+    "kWh",
+    "V",
+    "A",
+    "L",
+    "Cel",
+    "L/s",
+    "score",
+]
+ReportingComparison = Literal["previous_period", "previous_year"]
+ReportingExportFormat = Literal["csv", "xlsx", "html", "pdf", "svg", "png", "parquet", "manifest"]
+ReportingReconciliationStatus = Literal["available", "stale", "unavailable"]
+ReportingRetryability = Literal["none", "bounded"]
+ReportingSourceAvailability = Literal["available", "unavailable"]
 
 
 class PreparedDataNextAction(TypedDict):
-    action: str
+    action: PreparedDataNextActionKind
     maxRetries: NotRequired[int]
     pollAfterSeconds: NotRequired[int]
 
@@ -30,9 +57,9 @@ class PreparedDataWarning(TypedDict):
 class ReportingSourceContribution(TypedDict):
     sourceKey: str
     sourceSeriesKey: str
-    availability: str
+    availability: ReportingSourceAvailability
     value: NotRequired[float]
-    unit: NotRequired[str]
+    unit: NotRequired[CanonicalUnit]
     observedAt: NotRequired[str]
     freshnessSeconds: NotRequired[int]
     stale: NotRequired[bool]
@@ -50,11 +77,11 @@ class ReportingReconciliation(TypedDict):
 
     tenantKey: str
     seriesKey: str
-    status: str
-    availability: str
+    status: ReportingReconciliationStatus
+    availability: ReportingSourceAvailability
     divergence: ReportingSourceDivergence
     value: NotRequired[float]
-    unit: NotRequired[str]
+    unit: NotRequired[CanonicalUnit]
     observedAt: NotRequired[str]
     selectedSourceKey: NotRequired[str]
     selectedSourceSeries: NotRequired[str]
@@ -81,7 +108,7 @@ class RenderedMetricTrust(TypedDict):
 
 class RenderedEmailDeliveryRecipient(TypedDict):
     recipientId: str
-    outcome: str
+    outcome: RenderedEmailDeliveryOutcome
     occurredAt: str
 
 
@@ -105,9 +132,9 @@ class RenderedLabelMetadata(TypedDict):
 
 class ReportExportArtifact(TypedDict):
     artifactKey: str
-    fallbackForFormat: NotRequired[str]
+    fallbackForFormat: NotRequired[ReportingExportFormat]
     filename: str
-    format: str
+    format: ReportingExportFormat
     id: str
     mediaType: str
     objectBytes: int
@@ -134,7 +161,7 @@ class ReportExportJob(TypedDict):
     failureCategory: NotRequired[str]
     failureMessage: NotRequired[str]
     finishedAt: NotRequired[str]
-    formats: list[str]
+    formats: list[ReportingExportFormat]
     id: str
     nextAttemptAt: NotRequired[str]
     nextCleanupAt: NotRequired[str]

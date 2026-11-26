@@ -8,21 +8,26 @@ only a system administrator may call, always names it. A JSON null list decodes 
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 from ._wire import decode, request
 from .client import AdminClient, quote_path
 
+SubjectExportDownloadScope = Literal["access", "portability"]
+SubjectExportScope = Literal["access", "portability", "both"]
+SubjectExportStatus = Literal["queued", "running", "complete", "failed", "cancelled", "expired"]
+
+
 SUBJECT_EXPORTS_PATH = "/api/v1/admin/subject-exports"
 
-SUBJECT_EXPORT_SCOPE_ACCESS = "access"
-SUBJECT_EXPORT_SCOPE_PORTABILITY = "portability"
-SUBJECT_EXPORT_SCOPE_BOTH = "both"
+SUBJECT_EXPORT_SCOPE_ACCESS: SubjectExportScope = "access"
+SUBJECT_EXPORT_SCOPE_PORTABILITY: SubjectExportScope = "portability"
+SUBJECT_EXPORT_SCOPE_BOTH: SubjectExportScope = "both"
 
 
 class SubjectExportCreateRequest(TypedDict):
     opaqueSubjectId: str
-    scope: str
+    scope: SubjectExportScope
     idempotencyKey: str
 
 
@@ -37,8 +42,8 @@ class SubjectExportStoreProgress(TypedDict):
 class SubjectExport(TypedDict):
     id: str
     opaqueSubjectId: str
-    scope: str
-    state: str
+    scope: SubjectExportScope
+    state: SubjectExportStatus
     idempotencyKey: str
     requestedAt: str
     expiresAt: str
@@ -58,7 +63,7 @@ class SubjectExportDownloadResponse(TypedDict):
 
     id: str
     requestId: str
-    scope: str
+    scope: SubjectExportScope
     objectKey: str
     s3Key: str
     byteSize: int
@@ -92,7 +97,7 @@ class SubjectExportClient:
         return decode(SubjectExport, request(self._admin, "POST", path, query={"companySlug": company_slug}))
 
     def download(
-        self, request_id: str, scope: str, *, company_slug: str | None = None
+        self, request_id: str, scope: SubjectExportDownloadScope, *, company_slug: str | None = None
     ) -> SubjectExportDownloadResponse:
         """Read the artifact for one scope (access or portability) of a completed export."""
         path = _export_path(request_id) + "/download"

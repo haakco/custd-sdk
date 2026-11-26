@@ -1,19 +1,19 @@
 """Site Insights export: everything Custd keeps for one domain, in one document, and its daily
 search metrics in pages.
 
-Each part reuses the shape the matching read returns. Enum-like strings are open sets: compare
-them with the constants below.
+Each part reuses the shape the matching read returns. Closed string sets are Literal
+aliases; a value a newer server adds still decodes.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 if TYPE_CHECKING:
     # admin_site_domains imports this module for its client's return types, so the shared
     # shapes are referenced only in (postponed) annotations.
     from .admin_site_campaign_links import SiteCampaignLinkList
-    from .admin_site_domains import SiteDomain, SiteFindingList, SiteIncidentList
+    from .admin_site_domains import SiteDomain, SiteFindingList, SiteIncidentList, SiteSearchProvider
     from .admin_site_insights import (
         SavedSiteReport,
         SiteIndexNowState,
@@ -25,6 +25,9 @@ if TYPE_CHECKING:
     from .admin_site_rankings import SiteRankings
     from .admin_site_web_data import SiteKeywordLists, SiteTopicTrends, SiteWebDomains
 
+SiteSearchMetricDimension = Literal["total", "page", "query", "country", "device"]
+
+
 # The export document's schema; a reader checks it before reading the rest.
 SITE_INSIGHTS_EXPORT_SCHEMA = "custd.site-insights-export.v1"
 
@@ -32,11 +35,11 @@ SITE_INSIGHTS_EXPORT_SCHEMA = "custd.site-insights-export.v1"
 SITE_INSIGHTS_EXPORT_SEARCH_METRICS_MAX_LIMIT = 10000
 
 # The dimension a search metric row is summed over; total rows have an empty key.
-SITE_SEARCH_METRIC_DIMENSION_TOTAL = "total"
-SITE_SEARCH_METRIC_DIMENSION_PAGE = "page"
-SITE_SEARCH_METRIC_DIMENSION_QUERY = "query"
-SITE_SEARCH_METRIC_DIMENSION_COUNTRY = "country"
-SITE_SEARCH_METRIC_DIMENSION_DEVICE = "device"
+SITE_SEARCH_METRIC_DIMENSION_TOTAL: SiteSearchMetricDimension = "total"
+SITE_SEARCH_METRIC_DIMENSION_PAGE: SiteSearchMetricDimension = "page"
+SITE_SEARCH_METRIC_DIMENSION_QUERY: SiteSearchMetricDimension = "query"
+SITE_SEARCH_METRIC_DIMENSION_COUNTRY: SiteSearchMetricDimension = "country"
+SITE_SEARCH_METRIC_DIMENSION_DEVICE: SiteSearchMetricDimension = "device"
 
 
 class SiteInsightsMonitoringExport(TypedDict):
@@ -90,9 +93,9 @@ class SiteInsightsExport(TypedDict):
 class SiteSearchMetricDay(TypedDict):
     """One provider's day of search numbers for one dimension key."""
 
-    provider: str
+    provider: SiteSearchProvider
     day: str
-    dimension: str
+    dimension: SiteSearchMetricDimension
     key: str
     clicks: int
     impressions: int

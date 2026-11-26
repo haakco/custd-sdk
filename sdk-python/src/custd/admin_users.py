@@ -2,27 +2,32 @@
 
 A user has a global state and a per-company membership state; they are reported separately
 because disabling an identity and ending a membership are different decisions. ``company_slug``
-lets a system administrator name the tenant; other callers act on their own. Enum-like strings
-are open sets: compare with the constants.
+lets a system administrator name the tenant; other callers act on their own. Closed string
+sets are Literal aliases; a value a newer server adds still decodes.
 """
 
 from __future__ import annotations
 
 import urllib.parse
-from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict, cast
 
 if TYPE_CHECKING:
     from .client import AdminClient, AdminRequestOptions
 
-ADMIN_USER_ROLE_TENANT_ADMIN = "tenant_admin"
-ADMIN_USER_ROLE_TENANT_INGEST_MANAGER = "tenant_ingest_manager"
-ADMIN_USER_ROLE_TENANT_ANALYST = "tenant_analyst"
+AdminUserGlobalState = Literal["enabled", "suspended"]
+AdminUserMembershipState = Literal["active", "ended"]
+AdminUserRoleSlug = Literal["tenant_admin", "tenant_ingest_manager", "tenant_analyst"]
 
-ADMIN_USER_GLOBAL_STATE_ENABLED = "enabled"
-ADMIN_USER_GLOBAL_STATE_SUSPENDED = "suspended"
 
-ADMIN_USER_MEMBERSHIP_STATE_ACTIVE = "active"
-ADMIN_USER_MEMBERSHIP_STATE_ENDED = "ended"
+ADMIN_USER_ROLE_TENANT_ADMIN: AdminUserRoleSlug = "tenant_admin"
+ADMIN_USER_ROLE_TENANT_INGEST_MANAGER: AdminUserRoleSlug = "tenant_ingest_manager"
+ADMIN_USER_ROLE_TENANT_ANALYST: AdminUserRoleSlug = "tenant_analyst"
+
+ADMIN_USER_GLOBAL_STATE_ENABLED: AdminUserGlobalState = "enabled"
+ADMIN_USER_GLOBAL_STATE_SUSPENDED: AdminUserGlobalState = "suspended"
+
+ADMIN_USER_MEMBERSHIP_STATE_ACTIVE: AdminUserMembershipState = "active"
+ADMIN_USER_MEMBERSHIP_STATE_ENDED: AdminUserMembershipState = "ended"
 
 ADMIN_USERS_PATH = "/users"
 ADMIN_USER_ROLES_PATH = "/user-roles"
@@ -32,9 +37,9 @@ class AdminUser(TypedDict):
     userUuid: str
     email: str
     companySlug: str
-    roles: list[str]
-    globalUserState: str
-    membershipState: str
+    roles: list[AdminUserRoleSlug]
+    globalUserState: AdminUserGlobalState
+    membershipState: AdminUserMembershipState
     createdAt: str
     lastLoginAt: str | None
     welcomeNotificationStatus: str
@@ -62,16 +67,16 @@ class AdminUserListQuery(TypedDict, total=False):
 class AdminUserCreateRequest(TypedDict):
     companySlug: str
     email: str
-    roles: list[str]
+    roles: list[AdminUserRoleSlug]
 
 
 class AdminUserUpdateRequest(TypedDict):
-    roles: list[str]
+    roles: list[AdminUserRoleSlug]
 
 
 class AdminUserMembershipCreateRequest(TypedDict):
     companySlug: str
-    roles: list[str]
+    roles: list[AdminUserRoleSlug]
 
 
 class AdminUserDisableRequest(TypedDict, total=False):
@@ -85,7 +90,7 @@ class AdminUserDisableRequest(TypedDict, total=False):
 class AdminUserEnableRequest(TypedDict):
     """The roles a reopened membership carries; globalUser enables the identity."""
 
-    roles: list[str]
+    roles: list[AdminUserRoleSlug]
     companySlug: NotRequired[str]
     globalUser: NotRequired[bool]
 
@@ -102,7 +107,7 @@ class AdminUserPasswordReset(TypedDict):
 
 
 class AdminUserRole(TypedDict):
-    slug: str
+    slug: AdminUserRoleSlug
     name: str
     description: str
 

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict, cast
+from typing import Literal, NotRequired, TypedDict, cast
 
 from .client import AdminClient, quote_path
+
+DataLabelPropagationPolicy = Literal["none", "event_type_to_event", "pack_selected"]
+DataLabelSensitivity = Literal["public", "internal", "personal", "restricted"]
 
 
 class DataLabelValue(TypedDict):
@@ -37,20 +40,20 @@ class DataLabelDefinitionCreateRequest(TypedDict):
     displayName: str
     description: str
     allowedScopes: list[str]
-    sensitivity: str
+    sensitivity: DataLabelSensitivity
     intendedUse: str
     synonyms: list[str]
-    propagationPolicy: str
+    propagationPolicy: DataLabelPropagationPolicy
 
 
 class DataLabelDefinitionUpdateRequest(TypedDict):
     displayName: str
     description: str
     allowedScopes: list[str]
-    sensitivity: str
+    sensitivity: DataLabelSensitivity
     intendedUse: str
     synonyms: list[str]
-    propagationPolicy: str
+    propagationPolicy: DataLabelPropagationPolicy
 
 
 class DataLabelValueCreateRequest(TypedDict):

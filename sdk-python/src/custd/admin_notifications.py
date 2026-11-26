@@ -8,10 +8,32 @@ a tenant's email goes out through.
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 from ._wire import decode, request
 from .client import AdminClient, quote_path
+
+NotificationChannel = Literal["webhook", "slack", "email"]
+NotificationDestinationEventSlug = Literal[
+    "error_issue_alert",
+    "site_finding_opened",
+    "site_incident",
+    "site_ai_allowance",
+]
+NotificationEventSlug = Literal[
+    "email_relay_test_send",
+    "identity_verify_email",
+    "identity_reset_password",
+    "user_welcome",
+    "application_invitation",
+    "error_issue_alert",
+    "site_finding_opened",
+    "site_incident",
+    "site_ai_allowance",
+    "site_status_page_confirm",
+    "site_status_page_update",
+]
+NotificationWebhookKind = Literal["webhook", "slack"]
 
 
 class EmailRelayEffectiveSender(TypedDict):
@@ -60,7 +82,7 @@ class NotificationWebhookSubscription(TypedDict):
     createdAt: str
     enabled: bool
     endpoint: str
-    kind: str
+    kind: NotificationWebhookKind
     name: str
     updatedAt: str
     uuid: str
@@ -71,11 +93,11 @@ class NotificationWebhookListResponse(TypedDict):
 
 
 class NotificationDestination(TypedDict):
-    channel: str
+    channel: NotificationChannel
     configured: bool
     emailRecipient: NotRequired[str]
     enabled: bool
-    eventSlug: str
+    eventSlug: NotificationEventSlug
 
 
 class NotificationWebhookEnabledRequest(TypedDict):
@@ -104,7 +126,7 @@ class NotificationWebhookCreateRequest(TypedDict):
     enabled: bool
     endpoint: str
     # Defaults to webhook.
-    kind: NotRequired[str]
+    kind: NotRequired[NotificationWebhookKind]
     name: str
 
 
@@ -112,7 +134,7 @@ class NotificationWebhookSecret(TypedDict):
     createdAt: str
     enabled: bool
     endpoint: str
-    kind: str
+    kind: NotificationWebhookKind
     name: str
     # Shown once; empty for a Slack subscription, whose URL is its secret.
     signingSecret: str
@@ -132,7 +154,7 @@ class EmailRelayWriteRequest(TypedDict):
 
 
 class NotificationDestinationRequest(TypedDict):
-    channel: str
+    channel: NotificationChannel
     emailRecipient: NotRequired[str]
     enabled: bool
 
@@ -244,7 +266,9 @@ class NotificationDestinationAdminClient:
     def __init__(self, admin: AdminClient) -> None:
         self._admin = admin
 
-    def get(self, event_slug: str, *, company_slug: str | None = None) -> NotificationDestination:
+    def get(
+        self, event_slug: NotificationDestinationEventSlug, *, company_slug: str | None = None
+    ) -> NotificationDestination:
         """Get where one event is sent for the tenant."""
         return decode(
             NotificationDestination,
@@ -257,7 +281,11 @@ class NotificationDestinationAdminClient:
         )
 
     def put(
-        self, event_slug: str, body: NotificationDestinationRequest, *, company_slug: str | None = None
+        self,
+        event_slug: NotificationDestinationEventSlug,
+        body: NotificationDestinationRequest,
+        *,
+        company_slug: str | None = None,
     ) -> NotificationDestination:
         """Set where one event is sent for the tenant."""
         return decode(

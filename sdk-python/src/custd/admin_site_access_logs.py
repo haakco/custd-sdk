@@ -2,36 +2,45 @@
 
 Numbers come from the domain's CDN access logs, read hour by hour. ``coverage`` says how many
 hours were read; a number the server could not measure is absent from the dict, never 0, while
-a present 0 is a real 0. Enum-like strings are open sets: compare with the constants.
+a present 0 is a real 0. Closed string sets are Literal
+aliases; a value a newer server adds still decodes.
 """
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
+
+from .admin_site_ai import SiteAIProduct
+
+SiteAccessLogHourStatus = Literal["done", "partial", "failed", "missing"]
+SiteCrawlerIdentity = Literal["verified", "claims_to_be"]
+SiteReferrerClass = Literal["search", "ai", "social", "other"]
+SiteTrafficDayCoverage = Literal["complete", "partial", "missing"]
+
 
 # How much of one day's access logs were read.
-SITE_TRAFFIC_DAY_COMPLETE = "complete"
-SITE_TRAFFIC_DAY_PARTIAL = "partial"
-SITE_TRAFFIC_DAY_MISSING = "missing"
+SITE_TRAFFIC_DAY_COMPLETE: SiteTrafficDayCoverage = "complete"
+SITE_TRAFFIC_DAY_PARTIAL: SiteTrafficDayCoverage = "partial"
+SITE_TRAFFIC_DAY_MISSING: SiteTrafficDayCoverage = "missing"
 
 # A crawler's identity: verified by reverse DNS, or only a User-Agent claiming to be it.
-SITE_CRAWLER_IDENTITY_VERIFIED = "verified"
-SITE_CRAWLER_IDENTITY_CLAIMS_TO_BE = "claims_to_be"
+SITE_CRAWLER_IDENTITY_VERIFIED: SiteCrawlerIdentity = "verified"
+SITE_CRAWLER_IDENTITY_CLAIMS_TO_BE: SiteCrawlerIdentity = "claims_to_be"
 
 # What kind of site referred a request.
-SITE_REFERRER_CLASS_SEARCH = "search"
-SITE_REFERRER_CLASS_AI = "ai"
-SITE_REFERRER_CLASS_SOCIAL = "social"
-SITE_REFERRER_CLASS_OTHER = "other"
+SITE_REFERRER_CLASS_SEARCH: SiteReferrerClass = "search"
+SITE_REFERRER_CLASS_AI: SiteReferrerClass = "ai"
+SITE_REFERRER_CLASS_SOCIAL: SiteReferrerClass = "social"
+SITE_REFERRER_CLASS_OTHER: SiteReferrerClass = "other"
 
 # The key (or path) that collects the rows beyond each day's top rows.
 SITE_TRAFFIC_OTHER_KEY = "(other)"
 
 # How a replayed hour stood before the replay; missing when it was never recorded.
-SITE_ACCESS_LOG_HOUR_DONE = "done"
-SITE_ACCESS_LOG_HOUR_PARTIAL = "partial"
-SITE_ACCESS_LOG_HOUR_FAILED = "failed"
-SITE_ACCESS_LOG_HOUR_MISSING = "missing"
+SITE_ACCESS_LOG_HOUR_DONE: SiteAccessLogHourStatus = "done"
+SITE_ACCESS_LOG_HOUR_PARTIAL: SiteAccessLogHourStatus = "partial"
+SITE_ACCESS_LOG_HOUR_FAILED: SiteAccessLogHourStatus = "failed"
+SITE_ACCESS_LOG_HOUR_MISSING: SiteAccessLogHourStatus = "missing"
 
 
 class SiteTrafficCoverage(TypedDict):
@@ -58,7 +67,7 @@ class SiteTrafficDay(TypedDict):
     """One UTC day, YYYY-MM-DD; its numbers are absent when no hour of it was read."""
 
     date: str
-    coverage: str
+    coverage: SiteTrafficDayCoverage
     hoursRead: int
     hoursPartial: int
     hoursFailed: int
@@ -83,15 +92,15 @@ class SiteTrafficSlowPath(TypedDict):
 
 
 # "class" is a Python keyword, so the referrer shapes use the functional form.
-SiteTrafficReferrerClass = TypedDict("SiteTrafficReferrerClass", {"class": str, "requests": int})
-SiteTrafficReferrer = TypedDict("SiteTrafficReferrer", {"class": str, "domain": str, "requests": int})
+SiteTrafficReferrerClass = TypedDict("SiteTrafficReferrerClass", {"class": SiteReferrerClass, "requests": int})
+SiteTrafficReferrer = TypedDict("SiteTrafficReferrer", {"class": SiteReferrerClass, "domain": str, "requests": int})
 
 
 class SiteTrafficCrawler(TypedDict):
     """One crawler's requests; ``ai`` when it fetches for an AI assistant or its training."""
 
     crawler: str
-    identity: str
+    identity: SiteCrawlerIdentity
     ai: bool
     requests: int
     notFound: int
@@ -130,7 +139,7 @@ class SiteAIPage(TypedDict):
 class SiteAIAnswerSample(TypedDict):
     """One AI product's latest answer about the site, when one was sampled."""
 
-    product: str
+    product: SiteAIProduct
     observedAt: str
     answer: NotRequired[str]
 
@@ -149,5 +158,5 @@ class SiteAccessLogHourReplay(TypedDict):
     """A queued replay of one UTC hour of access logs and how the hour stood before it."""
 
     hourStart: str
-    previousStatus: str
+    previousStatus: SiteAccessLogHourStatus
     requestedAt: str

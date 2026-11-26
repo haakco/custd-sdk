@@ -7,17 +7,19 @@ subject identifiers, and reads or replaces the tenant's privacy rules. Erasure r
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 from ._wire import decode, request
 from .client import AdminClient, quote_path
+
+PrivacyConsentPurpose = Literal["analytics", "product_improvement", "marketing"]
 
 
 class PrivacyConsentRecord(TypedDict):
     expiresAt: NotRequired[str]
     granted: bool
     grantedAt: NotRequired[str]
-    purpose: str
+    purpose: PrivacyConsentPurpose
     recordedAt: str
     revokedAt: NotRequired[str]
     source: str
@@ -61,7 +63,7 @@ class PrivacyConsentRecordRequest(TypedDict):
     companySlug: str
     expiresAt: NotRequired[str]
     granted: bool
-    purpose: str
+    purpose: PrivacyConsentPurpose
     source: str
     subjectId: str
 

@@ -23,12 +23,96 @@ if TYPE_CHECKING:
         SiteUptimeStatus,
     )
 
+SiteAuditPageIndexability = Literal["indexable", "noindex", "canonicalized", "redirected", "error", "not_html"]
+SiteFindingRule = Literal[
+    "crawl.page-status",
+    "crawl.redirect-chain",
+    "crawl.soft-404",
+    "host.https-redirect",
+    "host.canonical-host",
+    "robots.missing",
+    "robots.invalid",
+    "robots.no-sitemap",
+    "sitemap.missing",
+    "sitemap.invalid",
+    "sitemap.url-not-ok",
+    "sitemap.noindex-url",
+    "sitemap.lastmod-missing",
+    "sitemap.blocked-url",
+    "canonical.missing",
+    "canonical.invalid",
+    "canonical.not-ok",
+    "title.missing",
+    "title.length",
+    "title.duplicate",
+    "description.missing",
+    "description.length",
+    "description.duplicate",
+    "heading.h1",
+    "html.lang-missing",
+    "html.too-large",
+    "og.missing",
+    "image.alt-missing",
+    "image.too-large",
+    "image.legacy-format",
+    "image.missing-dimensions",
+    "image.not-lazy",
+    "http.no-compression",
+    "cache.static-assets",
+    "ai.js-required",
+    "ai.answer-bot-blocked",
+    "ai.training-bot-blocked",
+    "ai.bot-refused",
+    "jsonld.missing",
+    "jsonld.invalid",
+    "jsonld.no-entity",
+    "llms.missing",
+    "llms.invalid",
+    "crawl.redirect-loop",
+    "crawl.orphan-page",
+    "crawl.broken-fragment",
+    "crawl.deep-page",
+    "crawl.no-internal-links",
+    "crawl.noindex-page",
+    "crawl.home-noindex",
+    "canonical.points-elsewhere",
+    "canonical.conflict",
+    "heading.order-skip",
+    "content.thin",
+    "content.duplicate",
+    "content.near-duplicate",
+    "http.slow-response",
+    "robots.nofollow",
+    "og.image-missing",
+    "og.image-unreachable",
+    "twitter.card-missing",
+    "hreflang.invalid-code",
+    "hreflang.missing-self-reference",
+    "hreflang.missing-return-link",
+    "hreflang.missing-x-default",
+    "hreflang.target-not-indexable",
+    "uptime.down",
+    "uptime.slow",
+    "tls.invalid",
+    "tls.expiring",
+    "tls.expiring-soon",
+    "registration.expiring",
+    "logs.crawler-not-found",
+    "lighthouse.desktop-score-drop",
+    "lighthouse.mobile-score-drop",
+    "search.low-ctr",
+    "search.position-drop",
+]
+SiteRemedyKind = Literal["markup", "setting", "content", "server"]
+SiteRobotsDirective = Literal["allow", "disallow"]
+
+
 # What a finding's fix changes. The server may add kinds, and a rule without a remedy shape
 # sends an empty kind, so these are plain strings rather than a closed type.
-SITE_REMEDY_KIND_MARKUP = "markup"
-SITE_REMEDY_KIND_SETTING = "setting"
-SITE_REMEDY_KIND_CONTENT = "content"
-SITE_REMEDY_KIND_SERVER = "server"
+SITE_REMEDY_KIND_MARKUP: SiteRemedyKind = "markup"
+SITE_REMEDY_KIND_SETTING: SiteRemedyKind = "setting"
+SITE_REMEDY_KIND_CONTENT: SiteRemedyKind = "content"
+SITE_REMEDY_KIND_SERVER: SiteRemedyKind = "server"
 
 # The formats a remedy's generated code comes in.
 SiteGeneratedFormat = Literal["html", "redirect", "robots.txt"]
@@ -79,12 +163,12 @@ SiteLighthouseOutcome = Literal["success", "failed"]
 SITE_LIGHTHOUSE_MAX_EXTRA_PAGES = 5
 
 # An audited page's indexability. The server may add values: compare, never reject.
-SITE_INDEXABILITY_INDEXABLE = "indexable"
-SITE_INDEXABILITY_NOINDEX = "noindex"
-SITE_INDEXABILITY_CANONICALIZED = "canonicalized"
-SITE_INDEXABILITY_REDIRECTED = "redirected"
-SITE_INDEXABILITY_ERROR = "error"
-SITE_INDEXABILITY_NOT_HTML = "not_html"
+SITE_INDEXABILITY_INDEXABLE: SiteAuditPageIndexability = "indexable"
+SITE_INDEXABILITY_NOINDEX: SiteAuditPageIndexability = "noindex"
+SITE_INDEXABILITY_CANONICALIZED: SiteAuditPageIndexability = "canonicalized"
+SITE_INDEXABILITY_REDIRECTED: SiteAuditPageIndexability = "redirected"
+SITE_INDEXABILITY_ERROR: SiteAuditPageIndexability = "error"
+SITE_INDEXABILITY_NOT_HTML: SiteAuditPageIndexability = "not_html"
 
 # list_audit_pages paging: the server returns 50 pages by default and at most 200.
 SITE_AUDIT_PAGES_DEFAULT_LIMIT = 50
@@ -120,7 +204,7 @@ class SiteRemedy(TypedDict):
     A rule without a remedy shape sends an empty ``kind`` and ``element``.
     """
 
-    kind: str
+    kind: SiteRemedyKind
     element: str
     generated: NotRequired[SiteGeneratedFix]
 
@@ -128,7 +212,7 @@ class SiteRemedy(TypedDict):
 class SitePageFinding(TypedDict):
     """One finding of a draft check: the page's own problems, without an identity or history."""
 
-    rule: str
+    rule: SiteFindingRule
     severity: SiteFindingSeverity
     title: str
     url: str
@@ -265,7 +349,7 @@ class SitePageCheckResponse(TypedDict):
     redirect: NotRequired[SiteGeneratedFix]
     phrase: NotRequired[SitePhraseUse]
     scope: NotRequired[SitePageCheckScope]
-    checkedRules: NotRequired[list[str]]
+    checkedRules: NotRequired[list[SiteFindingRule]]
 
 
 class SiteWordingCompare(TypedDict):
@@ -306,7 +390,7 @@ class SiteRobotsRule(TypedDict):
     """The robots.txt rule that decided, by its line number from 1."""
 
     line: int
-    directive: Literal["allow", "disallow"]
+    directive: SiteRobotsDirective
     pattern: str
 
 
@@ -530,7 +614,7 @@ class SiteAuditPage(TypedDict):
 
     url: str
     status: int
-    indexability: str
+    indexability: SiteAuditPageIndexability
     openFindings: int
     finalUrl: NotRequired[str]
     depth: NotRequired[int]
@@ -682,7 +766,6 @@ class SavedSiteReportList(TypedDict):
 
     reports: list[SavedSiteReportSummary]
     maxReports: int
-
 
 
 class SiteIndexNowSubmission(TypedDict):

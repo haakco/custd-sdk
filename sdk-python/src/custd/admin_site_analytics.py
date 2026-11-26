@@ -1,34 +1,41 @@
 """Site Insights GA4 analytics: a domain's Google Analytics 4 connection and the organic landing
 pages, key events and channels Custd imports through it.
 
-Every shape is the admin-api's own JSON. A number GA4 did not report is absent, never 0. The
-enum-like strings are open sets: compare them with the constants below.
+Every shape is the admin-api's own JSON. A number GA4 did not report is absent, never 0. Closed
+string sets are Literal aliases; a value a newer server adds still decodes, so keep a fallback.
 """
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import TYPE_CHECKING, Literal, NotRequired, TypedDict
 
-SITE_ANALYTICS_PROVIDER_GA4 = "ga4"
+if TYPE_CHECKING:
+    from .admin_site_domains import SiteSearchConnectionStatus
+
+SiteAnalyticsProvider = Literal["ga4"]
+SiteAnalyticsUnavailableReport = Literal["ecommerce", "audience"]
+
+
+SITE_ANALYTICS_PROVIDER_GA4: SiteAnalyticsProvider = "ga4"
 
 # A GA4 connection's state: pending until the first import, failing when the latest import
 # failed (lastFailure says why), revoked when GA4 no longer allows Custd to read the property.
-SITE_ANALYTICS_STATUS_PENDING = "pending"
-SITE_ANALYTICS_STATUS_ACTIVE = "active"
-SITE_ANALYTICS_STATUS_FAILING = "failing"
-SITE_ANALYTICS_STATUS_REVOKED = "revoked"
+SITE_ANALYTICS_STATUS_PENDING: SiteSearchConnectionStatus = "pending"
+SITE_ANALYTICS_STATUS_ACTIVE: SiteSearchConnectionStatus = "active"
+SITE_ANALYTICS_STATUS_FAILING: SiteSearchConnectionStatus = "failing"
+SITE_ANALYTICS_STATUS_REVOKED: SiteSearchConnectionStatus = "revoked"
 
 # The GA4 reports Custd does not import, each listed in SiteAnalyticsReport.unavailable.
-SITE_ANALYTICS_UNAVAILABLE_ECOMMERCE = "ecommerce"
-SITE_ANALYTICS_UNAVAILABLE_AUDIENCE = "audience"
+SITE_ANALYTICS_UNAVAILABLE_ECOMMERCE: SiteAnalyticsUnavailableReport = "ecommerce"
+SITE_ANALYTICS_UNAVAILABLE_AUDIENCE: SiteAnalyticsUnavailableReport = "audience"
 
 
 class SiteAnalyticsConnection(TypedDict):
     """A domain's GA4 connection; ``propertyId`` is the property's numeric ID."""
 
-    provider: str
+    provider: SiteAnalyticsProvider
     propertyId: str
-    status: str
+    status: SiteSearchConnectionStatus
     lastImportedAt: NotRequired[str]
     lastFailure: NotRequired[str]
 
@@ -43,7 +50,7 @@ class SiteAnalyticsRow(TypedDict):
 
 
 class SiteAnalyticsUnavailable(TypedDict):
-    report: str
+    report: SiteAnalyticsUnavailableReport
     reason: str
 
 

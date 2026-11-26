@@ -1,17 +1,26 @@
 from __future__ import annotations
 
-from typing import Any, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from ._wire import decode, request
 from .client import AdminClient, quote_path
 from .measurement import DurationEvaluationRequest, DurationEvaluationResponse
+
+PredictionProjectKind = Literal[
+    "deadline_forecast",
+    "runway_forecast",
+    "decision_analysis",
+    "calibration",
+    "duration",
+    "event_probability",
+]
 
 
 class PredictionDefinitionCreateRequest(TypedDict, total=False):
     definition_key: str
     display_name: str
     description: str
-    project_kind: str
+    project_kind: PredictionProjectKind
 
 
 class PredictionDefinitionUpdateRequest(TypedDict, total=False):
@@ -52,7 +61,7 @@ class PredictionDefinition(TypedDict):
     uuid: str
     definition_key: str
     display_name: str
-    project_kind: str
+    project_kind: PredictionProjectKind
     schedule_kind: str
     status: str
     is_paused: bool

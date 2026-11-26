@@ -1,13 +1,48 @@
 """Typed bodies of the hosted-app item routes under ``/api/v1/app/``.
 
 Generated once from Custd's OpenAPI components and kept by hand since; the field names are the
-wire names. Enum-like strings are open sets owned by Custd: compare them with the constants in
-:mod:`custd.app_items`. The SDK decodes a JSON null list as an empty list.
+wire names. Closed string sets are Literal aliases; a value a newer server adds still
+decodes. The SDK decodes a JSON null list as an empty list.
 """
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
+
+from .admin_notifications import NotificationChannel, NotificationWebhookKind
+from .admin_timeplan_operations import TimePlanBlockStatus
+
+AppItemAlertDeliveryOutcome = Literal["pending", "sent", "failed"]
+AppItemAlertRuleType = Literal[
+    "deadline_probability_below",
+    "target_reached",
+    "estimate_stale",
+    "forecast_moved_inside_target",
+    "model_range_above",
+]
+AppItemCreateKind = Literal["measurement_project", "link_collection", "meeting", "uncertainty_model", "plan"]
+AppItemKind = Literal["measurement_project", "link_collection", "meeting", "uncertainty_model"]
+AppItemOwnership = Literal["unowned", "yours", "other"]
+AppLinkRole = Literal["owner", "share"]
+AppMeasurementProjectKind = Literal["deadline_forecast", "runway_forecast"]
+AppMeetingStatus = Literal["ready", "running", "completed", "cancelled"]
+AppModelBoundState = Literal["resolved", "source_missing", "value_missing"]
+AppModelForecastField = Literal["completion_days", "deadline_probability", "rate_per_day"]
+AppModelInputDistribution = Literal["normal", "lognormal", "uniform"]
+AppModelInputShape = Literal["point", "range", "proportion", "samples", "bound"]
+AppModelPresentationAxis = Literal["numeric", "temporal"]
+AppModelPresentationRole = Literal[
+    "observed_progress",
+    "previous_snapshots",
+    "outer_interval",
+    "inner_interval",
+    "median",
+]
+AppModelQuantityKind = Literal["input", "formula"]
+AppModelRecommendation = Literal["act", "hold"]
+AppModelRunTrigger = Literal["request", "source_changed"]
+AppModelSourceKind = Literal["counter_forecast"]
+MeasurementForecastMethod = Literal["bootstrap_quantile", "bayesian_linear_regression", "seasonal_7_day"]
 
 
 class AppItemRead(TypedDict):
@@ -28,7 +63,7 @@ class AppItemRead(TypedDict):
 
 class AppItemCreateRequest(TypedDict):
     idleExpirySeconds: NotRequired[int]
-    kind: str
+    kind: AppItemCreateKind
     measurementProject: NotRequired[AppMeasurementProjectCreate]
     meeting: NotRequired[AppMeetingCreate]
     name: NotRequired[str]
@@ -160,7 +195,7 @@ class AppItemAlertRuleCreateRequest(TypedDict):
     modelOutput: NotRequired[str]
     staleDays: NotRequired[int]
     threshold: NotRequired[float]
-    type: str
+    type: AppItemAlertRuleType
 
 
 class AppItemAlertRule(TypedDict):
@@ -171,7 +206,7 @@ class AppItemAlertRule(TypedDict):
     ruleUuid: str
     staleDays: NotRequired[int]
     threshold: NotRequired[float]
-    type: str
+    type: AppItemAlertRuleType
 
 
 class AppItemAlertSlackCreateRequest(TypedDict):
@@ -181,7 +216,7 @@ class AppItemAlertSlackCreateRequest(TypedDict):
 class AppItemAlertWebhook(TypedDict):
     createdAt: str
     endpoint: str
-    kind: str
+    kind: NotificationWebhookKind
     webhookUuid: str
 
 
@@ -245,8 +280,8 @@ class AppItem(TypedDict):
     idleExpirySeconds: int
     itemUuid: str
     kind: str
-    ownership: str
-    role: str
+    ownership: AppItemOwnership
+    role: AppLinkRole
     updatedAt: str
     version: int
 
@@ -259,7 +294,7 @@ class AppLinkCollection(TypedDict):
 class AppItemLink(TypedDict):
     createdAt: str
     linkUuid: str
-    role: str
+    role: AppLinkRole
     shareToken: NotRequired[str]
 
 
@@ -284,7 +319,7 @@ class AppMeeting(TypedDict):
     endsAt: NotRequired[str]
     name: str
     startedAt: NotRequired[str]
-    status: str
+    status: AppMeetingStatus
     summary: AppMeetingSummary
 
 
@@ -329,7 +364,7 @@ class AppModelDetail(TypedDict):
 
 class AppMeasurementProjectCreate(TypedDict):
     description: NotRequired[str]
-    kind: str
+    kind: AppMeasurementProjectKind
     name: str
     series: list[MeasurementSeriesCreateRequest]
     target: MeasurementTargetCreateRequest
@@ -353,8 +388,8 @@ class AppItemSummary(TypedDict):
     itemUuid: str
     kind: str
     name: str
-    ownership: str
-    role: str
+    ownership: AppItemOwnership
+    role: AppLinkRole
     seriesCode: NotRequired[str]
     status: str
     updatedAt: str
@@ -365,7 +400,7 @@ class ProjectUpdateRequest(TypedDict):
     definitionOfDone: NotRequired[str]
     deliveryTargetDate: NotRequired[str]
     description: NotRequired[str]
-    forecastMethod: NotRequired[str]
+    forecastMethod: NotRequired[MeasurementForecastMethod]
     name: NotRequired[str]
     runSimilar: NotRequired[bool]
     status: NotRequired[str]
@@ -424,13 +459,13 @@ class MeasurementObservationResult(TypedDict):
 
 class AppItemAlertDelivery(TypedDict):
     attempts: int
-    channel: str
+    channel: NotificationChannel
     createdAt: str
     crossing: int
     deliveryUuid: str
     lastErrorClass: NotRequired[str]
     lastStatusCode: NotRequired[int]
-    outcome: str
+    outcome: AppItemAlertDeliveryOutcome
     ruleType: str
     ruleUuid: str
     updatedAt: str
@@ -446,7 +481,7 @@ class AppModelQuantity(TypedDict):
     description: NotRequired[str]
     formula: NotRequired[str]
     input: NotRequired[AppModelInput]
-    kind: str
+    kind: AppModelQuantityKind
     name: str
     unit: NotRequired[str]
 
@@ -498,7 +533,7 @@ class AppMeetingBlock(TypedDict):
     position: int
     predictedMs: int
     startedAt: NotRequired[str]
-    status: str
+    status: TimePlanBlockStatus
     title: str
 
 
@@ -553,11 +588,11 @@ class AppMeetingBlockCreate(TypedDict):
 
 
 class AppModelInput(TypedDict):
-    distribution: NotRequired[str]
+    distribution: NotRequired[AppModelInputDistribution]
     high: NotRequired[float]
     low: NotRequired[float]
     samples: NotRequired[list[float]]
-    shape: str
+    shape: AppModelInputShape
     source: NotRequired[AppModelInputSource]
     successes: NotRequired[int]
     trials: NotRequired[int]
@@ -565,8 +600,8 @@ class AppModelInput(TypedDict):
 
 
 class AppModelInputSource(TypedDict):
-    field: str
-    kind: str
+    field: AppModelForecastField
+    kind: AppModelSourceKind
     projectUuid: str
 
 
@@ -617,13 +652,13 @@ class AppModelRun(TypedDict):
     sensitivity: NotRequired[AppModelSensitivity]
     sensitivityOutput: NotRequired[str]
     sourceForecastRunUuid: NotRequired[str]
-    trigger: str
+    trigger: AppModelRunTrigger
     versionNumber: int
 
 
 class MeasurementForecastRunRequest(TypedDict):
     forecastFrom: NotRequired[str]
-    method: NotRequired[str]
+    method: NotRequired[MeasurementForecastMethod]
     sampleCount: NotRequired[int]
     seed: NotRequired[int]
 
@@ -751,7 +786,7 @@ class AppModelBoundInput(TypedDict):
     forecastRunUuid: NotRequired[str]
     quantity: str
     source: AppModelInputSource
-    state: str
+    state: AppModelBoundState
     value: NotRequired[float]
 
 
@@ -766,7 +801,7 @@ class AppModelInformation(TypedDict):
     actProbability: float
     expectedValueOfPerfectInformation: float
     inputs: list[AppModelInputInformation]
-    recommended: str
+    recommended: AppModelRecommendation
     suggestedNextMeasurement: NotRequired[str]
 
 
@@ -862,8 +897,8 @@ class MeasurementPredictionSourceHealth(TypedDict):
 class AppModelPresentationLayer(TypedDict):
     label: str
     points: list[AppModelPresentationPoint]
-    role: str
-    yKind: str
+    role: AppModelPresentationRole
+    yKind: AppModelPresentationAxis
 
 
 class AppModelPresentationReference(TypedDict):

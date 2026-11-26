@@ -34,12 +34,14 @@ from .admin_site_insights import (
     SavedSiteReportRequest,
     SiteAuditDelta,
     SiteAuditPageList,
+    SiteFindingRule,
     SiteIndexNowState,
     SiteIndexNowSubmission,
     SiteLighthouseHistory,
     SiteLighthousePages,
     SiteObservedWording,
     SitePageCheckResponse,
+    SitePageCheckScope,
     SitePageFacts,
     SitePageRecheck,
     SitePageRecheckList,
@@ -102,6 +104,11 @@ from .admin_site_web_data import (
     SiteWebPages,
 )
 from .client import AdminClient, problem_request_error, quote_path, with_acting_company
+
+SiteProbeKind = Literal["ping", "tcp", "dns", "http-delivery"]
+SiteProbeProtocol = Literal["http1.1", "http2"]
+SiteProbeStatus = Literal["unknown", "up", "down", "paused"]
+
 
 SITE_DOMAINS_PATH = "/site-domains"
 SITE_ALERT_DESTINATION_PATH = SITE_DOMAINS_PATH + "/alert-destination"
@@ -229,83 +236,83 @@ SiteSearchConnectionStatus = Literal["pending", "active", "failing", "revoked"]
 
 # Finding rule IDs, from libs/go/siteaudit in Custd. A finding's ``rule`` is one of these; key
 # client behaviour on the ID, never on the title.
-SITE_RULE_PAGE_STATUS = "crawl.page-status"
-SITE_RULE_REDIRECT_CHAIN = "crawl.redirect-chain"
-SITE_RULE_SOFT_404 = "crawl.soft-404"
-SITE_RULE_HTTPS_REDIRECT = "host.https-redirect"
-SITE_RULE_CANONICAL_HOST = "host.canonical-host"
-SITE_RULE_ROBOTS_MISSING = "robots.missing"
-SITE_RULE_ROBOTS_INVALID = "robots.invalid"
-SITE_RULE_ROBOTS_NO_SITEMAP = "robots.no-sitemap"
-SITE_RULE_SITEMAP_MISSING = "sitemap.missing"
-SITE_RULE_SITEMAP_INVALID = "sitemap.invalid"
-SITE_RULE_SITEMAP_URL_STATUS = "sitemap.url-not-ok"
-SITE_RULE_SITEMAP_NOINDEX = "sitemap.noindex-url"
-SITE_RULE_SITEMAP_LASTMOD = "sitemap.lastmod-missing"
-SITE_RULE_CANONICAL_MISSING = "canonical.missing"
-SITE_RULE_CANONICAL_INVALID = "canonical.invalid"
-SITE_RULE_CANONICAL_NOT_OK = "canonical.not-ok"
-SITE_RULE_TITLE_MISSING = "title.missing"
-SITE_RULE_TITLE_LENGTH = "title.length"
-SITE_RULE_TITLE_DUPLICATE = "title.duplicate"
-SITE_RULE_DESC_MISSING = "description.missing"
-SITE_RULE_DESC_LENGTH = "description.length"
-SITE_RULE_DESC_DUPLICATE = "description.duplicate"
-SITE_RULE_HEADING_H1 = "heading.h1"
-SITE_RULE_LANG_MISSING = "html.lang-missing"
-SITE_RULE_HTML_TOO_LARGE = "html.too-large"
-SITE_RULE_OPEN_GRAPH_MISSING = "og.missing"
-SITE_RULE_OPEN_GRAPH_IMAGE_MISSING = "og.image-missing"
-SITE_RULE_OPEN_GRAPH_IMAGE_UNREACHABLE = "og.image-unreachable"
-SITE_RULE_TWITTER_CARD_MISSING = "twitter.card-missing"
-SITE_RULE_IMAGE_ALT_MISSING = "image.alt-missing"
-SITE_RULE_IMAGE_TOO_LARGE = "image.too-large"
-SITE_RULE_IMAGE_LEGACY_FORMAT = "image.legacy-format"
-SITE_RULE_IMAGE_DIMENSIONS = "image.missing-dimensions"
-SITE_RULE_IMAGE_NOT_LAZY = "image.not-lazy"
-SITE_RULE_NO_COMPRESSION = "http.no-compression"
-SITE_RULE_STATIC_CACHE = "cache.static-assets"
-SITE_RULE_JS_REQUIRED = "ai.js-required"
-SITE_RULE_ANSWER_BOT_BLOCKED = "ai.answer-bot-blocked"
-SITE_RULE_TRAINING_BLOCKED = "ai.training-bot-blocked"
-SITE_RULE_BOT_REFUSED = "ai.bot-refused"
-SITE_RULE_JSONLD_MISSING = "jsonld.missing"
-SITE_RULE_JSONLD_INVALID = "jsonld.invalid"
-SITE_RULE_JSONLD_NO_ENTITY = "jsonld.no-entity"
-SITE_RULE_LLMS_MISSING = "llms.missing"
-SITE_RULE_LLMS_INVALID = "llms.invalid"
-SITE_RULE_REDIRECT_LOOP = "crawl.redirect-loop"
-SITE_RULE_ORPHAN_PAGE = "crawl.orphan-page"
-SITE_RULE_DEEP_PAGE = "crawl.deep-page"
-SITE_RULE_NO_INTERNAL_LINKS = "crawl.no-internal-links"
-SITE_RULE_NOINDEX_PAGE = "crawl.noindex-page"
-SITE_RULE_HOME_NOINDEX = "crawl.home-noindex"
-SITE_RULE_NOFOLLOW_PAGE = "robots.nofollow"
-SITE_RULE_CANONICAL_ELSEWHERE = "canonical.points-elsewhere"
-SITE_RULE_CANONICAL_CONFLICT = "canonical.conflict"
-SITE_RULE_HEADING_SKIP = "heading.order-skip"
-SITE_RULE_THIN_CONTENT = "content.thin"
-SITE_RULE_DUPLICATE_CONTENT = "content.duplicate"
-SITE_RULE_NEAR_DUPLICATE = "content.near-duplicate"
-SITE_RULE_HREFLANG_INVALID_CODE = "hreflang.invalid-code"
-SITE_RULE_HREFLANG_MISSING_SELF = "hreflang.missing-self-reference"
-SITE_RULE_HREFLANG_MISSING_RETURN = "hreflang.missing-return-link"
-SITE_RULE_HREFLANG_MISSING_X_DEFAULT = "hreflang.missing-x-default"
-SITE_RULE_HREFLANG_TARGET_NOT_INDEXABLE = "hreflang.target-not-indexable"
-SITE_RULE_SLOW_RESPONSE = "http.slow-response"
-SITE_RULE_UPTIME_DOWN = "uptime.down"
-SITE_RULE_UPTIME_SLOW = "uptime.slow"
-SITE_RULE_TLS_INVALID = "tls.invalid"
-SITE_RULE_TLS_EXPIRING = "tls.expiring"
-SITE_RULE_TLS_EXPIRING_SOON = "tls.expiring-soon"
-SITE_RULE_REGISTRATION_EXPIRING = "registration.expiring"
-SITE_RULE_SEARCH_LOW_CTR = "search.low-ctr"
-SITE_RULE_SEARCH_POSITION_DROP = "search.position-drop"
-SITE_RULE_LIGHTHOUSE_DESKTOP_DROP = "lighthouse.desktop-score-drop"
-SITE_RULE_LIGHTHOUSE_MOBILE_DROP = "lighthouse.mobile-score-drop"
-SITE_RULE_BROKEN_FRAGMENT = "crawl.broken-fragment"
-SITE_RULE_SITEMAP_BLOCKED_URL = "sitemap.blocked-url"
-SITE_RULE_LOGS_CRAWLER_NOT_FOUND = "logs.crawler-not-found"
+SITE_RULE_PAGE_STATUS: SiteFindingRule = "crawl.page-status"
+SITE_RULE_REDIRECT_CHAIN: SiteFindingRule = "crawl.redirect-chain"
+SITE_RULE_SOFT_404: SiteFindingRule = "crawl.soft-404"
+SITE_RULE_HTTPS_REDIRECT: SiteFindingRule = "host.https-redirect"
+SITE_RULE_CANONICAL_HOST: SiteFindingRule = "host.canonical-host"
+SITE_RULE_ROBOTS_MISSING: SiteFindingRule = "robots.missing"
+SITE_RULE_ROBOTS_INVALID: SiteFindingRule = "robots.invalid"
+SITE_RULE_ROBOTS_NO_SITEMAP: SiteFindingRule = "robots.no-sitemap"
+SITE_RULE_SITEMAP_MISSING: SiteFindingRule = "sitemap.missing"
+SITE_RULE_SITEMAP_INVALID: SiteFindingRule = "sitemap.invalid"
+SITE_RULE_SITEMAP_URL_STATUS: SiteFindingRule = "sitemap.url-not-ok"
+SITE_RULE_SITEMAP_NOINDEX: SiteFindingRule = "sitemap.noindex-url"
+SITE_RULE_SITEMAP_LASTMOD: SiteFindingRule = "sitemap.lastmod-missing"
+SITE_RULE_CANONICAL_MISSING: SiteFindingRule = "canonical.missing"
+SITE_RULE_CANONICAL_INVALID: SiteFindingRule = "canonical.invalid"
+SITE_RULE_CANONICAL_NOT_OK: SiteFindingRule = "canonical.not-ok"
+SITE_RULE_TITLE_MISSING: SiteFindingRule = "title.missing"
+SITE_RULE_TITLE_LENGTH: SiteFindingRule = "title.length"
+SITE_RULE_TITLE_DUPLICATE: SiteFindingRule = "title.duplicate"
+SITE_RULE_DESC_MISSING: SiteFindingRule = "description.missing"
+SITE_RULE_DESC_LENGTH: SiteFindingRule = "description.length"
+SITE_RULE_DESC_DUPLICATE: SiteFindingRule = "description.duplicate"
+SITE_RULE_HEADING_H1: SiteFindingRule = "heading.h1"
+SITE_RULE_LANG_MISSING: SiteFindingRule = "html.lang-missing"
+SITE_RULE_HTML_TOO_LARGE: SiteFindingRule = "html.too-large"
+SITE_RULE_OPEN_GRAPH_MISSING: SiteFindingRule = "og.missing"
+SITE_RULE_OPEN_GRAPH_IMAGE_MISSING: SiteFindingRule = "og.image-missing"
+SITE_RULE_OPEN_GRAPH_IMAGE_UNREACHABLE: SiteFindingRule = "og.image-unreachable"
+SITE_RULE_TWITTER_CARD_MISSING: SiteFindingRule = "twitter.card-missing"
+SITE_RULE_IMAGE_ALT_MISSING: SiteFindingRule = "image.alt-missing"
+SITE_RULE_IMAGE_TOO_LARGE: SiteFindingRule = "image.too-large"
+SITE_RULE_IMAGE_LEGACY_FORMAT: SiteFindingRule = "image.legacy-format"
+SITE_RULE_IMAGE_DIMENSIONS: SiteFindingRule = "image.missing-dimensions"
+SITE_RULE_IMAGE_NOT_LAZY: SiteFindingRule = "image.not-lazy"
+SITE_RULE_NO_COMPRESSION: SiteFindingRule = "http.no-compression"
+SITE_RULE_STATIC_CACHE: SiteFindingRule = "cache.static-assets"
+SITE_RULE_JS_REQUIRED: SiteFindingRule = "ai.js-required"
+SITE_RULE_ANSWER_BOT_BLOCKED: SiteFindingRule = "ai.answer-bot-blocked"
+SITE_RULE_TRAINING_BLOCKED: SiteFindingRule = "ai.training-bot-blocked"
+SITE_RULE_BOT_REFUSED: SiteFindingRule = "ai.bot-refused"
+SITE_RULE_JSONLD_MISSING: SiteFindingRule = "jsonld.missing"
+SITE_RULE_JSONLD_INVALID: SiteFindingRule = "jsonld.invalid"
+SITE_RULE_JSONLD_NO_ENTITY: SiteFindingRule = "jsonld.no-entity"
+SITE_RULE_LLMS_MISSING: SiteFindingRule = "llms.missing"
+SITE_RULE_LLMS_INVALID: SiteFindingRule = "llms.invalid"
+SITE_RULE_REDIRECT_LOOP: SiteFindingRule = "crawl.redirect-loop"
+SITE_RULE_ORPHAN_PAGE: SiteFindingRule = "crawl.orphan-page"
+SITE_RULE_DEEP_PAGE: SiteFindingRule = "crawl.deep-page"
+SITE_RULE_NO_INTERNAL_LINKS: SiteFindingRule = "crawl.no-internal-links"
+SITE_RULE_NOINDEX_PAGE: SiteFindingRule = "crawl.noindex-page"
+SITE_RULE_HOME_NOINDEX: SiteFindingRule = "crawl.home-noindex"
+SITE_RULE_NOFOLLOW_PAGE: SiteFindingRule = "robots.nofollow"
+SITE_RULE_CANONICAL_ELSEWHERE: SiteFindingRule = "canonical.points-elsewhere"
+SITE_RULE_CANONICAL_CONFLICT: SiteFindingRule = "canonical.conflict"
+SITE_RULE_HEADING_SKIP: SiteFindingRule = "heading.order-skip"
+SITE_RULE_THIN_CONTENT: SiteFindingRule = "content.thin"
+SITE_RULE_DUPLICATE_CONTENT: SiteFindingRule = "content.duplicate"
+SITE_RULE_NEAR_DUPLICATE: SiteFindingRule = "content.near-duplicate"
+SITE_RULE_HREFLANG_INVALID_CODE: SiteFindingRule = "hreflang.invalid-code"
+SITE_RULE_HREFLANG_MISSING_SELF: SiteFindingRule = "hreflang.missing-self-reference"
+SITE_RULE_HREFLANG_MISSING_RETURN: SiteFindingRule = "hreflang.missing-return-link"
+SITE_RULE_HREFLANG_MISSING_X_DEFAULT: SiteFindingRule = "hreflang.missing-x-default"
+SITE_RULE_HREFLANG_TARGET_NOT_INDEXABLE: SiteFindingRule = "hreflang.target-not-indexable"
+SITE_RULE_SLOW_RESPONSE: SiteFindingRule = "http.slow-response"
+SITE_RULE_UPTIME_DOWN: SiteFindingRule = "uptime.down"
+SITE_RULE_UPTIME_SLOW: SiteFindingRule = "uptime.slow"
+SITE_RULE_TLS_INVALID: SiteFindingRule = "tls.invalid"
+SITE_RULE_TLS_EXPIRING: SiteFindingRule = "tls.expiring"
+SITE_RULE_TLS_EXPIRING_SOON: SiteFindingRule = "tls.expiring-soon"
+SITE_RULE_REGISTRATION_EXPIRING: SiteFindingRule = "registration.expiring"
+SITE_RULE_SEARCH_LOW_CTR: SiteFindingRule = "search.low-ctr"
+SITE_RULE_SEARCH_POSITION_DROP: SiteFindingRule = "search.position-drop"
+SITE_RULE_LIGHTHOUSE_DESKTOP_DROP: SiteFindingRule = "lighthouse.desktop-score-drop"
+SITE_RULE_LIGHTHOUSE_MOBILE_DROP: SiteFindingRule = "lighthouse.mobile-score-drop"
+SITE_RULE_BROKEN_FRAGMENT: SiteFindingRule = "crawl.broken-fragment"
+SITE_RULE_SITEMAP_BLOCKED_URL: SiteFindingRule = "sitemap.blocked-url"
+SITE_RULE_LOGS_CRAWLER_NOT_FOUND: SiteFindingRule = "logs.crawler-not-found"
 
 SITE_RULE_IDS: tuple[str, ...] = (
     SITE_RULE_PAGE_STATUS,
@@ -467,10 +474,10 @@ class SiteDomainAudit(TypedDict, total=False):
 
 
 class SiteProbeSpec(TypedDict):
-    kind: Literal["ping", "tcp", "dns", "http-delivery"]
+    kind: SiteProbeKind
     port: NotRequired[int]
     expectedAddresses: NotRequired[list[str]]
-    protocol: NotRequired[Literal["http1.1", "http2"]]
+    protocol: NotRequired[SiteProbeProtocol]
 
 
 class SiteProbeTimings(TypedDict):
@@ -503,7 +510,7 @@ class SiteProbeDetail(TypedDict, total=False):
 
 
 class SiteProbe(SiteProbeSpec):
-    status: Literal["unknown", "up", "down", "paused"]
+    status: SiteProbeStatus
     lastCheckedAt: NotRequired[str]
     responseMs: NotRequired[int]
     lastFailure: NotRequired[str]
@@ -1039,7 +1046,7 @@ class SiteDomainAdminClient:
         *,
         previous_url: str | None = None,
         phrase: str | None = None,
-        scope: str | None = None,
+        scope: SitePageCheckScope | None = None,
         company_slug: str | None = None,
     ) -> SitePageCheckResponse:
         """Run the one-page checks on draft HTML (at most 512 KiB) as if ``url`` served it.

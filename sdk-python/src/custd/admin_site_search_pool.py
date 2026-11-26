@@ -2,23 +2,27 @@
 may read the pooled queries as k-anonymous demand and position bands.
 
 The pool is tenant-wide; a site-bound credential is refused. Positions are percents of pooled
-impressions rounded to 5, so a present 0 is a real 0. Enum-like strings are open sets: compare
-with the constants.
+impressions rounded to 5, so a present 0 is a real 0. Closed string sets are Literal
+aliases; a value a newer server adds still decodes.
 """
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
+
+SearchPoolAccess = Literal["joined", "not_joined"]
+SearchPoolDemandBand = Literal["100_999", "1k_10k", "10k_100k", "100k_plus"]
+
 
 # A query's pooled monthly impressions band.
-SITE_SEARCH_POOL_DEMAND_100_999 = "100_999"
-SITE_SEARCH_POOL_DEMAND_1K_10K = "1k_10k"
-SITE_SEARCH_POOL_DEMAND_10K_100K = "10k_100k"
-SITE_SEARCH_POOL_DEMAND_100K_PLUS = "100k_plus"
+SITE_SEARCH_POOL_DEMAND_100_999: SearchPoolDemandBand = "100_999"
+SITE_SEARCH_POOL_DEMAND_1K_10K: SearchPoolDemandBand = "1k_10k"
+SITE_SEARCH_POOL_DEMAND_10K_100K: SearchPoolDemandBand = "10k_100k"
+SITE_SEARCH_POOL_DEMAND_100K_PLUS: SearchPoolDemandBand = "100k_plus"
 
 # Whether the tenant has joined the pool; SiteRankings.pool carries the same values.
-SITE_SEARCH_POOL_JOINED = "joined"
-SITE_SEARCH_POOL_NOT_JOINED = "not_joined"
+SITE_SEARCH_POOL_JOINED: SearchPoolAccess = "joined"
+SITE_SEARCH_POOL_NOT_JOINED: SearchPoolAccess = "not_joined"
 
 SITE_SEARCH_POOL_QUERIES_DEFAULT_LIMIT = 50
 SITE_SEARCH_POOL_QUERIES_MAX_LIMIT = 200
@@ -62,7 +66,7 @@ class SearchPoolPositions(TypedDict):
 
 
 class SearchPoolBand(TypedDict):
-    demandBand: str
+    demandBand: SearchPoolDemandBand
     positions: SearchPoolPositions
 
 

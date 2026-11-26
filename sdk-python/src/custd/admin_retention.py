@@ -7,18 +7,31 @@ hold is never swept. A JSON null list decodes as empty.
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 from ._wire import decode, request
 from .client import AdminClient, quote_path
+
+RetentionClass = Literal[
+    "raw",
+    "archive",
+    "materialized",
+    "cache",
+    "object",
+    "audit_event",
+    "audit_ip_address",
+    "audit_user_agent",
+]
+RetentionScope = Literal["tenant", "data_space", "event_type", "global"]
+
 
 RETENTION_POLICIES_PATH = "/api/v1/admin/retention/policies"
 
 
 class RetentionPolicy(TypedDict):
     id: int
-    scope: str
-    retentionClass: str
+    scope: RetentionScope
+    retentionClass: RetentionClass
     maxAgeSeconds: int
     precedence: int
     legalHold: bool
@@ -34,8 +47,8 @@ class RetentionPolicy(TypedDict):
 
 
 class RetentionPolicyUpsertRequest(TypedDict):
-    scope: str
-    retentionClass: str
+    scope: RetentionScope
+    retentionClass: RetentionClass
     maxAgeSeconds: int
     precedence: int
     legalHold: bool

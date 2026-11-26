@@ -6,7 +6,15 @@ reporting calls; the calls themselves live on ``TimePlanAdminClient``.
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
+
+from .reporting_types import ReportingExportFormat
+
+CompletedRunExportRedactionResult = Literal["not_required", "applied"]
+CompletedRunStatus = Literal["completed", "cancelled"]
+TimePlanAdjustmentReason = Literal["late_start", "early_completion", "overrun", "skip", "completion", "boundary_change"]
+TimePlanBlockOutcome = Literal["completed", "skipped", "cancelled", "not_run", "censored"]
+TimePlanBlockStatus = Literal["pending", "active", "completed", "skipped", "not_run"]
 
 
 class TimePlanDefinitionMathAdjustment(TypedDict):
@@ -20,7 +28,7 @@ class TimePlanDefinitionMathAdjustment(TypedDict):
     negativeAllocations: int
     overrunMs: int
     passed: bool
-    reason: str
+    reason: TimePlanAdjustmentReason
     remainingMs: int
     unusedMs: int
     vectorId: str
@@ -198,11 +206,11 @@ class CompletedDurationReportBlock(TypedDict):
     block_uuid: str
     category: NotRequired[str]
     current_ms: int
-    outcome: str
+    outcome: TimePlanBlockOutcome
     planned_ms: int
     semantic_key: str
     sequence: int
-    status: str
+    status: TimePlanBlockStatus
     tags: NotRequired[list[str]]
     wall_ended_at: NotRequired[str]
     wall_started_at: NotRequired[str]
@@ -258,7 +266,7 @@ class CompletedDurationReportSummary(TypedDict):
     plan_id: str
     planned_total_ms: int
     run_id: str
-    run_status: str
+    run_status: CompletedRunStatus
     scheduled_ends_at: NotRequired[str]
     scheduled_starts_at: NotRequired[str]
     skipped_block_count: int
@@ -316,7 +324,7 @@ class CompletedRunExportMetadata(TypedDict):
 
 class CompletedRunExportRedaction(TypedDict):
     redactedAnnotationCount: int
-    result: str
+    result: CompletedRunExportRedactionResult
 
 
 class CompletedRunExportAdjustmentSection(TypedDict):
@@ -355,6 +363,6 @@ class CompletedRunExportSource(TypedDict):
 
 
 class CompletedRunExportRequest(TypedDict):
-    formats: list[str]
+    formats: list[ReportingExportFormat]
     idempotencyKey: NotRequired[str]
     source: CompletedRunExportSource

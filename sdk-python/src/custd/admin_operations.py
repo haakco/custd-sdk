@@ -9,7 +9,7 @@ take its slug; the others act on the credential's own tenant.
 
 from __future__ import annotations
 
-from typing import Any, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from ._wire import decode, request, require_idempotency
 from .admin_privacy import PrivacyRule
@@ -36,8 +36,20 @@ from .admin_reporting_packs import (
     SourceReconciliation,
     TransitionRule,
     TrustDiagnostics,
+    WidgetKind,
 )
 from .client import AdminClient, AdminRequestOptions, quote_path
+from .reporting_types import CanonicalUnit, ReportingExportFormat
+
+AccountingEvidenceKind = Literal["purchase", "balance", "correction"]
+BrowserIdentityMode = Literal["cookieless", "extended"]
+ErrorIssueSort = Literal["recent", "frequent"]
+ErrorIssueState = Literal["open", "resolved", "ignored"]
+ErrorIssueStateFilter = Literal["open", "resolved", "ignored", "all"]
+RLSExecuteOutcome = Literal["attempted", "success", "failure"]
+StorageAlertChannel = Literal["email", "webhook"]
+SystemHealthStatus = Literal["healthy", "degraded", "failing", "unknown"]
+TenantManifestOperationState = Literal["pending", "success", "failure", "unknown"]
 
 
 class AccountingEvidence(TypedDict):
@@ -47,15 +59,15 @@ class AccountingEvidence(TypedDict):
     delta: NotRequired[float]
     effectiveAt: str
     id: str
-    kind: str
+    kind: AccountingEvidenceKind
     observedAt: str
     quantity: NotRequired[float]
     reason: str
     supersedesId: NotRequired[str]
     targetId: NotRequired[str]
-    targetKind: NotRequired[str]
+    targetKind: NotRequired[AccountingEvidenceKind]
     tenantKey: str
-    unit: str
+    unit: CanonicalUnit
 
 
 class AccountingEvidenceListResponse(TypedDict):
@@ -306,7 +318,7 @@ class StorageAlertEvaluation(TypedDict):
 
 
 class StorageAlertRule(TypedDict):
-    channel: str
+    channel: StorageAlertChannel
     createdAt: str
     emailRecipient: NotRequired[str]
     enabled: bool
@@ -336,7 +348,7 @@ class StorageAlertMeasurement(TypedDict):
 
 
 class StorageAlertEvent(TypedDict):
-    channel: str
+    channel: StorageAlertChannel
     delivery: StorageAlertDelivery
     emailRecipient: NotRequired[str]
     eventId: str
@@ -422,7 +434,7 @@ class SystemStageStatus(TypedDict):
     progress: NotRequired[SystemStageProgress]
     reason: NotRequired[str]
     signals: NotRequired[SystemStageSignals]
-    status: str
+    status: SystemHealthStatus
 
 
 class SystemStorageStatus(TypedDict):
@@ -441,7 +453,7 @@ class SystemOperationalBacklogSummary(TypedDict):
 
 class SystemOperationalStageSummary(TypedDict):
     reason: NotRequired[str]
-    status: str
+    status: SystemHealthStatus
 
 
 class SystemOperationalSummary(TypedDict):
@@ -449,7 +461,7 @@ class SystemOperationalSummary(TypedDict):
     durable: SystemOperationalStageSummary
     queryable: SystemOperationalStageSummary
     received: SystemOperationalStageSummary
-    status: str
+    status: SystemHealthStatus
 
 
 class SystemTenantHotspot(TypedDict):
@@ -505,7 +517,7 @@ class TenantManifestOperationStatus(TypedDict):
     idempotencyKey: str
     leaseExpiresAt: NotRequired[str]
     pending: NotRequired[TenantManifestPendingOperation]
-    state: str
+    state: TenantManifestOperationState
     updatedAt: str
     uuid: str
 
@@ -538,7 +550,7 @@ class ErrorIssue(TypedDict):
     resolvedRelease: NotRequired[str]
     siteName: str
     siteUuid: str
-    state: str
+    state: ErrorIssueState
     title: str
     uuid: str
 
@@ -595,7 +607,7 @@ class ErrorIssueDetail(TypedDict):
 class PublicSiteConfig(TypedDict):
     allowedOrigins: list[str]
     environment: str
-    identityMode: str
+    identityMode: BrowserIdentityMode
     pageViewSchemaVersion: NotRequired[str]
     siteUuid: str
 
@@ -635,7 +647,7 @@ class AdminSiteUpdate(TypedDict):
     allowedEnvironments: NotRequired[list[str]]
     allowedOrigins: list[str]
     environment: str
-    identityMode: str
+    identityMode: BrowserIdentityMode
     ingestTarget: NotRequired[AdminSiteIngestTarget]
 
 
@@ -645,7 +657,7 @@ class AdminSite(TypedDict):
     companySlug: str
     enabled: bool
     environment: str
-    identityMode: str
+    identityMode: BrowserIdentityMode
     ingestTarget: NotRequired[AdminSiteIngestTarget]
     name: str
     rateLimitPerMinute: int
@@ -674,7 +686,7 @@ class AdminSiteCreateResponse(TypedDict):
     environment: str
     allowedEnvironments: list[str]
     allowedOrigins: list[str]
-    identityMode: str
+    identityMode: BrowserIdentityMode
     enabled: bool
     rateLimitPerMinute: int
     retentionDays: int
@@ -698,14 +710,14 @@ class AccountingEvidenceCreateRequest(TypedDict):
     delta: NotRequired[float]
     effectiveAt: str
     id: str
-    kind: str
+    kind: AccountingEvidenceKind
     observedAt: str
     quantity: NotRequired[float]
     reason: str
     supersedesId: NotRequired[str]
     targetId: NotRequired[str]
-    targetKind: NotRequired[str]
-    unit: str
+    targetKind: NotRequired[AccountingEvidenceKind]
+    unit: CanonicalUnit
 
 
 class AccountingEvidenceResponse(TypedDict):
@@ -748,7 +760,7 @@ class RLSExecuteRequest(TypedDict):
 class RLSExecuteResponse(TypedDict):
     diff: list[RLSPolicyDiff]
     finished_at: str
-    outcome: str
+    outcome: RLSExecuteOutcome
     plan_uuid: str
     rollback_sql: str
     started_at: str
@@ -763,7 +775,7 @@ class ScheduledTaskRunResponse(TypedDict):
 
 
 class StorageAlertRuleCreateRequest(TypedDict):
-    channel: str
+    channel: StorageAlertChannel
     emailRecipient: str
     enabled: bool
     metric: str
@@ -771,7 +783,7 @@ class StorageAlertRuleCreateRequest(TypedDict):
 
 
 class ErrorIssueStateRequest(TypedDict):
-    state: str
+    state: ErrorIssueState
 
 
 class SDKVersionDeprecationRequest(TypedDict):
@@ -800,7 +812,7 @@ class TenantManifestPrivacy(TypedDict):
 class WidgetDefinition(TypedDict):
     dimensions: NotRequired[list[str]]
     key: str
-    kind: str
+    kind: WidgetKind
     metrics: list[str]
     presentation: NotRequired[PresentationPresetSelection]
     template: str
@@ -811,7 +823,7 @@ class DashboardDefinition(TypedDict):
     defaultRange: str
     description: NotRequired[str]
     executive: NotRequired[ExecutiveReportDefinition]
-    exportFormats: NotRequired[list[str]]
+    exportFormats: NotRequired[list[ReportingExportFormat]]
     group: NotRequired[str]
     interactions: NotRequired[list[DashboardInteractionRule]]
     key: str
@@ -834,7 +846,7 @@ class Pack(TypedDict):
     displayName: str
     enabled: bool
     eventTypes: list[str]
-    exportFormats: NotRequired[list[str]]
+    exportFormats: NotRequired[list[ReportingExportFormat]]
     flowRules: NotRequired[list[FlowRule]]
     identity: NotRequired[IdentitySelectors]
     key: str
@@ -1187,8 +1199,8 @@ class ErrorIssueAdminClient:
         *,
         company_slug: str | None = None,
         site_uuid: str | None = None,
-        state: str | None = None,
-        sort: str | None = None,
+        state: ErrorIssueStateFilter | None = None,
+        sort: ErrorIssueSort | None = None,
         limit: int | None = None,
         cursor: str | None = None,
     ) -> ErrorIssueListResponse:

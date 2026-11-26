@@ -2,22 +2,30 @@
 dismissals and the browser collector, all under ``/api/v1/site-domains/{domainUuid}``.
 
 A credential (``token``) is returned only when a monitor is created or rotated; store it
-then, because no read returns it again. Enum-like strings are open sets: compare with the
-constants.
+then, because no read returns it again. Closed string sets are Literal aliases; a value a newer
+server adds still decodes.
 """
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
-SITE_HEARTBEAT_OUTCOME_SUCCEEDED = "succeeded"
-SITE_HEARTBEAT_OUTCOME_FAILED = "failed"
+PrivateUptimeFailure = Literal["dns", "connection", "tls", "timeout"]
+PrivateUptimeStatus = Literal["unknown", "up", "down"]
+SiteBrowserCollectorMode = Literal["enabled", "disabled"]
+SiteFindingDismissalScope = Literal["rule", "url"]
+SiteHeartbeatOutcome = Literal["succeeded", "failed"]
+SiteHeartbeatStatus = Literal["pending", "on-time", "late", "missed", "failed"]
 
-SITE_FINDING_DISMISSAL_SCOPE_RULE = "rule"
-SITE_FINDING_DISMISSAL_SCOPE_URL = "url"
 
-SITE_BROWSER_COLLECTOR_ENABLED = "enabled"
-SITE_BROWSER_COLLECTOR_DISABLED = "disabled"
+SITE_HEARTBEAT_OUTCOME_SUCCEEDED: SiteHeartbeatOutcome = "succeeded"
+SITE_HEARTBEAT_OUTCOME_FAILED: SiteHeartbeatOutcome = "failed"
+
+SITE_FINDING_DISMISSAL_SCOPE_RULE: SiteFindingDismissalScope = "rule"
+SITE_FINDING_DISMISSAL_SCOPE_URL: SiteFindingDismissalScope = "url"
+
+SITE_BROWSER_COLLECTOR_ENABLED: SiteBrowserCollectorMode = "enabled"
+SITE_BROWSER_COLLECTOR_DISABLED: SiteBrowserCollectorMode = "disabled"
 
 
 class SiteHeartbeatSchedule(TypedDict):
@@ -28,7 +36,7 @@ class SiteHeartbeatSchedule(TypedDict):
 
 class SiteHeartbeatReport(TypedDict):
     scheduledFor: str
-    outcome: str
+    outcome: SiteHeartbeatOutcome
 
 
 class SiteHeartbeatReceipt(TypedDict):
@@ -42,7 +50,7 @@ class SiteHeartbeatMonitor(TypedDict):
     monitorUuid: str
     name: str
     schedule: SiteHeartbeatSchedule
-    status: str
+    status: SiteHeartbeatStatus
     startedAt: str
     nextExpectedAt: str
     latest: NotRequired[SiteHeartbeatReceipt]
@@ -70,7 +78,7 @@ class PrivateUptimeReport(TypedDict):
     observedAt: str
     responseMs: int
     statusCode: NotRequired[int]
-    failure: NotRequired[str]
+    failure: NotRequired[PrivateUptimeFailure]
 
 
 class PrivateUptimeMonitor(TypedDict):
@@ -78,7 +86,7 @@ class PrivateUptimeMonitor(TypedDict):
 
     monitorUuid: str
     networkLabel: str
-    status: str
+    status: PrivateUptimeStatus
     requestedAt: NotRequired[str]
     latest: NotRequired[PrivateUptimeReport]
 
@@ -125,7 +133,7 @@ class SiteFindingDismissalRequest(TypedDict):
 
     findingUuid: str
     reason: str
-    scope: str
+    scope: SiteFindingDismissalScope
 
 
 class SiteFindingDismissal(TypedDict):
@@ -144,7 +152,7 @@ class SiteFindingDismissals(TypedDict):
 class SiteBrowserCollectorRequest(TypedDict):
     """Enable (with an environment, on a verified domain) or disable the browser collector."""
 
-    mode: str
+    mode: SiteBrowserCollectorMode
     environment: NotRequired[str]
 
 
@@ -152,7 +160,7 @@ class SiteBrowserCollector(TypedDict):
     """The Site's browser collector; an enabled one carries its ingest key and allowed origin."""
 
     siteUuid: str
-    mode: str
+    mode: SiteBrowserCollectorMode
     environment: NotRequired[str]
     browserKey: NotRequired[str]
     allowedOrigin: NotRequired[str]

@@ -2,32 +2,39 @@
 
 A count or rank the server could not measure is absent from the dict, never 0; a present 0 is a
 real 0 and a present ``followed`` False is a real nofollow. The role is a web-domain role
-(SITE_WEB_DOMAIN_ROLE_OWN or _COMPETITOR). Enum-like strings are open sets: compare with the
-constants.
+(SITE_WEB_DOMAIN_ROLE_OWN or _COMPETITOR). Closed string sets are Literal aliases; a value a newer
+server adds still decodes.
 """
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
+
+from .admin_site_web_data import SiteWebDomainRole
+
+SiteLinkDataSource = Literal["bing", "commoncrawl", "crawl"]
+SiteLinkSourceStatus = Literal["available", "pending", "failed", "unavailable"]
+SiteLostLinksStatus = Literal["available", "pending", "unavailable"]
+
 
 # Where a referring domain was found: Bing Webmaster Tools, the Common Crawl domain graph, or
 # Custd's own audit crawls of the Site's other domains.
-SITE_LINK_SOURCE_BING = "bing"
-SITE_LINK_SOURCE_COMMONCRAWL = "commoncrawl"
-SITE_LINK_SOURCE_CRAWL = "crawl"
+SITE_LINK_SOURCE_BING: SiteLinkDataSource = "bing"
+SITE_LINK_SOURCE_COMMONCRAWL: SiteLinkDataSource = "commoncrawl"
+SITE_LINK_SOURCE_CRAWL: SiteLinkDataSource = "crawl"
 
 # How one link source, or the lost-links comparison, stands for the domain.
-SITE_LINK_SOURCE_STATUS_AVAILABLE = "available"
-SITE_LINK_SOURCE_STATUS_PENDING = "pending"
-SITE_LINK_SOURCE_STATUS_FAILED = "failed"
-SITE_LINK_SOURCE_STATUS_UNAVAILABLE = "unavailable"
+SITE_LINK_SOURCE_STATUS_AVAILABLE: SiteLinkSourceStatus = "available"
+SITE_LINK_SOURCE_STATUS_PENDING: SiteLinkSourceStatus = "pending"
+SITE_LINK_SOURCE_STATUS_FAILED: SiteLinkSourceStatus = "failed"
+SITE_LINK_SOURCE_STATUS_UNAVAILABLE: SiteLinkSourceStatus = "unavailable"
 
 
 class SiteLinkSourceTotal(TypedDict):
     """One source's totals; ``complete`` is False when ``listed`` is fewer than it counted."""
 
-    source: str
-    status: str
+    source: SiteLinkDataSource
+    status: SiteLinkSourceStatus
     scope: str
     listed: int
     complete: bool
@@ -71,7 +78,7 @@ class SiteLostReferringDomain(TypedDict):
 class SiteLostLinks(TypedDict):
     """Domains the previous graph release listed as linking that ``release`` no longer does."""
 
-    status: str
+    status: SiteLostLinksStatus
     scope: str
     domains: list[SiteLostReferringDomain]
     release: NotRequired[str]
@@ -83,7 +90,7 @@ class SiteReferringDomains(TypedDict):
 
     siteUuid: str
     domain: str
-    role: str
+    role: SiteWebDomainRole
     sources: list[SiteLinkSourceTotal]
     referringDomains: list[SiteReferringDomain]
     lost: SiteLostLinks

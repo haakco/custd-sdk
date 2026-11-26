@@ -2,12 +2,24 @@
 realm brand logo and app-item links.
 
 The calls are methods on :class:`custd.admin_auth_projects.AuthProjectAdminClient`.
-Enum-like strings are open sets owned by Custd.
+Closed string sets are Literal aliases; a value a newer server adds still decodes.
 """
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
+
+from .app_types import AppItemKind, AppLinkRole
+
+AppReleaseCacheMode = Literal["immutable", "revalidate", "short", "no-store"]
+AppReleaseFramingMode = Literal["deny", "same-origin", "any"]
+AppReleaseState = Literal["pending", "verified"]
+AppSignInMode = Literal["off", "invite_only", "open"]
+AppStatus = Literal["needs_attention", "removal_unfinished", "live", "not_deployed", "paused", "offboarded"]
+AuthDomainBindingLifecycle = Literal["unclaimed", "admitted", "paused", "retiring", "retired"]
+AuthDomainBindingStatus = Literal["pending", "active", "proof-withdrawn", "disabled", "releasing"]
+AuthDomainImageConvergence = Literal["converged", "drifted", "not-running", "unverified", "rolling-out"]
+AuthDomainImageSource = Literal["release-default", "override", "undeclared"]
 
 
 class AuthDomainDNSProof(TypedDict):
@@ -35,8 +47,8 @@ class AuthDomainImageOverrideStatus(TypedDict):
 
 
 class AuthDomainImages(TypedDict):
-    convergence: str
-    source: str
+    convergence: AuthDomainImageConvergence
+    source: AuthDomainImageSource
     expected: AuthDomainImageSet
     running: AuthDomainImageSet
     override: NotRequired[AuthDomainImageOverrideStatus]
@@ -48,8 +60,8 @@ class AuthDomainBinding(TypedDict):
     environmentId: str
     host: str
     issuer: str
-    lifecycle: str
-    status: str
+    lifecycle: AuthDomainBindingLifecycle
+    status: AuthDomainBindingStatus
     intentRevision: int
     createdAt: str
     images: AuthDomainImages
@@ -90,7 +102,7 @@ class AppReleaseFile(TypedDict):
 
 class AppReleaseCacheRule(TypedDict):
     match: str
-    mode: str
+    mode: AppReleaseCacheMode
 
 
 class AppReleaseResponseHeader(TypedDict):
@@ -100,7 +112,7 @@ class AppReleaseResponseHeader(TypedDict):
 
 class AppReleaseHeaderRule(TypedDict):
     route: str
-    framing: NotRequired[str]
+    framing: NotRequired[AppReleaseFramingMode]
     headers: NotRequired[list[AppReleaseResponseHeader]]
 
 
@@ -151,7 +163,7 @@ class AppReleaseManifest(TypedDict):
 
 class AppReleaseSummary(TypedDict):
     releaseId: str
-    state: str
+    state: AppReleaseState
     active: bool
     createdAt: str
     fileCount: int
@@ -192,12 +204,12 @@ class AuthProjectBrandLogo(TypedDict):
 
 
 class AuthProjectAppLink(TypedDict):
-    """One app item linked to the environment; kind and role are open sets."""
+    """One app item linked to the environment."""
 
     linkUuid: str
     itemUuid: str
-    kind: str
-    role: str
+    kind: AppItemKind
+    role: AppLinkRole
     createdAt: str
     itemExpiresAt: str
 
@@ -206,10 +218,10 @@ class AuthProjectAppLinkList(TypedDict):
     links: list[AuthProjectAppLink]
 
 
-# Who may sign in to a hosted app; an open set owned by Custd.
-APP_SIGN_IN_MODE_OFF = "off"
-APP_SIGN_IN_MODE_INVITE_ONLY = "invite_only"
-APP_SIGN_IN_MODE_OPEN = "open"
+# Who may sign in to a hosted app.
+APP_SIGN_IN_MODE_OFF: AppSignInMode = "off"
+APP_SIGN_IN_MODE_INVITE_ONLY: AppSignInMode = "invite_only"
+APP_SIGN_IN_MODE_OPEN: AppSignInMode = "open"
 
 
 class AppCreateRequest(TypedDict):
@@ -225,7 +237,7 @@ class AppReason(TypedDict):
 
 
 class AppSummary(TypedDict):
-    """One hosted app; status is an open set (for example serving, paused or failed)."""
+    """One hosted app and its rollout status."""
 
     appId: str
     slug: str
@@ -233,7 +245,7 @@ class AppSummary(TypedDict):
     environmentId: str
     host: str
     url: str
-    status: str
+    status: AppStatus
     signIn: bool
     siteUuid: NotRequired[str]
     reason: NotRequired[AppReason]
@@ -285,5 +297,5 @@ class AppDeployCredentialList(TypedDict):
 class AppSignInRequest(TypedDict):
     """A sign-in change against the environment revision Auth Project Status reports."""
 
-    mode: str
+    mode: AppSignInMode
     expectedRevision: int

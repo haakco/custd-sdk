@@ -1,69 +1,78 @@
 """Site Insights public web data: the page inventory of a Site's own and competitor domains,
 Wikipedia topic trends, the content gap and the Site's keyword lists.
 
-Every shape is the admin-api's own JSON. The enum-like strings are open sets: compare them
-with the constants below and keep values the SDK does not know yet.
+Every shape is the admin-api's own JSON. Closed string sets are Literal aliases;
+a value a newer server adds still decodes, so keep values the SDK does not know yet.
 """
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
+
+SiteContentGapCoverage = Literal["available", "unavailable"]
+SiteKeywordDemandState = Literal["available", "no_market", "no_bing"]
+SiteTopicTrendSource = Literal["brand", "seed"]
+SiteTopicTrendStatus = Literal["pending", "found", "no_article", "failed"]
+SiteTrancoBand = Literal["top-1k", "top-10k", "top-100k", "top-1m", "unranked", "unknown"]
+SiteWebDomainRole = Literal["own", "competitor"]
+SiteWebInventoryStatus = Literal["pending", "done", "partial", "unavailable", "failed"]
+
 
 # A web-data domain's role: the Site's own domain or a competitor from its project context.
-SITE_WEB_DOMAIN_ROLE_OWN = "own"
-SITE_WEB_DOMAIN_ROLE_COMPETITOR = "competitor"
+SITE_WEB_DOMAIN_ROLE_OWN: SiteWebDomainRole = "own"
+SITE_WEB_DOMAIN_ROLE_COMPETITOR: SiteWebDomainRole = "competitor"
 
 # Where a page URL was found.
 SITE_WEB_PAGE_SOURCE_SITEMAP = "sitemap"
 SITE_WEB_PAGE_SOURCE_WAYBACK = "wayback"
 
 # How a domain's sitemap or Wayback inventory stands.
-SITE_INVENTORY_PENDING = "pending"
-SITE_INVENTORY_DONE = "done"
-SITE_INVENTORY_PARTIAL = "partial"
-SITE_INVENTORY_UNAVAILABLE = "unavailable"
-SITE_INVENTORY_FAILED = "failed"
+SITE_INVENTORY_PENDING: SiteWebInventoryStatus = "pending"
+SITE_INVENTORY_DONE: SiteWebInventoryStatus = "done"
+SITE_INVENTORY_PARTIAL: SiteWebInventoryStatus = "partial"
+SITE_INVENTORY_UNAVAILABLE: SiteWebInventoryStatus = "unavailable"
+SITE_INVENTORY_FAILED: SiteWebInventoryStatus = "failed"
 
 # A domain's band on the Tranco top-sites list; unknown until the list is read.
-SITE_TRANCO_TOP_1K = "top-1k"
-SITE_TRANCO_TOP_10K = "top-10k"
-SITE_TRANCO_TOP_100K = "top-100k"
-SITE_TRANCO_TOP_1M = "top-1m"
-SITE_TRANCO_UNRANKED = "unranked"
-SITE_TRANCO_UNKNOWN = "unknown"
+SITE_TRANCO_TOP_1K: SiteTrancoBand = "top-1k"
+SITE_TRANCO_TOP_10K: SiteTrancoBand = "top-10k"
+SITE_TRANCO_TOP_100K: SiteTrancoBand = "top-100k"
+SITE_TRANCO_TOP_1M: SiteTrancoBand = "top-1m"
+SITE_TRANCO_UNRANKED: SiteTrancoBand = "unranked"
+SITE_TRANCO_UNKNOWN: SiteTrancoBand = "unknown"
 
 # A topic trend's Wikipedia lookup: pending, found, no article for the term, or failed.
-SITE_TREND_PENDING = "pending"
-SITE_TREND_FOUND = "found"
-SITE_TREND_NO_ARTICLE = "no_article"
-SITE_TREND_FAILED = "failed"
+SITE_TREND_PENDING: SiteTopicTrendStatus = "pending"
+SITE_TREND_FOUND: SiteTopicTrendStatus = "found"
+SITE_TREND_NO_ARTICLE: SiteTopicTrendStatus = "no_article"
+SITE_TREND_FAILED: SiteTopicTrendStatus = "failed"
 
 # Where a trend's term came from: a brand name of the project context or a keyword list's seed.
-SITE_TREND_SOURCE_BRAND = "brand"
-SITE_TREND_SOURCE_SEED = "seed"
+SITE_TREND_SOURCE_BRAND: SiteTopicTrendSource = "brand"
+SITE_TREND_SOURCE_SEED: SiteTopicTrendSource = "seed"
 
 # Whether the content gap could read the Site's own pages and queries.
-SITE_GAP_COVERAGE_AVAILABLE = "available"
-SITE_GAP_COVERAGE_UNAVAILABLE = "unavailable"
+SITE_GAP_COVERAGE_AVAILABLE: SiteContentGapCoverage = "available"
+SITE_GAP_COVERAGE_UNAVAILABLE: SiteContentGapCoverage = "unavailable"
 
 # Where keyword demand and related keywords come from.
 SITE_KEYWORD_DEMAND_SOURCE_BING = "bing_keyword_research"
 
 # Whether a keyword list's Bing demand could be read: available, no market in the project context,
 # or no Bing keyword research on this deployment.
-SITE_KEYWORD_DEMAND_AVAILABLE = "available"
-SITE_KEYWORD_DEMAND_NO_MARKET = "no_market"
-SITE_KEYWORD_DEMAND_NO_BING = "no_bing"
+SITE_KEYWORD_DEMAND_AVAILABLE: SiteKeywordDemandState = "available"
+SITE_KEYWORD_DEMAND_NO_MARKET: SiteKeywordDemandState = "no_market"
+SITE_KEYWORD_DEMAND_NO_BING: SiteKeywordDemandState = "no_bing"
 
 
 class SiteWebDomain(TypedDict):
     """One domain's page inventory. ``trancoRank`` is absent when unranked or unknown."""
 
     domain: str
-    role: str
-    trancoBand: str
-    sitemapStatus: str
-    waybackStatus: str
+    role: SiteWebDomainRole
+    trancoBand: SiteTrancoBand
+    sitemapStatus: SiteWebInventoryStatus
+    waybackStatus: SiteWebInventoryStatus
     pageCount: int
     nextInventoryAt: str
     trancoRank: NotRequired[int]
@@ -104,10 +113,10 @@ class SiteTrendMonth(TypedDict):
 
 class SiteTopicTrend(TypedDict):
     term: str
-    source: str
+    source: SiteTopicTrendSource
     project: str
     article: str
-    status: str
+    status: SiteTopicTrendStatus
     months: list[SiteTrendMonth]
     lastFailure: NotRequired[str]
     checkedAt: NotRequired[str]
@@ -147,7 +156,7 @@ class SiteContentGap(TypedDict):
     """The topics competitors cover and the Site does not; ``partial`` when an inventory is incomplete."""
 
     siteUuid: str
-    ownCoverage: str
+    ownCoverage: SiteContentGapCoverage
     ownPages: int
     ownQueries: int
     partial: bool
@@ -259,7 +268,7 @@ class SiteKeywordDemand(TypedDict):
 class SiteKeywordDemandSet(TypedDict):
     """A keyword list's Bing demand, apart from the Site's own search numbers."""
 
-    state: str
+    state: SiteKeywordDemandState
     source: str
     keywords: list[SiteKeywordDemand]
     market: NotRequired[str]

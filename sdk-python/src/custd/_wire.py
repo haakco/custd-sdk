@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import functools
 import json
+import sys
 import types
 import typing
 import urllib.parse
@@ -134,7 +135,10 @@ def _fill(hint: object, value: object) -> object:
 
 @functools.cache
 def _fields(dto: type) -> dict[str, Any]:
-    return typing.get_type_hints(dto)
+    # A module imports a type it shares with a module that imports it back only for type checking,
+    # so names resolve against the package's public types as well as the DTO's own module.
+    names = {**vars(sys.modules["custd"]), **vars(sys.modules[dto.__module__])}
+    return typing.get_type_hints(dto, globalns=names, localns=names)
 
 
 @functools.cache

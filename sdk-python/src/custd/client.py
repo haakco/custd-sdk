@@ -13,7 +13,7 @@ import uuid
 from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict, TypeVar, cast
 
 from .reporting_types import (
     PreparedDataNextAction,
@@ -22,7 +22,11 @@ from .reporting_types import (
     RenderedEmailDelivery,
     RenderedLabelMetadata,
     RenderedMetricTrust,
+    RenderedUnit,
     ReportExportJob,
+    ReportingComparison,
+    ReportingExportFormat,
+    ReportingRetryability,
 )
 from .version import IDENTITY
 
@@ -52,6 +56,33 @@ if TYPE_CHECKING:
         ReportingDraftPreviewRequest,
     )
     from .ingest_operations import Account
+
+
+OffboardingState = Literal[
+    "preview",
+    "requested",
+    "exporting",
+    "exported",
+    "confirming",
+    "confirmed",
+    "waiver_requested",
+    "waiver_approved",
+    "fencing",
+    "revoking",
+    "deleting",
+    "complete",
+    "failed",
+    "cancelled",
+]
+PreparedDataAvailability = Literal["complete", "partial", "stale", "unavailable"]
+PreparedDataState = Literal["accepted", "processing", "ready", "failed"]
+ProducerReservationStatus = Literal["pending", "claimed", "released", "expired"]
+RenderedVisualKind = Literal["lifecycle", "cohort", "distribution", "uncertainty", "anomaly_driver"]
+ReportingDataFreshness = Literal["unknown", "current", "fresh", "stale", "unavailable"]
+ReportingDataSufficiency = Literal["unknown", "sufficient", "partial", "insufficient"]
+ReportingTrustStatus = Literal["healthy", "partial", "unavailable", "unknown"]
+TenantPurpose = Literal["customer", "generated_proof"]
+
 
 INGEST_ENDPOINT = "/api/v1/events"
 INGEST_BATCH_ENDPOINT = "/api/v1/events/batch"
@@ -282,16 +313,16 @@ ReportingQueryRequest = TypedDict(
         "rangeDays": NotRequired[int],
         "maxRows": NotRequired[int],
         "countOnly": NotRequired[bool],
-        "comparison": NotRequired[str],
+        "comparison": NotRequired[ReportingComparison],
     },
 )
 
 
 class RenderedMetricValue(TypedDict):
     value: float
-    unit: str
+    unit: RenderedUnit
     sampleCount: int
-    dataSufficiency: str
+    dataSufficiency: ReportingDataSufficiency
     complete: bool
     truncated: NotRequired[bool]
     currency: NotRequired[str]
@@ -357,7 +388,7 @@ class RenderedQuantile(TypedDict):
 class RenderedVisualResult(TypedDict):
     """The analysis a non-time-series widget renders; ``kind`` names which list it fills."""
 
-    kind: str
+    kind: RenderedVisualKind
     summary: str
     method: NotRequired[str]
     anomalies: NotRequired[list[RenderedAnomaly]]
@@ -399,9 +430,9 @@ class ReportingSourceSummary(TypedDict):
 
 
 class RenderedReportingTrust(TypedDict):
-    status: str
-    dataFreshness: str
-    retryability: str
+    status: ReportingTrustStatus
+    dataFreshness: ReportingDataFreshness
+    retryability: ReportingRetryability
     nextAction: PreparedDataNextAction
     rollupState: str
     coverage: str
@@ -446,11 +477,11 @@ class PreparedDataStatus(TypedDict):
 
     receiptUuid: str
     tenantSlug: str
-    processingState: str
-    availability: str
+    processingState: PreparedDataState
+    availability: PreparedDataAvailability
     observedAt: str
     provenance: PreparedDataProvenance
-    retryability: str
+    retryability: ReportingRetryability
     nextAction: PreparedDataNextAction
     watermark: NotRequired[str]
     warnings: NotRequired[list[PreparedDataWarning]]
@@ -461,11 +492,11 @@ class PreparedDataOutputStatus(TypedDict):
 
     outputUuid: str
     tenantSlug: str
-    processingState: str
-    availability: str
+    processingState: PreparedDataState
+    availability: PreparedDataAvailability
     observedAt: str
     provenance: PreparedDataProvenance
-    retryability: str
+    retryability: ReportingRetryability
     nextAction: PreparedDataNextAction
     watermark: NotRequired[str]
     warnings: NotRequired[list[PreparedDataWarning]]
@@ -489,7 +520,7 @@ ReportExportParameters = TypedDict(
         "to": NotRequired[str],
         "rangeDays": NotRequired[int],
         "maxRows": NotRequired[int],
-        "comparison": NotRequired[str],
+        "comparison": NotRequired[ReportingComparison],
         "filters": NotRequired[list[dict[str, str]]],
         "selections": NotRequired[list[str]],
     },
@@ -498,7 +529,7 @@ ReportExportParameters = TypedDict(
 
 class ReportExportCreateRequest(TypedDict):
     dashboardKey: str
-    formats: list[str]
+    formats: list[ReportingExportFormat]
     parameters: ReportExportParameters
     idempotencyKey: NotRequired[str]
 
@@ -1533,7 +1564,7 @@ class ProducerReservation(TypedDict):
     producerSlug: str
     parentCompanySlug: str
     childCompanySlug: str
-    status: str
+    status: ProducerReservationStatus
     reservedAt: str
     expiresAt: str
     maxTtlSeconds: int
@@ -1698,7 +1729,7 @@ class TenantHistoricalCleanupReceipt(TypedDict):
     requested_by_kind: str
     requested_at: str
     completed_at: str
-    final_state: str
+    final_state: OffboardingState
     per_store: list[TenantHistoricalCleanupStore]
     sha256: str
     waiver: NotRequired[TenantHistoricalCleanupWaiver]
@@ -1709,7 +1740,7 @@ class Tenant(TypedDict):
     companyUuid: str
     slug: str
     companyName: str
-    purpose: str
+    purpose: TenantPurpose
     enabled: bool
     autoCreateEnvironments: bool
 
@@ -1721,7 +1752,7 @@ class TenantListResponse(TypedDict):
 class TenantCreateRequest(TypedDict):
     slug: str
     companyName: str
-    purpose: NotRequired[str]
+    purpose: NotRequired[TenantPurpose]
 
 
 class TenantAdminClient:

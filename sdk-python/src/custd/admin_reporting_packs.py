@@ -11,7 +11,100 @@ from __future__ import annotations
 from typing import Literal, NotRequired, TypedDict, cast
 
 from ._wire import decode, request
-from .client import AdminClient, RenderedMetricValue, RenderedWidgetData, quote_path
+from .client import AdminClient, RenderedMetricValue, RenderedWidgetData, ReportingTrustStatus, quote_path
+from .reporting_types import CanonicalUnit, RenderedUnit, ReportingComparison, ReportingExportFormat
+
+AssetHierarchyMode = Literal["inclusive", "exclusive", "informational"]
+BillingBoundary = Literal["calendar_month", "calendar_day"]
+DashboardRelativeRange = Literal["1d", "7d", "14d", "30d", "90d"]
+DashboardResetBehavior = Literal["interaction", "dashboard"]
+ExecutiveComparisonBasis = Literal["none", "previous-period", "target"]
+ExecutiveReportRecipe = Literal["blank", "weekly-performance", "operations-health", "forecast-decision"]
+NarrativeValueKind = Literal["primary", "delta"]
+PackMeasurementKind = Literal["gauge", "monotonicCounter", "intervalIncrement", "state"]
+PackMetricCalculation = Literal[
+    "usage_charge",
+    "marginal_rate",
+    "projection",
+    "purchased_vs_used",
+    "observed_balance",
+    "projected_balance",
+    "allocated_recovery",
+    "correction_count",
+    "count",
+    "failure_count",
+    "flow",
+    "distinct_count",
+    "sum",
+    "average",
+    "percentile",
+    "ratio",
+    "latest",
+    "minimum",
+    "maximum",
+    "firstLastDelta",
+    "timeWeightedAverage",
+    "rate",
+    "integral",
+]
+PackMetricFlowResult = Literal["steps", "starts", "completions", "drop_offs", "completion_rate", "uncorrelated"]
+PackMetricKind = Literal[
+    "count",
+    "unique_count",
+    "rate",
+    "latency",
+    "percentile",
+    "failure_ratio",
+    "freshness_age",
+    "latest_value",
+    "probability",
+    "quantile",
+    "credible_interval",
+    "forecast_date",
+    "value_of_information",
+]
+PackMetricResetPolicy = Literal["as_increment", "reject", "rollover"]
+PackRuleIdentity = Literal["subject", "session", "correlation"]
+PackSelectorType = Literal["", "string", "integer", "number"]
+PackTemplateAggregation = Literal["count", "flow", "distinct_count", "sum", "average", "percentile", "ratio"]
+PackTemplateSourceMode = Literal["auto", "postgres", "duckdb"]
+PresentationNonColorEncoding = Literal["line_symbol_label", "signed_bar_label", "band_boundary_label"]
+PresentationPresetId = Literal[
+    "forecast_convergence_v1",
+    "anomaly_reference_v1",
+    "descriptive_driver_v1",
+    "uncertainty_reference_v1",
+]
+PresentationSummaryTemplate = Literal[
+    "forecast_window_evidence",
+    "anomaly_reference_evidence",
+    "descriptive_driver_evidence",
+    "uncertainty_reference_evidence",
+]
+ReportSectionLayout = Literal["lead", "grid", "detail"]
+ReportingDashboardInteraction = Literal["filter", "drill_down"]
+ReportingFilterOperator = Literal["eq", "neq", "in", "contains"]
+SourceReconciliationMode = Literal["priority", "freshness", "availability", "agreement"]
+WidgetKind = Literal[
+    "stat_tile",
+    "time_series",
+    "breakdown_table",
+    "top_list",
+    "health_list",
+    "freshness_panel",
+    "export_table",
+    "lifecycle_funnel",
+    "cohort_retention",
+    "forecast_fan",
+    "uncertainty_band",
+    "probability_tile",
+    "distribution_histogram",
+    "voi_ranked_list",
+    "calibration_panel",
+    "runway_tile",
+    "anomaly_timeline",
+    "driver_breakdown",
+]
 
 
 class MetricDefinition(TypedDict):
@@ -24,11 +117,11 @@ class MetricDefinition(TypedDict):
 
 class SelectorDefinition(TypedDict):
     selector: str
-    type: str
+    type: PackSelectorType
 
 
 class NumericSelector(SelectorDefinition, total=False):
-    unit: str
+    unit: RenderedUnit
 
 
 class MatchPredicate(TypedDict, total=False):
@@ -60,19 +153,19 @@ class MetricHierarchy(TypedDict, total=False):
 class PackMetric(TypedDict, total=False):
     key: str
     label: str
-    kind: str
+    kind: PackMetricKind
     unit: str
     description: str
-    calculation: str
+    calculation: PackMetricCalculation
     match: list[MatchPredicate]
-    flowResult: str
+    flowResult: PackMetricFlowResult
     numeric: NumericSelector
     distinct: SelectorDefinition
-    measurementKind: str
+    measurementKind: PackMeasurementKind
     maximumGapSeconds: int
-    resetPolicy: str
+    resetPolicy: PackMetricResetPolicy
     rolloverAt: float
-    canonicalUnit: str
+    canonicalUnit: CanonicalUnit
     percentile: int
     numeratorMetric: str
     denominatorMetric: str
@@ -98,7 +191,7 @@ class PackDimension(DimensionDefinition, total=False):
 
 class FilterDefinition(TypedDict):
     dimension: str
-    operators: list[str]
+    operators: list[ReportingFilterOperator]
 
 
 class SubjectScopeRule(TypedDict):
@@ -111,7 +204,7 @@ class QueryTemplate(TypedDict, total=False):
     allowedMetrics: list[str]
     allowedDimensions: list[str]
     allowedFilters: list[FilterDefinition]
-    sourceModes: list[str]
+    sourceModes: list[PackTemplateSourceMode]
     maxRows: int
     defaultRange: str
     subjectScope: SubjectScopeRule
@@ -120,7 +213,7 @@ class QueryTemplate(TypedDict, total=False):
 
 class PackTemplate(QueryTemplate, total=False):
     eventTypes: list[str]
-    aggregation: str
+    aggregation: PackTemplateAggregation
     flowRule: str
 
 
@@ -153,16 +246,16 @@ class RollupRule(TypedDict, total=False):
 
 
 class PresentationPresetSelection(TypedDict):
-    presetId: str
+    presetId: PresentationPresetId
     version: int
-    nonColorEncoding: str
-    summaryTemplateId: str
+    nonColorEncoding: PresentationNonColorEncoding
+    summaryTemplateId: PresentationSummaryTemplate
 
 
 class PackWidgetDefinition(TypedDict, total=False):
     key: str
     title: str
-    kind: str
+    kind: WidgetKind
     template: str
     metrics: list[str]
     dimensions: list[str]
@@ -170,8 +263,8 @@ class PackWidgetDefinition(TypedDict, total=False):
 
 
 class DashboardSharePolicy(TypedDict, total=False):
-    relativeRanges: list[str]
-    comparisonPresets: list[str]
+    relativeRanges: list[DashboardRelativeRange]
+    comparisonPresets: list[ReportingComparison]
 
 
 class DashboardInteractionRule(TypedDict, total=False):
@@ -179,15 +272,15 @@ class DashboardInteractionRule(TypedDict, total=False):
     sourceWidget: str
     targetWidget: str
     dimension: str
-    action: str
+    action: ReportingDashboardInteraction
     linkedFilterGroup: str
-    comparisonPreset: str
-    resetBehavior: str
+    comparisonPreset: ReportingComparison
+    resetBehavior: DashboardResetBehavior
 
 
 class NarrativeValueReference(TypedDict):
     widgetKey: str
-    value: str
+    value: NarrativeValueKind
 
 
 class NarrativeBlock(TypedDict, total=False):
@@ -198,14 +291,14 @@ class NarrativeBlock(TypedDict, total=False):
 class ReportSectionDefinition(TypedDict, total=False):
     key: str
     title: str
-    layout: str
+    layout: ReportSectionLayout
     columnSpan: int
     widgetKeys: list[str]
     narrative: list[NarrativeBlock]
 
 
 class ExecutiveRecipeSelection(TypedDict):
-    recipe: str
+    recipe: ExecutiveReportRecipe
     primaryWidgetKey: str
     primaryMetricKey: str
     primaryLabel: str
@@ -214,7 +307,7 @@ class ExecutiveRecipeSelection(TypedDict):
 
 
 class ExecutiveReportDefinition(ExecutiveRecipeSelection):
-    comparisonBasis: str
+    comparisonBasis: ExecutiveComparisonBasis
     comparisonLabel: NotRequired[str]
     targetValue: NotRequired[float]
     targetUnit: NotRequired[str]
@@ -226,7 +319,7 @@ class ExecutiveReportDefinition(ExecutiveRecipeSelection):
 class PackDashboardDefinition(TypedDict, total=False):
     key: str
     packKey: str
-    exportFormats: list[str]
+    exportFormats: list[ReportingExportFormat]
     title: str
     description: str
     group: str
@@ -272,7 +365,7 @@ class IdentitySelectors(TypedDict, total=False):
 
 class TransitionRule(TypedDict, total=False):
     key: str
-    identity: str
+    identity: PackRuleIdentity
     stepSelector: str
     steps: list[str]
     maxDurationMs: int
@@ -281,7 +374,7 @@ class TransitionRule(TypedDict, total=False):
 
 class ActivationRule(TypedDict, total=False):
     key: str
-    identity: str
+    identity: PackRuleIdentity
     predicate: MatchPredicate
     cohortWindowDays: int
 
@@ -295,7 +388,7 @@ class RetentionRule(TypedDict, total=False):
 
 class ActivityRule(TypedDict, total=False):
     key: str
-    identity: str
+    identity: PackRuleIdentity
     bucketDays: int
 
 
@@ -319,9 +412,9 @@ class SemanticSeries(TypedDict, total=False):
     key: str
     assetKey: str
     assetKeys: list[str]
-    measurementKind: str
-    canonicalUnit: str
-    allowedSourceUnits: list[str]
+    measurementKind: PackMeasurementKind
+    canonicalUnit: CanonicalUnit
+    allowedSourceUnits: list[CanonicalUnit]
     expectedCadenceSeconds: int
     maximumGapSeconds: int
     sources: list[SourceSeries]
@@ -338,8 +431,8 @@ class SourceReconciliation(TypedDict, total=False):
     version: int
     tenantKey: str
     seriesKey: str
-    canonicalUnit: str
-    mode: str
+    canonicalUnit: CanonicalUnit
+    mode: SourceReconciliationMode
     maxAgeSeconds: int
     absoluteTolerance: float
     relativeTolerance: float
@@ -356,7 +449,7 @@ class AssetHierarchyEdge(TypedDict):
     tenantKey: str
     parentKey: str
     childKey: str
-    mode: str
+    mode: AssetHierarchyMode
 
 
 class AssetHierarchy(TypedDict, total=False):
@@ -389,9 +482,9 @@ class RoundingPolicy(TypedDict):
 class SteppedRateSchedule(TypedDict):
     key: str
     usageMetric: str
-    usageUnit: str
+    usageUnit: CanonicalUnit
     timezone: str
-    billingBoundary: str
+    billingBoundary: BillingBoundary
     effectiveFrom: str
     effectiveTo: NotRequired[str]
     currency: str
@@ -428,7 +521,7 @@ class PackDefinition(TypedDict, total=False):
     flowRules: list[FlowRule]
     rollupRules: list[RollupRule]
     dashboards: list[PackDashboardDefinition]
-    exportFormats: list[str]
+    exportFormats: list[ReportingExportFormat]
     trust: TrustDiagnostics
     redactionRules: list[RedactionRule]
     proof: ProofProfile
@@ -485,7 +578,7 @@ class ReportingPackPreviewRequest(TypedDict):
 
 class ExecutiveComparisonResult(TypedDict):
     available: bool
-    basis: str
+    basis: ExecutiveComparisonBasis
     label: str
     percentChange: NotRequired[float]
     targetValue: NotRequired[float]
@@ -493,7 +586,7 @@ class ExecutiveComparisonResult(TypedDict):
 
 
 class ExecutiveConfidence(TypedDict):
-    status: str
+    status: ReportingTrustStatus
     completeness: str
     coverage: str
     freshness: str
@@ -515,7 +608,7 @@ class ExecutiveReport(TypedDict):
     """The executive summary a dashboard with an executive recipe renders."""
 
     title: str
-    recipe: str
+    recipe: ExecutiveReportRecipe
     tenantDisplayName: str
     asOf: str
     generatedAt: str

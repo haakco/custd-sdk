@@ -30,15 +30,18 @@ from .app_types import (
     AppItemAlertWebhookCreated,
     AppItemAlertWebhookCreateRequest,
     AppItemCreated,
+    AppItemCreateKind,
     AppItemCreateRequest,
     AppItemLinkRotated,
     AppItemList,
     AppItemMeasurementPage,
+    AppItemOwnership,
     AppItemRead,
     AppItemRunPage,
     AppItemSettingsRequest,
     AppLinkCollectionEntry,
     AppLinkCollectionEntryAddRequest,
+    AppLinkRole,
     AppMeetingAdvanceRequest,
     AppMeetingMinutesUpdate,
     AppModelCalculateRequest,
@@ -65,18 +68,18 @@ from .client import AdminTransport, default_admin_transport, problem_request_err
 APP_ITEM_SITE_KEY_HEADER = "X-Custd-Site-Key"
 APP_ITEM_USER_TOKEN_HEADER = "X-Custd-User-Token"
 
-APP_ITEM_KIND_MEASUREMENT_PROJECT = "measurement_project"
-APP_ITEM_KIND_LINK_COLLECTION = "link_collection"
-APP_ITEM_KIND_UNCERTAINTY_MODEL = "uncertainty_model"
-APP_ITEM_KIND_MEETING = "meeting"
-APP_ITEM_KIND_PLAN = "plan"
+APP_ITEM_KIND_MEASUREMENT_PROJECT: AppItemCreateKind = "measurement_project"
+APP_ITEM_KIND_LINK_COLLECTION: AppItemCreateKind = "link_collection"
+APP_ITEM_KIND_UNCERTAINTY_MODEL: AppItemCreateKind = "uncertainty_model"
+APP_ITEM_KIND_MEETING: AppItemCreateKind = "meeting"
+APP_ITEM_KIND_PLAN: AppItemCreateKind = "plan"
 
-APP_LINK_ROLE_OWNER = "owner"
-APP_LINK_ROLE_SHARE = "share"
+APP_LINK_ROLE_OWNER: AppLinkRole = "owner"
+APP_LINK_ROLE_SHARE: AppLinkRole = "share"
 
-APP_ITEM_OWNERSHIP_UNOWNED = "unowned"
-APP_ITEM_OWNERSHIP_YOURS = "yours"
-APP_ITEM_OWNERSHIP_OTHER = "other"
+APP_ITEM_OWNERSHIP_UNOWNED: AppItemOwnership = "unowned"
+APP_ITEM_OWNERSHIP_YOURS: AppItemOwnership = "yours"
+APP_ITEM_OWNERSHIP_OTHER: AppItemOwnership = "other"
 
 APP_READ_MODIFIED = "modified"
 APP_READ_NOT_MODIFIED = "not_modified"

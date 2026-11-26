@@ -10,7 +10,7 @@ import re
 from typing import Any, NotRequired, TypedDict, TypeVar
 
 from . import _wire
-from .client import AdminClient, AdminRequestOptions, quote_path
+from .client import AdminClient, AdminRequestOptions, OffboardingState, quote_path
 
 OFFBOARDING_PATH = "/offboarding"
 
@@ -48,7 +48,7 @@ class OffboardingRequestCreate(TypedDict):
 
 class OffboardingRequest(TypedDict):
     requestUuid: str
-    state: str
+    state: OffboardingState
     requestedAt: str
 
 
@@ -117,7 +117,7 @@ class OffboardingReceiptResponse(TypedDict):
     requested_by_kind: str
     requested_at: str
     completed_at: str
-    final_state: str
+    final_state: OffboardingState
     per_store: list[OffboardingReceiptPerStore]
     waiver: NotRequired[OffboardingWaiver]
     sha256: str

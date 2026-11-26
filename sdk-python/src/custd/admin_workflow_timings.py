@@ -3,42 +3,51 @@
 
 Custd is not the controller: the caller keeps its own lifecycle and reports what it observed after
 its own commit. Every append is idempotent through the caller's deterministic key, and a 200 answer
-is not a durable append: read each result's ``accepted``. Enum-like strings are open sets: compare
-with the constants. The server encodes an empty list as JSON null; every list decodes as empty.
+is not a durable append: read each result's ``accepted``. Closed string sets are Literal aliases;
+a new value still decodes. The server encodes an empty list as JSON null; every list decodes as empty.
 """
 
 from __future__ import annotations
 
 import urllib.parse
-from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict, cast
 
 from .client import quote_path
 
 if TYPE_CHECKING:
     from .client import AdminClient, AdminRequestOptions
 
+DurationForecastMethod = Literal["nominal", "duration_shrinkage"]
+WorkflowTimingAttemptState = Literal["running", "completed", "failed", "cancelled", "skipped"]
+WorkflowTimingDefinitionStatus = Literal["active", "retired"]
+WorkflowTimingEvaluationState = Literal["ready", "cold_start", "sparse", "stale", "partial", "unavailable", "error"]
+WorkflowTimingExcludedStepOutcome = Literal["completed", "failed", "cancelled", "skipped", "open"]
+WorkflowTimingFactKind = Literal["run_started", "run_finished", "step_started", "step_finished"]
+WorkflowTimingRunState = Literal["running", "completed", "failed", "cancelled"]
+
+
 # Expectation states. Only ready may be presented as a forecast; a cold start must look different.
-WORKFLOW_TIMING_STATE_READY = "ready"
-WORKFLOW_TIMING_STATE_COLD_START = "cold_start"
-WORKFLOW_TIMING_STATE_SPARSE = "sparse"
-WORKFLOW_TIMING_STATE_STALE = "stale"
-WORKFLOW_TIMING_STATE_PARTIAL = "partial"
-WORKFLOW_TIMING_STATE_UNAVAILABLE = "unavailable"
-WORKFLOW_TIMING_STATE_ERROR = "error"
+WORKFLOW_TIMING_STATE_READY: WorkflowTimingEvaluationState = "ready"
+WORKFLOW_TIMING_STATE_COLD_START: WorkflowTimingEvaluationState = "cold_start"
+WORKFLOW_TIMING_STATE_SPARSE: WorkflowTimingEvaluationState = "sparse"
+WORKFLOW_TIMING_STATE_STALE: WorkflowTimingEvaluationState = "stale"
+WORKFLOW_TIMING_STATE_PARTIAL: WorkflowTimingEvaluationState = "partial"
+WORKFLOW_TIMING_STATE_UNAVAILABLE: WorkflowTimingEvaluationState = "unavailable"
+WORKFLOW_TIMING_STATE_ERROR: WorkflowTimingEvaluationState = "error"
 
-WORKFLOW_TIMING_FACT_RUN_STARTED = "run_started"
-WORKFLOW_TIMING_FACT_RUN_FINISHED = "run_finished"
-WORKFLOW_TIMING_FACT_STEP_STARTED = "step_started"
-WORKFLOW_TIMING_FACT_STEP_FINISHED = "step_finished"
+WORKFLOW_TIMING_FACT_RUN_STARTED: WorkflowTimingFactKind = "run_started"
+WORKFLOW_TIMING_FACT_RUN_FINISHED: WorkflowTimingFactKind = "run_finished"
+WORKFLOW_TIMING_FACT_STEP_STARTED: WorkflowTimingFactKind = "step_started"
+WORKFLOW_TIMING_FACT_STEP_FINISHED: WorkflowTimingFactKind = "step_finished"
 
-WORKFLOW_TIMING_RUN_RUNNING = "running"
-WORKFLOW_TIMING_RUN_COMPLETED = "completed"
-WORKFLOW_TIMING_RUN_FAILED = "failed"
-WORKFLOW_TIMING_RUN_CANCELLED = "cancelled"
-WORKFLOW_TIMING_STEP_SKIPPED = "skipped"
+WORKFLOW_TIMING_RUN_RUNNING: WorkflowTimingRunState = "running"
+WORKFLOW_TIMING_RUN_COMPLETED: WorkflowTimingRunState = "completed"
+WORKFLOW_TIMING_RUN_FAILED: WorkflowTimingRunState = "failed"
+WORKFLOW_TIMING_RUN_CANCELLED: WorkflowTimingRunState = "cancelled"
+WORKFLOW_TIMING_STEP_SKIPPED: WorkflowTimingAttemptState = "skipped"
 
-WORKFLOW_TIMING_DEFINITION_ACTIVE = "active"
-WORKFLOW_TIMING_DEFINITION_RETIRED = "retired"
+WORKFLOW_TIMING_DEFINITION_ACTIVE: WorkflowTimingDefinitionStatus = "active"
+WORKFLOW_TIMING_DEFINITION_RETIRED: WorkflowTimingDefinitionStatus = "retired"
 
 _TIMINGS_PATH = "/workflow-timings"
 
@@ -66,20 +75,20 @@ class WorkflowTimingDeclaration(TypedDict):
 
 
 class WorkflowTimingRunFact(TypedDict):
-    state: str
+    state: WorkflowTimingRunState
 
 
 class WorkflowTimingStepFact(TypedDict):
     stepKey: str
     attempt: int
-    state: str
+    state: WorkflowTimingAttemptState
     errorClass: NotRequired[str]
 
 
 class WorkflowTimingFact(TypedDict):
     """One observed fact; kind is run_started, run_finished, step_started or step_finished."""
 
-    kind: str
+    kind: WorkflowTimingFactKind
     occurredAt: str
     dimensions: NotRequired[dict[str, str]]
     run: NotRequired[WorkflowTimingRunFact]
@@ -133,7 +142,7 @@ class WorkflowTimingDefinition(TypedDict):
     workflowKey: str
     name: str
     description: str
-    status: str
+    status: WorkflowTimingDefinitionStatus
     revisionCount: int
     currentRevision: WorkflowTimingRevision
 
@@ -180,7 +189,7 @@ class WorkflowTimingRunSummary(TypedDict):
     runUuid: str
     workflowKey: str
     externalRunId: str
-    state: str
+    state: WorkflowTimingRunState
     openAttempts: int
     pendingFacts: int
     receiptAt: str
@@ -195,7 +204,7 @@ class WorkflowTimingRunList(TypedDict):
 class WorkflowTimingAttempt(TypedDict):
     stepKey: str
     attempt: int
-    state: str
+    state: WorkflowTimingAttemptState
     occurredAt: str
     receiptAt: str
     startedAt: NotRequired[str]
@@ -220,7 +229,7 @@ class WorkflowTimingRun(TypedDict):
     workflowKey: str
     workflowUuid: str
     externalRunId: str
-    state: str
+    state: WorkflowTimingRunState
     revisionUuid: str
     revisionNumber: int
     revisionHash: str
@@ -234,7 +243,7 @@ class WorkflowTimingRun(TypedDict):
 
 
 class WorkflowTimingExpectation(TypedDict):
-    state: str
+    state: WorkflowTimingEvaluationState
     seriesKey: str
     method: str
     methodVersion: str
@@ -258,7 +267,7 @@ class WorkflowTimingPrediction(TypedDict):
     runUuid: str
     workflowKey: str
     externalRunId: str
-    state: str
+    state: WorkflowTimingRunState
     allowOverlap: bool
     generatedAt: str
     run: WorkflowTimingExpectation
@@ -267,7 +276,7 @@ class WorkflowTimingPrediction(TypedDict):
 
 class WorkflowTimingRunProjection(TypedDict):
     runUuid: str
-    state: str
+    state: WorkflowTimingRunState
     appliedLedgerId: int
     corrected: bool
     openAttempts: int
@@ -299,7 +308,7 @@ class WorkflowTimingStepDuration(TypedDict):
 class WorkflowTimingExcludedStep(TypedDict):
     stepKey: str
     attempt: int
-    outcome: str
+    outcome: WorkflowTimingExcludedStepOutcome
 
 
 class WorkflowTimingDurationProjection(TypedDict):
@@ -377,7 +386,7 @@ class WorkflowTimingDurationHistory(TypedDict):
 
 
 class DurationForecastDefinition(TypedDict):
-    method: str
+    method: DurationForecastMethod
     method_version: str
     minimum_history: int
     prior_weight: int
@@ -410,7 +419,7 @@ class DurationForecastIntervalEvaluation(TypedDict):
 
 
 class DurationForecastEvaluationMetric(TypedDict):
-    method: str
+    method: DurationForecastMethod
     evaluated_fold_count: int
     mean_absolute_error_ms: float
     interval: DurationForecastIntervalEvaluation
@@ -449,7 +458,7 @@ class WorkflowTimingEvaluation(TypedDict):
     workflowKey: str
     workflowUuid: str
     seriesKey: str
-    state: str
+    state: WorkflowTimingEvaluationState
     nextAction: str
     baselineMs: int
     outcomes: WorkflowTimingOutcomeCounts

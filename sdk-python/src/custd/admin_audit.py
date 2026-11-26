@@ -6,6 +6,9 @@ from urllib.parse import urlencode
 
 from .client import AdminClient, ValidationError, quote_path, validate_uuid
 
+AuditExportFormat = Literal["csv", "json"]
+
+
 AuditScope = Literal["tenant", "global"]
 AuditOutcome = Literal["attempted", "success", "failure", "denied", "pending", "unknown"]
 AuditDisclosureState = Literal["available", "redacted", "not_recorded"]
@@ -256,7 +259,7 @@ class AuditAdminClient:
         return _safe_event(response)
 
     def export_events(
-        self, options: AuditListOptions | None = None, format: Literal["csv", "json"] = "json"
+        self, options: AuditListOptions | None = None, format: AuditExportFormat = "json"
     ) -> AuditExportResponse:
         if format not in ("csv", "json"):
             raise ValueError("custd: audit export format must be csv or json")

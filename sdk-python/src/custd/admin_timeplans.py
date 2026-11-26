@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, fields, is_dataclass
-from typing import TypedDict
+from typing import Literal, TypedDict, cast
 
 from ._wire import decode, request
 from .admin_timeplan_operations import (
     CompletedDurationReport,
     CompletedRunExportRequest,
+    TimePlanAdjustmentReason,
     TimePlanDefinitionMathProofResponse,
     TimePlanDurationObservationReadResponse,
     TimePlanOperationalStatus,
@@ -20,13 +21,27 @@ from .admin_timeplan_operations import (
 from .client import AdminClient, quote_path
 from .reporting_types import ReportExportJob
 
+TimePlanAllocationBasis = Literal["absolute", "horizon_fraction", "remainder_weight"]
+TimePlanAnnotationField = Literal["text", "markerLabel", "decisionStatus", "assigneeRef", "dueDate", "actionStatus"]
+TimePlanAnnotationType = Literal["note", "marker", "decision", "action"]
+TimePlanCommandType = Literal[
+    "schedule_run",
+    "start_run",
+    "start_block",
+    "complete_block",
+    "skip_block",
+    "change_boundary",
+    "complete_run",
+    "cancel_run",
+    "append_correction",
+]
+TimePlanStartPolicy = Literal["full_duration", "fit_scheduled_window"]
+TimePlanThresholdCueSeverity = Literal["info", "warning", "critical"]
+
+
 Payload = Mapping[str, object]
 _MISSING = object()
 
-_ANNOTATION_TYPES = {"note", "marker", "decision", "action"}
-_ANNOTATION_FIELDS = {"text", "markerLabel", "decisionStatus", "assigneeRef", "dueDate", "actionStatus"}
-_THRESHOLD_SEVERITIES = {"info", "warning", "critical"}
-_ALLOCATION_BASES = {"absolute", "horizon_fraction", "remainder_weight"}
 _MAX_THRESHOLD_CUES = 16
 
 
@@ -120,13 +135,13 @@ def _optional_strings(payload: Payload, key: str) -> list[str] | None:
     return value
 
 
-def _validate_enum(values: list[str] | None, allowed: set[str], key: str, max_items: int) -> None:
+def _validate_unique(
+    values: list[TimePlanAnnotationType] | list[TimePlanAnnotationField] | None, key: str, max_items: int
+) -> None:
     if values is None:
         return
     if len(values) > max_items or len(values) != len(set(values)):
         raise ValueError(f"custd: time-plan field {key} contains too many or duplicate values")
-    if any(value not in allowed for value in values):
-        raise ValueError(f"custd: time-plan field {key} contains an unsupported value")
 
 
 def _objects_or_empty(payload: Payload, key: str) -> list[Payload]:
@@ -141,15 +156,15 @@ class TimePlanDefinitionBlock:
     description: str = ""
     category: str = ""
     tags: list[str] | None = None
-    basis: str = ""
+    basis: TimePlanAllocationBasis | Literal[""] = ""
     durationMs: int = 0
     numerator: int = 0
     denominator: int = 0
     weight: int = 0
 
     def __post_init__(self) -> None:
-        if self.basis not in _ALLOCATION_BASES:
-            raise ValueError("custd: time-plan block basis is invalid")
+        if not self.basis:
+            raise ValueError("custd: time-plan block basis is required")
         if self.tags is not None and (
             not isinstance(self.tags, list) or not all(isinstance(item, str) for item in self.tags)
         ):
@@ -167,7 +182,7 @@ class TimePlanDefinitionBlock:
             description=_optional_string(payload, "description") or "",
             category=_optional_string(payload, "category") or "",
             tags=tags,
-            basis=_string(payload, "basis"),
+            basis=cast(TimePlanAllocationBasis, _string(payload, "basis")),
             durationMs=_optional_integer(payload, "durationMs") or 0,
             numerator=_optional_integer(payload, "numerator") or 0,
             denominator=_optional_integer(payload, "denominator") or 0,
@@ -177,17 +192,17 @@ class TimePlanDefinitionBlock:
 
 @dataclass(frozen=True, slots=True)
 class TimePlanAnnotationSchema:
-    allowedTypes: list[str] | None = None
-    fields: list[str] | None = None
+    allowedTypes: list[TimePlanAnnotationType] | None = None
+    fields: list[TimePlanAnnotationField] | None = None
 
     def __post_init__(self) -> None:
-        _validate_enum(self.allowedTypes, _ANNOTATION_TYPES, "allowedTypes", 4)
-        _validate_enum(self.fields, _ANNOTATION_FIELDS, "fields", 6)
+        _validate_unique(self.allowedTypes, "allowedTypes", 4)
+        _validate_unique(self.fields, "fields", 6)
 
     @classmethod
     def from_payload(cls, payload: Payload) -> TimePlanAnnotationSchema:
-        allowed_types = _optional_strings(payload, "allowedTypes")
-        fields = _optional_strings(payload, "fields")
+        allowed_types = cast(list[TimePlanAnnotationType] | None, _optional_strings(payload, "allowedTypes"))
+        fields = cast(list[TimePlanAnnotationField] | None, _optional_strings(payload, "fields"))
         return cls(allowedTypes=allowed_types, fields=fields)
 
 
@@ -195,7 +210,7 @@ class TimePlanAnnotationSchema:
 class TimePlanThresholdCue:
     remainingFractionBps: int | None = None
     remainingMs: int | None = None
-    severity: str = ""
+    severity: TimePlanThresholdCueSeverity | Literal[""] = ""
 
     def __post_init__(self) -> None:
         for value, key in (
@@ -204,8 +219,8 @@ class TimePlanThresholdCue:
         ):
             if value is not None and (isinstance(value, bool) or not isinstance(value, int)):
                 raise ValueError(f"custd: time-plan {key} must be an integer")
-        if self.severity not in _THRESHOLD_SEVERITIES:
-            raise ValueError("custd: time-plan threshold cue severity is invalid")
+        if not self.severity:
+            raise ValueError("custd: time-plan threshold cue severity is required")
         if self.remainingFractionBps is None and self.remainingMs is None:
             raise ValueError("custd: time-plan threshold cue needs a remaining threshold")
         if self.remainingFractionBps is not None and not 0 <= self.remainingFractionBps <= 10_000:
@@ -220,7 +235,7 @@ class TimePlanThresholdCue:
         return cls(
             remainingFractionBps=_optional_integer(payload, "remainingFractionBps"),
             remainingMs=_optional_integer(payload, "remainingMs"),
-            severity=_string(payload, "severity"),
+            severity=cast(TimePlanThresholdCueSeverity, _string(payload, "severity")),
         )
 
 
@@ -339,11 +354,11 @@ class TimePlanRunRequest:
 
 @dataclass(frozen=True, slots=True)
 class TimePlanCorrectedCommand:
-    type: str
+    type: TimePlanCommandType
     effectiveAt: str
     blockId: str = ""
     boundaryEndsAt: str | None = None
-    startPolicy: str = ""
+    startPolicy: TimePlanStartPolicy | Literal[""] = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -351,13 +366,13 @@ class TimePlanCommandRequest:
     commandId: str
     idempotencyKey: str
     expectedVersion: int
-    type: str
+    type: TimePlanCommandType
     blockId: str = ""
     clientOccurredAt: str | None = None
     boundaryEndsAt: str | None = None
     scheduledStartsAt: str | None = None
     scheduledEndsAt: str | None = None
-    startPolicy: str = ""
+    startPolicy: TimePlanStartPolicy | Literal[""] = ""
     reason: str = ""
     supersedesTransitionUuid: str | None = None
     corrected: TimePlanCorrectedCommand | None = None
@@ -369,7 +384,7 @@ class TimePlanCommandRequest:
 
 @dataclass(frozen=True, slots=True)
 class TimePlanAnnotationInput:
-    type: str
+    type: TimePlanAnnotationType
     runBlockUuid: str = ""
     text: str = ""
     markerLabel: str = ""
@@ -521,7 +536,7 @@ class TimePlanRun:
     scheduledEndsAt: str | None = None
     effectiveStartsAt: str | None = None
     effectiveEndsAt: str | None = None
-    startPolicy: str = ""
+    startPolicy: TimePlanStartPolicy | Literal[""] = ""
     baselineHorizonMs: int = 0
     executableHorizonMs: int | None = None
     lostMs: int = 0
@@ -542,7 +557,7 @@ class TimePlanRun:
             scheduledEndsAt=_optional_string(payload, "scheduledEndsAt"),
             effectiveStartsAt=_optional_string(payload, "effectiveStartsAt"),
             effectiveEndsAt=_optional_string(payload, "effectiveEndsAt"),
-            startPolicy=_optional_string(payload, "startPolicy") or "",
+            startPolicy=cast(TimePlanStartPolicy, _optional_string(payload, "startPolicy") or ""),
             baselineHorizonMs=_integer(payload, "baselineHorizonMs"),
             executableHorizonMs=(
                 executable if isinstance(executable, int) and not isinstance(executable, bool) else None
@@ -569,7 +584,7 @@ class TimePlanCalculationChange:
 @dataclass(frozen=True, slots=True)
 class TimePlanCalculationReceipt:
     allocatorVersion: str = ""
-    reason: str = ""
+    reason: TimePlanAdjustmentReason | Literal[""] = ""
     summary: str = ""
     source: list[TimePlanAllocation] | None = None
     result: list[TimePlanAllocation] | None = None
@@ -579,7 +594,7 @@ class TimePlanCalculationReceipt:
     def from_payload(cls, payload: Payload) -> TimePlanCalculationReceipt:
         return cls(
             allocatorVersion=_string(payload, "allocatorVersion"),
-            reason=_optional_string(payload, "reason") or "",
+            reason=cast(TimePlanAdjustmentReason, _optional_string(payload, "reason") or ""),
             summary=_string(payload, "summary"),
             source=[TimePlanAllocation.from_payload(item) for item in _objects_or_empty(payload, "source")],
             result=[TimePlanAllocation.from_payload(item) for item in _objects_or_empty(payload, "result")],
@@ -660,7 +675,7 @@ class TimePlanAnnotation:
     uuid: str = ""
     runUuid: str = ""
     runBlockUuid: str = ""
-    type: str = ""
+    type: TimePlanAnnotationType | Literal[""] = ""
     text: str = ""
     markerLabel: str = ""
     decisionStatus: str = ""
@@ -680,7 +695,7 @@ class TimePlanAnnotation:
             uuid=_string(payload, "uuid"),
             runUuid=_string(payload, "runUuid"),
             runBlockUuid=_optional_string(payload, "runBlockUuid") or "",
-            type=_string(payload, "type"),
+            type=cast(TimePlanAnnotationType, _string(payload, "type")),
             text=_optional_string(payload, "text") or "",
             markerLabel=_optional_string(payload, "markerLabel") or "",
             decisionStatus=_optional_string(payload, "decisionStatus") or "",

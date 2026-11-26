@@ -8,7 +8,8 @@ from typing import Any
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
-from custd import CustdClient, RequestError
+from custd import CustdClient, RequestError, SiteReport
+from custd._wire import decode
 from custd.ingest_operations import EFFECTIVE_COMPANY_HEADER, ErrorCaptureClient
 
 
@@ -26,6 +27,13 @@ class RecordingTransport:
 
 
 class WireTest(unittest.TestCase):
+    def test_decode_resolves_types_another_module_imports_only_for_checking_and_keeps_unknown_values(self) -> None:
+        # SiteReportUptime names SiteUptimeStatus, which admin_site_insights imports only for type checking.
+        report = decode(SiteReport, {"uptime": {"status": "a-status-this-sdk-does-not-know", "days": None}})
+
+        self.assertEqual("a-status-this-sdk-does-not-know", report["uptime"]["status"])
+        self.assertEqual([], report["uptime"]["days"])
+
     def test_problem_answer_becomes_request_error_with_its_detail_and_code(self) -> None:
         problem = {"title": "Conflict", "status": 409, "detail": "plan already executed", "code": "plan_executed"}
         transport = RecordingTransport(409, json.dumps(problem))

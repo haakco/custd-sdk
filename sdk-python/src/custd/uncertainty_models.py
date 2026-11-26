@@ -7,10 +7,22 @@ on the analytics API.
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 from ._wire import decode, request
+from .app_types import (
+    AppModelBoundState,
+    AppModelForecastField,
+    AppModelInputDistribution,
+    AppModelInputShape,
+    AppModelQuantityKind,
+    AppModelRecommendation,
+    AppModelRunTrigger,
+    AppModelSourceKind,
+)
 from .client import AdminClient, quote_path
+
+UncertaintyModelSource = Literal["all", "admin", "app"]
 
 
 class UncertaintyModel(TypedDict):
@@ -33,17 +45,17 @@ class UncertaintyQueuedRunFailure(TypedDict):
 
 
 class UncertaintyInputSource(TypedDict):
-    field: str
-    kind: str
+    field: AppModelForecastField
+    kind: AppModelSourceKind
     projectUuid: str
 
 
 class UncertaintyInput(TypedDict):
-    distribution: NotRequired[str]
+    distribution: NotRequired[AppModelInputDistribution]
     high: NotRequired[float]
     low: NotRequired[float]
     samples: NotRequired[list[float]]
-    shape: str
+    shape: AppModelInputShape
     source: NotRequired[UncertaintyInputSource]
     successes: NotRequired[int]
     trials: NotRequired[int]
@@ -54,7 +66,7 @@ class UncertaintyQuantity(TypedDict):
     description: NotRequired[str]
     formula: NotRequired[str]
     input: NotRequired[UncertaintyInput]
-    kind: str
+    kind: AppModelQuantityKind
     name: str
     unit: NotRequired[str]
 
@@ -114,7 +126,7 @@ class UncertaintyRunSummary(TypedDict):
     sampleCount: int
     seed: int
     sourceForecastRunUuid: NotRequired[str]
-    trigger: str
+    trigger: AppModelRunTrigger
     versionNumber: int
 
 
@@ -128,7 +140,7 @@ class UncertaintyBoundInput(TypedDict):
     forecastRunUuid: NotRequired[str]
     quantity: str
     source: UncertaintyInputSource
-    state: str
+    state: AppModelBoundState
     value: NotRequired[float]
 
 
@@ -148,7 +160,7 @@ class UncertaintyInformation(TypedDict):
     actProbability: float
     expectedValueOfPerfectInformation: float
     inputs: list[UncertaintyInputInformation]
-    recommended: str
+    recommended: AppModelRecommendation
     suggestedNextMeasurement: NotRequired[str]
 
 
@@ -215,7 +227,7 @@ class UncertaintyRunDetail(TypedDict):
     sensitivity: NotRequired[UncertaintySensitivity]
     sensitivityOutput: NotRequired[str]
     sourceForecastRunUuid: NotRequired[str]
-    trigger: str
+    trigger: AppModelRunTrigger
     versionNumber: int
 
 
@@ -242,7 +254,9 @@ class UncertaintyModelAdminClient:
             query={"companySlug": company_slug},
         )
 
-    def list(self, *, company_slug: str | None = None, source: str | None = None) -> UncertaintyModelList:
+    def list(
+        self, *, company_slug: str | None = None, source: UncertaintyModelSource | None = None
+    ) -> UncertaintyModelList:
         """List the tenant's uncertainty models."""
         return decode(
             UncertaintyModelList,

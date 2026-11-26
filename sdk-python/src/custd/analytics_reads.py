@@ -8,25 +8,48 @@ the tenant.
 
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
-from .admin_reporting_packs import PackDefinition
+from .admin_reporting_packs import PackDefinition, ReportingDashboardInteraction, ReportingFilterOperator
 from .client import ReportingQueryRequest
-from .reporting_types import PreparedDataNextAction, PreparedDataProvenance, PreparedDataWarning
+from .reporting_types import (
+    PreparedDataNextAction,
+    PreparedDataProvenance,
+    PreparedDataWarning,
+    ReportingComparison,
+    ReportingExportFormat,
+    ReportingRetryability,
+)
+
+PreparedDataBootstrapProofKind = Literal["dns_txt", "email_link"]
+PreparedDataBootstrapState = Literal["ready", "attention_required", "suspended"]
+ReportingDashboardGenerationState = Literal["building", "ready", "unavailable"]
+ReportingSnapshotColumnType = Literal[
+    "text",
+    "integer",
+    "number",
+    "percentage",
+    "currency",
+    "date",
+    "datetime",
+    "duration",
+    "boolean",
+    "null",
+]
 
 
 class PreparedDataBootstrapStatus(TypedDict):
     nextAction: PreparedDataNextAction
     observedAt: str
     provenance: PreparedDataProvenance
-    retryability: str
-    state: str
+    retryability: ReportingRetryability
+    state: PreparedDataBootstrapState
     tenantSlug: str
     warnings: NotRequired[list[PreparedDataWarning]]
 
 
 class PreparedDataBootstrapProof(TypedDict):
-    kind: str
+    kind: PreparedDataBootstrapProofKind
     observedAt: str
     value: str
 
@@ -45,9 +68,9 @@ class ReportingDashboardCatalogueTrust(TypedDict):
 class ReportingDashboardCatalogueEntry(TypedDict):
     defaultRange: str
     description: str
-    exportFormats: list[str]
+    exportFormats: list[ReportingExportFormat]
     group: str
-    interactions: list[str]
+    interactions: list[ReportingDashboardInteraction]
     key: str
     refreshSeconds: int
     title: str
@@ -60,14 +83,14 @@ class ReportingDashboardCatalogueResponse(TypedDict):
 
 class ReportingDashboardGenerationFilter(TypedDict):
     dimension: str
-    operator: str
+    operator: ReportingFilterOperator
     value: NotRequired[str]
 
 
 ReportingExportQueryParameters = TypedDict(
     "ReportingExportQueryParameters",
     {
-        "comparison": NotRequired[str],
+        "comparison": NotRequired[ReportingComparison],
         "filters": NotRequired[list[ReportingDashboardGenerationFilter]],
         "from": NotRequired[str],
         "maxRows": NotRequired[int],
@@ -93,7 +116,7 @@ class ReportingSnapshotColumn(TypedDict):
     key: str
     label: str
     nullable: bool
-    type: str
+    type: ReportingSnapshotColumnType
     unit: NotRequired[str]
 
 
@@ -114,7 +137,7 @@ class ReportingDashboardGenerationResponse(TypedDict):
     mediaType: NotRequired[str]
     pollAfterSeconds: NotRequired[int]
     snapshotSha256: NotRequired[str]
-    state: str
+    state: ReportingDashboardGenerationState
     urlExpiresAt: NotRequired[str]
     validUntil: NotRequired[str]
 

@@ -37,16 +37,28 @@ from .admin_auth_project_hosting import (
 )
 from .client import AdminClient, AdminRequestOptions
 
+ApplicationMembershipRole = Literal["administrator", "member", "viewer"]
+AuthProjectApplicationSessionPolicy = Literal["offer_remember_me", "short_only"]
+AuthProjectClientSyncAction = Literal["created", "updated", "unchanged", "removed", "refused"]
+AuthProjectDirectoryState = Literal["draft", "provisioning", "ready", "paused", "failed", "released"]
+AuthProjectDisplayNameSource = Literal["", "application", "hosting"]
+AuthProjectProfileEditor = Literal["user", "provider", "administrator"]
+AuthProjectRegistrationPolicy = Literal["invite_only", "open"]
+AuthProjectSocialProviderMode = Literal["shared", "own"]
+AuthProjectSocialProviderName = Literal["google", "github"]
+AuthProjectSocialProviderState = Literal["active", "applying", "unavailable", "waiting_for_directory"]
+
+
 # AuthProjectIdentityMode names how an environment's identity boundary is shared.
 # Custd owns the meaning of both legal values and the SDK surfaces them unchanged.
-AuthProjectIdentityMode = str
+AuthProjectIdentityMode = Literal["isolated", "shared"]
 AUTH_PROJECT_IDENTITY_MODES = ("isolated", "shared")
 
 # AuthProjectAudienceEntitlementMode declares how an environment decides which principals an
 # audience admits. "organisation_membership" is the pre-existing behaviour; "explicit_grants"
 # admits an audience only when the principal holds a grant for that exact audience. Required on
 # creation and immutable afterwards.
-AuthProjectAudienceEntitlementMode = str
+AuthProjectAudienceEntitlementMode = Literal["organisation_membership", "explicit_grants"]
 AUTH_PROJECT_AUDIENCE_ENTITLEMENT_MODES = ("organisation_membership", "explicit_grants")
 
 
@@ -82,7 +94,7 @@ class AuthProjectSummary(TypedDict):
     environmentId: str
     environmentSlug: str
     identityMode: AuthProjectIdentityMode
-    audienceEntitlementMode: str
+    audienceEntitlementMode: AuthProjectAudienceEntitlementMode
     companyUuid: str | None
 
 
@@ -289,7 +301,7 @@ class ApplicationPrincipalMembershipView(TypedDict):
     organisationId: str
     organisationSlug: str
     organisationName: str
-    role: str
+    role: ApplicationMembershipRole
     createdAt: str
     removedAt: NotRequired[str]
 
@@ -333,7 +345,7 @@ class AuthProjectProfileField(TypedDict):
     key: str
     required: bool
     visibleToApplication: bool
-    editableBy: str
+    editableBy: AuthProjectProfileEditor
 
 
 class AuthProjectHostingIngestTarget(TypedDict):
@@ -352,22 +364,22 @@ class AuthProjectHosting(TypedDict):
 class AuthProjectSocialProvider(TypedDict):
     """One social sign-in provider; ``clientSecret`` is write-only and reads back as ``clientSecretSet``."""
 
-    provider: str
-    mode: str
+    provider: AuthProjectSocialProviderName
+    mode: AuthProjectSocialProviderMode
     clientId: NotRequired[str]
     clientSecret: NotRequired[str]
     clientSecretSet: NotRequired[bool]
 
 
 class AuthProjectSocialCallbackUrl(TypedDict):
-    provider: str
+    provider: AuthProjectSocialProviderName
     url: str
 
 
 class AuthProjectSocialProviderStatus(TypedDict):
-    provider: str
-    mode: str
-    state: str
+    provider: AuthProjectSocialProviderName
+    mode: AuthProjectSocialProviderMode
+    state: AuthProjectSocialProviderState
     note: str
 
 
@@ -391,7 +403,7 @@ class AuthProjectDesiredState(TypedDict):
     """
 
     identityMode: AuthProjectIdentityMode
-    registrationPolicy: str
+    registrationPolicy: AuthProjectRegistrationPolicy
     loginPaused: bool
     audiences: list[AuthProjectAudienceBinding] | None
     profileFields: list[AuthProjectProfileField] | None
@@ -400,9 +412,9 @@ class AuthProjectDesiredState(TypedDict):
     entryPath: str
     brandAccent: str
     displayName: NotRequired[str]
-    displayNameSource: NotRequired[str]
+    displayNameSource: NotRequired[AuthProjectDisplayNameSource]
     signInMethods: NotRequired[list[str] | None]
-    applicationSessionPolicy: NotRequired[str]
+    applicationSessionPolicy: NotRequired[AuthProjectApplicationSessionPolicy]
     withdrawDisplayName: NotRequired[bool]
     hosting: NotRequired[AuthProjectHosting]
     socialSignIn: NotRequired[AuthProjectSocialSignIn]
@@ -521,15 +533,15 @@ class AuthProjectStatus(TypedDict):
 
 # Custd owns the four legal directory actions and the SDK rejects anything else
 # before sending.
-AuthProjectDirectoryAction = str
+AuthProjectDirectoryAction = Literal["enable", "pause", "resume", "release"]
 AUTH_PROJECT_DIRECTORY_ACTIONS = ("enable", "pause", "resume", "release")
 
 
 class AuthProjectCapability(TypedDict):
     """The configured modes one environment may use; vocabularies are server-owned."""
 
-    identityModes: list[str]
-    registrationPolicies: list[str]
+    identityModes: list[AuthProjectIdentityMode]
+    registrationPolicies: list[AuthProjectRegistrationPolicy]
     profileFieldKeys: list[str]
     audienceConstraints: str
     subjectUniqueness: str
@@ -540,7 +552,7 @@ class AuthProjectDirectoryView(TypedDict):
 
     poolId: str
     poolSlug: str
-    state: str
+    state: AuthProjectDirectoryState
     slotRef: NotRequired[str]
     runtimePublicUrl: NotRequired[str]
     revision: int
@@ -603,7 +615,7 @@ class AuthProjectClientSyncRegistration(TypedDict):
 
     audience: str
     clientId: str
-    action: str
+    action: AuthProjectClientSyncAction
     reason: NotRequired[str]
 
 
@@ -713,7 +725,7 @@ class ApplicationProfileField(TypedDict):
     value: NotRequired[str]
     present: bool
     required: bool
-    editableBy: str
+    editableBy: AuthProjectProfileEditor
     editable: bool
 
 
@@ -747,7 +759,7 @@ class ApplicationMembershipChoice(TypedDict):
     organisationId: str
     organisationSlug: str
     organisationName: str
-    role: str
+    role: ApplicationMembershipRole
 
 
 class ApplicationMembershipContext(TypedDict):

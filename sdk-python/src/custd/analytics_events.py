@@ -4,11 +4,14 @@ import json
 import re
 from collections.abc import Mapping
 from datetime import date
-from typing import Any, NotRequired, TypedDict, cast
+from typing import Any, Literal, NotRequired, TypedDict, cast
 
 from ._wire import decode, query_string
 from .analytics_reads import AnalyticsActiveNow, AnalyticsDashboardSummary, AnalyticsTelemetryEventCount
 from .client import AdminTransport, CustdClient, RequestError, problem_request_error
+
+AnalyticsQuerySource = Literal["auto", "postgres", "duckdb", "rollup", "materialized"]
+
 
 ANALYTICS_QUERY_PATH = "/analytics/query"
 ANALYTICS_QUERY_RANGE_PATH = "/analytics/query-range"
@@ -51,7 +54,7 @@ class AnalyticsEventQueryRequest(TypedDict):
     date: str
     eventType: NotRequired[str]
     limit: NotRequired[int]
-    source: NotRequired[str]
+    source: NotRequired[AnalyticsQuerySource]
     labelFilters: NotRequired[list[AnalyticsLabelFilter]]
     # Promoted log-dimension equality filters. An empty value is omitted so an
     # unset filter never narrows the query.
@@ -70,7 +73,7 @@ class AnalyticsEventSourceSummary(TypedDict, total=False):
     own heuristic.
     """
 
-    name: str
+    name: AnalyticsQuerySource
     count: int
     parquetUriCount: int
     complete: bool
@@ -115,7 +118,7 @@ AnalyticsEventRangeQueryRequest = TypedDict(
         "to": str,
         "eventType": NotRequired[str],
         "limit": NotRequired[int],
-        "source": NotRequired[str],
+        "source": NotRequired[AnalyticsQuerySource],
         "groupBy": NotRequired[str],
         "labelFilters": NotRequired[list[AnalyticsLabelFilter]],
         "severity": NotRequired[str],
@@ -136,7 +139,7 @@ class AnalyticsEventRangeBucket(TypedDict, total=False):
 
     date: str
     count: int
-    source: str
+    source: AnalyticsQuerySource
     complete: bool
     queryDurationMs: int
     parquetUriCount: int
@@ -311,7 +314,7 @@ def _public_range_query_payload(request: AnalyticsEventRangeQueryRequest) -> dic
     if request.get("limit") is not None:
         payload["limit"] = request["limit"]
     source = request.get("source")
-    if source is not None and source != "":
+    if source:
         if source not in ANALYTICS_RANGE_QUERY_SOURCES:
             raise ValueError(
                 f"custd: analytics range query source must be one of {', '.join(ANALYTICS_RANGE_QUERY_SOURCES)}"

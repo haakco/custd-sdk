@@ -9,10 +9,16 @@ authority on which principals exist and what they may hold.
 from __future__ import annotations
 
 import re
-from typing import NotRequired, TypedDict, cast
+from typing import Literal, NotRequired, TypedDict, cast
 from urllib.parse import urlencode
 
 from .client import AdminClient, quote_path
+
+DataScopeAction = Literal["read", "write"]
+DataScopeGrantTargetKind = Literal["parent", "sub_client", "resource"]
+DataScopePrincipalKind = Literal["human", "machine"]
+DataScopeStatus = Literal["active", "disabled"]
+
 
 DATA_SCOPE_CODE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
 DATA_SCOPE_UUID_PATTERN = re.compile(
@@ -32,7 +38,7 @@ class DataScope(TypedDict):
     uuid: str
     code: str
     name: str
-    status: str
+    status: DataScopeStatus
     createdAt: str
     updatedAt: str
 
@@ -49,7 +55,7 @@ class DataScopeCreateRequest(TypedDict):
 class DataScopeUpdateRequest(TypedDict):
     # Both fields are optional, but at least one must be present.
     name: NotRequired[str]
-    status: NotRequired[str]
+    status: NotRequired[DataScopeStatus]
 
 
 class DataScopeResource(TypedDict):
@@ -57,7 +63,7 @@ class DataScopeResource(TypedDict):
     scopeUuid: str
     code: str
     name: str
-    status: str
+    status: DataScopeStatus
     createdAt: str
     updatedAt: str
 
@@ -73,7 +79,7 @@ class DataScopeResourceCreateRequest(TypedDict):
 
 class DataScopeResourceUpdateRequest(TypedDict):
     name: NotRequired[str]
-    status: NotRequired[str]
+    status: NotRequired[DataScopeStatus]
 
 
 class DataScopePrincipalRef(TypedDict):
@@ -83,13 +89,13 @@ class DataScopePrincipalRef(TypedDict):
     ID. It never carries an email, a display name, or free actor text.
     """
 
-    kind: str
+    kind: DataScopePrincipalKind
     userUuid: NotRequired[str]
     clientId: NotRequired[str]
 
 
 class DataScopeGrantTarget(TypedDict):
-    kind: str
+    kind: DataScopeGrantTargetKind
     scopeUuid: NotRequired[str]
     resourceUuid: NotRequired[str]
 
@@ -99,7 +105,7 @@ class DataScopeGrant(TypedDict):
 
     principal: DataScopePrincipalRef
     target: DataScopeGrantTarget
-    action: str
+    action: DataScopeAction
 
 
 class DataScopeGrantListResponse(TypedDict):
