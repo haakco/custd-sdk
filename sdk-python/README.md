@@ -415,6 +415,30 @@ null list always comes back as `[]`.
   opens that owner's session and `SiteAIOwnerClient` reads and changes its settings and
   consent (`custd.site_ai_owner`).
 
+## Machine access and request IDs
+
+`client.admin.machine_access` sets what the company's machine credentials may do per feature
+area. The policy only narrows a client's scopes, never widens them:
+
+```python
+from custd import MACHINE_ACCESS_BLOCKED_CODE, RequestError, record_metadata
+
+client.admin.machine_access.update({"areas": [{"area": "privacy_erasure", "state": "blocked"}]})
+client.admin.machine_access.update_override("ci-deploy", {"areas": [{"area": "reporting", "state": "allowed"}]})
+effective = client.admin.machine_access.get_effective("ci-deploy")  # per area: allowed, decidedBy
+
+with record_metadata() as recorder:
+    try:
+        client.admin.request("GET", "/reporting/packs")
+    except RequestError as error:
+        if error.code == MACHINE_ACCESS_BLOCKED_CODE:
+            print(error.machine_access)  # area, blockedBy (company, machine or support_automation)
+        print(error.trace_id, recorder.request_id)  # quote either in a support request
+```
+
+`record_metadata()` records the `X-Request-Id` of every answer inside the block, refusals
+included. A `RequestError` carries the problem's `trace_id` and the flat envelope's `request_id`.
+
 ## Auth-project admin helpers
 
 `client.admin.auth_projects` manages Custd projects, their environments, and the

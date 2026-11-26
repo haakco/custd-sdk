@@ -2159,6 +2159,23 @@ ROUTES: dict[str, RouteCase] = {
         "/api/v1/admin/ingest/claims/a1", lambda c: c.admin.ingest_claims.list("a1")
     ),
     "admin-api GET /api/v1/admin/jobs": RouteCase("/api/v1/admin/jobs", lambda c: c.admin.system.list_jobs()),
+    "admin-api GET /api/v1/admin/machine-access": RouteCase(
+        "/api/v1/admin/machine-access", lambda c: c.admin.machine_access.get()
+    ),
+    "admin-api PUT /api/v1/admin/machine-access": RouteCase(
+        "/api/v1/admin/machine-access",
+        lambda c: c.admin.machine_access.update({"areas": [{"area": "reporting", "state": "blocked"}]}),
+    ),
+    "admin-api GET /api/v1/admin/machine-access/clients/{clientId}": RouteCase(
+        "/api/v1/admin/machine-access/clients/ci-1", lambda c: c.admin.machine_access.get_override("ci-1")
+    ),
+    "admin-api PUT /api/v1/admin/machine-access/clients/{clientId}": RouteCase(
+        "/api/v1/admin/machine-access/clients/ci-1",
+        lambda c: c.admin.machine_access.update_override("ci-1", {"areas": [{"area": "sites", "state": "inherit"}]}),
+    ),
+    "admin-api GET /api/v1/admin/machine-access/clients/{clientId}/effective": RouteCase(
+        "/api/v1/admin/machine-access/clients/ci-1/effective", lambda c: c.admin.machine_access.get_effective("ci-1")
+    ),
     "admin-api GET /api/v1/admin/notification-deliveries/{uuid}": RouteCase(
         "/api/v1/admin/notification-deliveries/a1", lambda c: c.admin.webhooks.get_delivery("a1")
     ),
@@ -2435,6 +2452,9 @@ NULL_LISTS: dict[str, tuple[str, ...]] = {
     "admin-api GET /api/v1/admin/event-types": ("eventTypes",),
     "admin-api GET /api/v1/admin/ingest/claims/{tenantSlug}": ("claims",),
     "admin-api GET /api/v1/admin/jobs": ("outboxes",),
+    "admin-api GET /api/v1/admin/machine-access": ("areas",),
+    "admin-api GET /api/v1/admin/machine-access/clients/{clientId}": ("areas",),
+    "admin-api GET /api/v1/admin/machine-access/clients/{clientId}/effective": ("scopes",),
     "admin-api GET /api/v1/admin/notification-webhooks": ("subscriptions",),
     "admin-api GET /api/v1/admin/rls/reconciliation-plans/{planUuid}/proof": ("diff",),
     "admin-api GET /api/v1/admin/rls/status": ("tables",),

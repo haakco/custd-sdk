@@ -12,6 +12,7 @@ from custd import CustdClient, make_default_transport, normalize_compression
 
 class FakeResponse:
     status = 202
+    headers: dict[str, str] = {}
 
     def read(self):
         return b""

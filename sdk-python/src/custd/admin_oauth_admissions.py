@@ -86,6 +86,8 @@ class OAuthClient(TypedDict):
     environment: NotRequired[str]
     profile: NotRequired[str]
     purposeProfile: NotRequired[str]
+    # When the client was created; an override saved for an earlier client of the same ID does not apply to it.
+    createdAt: NotRequired[str]
 
 
 class OAuthClientListResponse(TypedDict):

@@ -11,7 +11,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -134,6 +136,73 @@ STREAM_CHUNK_BYTES = 64 * 1024
 # An error answer is a small problem document; more than this is not read.
 STREAM_ERROR_BODY_LIMIT = 64 * 1024
 REQUEST_ID_HEADER = "x-request-id"
+
+
+@dataclass
+class MetadataRecorder:
+    """The server's ``X-Request-Id`` for the last answer made under ``record_metadata``; "" when none came."""
+
+    request_id: str = ""
+
+
+_METADATA_RECORDER: ContextVar[MetadataRecorder | None] = ContextVar("custd_metadata_recorder", default=None)
+
+
+@contextmanager
+def record_metadata() -> Iterator[MetadataRecorder]:
+    """Record the request ID of every answer, refusals included, made inside the ``with`` block.
+
+    It lets a caller quote the request the server logged without any method returning metadata::
+
+        with record_metadata() as recorder:
+            client.admin.machine_access.get()
+        print(recorder.request_id)
+    """
+    recorder = MetadataRecorder()
+    token = _METADATA_RECORDER.set(recorder)
+    try:
+        yield recorder
+    finally:
+        _METADATA_RECORDER.reset(token)
+
+
+def _record_request_id(headers: object) -> None:
+    recorder = _METADATA_RECORDER.get()
+    if recorder is None or not isinstance(headers, Mapping):
+        return
+    for name, value in headers.items():
+        if str(name).lower() == REQUEST_ID_HEADER and value:
+            recorder.request_id = str(value)
+            return
+
+
+def _recording_admin_transport(transport: "AdminTransport") -> "AdminTransport":
+    def send(
+        method: str, url: str, payload: dict[str, Any] | bytes | None, headers: dict[str, str], timeout: float
+    ) -> TransportResult:
+        result = transport(method, url, payload, headers, timeout)
+        _record_request_id(result.get("headers"))
+        return result
+
+    return send
+
+
+def _recording_stream_transport(transport: AdminStreamTransport) -> AdminStreamTransport:
+    def open_stream(method: str, url: str, headers: dict[str, str], timeout: float) -> AdminStream:
+        stream = transport(method, url, headers, timeout)
+        _record_request_id(stream.headers)
+        return stream
+
+    return open_stream
+
+
+def _recording_transport(transport: "Transport") -> "Transport":
+    def send(url: str, event: TransportBody, headers: dict[str, str], timeout: float) -> TransportResult:
+        result = transport(url, event, headers, timeout)
+        _record_request_id(result.get("headers"))
+        return result
+
+    return send
 
 
 class RawSourceTarget(TypedDict):
@@ -588,7 +657,30 @@ class RetryableError(RuntimeError):
     pass
 
 
+MACHINE_ACCESS_BLOCKED_CODE = "machine_access_blocked"
+MACHINE_ACCESS_UNAVAILABLE_CODE = "machine_access_unavailable"
+
+
+class MachineAccessBlock(TypedDict):
+    """Why a machine access setting refused a request: the area, and which setting blocked it.
+
+    ``blockedBy`` is ``company``, ``machine`` or ``support_automation`` (an open set).
+    """
+
+    area: str
+    blockedBy: str
+    companySlug: str
+    clientId: str
+
+
 class RequestError(RuntimeError):
+    """A refused or failed call.
+
+    ``trace_id`` is the problem's ``traceId`` and ``request_id`` the flat envelope's ``requestId``:
+    the identifier to quote in a support request. ``machine_access`` is set when a machine access
+    setting refused the call (code ``machine_access_blocked``).
+    """
+
     def __init__(
         self,
         message: str,
@@ -599,6 +691,9 @@ class RequestError(RuntimeError):
         reason: str | None = None,
         retryability: str = "none",
         next_action: dict[str, Any] | None = None,
+        trace_id: str | None = None,
+        request_id: str | None = None,
+        machine_access: MachineAccessBlock | None = None,
     ) -> None:
         super().__init__(message)
         self.status = status
@@ -607,6 +702,9 @@ class RequestError(RuntimeError):
         self.reason = reason
         self.retryability = retryability
         self.next_action = next_action
+        self.trace_id = trace_id
+        self.request_id = request_id
+        self.machine_access = machine_access
 
     @property
     def unavailable(self) -> bool:
@@ -642,27 +740,71 @@ class RawAcceptanceUnknownError(RequestError):
         return False
 
 
-def admin_request_error(status: int, body: object) -> RequestError:
+def _decoded_error_body(body: object) -> dict[str, Any]:
     decoded: object = body
+    if isinstance(body, bytes):
+        body = body.decode("utf-8", errors="replace")
     if isinstance(body, str):
         try:
             decoded = json.loads(body)
         except json.JSONDecodeError:
             decoded = None
-    payload = decoded if isinstance(decoded, dict) else {}
-    reason = payload.get("error")
-    code = payload.get("code")
-    safe_next_action = payload.get("safe_next_action")
-    reason_text = reason if isinstance(reason, str) and reason else None
-    code_text = code if isinstance(code, str) and code else None
-    action_text = safe_next_action if isinstance(safe_next_action, str) and safe_next_action else None
-    message = reason_text or f"admin request failed with status {status}"
+    return decoded if isinstance(decoded, dict) else {}
+
+
+def _text(payload: dict[str, Any], key: str) -> str | None:
+    value = payload.get(key)
+    return value if isinstance(value, str) and value else None
+
+
+def _machine_access_block(payload: dict[str, Any]) -> MachineAccessBlock | None:
+    block = payload.get("machineAccess")
+    if not isinstance(block, dict):
+        return None
+    return MachineAccessBlock(
+        area=str(block.get("area") or ""),
+        blockedBy=str(block.get("blockedBy") or ""),
+        companySlug=str(block.get("companySlug") or ""),
+        clientId=str(block.get("clientId") or ""),
+    )
+
+
+def _problem_retryability(payload: dict[str, Any], status: int) -> str:
+    retryability = payload.get("retryability")
+    if isinstance(retryability, str) and retryability in ("none", "bounded"):
+        return retryability
+    return "bounded" if status == 429 or status >= 500 else "none"
+
+
+def _problem_error(message: str, status: int, payload: dict[str, Any]) -> RequestError:
+    next_action = payload.get("nextAction")
     return RequestError(
-        f"custd: {message}",
+        message,
         status=status,
-        code=code_text,
-        safe_next_action=action_text,
+        code=_text(payload, "code"),
+        retryability=_problem_retryability(payload, status),
+        next_action=next_action if isinstance(next_action, dict) else None,
+        trace_id=_text(payload, "traceId"),
+        request_id=_text(payload, "requestId"),
+        machine_access=_machine_access_block(payload),
+    )
+
+
+def admin_request_error(status: int, body: object) -> RequestError:
+    """Translate an admin refusal: the flat ``{error, code, safe_next_action}`` envelope or an RFC 9457 problem."""
+    payload = _decoded_error_body(body)
+    reason_text = _text(payload, "error")
+    if reason_text is None:
+        detail = _text(payload, "detail")
+        return _problem_error(f"custd: {detail or f'admin request failed with status {status}'}", status, payload)
+    return RequestError(
+        f"custd: {reason_text}",
+        status=status,
+        code=_text(payload, "code"),
+        safe_next_action=_text(payload, "safe_next_action"),
         reason=reason_text,
+        trace_id=_text(payload, "traceId"),
+        request_id=_text(payload, "requestId"),
     )
 
 
@@ -671,28 +813,16 @@ def problem_request_error(status: int, body: object, operation: str) -> RequestE
 
     The /api/v1 tenant routes report `detail`, `code`, `retryability` and `nextAction`,
     a different problem shape from the admin API's `error`/`safe_next_action`, so this
-    does not share admin_request_error.
+    does not share admin_request_error's flat branch.
     """
-    try:
-        decoded = json.loads(body) if isinstance(body, str) else body
-    except json.JSONDecodeError:
-        decoded = None
-    problem = decoded if isinstance(decoded, dict) else {}
-    retryability = problem.get("retryability")
-    detail = problem.get("detail")
-    code = problem.get("code")
-    next_action = problem.get("nextAction")
-    return RequestError(
-        detail if isinstance(detail, str) and detail else f"custd: {operation} request failed with status {status}",
-        status=status,
-        code=code if isinstance(code, str) and code else None,
-        retryability=(
-            retryability
-            if isinstance(retryability, str) and retryability in ("none", "bounded")
-            else ("bounded" if status == 429 or status >= 500 else "none")
-        ),
-        next_action=next_action if isinstance(next_action, dict) else None,
-    )
+    payload = _decoded_error_body(body)
+    detail = _text(payload, "detail")
+    return _problem_error(detail or f"custd: {operation} request failed with status {status}", status, payload)
+
+
+def ingest_request_error(status: int, body: object) -> RequestError:
+    """Translate an ingest refusal, keeping the problem's code, trace ID and machine access block."""
+    return _problem_error(problem_error_message(status, body), status, _decoded_error_body(body))
 
 
 class QueueStorageError(RuntimeError):
@@ -868,18 +998,22 @@ class CustdClient:
         if self.max_queue_size <= 0:
             raise ValueError("custd: queue max_queue_size must be a positive integer")
         self.compression = normalize_compression(compression)
-        self.transport = transport or make_default_transport(self.compression)
+        # Every transport records the answer's request ID for record_metadata.
+        self.transport = _recording_transport(transport or make_default_transport(self.compression))
+        recorded_admin_transport = _recording_admin_transport(admin_transport or default_admin_transport)
         self.admin = AdminClient(
-            self, admin_transport or default_admin_transport, admin_stream_transport or default_admin_stream_transport
+            self,
+            recorded_admin_transport,
+            _recording_stream_transport(admin_stream_transport or default_admin_stream_transport),
         )
-        self.provisioning = ProvisioningClient(self, admin_transport or default_admin_transport)
-        self.reporting = ReportingClient(self, admin_transport or default_admin_transport)
+        self.provisioning = ProvisioningClient(self, recorded_admin_transport)
+        self.reporting = ReportingClient(self, recorded_admin_transport)
         from .analytics_events import AnalyticsEventClient
 
-        self.analytics = AnalyticsEventClient(self, admin_transport or default_admin_transport)
+        self.analytics = AnalyticsEventClient(self, recorded_admin_transport)
         from .parsers import ParserClient
 
-        self.parsers = ParserClient(self, admin_transport or default_admin_transport)
+        self.parsers = ParserClient(self, recorded_admin_transport)
         from .measurement import MeasurementClient
 
         self.measurement = MeasurementClient(self.admin)
@@ -942,7 +1076,7 @@ class CustdClient:
         if status in self.retry["retry_statuses"]:
             raise RawAcceptanceUnknownError(operation_key)
         if status >= 400:
-            raise RequestError(problem_error_message(status, result.get("body")))
+            raise ingest_request_error(status, result.get("body"))
         return _decode_raw_ingest_result(result.get("body"), operation_key)
 
     def track(self, event: EventEnvelope) -> TransportResult | None:
@@ -1028,7 +1162,7 @@ class CustdClient:
         if status in self.retry["retry_statuses"]:
             raise RetryableError(f"custd: retryable status {status}")
         if status >= 400:
-            raise RequestError(problem_error_message(status, result.get("body")))
+            raise ingest_request_error(status, result.get("body"))
         return result
 
     def _send_batch(self, events: list[EventEnvelope]) -> TransportResult:
@@ -1037,7 +1171,7 @@ class CustdClient:
         if status in self.retry["retry_statuses"]:
             raise RetryableError(f"custd: retryable status {status}")
         if status >= 400:
-            raise RequestError(problem_error_message(status, result.get("body")))
+            raise ingest_request_error(status, result.get("body"))
 
         body = result.get("body")
         if not (isinstance(body, str) and body):
@@ -1129,6 +1263,7 @@ class AdminClient:
         from .admin_campaign_email import CampaignEmailAdminClient
         from .admin_data_labels import DataLabelAdminClient
         from .admin_data_scopes import DataScopeAdminClient
+        from .admin_machine_access import MachineAccessAdminClient
         from .admin_notifications import (
             EmailRelayAdminClient,
             NotificationDestinationAdminClient,
@@ -1207,6 +1342,7 @@ class AdminClient:
         self.email_relay = EmailRelayAdminClient(self)
         self.campaign_email = CampaignEmailAdminClient(self)
         self.schema_actions = SchemaActionAdminClient(self)
+        self.machine_access = MachineAccessAdminClient(self)
 
     def get_account(self) -> "Account":
         """Read the authenticated caller's account document from /api/v1/account/me."""
@@ -2685,9 +2821,13 @@ def make_default_transport(compression: dict[str, Any]) -> Transport:
         request = urllib.request.Request(url, data=body, headers=headers, method="POST")
         try:
             with urllib.request.urlopen(request, timeout=timeout) as response:
-                return {"status": response.status, "body": response.read().decode("utf-8")}
+                return {
+                    "status": response.status,
+                    "body": response.read().decode("utf-8"),
+                    "headers": dict(response.headers.items()),
+                }
         except urllib.error.HTTPError as err:
-            return {"status": err.code, "body": err.read().decode("utf-8")}
+            return {"status": err.code, "body": err.read().decode("utf-8"), "headers": dict(err.headers.items())}
         except urllib.error.URLError as err:
             raise RetryableError(f"custd: request failed: {err}") from err
 
@@ -2723,7 +2863,11 @@ def default_admin_transport(
             response_headers = {str(key): str(value) for key, value in response.headers.items()}
             return {"status": response.status, "body": body, "headers": response_headers}
     except urllib.error.HTTPError as err:
-        return {"status": err.code, "body": err.read().decode("utf-8")}
+        return {
+            "status": err.code,
+            "body": err.read().decode("utf-8"),
+            "headers": {str(key): str(value) for key, value in err.headers.items()},
+        }
     except urllib.error.URLError as err:
         raise RetryableError(f"custd: admin request failed: {err}") from err
 
