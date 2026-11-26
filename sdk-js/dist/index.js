@@ -10,6 +10,7 @@ import { SiteDomainAdminClient } from "./admin-site-domains.js";
 import { SiteInsightsAdminClient } from "./admin-site-insights-tasks.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+import { responseDownloadStream } from "./download-stream.js";
 import { isLocalHostname } from "./secure-url.js";
 export { AUTH_PROJECT_DOMAIN_CONVERGENCES, AUTH_PROJECT_DOMAIN_IMAGE_COMPONENTS, AUTH_PROJECT_DOMAIN_IMAGE_SOURCES, AUTH_PROJECT_DOMAIN_LIFECYCLES, AUTH_PROJECT_DOMAIN_STATUSES, } from "./admin-auth-project-domain.js";
 export { ADMIN_USER_GLOBAL_STATES, ADMIN_USER_MEMBERSHIP_STATES, ADMIN_USER_ROLES, AdminUserAdminClient, } from "./admin-users.js";
@@ -593,7 +594,7 @@ export class CustdClient {
         params.set("companySlug", this.actingCompanySlug);
         return `${route}?${params.toString()}`;
     }
-    async offboardingDownload(path, options) {
+    async adminDownload(path, operation, options) {
         const token = await this.getToken(options);
         const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${this.actingCompanyPath(path)}`, {
             method: "GET",
@@ -601,42 +602,27 @@ export class CustdClient {
             signal: options?.signal,
         });
         if (!response.ok) {
-            throw new Error(`custd: offboarding download failed with status ${response.status}`);
+            throw new Error(`custd: ${operation} failed with status ${response.status}`);
         }
+        return response;
+    }
+    async offboardingDownload(path, options) {
+        const response = await this.adminDownload(path, "offboarding download", options);
         const lengthHeader = response.headers.get("content-length")?.trim() ?? "";
         const byteSize = Number(lengthHeader);
+        const checksumSha256 = (response.headers.get("x-checksum-sha256") ?? "").trim().toLowerCase();
         if (!/^\d+$/.test(lengthHeader) || !Number.isSafeInteger(byteSize)) {
+            await response.body?.cancel();
             throw new Error("custd: offboarding download content length is invalid");
         }
-        if (byteSize > maxOffboardingDownloadBytes) {
-            throw new Error("custd: offboarding download exceeds 64 MiB");
-        }
-        const bytes = await readBoundedResponse(response, maxOffboardingDownloadBytes, "offboarding download");
-        if (bytes.byteLength !== byteSize) {
-            throw new Error("custd: offboarding download content length mismatch");
-        }
-        const checksumSha256 = (response.headers.get("x-checksum-sha256") ?? "").trim().toLowerCase();
         if (!/^[a-f0-9]{64}$/.test(checksumSha256)) {
+            await response.body?.cancel();
             throw new Error("custd: offboarding download checksum header is invalid");
         }
-        const actual = await sha256Hex(bytes);
-        if (actual !== checksumSha256) {
-            throw new Error("custd: offboarding download checksum mismatch");
-        }
-        return { bytes, checksumSha256, byteSize };
+        return { ...responseDownloadStream(response, "offboarding download", byteSize), byteSize, checksumSha256 };
     }
     async auditExportDownload(path, options) {
-        const token = await this.getToken(options);
-        const response = await this.fetchImpl(`${this.baseUrl}/api/v1/admin${this.actingCompanyPath(path)}`, {
-            method: "GET",
-            headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
-            signal: options?.signal,
-        });
-        if (!response.ok) {
-            throw new Error(`custd: audit export failed with status ${response.status}`);
-        }
-        const bytes = await readBoundedResponse(response, maxAuditExportBytes, "audit export download");
-        return { bytes, contentType: response.headers.get("content-type") ?? "" };
+        return responseDownloadStream(await this.adminDownload(path, "audit export", options), "audit export");
     }
     async apiRequest(method, path, body, options, headers) {
         const token = await this.getToken(options);
@@ -772,38 +758,6 @@ function requestBody(body) {
         return Uint8Array.from(body);
     return JSON.stringify(body);
 }
-async function readBoundedResponse(response, maxBytes, operation) {
-    if (!response.body) {
-        return new Uint8Array();
-    }
-    const reader = response.body.getReader();
-    const chunks = [];
-    let total = 0;
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done)
-            break;
-        total += value.byteLength;
-        if (total > maxBytes) {
-            await reader.cancel();
-            throw new Error(`custd: ${operation} exceeds 64 MiB`);
-        }
-        chunks.push(value);
-    }
-    const result = new Uint8Array(total);
-    let offset = 0;
-    for (const chunk of chunks) {
-        result.set(chunk, offset);
-        offset += chunk.byteLength;
-    }
-    return result;
-}
-async function sha256Hex(bytes) {
-    const digest = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", Uint8Array.from(bytes).buffer));
-    return Array.from(digest, (value) => value.toString(16).padStart(2, "0")).join("");
-}
-const maxOffboardingDownloadBytes = 64 * 1024 * 1024;
-const maxAuditExportBytes = 64 * 1024 * 1024;
 class ReportingNamespace {
     constructor(request, download) {
         this.request = request;
@@ -1641,6 +1595,8 @@ class AdminAuditNamespace {
             params.set("outcome", options.outcome);
         if (options.correlationId)
             params.set("correlationId", options.correlationId);
+        if (options.environmentId)
+            params.set("environmentId", options.environmentId);
         if (includePagination && typeof options.limit === "number")
             params.set("limit", String(options.limit));
         if (includePagination && options.cursor)

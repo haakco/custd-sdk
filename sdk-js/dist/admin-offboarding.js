@@ -1,5 +1,8 @@
 // OffboardingClient owns the offboarding schedule and one-off request
 // surfaces. Its types mirror the current admin-api JSON wire contract.
+import { readDownloadStream } from "./download-stream.js";
+/** The largest bundle download() holds in memory; downloadStream() has no limit. */
+const maxBufferedDownloadBytes = 64 * 1024 * 1024;
 function mapPreview(response) {
     return {
         ...response,
@@ -80,9 +83,23 @@ export class OffboardingClient {
     export(requestUuid, options) {
         return this.request("POST", `/offboarding/requests/${encodeURIComponent(requestUuid)}/export`, undefined, options);
     }
-    // download returns authenticated bytes with verified checksum and length.
-    download(requestUuid, options) {
+    // downloadStream returns the bundle as it arrives, for a bundle too large to hold in memory.
+    // Pass options.signal to stop the transfer.
+    downloadStream(requestUuid, options) {
         return this.downloadBinary(`/offboarding/requests/${encodeURIComponent(requestUuid)}/download`, options);
+    }
+    // download returns authenticated bytes with verified checksum and length, up to 64 MiB.
+    async download(requestUuid, options) {
+        const stream = await this.downloadStream(requestUuid, options);
+        if (stream.byteSize > maxBufferedDownloadBytes) {
+            await stream.body.cancel();
+            throw new Error("custd: offboarding download exceeds 64 MiB");
+        }
+        const bytes = await readDownloadStream(stream.body, maxBufferedDownloadBytes, "offboarding download");
+        if ((await sha256Hex(bytes)) !== stream.checksumSha256) {
+            throw new Error("custd: offboarding download checksum mismatch");
+        }
+        return { bytes, checksumSha256: stream.checksumSha256, byteSize: stream.byteSize };
     }
     // acknowledge records that the export was downloaded successfully and its
     // inventory was confirmed. Never call it merely because preview succeeded.
@@ -105,4 +122,8 @@ export class OffboardingClient {
     receipt(requestUuid, options) {
         return this.request("GET", `/offboarding/requests/${encodeURIComponent(requestUuid)}/receipt`, undefined, options).then(mapReceipt);
     }
+}
+async function sha256Hex(bytes) {
+    const digest = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", Uint8Array.from(bytes).buffer));
+    return Array.from(digest, (value) => value.toString(16).padStart(2, "0")).join("");
 }

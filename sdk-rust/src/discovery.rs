@@ -5,6 +5,7 @@ use serde::Deserialize;
 
 use crate::Result;
 use crate::client::{decode, execute, json_request, trim_base_url};
+use crate::measurement::null_as_empty;
 use crate::transport::{Method, Transport, UreqTransport};
 
 pub const HOSTED_APP_DISCOVERY_PATH: &str = "/.well-known/custd.json";
@@ -21,12 +22,15 @@ pub struct HostedAppDiscovery {
     pub browser_key: String,
     pub environment: String,
     /// `tracking`, `error_capture`, `app_data`, `sign_in`, and any a newer backend adds.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_empty")]
     pub capabilities: Vec<String>,
     pub sign_in: Option<HostedAppSignIn>,
     /// The origins the app's Site accepts; send one as [`crate::AppClient`]'s `origin`.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_empty")]
     pub allowed_origins: Vec<String>,
+    /// `cookieless` or `extended`: how the app's Site identifies browsers.
+    #[serde(default)]
+    pub identity_mode: String,
 }
 
 /// The hosted environment's own directory's OAuth public client.

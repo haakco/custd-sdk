@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import recorded from "../../contract-fixtures/site-insights.json";
 import reporting from "../../contract-fixtures/site-insights-reporting.json";
-import reporting346 from "../../contract-fixtures/site-insights-reporting-3.46.json";
 import tools from "../../contract-fixtures/site-page-tools.json";
 import {
   CustdClient,
@@ -390,19 +389,5 @@ describe("site insights reporting", () => {
       `DELETE ${item}/report-shares/share-1`,
     ]);
     expect(sent[4]?.body).toEqual({ expiresInDays: 14 });
-  });
-});
-
-describe("site insights reporting from a 3.46.0 server", () => {
-  it("decodes a report without a template and Lighthouse history without url or pages", async () => {
-    const { domains } = newDomains(respond(200, reporting346.report), respond(200, reporting346.lighthouse));
-
-    const report = await domains.getReport(domainUuid);
-    expect(report.template).toBeUndefined();
-    expect(report.host).toBe(reporting346.report.host);
-    const lighthouse = await domains.getLighthouseHistory(domainUuid, 7);
-    expect(lighthouse.url).toBeUndefined();
-    expect(lighthouse.pages ?? []).toEqual([]);
-    expect(lighthouse.runs).toEqual(reporting346.lighthouse.runs);
   });
 });

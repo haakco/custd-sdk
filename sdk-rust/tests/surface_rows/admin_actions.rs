@@ -4,9 +4,9 @@
 
 use custd_sdk::{
     AuditEventExport, AuditEventsFormat, AuditListResponse, ImpersonationSessionCreateRequest,
-    NotificationDeliveryReplayRequest, OffboardingDownload, ProducerProvisionRequest,
-    RetentionRunListResponse, RetentionRunPreview, ScheduledTaskRunResponse,
-    TenantOffboardingReceipt,
+    NotificationDeliveryReplayRequest, OffboardingDownload, PrivacyErasureForceResponse,
+    ProducerProvisionRequest, RetentionRunListResponse, RetentionRunPreview,
+    ScheduledTaskRunResponse, TenantOffboardingReceipt,
 };
 
 use super::{audit_query, round_trip};
@@ -87,10 +87,11 @@ pub fn rows() -> Vec<Row> {
                 )
             },
         ),
-        bodiless(
+        row(
             "admin-api POST /api/v1/admin/privacy/erasures/{requestUuid}/force",
             "/api/v1/admin/privacy/erasures/r-1/force?companySlug=acme",
             |c| drop(c.custd.force_privacy_erasure("r-1", Some("acme"))),
+            round_trip::<PrivacyErasureForceResponse>,
         ),
         bodiless(
             "admin-api POST /api/v1/managed-audit/provision",

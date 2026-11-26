@@ -23,6 +23,7 @@ export declare const AUTH_PROJECT_DOMAIN_CONVERGENCES: {
     readonly drifted: "drifted";
     readonly notRunning: "not-running";
     readonly unverified: "unverified";
+    readonly rollingOut: "rolling-out";
 };
 export type AuthProjectDomainConvergence = (typeof AUTH_PROJECT_DOMAIN_CONVERGENCES)[keyof typeof AUTH_PROJECT_DOMAIN_CONVERGENCES];
 /** Where the realm's expected image identity comes from. */

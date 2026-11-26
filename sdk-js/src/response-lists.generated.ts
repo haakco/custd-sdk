@@ -503,6 +503,7 @@ export const API_RESPONSE_LISTS: ResponseListTable = {
   "GET /api/v1/admin/workflow-timings/runs/{runUuid}": ["attempts"],
   "GET /api/v1/admin/workflow-timings/runs/{runUuid}/prediction": ["run.warnings", "steps", "steps[].warnings"],
   "GET /api/v1/analytics/dashboard-summary": ["dogfood.metrics", "dogfood.sources", "loadedDays"],
+  "GET /api/v1/app-hosts/{host}/discovery": ["allowedOrigins", "capabilities"],
   "GET /api/v1/data-spaces": ["dataSpaces"],
   "GET /api/v1/data-spaces/{slug}/producer-reservations": ["reservations"],
   "GET /api/v1/data-spaces/usage": ["dataSpaces"],

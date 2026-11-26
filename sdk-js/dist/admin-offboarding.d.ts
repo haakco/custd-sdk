@@ -1,3 +1,4 @@
+import { type CustdDownloadStream } from "./download-stream.js";
 import type { RequestOptions } from "./index.js";
 export type OffboardingSchedule = {
     tenantSlug: string;
@@ -68,6 +69,15 @@ export type OffboardingDownloadResponse = {
     checksumSha256: string;
     byteSize: number;
 };
+/**
+ * The offboarding bundle as it arrives. The body errors if it runs past or ends short of
+ * `byteSize`; `checksumSha256` is the server's digest, which the caller checks against the
+ * bytes it stored before acknowledging the export.
+ */
+export type OffboardingDownloadStream = CustdDownloadStream & {
+    byteSize: number;
+    checksumSha256: string;
+};
 export type OffboardingAcknowledgeResponse = OffboardingRequest;
 export type OffboardingExecuteResponse = OffboardingReceiptResponse;
 export type OffboardingRetryResponse = OffboardingReceiptResponse;
@@ -88,7 +98,7 @@ export type OffboardingReceiptResponse = {
     sha256: string;
 };
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
-type AdminDownloader = (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>;
+type AdminDownloader = (path: string, options?: RequestOptions) => Promise<OffboardingDownloadStream>;
 export declare class OffboardingClient {
     private readonly request;
     private readonly downloadBinary;
@@ -103,6 +113,7 @@ export declare class OffboardingClient {
     confirmRequest(requestUuid: string, options?: RequestOptions): Promise<OffboardingRequest>;
     preview(requestUuid: string, options?: RequestOptions): Promise<OffboardingPreviewResponse>;
     export(requestUuid: string, options?: RequestOptions): Promise<OffboardingExportResponse>;
+    downloadStream(requestUuid: string, options?: RequestOptions): Promise<OffboardingDownloadStream>;
     download(requestUuid: string, options?: RequestOptions): Promise<OffboardingDownloadResponse>;
     acknowledge(requestUuid: string, options?: RequestOptions): Promise<OffboardingAcknowledgeResponse>;
     execute(requestUuid: string, options?: RequestOptions): Promise<OffboardingExecuteResponse>;

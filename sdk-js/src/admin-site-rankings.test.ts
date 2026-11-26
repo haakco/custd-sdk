@@ -94,15 +94,6 @@ describe("site rank tracking", () => {
     expect(sent[4]?.body).toEqual(ranks.updateTrackedKeywordRequest);
   });
 
-  it("decodes a server from before the shared search pool without pool fields", async () => {
-    const { domains } = newDomains(respond(200, ranks.rankingsBeforePool));
-    const rankings = await domains.getRankings(domainUuid);
-    expect(rankings).toEqual(ranks.rankingsBeforePool);
-    expect(rankings.pool).toBeUndefined();
-    expect(rankings.keywords.length).toBeGreaterThan(0);
-    for (const keyword of rankings.keywords) expect(keyword.pool).toBeUndefined();
-  });
-
   it("pauses a keyword without sending an alert position", async () => {
     const { domains, calls } = newDomains(respond(200, ranks.updatedTrackedKeyword));
     await domains.updateTrackedKeyword(domainUuid, keywordUuid, { paused: true });

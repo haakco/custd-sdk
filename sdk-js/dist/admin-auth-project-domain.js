@@ -22,6 +22,7 @@ export const AUTH_PROJECT_DOMAIN_CONVERGENCES = {
     drifted: "drifted",
     notRunning: "not-running",
     unverified: "unverified",
+    rollingOut: "rolling-out",
 };
 /** Where the realm's expected image identity comes from. */
 export const AUTH_PROJECT_DOMAIN_IMAGE_SOURCES = {

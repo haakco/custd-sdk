@@ -1,7 +1,7 @@
-import { type OffboardingAcknowledgeResponse, type OffboardingDownloadResponse, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPreviewResponse, type OffboardingReceiptResponse } from "./admin-offboarding.js";
+import { type OffboardingAcknowledgeResponse, type OffboardingDownloadResponse, type OffboardingDownloadStream, type OffboardingExecuteResponse, type OffboardingExportResponse, type OffboardingPreviewResponse, type OffboardingReceiptResponse } from "./admin-offboarding.js";
 import type { ClientSetupOAuthPurposeProfile, RequestOptions, RuntimeReadinessOptions, RuntimeReadinessResult } from "./index.js";
 export type BackendLifecycleRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
-export type BackendLifecycleDownloader = (path: string, options?: RequestOptions) => Promise<OffboardingDownloadResponse>;
+export type BackendLifecycleDownloader = (path: string, options?: RequestOptions) => Promise<OffboardingDownloadStream>;
 export type OneTimeCredentialSecret = {
     tenantSlug: string;
     clientId: string;

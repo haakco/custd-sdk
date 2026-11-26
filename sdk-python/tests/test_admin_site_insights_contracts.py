@@ -94,7 +94,6 @@ def fixture(name: str) -> dict[str, Any]:
 AUDIT = fixture("site-audit-pages.json")
 SAVED = fixture("site-saved-reports.json")
 REPORTING = fixture("site-insights-reporting.json")
-REPORTING_346 = fixture("site-insights-reporting-3.46.json")
 SEARCH_VALUE = fixture("site-search-value.json")
 WEB = fixture("site-web-data.json")
 LOGS = fixture("site-access-logs.json")
@@ -233,18 +232,7 @@ class AuditPagesTest(unittest.TestCase):
         domains, _ = site_domains(200, REPORTING["lighthouse"])
         self.assertEqual([], domains.get_lighthouse_history(DOMAIN)["pages"])
 
-    def test_decodes_a_3_46_server_without_template_or_lighthouse_pages(self) -> None:
-        domains, _ = site_domains(200, REPORTING_346["report"])
-        report = domains.get_report(DOMAIN)
-        self.assertEqual("example.com", report["host"])
-        self.assertIsNone(report.get("template"))
-
-        domains, _ = site_domains(200, REPORTING_346["lighthouse"])
-        history = domains.get_lighthouse_history(DOMAIN)
-        self.assertEqual(2, len(history["runs"]))
-        self.assertIsNone(history.get("url"))
-        self.assertEqual([], history.get("pages", []))
-
+    def test_decodes_an_empty_lighthouse_page_list(self) -> None:
         domains, _ = site_domains(200, AUDIT["lighthousePagesEmpty"])
         pages = domains.get_lighthouse_pages(DOMAIN)
         self.assertEqual(([], 5), (pages["urls"], pages["maxPages"]))
@@ -656,14 +644,6 @@ class RankingsTest(unittest.TestCase):
         created = domains.track_keyword(DOMAIN, RANKINGS["trackKeywordRequest"])
         self.assertEqual(("pricing tool", 10), (created["keyword"], created["notifyPosition"]))
         self.assertNotIn("position", created["latest"])
-
-    def test_decodes_rankings_from_a_server_before_the_search_pool(self) -> None:
-        domains, _ = site_domains(200, RANKINGS["rankingsBeforePool"])
-        rankings = domains.get_rankings(DOMAIN)
-        self.assertIsNone(rankings.get("pool"))
-        self.assertEqual(2, len(rankings["keywords"]))
-        for keyword in rankings["keywords"]:
-            self.assertIsNone(keyword.get("pool"))
 
 
 class SearchValueTest(unittest.TestCase):

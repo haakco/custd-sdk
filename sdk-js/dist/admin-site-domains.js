@@ -298,27 +298,18 @@ export class SiteDomainAdminClient {
             request.phrase = body.phrase;
         if (body.scope)
             request.scope = body.scope;
-        const check = await this.send("POST", `${domainPath(domainUuid)}/page-check`, {}, request, options);
-        if (check.phrase?.wordCount === 0)
-            delete check.phrase.densityPercent;
-        return check;
+        return this.send("POST", `${domainPath(domainUuid)}/page-check`, {}, request, options);
     }
     /** Measures how much wording two drafts share, as the near-duplicate rule does; nothing is stored. */
     async compareWording(domainUuid, body, options) {
         const request = { first: body.first, second: body.second };
         const path = `${domainPath(domainUuid)}/wording-compare`;
-        const result = await this.send("POST", path, {}, request, options);
-        if (!result.compared)
-            delete result.sharedPercent;
-        return result;
+        return this.send("POST", path, {}, request, options);
     }
     /** Compares two stored page observations on a verified domain without fetching either URL. */
     async comparePageWording(domainUuid, { firstUrl, secondUrl }, options) {
         const path = `${domainPath(domainUuid)}/page-wording`;
-        const result = await this.send("GET", path, { firstUrl, secondUrl }, undefined, options);
-        if (result.comparison && !result.comparison.compared)
-            delete result.comparison.sharedPercent;
-        return result;
+        return this.send("GET", path, { firstUrl, secondUrl }, undefined, options);
     }
     /** Tests a URL against a pasted robots.txt, or the domain's live file when robotsTxt is omitted. */
     testRobots(domainUuid, body, options) {
