@@ -12,6 +12,9 @@ final readonly class SitePageLinkSource
     public const WHERE_TITLE = 'title';
     public const WHERE_HEADING = 'heading';
 
+    /**
+     * @param SitePageLinkPlacement::* $where
+     */
     public function __construct(
         public string $url,
         public string $title,

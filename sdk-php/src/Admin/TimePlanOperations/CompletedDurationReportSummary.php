@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class CompletedDurationReportSummary
 {
+    /**
+     * @param CompletedDurationRunStatus::* $runStatus
+     */
     public function __construct(
         public int $actualBlockCount,
         public bool $actualComplete,

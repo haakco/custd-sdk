@@ -9,6 +9,9 @@ use HaakCo\Custd\Fields;
 /** SearchPoolQuery is one pooled query with its SearchPoolBand::DEMAND_* band and position ranges. */
 final readonly class SearchPoolQuery
 {
+    /**
+     * @param SearchPoolDemandBand::* $demandBand
+     */
     public function __construct(
         public string $query,
         public string $demandBand,

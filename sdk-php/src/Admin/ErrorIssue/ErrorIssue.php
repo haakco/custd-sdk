@@ -10,6 +10,7 @@ final readonly class ErrorIssue
 {
     /**
      * @param list<string> $environments
+     * @param ErrorIssueState::* $state
      */
     public function __construct(
         public string $culprit,

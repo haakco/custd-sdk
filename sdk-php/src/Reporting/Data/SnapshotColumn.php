@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class SnapshotColumn
 {
+    /**
+     * @param ReportingSnapshotColumnType::* $type
+     */
     public function __construct(
         public string $key,
         public string $label,

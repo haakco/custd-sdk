@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Admin\TimePlan;
 
 final readonly class Annotation
 {
+    /**
+     * @param TimePlanAnnotationType::*|'' $type
+     */
     public function __construct(
         public string $uuid = "",
         public string $runUuid = "",

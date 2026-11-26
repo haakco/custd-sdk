@@ -22,6 +22,9 @@ final readonly class SiteRemedy
     /** The fix changes the web server or CDN. */
     public const KIND_SERVER = 'server';
 
+    /**
+     * @param SiteRemedyKind::* $kind
+     */
     public function __construct(
         public string $kind,
         public string $element,

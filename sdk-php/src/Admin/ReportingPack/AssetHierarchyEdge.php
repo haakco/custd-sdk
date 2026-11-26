@@ -9,6 +9,9 @@ use HaakCo\Custd\Fields;
 /** AssetHierarchyEdge links a parent asset node to a child asset node. */
 final readonly class AssetHierarchyEdge
 {
+    /**
+     * @param AssetHierarchyMode::* $mode
+     */
     public function __construct(
         public string $tenantKey,
         public string $parentKey,

@@ -7,8 +7,8 @@ namespace HaakCo\Custd\Admin\TimePlan;
 final readonly class AnnotationSchema implements Dto
 {
     /**
-     * @param list<string>|null $allowedTypes
-     * @param list<string>|null $fields
+     * @param list<TimePlanAnnotationType::*>|null $allowedTypes
+     * @param list<TimePlanAnnotationField::*>|null $fields
      */
     public function __construct(
         public ?array $allowedTypes = null,

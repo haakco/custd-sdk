@@ -6,6 +6,10 @@ namespace HaakCo\Custd\Admin\TimePlan;
 
 final readonly class CommandRequest implements Dto
 {
+    /**
+     * @param TimePlanStartPolicy::*|'' $startPolicy
+     * @param TimePlanCommandType::* $type
+     */
     public function __construct(
         public string $commandId,
         public string $idempotencyKey,

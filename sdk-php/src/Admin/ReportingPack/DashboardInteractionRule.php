@@ -5,10 +5,18 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\Data\ReportingDashboardInteraction;
+use HaakCo\Custd\Reporting\Data\ReportingComparisonPreset;
+use HaakCo\Custd\Reporting\Data\DashboardResetBehavior;
 
 /** DashboardInteractionRule links one widget interaction to another widget. */
 final readonly class DashboardInteractionRule
 {
+    /**
+     * @param ReportingDashboardInteraction::* $action
+     * @param ReportingComparisonPreset::*|null $comparisonPreset
+     * @param DashboardResetBehavior::*|'' $resetBehavior
+     */
     public function __construct(
         public string $key,
         public string $sourceWidget,

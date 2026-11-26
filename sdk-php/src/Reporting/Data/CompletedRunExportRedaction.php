@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Reporting\Data;
 
 final readonly class CompletedRunExportRedaction
 {
+    /**
+     * @param ExportRedactionResult::* $result
+     */
     public function __construct(
         public int $redactedAnnotationCount,
         public string $result,

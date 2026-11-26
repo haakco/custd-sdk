@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class AppItemAlertRule
 {
+    /**
+     * @param AppAlertRuleType::* $type
+     */
     public function __construct(
         public bool $conditionMet,
         public string $createdAt,

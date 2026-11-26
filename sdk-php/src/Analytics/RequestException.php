@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Analytics;
 
+use HaakCo\Custd\Retryability;
+
 final class RequestException extends \RuntimeException
 {
-    /** @param array<string, mixed>|null $nextAction */
+    /**
+     * @param Retryability::* $retryability
+     * @param array<string, mixed>|null $nextAction
+     */
     public function __construct(
         string $message,
         public readonly ?int $status = null,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\Data\ReportingExportFormat;
 
 /** PackDashboardDefinition is one pack dashboard with its widgets and sections. */
 final readonly class PackDashboardDefinition
@@ -12,7 +13,7 @@ final readonly class PackDashboardDefinition
     /**
      * @param list<string> $requiredScopes
      * @param list<PackWidgetDefinition> $widgets
-     * @param list<string>|null $exportFormats
+     * @param list<ReportingExportFormat::*>|null $exportFormats
      * @param list<DashboardInteractionRule>|null $interactions
      * @param list<ReportSectionDefinition>|null $sections
      */

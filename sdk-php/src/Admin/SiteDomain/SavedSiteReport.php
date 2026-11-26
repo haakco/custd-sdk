@@ -9,6 +9,9 @@ use HaakCo\Custd\Fields;
 /** SavedSiteReport is a saved report's summary fields and the report content stored at generatedAt. */
 final readonly class SavedSiteReport
 {
+    /**
+     * @param SiteReportTemplate::* $template
+     */
     public function __construct(
         public string $reportUuid,
         public string $name,

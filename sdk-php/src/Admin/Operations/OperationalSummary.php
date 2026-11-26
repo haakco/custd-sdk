@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class OperationalSummary
 {
+    /**
+     * @param OperationalHealthStatus::* $status
+     */
     public function __construct(
         public OperationalBacklogSummary $backlog,
         public OperationalStageSummary $durable,

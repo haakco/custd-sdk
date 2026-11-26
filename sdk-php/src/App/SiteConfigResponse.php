@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace HaakCo\Custd\App;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Admin\Site\BrowserIdentityMode;
 
 final readonly class SiteConfigResponse
 {
     /**
      * @param list<string> $allowedOrigins
+     * @param BrowserIdentityMode::* $identityMode
      */
     public function __construct(
         public array $allowedOrigins,

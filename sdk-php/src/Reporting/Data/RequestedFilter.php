@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Reporting\Data;
 
 final readonly class RequestedFilter
 {
+    /**
+     * @param FilterOperator::* $operator
+     */
     public function __construct(
         public string $dimension,
         public string $operator,

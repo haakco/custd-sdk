@@ -13,6 +13,10 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SocialProvider
 {
+    /**
+     * @param AuthProjectSocialProviderMode::* $mode
+     * @param AuthProjectSocialProviderName::* $provider
+     */
     public function __construct(
         public string $provider,
         public string $mode,

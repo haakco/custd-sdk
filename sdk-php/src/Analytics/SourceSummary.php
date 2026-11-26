@@ -16,6 +16,9 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SourceSummary
 {
+    /**
+     * @param AnalyticsQuerySource::*|'' $name
+     */
     public function __construct(
         public string $name = '',
         public int $count = 0,

@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Reporting;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Admin\ReportingPack\CanonicalUnit;
 
 final readonly class ReconciliationResult
 {
     /**
      * @param list<SourceContribution> $contributingSources
+     * @param CanonicalUnit::*|null $unit
+     * @param SourceAvailability::* $availability
+     * @param ReconciliationStatus::* $status
      */
     public function __construct(
         public string $availability,

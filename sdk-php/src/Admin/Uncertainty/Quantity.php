@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class Quantity
 {
+    /**
+     * @param ModelQuantityKind::* $kind
+     */
     public function __construct(
         public string $kind,
         public string $name,

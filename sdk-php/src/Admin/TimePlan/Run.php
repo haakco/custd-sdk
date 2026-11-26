@@ -6,7 +6,10 @@ namespace HaakCo\Custd\Admin\TimePlan;
 
 final readonly class Run
 {
-    /** @param list<RunBlock> $blocks */
+    /**
+     * @param list<RunBlock> $blocks
+     * @param TimePlanStartPolicy::*|'' $startPolicy
+     */
     public function __construct(
         public string $uuid = "",
         public string $planUuid = "",

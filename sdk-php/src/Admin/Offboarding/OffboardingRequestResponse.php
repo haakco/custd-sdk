@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class OffboardingRequestResponse
 {
+    /**
+     * @param OffboardingState::* $state
+     */
     public function __construct(
         public string $requestUuid,
         public string $requestedAt,

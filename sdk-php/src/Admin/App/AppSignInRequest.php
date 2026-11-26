@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Admin\App;
 
 final readonly class AppSignInRequest
 {
+    /**
+     * @param AppSignInMode::* $mode
+     */
     public function __construct(
         public int $expectedRevision,
         public string $mode,

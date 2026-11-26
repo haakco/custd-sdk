@@ -21,7 +21,10 @@ final readonly class SiteTrackedKeyword
     public const STATUS_ACTIVE = 'active';
     public const STATUS_PAUSED = 'paused';
 
-    /** @param list<SiteRankObservation> $observations */
+    /**
+     * @param list<SiteRankObservation> $observations
+     * @param SiteTrackedKeywordStatus::* $status
+     */
     public function __construct(
         public string $keywordUuid,
         public string $keyword,

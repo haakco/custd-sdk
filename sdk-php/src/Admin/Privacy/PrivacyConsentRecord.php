@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class PrivacyConsentRecord
 {
+    /**
+     * @param PrivacyConsentPurpose::* $purpose
+     */
     public function __construct(
         public bool $granted,
         public string $purpose,

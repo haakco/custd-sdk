@@ -9,6 +9,9 @@ use HaakCo\Custd\Admin\TimePlan\Payload;
 /** RunSummary is one observed run in the bounded run list. */
 final readonly class RunSummary
 {
+    /**
+     * @param WorkflowRunState::*|'' $state
+     */
     public function __construct(
         public string $runUuid = '',
         public string $externalRunId = '',

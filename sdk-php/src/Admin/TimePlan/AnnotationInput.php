@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Admin\TimePlan;
 
 final readonly class AnnotationInput implements Dto
 {
+    /**
+     * @param TimePlanAnnotationType::* $type
+     */
     public function __construct(
         public string $type,
         public string $runBlockUuid = "",

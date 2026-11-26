@@ -11,6 +11,7 @@ final readonly class DashboardGenerationResponse
     /**
      * @param list<DatasetRowCount> $datasetRowCounts
      * @param list<SnapshotDatasetSchema> $datasetSchemas
+     * @param ReportingDashboardGenerationState::* $state
      */
     public function __construct(
         public string $generationId,

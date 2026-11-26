@@ -17,6 +17,10 @@ use HaakCo\Custd\Admin\AuthProjectClient;
  */
 final readonly class CreateRequest
 {
+    /**
+     * @param AuthProjectAudienceEntitlementMode::* $audienceEntitlementMode
+     * @param AuthProjectIdentityMode::* $identityMode
+     */
     public function __construct(
         public string $slug,
         public string $name,

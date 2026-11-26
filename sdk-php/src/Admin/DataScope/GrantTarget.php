@@ -15,6 +15,9 @@ final readonly class GrantTarget
     /** The closed grant-target discriminators. */
     public const KINDS = ['parent', 'sub_client', 'resource'];
 
+    /**
+     * @param DataScopeGrantTargetKind::* $kind
+     */
     public function __construct(
         public string $kind,
         public ?string $scopeUuid = null,

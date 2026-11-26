@@ -9,6 +9,9 @@ use HaakCo\Custd\Fields;
 /** ActivationRule declares when a cohort identity activates. */
 final readonly class ActivationRule
 {
+    /**
+     * @param RuleIdentity::* $identity
+     */
     public function __construct(
         public string $key,
         public string $identity,

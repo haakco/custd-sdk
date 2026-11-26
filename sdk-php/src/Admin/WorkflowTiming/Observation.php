@@ -11,12 +11,16 @@ use HaakCo\Custd\Admin\TimePlan\Payload;
  * Observation is one observed run/step fact an external system reports after its
  * own commit.
  *
- * The kind is one of run_started, run_finished, step_started or step_finished.
+ * The kind is a WorkflowFactKind; a run fact's state is a WorkflowRunState and a step fact's a WorkflowAttemptState.
  * Every observation names the actor that produced it, because a fact nobody is
  * attributable to is not evidence.
  */
 final readonly class Observation implements Dto
 {
+    /**
+     * @param WorkflowFactKind::* $kind
+     * @param WorkflowAttemptState::*|'' $state
+     */
     public function __construct(
         public string $workflowKey,
         public string $externalRunId,
@@ -49,16 +53,17 @@ final readonly class Observation implements Dto
         return new self(
             $workflowKey,
             $externalRunId,
-            'run_started',
+            WorkflowFactKind::RUN_STARTED,
             $occurredAt,
             $idempotencyKey,
             $actorRef,
-            state: 'running',
+            state: WorkflowRunState::RUNNING,
             dimensions: $dimensions,
             collector: $collector,
         );
     }
 
+    /** @param WorkflowRunState::* $state */
     public static function runFinished(
         string $workflowKey,
         string $externalRunId,
@@ -71,7 +76,7 @@ final readonly class Observation implements Dto
         return new self(
             $workflowKey,
             $externalRunId,
-            'run_finished',
+            WorkflowFactKind::RUN_FINISHED,
             $occurredAt,
             $idempotencyKey,
             $actorRef,
@@ -93,17 +98,18 @@ final readonly class Observation implements Dto
         return new self(
             $workflowKey,
             $externalRunId,
-            'step_started',
+            WorkflowFactKind::STEP_STARTED,
             $occurredAt,
             $idempotencyKey,
             $actorRef,
             $stepKey,
             $attempt,
-            'running',
+            WorkflowAttemptState::RUNNING,
             collector: $collector,
         );
     }
 
+    /** @param WorkflowAttemptState::* $state */
     public static function stepFinished(
         string $workflowKey,
         string $externalRunId,
@@ -112,14 +118,14 @@ final readonly class Observation implements Dto
         string $stepKey,
         string $actorRef,
         int $attempt = 1,
-        string $state = 'completed',
+        string $state = WorkflowAttemptState::COMPLETED,
         string $errorClass = '',
         string $collector = '',
     ): self {
         return new self(
             $workflowKey,
             $externalRunId,
-            'step_finished',
+            WorkflowFactKind::STEP_FINISHED,
             $occurredAt,
             $idempotencyKey,
             $actorRef,

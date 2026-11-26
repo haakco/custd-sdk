@@ -12,6 +12,9 @@ final readonly class RoundingPolicy
     /** The closed rounding modes. */
     public const MODES = ['half_up', 'half_even', 'down', 'up'];
 
+    /**
+     * @param RoundingMode::* $mode
+     */
     public function __construct(
         public string $mode,
         public int $decimalPlaces,

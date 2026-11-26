@@ -12,6 +12,9 @@ final readonly class SiteAnalyticsUnavailable
     public const REPORT_ECOMMERCE = 'ecommerce';
     public const REPORT_AUDIENCE = 'audience';
 
+    /**
+     * @param SiteAnalyticsUnavailableReport::* $report
+     */
     public function __construct(
         public string $report,
         public string $reason,

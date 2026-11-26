@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\Data\ReportingExportFormat;
 
 /**
  * PackDefinition is the canonical reporting-pack definition, mirroring
@@ -22,7 +23,7 @@ final readonly class PackDefinition
      * @param list<FlowRule>|null $flowRules
      * @param list<RollupRule>|null $rollupRules
      * @param list<PackDashboardDefinition>|null $dashboards
-     * @param list<string>|null $exportFormats
+     * @param list<ReportingExportFormat::*>|null $exportFormats
      * @param list<RedactionRule>|null $redactionRules
      * @param list<TransitionRule>|null $transitionRules
      * @param list<ActivationRule>|null $activationRules

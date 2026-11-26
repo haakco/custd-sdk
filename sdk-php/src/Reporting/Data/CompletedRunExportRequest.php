@@ -7,7 +7,7 @@ namespace HaakCo\Custd\Reporting\Data;
 final readonly class CompletedRunExportRequest
 {
     /**
-     * @param list<string> $formats
+     * @param list<ReportingExportFormat::*> $formats
      */
     public function __construct(
         public array $formats,

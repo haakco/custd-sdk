@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class EmailDeliveryRecipient
 {
+    /**
+     * @param EmailDeliveryOutcome::* $outcome
+     */
     public function __construct(
         public string $occurredAt,
         public string $outcome,

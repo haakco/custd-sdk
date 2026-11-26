@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\TimePlanOperations;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Admin\TimePlan\TimePlanAdjustmentReason;
 
 final readonly class DefinitionMathAdjustmentResult
 {
     /**
      * @param list<Allocation> $allocations
+     * @param TimePlanAdjustmentReason::* $reason
      */
     public function __construct(
         public int $actualMs,

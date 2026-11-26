@@ -7,7 +7,7 @@ namespace HaakCo\Custd\Admin\User;
 final readonly class AdminUserUpdateRequest
 {
     /**
-     * @param list<string> $roles
+     * @param list<AdminUserRoleSlug::*> $roles
      */
     public function __construct(
         public array $roles,

@@ -6,6 +6,10 @@ namespace HaakCo\Custd\Admin\TimePlan;
 
 final readonly class CorrectedCommand implements Dto
 {
+    /**
+     * @param TimePlanStartPolicy::*|'' $startPolicy
+     * @param TimePlanCommandType::* $type
+     */
     public function __construct(
         public string $type,
         public string $effectiveAt,

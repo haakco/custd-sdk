@@ -8,6 +8,9 @@ use HaakCo\Custd\Admin\Uncertainty\CreateModelRequest;
 
 final readonly class AppItemCreateRequest
 {
+    /**
+     * @param AppItemKind::* $kind
+     */
     public function __construct(
         public string $kind,
         public ?int $idleExpirySeconds = null,

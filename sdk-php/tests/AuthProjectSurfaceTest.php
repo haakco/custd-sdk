@@ -300,7 +300,7 @@ final class AuthProjectSurfaceTest extends TestCase
             $client->adminAuthProjects()->actOnDirectory(
                 "project-1",
                 "environment-1",
-                "destroy",
+                Unchecked::string("destroy"),
                 new DirectoryRequest("pool-1", 0),
                 new RequestOptions(owningUserUuid: self::OWNING_USER, idempotencyKey: "idem-dir"),
             );

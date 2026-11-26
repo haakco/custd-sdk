@@ -11,6 +11,9 @@ namespace HaakCo\Custd\Admin\SiteDomain;
  */
 final readonly class SavedSiteReportRequest
 {
+    /**
+     * @param SiteReportTemplate::*|null $template
+     */
     public function __construct(
         public string $name,
         public ?string $template = null,

@@ -9,6 +9,8 @@ final readonly class DataLabelDefinitionUpdateRequest
     /**
      * @param list<string> $allowedScopes
      * @param list<string> $synonyms
+     * @param DataLabelPropagationPolicy::* $propagationPolicy
+     * @param DataLabelSensitivity::* $sensitivity
      */
     public function __construct(
         public array $allowedScopes,

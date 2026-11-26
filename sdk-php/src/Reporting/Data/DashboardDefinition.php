@@ -11,7 +11,7 @@ final readonly class DashboardDefinition
     /**
      * @param list<string> $requiredScopes
      * @param list<WidgetDefinition> $widgets
-     * @param list<string> $exportFormats
+     * @param list<ReportingExportFormat::*> $exportFormats
      * @param list<DashboardInteractionRule> $interactions
      * @param list<ReportSectionDefinition> $sections
      */

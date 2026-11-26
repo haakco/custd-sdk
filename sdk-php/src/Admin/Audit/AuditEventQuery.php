@@ -11,6 +11,7 @@ namespace HaakCo\Custd\Admin\Audit;
  */
 final readonly class AuditEventQuery
 {
+    /** @param AuditScope::*|null $scope */
     public function __construct(
         public ?string $scope = null,
         public ?string $companySlug = null,

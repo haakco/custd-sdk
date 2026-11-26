@@ -9,7 +9,11 @@ use HaakCo\Custd\Fields;
 /** SourceReconciliation declares how one series reconciles across sources. */
 final readonly class SourceReconciliation
 {
-    /** @param list<SourceSeries> $sources */
+    /**
+     * @param list<SourceSeries> $sources
+     * @param CanonicalUnit::*|null $canonicalUnit
+     * @param SourceReconciliationMode::* $mode
+     */
     public function __construct(
         public int $version,
         public string $tenantKey,

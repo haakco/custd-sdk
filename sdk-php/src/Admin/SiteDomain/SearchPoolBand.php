@@ -14,6 +14,9 @@ final readonly class SearchPoolBand
     public const DEMAND_10K_100K = '10k_100k';
     public const DEMAND_100K_PLUS = '100k_plus';
 
+    /**
+     * @param SearchPoolDemandBand::* $demandBand
+     */
     public function __construct(
         public string $demandBand,
         public SearchPoolPositions $positions,

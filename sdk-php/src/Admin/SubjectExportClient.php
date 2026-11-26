@@ -8,6 +8,7 @@ use HaakCo\Custd\Admin\SubjectExport\SubjectExportArtifactResponse;
 use HaakCo\Custd\Admin\SubjectExport\SubjectExportCreateRequest;
 use HaakCo\Custd\Admin\SubjectExport\SubjectExportListResponse;
 use HaakCo\Custd\Admin\SubjectExport\SubjectExportResponse;
+use HaakCo\Custd\Admin\SubjectExport\SubjectExportScope;
 
 /**
  * SubjectExportClient queues, reads, cancels and downloads a tenant's subject exports. A download returns the
@@ -66,6 +67,7 @@ final class SubjectExportClient
      * Download one artifact of a completed subject export. The scope is SCOPE_ACCESS or SCOPE_PORTABILITY; an
      * export past its expiry answers 410 Gone.
      */
+    /** @param SubjectExportScope::ACCESS|SubjectExportScope::PORTABILITY $scope */
     public function download(string $requestId, string $scope, ?string $companySlug = null): SubjectExportArtifactResponse
     {
         return SubjectExportArtifactResponse::fromPayload($this->http->object('GET', '/api/v1/admin/subject-exports/' . rawurlencode($requestId) . '/download', ['scope' => $scope, 'companySlug' => $companySlug], null));

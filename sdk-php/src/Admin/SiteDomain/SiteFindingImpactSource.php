@@ -12,6 +12,10 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteFindingImpactSource
 {
+    /**
+     * @param SiteSearchGranularity::* $granularity
+     * @param SiteSearchImpactStatus::* $status
+     */
     public function __construct(
         public SiteSearchProvider $provider,
         public string $source,

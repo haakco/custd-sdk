@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class NotificationWebhookSecret
 {
+    /**
+     * @param NotificationWebhookKind::* $kind
+     */
     public function __construct(
         public string $createdAt,
         public bool $enabled,

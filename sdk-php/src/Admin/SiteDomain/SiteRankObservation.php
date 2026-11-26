@@ -16,6 +16,9 @@ final readonly class SiteRankObservation
     public const STATE_NOT_RANKING = 'not_ranking';
     public const STATE_NO_DATA = 'no_data';
 
+    /**
+     * @param SiteRankObservationState::* $state
+     */
     public function __construct(
         public string $day,
         public string $state,

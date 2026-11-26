@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class StorageAlertEvent
 {
+    /**
+     * @param StorageAlertChannel::* $channel
+     */
     public function __construct(
         public string $channel,
         public StorageAlertDelivery $delivery,

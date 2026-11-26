@@ -9,7 +9,10 @@ use HaakCo\Custd\Fields;
 /** The addressed principal's audience admission states. */
 final readonly class PrincipalAudiences
 {
-    /** @param list<PrincipalAudience> $audiences */
+    /**
+     * @param list<PrincipalAudience> $audiences
+     * @param AuthProjectAudienceEntitlementMode::* $audienceEntitlementMode
+     */
     public function __construct(
         public string $audienceEntitlementMode,
         public array $audiences,

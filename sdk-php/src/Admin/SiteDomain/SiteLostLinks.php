@@ -12,7 +12,10 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteLostLinks
 {
-    /** @param list<SiteLostReferringDomain> $domains */
+    /**
+     * @param list<SiteLostReferringDomain> $domains
+     * @param SiteLostLinksStatus::* $status
+     */
     public function __construct(
         public string $status,
         public string $scope,

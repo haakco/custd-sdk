@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\Data\ReportingComparisonPreset;
+use HaakCo\Custd\Reporting\Data\DashboardRelativeRange;
 
 /** DashboardSharePolicy bounds the ranges and comparison presets a dashboard may share. */
 final readonly class DashboardSharePolicy
 {
     /**
-     * @param list<string>|null $relativeRanges
-     * @param list<string>|null $comparisonPresets
+     * @param list<DashboardRelativeRange::*>|null $relativeRanges
+     * @param list<ReportingComparisonPreset::*>|null $comparisonPresets
      */
     public function __construct(
         public ?array $relativeRanges = null,

@@ -15,6 +15,9 @@ final readonly class SiteGeneratedFix
     /** One Apache line and one nginx line. */
     public const FORMAT_REDIRECT = 'redirect';
 
+    /**
+     * @param SiteGeneratedFixFormat::* $format
+     */
     public function __construct(
         public string $format,
         public string $code,

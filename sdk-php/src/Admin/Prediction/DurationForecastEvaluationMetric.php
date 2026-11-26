@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class DurationForecastEvaluationMetric
 {
+    /**
+     * @param DurationForecastMethod::* $method
+     */
     public function __construct(
         public int $evaluatedFoldCount,
         public DurationForecastIntervalEvaluation $interval,

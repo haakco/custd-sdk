@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Reporting;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Admin\ReportingPack\CanonicalUnit;
 
 final readonly class SourceContribution
 {
+    /**
+     * @param CanonicalUnit::*|null $unit
+     * @param SourceAvailability::* $availability
+     */
     public function __construct(
         public string $availability,
         public string $sourceKey,

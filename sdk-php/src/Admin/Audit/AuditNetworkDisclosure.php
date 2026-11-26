@@ -8,6 +8,10 @@ use HaakCo\Custd\Fields;
 
 final readonly class AuditNetworkDisclosure
 {
+    /**
+     * @param AuditDisclosureState::* $ipAddressState
+     * @param AuditDisclosureState::* $userAgentState
+     */
     public function __construct(
         public string $ipAddressState,
         public string $userAgentState,

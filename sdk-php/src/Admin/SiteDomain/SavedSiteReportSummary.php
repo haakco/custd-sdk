@@ -12,6 +12,9 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SavedSiteReportSummary
 {
+    /**
+     * @param SiteReportTemplate::* $template
+     */
     public function __construct(
         public string $reportUuid,
         public string $name,

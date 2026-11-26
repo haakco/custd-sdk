@@ -22,6 +22,9 @@ final readonly class SiteNextAction
     public const KIND_FIRST_AUDIT_PENDING = 'first-audit-pending';
     public const KIND_CONNECT_SEARCH = 'connect-search';
 
+    /**
+     * @param SiteFindingSeverity::* $severity
+     */
     public function __construct(
         public string $kind,
         public string $title,

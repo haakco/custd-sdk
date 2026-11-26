@@ -21,7 +21,10 @@ final readonly class SiteFindingImpact
     public const MIN_DAYS = 7;
     public const MAX_DAYS = 90;
 
-    /** @param list<SiteFindingImpactSource> $sources */
+    /**
+     * @param list<SiteFindingImpactSource> $sources
+     * @param SiteFindingImpactStatus::* $status
+     */
     public function __construct(
         public string $findingUuid,
         public string $rule,

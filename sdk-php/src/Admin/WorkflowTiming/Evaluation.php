@@ -17,6 +17,9 @@ use HaakCo\Custd\Fields;
  */
 final readonly class Evaluation
 {
+    /**
+     * @param WorkflowTimingState::* $state
+     */
     public function __construct(
         public string $workflowKey = '',
         public string $workflowUuid = '',

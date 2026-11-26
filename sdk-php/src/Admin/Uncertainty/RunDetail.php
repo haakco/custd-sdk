@@ -11,6 +11,7 @@ final readonly class RunDetail
     /**
      * @param list<BoundInput> $boundInputs
      * @param list<QuantityResult> $quantities
+     * @param ModelRunTrigger::* $trigger
      */
     public function __construct(
         public array $boundInputs,

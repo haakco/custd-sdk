@@ -10,6 +10,7 @@ final readonly class ReportingQueryRequest
      * @param list<string> $metrics
      * @param list<string>|null $dimensions
      * @param list<RequestedFilter>|null $filters
+     * @param ReportingComparisonPreset::*|null $comparison
      */
     public function __construct(
         public array $metrics,

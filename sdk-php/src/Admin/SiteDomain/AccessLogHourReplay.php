@@ -17,6 +17,9 @@ final readonly class AccessLogHourReplay
     public const PREVIOUS_FAILED = 'failed';
     public const PREVIOUS_MISSING = 'missing';
 
+    /**
+     * @param AccessLogHourStatus::* $previousStatus
+     */
     public function __construct(
         public string $hourStart,
         public string $previousStatus,

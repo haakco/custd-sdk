@@ -58,6 +58,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteSearchValue;
 use HaakCo\Custd\Admin\SiteDomain\SiteObservedWording;
 use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompare;
 use HaakCo\Custd\Admin\SiteDomain\SiteWordingCompareRequest;
+use HaakCo\Custd\Admin\SiteDomain\SiteReportTemplate;
 
 /**
  * SiteDomainClient claims the hosts a site serves, proves the tenant controls
@@ -687,8 +688,10 @@ final class SiteDomainClient
 
     /**
      * Read the client report without exposing private verification or connection details. $template
-     * is a SiteReport::TEMPLATE_* value and $days the search window (1..90); null leaves the server's
+     * is a SiteReportTemplate value and $days the search window (1..90); null leaves the server's
      * full report over 28 days.
+     *
+     * @param SiteReportTemplate::*|null $template
      */
     public function getReport(
         string $domainUuid,

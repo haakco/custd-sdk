@@ -13,9 +13,10 @@ final readonly class PackTemplate
      * @param list<string> $allowedMetrics
      * @param list<string>|null $allowedDimensions
      * @param list<FilterDefinition>|null $allowedFilters
-     * @param list<string> $sourceModes
+     * @param list<PackTemplateSourceMode::*> $sourceModes
      * @param list<string>|null $compositionRules
      * @param list<string> $eventTypes
+     * @param PackTemplateAggregation::* $aggregation
      */
     public function __construct(
         public string $name,

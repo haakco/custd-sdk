@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\ReportingTrustStatus;
 
 /** ExecutiveConfidence is how far a reader can trust the headline, in plain words. */
 final readonly class ExecutiveConfidence
 {
-    /** @param list<string> $warnings */
+    /**
+     * @param list<string> $warnings
+     * @param ReportingTrustStatus::* $status
+     */
     public function __construct(
         public string $status,
         public string $coverage,

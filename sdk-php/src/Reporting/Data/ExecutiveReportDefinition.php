@@ -12,6 +12,8 @@ final readonly class ExecutiveReportDefinition
      * @param list<string> $actions
      * @param list<string> $findings
      * @param list<string> $supportingWidgetKeys
+     * @param ExecutiveComparisonBasis::* $comparisonBasis
+     * @param ExecutiveReportRecipe::* $recipe
      */
     public function __construct(
         public string $comparisonBasis,

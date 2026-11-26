@@ -6,7 +6,10 @@ namespace HaakCo\Custd\Admin\TimePlan;
 
 final readonly class DefinitionBlock implements Dto
 {
-    /** @param list<string>|null $tags */
+    /**
+     * @param list<string>|null $tags
+     * @param TimePlanAllocationBasis::*|'' $basis
+     */
     public function __construct(
         public string $uuid = "",
         public string $semanticKey = "",

@@ -19,7 +19,11 @@ final readonly class SiteTopicTrend
     public const STATUS_NO_ARTICLE = 'no_article';
     public const STATUS_FAILED = 'failed';
 
-    /** @param list<SiteTrendMonth> $months */
+    /**
+     * @param list<SiteTrendMonth> $months
+     * @param SiteTopicTrendSource::* $source
+     * @param SiteTopicTrendStatus::* $status
+     */
     public function __construct(
         public string $term,
         public string $source,

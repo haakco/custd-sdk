@@ -18,6 +18,9 @@ final readonly class SiteSearchMetricDay
     public const DIMENSION_COUNTRY = 'country';
     public const DIMENSION_DEVICE = 'device';
 
+    /**
+     * @param SiteSearchMetricDimension::* $dimension
+     */
     public function __construct(
         public string $provider,
         public string $day,

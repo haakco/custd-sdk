@@ -9,7 +9,7 @@ use HaakCo\Custd\Fields;
 final readonly class JobResponse
 {
     /**
-     * @param list<string> $formats
+     * @param list<ReportingExportFormat::*> $formats
      * @param list<ArtifactResponse> $artifacts
      * @param list<ProgressCounter> $progressCounters
      */

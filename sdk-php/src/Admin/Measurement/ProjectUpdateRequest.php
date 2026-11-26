@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Admin\Measurement;
 
 final readonly class ProjectUpdateRequest
 {
+    /**
+     * @param MeasurementForecastMethod::*|null $forecastMethod
+     */
     public function __construct(
         public ?string $definitionOfDone = null,
         public ?string $deliveryTargetDate = null,

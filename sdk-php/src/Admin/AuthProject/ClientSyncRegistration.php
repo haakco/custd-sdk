@@ -9,6 +9,9 @@ use HaakCo\Custd\Fields;
 /** ClientSyncRegistration is one audience's reconcile outcome, reporting what the provider was observed to hold. */
 final readonly class ClientSyncRegistration
 {
+    /**
+     * @param ClientRegistrationAction::*|'' $action
+     */
     public function __construct(
         public string $audience = '',
         public string $clientId = '',

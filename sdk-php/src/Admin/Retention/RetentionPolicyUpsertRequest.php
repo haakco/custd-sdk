@@ -6,6 +6,10 @@ namespace HaakCo\Custd\Admin\Retention;
 
 final readonly class RetentionPolicyUpsertRequest
 {
+    /**
+     * @param RetentionClass::* $retentionClass
+     * @param RetentionScope::* $scope
+     */
     public function __construct(
         public bool $legalHold,
         public int $maxAgeSeconds,

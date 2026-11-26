@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\TimePlanOperations;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Admin\TimePlan\TimePlanStartPolicy;
 
 final readonly class RunView
 {
     /**
      * @param list<RunBlockView> $blocks
+     * @param TimePlanStartPolicy::*|null $startPolicy
      */
     public function __construct(
         public int $baselineHorizonMs,

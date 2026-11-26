@@ -23,6 +23,7 @@ final readonly class SitePageSearchQueries
      * @param list<SitePageSearchQuery> $queries
      * @param list<SitePageTitleOption> $titleOptions
      * @param list<SitePageLinkSource> $linkSources
+     * @param SitePageQueriesState::* $state
      */
     public function __construct(
         public string $domainUuid,

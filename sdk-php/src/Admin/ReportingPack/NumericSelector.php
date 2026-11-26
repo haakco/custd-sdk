@@ -9,6 +9,10 @@ use HaakCo\Custd\Fields;
 /** NumericSelector selects a numeric field with its unit. */
 final readonly class NumericSelector
 {
+    /**
+     * @param SelectorType::* $type
+     * @param RenderedUnit::* $unit
+     */
     public function __construct(
         public string $selector,
         public string $type,

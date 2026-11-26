@@ -16,6 +16,9 @@ final readonly class SiteTrafficDay
     public const COVERAGE_PARTIAL = 'partial';
     public const COVERAGE_MISSING = 'missing';
 
+    /**
+     * @param SiteTrafficDayCoverage::* $coverage
+     */
     public function __construct(
         public string $date,
         public string $coverage,

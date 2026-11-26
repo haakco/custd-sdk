@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class Tenant
 {
+    /**
+     * @param TenantPurpose::* $purpose
+     */
     public function __construct(
         public bool $autoCreateEnvironments,
         public int $companyId,

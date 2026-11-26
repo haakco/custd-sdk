@@ -151,7 +151,7 @@ final class LifecycleMatrixTest extends TestCase
             legalHold: true,
             maxAgeSeconds: 7776000,
             precedence: 100,
-            retentionClass: "operational",
+            retentionClass: "raw",
             scope: "tenant",
             legalHoldReference: "case-42",
             legalHoldUntil: "2027-01-01T00:00:00Z",
@@ -176,7 +176,7 @@ final class LifecycleMatrixTest extends TestCase
         [$client] = $this->client([[400, self::problem(400, "invalid", "Invalid Request", $detail)]]);
 
         try {
-            $client->adminRetention()->upsert("acme", new RetentionPolicyUpsertRequest(false, 60, 100, "operational", "data_space"));
+            $client->adminRetention()->upsert("acme", new RetentionPolicyUpsertRequest(false, 60, 100, "raw", "data_space"));
             $this->fail("expected the selectorless scope to be refused");
         } catch (AdminProblemException $err) {
             $this->assertSame(400, $err->status);

@@ -34,6 +34,10 @@ final readonly class AuthDomainBinding
     /** Terminal: a retired realm never binds or admits again. */
     public const LIFECYCLE_RETIRED = "retired";
 
+    /**
+     * @param AuthProjectDomainLifecycle::*|null $lifecycle
+     * @param AuthProjectDomainStatus::* $status
+     */
     public function __construct(
         public string $environmentId,
         public string $hostname,

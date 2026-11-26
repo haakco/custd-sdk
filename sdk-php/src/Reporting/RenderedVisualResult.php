@@ -17,6 +17,7 @@ final readonly class RenderedVisualResult
      * @param list<RenderedInterval> $intervals
      * @param list<RenderedLifecycleStage> $lifecycle
      * @param list<RenderedQuantile> $quantiles
+     * @param RenderedVisualKind::* $kind
      */
     public function __construct(
         public string $kind,

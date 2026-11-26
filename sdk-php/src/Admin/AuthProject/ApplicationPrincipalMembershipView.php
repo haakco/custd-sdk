@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class ApplicationPrincipalMembershipView
 {
+    /**
+     * @param ApplicationMembershipRole::* $role
+     */
     public function __construct(
         public string $organisationId,
         public string $organisationSlug,

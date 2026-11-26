@@ -27,6 +27,7 @@ final readonly class SiteSearchValue
     /**
      * @param list<string> $goals
      * @param list<SiteSearchValuePage> $pages
+     * @param SiteSearchGoalStatus::* $goalStatus
      */
     public function __construct(
         public string $domainUuid,

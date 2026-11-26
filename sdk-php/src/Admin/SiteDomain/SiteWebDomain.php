@@ -27,6 +27,12 @@ final readonly class SiteWebDomain
     public const INVENTORY_UNAVAILABLE = 'unavailable';
     public const INVENTORY_FAILED = 'failed';
 
+    /**
+     * @param SiteWebDomainRole::* $role
+     * @param SiteWebInventoryStatus::* $sitemapStatus
+     * @param SiteWebInventoryStatus::* $waybackStatus
+     * @param SiteTrancoBand::* $trancoBand
+     */
     public function __construct(
         public string $domain,
         public string $role,

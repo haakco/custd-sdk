@@ -39,7 +39,7 @@ final class AnalyticsClientTest extends TestCase
         $cases = [
             "missing date" => static fn (): AnalyticsEventsQueryRequest => new AnalyticsEventsQueryRequest(""),
             "too many label filters" => static fn (): AnalyticsEventsQueryRequest => new AnalyticsEventsQueryRequest("2026-09-14", labelFilters: $tooMany),
-            "unknown source" => static fn (): AnalyticsEventsQueryRequest => new AnalyticsEventsQueryRequest("2026-09-14", source: "not-a-source"),
+            "unknown source" => static fn (): AnalyticsEventsQueryRequest => new AnalyticsEventsQueryRequest("2026-09-14", source: Unchecked::string("not-a-source")),
         ];
 
         foreach ($cases as $name => $build) {

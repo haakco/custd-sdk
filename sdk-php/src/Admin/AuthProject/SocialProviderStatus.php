@@ -9,6 +9,11 @@ use HaakCo\Custd\Fields;
 /** SocialProviderStatus is one provider's state (`active`, `applying`, `unavailable` or `waiting_for_directory`). */
 final readonly class SocialProviderStatus
 {
+    /**
+     * @param AuthProjectSocialProviderMode::* $mode
+     * @param AuthProjectSocialProviderName::* $provider
+     * @param AuthProjectSocialProviderState::* $state
+     */
     public function __construct(
         public string $provider,
         public string $mode,

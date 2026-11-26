@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ClientSetup;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Retryability;
 
 final readonly class BootstrapStatus
 {
     /**
      * @param list<Warning> $warnings
+     * @param Retryability::* $retryability
+     * @param ClientBootstrapState::* $state
      */
     public function __construct(
         public NextActionHint $nextAction,

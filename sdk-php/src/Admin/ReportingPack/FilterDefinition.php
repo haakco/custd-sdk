@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\Data\FilterOperator;
 
 /** FilterDefinition is one allowed filter dimension and its operators. */
 final readonly class FilterDefinition
 {
-    /** @param list<string> $operators */
+    /** @param list<FilterOperator::*> $operators */
     public function __construct(
         public string $dimension,
         public array $operators,

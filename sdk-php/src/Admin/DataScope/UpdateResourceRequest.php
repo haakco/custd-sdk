@@ -10,6 +10,9 @@ namespace HaakCo\Custd\Admin\DataScope;
  */
 final readonly class UpdateResourceRequest
 {
+    /**
+     * @param DataScopeStatus::*|null $status
+     */
     public function __construct(
         public ?string $name = null,
         public ?string $status = null,

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\Data\ExecutiveComparisonBasis;
+use HaakCo\Custd\Reporting\Data\ExecutiveReportRecipe;
 
 /** ExecutiveReportDefinition configures an executive report summary. */
 final readonly class ExecutiveReportDefinition
@@ -13,6 +15,8 @@ final readonly class ExecutiveReportDefinition
      * @param list<string>|null $findings
      * @param list<string>|null $actions
      * @param list<string>|null $supportingWidgetKeys
+     * @param ExecutiveComparisonBasis::* $comparisonBasis
+     * @param ExecutiveReportRecipe::* $recipe
      */
     public function __construct(
         public string $recipe,

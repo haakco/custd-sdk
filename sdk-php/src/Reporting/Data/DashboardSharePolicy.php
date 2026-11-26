@@ -9,8 +9,8 @@ use HaakCo\Custd\Fields;
 final readonly class DashboardSharePolicy
 {
     /**
-     * @param list<string> $comparisonPresets
-     * @param list<string> $relativeRanges
+     * @param list<ReportingComparisonPreset::*> $comparisonPresets
+     * @param list<DashboardRelativeRange::*> $relativeRanges
      */
     public function __construct(
         public array $comparisonPresets = [],

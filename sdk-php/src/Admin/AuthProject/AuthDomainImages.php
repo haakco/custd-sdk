@@ -16,6 +16,10 @@ use HaakCo\Custd\Fields;
  */
 final readonly class AuthDomainImages
 {
+    /**
+     * @param AuthProjectDomainConvergence::* $convergence
+     * @param AuthProjectDomainImageSource::*|'' $source
+     */
     public function __construct(
         public AuthDomainImageSet $expected,
         public AuthDomainImageSet $running,

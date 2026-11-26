@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class OperationalStageSummary
 {
+    /**
+     * @param OperationalHealthStatus::* $status
+     */
     public function __construct(
         public string $status,
         public ?string $reason = null,

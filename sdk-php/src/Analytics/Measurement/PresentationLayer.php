@@ -10,6 +10,8 @@ final readonly class PresentationLayer
 {
     /**
      * @param list<PresentationPoint> $points
+     * @param PresentationLayerRole::* $role
+     * @param PresentationLayerYKind::* $yKind
      */
     public function __construct(
         public string $label,

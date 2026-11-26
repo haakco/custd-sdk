@@ -15,6 +15,9 @@ final readonly class SiteTrafficCrawler
     public const IDENTITY_VERIFIED = 'verified';
     public const IDENTITY_CLAIMS_TO_BE = 'claims_to_be';
 
+    /**
+     * @param SiteCrawlerIdentity::* $identity
+     */
     public function __construct(
         public string $crawler,
         public string $identity,

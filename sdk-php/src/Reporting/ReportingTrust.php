@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Reporting;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Retryability;
 
 final readonly class ReportingTrust
 {
     /**
      * @param list<string> $queryWarnings
+     * @param DataFreshness::* $dataFreshness
+     * @param Retryability::* $retryability
+     * @param ReportingTrustStatus::* $status
      */
     public function __construct(
         public string $captureState,

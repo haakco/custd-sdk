@@ -18,6 +18,7 @@ final readonly class SitePageCheckResponse
     /**
      * @param list<SitePageFinding> $findings
      * @param list<string>|null $checkedRules
+     * @param SitePageCheckScope::*|null $scope
      */
     public function __construct(
         public SitePageFacts $page,

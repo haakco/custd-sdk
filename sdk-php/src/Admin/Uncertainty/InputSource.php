@@ -8,6 +8,10 @@ use HaakCo\Custd\Fields;
 
 final readonly class InputSource
 {
+    /**
+     * @param ModelForecastField::* $field
+     * @param ModelSourceKind::* $kind
+     */
     public function __construct(
         public string $field,
         public string $kind,

@@ -22,6 +22,9 @@ final readonly class PrincipalRef
     /** The server's OAuth producer client ID bound, which includes already-issued credentials. */
     public const MAX_CLIENT_ID_BYTES = 255;
 
+    /**
+     * @param DataScopePrincipalKind::* $kind
+     */
     public function __construct(
         public string $kind,
         public ?string $userUuid = null,

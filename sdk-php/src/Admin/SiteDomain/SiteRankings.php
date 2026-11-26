@@ -25,7 +25,11 @@ final readonly class SiteRankings
     /** The most days one read covers. */
     public const MAX_DAYS = 90;
 
-    /** @param list<SiteTrackedKeyword> $keywords */
+    /**
+     * @param list<SiteTrackedKeyword> $keywords
+     * @param SearchPoolAccess::*|null $pool
+     * @param SiteRankingsSource::* $source
+     */
     public function __construct(
         public string $source,
         public string $from,

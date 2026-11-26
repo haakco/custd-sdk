@@ -5,10 +5,18 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\Data\PresentationNonColorEncoding;
+use HaakCo\Custd\Reporting\Data\PresentationPresetId;
+use HaakCo\Custd\Reporting\Data\PresentationSummaryTemplate;
 
 /** PresentationPresetSelection selects one visualization preset. */
 final readonly class PresentationPresetSelection
 {
+    /**
+     * @param PresentationNonColorEncoding::* $nonColorEncoding
+     * @param PresentationPresetId::* $presetId
+     * @param PresentationSummaryTemplate::* $summaryTemplateId
+     */
     public function __construct(
         public string $presetId,
         public int $version,

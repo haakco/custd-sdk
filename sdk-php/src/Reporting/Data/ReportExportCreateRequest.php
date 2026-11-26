@@ -7,7 +7,7 @@ namespace HaakCo\Custd\Reporting\Data;
 final readonly class ReportExportCreateRequest
 {
     /**
-     * @param list<string> $formats
+     * @param list<ReportingExportFormat::*> $formats
      */
     public function __construct(
         public string $dashboardKey,

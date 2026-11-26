@@ -10,6 +10,8 @@ final readonly class SubjectExportResponse
 {
     /**
      * @param list<SubjectExportStoreProgress> $perStoreProgress
+     * @param SubjectExportScope::* $scope
+     * @param SubjectExportStatus::* $state
      */
     public function __construct(
         public string $expiresAt,

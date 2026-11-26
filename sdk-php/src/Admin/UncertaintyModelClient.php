@@ -14,6 +14,7 @@ use HaakCo\Custd\Admin\Uncertainty\RunList;
 use HaakCo\Custd\Admin\Uncertainty\RunRequest;
 use HaakCo\Custd\Admin\Uncertainty\Version;
 use HaakCo\Custd\Admin\Uncertainty\VersionList;
+use HaakCo\Custd\Admin\Uncertainty\ModelListSource;
 
 /**
  * UncertaintyModelClient keeps uncertainty models and their immutable versions, and runs them on the Analytics
@@ -31,6 +32,8 @@ final class UncertaintyModelClient
 
     /**
      * List the tenant's uncertainty models.
+     *
+     * @param ModelListSource::*|null $source
      */
     public function list(?string $source = null, ?string $companySlug = null): ModelList
     {

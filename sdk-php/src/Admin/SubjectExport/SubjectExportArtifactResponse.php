@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class SubjectExportArtifactResponse
 {
+    /**
+     * @param SubjectExportScope::* $scope
+     */
     public function __construct(
         public int $byteSize,
         public string $checksumSha256,

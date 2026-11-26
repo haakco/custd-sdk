@@ -9,6 +9,9 @@ use HaakCo\Custd\Fields;
 /** ApplicationMembershipChoice is one organisation an application principal may act for, with its role there. */
 final readonly class ApplicationMembershipChoice
 {
+    /**
+     * @param ApplicationMembershipRole::*|'' $role
+     */
     public function __construct(
         public string $organisationId = '',
         public string $organisationSlug = '',

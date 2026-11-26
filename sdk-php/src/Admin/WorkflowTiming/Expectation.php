@@ -13,7 +13,10 @@ use HaakCo\Custd\Admin\TimePlan\Payload;
  */
 final readonly class Expectation
 {
-    /** @param list<string> $warnings */
+    /**
+     * @param list<string> $warnings
+     * @param WorkflowTimingState::* $state
+     */
     public function __construct(
         public string $seriesKey = '',
         public string $state = 'unavailable',

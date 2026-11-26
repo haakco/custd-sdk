@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Admin\Tenant;
 
 final readonly class TenantCreateRequest
 {
+    /**
+     * @param TenantPurpose::*|null $purpose
+     */
     public function __construct(
         public string $companyName,
         public string $slug,

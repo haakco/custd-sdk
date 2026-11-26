@@ -9,7 +9,10 @@ use HaakCo\Custd\Fields;
 /** TransitionRule bounds an identity step transition. */
 final readonly class TransitionRule
 {
-    /** @param list<string> $steps */
+    /**
+     * @param list<string> $steps
+     * @param RuleIdentity::* $identity
+     */
     public function __construct(
         public string $key,
         public string $identity,

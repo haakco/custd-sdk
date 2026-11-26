@@ -5,9 +5,15 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\Accounting;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Admin\ReportingPack\CanonicalUnit;
 
 final readonly class AccountingEvidence
 {
+    /**
+     * @param CanonicalUnit::* $unit
+     * @param AccountingEvidenceKind::* $kind
+     * @param AccountingEvidenceKind::*|null $targetKind
+     */
     public function __construct(
         public string $actor,
         public string $auditCorrelationId,

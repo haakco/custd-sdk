@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class AppMeetingBlock
 {
+    /**
+     * @param AppMeetingBlockStatus::* $status
+     */
     public function __construct(
         public int $actualMs,
         public int $allocatedMs,

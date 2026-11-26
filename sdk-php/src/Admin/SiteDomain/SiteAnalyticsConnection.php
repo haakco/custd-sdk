@@ -19,6 +19,9 @@ final readonly class SiteAnalyticsConnection
     public const STATUS_FAILING = 'failing';
     public const STATUS_REVOKED = 'revoked';
 
+    /**
+     * @param SiteAnalyticsProvider::* $provider
+     */
     public function __construct(
         public string $provider,
         public string $propertyId,

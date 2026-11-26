@@ -10,6 +10,8 @@ final readonly class CompletedDurationReportBlockInput
 {
     /**
      * @param list<string>|null $tags
+     * @param CompletedDurationBlockOutcome::* $outcome
+     * @param CompletedDurationBlockStatus::* $status
      */
     public function __construct(
         public string $blockUuid,

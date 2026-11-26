@@ -12,6 +12,9 @@ use HaakCo\Custd\Fields;
  */
 final readonly class ProfileField
 {
+    /**
+     * @param ApplicationProfileFieldEditor::* $editableBy
+     */
     public function __construct(
         public string $key,
         public bool $required,

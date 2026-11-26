@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\Data\ExecutiveReportRecipe;
 
 /**
  * ExecutiveReport is the server-owned, reader-facing meaning of a rendered snapshot. A renderer
@@ -16,6 +17,7 @@ final readonly class ExecutiveReport
      * @param list<string> $findings
      * @param list<string> $actions
      * @param list<string> $supportingWidgets
+     * @param ExecutiveReportRecipe::* $recipe
      */
     public function __construct(
         public string $recipe,

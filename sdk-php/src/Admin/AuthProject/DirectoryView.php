@@ -9,6 +9,9 @@ use HaakCo\Custd\Fields;
 /** DirectoryView is one directory's credential-store state as reported. */
 final readonly class DirectoryView
 {
+    /**
+     * @param AuthProjectDirectoryState::*|'' $state
+     */
     public function __construct(
         public string $poolId = '',
         public string $poolSlug = '',

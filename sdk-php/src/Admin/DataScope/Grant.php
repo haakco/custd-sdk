@@ -16,6 +16,9 @@ final readonly class Grant
     /** The closed data actions. */
     public const ACTIONS = ['read', 'write'];
 
+    /**
+     * @param DataScopeAction::* $action
+     */
     public function __construct(
         public PrincipalRef $principal,
         public GrantTarget $target,

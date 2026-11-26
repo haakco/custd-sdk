@@ -20,6 +20,9 @@ final readonly class SiteAuditPage
     public const INDEXABILITY_ERROR = 'error';
     public const INDEXABILITY_NOT_HTML = 'not_html';
 
+    /**
+     * @param SiteAuditPageIndexability::* $indexability
+     */
     public function __construct(
         public string $url,
         public int $status,

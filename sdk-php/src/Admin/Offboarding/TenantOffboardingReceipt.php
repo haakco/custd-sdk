@@ -10,6 +10,7 @@ final readonly class TenantOffboardingReceipt
 {
     /**
      * @param list<TenantReceiptPerStore> $perStore
+     * @param OffboardingState::* $finalState
      */
     public function __construct(
         public int $companyId,

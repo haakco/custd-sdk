@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\Data\ExecutiveComparisonBasis;
 
 /** ExecutiveComparisonResult is the headline's comparison; the values are null while it is unavailable. */
 final readonly class ExecutiveComparisonResult
 {
+    /**
+     * @param ExecutiveComparisonBasis::* $basis
+     */
     public function __construct(
         public string $basis,
         public string $label,

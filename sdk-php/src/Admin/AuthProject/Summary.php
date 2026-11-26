@@ -15,6 +15,10 @@ use HaakCo\Custd\Fields;
  */
 final readonly class Summary
 {
+    /**
+     * @param AuthProjectAudienceEntitlementMode::*|'' $audienceEntitlementMode
+     * @param AuthProjectIdentityMode::*|'' $identityMode
+     */
     public function __construct(
         public string $projectId = '',
         public string $slug = '',

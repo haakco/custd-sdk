@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Admin\TimePlan;
 
 final readonly class ThresholdCue implements Dto
 {
+    /**
+     * @param TimePlanThresholdCueSeverity::*|'' $severity
+     */
     public function __construct(
         public ?int $remainingFractionBps = null,
         public ?int $remainingMs = null,

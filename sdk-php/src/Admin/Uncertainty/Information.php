@@ -10,6 +10,7 @@ final readonly class Information
 {
     /**
      * @param list<InputInformation> $inputs
+     * @param ModelRecommendation::* $recommended
      */
     public function __construct(
         public float $actProbability,

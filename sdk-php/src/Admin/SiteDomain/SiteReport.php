@@ -22,6 +22,7 @@ final readonly class SiteReport
     /**
      * @param list<SiteReportSpeed> $speed
      * @param list<SiteNextAction> $nextActions
+     * @param SiteReportTemplate::*|null $template
      */
     public function __construct(
         public string $host,

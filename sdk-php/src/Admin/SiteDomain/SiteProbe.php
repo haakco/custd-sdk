@@ -10,6 +10,9 @@ final readonly class SiteProbe
 {
     /**
      * @param list<string>|null $expectedAddresses
+     * @param SiteProbeKind::* $kind
+     * @param SiteProbeProtocol::*|null $protocol
+     * @param SiteProbeStatus::* $status
      */
     public function __construct(
         public string $kind,

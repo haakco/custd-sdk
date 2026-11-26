@@ -9,7 +9,11 @@ use HaakCo\Custd\Fields;
 /** SteppedRateSchedule is one stepped usage-pricing schedule. */
 final readonly class SteppedRateSchedule
 {
-    /** @param list<RateTier> $tiers */
+    /**
+     * @param list<RateTier> $tiers
+     * @param BillingBoundary::* $billingBoundary
+     * @param CanonicalUnit::* $usageUnit
+     */
     public function __construct(
         public string $key,
         public string $usageMetric,

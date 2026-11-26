@@ -9,7 +9,9 @@ use HaakCo\Custd\Fields;
 final readonly class AdminUser
 {
     /**
-     * @param list<string> $roles
+     * @param list<AdminUserRoleSlug::*> $roles
+     * @param AdminUserGlobalState::* $globalUserState
+     * @param AdminUserMembershipState::* $membershipState
      */
     public function __construct(
         public string $companySlug,

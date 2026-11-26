@@ -9,6 +9,9 @@ use HaakCo\Custd\Fields;
 /** ActivityRule declares the activity bucket window for an identity. */
 final readonly class ActivityRule
 {
+    /**
+     * @param RuleIdentity::* $identity
+     */
     public function __construct(
         public string $key,
         public string $identity,

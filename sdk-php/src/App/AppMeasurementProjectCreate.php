@@ -11,6 +11,7 @@ final readonly class AppMeasurementProjectCreate
 {
     /**
      * @param list<MeasurementSeriesCreateRequest> $series
+     * @param AppMeasurementProjectKind::* $kind
      */
     public function __construct(
         public string $kind,

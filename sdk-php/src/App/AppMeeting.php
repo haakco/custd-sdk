@@ -10,6 +10,7 @@ final readonly class AppMeeting
 {
     /**
      * @param list<AppMeetingBlock> $blocks
+     * @param AppMeetingStatus::* $status
      */
     public function __construct(
         public array $blocks,

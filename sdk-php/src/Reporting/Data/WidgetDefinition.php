@@ -11,6 +11,7 @@ final readonly class WidgetDefinition
     /**
      * @param list<string> $metrics
      * @param list<string> $dimensions
+     * @param WidgetKind::* $kind
      */
     public function __construct(
         public string $key,

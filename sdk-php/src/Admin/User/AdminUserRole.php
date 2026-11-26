@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class AdminUserRole
 {
+    /**
+     * @param AdminUserRoleSlug::* $slug
+     */
     public function __construct(
         public string $description,
         public string $name,

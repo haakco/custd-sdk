@@ -19,7 +19,10 @@ final readonly class SiteKeywordDemandSet
     /** Where the numbers come from, here and on SiteRelatedKeywords::$source. */
     public const SOURCE_BING_KEYWORD_RESEARCH = 'bing_keyword_research';
 
-    /** @param list<SiteKeywordDemand> $keywords */
+    /**
+     * @param list<SiteKeywordDemand> $keywords
+     * @param SiteKeywordDemandState::* $state
+     */
     public function __construct(
         public string $state,
         public string $source,

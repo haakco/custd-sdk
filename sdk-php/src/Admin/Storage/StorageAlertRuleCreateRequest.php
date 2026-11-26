@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Admin\Storage;
 
 final readonly class StorageAlertRuleCreateRequest
 {
+    /**
+     * @param StorageAlertChannel::* $channel
+     */
     public function __construct(
         public string $channel,
         public string $emailRecipient,

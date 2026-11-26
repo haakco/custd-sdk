@@ -11,6 +11,7 @@ final readonly class AuditEvent
     /**
      * @param list<string> $actorRoles
      * @param list<AuditChange> $changes
+     * @param AuditOutcome::* $outcome
      */
     public function __construct(
         public string $action,

@@ -12,6 +12,7 @@ final readonly class RunProjection
     /**
      * @param array<string, string> $dimensions
      * @param list<AttemptProjection> $attempts
+     * @param WorkflowRunState::* $state
      */
     public function __construct(
         public string $runUuid,

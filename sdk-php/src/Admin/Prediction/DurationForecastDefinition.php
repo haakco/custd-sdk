@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class DurationForecastDefinition
 {
+    /**
+     * @param DurationForecastMethod::* $method
+     */
     public function __construct(
         public string $method,
         public string $methodVersion,

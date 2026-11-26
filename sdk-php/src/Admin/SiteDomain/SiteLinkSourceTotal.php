@@ -21,6 +21,10 @@ final readonly class SiteLinkSourceTotal
     public const STATUS_FAILED = 'failed';
     public const STATUS_UNAVAILABLE = 'unavailable';
 
+    /**
+     * @param SiteLinkSource::* $source
+     * @param SiteLinkSourceStatus::* $status
+     */
     public function __construct(
         public string $source,
         public string $status,

@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class AppSummary
 {
+    /**
+     * @param AppStatus::* $status
+     */
     public function __construct(
         public string $appId,
         public string $environmentId,

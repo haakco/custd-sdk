@@ -13,6 +13,9 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteSearchImpactPeriod
 {
+    /**
+     * @param SiteSearchImpactStatus::* $status
+     */
     public function __construct(
         public string $status,
         public int $coveredDays,

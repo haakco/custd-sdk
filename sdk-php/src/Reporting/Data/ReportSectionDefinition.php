@@ -11,6 +11,7 @@ final readonly class ReportSectionDefinition
     /**
      * @param list<NarrativeBlock> $narrative
      * @param list<string> $widgetKeys
+     * @param ReportSectionLayout::* $layout
      */
     public function __construct(
         public int $columnSpan,

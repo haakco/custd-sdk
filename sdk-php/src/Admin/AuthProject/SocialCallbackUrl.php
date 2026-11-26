@@ -9,6 +9,9 @@ use HaakCo\Custd\Fields;
 /** SocialCallbackUrl is the exact callback one provider app must register. */
 final readonly class SocialCallbackUrl
 {
+    /**
+     * @param AuthProjectSocialProviderName::* $provider
+     */
     public function __construct(
         public string $provider,
         public string $url,

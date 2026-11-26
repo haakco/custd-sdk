@@ -9,7 +9,10 @@ use HaakCo\Custd\Admin\TimePlan\Payload;
 /** RunPrediction is the completion expectation for one observed run and its steps. */
 final readonly class RunPrediction
 {
-    /** @param list<Expectation> $steps */
+    /**
+     * @param list<Expectation> $steps
+     * @param WorkflowRunState::*|'' $state
+     */
     public function __construct(
         public string $runUuid = '',
         public string $workflowKey = '',

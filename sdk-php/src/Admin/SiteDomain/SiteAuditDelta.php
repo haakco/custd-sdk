@@ -22,6 +22,7 @@ final readonly class SiteAuditDelta
      * @param list<SiteFinding> $new
      * @param list<SiteFinding> $reopened
      * @param list<SiteFinding> $fixed
+     * @param SiteAuditRun::* $run
      */
     public function __construct(
         public string $domainUuid,

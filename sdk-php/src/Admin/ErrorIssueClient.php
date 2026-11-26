@@ -8,6 +8,8 @@ use HaakCo\Custd\Admin\ErrorIssue\ErrorIssue;
 use HaakCo\Custd\Admin\ErrorIssue\ErrorIssueDetail;
 use HaakCo\Custd\Admin\ErrorIssue\ErrorIssueListResponse;
 use HaakCo\Custd\Admin\ErrorIssue\ErrorIssueStateRequest;
+use HaakCo\Custd\Admin\ErrorIssue\ErrorIssueListState;
+use HaakCo\Custd\Admin\ErrorIssue\ErrorIssueSort;
 
 /**
  * ErrorIssueClient lists and reads the error issues captured for the tenant's sites and moves them between
@@ -25,6 +27,9 @@ final class ErrorIssueClient
 
     /**
      * List a tenant's error issues.
+     *
+     * @param ErrorIssueListState::*|null $state
+     * @param ErrorIssueSort::*|null $sort
      */
     public function list(?string $siteUuid = null, ?string $state = null, ?string $sort = null, ?int $limit = null, ?string $cursor = null, ?string $companySlug = null): ErrorIssueListResponse
     {

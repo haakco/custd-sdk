@@ -10,6 +10,7 @@ final readonly class CalculationReceipt
      * @param list<Allocation> $source
      * @param list<Allocation> $result
      * @param list<CalculationChange> $changes
+     * @param TimePlanAdjustmentReason::*|'' $reason
      */
     public function __construct(
         public string $allocatorVersion = "",

@@ -9,6 +9,9 @@ use HaakCo\Custd\Fields;
 /** SiteDomainOwnership is the proof of control and what the last check saw. */
 final readonly class SiteDomainOwnership
 {
+    /**
+     * @param SiteDomainVerifiedBy::*|null $verifiedBy
+     */
     public function __construct(
         public bool $verified,
         public SiteDomainVerification $instructions,

@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Admin\SubjectExport;
 
 final readonly class SubjectExportCreateRequest
 {
+    /**
+     * @param SubjectExportScope::* $scope
+     */
     public function __construct(
         public string $idempotencyKey,
         public string $opaqueSubjectId,

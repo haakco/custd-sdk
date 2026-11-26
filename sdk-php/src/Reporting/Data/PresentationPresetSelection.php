@@ -8,6 +8,11 @@ use HaakCo\Custd\Fields;
 
 final readonly class PresentationPresetSelection
 {
+    /**
+     * @param PresentationNonColorEncoding::* $nonColorEncoding
+     * @param PresentationPresetId::* $presetId
+     * @param PresentationSummaryTemplate::* $summaryTemplateId
+     */
     public function __construct(
         public string $nonColorEncoding,
         public string $presetId,

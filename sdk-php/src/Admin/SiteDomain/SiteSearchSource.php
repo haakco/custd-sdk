@@ -12,7 +12,10 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SiteSearchSource
 {
-    /** @param list<SiteSearchDay> $daily */
+    /**
+     * @param list<SiteSearchDay> $daily
+     * @param SiteSearchGranularity::* $granularity
+     */
     public function __construct(
         public SiteSearchProvider $provider,
         public string $source,

@@ -8,6 +8,10 @@ use HaakCo\Custd\Fields;
 
 final readonly class AppItemAlertDelivery
 {
+    /**
+     * @param AppAlertChannel::* $channel
+     * @param AppAlertDeliveryOutcome::* $outcome
+     */
     public function __construct(
         public int $attempts,
         public string $channel,

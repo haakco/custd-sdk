@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class OperationStatus
 {
+    /**
+     * @param ClientOperationState::* $state
+     */
     public function __construct(
         public int $attemptCount,
         public string $createdAt,

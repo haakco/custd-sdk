@@ -9,8 +9,8 @@ use HaakCo\Custd\Fields;
 final readonly class DashboardCatalogueEntry
 {
     /**
-     * @param list<string> $exportFormats
-     * @param list<string> $interactions
+     * @param list<ReportingExportFormat::*> $exportFormats
+     * @param list<ReportingDashboardInteraction::*> $interactions
      */
     public function __construct(
         public string $defaultRange,

@@ -110,15 +110,15 @@ final class DataScopeClientTest extends TestCase
             "bad code" => fn () => new CreateScopeRequest("bad code", "x"),
             "empty name" => fn () => new CreateScopeRequest("ok", "  "),
             "empty update" => fn () => new UpdateScopeRequest(),
-            "bad status" => fn () => new UpdateScopeRequest(status: "paused"),
+            "bad status" => fn () => new UpdateScopeRequest(status: Unchecked::string("paused")),
             "human with client" => fn () => new PrincipalRef("human", userUuid: self::USER_UUID, clientId: "x"),
             "machine without client" => fn () => new PrincipalRef("machine"),
-            "unknown kind" => fn () => new PrincipalRef("robot", clientId: "x"),
+            "unknown kind" => fn () => new PrincipalRef(Unchecked::string("robot"), clientId: "x"),
             "parent with scope" => fn () => new GrantTarget("parent", scopeUuid: self::SCOPE_UUID),
             "unknown action" => fn () => new Grant(
                 new PrincipalRef("machine", clientId: "custd-producer"),
                 new GrantTarget("parent"),
-                "admin",
+                Unchecked::string("admin"),
             ),
         ];
         foreach ($cases as $name => $case) {

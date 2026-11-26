@@ -9,6 +9,9 @@ use HaakCo\Custd\Fields;
 /** SelectorDefinition names one selector and its selector type. */
 final readonly class SelectorDefinition
 {
+    /**
+     * @param SelectorType::*|'' $type
+     */
     public function __construct(
         public string $selector,
         public string $type,

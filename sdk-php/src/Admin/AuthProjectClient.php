@@ -57,6 +57,7 @@ use HaakCo\Custd\Admin\AuthProject\SessionRevokeRequest;
 use HaakCo\Custd\Admin\AuthProject\SessionsRevokeAllRequest;
 use HaakCo\Custd\Admin\AuthProject\Status;
 use HaakCo\Custd\Admin\AuthProject\Summary;
+use HaakCo\Custd\Admin\AuthProject\AuthProjectDirectoryAction;
 
 /**
  * AuthProjectClient manages Custd projects, their environments, and the
@@ -585,7 +586,11 @@ final class AuthProjectClient
         return DirectoryStatus::fromPayload($this->call("GET", $path, null, $options));
     }
 
-    /** Enable, pause, resume or release one directory credential store. */
+    /**
+     * Enable, pause, resume or release one directory credential store.
+     *
+     * @param AuthProjectDirectoryAction::* $action
+     */
     public function actOnDirectory(
         string $projectId,
         string $environmentId,

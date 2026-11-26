@@ -9,6 +9,7 @@ use HaakCo\Custd\Admin\Audit\AuditEventQuery;
 use HaakCo\Custd\Admin\Audit\AuditExport;
 use HaakCo\Custd\Admin\Audit\AuditListResponse;
 use HaakCo\Custd\Admin\Audit\ReportingPackAuditListResponse;
+use HaakCo\Custd\Admin\Audit\AuditExportFormat;
 
 /**
  * AuditClient reads the tenant or global audit trail, exports it, and reads a reporting pack's audit events. The
@@ -17,7 +18,7 @@ use HaakCo\Custd\Admin\Audit\ReportingPackAuditListResponse;
  */
 final class AuditClient
 {
-    private const FORMATS = ['csv', 'json'];
+    private const FORMATS = [AuditExportFormat::CSV, AuditExportFormat::JSON];
 
     private readonly ApiHttp $http;
 
@@ -58,8 +59,10 @@ final class AuditClient
     /**
      * Export the filtered audit trail as csv or json without decoding it. The query's limit and cursor are not
      * sent: an export is bounded by the server.
+     *
+     * @param AuditExportFormat::* $format
      */
-    public function exportEvents(AuditEventQuery $query = new AuditEventQuery(), string $format = 'json'): AuditExport
+    public function exportEvents(AuditEventQuery $query = new AuditEventQuery(), string $format = AuditExportFormat::JSON): AuditExport
     {
         if (!in_array($format, self::FORMATS, true)) {
             throw new \InvalidArgumentException('custd: audit export format must be csv or json');

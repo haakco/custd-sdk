@@ -14,6 +14,9 @@ use HaakCo\Custd\Fields;
  */
 final readonly class Scope
 {
+    /**
+     * @param DataScopeStatus::*|'' $status
+     */
     public function __construct(
         public string $uuid = '',
         public string $code = '',

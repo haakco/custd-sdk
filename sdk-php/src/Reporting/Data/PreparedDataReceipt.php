@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Reporting\Data;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Retryability;
 
 final readonly class PreparedDataReceipt
 {
     /**
      * @param list<Warning> $warnings
+     * @param Retryability::* $retryability
+     * @param PreparedDataAvailability::* $availability
+     * @param PreparedDataState::* $processingState
      */
     public function __construct(
         public string $availability,

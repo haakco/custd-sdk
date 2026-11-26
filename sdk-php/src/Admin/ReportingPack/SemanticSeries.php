@@ -11,8 +11,10 @@ final readonly class SemanticSeries
 {
     /**
      * @param list<string>|null $assetKeys
-     * @param list<string> $allowedSourceUnits
+     * @param list<CanonicalUnit::*> $allowedSourceUnits
      * @param list<SourceSeries> $sources
+     * @param CanonicalUnit::* $canonicalUnit
+     * @param MeasurementKind::* $measurementKind
      */
     public function __construct(
         public string $key,

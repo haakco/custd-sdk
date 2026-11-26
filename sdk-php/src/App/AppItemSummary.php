@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class AppItemSummary
 {
+    /**
+     * @param AppItemOwnership::* $ownership
+     */
     public function __construct(
         public string $expiresAt,
         public int $idleExpirySeconds,

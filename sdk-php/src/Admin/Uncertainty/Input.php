@@ -10,6 +10,8 @@ final readonly class Input
 {
     /**
      * @param list<float>|null $samples
+     * @param ModelRangeDistribution::*|null $distribution
+     * @param ModelInputShape::* $shape
      */
     public function __construct(
         public string $shape,

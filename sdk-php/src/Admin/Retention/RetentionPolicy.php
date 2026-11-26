@@ -10,6 +10,8 @@ final readonly class RetentionPolicy
 {
     /**
      * @param array<string, int> $lastAffectedCounts
+     * @param RetentionClass::* $retentionClass
+     * @param RetentionScope::* $scope
      */
     public function __construct(
         public string $effectiveAt,

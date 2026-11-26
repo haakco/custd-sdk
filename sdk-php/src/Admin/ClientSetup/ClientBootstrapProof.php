@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Admin\ClientSetup;
 
 final readonly class ClientBootstrapProof
 {
+    /**
+     * @param ClientBootstrapProofKind::* $kind
+     */
     public function __construct(
         public string $kind,
         public string $observedAt,

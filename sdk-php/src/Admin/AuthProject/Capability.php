@@ -14,8 +14,8 @@ use HaakCo\Custd\Fields;
 final readonly class Capability
 {
     /**
-     * @param  list<string>  $identityModes
-     * @param  list<string>  $registrationPolicies
+     * @param list<AuthProjectIdentityMode::*> $identityModes
+     * @param list<AuthProjectRegistrationPolicy::*> $registrationPolicies
      * @param  list<string>  $profileFieldKeys
      */
     public function __construct(

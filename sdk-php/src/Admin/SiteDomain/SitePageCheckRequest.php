@@ -19,6 +19,9 @@ final readonly class SitePageCheckRequest
     /** Body content only: the response's checkedRules lists the rules checked. */
     public const SCOPE_CONTENT = 'content';
 
+    /**
+     * @param SitePageCheckScope::*|null $scope
+     */
     public function __construct(
         public string $url,
         public string $html,

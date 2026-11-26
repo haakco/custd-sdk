@@ -14,6 +14,9 @@ final readonly class SiteTrafficReferrerClass
     public const CLASS_SOCIAL = 'social';
     public const CLASS_OTHER = 'other';
 
+    /**
+     * @param SiteReferrerClass::* $class
+     */
     public function __construct(
         public string $class,
         public int $requests,

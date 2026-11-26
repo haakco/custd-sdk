@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Admin\Notification;
 
 final readonly class NotificationWebhookCreateRequest
 {
+    /**
+     * @param NotificationWebhookKind::*|null $kind
+     */
     public function __construct(
         public string $companySlug,
         public bool $enabled,

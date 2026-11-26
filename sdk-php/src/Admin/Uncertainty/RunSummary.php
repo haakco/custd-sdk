@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class RunSummary
 {
+    /**
+     * @param ModelRunTrigger::* $trigger
+     */
     public function __construct(
         public string $createdAt,
         public string $modelUuid,

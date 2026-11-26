@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Admin\Privacy;
 
 final readonly class PrivacyConsentRecordRequest
 {
+    /**
+     * @param PrivacyConsentPurpose::* $purpose
+     */
     public function __construct(
         public string $companySlug,
         public bool $granted,

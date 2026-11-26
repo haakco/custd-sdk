@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class BoundInput
 {
+    /**
+     * @param ModelBoundState::* $state
+     */
     public function __construct(
         public string $quantity,
         public InputSource $source,

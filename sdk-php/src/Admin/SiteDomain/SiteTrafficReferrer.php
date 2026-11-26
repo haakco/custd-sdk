@@ -9,6 +9,9 @@ use HaakCo\Custd\Fields;
 /** SiteTrafficReferrer is one external referrer domain; class is a SiteTrafficReferrerClass::CLASS_* value. */
 final readonly class SiteTrafficReferrer
 {
+    /**
+     * @param SiteReferrerClass::* $class
+     */
     public function __construct(
         public string $class,
         public string $domain,

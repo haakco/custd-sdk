@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class AppItemAlertWebhook
 {
+    /**
+     * @param AppAlertDestinationKind::* $kind
+     */
     public function __construct(
         public string $createdAt,
         public string $endpoint,

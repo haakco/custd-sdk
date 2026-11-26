@@ -11,7 +11,11 @@ final readonly class SiteProbeSpec
     public const DNS = 'dns';
     public const HTTP_DELIVERY = 'http-delivery';
 
-    /** @param list<string> $expectedAddresses */
+    /**
+     * @param SiteProbeKind::* $kind
+     * @param list<string> $expectedAddresses
+     * @param SiteProbeProtocol::*|null $protocol
+     */
     public function __construct(
         public string $kind,
         public ?int $port = null,

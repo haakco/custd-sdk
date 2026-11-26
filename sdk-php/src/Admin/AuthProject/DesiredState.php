@@ -52,11 +52,14 @@ final readonly class DesiredState
      * @param list<string>|null $signInMethods
      * @param string|null $displayName Customer-facing application name; `""` clears it and null
      *                                 keeps the stored name.
-     * @param string|null $displayNameSource `application` or `hosting`.
+     * @param AuthProjectDisplayNameSource::*|''|null $displayNameSource `application` or `hosting`.
      * @param bool $withdrawDisplayName Give the name back: with an empty `$displayName` and a
      *                                 declared `$displayNameSource`, clears the name and releases
      *                                 the owner only when that surface holds it. Another surface's
      *                                 name is left untouched.
+     * @param AuthProjectIdentityMode::* $identityMode
+     * @param AuthProjectApplicationSessionPolicy::*|null $applicationSessionPolicy
+     * @param AuthProjectRegistrationPolicy::* $registrationPolicy
      */
     public function __construct(
         public string $identityMode,

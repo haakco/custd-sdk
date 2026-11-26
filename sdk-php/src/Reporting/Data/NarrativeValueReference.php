@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class NarrativeValueReference
 {
+    /**
+     * @param NarrativeValue::* $value
+     */
     public function __construct(
         public string $value,
         public string $widgetKey,

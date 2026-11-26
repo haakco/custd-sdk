@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\Data\WidgetKind;
 
 /** PackWidgetDefinition is one widget inside a pack dashboard. */
 final readonly class PackWidgetDefinition
@@ -12,6 +13,7 @@ final readonly class PackWidgetDefinition
     /**
      * @param list<string> $metrics
      * @param list<string>|null $dimensions
+     * @param WidgetKind::* $kind
      */
     public function __construct(
         public string $key,

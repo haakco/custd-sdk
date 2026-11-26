@@ -9,6 +9,9 @@ use HaakCo\Custd\Admin\TimePlan\Payload;
 /** ExcludedStep is a step attempt left out of the run duration, with its outcome. */
 final readonly class ExcludedStep
 {
+    /**
+     * @param WorkflowExcludedStepOutcome::* $outcome
+     */
     public function __construct(
         public string $stepKey,
         public int $attempt,

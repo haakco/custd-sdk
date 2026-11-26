@@ -23,6 +23,7 @@ final readonly class RangeQueryRequest
 
     /**
      * @param list<array{key: string, value: string}> $labelFilters
+     * @param AnalyticsQuerySource::*|''|null $source
      */
     public function __construct(
         public string $from,

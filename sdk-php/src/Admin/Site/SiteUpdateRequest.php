@@ -9,6 +9,7 @@ final readonly class SiteUpdateRequest
     /**
      * @param list<string> $allowedOrigins
      * @param list<string>|null $allowedEnvironments
+     * @param BrowserIdentityMode::* $identityMode
      */
     public function __construct(
         public array $allowedOrigins,

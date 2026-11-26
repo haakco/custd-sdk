@@ -8,6 +8,9 @@ use HaakCo\Custd\Fields;
 
 final readonly class MeasurementPredictionDefinition
 {
+    /**
+     * @param PredictionProjectKind::* $projectKind
+     */
     public function __construct(
         public string $definitionKey,
         public string $displayName,

@@ -11,6 +11,12 @@ final readonly class PackMetric
 {
     /**
      * @param list<MatchPredicate>|null $match
+     * @param CanonicalUnit::*|null $canonicalUnit
+     * @param PackMetricCalculation::* $calculation
+     * @param PackMetricFlowResult::*|null $flowResult
+     * @param PackMetricKind::* $kind
+     * @param MeasurementKind::*|null $measurementKind
+     * @param PackMetricResetPolicy::*|null $resetPolicy
      */
     public function __construct(
         public string $key,

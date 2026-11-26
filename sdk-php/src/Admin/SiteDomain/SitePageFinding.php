@@ -12,6 +12,9 @@ use HaakCo\Custd\Fields;
  */
 final readonly class SitePageFinding
 {
+    /**
+     * @param SiteFindingSeverity::* $severity
+     */
     public function __construct(
         public string $rule,
         public string $severity,

@@ -9,6 +9,9 @@ use HaakCo\Custd\Admin\TimePlan\Payload;
 /** Definition is one tenant-scoped workflow shape with its current revision. */
 final readonly class Definition
 {
+    /**
+     * @param WorkflowDefinitionStatus::*|'' $status
+     */
     public function __construct(
         public string $uuid = '',
         public string $workflowKey = '',

@@ -10,6 +10,10 @@ use HaakCo\Custd\Reporting\TemporalTrust;
 /** RenderedMetricValue is one rendered metric reading. */
 final readonly class RenderedMetricValue
 {
+    /**
+     * @param RenderedUnit::* $unit
+     * @param DataSufficiency::* $dataSufficiency
+     */
     public function __construct(
         public float $value,
         public string $unit,

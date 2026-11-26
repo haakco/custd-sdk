@@ -11,6 +11,7 @@ final readonly class Site
     /**
      * @param list<string> $allowedEnvironments
      * @param list<string> $allowedOrigins
+     * @param BrowserIdentityMode::* $identityMode
      */
     public function __construct(
         public array $allowedEnvironments,

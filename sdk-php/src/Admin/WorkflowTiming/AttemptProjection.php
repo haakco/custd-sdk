@@ -12,6 +12,9 @@ use HaakCo\Custd\Admin\TimePlan\Payload;
  */
 final readonly class AttemptProjection
 {
+    /**
+     * @param WorkflowAttemptState::*|'' $state
+     */
     public function __construct(
         public string $stepKey = '',
         public int $attempt = 0,

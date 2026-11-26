@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ClientSetup;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\NextAction;
 
 final readonly class NextActionHint
 {
+    /**
+     * @param NextAction::* $action
+     */
     public function __construct(
         public string $action,
         public ?int $maxRetries = null,

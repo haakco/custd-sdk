@@ -12,6 +12,9 @@ final readonly class SitePageTitleOption
     public const TEMPLATE_GENERAL = 'general';
     public const TEMPLATE_GUIDE = 'guide';
 
+    /**
+     * @param SiteTitleTemplate::* $template
+     */
     public function __construct(
         public string $title,
         public string $template,

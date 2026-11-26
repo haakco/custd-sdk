@@ -6,6 +6,9 @@ namespace HaakCo\Custd\App;
 
 final readonly class AppItemAlertRuleCreateRequest
 {
+    /**
+     * @param AppAlertRuleType::* $type
+     */
     public function __construct(
         public string $type,
         public ?string $modelOutput = null,

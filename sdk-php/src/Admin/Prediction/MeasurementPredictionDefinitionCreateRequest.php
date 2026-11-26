@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Admin\Prediction;
 
 final readonly class MeasurementPredictionDefinitionCreateRequest
 {
+    /**
+     * @param PredictionProjectKind::*|null $projectKind
+     */
     public function __construct(
         public string $definitionKey,
         public string $displayName,

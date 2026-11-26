@@ -427,7 +427,8 @@ final class TypeNode
     /** @param \ReflectionClass<object> $context */
     private static function named(string $name, \ReflectionClass $context): self
     {
-        if (in_array($name, self::SCALARS, true)) {
+        // A closed string set (`SiteCheckMode::*`) is a string on the wire.
+        if (in_array($name, self::SCALARS, true) || str_ends_with($name, '::*')) {
             return new self(self::SCALAR, text: $name);
         }
         if (in_array($name, ['mixed', 'object', 'stdClass', 'array'], true)) {

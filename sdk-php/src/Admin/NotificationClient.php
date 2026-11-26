@@ -13,6 +13,7 @@ use HaakCo\Custd\Admin\Notification\NotificationWebhookSecret;
 use HaakCo\Custd\Admin\Notification\NotificationWebhookSubscription;
 use HaakCo\Custd\Admin\Notification\TenantDestination;
 use HaakCo\Custd\Admin\Notification\TenantDestinationRequest;
+use HaakCo\Custd\Admin\Notification\NotificationDestinationEvent;
 
 /**
  * NotificationClient keeps the tenant's notification webhooks and destinations and replays deliveries.
@@ -85,6 +86,8 @@ final class NotificationClient
 
     /**
      * Get where one event is sent for the tenant.
+     *
+     * @param NotificationDestinationEvent::* $eventSlug
      */
     public function getDestination(string $eventSlug, ?string $companySlug = null): TenantDestination
     {
@@ -93,6 +96,8 @@ final class NotificationClient
 
     /**
      * Set where one event is sent for the tenant.
+     *
+     * @param NotificationDestinationEvent::* $eventSlug
      */
     public function putDestination(string $eventSlug, TenantDestinationRequest $request, ?string $companySlug = null): TenantDestination
     {

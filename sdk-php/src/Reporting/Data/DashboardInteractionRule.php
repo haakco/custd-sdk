@@ -8,6 +8,11 @@ use HaakCo\Custd\Fields;
 
 final readonly class DashboardInteractionRule
 {
+    /**
+     * @param ReportingDashboardInteraction::* $action
+     * @param ReportingComparisonPreset::*|null $comparisonPreset
+     * @param DashboardResetBehavior::* $resetBehavior
+     */
     public function __construct(
         public string $action,
         public string $dimension,

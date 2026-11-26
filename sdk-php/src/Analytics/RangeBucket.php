@@ -15,6 +15,9 @@ use HaakCo\Custd\Fields;
  */
 final readonly class RangeBucket
 {
+    /**
+     * @param AnalyticsQuerySource::*|'' $source
+     */
     public function __construct(
         public string $date = '',
         public int $count = 0,

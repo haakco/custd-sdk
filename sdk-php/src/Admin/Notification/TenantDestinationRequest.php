@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Admin\Notification;
 
 final readonly class TenantDestinationRequest
 {
+    /**
+     * @param NotificationChannel::* $channel
+     */
     public function __construct(
         public string $channel,
         public bool $enabled,

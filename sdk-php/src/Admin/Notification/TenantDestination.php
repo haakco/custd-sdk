@@ -8,6 +8,10 @@ use HaakCo\Custd\Fields;
 
 final readonly class TenantDestination
 {
+    /**
+     * @param NotificationChannel::* $channel
+     * @param NotificationEventSlug::* $eventSlug
+     */
     public function __construct(
         public string $channel,
         public bool $configured,

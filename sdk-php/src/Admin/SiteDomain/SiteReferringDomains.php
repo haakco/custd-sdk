@@ -15,6 +15,7 @@ final readonly class SiteReferringDomains
     /**
      * @param list<SiteLinkSourceTotal> $sources
      * @param list<SiteReferringDomain> $referringDomains
+     * @param SiteWebDomainRole::* $role
      */
     public function __construct(
         public string $siteUuid,

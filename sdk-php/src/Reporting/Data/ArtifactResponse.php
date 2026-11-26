@@ -10,6 +10,8 @@ final readonly class ArtifactResponse
 {
     /**
      * @param list<string> $warnings
+     * @param ReportingExportFormat::*|null $fallbackForFormat
+     * @param ReportingExportFormat::* $format
      */
     public function __construct(
         public string $artifactKey,

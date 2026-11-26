@@ -9,6 +9,7 @@ final readonly class ExportQueryParameters
     /**
      * @param list<RequestedFilter>|null $filters
      * @param list<string>|null $selections
+     * @param ReportingComparisonPreset::*|null $comparison
      */
     public function __construct(
         public ?string $comparison = null,

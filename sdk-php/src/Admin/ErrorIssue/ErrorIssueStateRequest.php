@@ -6,6 +6,9 @@ namespace HaakCo\Custd\Admin\ErrorIssue;
 
 final readonly class ErrorIssueStateRequest
 {
+    /**
+     * @param ErrorIssueState::* $state
+     */
     public function __construct(
         public string $state,
     ) {

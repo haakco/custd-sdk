@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\Data\ReportSectionLayout;
 
 /** ReportSectionDefinition groups widgets into one report section. */
 final readonly class ReportSectionDefinition
@@ -12,6 +13,7 @@ final readonly class ReportSectionDefinition
     /**
      * @param list<string>|null $widgetKeys
      * @param list<NarrativeBlock>|null $narrative
+     * @param ReportSectionLayout::* $layout
      */
     public function __construct(
         public string $key,

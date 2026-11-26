@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin\ReportingPack;
 
 use HaakCo\Custd\Fields;
+use HaakCo\Custd\Reporting\Data\NarrativeValue;
 
 /** NarrativeValueReference points a narrative block at a widget's value. */
 final readonly class NarrativeValueReference
 {
+    /**
+     * @param NarrativeValue::* $value
+     */
     public function __construct(
         public string $widgetKey,
         public string $value,

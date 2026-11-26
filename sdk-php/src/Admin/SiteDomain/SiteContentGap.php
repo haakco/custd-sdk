@@ -19,6 +19,7 @@ final readonly class SiteContentGap
     /**
      * @param list<SiteGapCompetitor> $competitors
      * @param list<SiteGapTopic> $topics
+     * @param SiteContentGapCoverage::* $ownCoverage
      */
     public function __construct(
         public string $siteUuid,

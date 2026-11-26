@@ -370,14 +370,14 @@ final class AuthProjectClientTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        new CreateRequest(slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "shared-across", audienceEntitlementMode: "organisation_membership");
+        new CreateRequest(slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: Unchecked::string("shared-across"), audienceEntitlementMode: "organisation_membership");
     }
 
     public function testRejectsAnUnknownAudienceEntitlementMode(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        new CreateRequest(slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "isolated", audienceEntitlementMode: "optional");
+        new CreateRequest(slug: "hosting-eu", name: "Hosting EU", environmentSlug: "production", identityMode: "isolated", audienceEntitlementMode: Unchecked::string("optional"));
     }
 
     public function testOmitsTheOwningUserHeaderForAHumanAdministrator(): void
@@ -622,7 +622,7 @@ final class AuthProjectClientTest extends TestCase
             registrationPolicy: "invite_only",
             loginPaused: false,
             displayName: "Acme Portal",
-            displayNameSource: "marketing",
+            displayNameSource: Unchecked::string("marketing"),
         );
     }
 

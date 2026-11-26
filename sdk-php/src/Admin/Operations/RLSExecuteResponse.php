@@ -10,6 +10,7 @@ final readonly class RLSExecuteResponse
 {
     /**
      * @param list<RLSPolicyDiff> $diff
+     * @param RlsExecuteOutcome::* $outcome
      */
     public function __construct(
         public array $diff,
