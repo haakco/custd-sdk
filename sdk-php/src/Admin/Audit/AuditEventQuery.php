@@ -7,7 +7,8 @@ namespace HaakCo\Custd\Admin\Audit;
 /**
  * AuditEventQuery filters the audit trail. Scope is tenant or global; a system administrator names the tenant
  * with companySlug and may filter a global read by affectedTenantSlug. Since and until are RFC 3339 timestamps.
- * Limit and cursor page a list; an export ignores them.
+ * environmentId narrows the trail to one auth-project environment (realm). Limit and cursor page a list; an
+ * export ignores them.
  */
 final readonly class AuditEventQuery
 {
@@ -27,6 +28,7 @@ final readonly class AuditEventQuery
         public ?string $correlationId = null,
         public ?int $limit = null,
         public ?string $cursor = null,
+        public ?string $environmentId = null,
     ) {
     }
 
@@ -46,6 +48,7 @@ final readonly class AuditEventQuery
             'resourceId' => $this->resourceId,
             'outcome' => $this->outcome,
             'correlationId' => $this->correlationId,
+            'environmentId' => $this->environmentId,
         ];
     }
 

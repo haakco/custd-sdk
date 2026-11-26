@@ -62,6 +62,7 @@ final class AuditClientTest extends TestCase
             correlationId: "req-1",
             limit: 50,
             cursor: "next",
+            environmentId: "env-1",
         );
 
         $listed = $client->adminAudit()->listEvents($options);
@@ -82,10 +83,11 @@ final class AuditClientTest extends TestCase
         $this->assertSame("Mozilla/5.0", $event->network?->userAgent);
         $this->assertSame("eventId,tenantSlug\n01957abc-0000-7000-8000-000000000001,acme\n", $exported->body);
         $this->assertSame("text/csv; charset=utf-8", $exported->headers["content-type"]);
+        $this->assertStringContainsString("&correlationId=req-1&environmentId=env-1&limit=50&cursor=next", $calls[0][1]);
         $this->assertStringNotContainsString("limit=50", $calls[2][1]);
         $this->assertStringNotContainsString("cursor=next", $calls[2][1]);
         $this->assertStringContainsString(
-            "/api/v1/admin/audit/events/export?scope=global&affectedTenantSlug=acme&since=2026-07-01T00%3A00%3A00Z&until=2026-08-01T00%3A00%3A00Z&actorKind=user&actorReference=actor-0123456789ab&action=tenant.create&resourceType=tenant&resourceId=acme&outcome=success&correlationId=req-1&format=csv",
+            "/api/v1/admin/audit/events/export?scope=global&affectedTenantSlug=acme&since=2026-07-01T00%3A00%3A00Z&until=2026-08-01T00%3A00%3A00Z&actorKind=user&actorReference=actor-0123456789ab&action=tenant.create&resourceType=tenant&resourceId=acme&outcome=success&correlationId=req-1&environmentId=env-1&format=csv",
             $calls[2][1],
         );
     }
