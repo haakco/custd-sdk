@@ -15,9 +15,10 @@ before a consumer does.
     `82873e00c` snapshot.
   - **M7:** `v3.66.0` is released, and every consumer on the development server runs it.
 - **Open:**
-  - **M4:** a Custd change to its catalogue or OpenAPI does not yet update the SDK snapshot by itself.
-    Today `just sync-api-contract ../custd`, then `just surface-check`, is the manual step. A cross-repo
-    pull request needs a token decision, because Custd is private.
+  - **M4:** the hourly sync workflow is built and proven locally (see M4). It goes live once a Custd
+    release with Custd `2fef916ba` serves `https://custd.com/docs/openapi/api-operations.json`; the
+    first run then opens a pull request for the drift Custd has gained since `82873e00c`. The `sdk`
+    disposition in Custd and the changelog snapshot digest are still open.
   - **M5:** consumers do not yet bump automatically or replay Custd's fixtures.
 - **Resume:** pick M4 or M5. Consumers with no local checkout are in the
   [SDK 3.66 consumer adoption plan](./2026-11-26_0300_sdk-3-66-consumer-adoption_plan.md).
@@ -84,11 +85,44 @@ heuristic script. People cannot keep five SDKs and about 540 admin operations al
 
 ### M4. Contract update without a person (both sides)
 
-- **Custd:** when `docs/api/generated/*` changes on `main`, a workflow opens or updates one pull request on
-  `haakco/custd-sdk` that refreshes the snapshot. M1 then lists the new or changed operations as failures
-  on that pull request.
-- **Custd:** `api-parity.json` gains an `sdk` disposition read from the released `sdk-surface.json`, so
-  `custdctl validate api-parity` reports SDK coverage beside CLI and MCP.
+- **Built (2026-11-26):** the SDK pulls the contract from what Custd already serves publicly, so no
+  cross-repository credential exists.
+  - **Custd `2fef916ba`:** the docs site publishes `/docs/openapi/api-operations.json` beside the two
+    OpenAPI files. It is generated from `api-parity.json` by `generate-admin-api.mjs`. It carries only
+    service, method, path and a `routerMount` flag, and only for the four SDK services. Authority,
+    source paths and CLI and MCP notes stay internal. The routes it lists, including the excluded
+    debug and token-hook paths, were already public in this repository's snapshot.
+    `check:admin-api-contract` and `test:public-docs-contract` keep it current. Both run in Custd's
+    `contracts` validation lane, which an `api-parity.json` change selects.
+  - **SDK:** `scripts/sync-api-contract.py --source` reads the same three files from a URL or a local
+    directory, through one fetch path. `just sync-api-contract` defaults to
+    `https://custd.com/docs/openapi`. Before a deploy, pass a Custd checkout's
+    `packages/frontend/docs-site/static/openapi`. The snapshot header now records the
+    `reviewed_at` date and a SHA-256 for each input, replacing the Custd commit, which a URL cannot
+    give.
+  - **SDK workflow:** `.github/workflows/api-contract-sync.yml` runs hourly and on dispatch, on
+    `haakco-build`. It syncs, regenerates the JS response lists and runs
+    `check-sdk-surface.py --complete`. When anything changed, it force-pushes
+    `automation/api-contract-sync` and opens or updates one pull request with the repository's
+    `GITHUB_TOKEN`, with the surface result in the body. A failed fetch fails the run before it writes
+    anything, and an unchanged snapshot opens nothing.
+- **Proof (local, 2026-11-26):**
+  - The published layout was rebuilt at Custd `82873e00c` with the new generator. Its two OpenAPI files
+    are byte-identical to that commit's published copies.
+  - Syncing from that directory reproduced every `contract-fixtures/api` example and operation entry
+    with no diff. Only the header changed, to the new digest form.
+  - The live `https://custd.com/docs/openapi` serves both OpenAPI files, identical to Custd HEAD.
+  - A sync against the live URL fails with HTTP 404 on `api-operations.json` until the deploy.
+  - Live OpenAPI plus HEAD's route list gives 725 operations, 634 required: 4 added, 1 removed and
+    5 changed against the snapshot. This is the first pull request's content.
+  - `actionlint` passes.
+- **Hosted proof still open:** after the Custd deploy, dispatch the workflow and confirm it opens the
+  pull request.
+- **Known limit:** GitHub does not start `ci.yml` for a pull request pushed with `GITHUB_TOKEN`. The
+  workflow's own `check-sdk-surface.py --complete` result is the pull request's surface proof. Close
+  and reopen the pull request to run the full CI before merging.
+- **Still open:** `api-parity.json` gains an `sdk` disposition read from the released
+  `sdk-surface.json`, so `custdctl validate api-parity` reports SDK coverage beside CLI and MCP.
 - **SDK:** a released tag records the snapshot digest it was checked against in `docs/changelog/`.
 - **Proof:** a no-op OpenAPI change in Custd produces an SDK pull request with a green `surface-check`.
 

@@ -14,9 +14,10 @@ sdk-version-identity:
 surface-check *args:
   python3 scripts/check-sdk-surface.py {{args}}
 
-# Refresh the operation snapshot and generated examples from a Custd checkout (default ../custd).
-sync-api-contract custd="../custd":
-  uv run --with pyyaml python scripts/sync-api-contract.py --custd {{custd}}
+# Refresh the operation snapshot and generated examples from what Custd publishes. Before a Custd
+# deploy, pass a checkout's packages/frontend/docs-site/static/openapi directory instead.
+sync-api-contract source="https://custd.com/docs/openapi":
+  uv run --with pyyaml python scripts/sync-api-contract.py --source {{source}}
   pnpm -C sdk-js run generate:response-lists
 
 diff-check:

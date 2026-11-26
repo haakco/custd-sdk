@@ -1,0 +1,113 @@
+name: API Contract Sync
+
+# Refreshes contract-fixtures/api from the route list and OpenAPI Custd publishes at
+# https://custd.com/docs/openapi, and opens or updates one pull request when they changed.
+# Custd is private, so the public docs are the only input: no cross-repository credential.
+# A failed fetch fails the run before anything is written; an unchanged snapshot opens nothing.
+# SDK coverage gaps the new snapshot exposes go in the pull request body, not the run status:
+# they are the work the pull request asks for, and ci.yml gates main on them.
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-contract-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: haakco-build
+    permissions:
+      contents: write
+      pull-requests: write
+    container:
+      image: ghcr.io/haakco/actions-runner:2
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      options: --user root
+    env:
+      BRANCH: automation/api-contract-sync
+      SOURCE: https://custd.com/docs/openapi
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.15.2"
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 26.13.1
+          package-manager-cache: false
+      - name: Install pinned pnpm
+        run: |
+          version="$(node -p "require('./package.json').packageManager.split('@')[1]")"
+          npm install --global --prefix "$RUNNER_TEMP/pnpm" "pnpm@$version"
+          echo "$RUNNER_TEMP/pnpm/bin" >> "$GITHUB_PATH"
+      - name: Install sync dependencies
+        run: |
+          python3 -m pip install --quiet pyyaml==6.0.3
+          pnpm -C sdk-js install --frozen-lockfile
+      - name: Refresh the snapshot from Custd's published contract
+        run: |
+          python3 scripts/sync-api-contract.py --source "$SOURCE"
+          pnpm -C sdk-js run generate:response-lists
+      - name: Check SDK coverage against the refreshed snapshot
+        id: surface
+        run: |
+          set +e
+          python3 scripts/check-sdk-surface.py --complete > "$RUNNER_TEMP/surface.txt" 2>&1
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/surface.txt"
+          exit 0
+      - name: Open or update the sync pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SURFACE_STATUS: ${{ steps.surface.outputs.status }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          paths=(contract-fixtures/api sdk-js/src/response-lists.generated.ts)
+          if [[ -z "$(git status --porcelain -- "${paths[@]}")" ]]; then
+            echo "Snapshot is current; no pull request."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add -- "${paths[@]}"
+          git commit --quiet -m "chore(contract): refresh the API snapshot from Custd's published contract"
+          if git fetch --quiet origin "$BRANCH" 2>/dev/null &&
+            [[ "$(git rev-parse HEAD:)" == "$(git rev-parse FETCH_HEAD:)" ]]; then
+            echo "Pull request branch already holds this snapshot."
+          else
+            git push --force origin "HEAD:refs/heads/$BRANCH"
+          fi
+          {
+            echo "Automated refresh of \`contract-fixtures/api\` from $SOURCE."
+            echo
+            git diff --stat HEAD~1 HEAD
+            echo
+            if [[ "$SURFACE_STATUS" == "0" ]]; then
+              echo "\`check-sdk-surface.py --complete\` passes: every SDK covers every required operation."
+            else
+              echo "\`check-sdk-surface.py --complete\` fails; each SDK must cover these before merge:"
+              echo
+              echo '```text'
+              head -c 50000 "$RUNNER_TEMP/surface.txt"
+              echo '```'
+            fi
+          } > "$RUNNER_TEMP/body.md"
+          if number="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')" &&
+            [[ -n "$number" ]]; then
+            gh pr edit "$number" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --base main --head "$BRANCH" \
+              --title "chore(contract): refresh the API snapshot from Custd" --body-file "$RUNNER_TEMP/body.md"
+          fi

@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Refresh the SDK API contract snapshot from a Custd checkout.
+"""Refresh the SDK API contract snapshot from the route list and OpenAPI Custd publishes.
 
 Writes contract-fixtures/api/operations.json (every public operation, its declared query
 parameters, and whether the SDKs must cover it) and contract-fixtures/api/examples/<operationId>.json (a minimal and a maximal success
 response generated from the OpenAPI schema, for the SDK decode tests).
 
-Run: uv run --with pyyaml python scripts/sync-api-contract.py --custd ../custd
+The source is Custd's published docs directory: https://custd.com/docs/openapi, or a Custd
+checkout's packages/frontend/docs-site/static/openapi before it is deployed.
+
+Run: uv run --with pyyaml python scripts/sync-api-contract.py --source https://custd.com/docs/openapi
 """
 
 from __future__ import annotations
@@ -15,28 +18,26 @@ import hashlib
 import json
 import re
 import shutil
-import subprocess
+import urllib.request
 from pathlib import Path
 
 import yaml
 
 SERVICES = ("admin-api", "analytics-api", "ingest-api", "schema-registry")
 OPENAPI = {
-    "admin-api": "docs/api/generated/admin-api.openapi.yaml",
-    "analytics-api": "docs/api/generated/analytics-api.openapi.yaml",
+    "admin-api": "admin-api.openapi.yaml",
+    "analytics-api": "analytics-api.openapi.yaml",
 }
+OPERATIONS = "api-operations.json"
 INFRASTRUCTURE = re.compile(r"^/(debug|internal|metrics|health|healthz|readyz|ready|mcp)(/|$)")
 METHODS = ("get", "post", "put", "patch", "delete")
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "contract-fixtures" / "api"
 
 
-BARE_PREFIX_MOUNT = "Bare-prefix mount"
-
-
-def exclusion(method: str, path: str, cli_note: str = "") -> str | None:
+def exclusion(method: str, path: str, router_mount: bool = False) -> str | None:
     """The reason an operation is not an SDK call, or None when every SDK must cover it."""
-    if cli_note.startswith(BARE_PREFIX_MOUNT):
+    if router_mount:
         # Custd catalogues a router mount so its validator sees it; nothing is served at that path.
         return "router mount prefix with no operation at this exact path"
     if method == "OPTIONS":
@@ -121,11 +122,17 @@ class Examples:
         }.get(fmt or "", "example")
 
 
-def openapi_operations(custd: Path) -> tuple[dict, dict]:
+def fetch(source: str, name: str) -> bytes:
+    """One published file; a missing file or failed request raises, so a run never syncs half a source."""
+    with urllib.request.urlopen(f"{source}/{name}", timeout=60) as response:
+        return response.read()
+
+
+def openapi_operations(inputs: dict[str, bytes]) -> tuple[dict, dict]:
     """Maps (service, METHOD, path) to the OpenAPI operation, and the schemas by service."""
     operations, schemas = {}, {}
-    for service, rel in OPENAPI.items():
-        document = yaml.safe_load((custd / rel).read_text(encoding="utf-8"))
+    for service, name in OPENAPI.items():
+        document = yaml.safe_load(inputs[name].decode("utf-8"))
         schemas[service] = document.get("components", {}).get("schemas", {})
         for path, item in document.get("paths", {}).items():
             for method in METHODS:
@@ -156,11 +163,14 @@ def success_schema(operation: dict) -> dict | None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--custd", required=True, type=Path)
-    custd = parser.parse_args().custd.resolve()
-    catalogue_path = custd / "docs/api/api-parity.json"
-    catalogue = json.loads(catalogue_path.read_text(encoding="utf-8"))
-    by_route, schemas = openapi_operations(custd)
+    parser.add_argument("--source", required=True,
+                        help="published docs URL, or a local directory with the same files")
+    source = parser.parse_args().source.rstrip("/")
+    if "://" not in source:
+        source = Path(source).resolve().as_uri()
+    inputs = {name: fetch(source, name) for name in (OPERATIONS, *OPENAPI.values())}
+    catalogue = json.loads(inputs[OPERATIONS].decode("utf-8"))
+    by_route, schemas = openapi_operations(inputs)
 
     examples_dir = OUT / "examples"
     shutil.rmtree(examples_dir, ignore_errors=True)
@@ -172,7 +182,7 @@ def main() -> None:
             continue
         entry = {"id": f"{op['service']} {op['method']} {op['path']}", "service": op["service"],
                  "method": op["method"], "path": op["path"]}
-        reason = exclusion(op["method"], op["path"], op.get("cli", {}).get("note", ""))
+        reason = exclusion(op["method"], op["path"], op.get("routerMount", False))
         entry["sdk"] = "excluded" if reason else "required"
         if reason:
             entry["reason"] = reason
@@ -192,13 +202,10 @@ def main() -> None:
         entries.append(entry)
 
     entries.sort(key=lambda e: e["id"])
-    commit = subprocess.run(["git", "-C", str(custd), "rev-parse", "HEAD"], check=True,
-                            capture_output=True, text=True).stdout.strip()
     snapshot = {
         "source": {
-            "custdCommit": commit,
-            "apiParityReviewedAt": catalogue.get("reviewed_at", ""),
-            "apiParitySha256": hashlib.sha256(catalogue_path.read_bytes()).hexdigest(),
+            "apiReviewedAt": catalogue.get("reviewed_at", ""),
+            "sha256": {name: hashlib.sha256(data).hexdigest() for name, data in sorted(inputs.items())},
         },
         "operations": entries,
     }
