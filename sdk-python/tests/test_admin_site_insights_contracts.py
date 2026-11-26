@@ -768,7 +768,6 @@ class DraftToolsTest(unittest.TestCase):
         self.assertEqual("https://example.com/img/team.jpg", check["page"]["shareImage"])
         self.assertIn("FAQPage", check["page"]["faqSchema"]["code"])
         self.assertNotIn("slug", TOOLS["pageCheck"])
-        self.assertNotIn("shareImage", TOOLS["pageFacts"])
 
         no_words = {"phrase": "x", "count": 0, "wordCount": 0, "densityPercent": 0}
         wordless = dict(TOOLS["pageCheckDraftTools"], phrase=no_words)

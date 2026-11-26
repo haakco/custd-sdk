@@ -369,6 +369,19 @@ class AuthProjectAdminClientTest(unittest.TestCase):
         self.assertEqual(7, operation["revision"])
         self.assertFalse(operation["replayed"])
 
+    def test_apply_sends_left_out_realm_fields_as_absent_and_clears_as_empty(self) -> None:
+        client, transport = client_with({"id": "op-1", "revision": 7, "replayed": False})
+        keeps = {key: DESIRED_STATE[key] for key in ("identityMode", "registrationPolicy", "audiences")}
+        clears = {**keeps, "entryPath": "", "brandAccent": "", "signInMethods": [], "profileFields": []}
+
+        for desired in (keeps, clears):
+            client.admin.auth_projects.apply_environment_desired_state(
+                "project-1", "environment-1", {"desiredState": desired, "expectedRevision": 6},
+                {"owning_user_uuid": OWNING_USER, "idempotency_key": "idem-apply"},
+            )
+
+        self.assertEqual([keeps, clears], [call["payload"]["desiredState"] for call in transport.calls])
+
     def test_previews_the_environment_desired_state(self) -> None:
         client, transport = client_with(
             {
