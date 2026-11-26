@@ -32,6 +32,7 @@ export { ConvergenceStory, type ConvergenceStoryLabels, type ConvergenceStoryPro
 export { ForecastChart, type ForecastChartLabels, type ForecastChartProps } from "./forecast-chart.js";
 export type { ArrivalHistogramBin, ArrivalHistogramData, ChartFormatters, ConvergenceEstimate, ForecastChartData, ForecastEarlierRun, ForecastInterval, ForecastPoint, ForecastPosteriorLine, } from "./forecast-types.js";
 export { CUSTD_HOSTED_APP_LOADING, CustdHostedAppProvider, type CustdHostedAppProviderProps, type CustdHostedAppState, useCustdHostedApp, } from "./hosted-app.js";
+export { machineAccessQueryKeys, useEffectiveMachineAccess, useMachineAccess, useMachineAccessOverride, useUpdateMachineAccess, useUpdateMachineAccessOverride, } from "./machine-access.js";
 export { MeasureNextPanel, type MeasureNextPanelLabels, type MeasureNextPanelProps, } from "./measure-next-panel.js";
 export { ModelCalculator, type ModelCalculatorInput, type ModelCalculatorLabels, type ModelCalculatorProps, type ModelCalculatorRequest, type ModelCalculatorResult, } from "./model-calculator.js";
 export { downloadSummaryCsv } from "./model-csv.js";

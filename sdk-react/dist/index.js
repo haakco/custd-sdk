@@ -56,6 +56,7 @@ export { ArrivalHistogram, } from "./arrival-histogram.js";
 export { ConvergenceStory } from "./convergence-story.js";
 export { ForecastChart } from "./forecast-chart.js";
 export { CUSTD_HOSTED_APP_LOADING, CustdHostedAppProvider, useCustdHostedApp, } from "./hosted-app.js";
+export { machineAccessQueryKeys, useEffectiveMachineAccess, useMachineAccess, useMachineAccessOverride, useUpdateMachineAccess, useUpdateMachineAccessOverride, } from "./machine-access.js";
 export { MeasureNextPanel, } from "./measure-next-panel.js";
 export { ModelCalculator, } from "./model-calculator.js";
 export { downloadSummaryCsv } from "./model-csv.js";

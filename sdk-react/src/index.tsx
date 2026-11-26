@@ -184,6 +184,14 @@ export {
   useCustdHostedApp,
 } from "./hosted-app.js";
 export {
+  machineAccessQueryKeys,
+  useEffectiveMachineAccess,
+  useMachineAccess,
+  useMachineAccessOverride,
+  useUpdateMachineAccess,
+  useUpdateMachineAccessOverride,
+} from "./machine-access.js";
+export {
   MeasureNextPanel,
   type MeasureNextPanelLabels,
   type MeasureNextPanelProps,
