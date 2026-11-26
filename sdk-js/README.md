@@ -10,22 +10,14 @@ release **3.52.0** on 2026-11-17, including Node 26, pnpm 12 and Expo 58 consume
 
 ## Install
 
-For npm consumers, install a versioned GitHub Release tarball. npm writes the
-resolved URL and SHA-512 integrity to the lockfile.
+Both packages are public on npmjs and released at every SDK tag:
 
 ```bash
-npm install 'https://github.com/haakco/custd-sdk/releases/download/v3.64.8/custd-sdk-3.64.8.tgz'
+pnpm add @haakco/custd-sdk@^3.71.1
 ```
 
-Existing pnpm consumers can continue using the GitHub package path:
-
-```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.52.0&path:/sdk-js'
-```
-
-Pin the tag to the SDK version you want. The package is no longer published to
-HaakCo's Verdaccio registry; the last version there is 3.35.2, kept for installs
-that already pin it.
+A pnpm project with `minimumReleaseAge` set should list `@haakco/*` in
+`minimumReleaseAgeExclude`, so a new SDK release installs on the day it ships.
 
 ## Server-side producer usage
 

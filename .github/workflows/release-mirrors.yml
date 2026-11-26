@@ -8,13 +8,14 @@ name: Release Mirrors
 #                      is pulled from Infisical at runtime (Universal Auth,
 #                      matching custd/cb) and passed via http.extraheader so it
 #                      never lands in argv/process list or logs.
-#   publish-js         attach the npm package tarball to the tagged GitHub release.
+#   publish-npm        publish @haakco/custd-sdk and @haakco/custd-react to npmjs.
 #
 # Publishing lived in ci.yml behind `needs:` on the test jobs. That meant one
 # failing runner could withhold a release that had already been tagged and
 # verified. The guard is now a job of its own, and each artifact depends only on
 # it, so a failure in one can no longer withhold the others. The JS packages are
-# not published to a registry: consumers can install the versioned release tarball.
+# public on npmjs, published through its trusted publisher (GitHub OIDC), so the
+# job holds no npm token.
 
 on:
   push:
@@ -133,40 +134,51 @@ jobs:
           GIT_AUTH_HEADER="$auth_header" scripts/publish-release-mirror.sh \
             "$mirror_url" "$split_sha" "$TAG" "$PREFIX"
 
-  publish-js:
+  publish-npm:
     needs: [release-guard]
     runs-on: haakco-build
     permissions:
-      contents: write
+      contents: read
+      id-token: write
     container:
       image: ghcr.io/haakco/actions-runner:2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
       options: --user root
+    env:
+      NPM_REGISTRY: https://registry.npmjs.org/
+      VERSION_TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 26.13.1
           package-manager-cache: false
-      - name: Pack and publish the JavaScript SDK
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+      - name: Check the checked-in JavaScript
         run: |
-          asset="$(bash scripts/pack-js-release.sh "$RUNNER_TEMP/custd-js")"
-          if ! existing="$(gh release view "$TAG" --json assets --jq '.assets[].name')"; then
-            gh release create "$TAG" "$asset" --verify-tag --title "$TAG" --generate-notes
-            exit
+          bash scripts/check-sdk-version-identity.sh
+          bash scripts/check-js-source-archive.sh
+      # Each package is published only when npmjs does not already have the version, so a
+      # re-run completes a partial release instead of failing on the immutable version. The
+      # trusted publisher exchanges this job's OIDC identity for a short-lived credential;
+      # npm does that from 11.5.1. --@haakco:registry overrides any runner scope setting.
+      - name: Publish to npmjs
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${VERSION_TAG#v}"
+          npm_version="$(npm --version)"
+          if [[ "$(printf '%s\n%s\n' 11.5.1 "$npm_version" | sort -V | head -n1)" != 11.5.1 ]]; then
+            echo "::error::npm $npm_version cannot use the trusted publisher; 11.5.1 or newer is required" >&2
+            exit 1
           fi
-          name="$(basename "$asset")"
-          if grep -Fxq "$name" <<< "$existing"; then
-            previous="$(mktemp)"
-            trap 'rm -f "$previous"' EXIT
-            gh release download "$TAG" --pattern "$name" --output - > "$previous"
-            cmp "$asset" "$previous"
-          else
-            gh release upload "$TAG" "$asset"
-          fi
+          registry_args=(--registry "$NPM_REGISTRY" --@haakco:registry="$NPM_REGISTRY")
+          for dir in sdk-js sdk-react; do
+            name="$(node -p "require('./$dir/package.json').name")"
+            if npm view "$name@$version" version "${registry_args[@]}" >/dev/null 2>&1; then
+              echo "$name@$version is already on npmjs; skipped."
+              continue
+            fi
+            (cd "$dir" && npm publish --ignore-scripts --access public --provenance "${registry_args[@]}")
+          done

@@ -14,11 +14,10 @@ function or existing `UseQueryResult`. The session helpers wrap a core
 ## Install
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.52.0&path:/sdk-js' \
-  '@haakco/custd-react@github:haakco/custd-sdk#v3.52.0&path:/sdk-react'
+pnpm add @haakco/custd-sdk@^3.71.1 @haakco/custd-react@^3.71.1
 ```
 
-Use the same released tag for both packages. These examples were verified on
+Use the same released version for both packages; both are public on npmjs. These examples were verified on
 2026-11-17 against **3.52.0**. Keep the application's installed React 18/19 and
 TanStack Query 5 peers; do not install a different React copy for this helper.
 GitHub tags with checked-in distributions are the publication owner, not a

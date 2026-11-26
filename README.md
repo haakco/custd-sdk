@@ -28,8 +28,8 @@ installs code that cannot express a canonical pack.
 | `haakco/custd-laravel` | `3.71.1` |
 | `haakco/custd-wordpress` | `3.71.1` |
 | `github.com/haakco/custd-sdk-go/v3` | `v3.71.1` |
-| `@haakco/custd-sdk` (JS) | `github:haakco/custd-sdk#v3.71.1&path:/sdk-js`, installed with pnpm |
-| `@haakco/custd-react` (JS) | `github:haakco/custd-sdk#v3.71.1&path:/sdk-react`, installed with pnpm |
+| `@haakco/custd-sdk` (JS) | `3.71.1` on npmjs |
+| `@haakco/custd-react` (JS) | `3.71.1` on npmjs |
 | `custd-sdk` (Python) | `git+https://github.com/haakco/custd-sdk.git@v3.71.1#subdirectory=sdk-python` |
 | `custd-sdk` (Rust) | `custd-sdk = { git = "https://github.com/haakco/custd-sdk", tag = "v3.71.1" }` |
 
@@ -137,12 +137,11 @@ mise exec -- just test-php
 ```
 
 The React helpers are a separate optional package. Install it alongside the
-core TypeScript SDK at the same released tag, keeping your app's supported
+core TypeScript SDK at the same released version, keeping your app's supported
 React and React Query versions (React 18/19 and TanStack Query 5):
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.71.1&path:/sdk-js' \
-  '@haakco/custd-react@github:haakco/custd-sdk#v3.71.1&path:/sdk-react'
+pnpm add @haakco/custd-sdk@^3.71.1 @haakco/custd-react@^3.71.1
 ```
 
 `@haakco/custd-react` does not create a Custd client or hold browser
