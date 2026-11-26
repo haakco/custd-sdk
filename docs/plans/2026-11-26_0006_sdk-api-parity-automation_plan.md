@@ -102,11 +102,12 @@ heuristic script. People cannot keep five SDKs and about 540 admin operations al
     `reviewed_at` date and a SHA-256 for each input, replacing the Custd commit, which a URL cannot
     give.
   - **SDK workflow:** `.github/workflows/api-contract-sync.yml` runs hourly and on dispatch, on
-    `haakco-build`. It syncs, regenerates the JS response lists and runs
-    `check-sdk-surface.py --complete`. When anything changed, it force-pushes
-    `automation/api-contract-sync` and opens or updates one pull request with the repository's
-    `GITHUB_TOKEN`, with the surface result in the body. A failed fetch fails the run before it writes
-    anything, and an unchanged snapshot opens nothing.
+    `haakco-build`. An unchanged snapshot stops after the Python sync and opens nothing, and a failed
+    fetch fails the run before it writes anything. When the snapshot changed, it regenerates the JS
+    response lists and runs `check-sdk-surface.py --complete`. It then commits the generated files on
+    top of `automation/api-contract-sync`, or on `main` if that branch is absent. It never
+    force-pushes, so commits people add to the branch are kept. Last, it opens or updates one pull
+    request with the repository's `GITHUB_TOKEN` and puts the surface result in the body.
 - **Proof (local, 2026-11-26):**
   - The published layout was rebuilt at Custd `82873e00c` with the new generator. Its two OpenAPI files
     are byte-identical to that commit's published copies.
@@ -117,10 +118,16 @@ heuristic script. People cannot keep five SDKs and about 540 admin operations al
   - Live OpenAPI plus HEAD's route list gives 725 operations, 634 required: 4 added, 1 removed and
     5 changed against the snapshot. This is the first pull request's content.
   - `actionlint` passes.
+  - The branch step was simulated against a local bare remote over three runs:
+    - It creates the branch.
+    - It leaves the branch alone when the branch already holds the snapshot, keeping a person's
+      commit.
+    - It adds a further refresh on top of that commit.
 - **Hosted proof still open:** after the Custd deploy, dispatch the workflow and confirm it opens the
   pull request.
-- **Known limit:** GitHub does not start `ci.yml` for a pull request pushed with `GITHUB_TOKEN`. The
-  workflow's own `check-sdk-surface.py --complete` result is the pull request's surface proof. Close
+- **Known limit:** GitHub does not start `ci.yml` for a pull request pushed with `GITHUB_TOKEN`.
+  `ci.yml`'s surface check also omits `--complete`, so merging a snapshot pull request with gaps turns
+  nothing red. The workflow's `--complete` result in the pull request body is the surface proof. Close
   and reopen the pull request to run the full CI before merging.
 - **Still open:** `api-parity.json` gains an `sdk` disposition read from the released
   `sdk-surface.json`, so `custdctl validate api-parity` reports SDK coverage beside CLI and MCP.

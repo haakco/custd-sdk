@@ -5,7 +5,8 @@ name: API Contract Sync
 # Custd is private, so the public docs are the only input: no cross-repository credential.
 # A failed fetch fails the run before anything is written; an unchanged snapshot opens nothing.
 # SDK coverage gaps the new snapshot exposes go in the pull request body, not the run status:
-# they are the work the pull request asks for, and ci.yml gates main on them.
+# they are the work the pull request asks for. ci.yml does not start for a pull request pushed
+# with GITHUB_TOKEN, and its surface check omits --complete, so read the body before merging.
 
 on:
   schedule:
@@ -42,25 +43,32 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.15.2"
+      - name: Refresh the snapshot from Custd's published contract
+        id: sync
+        run: |
+          python3 -m pip install --quiet pyyaml==6.0.4
+          python3 scripts/sync-api-contract.py --source "$SOURCE"
+          if [[ -n "$(git status --porcelain -- contract-fixtures/api)" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Snapshot is current; no pull request."
+          fi
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        if: steps.sync.outputs.changed == 'true'
         with:
           node-version: 26.13.1
           package-manager-cache: false
-      - name: Install pinned pnpm
+      - name: Regenerate the JS response lists
+        if: steps.sync.outputs.changed == 'true'
         run: |
           version="$(node -p "require('./package.json').packageManager.split('@')[1]")"
           npm install --global --prefix "$RUNNER_TEMP/pnpm" "pnpm@$version"
-          echo "$RUNNER_TEMP/pnpm/bin" >> "$GITHUB_PATH"
-      - name: Install sync dependencies
-        run: |
-          python3 -m pip install --quiet pyyaml==6.0.3
+          export PATH="$RUNNER_TEMP/pnpm/bin:$PATH"
           pnpm -C sdk-js install --frozen-lockfile
-      - name: Refresh the snapshot from Custd's published contract
-        run: |
-          python3 scripts/sync-api-contract.py --source "$SOURCE"
           pnpm -C sdk-js run generate:response-lists
       - name: Check SDK coverage against the refreshed snapshot
         id: surface
+        if: steps.sync.outputs.changed == 'true'
         run: |
           set +e
           python3 scripts/check-sdk-surface.py --complete > "$RUNNER_TEMP/surface.txt" 2>&1
@@ -68,31 +76,42 @@ jobs:
           cat "$RUNNER_TEMP/surface.txt"
           exit 0
       - name: Open or update the sync pull request
+        if: steps.sync.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           SURFACE_STATUS: ${{ steps.surface.outputs.status }}
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          paths=(contract-fixtures/api sdk-js/src/response-lists.generated.ts)
-          if [[ -z "$(git status --porcelain -- "${paths[@]}")" ]]; then
-            echo "Snapshot is current; no pull request."
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$BRANCH"
+          # Only the generated files: coverage/ belongs to the SDK tests people update on this branch.
+          paths=(contract-fixtures/api/operations.json contract-fixtures/api/examples
+            sdk-js/src/response-lists.generated.ts)
+          refreshed="$RUNNER_TEMP/refreshed"
+          mkdir -p "$refreshed"
+          cp -R --parents "${paths[@]}" "$refreshed/"
+          rm -rf contract-fixtures/api/examples
+          git restore -- "${paths[@]}"
+          # Commits people add to the branch (SDK coverage for the new operations) are kept:
+          # the refresh lands on top of the existing branch and is never force-pushed.
+          if git fetch --quiet origin "$BRANCH" 2>/dev/null; then
+            git switch --quiet -c "$BRANCH" FETCH_HEAD
+          else
+            git switch --quiet -c "$BRANCH" origin/main
+          fi
+          rm -rf contract-fixtures/api/examples
+          cp -R "$refreshed/." .
           git add -- "${paths[@]}"
-          git commit --quiet -m "chore(contract): refresh the API snapshot from Custd's published contract"
-          if git fetch --quiet origin "$BRANCH" 2>/dev/null &&
-            [[ "$(git rev-parse HEAD:)" == "$(git rev-parse FETCH_HEAD:)" ]]; then
+          if git diff --cached --quiet; then
             echo "Pull request branch already holds this snapshot."
           else
-            git push --force origin "HEAD:refs/heads/$BRANCH"
+            git commit --quiet -m "chore(contract): refresh the API snapshot from Custd's published contract"
+            git push origin "HEAD:refs/heads/$BRANCH"
           fi
           {
             echo "Automated refresh of \`contract-fixtures/api\` from $SOURCE."
             echo
-            git diff --stat HEAD~1 HEAD
+            git diff --stat origin/main HEAD -- "${paths[@]}"
             echo
             if [[ "$SURFACE_STATUS" == "0" ]]; then
               echo "\`check-sdk-surface.py --complete\` passes: every SDK covers every required operation."
@@ -104,8 +123,8 @@ jobs:
               echo '```'
             fi
           } > "$RUNNER_TEMP/body.md"
-          if number="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')" &&
-            [[ -n "$number" ]]; then
+          number="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number')"
+          if [[ -n "$number" ]]; then
             gh pr edit "$number" --body-file "$RUNNER_TEMP/body.md"
           else
             gh pr create --base main --head "$BRANCH" \
