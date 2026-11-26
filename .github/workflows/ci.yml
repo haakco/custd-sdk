@@ -312,7 +312,7 @@ jobs:
       - name: Lint GitHub Actions workflows
         run: PATH="$(go env GOPATH)/bin:$PATH" actionlint
       - name: Lint Markdown
-        run: pnpm exec markdownlint-cli2 '**/*.md' '#**/node_modules' '#vendor' '#sdk-php/vendor' '#laravel-package/vendor' '#wordpress-plugin/vendor' '#.opencode' '#docs/tmp'
+        run: pnpm exec markdownlint-cli2 '**/*.md' '#**/node_modules' '#**/target' '#vendor' '#sdk-php/vendor' '#laravel-package/vendor' '#wordpress-plugin/vendor' '#.opencode' '#docs/tmp'
       - name: Check diff whitespace
         run: git diff-tree --check --no-commit-id --root -r HEAD
       - name: Check SDK identity constants
