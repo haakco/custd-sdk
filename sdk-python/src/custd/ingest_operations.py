@@ -19,7 +19,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any, Literal, NotRequired, TypedDict, cast
 
-from ._wire import answer, decode, request
+from ._wire import decode, public_request, request
 from .admin_site_insights import SiteReport
 from .client import (
     AdminClient,
@@ -720,7 +720,7 @@ def _collect(
         "Origin": origin,
         "X-Custd-Sdk": IDENTITY,
     }
-    return _public(api_base_url, "POST", path, payload, headers, timeout, transport)
+    return public_request(api_base_url, "POST", path, payload, headers, timeout, transport)
 
 
 def read_shared_site_report(
@@ -734,7 +734,8 @@ def read_shared_site_report(
     if not token.strip():
         raise ValueError("custd: shared site report requires a share token")
     path = f"/api/v1/shared-site-reports/{quote_path(token)}"
-    return decode(SiteReport, _public(api_base_url, "GET", path, None, {"X-Custd-Sdk": IDENTITY}, timeout, transport))
+    body = public_request(api_base_url, "GET", path, None, {"X-Custd-Sdk": IDENTITY}, timeout, transport)
+    return decode(SiteReport, body)
 
 
 def read_auth_domain_monitoring_inventory(
@@ -749,22 +750,8 @@ def read_auth_domain_monitoring_inventory(
         raise ValueError("custd: auth domain monitoring requires a monitoring key")
     headers = {"X-Custd-Sdk": IDENTITY, AUTH_DOMAIN_MONITORING_KEY_HEADER: monitoring_key}
     path = "/api/v1/auth-domain-monitoring/inventory"
-    return decode(AuthDomainMonitoringInventory, _public(api_base_url, "GET", path, None, headers, timeout, transport))
-
-
-def _public(
-    api_base_url: str,
-    method: str,
-    path: str,
-    payload: dict[str, Any] | None,
-    headers: dict[str, str],
-    timeout: float,
-    transport: AdminTransport | None,
-) -> object:
-    base = api_base_url.rstrip("/")
-    assert_secure_or_local_http(base, "api_base_url")
-    result = (transport or default_admin_transport)(method, base + path, payload, headers, timeout)
-    return answer(int(result["status"]), result.get("body"), path)
+    body = public_request(api_base_url, "GET", path, None, headers, timeout, transport)
+    return decode(AuthDomainMonitoringInventory, body)
 
 
 ERROR_CAPTURE_PLATFORMS = ("javascript", "go")

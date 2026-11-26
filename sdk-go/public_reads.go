@@ -2,6 +2,7 @@ package custd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -100,4 +101,60 @@ func (c *CustdClient) publicRead(ctx context.Context, path string, headers map[s
 		return validationWrap("custd: decode public response", err)
 	}
 	return nil
+}
+
+// SiteStatusSubscriptionRequest asks a public status page to email updates to one address.
+type SiteStatusSubscriptionRequest struct {
+	Email string `json:"email"`
+}
+
+// SiteStatusSubscriptionToken is the single-use token from a status page subscription email.
+type SiteStatusSubscriptionToken struct {
+	Token string `json:"token"`
+}
+
+// GetPublicStatusPage reads a published status page by its public key. It
+// sends no credential; an unpublished key answers 404.
+func (c *CustdClient) GetPublicStatusPage(ctx context.Context, key string) (*AdminSiteStatusPage, error) {
+	var out AdminSiteStatusPage
+	err := c.publicRead(ctx, publicStatusPagePath(key), nil, &out)
+	return &out, err
+}
+
+// SubscribeToStatusPage asks for a confirmation email. The server answers the
+// same way for an unknown key, so success does not prove the page exists.
+func (c *CustdClient) SubscribeToStatusPage(ctx context.Context, key string, request SiteStatusSubscriptionRequest) error {
+	return c.publicWrite(ctx, publicStatusPagePath(key)+"/subscribe", request)
+}
+
+// ConfirmStatusPageSubscription confirms a subscription with the emailed token.
+func (c *CustdClient) ConfirmStatusPageSubscription(ctx context.Context, key string, token SiteStatusSubscriptionToken) error {
+	return c.publicWrite(ctx, publicStatusPagePath(key)+"/confirm-subscription", token)
+}
+
+// UnsubscribeFromStatusPage ends a subscription with the emailed token.
+func (c *CustdClient) UnsubscribeFromStatusPage(ctx context.Context, key string, token SiteStatusSubscriptionToken) error {
+	return c.publicWrite(ctx, publicStatusPagePath(key)+"/unsubscribe", token)
+}
+
+func publicStatusPagePath(key string) string {
+	return "/api/v1/public-status-pages/" + url.PathEscape(key)
+}
+
+// publicWrite posts a JSON body to a route whose only authority is the body or
+// path, answering 204 with no body.
+func (c *CustdClient) publicWrite(ctx context.Context, path string, body any) error {
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("custd: encode public request: %w", err)
+	}
+	response, err := c.requestApplication(ctx, &HTTPRequest{
+		Method: http.MethodPost, URL: strings.TrimRight(c.config.BaseURL, "/") + path,
+		Headers: map[string]string{"Content-Type": "application/json", "X-Custd-Sdk": sdkIdentity},
+		Body:    payload,
+	})
+	if err != nil {
+		return err
+	}
+	return c.checkStatus(response.StatusCode, response.Body)
 }

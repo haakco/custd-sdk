@@ -11,6 +11,7 @@ export declare const SiteReportTemplate: {
     readonly Executive: "executive";
     readonly Full: "full";
 };
+export type SiteReportTemplate = (typeof SiteReportTemplate)[keyof typeof SiteReportTemplate];
 /** getReport's options: the template (default full) and the search window in days (1..90, default 28). */
 export type SiteReportRequestOptions = SiteDomainRequestOptions & {
     template?: string;
@@ -20,14 +21,14 @@ export type SiteReportRequestOptions = SiteDomainRequestOptions & {
 export type SavedSiteReportRequest = {
     name: string;
     /** A SiteReportTemplate value. */
-    template?: string;
+    template?: SiteReportTemplate;
     days?: number;
 };
 export type SavedSiteReportSummary = {
     reportUuid: string;
     name: string;
     /** A SiteReportTemplate value. */
-    template: string;
+    template: SiteReportTemplate;
     days: number;
     generatedAt: string;
     createdAt: string;

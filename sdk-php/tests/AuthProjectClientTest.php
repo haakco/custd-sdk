@@ -554,6 +554,35 @@ final class AuthProjectClientTest extends TestCase
         self::assertArrayNotHasKey("displayNameSource", $payload);
     }
 
+    /**
+     * The desired state a status reports for a realm nobody has configured, as desiredStateFromStore writes it:
+     * every presentation field present, unset ones empty, the stored session policy and an empty provider list.
+     * Custd stores an omitted, empty or null name, entry path, accent and method list alike as unset, so reading
+     * them as unset keeps a read-then-apply a no-op; the session policy and social sign-in are always reported.
+     */
+    public function testReadsAnUntouchedRealmsReportedStateAsUnsetSections(): void
+    {
+        $observed = DesiredState::fromPayload(json_decode('{"identityMode":"isolated","registrationPolicy":"invite_only",
+            "loginPaused":false,"entryPath":"","brandAccent":"","displayName":"","displayNameSource":"application",
+            "audiences":[],"profileFields":[],"signInMethods":[],"applicationSessionPolicy":"offer_remember_me",
+            "socialSignIn":{"providers":[]}}', false, flags: JSON_THROW_ON_ERROR));
+        $configured = new DesiredState("isolated", "invite_only", false, entryPath: "/acme", brandAccent: "#112233", signInMethods: ["password"]);
+
+        self::assertNull($observed->displayName);
+        self::assertNull($observed->entryPath);
+        self::assertNull($observed->brandAccent);
+        self::assertNull($observed->signInMethods);
+        self::assertSame([
+            "identityMode" => "isolated", "registrationPolicy" => "invite_only", "loginPaused" => false,
+            "audiences" => [], "profileFields" => [], "displayNameSource" => "application",
+            "applicationSessionPolicy" => "offer_remember_me", "socialSignIn" => ["providers" => []],
+        ], $observed->toPayload());
+        self::assertSame(["entryPath" => "/acme", "brandAccent" => "#112233", "signInMethods" => ["password"]], array_intersect_key(
+            $configured->toPayload(),
+            ["entryPath" => true, "brandAccent" => true, "signInMethods" => true],
+        ));
+    }
+
     public function testSendsWithdrawalOnlyWhenAsked(): void
     {
         $read = DesiredState::fromPayload((object) [

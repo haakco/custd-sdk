@@ -23,13 +23,17 @@ pub struct TenantStorageLocationView {
     pub bucket: String,
     pub code: String,
     pub company_id: i64,
+    pub created_at: String,
     pub endpoint: String,
     pub id: i64,
     pub isolation_tier: String,
     pub provider: String,
     pub region: String,
     pub root_prefix: String,
+    pub updated_at: String,
     pub uuid: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validated_at: Option<String>,
     pub validation_status: String,
     pub write_enabled: bool,
 }

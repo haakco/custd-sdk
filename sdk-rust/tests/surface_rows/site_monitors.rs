@@ -19,8 +19,13 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api POST /api/v1/site-domains/{domainUuid}/incidents/{incidentUuid}/acknowledgment",
-            "/api/v1/site-domains/d-1/incidents/i-1/acknowledgment",
-            |c| drop(c.custd.acknowledge_site_incident("i-1", "d-1")),
+            "/api/v1/site-domains/d-1/incidents/i-1/acknowledgment?companySlug=acme",
+            |c| {
+                drop(
+                    c.custd
+                        .acknowledge_site_incident("i-1", "d-1", Some("acme")),
+                )
+            },
             round_trip::<SiteIncident>,
         ),
         row(
@@ -37,27 +42,28 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api POST /api/v1/site-domains/{domainUuid}/heartbeats",
-            "/api/v1/site-domains/d-1/heartbeats",
+            "/api/v1/site-domains/d-1/heartbeats?companySlug=acme",
             |c| {
                 drop(c.custd.create_site_heartbeat(
                     "d-1",
                     &body::<SiteHeartbeatCreate>(
                         r#"{"name":"x","schedule":{"cron":"x","graceMinutes":1,"timezone":"x"}}"#,
                     ),
+                    Some("acme"),
                 ))
             },
             round_trip::<SiteHeartbeatCredential>,
         ),
         row(
             "admin-api POST /api/v1/site-domains/{domainUuid}/heartbeats/{monitorUuid}/credential",
-            "/api/v1/site-domains/d-1/heartbeats/m-1/credential",
-            |c| drop(c.custd.rotate_site_heartbeat("m-1", "d-1")),
+            "/api/v1/site-domains/d-1/heartbeats/m-1/credential?companySlug=acme",
+            |c| drop(c.custd.rotate_site_heartbeat("m-1", "d-1", Some("acme"))),
             round_trip::<SiteHeartbeatCredential>,
         ),
         bodiless(
             "admin-api DELETE /api/v1/site-domains/{domainUuid}/heartbeats/{monitorUuid}",
-            "/api/v1/site-domains/d-1/heartbeats/m-1",
-            |c| drop(c.custd.delete_site_heartbeat("m-1", "d-1")),
+            "/api/v1/site-domains/d-1/heartbeats/m-1?companySlug=acme",
+            |c| drop(c.custd.delete_site_heartbeat("m-1", "d-1", Some("acme"))),
         ),
         row(
             "admin-api GET /api/v1/site-domains/{domainUuid}/private-uptime",
@@ -67,25 +73,26 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api POST /api/v1/site-domains/{domainUuid}/private-uptime",
-            "/api/v1/site-domains/d-1/private-uptime",
+            "/api/v1/site-domains/d-1/private-uptime?companySlug=acme",
             |c| {
                 drop(c.custd.create_private_uptime(
                     "d-1",
                     &body::<SitePrivateUptimeMonitorCreate>(r#"{"networkLabel":"x"}"#),
+                    Some("acme"),
                 ))
             },
             round_trip::<SitePrivateUptimeCredential>,
         ),
         row(
             "admin-api POST /api/v1/site-domains/{domainUuid}/private-uptime/{monitorUuid}/credential",
-            "/api/v1/site-domains/d-1/private-uptime/m-1/credential",
-            |c| drop(c.custd.rotate_private_uptime("m-1", "d-1")),
+            "/api/v1/site-domains/d-1/private-uptime/m-1/credential?companySlug=acme",
+            |c| drop(c.custd.rotate_private_uptime("m-1", "d-1", Some("acme"))),
             round_trip::<SitePrivateUptimeCredential>,
         ),
         bodiless(
             "admin-api DELETE /api/v1/site-domains/{domainUuid}/private-uptime/{monitorUuid}",
-            "/api/v1/site-domains/d-1/private-uptime/m-1",
-            |c| drop(c.custd.delete_private_uptime("m-1", "d-1")),
+            "/api/v1/site-domains/d-1/private-uptime/m-1?companySlug=acme",
+            |c| drop(c.custd.delete_private_uptime("m-1", "d-1", Some("acme"))),
         ),
         row(
             "admin-api POST /api/v1/site-domains/{domainUuid}/private-uptime/check",

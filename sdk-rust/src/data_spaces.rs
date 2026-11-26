@@ -96,7 +96,7 @@ pub struct ProducerReservation {
     pub parent_company_slug: String,
     pub producer_slug: String,
     pub reserved_at: String,
-    pub status: String,
+    pub status: ProducerReservationStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -110,6 +110,30 @@ pub struct ProducerReservationCreateRequest {
 #[serde(rename_all = "camelCase")]
 pub struct ProducerReservationClaimRequest {
     pub claimed_by_client_id: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ProducerReservationStatus {
+    #[serde(rename = "pending")]
+    Pending,
+    #[serde(rename = "claimed")]
+    Claimed,
+    #[serde(rename = "released")]
+    Released,
+    #[serde(rename = "expired")]
+    Expired,
+}
+
+impl ProducerReservationStatus {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Claimed => "claimed",
+            Self::Released => "released",
+            Self::Expired => "expired",
+        }
+    }
 }
 
 impl CustdClient {
@@ -167,13 +191,14 @@ impl CustdClient {
     pub fn list_producer_reservations(
         &self,
         slug: &str,
+        parent_company_slug: Option<&str>,
     ) -> Result<ProducerReservationListResponse> {
         let path = api_path(
             format!(
                 "/api/v1/data-spaces/{}/producer-reservations",
                 percent_encode(slug)
             ),
-            &[],
+            &[("parentCompanySlug", parent_company_slug.map(str::to_owned))],
             None,
         );
         self.call(Method::Get, &path, NO_BODY)
@@ -183,6 +208,7 @@ impl CustdClient {
     pub fn reserve_producer_reservation(
         &self,
         slug: &str,
+        parent_company_slug: Option<&str>,
         request: &ProducerReservationCreateRequest,
     ) -> Result<ProducerReservation> {
         let path = api_path(
@@ -190,7 +216,7 @@ impl CustdClient {
                 "/api/v1/data-spaces/{}/producer-reservations",
                 percent_encode(slug)
             ),
-            &[],
+            &[("parentCompanySlug", parent_company_slug.map(str::to_owned))],
             None,
         );
         self.call(Method::Post, &path, Some(request))
@@ -201,6 +227,7 @@ impl CustdClient {
         &self,
         slug: &str,
         producer_slug: &str,
+        parent_company_slug: Option<&str>,
         request: &ProducerReservationClaimRequest,
     ) -> Result<ProducerReservation> {
         let path = api_path(
@@ -209,21 +236,26 @@ impl CustdClient {
                 percent_encode(slug),
                 percent_encode(producer_slug)
             ),
-            &[],
+            &[("parentCompanySlug", parent_company_slug.map(str::to_owned))],
             None,
         );
         self.call(Method::Post, &path, Some(request))
     }
 
     /// Release a producer reservation.
-    pub fn release_producer_reservation(&self, slug: &str, producer_slug: &str) -> Result<()> {
+    pub fn release_producer_reservation(
+        &self,
+        slug: &str,
+        producer_slug: &str,
+        parent_company_slug: Option<&str>,
+    ) -> Result<()> {
         let path = api_path(
             format!(
                 "/api/v1/data-spaces/{}/producer-reservations/{}",
                 percent_encode(slug),
                 percent_encode(producer_slug)
             ),
-            &[],
+            &[("parentCompanySlug", parent_company_slug.map(str::to_owned))],
             None,
         );
         self.call(Method::Delete, &path, NO_BODY)

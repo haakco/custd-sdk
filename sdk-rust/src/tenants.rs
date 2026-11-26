@@ -66,6 +66,45 @@ pub struct DataSpaceEntitlementUpdateRequest {
     pub max_active_producers_per_data_space: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TenantOffboardingReceipt {
+    #[serde(rename = "company_id")]
+    pub company_id: i64,
+    #[serde(rename = "completed_at")]
+    pub completed_at: String,
+    #[serde(rename = "final_state")]
+    pub final_state: TenantOffboardingReceiptFinalState,
+    #[serde(rename = "per_store", default, deserialize_with = "null_as_empty")]
+    pub per_store: Vec<TenantReceiptPerStore>,
+    #[serde(rename = "requested_at")]
+    pub requested_at: String,
+    #[serde(rename = "requested_by_kind")]
+    pub requested_by_kind: String,
+    pub sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub waiver: Option<TenantReceiptWaiver>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TenantReceiptPerStore {
+    #[serde(rename = "deleted_count")]
+    pub deleted_count: i64,
+    #[serde(rename = "retained_exceptions_count")]
+    pub retained_exceptions_count: i64,
+    #[serde(rename = "retention_class")]
+    pub retention_class: String,
+    pub store: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TenantReceiptWaiver {
+    pub role: String,
+    pub timestamp: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TenantPurpose {
     #[serde(rename = "customer")]
@@ -80,6 +119,60 @@ impl TenantPurpose {
         match self {
             Self::Customer => "customer",
             Self::GeneratedProof => "generated_proof",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TenantOffboardingReceiptFinalState {
+    #[serde(rename = "preview")]
+    Preview,
+    #[serde(rename = "requested")]
+    Requested,
+    #[serde(rename = "exporting")]
+    Exporting,
+    #[serde(rename = "exported")]
+    Exported,
+    #[serde(rename = "confirming")]
+    Confirming,
+    #[serde(rename = "confirmed")]
+    Confirmed,
+    #[serde(rename = "waiver_requested")]
+    WaiverRequested,
+    #[serde(rename = "waiver_approved")]
+    WaiverApproved,
+    #[serde(rename = "fencing")]
+    Fencing,
+    #[serde(rename = "revoking")]
+    Revoking,
+    #[serde(rename = "deleting")]
+    Deleting,
+    #[serde(rename = "complete")]
+    Complete,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "cancelled")]
+    Cancelled,
+}
+
+impl TenantOffboardingReceiptFinalState {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Preview => "preview",
+            Self::Requested => "requested",
+            Self::Exporting => "exporting",
+            Self::Exported => "exported",
+            Self::Confirming => "confirming",
+            Self::Confirmed => "confirmed",
+            Self::WaiverRequested => "waiver_requested",
+            Self::WaiverApproved => "waiver_approved",
+            Self::Fencing => "fencing",
+            Self::Revoking => "revoking",
+            Self::Deleting => "deleting",
+            Self::Complete => "complete",
+            Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
         }
     }
 }

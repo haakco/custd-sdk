@@ -304,7 +304,7 @@ class MeasurementSimulationRunRequest(TypedDict):
 
 
 class MeasurementVOIVariableResponse(TypedDict):
-    variableCode: str
+    variableUuid: str
     name: str
     rank: int
     evpi: float

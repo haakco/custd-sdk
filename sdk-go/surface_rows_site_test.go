@@ -223,6 +223,15 @@ var siteDomainSurfaceRows = []surfaceRow{
 		},
 	},
 	{
+		id:   "admin-api POST /api/v1/site-domains/ai-owner-handoffs",
+		path: "/api/v1/site-domains/ai-owner-handoffs",
+		call: func(e *surfaceEnv) error {
+			_, err := e.client.Admin.SiteDomains.CreateAIOwnerHandoff(context.Background(),
+				SiteAIOwnerHandoffRequest{TenantSlug: "a1", OwnerSubject: "a2"})
+			return err
+		},
+	},
+	{
 		id:   "admin-api GET /api/v1/site-domains/ai-usage",
 		path: "/api/v1/site-domains/ai-usage",
 		call: func(e *surfaceEnv) error {
@@ -394,7 +403,7 @@ var siteDomainSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/site-domains/{domainUuid}/report",
 		path: "/api/v1/site-domains/a1/report",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.SiteDomains.GetReportWithOptions(context.Background(), "a1", AdminSiteReportOptions{})
+			_, err := e.client.Admin.SiteDomains.GetReportWithOptions(context.Background(), "a1", AdminSiteReportOptions{Template: "a2", Days: 7})
 			return err
 		},
 	},
@@ -434,7 +443,7 @@ var siteDomainSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/site-domains/{domainUuid}/search-value",
 		path: "/api/v1/site-domains/a1/search-value",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.SiteDomains.GetSearchValue(context.Background(), "a1", nil, 3)
+			_, err := e.client.Admin.SiteDomains.GetSearchValue(context.Background(), "a1", []string{"a2"}, 3)
 			return err
 		},
 	},
@@ -498,7 +507,7 @@ var siteDomainSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/site-domains/{domainUuid}/campaign-links",
 		path: "/api/v1/site-domains/a1/campaign-links",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.SiteDomains.ListCampaignLinks(context.Background(), "a1", false)
+			_, err := e.client.Admin.SiteDomains.ListCampaignLinks(context.Background(), "a1", true)
 			return err
 		},
 	},
@@ -594,7 +603,7 @@ var siteDomainSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/site-domains/search-pool/queries",
 		path: "/api/v1/site-domains/search-pool/queries",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.SiteDomains.ListSearchPoolQueries(context.Background(), AdminSiteSearchPoolQueriesQuery{})
+			_, err := e.client.Admin.SiteDomains.ListSearchPoolQueries(context.Background(), AdminSiteSearchPoolQueriesQuery{Search: "a1", Limit: 5})
 			return err
 		},
 	},
@@ -602,7 +611,7 @@ var siteDomainSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/site-domains/{domainUuid}/search/rows",
 		path: "/api/v1/site-domains/a1/search/rows",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.SiteDomains.ListSearchRows(context.Background(), "a1", AdminSiteSearchRowsQuery{})
+			_, err := e.client.Admin.SiteDomains.ListSearchRows(context.Background(), "a1", AdminSiteSearchRowsQuery{Dimension: "a2", Provider: AdminSiteSearchProviderGoogle, Days: 7, Offset: 1, Limit: 5})
 			return err
 		},
 	},
@@ -610,7 +619,7 @@ var siteDomainSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/site-domains/web-pages",
 		path: "/api/v1/site-domains/web-pages",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.SiteDomains.ListWebPages(context.Background(), "a1", AdminSiteWebPagesQuery{})
+			_, err := e.client.Admin.SiteDomains.ListWebPages(context.Background(), "a1", AdminSiteWebPagesQuery{SiteUUID: "a2", After: "a3", Limit: 5})
 			return err
 		},
 	},

@@ -15,6 +15,12 @@ final readonly class SiteHeartbeatReport
     ) {
     }
 
+    /** @return array{scheduledFor: string, outcome: string} */
+    public function toPayload(): array
+    {
+        return ['scheduledFor' => $this->scheduledFor, 'outcome' => $this->outcome->value];
+    }
+
     public static function fromPayload(\stdClass $payload): self
     {
         return new self(

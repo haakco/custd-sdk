@@ -15,7 +15,7 @@ pub fn rows() -> Vec<Row> {
                 drop(
                     c.custd
                         .query_analytics_events(&body::<AnalyticsEventsQueryRequest>(
-                            r#"{"date":"x","eventType":"x","limit":1,"source":"x"}"#,
+                            r#"{"date":"x","eventType":"x","limit":1,"source":"auto"}"#,
                         )),
                 )
             },
@@ -25,7 +25,7 @@ pub fn rows() -> Vec<Row> {
             "analytics-api POST /api/v1/analytics/query-range",
             "/api/v1/analytics/query-range",
             |c| {
-                drop(c.custd.query_analytics_event_range(&body::<AnalyticsRangeQueryRequest>(r#"{"eventType":"x","from":"x","groupBy":"x","limit":1,"source":"x","to":"x"}"#)))
+                drop(c.custd.query_analytics_event_range(&body::<AnalyticsRangeQueryRequest>(r#"{"eventType":"x","from":"x","groupBy":"x","limit":1,"source":"auto","to":"x"}"#)))
             },
             round_trip::<AnalyticsRangeQueryResponse>,
         ),

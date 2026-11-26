@@ -21,6 +21,9 @@ final readonly class TenantStorageLocationView
         public string $uuid,
         public string $validationStatus,
         public bool $writeEnabled,
+        public string $createdAt = '',
+        public string $updatedAt = '',
+        public ?string $validatedAt = null,
     ) {
     }
 
@@ -39,6 +42,9 @@ final readonly class TenantStorageLocationView
             Fields::string($payload, 'uuid'),
             Fields::string($payload, 'validationStatus'),
             Fields::boolean($payload, 'writeEnabled'),
+            Fields::string($payload, 'createdAt'),
+            Fields::string($payload, 'updatedAt'),
+            Fields::optionalString($payload, 'validatedAt'),
         );
     }
 }

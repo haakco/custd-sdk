@@ -12,6 +12,8 @@ import {
   validateBrowserEvent,
   withRetry,
 } from "./index.js";
+import { emptySiteConfigNullLists } from "./response-lists.js";
+import { isLocalHostname } from "./secure-url.js";
 
 export type BrowserIdentityMode = "cookieless" | "extended";
 export type BrowserConsentState = "granted" | "denied";
@@ -615,16 +617,12 @@ export async function fetchBrowserSiteConfig(
   siteUuid: string,
   fetchImpl: typeof fetch = (input, init) => globalThis.fetch(input, init),
 ): Promise<BrowserSiteConfig> {
-  const response = await fetchImpl(
-    `${baseUrl.replace(/\/$/, "")}/api/v1/sites/${encodeURIComponent(siteUuid)}/config`,
-    {
-      credentials: "omit",
-    },
-  );
+  const path = `/api/v1/sites/${encodeURIComponent(siteUuid)}/config`;
+  const response = await fetchImpl(`${baseUrl.replace(/\/$/, "")}${path}`, { credentials: "omit" });
   if (!response.ok) {
     throw new Error(`custd: site config request failed with status ${response.status}`);
   }
-  return (await response.json()) as BrowserSiteConfig;
+  return emptySiteConfigNullLists("GET", path, (await response.json()) as BrowserSiteConfig);
 }
 
 function browserContext(page: BrowserPageContext): EventEnvelope["context"] {
@@ -992,12 +990,6 @@ function assertSecureOrLocalHTTP(rawUrl: string, field: string): void {
     return;
   }
   throw new Error(`custd: ${field} must use https unless it targets localhost`);
-}
-
-function isLocalHostname(hostname: string): boolean {
-  return (
-    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "host.docker.internal"
-  );
 }
 
 function randomUUID(): string {

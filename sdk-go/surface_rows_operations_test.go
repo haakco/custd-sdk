@@ -95,7 +95,7 @@ var operationsSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/privacy/consent",
 		path: "/api/v1/admin/privacy/consent",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.Privacy.ListConsent(context.Background(), "", "")
+			_, err := e.client.Admin.Privacy.ListConsent(context.Background(), "", "a1")
 			return err
 		},
 	},
@@ -111,7 +111,7 @@ var operationsSurfaceRows = []surfaceRow{
 		id:   "admin-api DELETE /api/v1/admin/privacy/consent/{subjectId}",
 		path: "/api/v1/admin/privacy/consent/a1",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.Privacy.DeleteConsent(context.Background(), "", "a1", "", "")
+			_, err := e.client.Admin.Privacy.DeleteConsent(context.Background(), "", "a1", "a2", "a3")
 			return err
 		},
 	},
@@ -127,7 +127,7 @@ var operationsSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/time-plans/runs/{runUuid}/predictions",
 		path: "/api/v1/admin/time-plans/runs/a1/predictions",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.TimePlans.ListRunPredictions(context.Background(), "", "a1", 0)
+			_, err := e.client.Admin.TimePlans.ListRunPredictions(context.Background(), "", "a1", 5)
 			return err
 		},
 	},
@@ -167,7 +167,7 @@ var operationsSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/data-spaces/usage",
 		path: "/api/v1/data-spaces/usage",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Provisioning.DataSpaces.Usage(context.Background(), "")
+			_, err := e.client.Provisioning.DataSpaces.Usage(context.Background(), "p1")
 			return err
 		},
 	},
@@ -205,7 +205,7 @@ var operationsSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/ingest/claims/{tenantSlug}",
 		path: "/api/v1/admin/ingest/claims/a1",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.IngestClaims.List(context.Background(), "a1", 0)
+			_, err := e.client.Admin.IngestClaims.List(context.Background(), "a1", 5)
 			return err
 		},
 	},
@@ -261,7 +261,7 @@ var operationsSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/error-issues",
 		path: "/api/v1/error-issues",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.ErrorIssues.List(context.Background(), ErrorIssueListOptions{})
+			_, err := e.client.Admin.ErrorIssues.List(context.Background(), ErrorIssueListOptions{SiteUUID: "a1", State: "a2", Sort: "a3", Limit: 5, Cursor: "a4"})
 			return err
 		},
 	},
@@ -299,10 +299,8 @@ var operationsSurfaceRows = []surfaceRow{
 	},
 
 	{
-		id:          "admin-api POST /api/v1/admin/tenants/{slug}/historical-cleanup",
-		path:        "/api/v1/admin/tenants/a1/historical-cleanup",
-		skipExample: "maximal",
-		skipReason:  "the OpenAPI documents this receipt as a free-form map, so its maximal example is a placeholder key, not the TenantOffboardingReceipt the handler writes",
+		id:   "admin-api POST /api/v1/admin/tenants/{slug}/historical-cleanup",
+		path: "/api/v1/admin/tenants/a1/historical-cleanup",
 		call: func(e *surfaceEnv) error {
 			_, err := e.client.Admin.Tenants.HistoricalCleanup(context.Background(), "a1", 7, "k1")
 			return err

@@ -27,7 +27,7 @@ pub struct Site {
     pub company_slug: String,
     pub enabled: bool,
     pub environment: String,
-    pub identity_mode: String,
+    pub identity_mode: SiteIdentityMode,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ingest_target: Option<SiteIngestTarget>,
     pub name: String,
@@ -79,7 +79,7 @@ pub struct SiteCreateResponse {
     pub company_slug: String,
     pub enabled: bool,
     pub environment: String,
-    pub identity_mode: String,
+    pub identity_mode: SiteIdentityMode,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ingest_target: Option<SiteIngestTarget>,
     pub name: String,
@@ -89,7 +89,7 @@ pub struct SiteCreateResponse {
     pub write_key: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SiteUpdateRequest {
     #[serde(
@@ -101,7 +101,7 @@ pub struct SiteUpdateRequest {
     #[serde(default, deserialize_with = "null_as_empty")]
     pub allowed_origins: Vec<String>,
     pub environment: String,
-    pub identity_mode: String,
+    pub identity_mode: SiteIdentityMode,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ingest_target: Option<SiteIngestTarget>,
 }
@@ -118,10 +118,28 @@ pub struct SiteConfigResponse {
     #[serde(default, deserialize_with = "null_as_empty")]
     pub allowed_origins: Vec<String>,
     pub environment: String,
-    pub identity_mode: String,
+    pub identity_mode: SiteIdentityMode,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub page_view_schema_version: Option<String>,
     pub site_uuid: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SiteIdentityMode {
+    #[serde(rename = "cookieless")]
+    Cookieless,
+    #[serde(rename = "extended")]
+    Extended,
+}
+
+impl SiteIdentityMode {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Cookieless => "cookieless",
+            Self::Extended => "extended",
+        }
+    }
 }
 
 impl CustdClient {

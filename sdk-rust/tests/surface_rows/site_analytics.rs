@@ -71,7 +71,7 @@ pub fn rows() -> Vec<Row> {
             "/api/v1/site-domains/ai-settings",
             |c| {
                 drop(c.custd.set_site_ai_settings(&body::<SiteAISettingsRequest>(
-                    r#"{"aiMode":"x","monthlyCapUsdMicros":1}"#,
+                    r#"{"aiMode":"off","monthlyCapUsdMicros":1}"#,
                 )))
             },
             round_trip::<SiteAISettings>,
@@ -81,8 +81,9 @@ pub fn rows() -> Vec<Row> {
             "/api/v1/site-domains/ai-settings/consent",
             |c| {
                 drop(
-                    c.custd
-                        .set_site_ai_consent(&body::<SiteAIConsentRequest>(r#"{"action":"x"}"#)),
+                    c.custd.set_site_ai_consent(&body::<SiteAIConsentRequest>(
+                        r#"{"action":"grant"}"#,
+                    )),
                 )
             },
             round_trip::<SiteAISettings>,

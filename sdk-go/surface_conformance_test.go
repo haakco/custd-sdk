@@ -39,12 +39,18 @@ type surfaceEnv struct {
 }
 
 type surfaceOperation struct {
-	ID      string `json:"id"`
-	Method  string `json:"method"`
-	Path    string `json:"path"`
-	SDK     string `json:"sdk"`
-	Example string `json:"example"`
+	ID      string                  `json:"id"`
+	Method  string                  `json:"method"`
+	Path    string                  `json:"path"`
+	SDK     string                  `json:"sdk"`
+	Example string                  `json:"example"`
+	Query   []surfaceQueryParameter `json:"query"`
 	pattern *regexp.Regexp
+}
+
+type surfaceQueryParameter struct {
+	Name     string `json:"name"`
+	Required bool   `json:"required"`
 }
 
 type surfaceSnapshot struct {
@@ -87,6 +93,7 @@ func allSurfaceRows() []surfaceRow {
 func TestSurfaceConformance(t *testing.T) {
 	operations := loadSurfaceOperations(t)
 	covered := map[string]bool{}
+	sent := map[string]url.Values{}
 	for _, row := range allSurfaceRows() {
 		operation, ok := operations[row.id]
 		if !ok || operation.SDK != "required" {
@@ -95,9 +102,16 @@ func TestSurfaceConformance(t *testing.T) {
 		covered[row.id] = true
 		t.Run(row.id, func(t *testing.T) {
 			assertSurfaceRoute(t, row, operation, operations)
+			if sent[row.id] == nil {
+				sent[row.id] = url.Values{}
+			}
+			for name := range surfaceQuerySent(t, row) {
+				sent[row.id].Set(name, "")
+			}
 			assertSurfaceExampleDecodes(t, row, operation)
 		})
 	}
+	assertSurfaceQuerySendable(t, operations, sent)
 	assertSurfaceCoverageFile(t, covered)
 }
 
@@ -128,7 +142,59 @@ func assertSurfaceRoute(t *testing.T, row surfaceRow, operation surfaceOperation
 	if resolved := resolveSurfaceOperation(operations, request.Method, row.path); resolved != row.id {
 		t.Fatalf("%s %s resolves to %q, want %q", request.Method, row.path, resolved, row.id)
 	}
+	for _, parameter := range operation.Query {
+		if parameter.Required && !parsed.Query().Has(parameter.Name) &&
+			surfaceRequiredByActingCompany[row.id+" ?"+parameter.Name] == "" {
+			t.Errorf("required query parameter %q is not sent", parameter.Name)
+		}
+	}
 }
+
+// surfaceQuerySent runs the row with an acting company, the Go SDK's carrier
+// for companySlug, and returns the query parameter names the call sends.
+func surfaceQuerySent(t *testing.T, row surfaceRow) url.Values {
+	t.Helper()
+	env := newSurfaceEnv(t, `{}`)
+	env.client.config.ActingCompanySlug = "acme"
+	_ = row.call(env)
+	parsed, err := url.Parse(env.doer.requests[0].URL)
+	if err != nil {
+		t.Fatalf("parse url: %v", err)
+	}
+	return parsed.Query()
+}
+
+// assertSurfaceQuerySendable proves that, across an operation's rows, the Go
+// methods can send every query parameter the operation declares. A parameter
+// no method can send must be in surfaceUnsentQuery with its reason.
+func assertSurfaceQuerySendable(t *testing.T, operations map[string]surfaceOperation, sent map[string]url.Values) {
+	t.Helper()
+	for id, names := range sent {
+		for _, parameter := range operations[id].Query {
+			reason, exempt := surfaceUnsentQuery[id+" ?"+parameter.Name]
+			switch {
+			case exempt && names.Has(parameter.Name):
+				t.Errorf("%s: query parameter %q is sent, so its surfaceUnsentQuery entry is stale", id, parameter.Name)
+			case exempt:
+				t.Logf("%s: query parameter %q not sent: %s", id, parameter.Name, reason)
+			case !names.Has(parameter.Name):
+				t.Errorf("%s: declared query parameter %q is not sent by any row; pass it or list it in surfaceUnsentQuery",
+					id, parameter.Name)
+			}
+		}
+	}
+}
+
+// surfaceRequiredByActingCompany lists required query parameters, keyed like
+// surfaceUnsentQuery, that the method takes from ClientConfig.ActingCompanySlug
+// rather than an argument; surfaceQuerySent proves the acting company sends them.
+var surfaceRequiredByActingCompany = map[string]string{
+	"admin-api POST /api/v1/admin/subject-exports/{requestId}/force ?companySlug": "Force takes no company argument",
+}
+
+// surfaceUnsentQuery lists declared query parameters, keyed "<operation id>
+// ?<name>", that no Go method sends, with the reason.
+var surfaceUnsentQuery = map[string]string{}
 
 // assertSurfaceExampleDecodes answers the call with the server's minimal and
 // maximal example bodies; a Go response type that cannot hold them, or that

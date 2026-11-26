@@ -27,15 +27,12 @@ final class ResponseFieldConformanceTest extends TestCase
 
     /** DTO properties the server sends that the maximal example cannot show. Keyed by "<DTO>.<property>". */
     private const UNSHOWN_FIELDS = [
-        'MeasurementPredictionDefinition.createdAt' => 'dto.MeasurementPredictionDefinitionAudit (embedded) is not yet in the OpenAPI snapshot',
-        'MeasurementPredictionDefinition.updatedAt' => 'dto.MeasurementPredictionDefinitionAudit (embedded) is not yet in the OpenAPI snapshot',
         'ThresholdCue.remainingFractionBps' => 'a cue carries remainingMs or remainingFractionBps (a oneOf); the example shows remainingMs',
     ];
 
     /** Operations whose example is not the body the SDK method decodes. */
     private const UNCHECKED_BODY = [
         'admin-api GET /api/v1/admin/audit/events/export' => 'the method returns the raw download (format=csv or json) with its headers, not a decoded page',
-        'admin-api POST /api/v1/admin/tenants/{slug}/historical-cleanup' => 'OpenAPI declares a free-form object; the handler writes offboarding.TenantOffboardingReceipt',
     ];
 
     /** DTO properties named differently from the wire key they decode: "<DTO>.<property>" => wire key. */
@@ -96,7 +93,7 @@ final class ResponseFieldConformanceTest extends TestCase
      * calledMethod runs the row against a transport that records which public SDK method the row's closure
      * called (the stack frame whose call site is a test file) and then stops the request.
      */
-    private static function calledMethod(\Closure $call): ?\ReflectionMethod
+    public static function calledMethod(\Closure $call): ?\ReflectionMethod
     {
         $found = null;
         $record = static function () use (&$found): never {

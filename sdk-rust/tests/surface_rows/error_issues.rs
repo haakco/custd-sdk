@@ -35,7 +35,7 @@ pub fn rows() -> Vec<Row> {
             |c| {
                 drop(c.custd.update_error_issue_state(
                     "i-1",
-                    &body::<ErrorIssueStateRequest>(r#"{"state":"x"}"#),
+                    &body::<ErrorIssueStateRequest>(r#"{"state":"open"}"#),
                     Some("acme"),
                 ))
             },

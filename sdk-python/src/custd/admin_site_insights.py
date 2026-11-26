@@ -31,10 +31,14 @@ SITE_REMEDY_KIND_CONTENT = "content"
 SITE_REMEDY_KIND_SERVER = "server"
 
 # The formats a remedy's generated code comes in.
-SITE_GENERATED_FORMAT_HTML = "html"
-SITE_GENERATED_FORMAT_ROBOTS_TXT = "robots.txt"
+SiteGeneratedFormat = Literal["html", "redirect", "robots.txt"]
+SITE_GENERATED_FORMAT_HTML: SiteGeneratedFormat = "html"
+SITE_GENERATED_FORMAT_ROBOTS_TXT: SiteGeneratedFormat = "robots.txt"
 # One Apache line and one nginx line.
-SITE_GENERATED_FORMAT_REDIRECT = "redirect"
+SITE_GENERATED_FORMAT_REDIRECT: SiteGeneratedFormat = "redirect"
+
+# How serious a draft check's finding is.
+SiteFindingSeverity = Literal["high", "info", "low", "medium"]
 
 # SitePageRecheckState: queued until the scheduler's next tick, then checked or failed.
 SitePageRecheckState = Literal["queued", "checked", "failed"]
@@ -87,10 +91,11 @@ SITE_AUDIT_PAGES_DEFAULT_LIMIT = 50
 SITE_AUDIT_PAGES_MAX_LIMIT = 200
 
 # How the audit the delta compares stood: never run, failed, stopped at its bound, or whole.
-SITE_AUDIT_RUN_NOT_AUDITED = "not_audited"
-SITE_AUDIT_RUN_FAILED = "failed"
-SITE_AUDIT_RUN_TRUNCATED = "truncated"
-SITE_AUDIT_RUN_COMPLETE = "complete"
+SiteAuditRun = Literal["complete", "failed", "not_audited", "truncated"]
+SITE_AUDIT_RUN_NOT_AUDITED: SiteAuditRun = "not_audited"
+SITE_AUDIT_RUN_FAILED: SiteAuditRun = "failed"
+SITE_AUDIT_RUN_TRUNCATED: SiteAuditRun = "truncated"
+SITE_AUDIT_RUN_COMPLETE: SiteAuditRun = "complete"
 
 # SiteReportTemplate picks a report's contents: executive is the short client summary, full
 # (the default) is every section.
@@ -105,7 +110,7 @@ SITE_MAX_SAVED_REPORTS = 20
 class SiteGeneratedFix(TypedDict):
     """Ready-to-copy code for one finding; never a published change."""
 
-    format: str
+    format: SiteGeneratedFormat
     code: str
 
 
@@ -124,7 +129,7 @@ class SitePageFinding(TypedDict):
     """One finding of a draft check: the page's own problems, without an identity or history."""
 
     rule: str
-    severity: str
+    severity: SiteFindingSeverity
     title: str
     url: str
     evidence: str
@@ -239,8 +244,9 @@ class SitePhraseUse(TypedDict):
 
 # How much of a page a draft is: the whole page (the server's default) or only its body content,
 # for an editor that owns the body and not the head.
-SITE_PAGE_CHECK_SCOPE_PAGE = "page"
-SITE_PAGE_CHECK_SCOPE_CONTENT = "content"
+SitePageCheckScope = Literal["content", "page"]
+SITE_PAGE_CHECK_SCOPE_PAGE: SitePageCheckScope = "page"
+SITE_PAGE_CHECK_SCOPE_CONTENT: SitePageCheckScope = "content"
 
 
 class SitePageCheckResponse(TypedDict):
@@ -258,7 +264,7 @@ class SitePageCheckResponse(TypedDict):
     slug: NotRequired[str]
     redirect: NotRequired[SiteGeneratedFix]
     phrase: NotRequired[SitePhraseUse]
-    scope: NotRequired[str]
+    scope: NotRequired[SitePageCheckScope]
     checkedRules: NotRequired[list[str]]
 
 
@@ -547,7 +553,7 @@ class SiteAuditDelta(TypedDict):
     """What the latest audit opened, reopened and fixed; ``failure`` says why a failed run failed."""
 
     domainUuid: str
-    run: str
+    run: SiteAuditRun
     new: list[SiteFinding]
     reopened: list[SiteFinding]
     fixed: list[SiteFinding]
@@ -614,7 +620,7 @@ class SiteReport(TypedDict):
 
     host: str
     generatedAt: str
-    template: NotRequired[str]
+    template: NotRequired[SiteReportTemplate]
     uptime: SiteReportUptime
     certificate: SiteReportCertificate
     speed: list[SiteReportSpeed]
@@ -658,7 +664,7 @@ class SavedSiteReportSummary(TypedDict):
 
     reportUuid: str
     name: str
-    template: str
+    template: SiteReportTemplate
     days: int
     generatedAt: str
     createdAt: str

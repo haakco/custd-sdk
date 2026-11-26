@@ -1,4 +1,4 @@
-import type { SearchPoolBand } from "./admin-site-search-pool.js";
+import type { SearchPoolAccess, SearchPoolBand } from "./admin-site-search-pool.js";
 /** A 400 on trackKeyword or updateTrackedKeyword: keyword, country, device or notifyPosition is out of range. */
 export declare const SITE_TRACKED_KEYWORD_INVALID_CODE = "site_tracked_keyword_invalid";
 /** A 409 on trackKeyword: the Site tracks the most keywords; remove one first. */
@@ -35,7 +35,7 @@ export declare const SiteRankDevice: {
     readonly Mobile: "mobile";
     readonly Tablet: "tablet";
 };
-/** The state of the Search Console connection the ranks come from; newer values may appear. */
+/** The state of the Search Console connection the ranks come from. */
 export declare const SiteRankingsSource: {
     readonly NotConnected: "not_connected";
     readonly Pending: "pending";
@@ -43,6 +43,7 @@ export declare const SiteRankingsSource: {
     readonly Failing: "failing";
     readonly Revoked: "revoked";
 };
+export type SiteRankingsSource = (typeof SiteRankingsSource)[keyof typeof SiteRankingsSource];
 /** One day of a keyword. rankingUrl and position are absent unless the state is ranking. */
 export type SiteRankObservation = {
     /** YYYY-MM-DD. */
@@ -74,10 +75,10 @@ export type SiteTrackedKeyword = {
 };
 export type SiteRankings = {
     /** A SiteRankingsSource value. */
-    source: string;
+    source: SiteRankingsSource;
     sourceFailure?: string;
     /** A SearchPoolAccess value; absent from servers before the shared search pool. */
-    pool?: string;
+    pool?: SearchPoolAccess;
     from: string;
     to: string;
     maxKeywords: number;

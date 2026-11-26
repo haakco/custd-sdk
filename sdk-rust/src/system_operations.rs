@@ -210,7 +210,7 @@ pub struct SystemStageStatus {
     pub reason: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signals: Option<SystemStageSignals>,
-    pub status: String,
+    pub status: SystemStageStatusStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -231,7 +231,7 @@ pub struct OperationalSummary {
     pub durable: OperationalStageSummary,
     pub queryable: OperationalStageSummary,
     pub received: OperationalStageSummary,
-    pub status: String,
+    pub status: SystemStageStatusStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -351,7 +351,7 @@ pub struct OperationalBacklogSummary {
 pub struct OperationalStageSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
-    pub status: String,
+    pub status: SystemStageStatusStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -444,7 +444,7 @@ pub struct RLSExecuteResponse {
     pub diff: Vec<RLSPolicyDiff>,
     #[serde(rename = "finished_at")]
     pub finished_at: String,
-    pub outcome: String,
+    pub outcome: RLSExecuteResponseOutcome,
     #[serde(rename = "plan_uuid")]
     pub plan_uuid: String,
     #[serde(rename = "rollback_sql")]
@@ -628,6 +628,51 @@ pub struct SDKVersionDeprecation {
 pub struct SDKVersionDeprecationRequest {
     pub note: String,
     pub recommended_version: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SystemStageStatusStatus {
+    #[serde(rename = "healthy")]
+    Healthy,
+    #[serde(rename = "degraded")]
+    Degraded,
+    #[serde(rename = "failing")]
+    Failing,
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+
+impl SystemStageStatusStatus {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Healthy => "healthy",
+            Self::Degraded => "degraded",
+            Self::Failing => "failing",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RLSExecuteResponseOutcome {
+    #[serde(rename = "attempted")]
+    Attempted,
+    #[serde(rename = "success")]
+    Success,
+    #[serde(rename = "failure")]
+    Failure,
+}
+
+impl RLSExecuteResponseOutcome {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Attempted => "attempted",
+            Self::Success => "success",
+            Self::Failure => "failure",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

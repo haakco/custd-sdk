@@ -1,10 +1,11 @@
 /**
- * Reads that carry none of the client's own credentials: a hosted app's public discovery document, a
- * shared site report opened by its link token, and the auth-domain inventory an external checker probes
- * with its monitoring key.
+ * Calls that carry none of the client's own credentials: a hosted app's public discovery document, a
+ * shared site report opened by its link token, the auth-domain inventory an external checker probes
+ * with its monitoring key, and a published status page with its email subscriptions.
  */
 
 import type { SiteReport } from "./admin-site-insights.js";
+import type { SiteStatusPage } from "./admin-site-status-page.js";
 import type { RequestOptions } from "./index.js";
 
 /** Carries the external checker's monitoring key, its only credential. */
@@ -48,8 +49,20 @@ export type AuthDomainMonitoringInventory = { hosts: string[]; retiredHosts: str
 /** Issues a GET with no client credential, adding only the headers given. */
 export type PublicReader = <T>(path: string, headers: Record<string, string>, options?: RequestOptions) => Promise<T>;
 
+/** Posts a JSON body with no client credential; the path and body are the only authority. */
+export type PublicWriter = (path: string, body: unknown, options?: RequestOptions) => Promise<void>;
+
+/** Asks a public status page to email its updates to one address. */
+export type SiteStatusSubscriptionRequest = { email: string };
+
+/** The single-use token from a status page subscription email. */
+export type SiteStatusSubscriptionToken = { token: string };
+
 export class PublicReadClient {
-  constructor(private readonly read: PublicReader) {}
+  constructor(
+    private readonly read: PublicReader,
+    private readonly write: PublicWriter = () => Promise.reject(new Error("custd: public writes need a writer")),
+  ) {}
 
   /** Reads a hosted app's public discovery document by host. A host that serves no app answers 404. */
   async appDiscovery(host: string, options?: RequestOptions): Promise<AppDiscoveryDocument> {
@@ -80,4 +93,45 @@ export class PublicReadClient {
     );
     return { hosts: inventory.hosts ?? [], retiredHosts: inventory.retiredHosts ?? [] };
   }
+
+  /** Reads a published status page by its public key. An unpublished key answers 404. */
+  async statusPage(key: string, options?: RequestOptions): Promise<SiteStatusPage> {
+    const page = await this.read<SiteStatusPage>(statusPagePath(key), {}, options);
+    return { ...page, components: page.components ?? [], updates: page.updates ?? [] };
+  }
+
+  /**
+   * Asks for a confirmation email. The server answers the same way for an unknown key, so success does
+   * not prove the page exists.
+   */
+  async subscribeToStatusPage(
+    key: string,
+    request: SiteStatusSubscriptionRequest,
+    options?: RequestOptions,
+  ): Promise<void> {
+    return this.write(`${statusPagePath(key)}/subscribe`, request, options);
+  }
+
+  /** Confirms a subscription with the emailed token. */
+  async confirmStatusPageSubscription(
+    key: string,
+    token: SiteStatusSubscriptionToken,
+    options?: RequestOptions,
+  ): Promise<void> {
+    return this.write(`${statusPagePath(key)}/confirm-subscription`, token, options);
+  }
+
+  /** Ends a subscription with the emailed token. */
+  async unsubscribeFromStatusPage(
+    key: string,
+    token: SiteStatusSubscriptionToken,
+    options?: RequestOptions,
+  ): Promise<void> {
+    return this.write(`${statusPagePath(key)}/unsubscribe`, token, options);
+  }
+}
+
+function statusPagePath(key: string): string {
+  if (key.trim() === "") throw new Error("custd: public status page requires its key");
+  return `/public-status-pages/${encodeURIComponent(key)}`;
 }

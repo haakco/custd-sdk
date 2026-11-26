@@ -16,10 +16,10 @@ import urllib.parse
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar, Union, cast
 
-from .client import problem_request_error, with_acting_company
+from .client import assert_secure_or_local_http, default_admin_transport, problem_request_error, with_acting_company
 
 if TYPE_CHECKING:
-    from .client import AdminClient, AdminRequestOptions
+    from .client import AdminClient, AdminRequestOptions, AdminTransport
 
 T = TypeVar("T")
 
@@ -41,6 +41,25 @@ def request(
     sent = admin._option_headers(options)
     sent.update(headers or {})
     result = admin._transport(method, url, body, sent, admin._client.timeout)
+    return answer(int(result["status"]), result.get("body"), path)
+
+
+def public_request(
+    api_base_url: str,
+    method: str,
+    path: str,
+    payload: dict[str, Any] | None,
+    headers: dict[str, str],
+    timeout: float,
+    transport: AdminTransport | None,
+) -> object:
+    """Send one call that carries its own authority (a link token, key or monitor credential).
+
+    The client's bearer token is never attached. Returns the decoded JSON body, or None.
+    """
+    base = api_base_url.rstrip("/")
+    assert_secure_or_local_http(base, "api_base_url")
+    result = (transport or default_admin_transport)(method, base + path, payload, headers, timeout)
     return answer(int(result["status"]), result.get("body"), path)
 
 

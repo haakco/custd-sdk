@@ -81,7 +81,7 @@ pub fn rows() -> Vec<Row> {
             "admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/apply",
             "/api/v1/admin/auth-projects/p-1/environments/e-1/apply",
             |c| {
-                drop(c.custd.apply_auth_project("p-1", "e-1", &body::<AuthProjectDesiredStateRequest>(r#"{"desiredState":{"audiences":[],"brandAccent":"x","displayName":"x","displayNameSource":"x","entryPath":"x","identityMode":"x","loginPaused":true,"profileFields":[],"registrationPolicy":"x","signInMethods":[]},"expectedRevision":1}"#), "key-0001"))
+                drop(c.custd.apply_auth_project("p-1", "e-1", &body::<AuthProjectDesiredStateRequest>(r#"{"desiredState":{"audiences":[],"brandAccent":"x","displayName":"x","displayNameSource":"x","entryPath":"x","identityMode":"isolated","loginPaused":true,"profileFields":[],"registrationPolicy":"invite_only","signInMethods":[]},"expectedRevision":1}"#), "key-0001"))
             },
             round_trip::<AuthProjectOperation>,
         ),
@@ -89,7 +89,7 @@ pub fn rows() -> Vec<Row> {
             "admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/preview",
             "/api/v1/admin/auth-projects/p-1/environments/e-1/preview",
             |c| {
-                drop(c.custd.preview_auth_project("p-1", "e-1", &body::<AuthProjectDesiredStateRequest>(r#"{"desiredState":{"audiences":[],"brandAccent":"x","displayName":"x","displayNameSource":"x","entryPath":"x","identityMode":"x","loginPaused":true,"profileFields":[],"registrationPolicy":"x","signInMethods":[]},"expectedRevision":1}"#)))
+                drop(c.custd.preview_auth_project("p-1", "e-1", &body::<AuthProjectDesiredStateRequest>(r#"{"desiredState":{"audiences":[],"brandAccent":"x","displayName":"x","displayNameSource":"x","entryPath":"x","identityMode":"isolated","loginPaused":true,"profileFields":[],"registrationPolicy":"invite_only","signInMethods":[]},"expectedRevision":1}"#)))
             },
             round_trip::<AuthProjectPreview>,
         ),

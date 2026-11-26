@@ -66,8 +66,7 @@ impl Clock for FakeClock {
 fn json(status: u16, body: &str) -> std::result::Result<HttpResponse, TransportError> {
     Ok(HttpResponse {
         status,
-        etag: None,
-        content_type: None,
+        headers: Vec::new(),
         body: body.as_bytes().to_vec(),
     })
 }

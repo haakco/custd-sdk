@@ -206,6 +206,8 @@ func (c *SubjectExportAdminClient) Download(
 	return &out, err
 }
 
+// Force runs a stalled export now. The route requires companySlug, which it
+// takes from ClientConfig.ActingCompanySlug.
 func (c *SubjectExportAdminClient) Force(ctx context.Context, requestID string) (*SubjectExport, error) {
 	var out SubjectExport
 	err := c.admin.request(
@@ -594,20 +596,29 @@ func (c *RetentionAdminClient) Apply(
 	return &out, err
 }
 
+// RetentionRunsPage selects a page of retention runs. Zero values use the
+// server defaults.
+type RetentionRunsPage struct {
+	Limit  int
+	Offset int
+}
+
 // ListRuns returns the retention runs for a single tenant. Empty runs list
 // is the canonical "no runs yet" response, not an error.
 func (c *RetentionAdminClient) ListRuns(
 	ctx context.Context,
 	tenantSlug string,
+	page ...RetentionRunsPage,
 ) (*RetentionRunsListResponse, error) {
+	var selected RetentionRunsPage
+	if len(page) > 0 {
+		selected = page[0]
+	}
+	path := siteQueryPath("/retention/policies/"+url.PathEscape(tenantSlug)+"/runs", url.Values{
+		"limit": {sitePositiveInt(selected.Limit)}, "offset": {sitePositiveInt(selected.Offset)},
+	})
 	var out RetentionRunsListResponse
-	err := c.admin.request(
-		ctx,
-		http.MethodGet,
-		"/retention/policies/"+url.PathEscape(tenantSlug)+"/runs",
-		nil,
-		&out,
-	)
+	err := c.admin.request(ctx, http.MethodGet, path, nil, &out)
 	return &out, err
 }
 

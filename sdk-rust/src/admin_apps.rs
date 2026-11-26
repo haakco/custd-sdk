@@ -36,7 +36,7 @@ pub struct AppSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub site_uuid: Option<String>,
     pub slug: String,
-    pub status: String,
+    pub status: AppSummaryStatus,
     pub url: String,
 }
 
@@ -67,7 +67,7 @@ pub struct AppReleaseSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
     pub release_id: String,
-    pub state: String,
+    pub state: AppReleaseSummaryState,
     pub total_bytes: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub verified_at: Option<String>,
@@ -117,6 +117,54 @@ pub struct AppDeployCredential {
     pub client_id: String,
     pub client_secret: String,
     pub scope: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AppSummaryStatus {
+    #[serde(rename = "needs_attention")]
+    NeedsAttention,
+    #[serde(rename = "removal_unfinished")]
+    RemovalUnfinished,
+    #[serde(rename = "live")]
+    Live,
+    #[serde(rename = "not_deployed")]
+    NotDeployed,
+    #[serde(rename = "paused")]
+    Paused,
+    #[serde(rename = "offboarded")]
+    Offboarded,
+}
+
+impl AppSummaryStatus {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NeedsAttention => "needs_attention",
+            Self::RemovalUnfinished => "removal_unfinished",
+            Self::Live => "live",
+            Self::NotDeployed => "not_deployed",
+            Self::Paused => "paused",
+            Self::Offboarded => "offboarded",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AppReleaseSummaryState {
+    #[serde(rename = "pending")]
+    Pending,
+    #[serde(rename = "verified")]
+    Verified,
+}
+
+impl AppReleaseSummaryState {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Verified => "verified",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

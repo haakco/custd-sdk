@@ -40,6 +40,28 @@ class SiteAIRevokeConsentRequest(TypedDict):
 SiteAIConsentRequest = SiteAIGrantConsentRequest | SiteAIRevokeConsentRequest
 
 
+class SiteAIOwnerHandoffRequest(TypedDict):
+    """A data space the calling broker owns and the broker's opaque owner subject (1-96 of A-Z, a-z, 0-9, _ or -)."""
+
+    tenantSlug: str
+    ownerSubject: str
+
+
+class SiteAIOwnerHandoff(TypedDict):
+    """A single-use code (valid for one minute) and the address the owner's browser redeems it at."""
+
+    code: str
+    redeemUrl: str
+
+
+class SiteAIOwnerSettings(TypedDict):
+    """The owner session's tenant and settings; each change presents ``sessionBinding``."""
+
+    tenantSlug: str
+    sessionBinding: str
+    settings: SiteAISettings
+
+
 class SiteAIUsageRow(TypedDict):
     tenantSlug: NotRequired[str]
     feature: str

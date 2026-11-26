@@ -579,7 +579,7 @@ class TimePlanCalculationReceipt:
     def from_payload(cls, payload: Payload) -> TimePlanCalculationReceipt:
         return cls(
             allocatorVersion=_string(payload, "allocatorVersion"),
-            reason=_string(payload, "reason"),
+            reason=_optional_string(payload, "reason") or "",
             summary=_string(payload, "summary"),
             source=[TimePlanAllocation.from_payload(item) for item in _objects_or_empty(payload, "source")],
             result=[TimePlanAllocation.from_payload(item) for item in _objects_or_empty(payload, "result")],

@@ -213,7 +213,7 @@ export type ApplicationPrincipalMembershipView = {
   organisationId: string;
   organisationSlug: string;
   organisationName: string;
-  role: string;
+  role: "administrator" | "member" | "viewer";
   createdAt: string;
   removedAt?: string;
 };
@@ -638,7 +638,7 @@ export type ApplicationProfileField = {
   value?: string;
   present: boolean;
   required: boolean;
-  editableBy: string;
+  editableBy: "user" | "provider" | "administrator";
   editable: boolean;
 };
 
@@ -666,7 +666,7 @@ export type ApplicationMembershipChoice = {
   organisationId: string;
   organisationSlug: string;
   organisationName: string;
-  role: string;
+  role: "administrator" | "member" | "viewer";
 };
 
 /** The set of organisations one application principal may act for. */

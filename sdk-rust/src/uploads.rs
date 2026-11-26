@@ -27,11 +27,15 @@ pub struct AuditEventExport {
     pub bytes: Vec<u8>,
 }
 
-/// A tenant offboarding export archive and its media type.
+/// A tenant offboarding export archive, its media type and the integrity metadata it was checked
+/// against: the server's `X-Checksum-SHA256` and `Content-Length` headers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OffboardingDownload {
     pub content_type: String,
     pub bytes: Vec<u8>,
+    /// Lowercase hex SHA-256 of `bytes`.
+    pub checksum_sha256: String,
+    pub byte_size: u64,
 }
 
 /// An image and its media type: `image/png` or `image/webp`.
@@ -131,17 +135,14 @@ impl CustdClient {
         })
     }
 
-    /// Download a finished offboarding request's export archive.
+    /// Download a finished offboarding request's export archive. A missing or inconsistent checksum
+    /// or length header is refused, so a truncated or altered archive never reaches the caller.
     pub fn download_offboarding(&self, request_uuid: &str) -> Result<OffboardingDownload> {
         let path = format!(
             "/api/v1/admin/offboarding/requests/{}/download",
             percent_encode(request_uuid)
         );
-        let response = self.send_bytes(Method::Get, &path, None)?;
-        Ok(OffboardingDownload {
-            content_type: content_type_of(&response),
-            bytes: response.body,
-        })
+        verified_offboarding_download(self.send_bytes(Method::Get, &path, None)?)
     }
 
     /// Read the signed-in member's profile photo. The client's token is the member's application
@@ -149,8 +150,9 @@ impl CustdClient {
     pub fn get_current_app_profile_photo(&self) -> Result<ImageFile> {
         let response = self.send_bytes(Method::Get, PROFILE_PHOTO_PATH, None)?;
         let content_type = response
-            .content_type
-            .ok_or_else(|| Error::Decode("the profile photo has no content type".to_owned()))?;
+            .header("content-type")
+            .ok_or_else(|| Error::Decode("the profile photo has no content type".to_owned()))?
+            .to_owned();
         Ok(ImageFile {
             content_type,
             bytes: response.body,
@@ -183,11 +185,44 @@ impl CustdClient {
     }
 }
 
+fn verified_offboarding_download(response: HttpResponse) -> Result<OffboardingDownload> {
+    let invalid = |message: &str| Error::InvalidResponse(format!("offboarding download {message}"));
+    let byte_size: u64 = response
+        .header("content-length")
+        .and_then(|value| value.trim().parse().ok())
+        .ok_or_else(|| invalid("content length is invalid"))?;
+    let checksum = response
+        .header("x-checksum-sha256")
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit()))
+        .ok_or_else(|| invalid("checksum header is invalid"))?;
+    if checksum != sha256_hex(&response.body) {
+        return Err(invalid("checksum mismatch"));
+    }
+    if byte_size != response.body.len() as u64 {
+        return Err(invalid("content length mismatch"));
+    }
+    Ok(OffboardingDownload {
+        content_type: content_type_of(&response),
+        bytes: response.body,
+        checksum_sha256: checksum,
+        byte_size,
+    })
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    ring::digest::digest(&ring::digest::SHA256, bytes)
+        .as_ref()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
 fn content_type_of(response: &HttpResponse) -> String {
     response
-        .content_type
-        .clone()
-        .unwrap_or_else(|| "application/octet-stream".to_owned())
+        .header("content-type")
+        .unwrap_or("application/octet-stream")
+        .to_owned()
 }
 
 /// A `multipart/form-data` body with the one `logo` file part.

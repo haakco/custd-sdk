@@ -52,22 +52,37 @@ final class AppHttp
      */
     public function send(string $method, string $path, array $query, array|string|null $body, string $bearer, array $headers): ?string
     {
+        return Http::successBody($this->exchange($method, $path, $query, $body, $bearer, $headers));
+    }
+
+    /**
+     * Send a request and return the transport's answer unchecked, for a route whose success is not a 2xx body,
+     * such as a redirect that sets a cookie. Redirects are never followed.
+     *
+     * @param array<string, string|int|float|bool|list<string>|null> $query
+     * @param array<string, mixed>|string|null $body
+     * @param array<string, string> $headers
+     * @return array{status:int, body:string, headers?:array<string, string>}
+     */
+    public function exchange(string $method, string $path, array $query, array|string|null $body, string $bearer, array $headers): array
+    {
         $url = rtrim($this->baseUrl, '/') . ApiHttp::withQuery($path, $query);
         if ($body === []) {
             $body = '{}';
             $headers['Content-Type'] = 'application/json';
         }
+        /** @var array{status:int, body:string, headers?:array<string, string>} $result */
         $result = $this->transport !== null
             ? ($this->transport)($method, $url, $body, $bearer, $headers)
             : self::curl($method, $url, $body, $bearer, $headers);
 
-        return Http::successBody($result);
+        return $result;
     }
 
     /**
      * @param array<string, mixed>|string|null $body
      * @param array<string, string> $headers
-     * @return array{status:int, body:string}
+     * @return array{status:int, body:string, headers:array<string, string>}
      */
     private static function curl(string $method, string $url, array|string|null $body, string $bearer, array $headers): array
     {
@@ -82,11 +97,21 @@ final class AppHttp
             $lines[] = $name . ': ' . $value;
         }
         $ch = curl_init($url);
+        /** @var array<string, string> $responseHeaders */
+        $responseHeaders = [];
         $options = [
             CURLOPT_CUSTOMREQUEST => $method,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => $lines,
             CURLOPT_TIMEOUT => 15,
+            CURLOPT_HEADERFUNCTION => static function ($unused, string $line) use (&$responseHeaders): int {
+                $separator = strpos($line, ':');
+                if ($separator !== false) {
+                    $responseHeaders[strtolower(trim(substr($line, 0, $separator)))] = trim(substr($line, $separator + 1));
+                }
+
+                return strlen($line);
+            },
         ];
         if ($body !== null) {
             $options[CURLOPT_POSTFIELDS] = is_string($body) ? $body : json_encode($body, JSON_THROW_ON_ERROR);
@@ -100,6 +125,7 @@ final class AppHttp
         return [
             'status' => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE),
             'body' => is_string($response) ? $response : '',
+            'headers' => $responseHeaders,
         ];
     }
 }

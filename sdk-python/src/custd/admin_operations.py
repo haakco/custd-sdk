@@ -193,7 +193,9 @@ class RLSStatus(TypedDict):
     tables: list[RLSTableDiff]
 
 
-class ScheduledTaskRun(TypedDict):
+class ScheduledTaskListRunSummary(TypedDict):
+    """The stable fields of a run, as a task list and a queued run report them."""
+
     completedAt: NotRequired[str]
     durationMs: int
     failureReason: NotRequired[str]
@@ -207,7 +209,16 @@ class ScheduledTaskRun(TypedDict):
     taskName: str
     trigger: str
     workerId: NotRequired[str]
-    # Work counters a task reports on its runs; each is present only when non-zero.
+
+
+class ScheduledTaskRunResponseSummary(ScheduledTaskListRunSummary):
+    """The run a run-now or retry call queued."""
+
+
+class ScheduledTaskRun(ScheduledTaskListRunSummary):
+    """A run in a task's detail read, with the work counters only that read reports."""
+
+    # Each counter is present only when non-zero.
     jobsCompacted: NotRequired[int]
     rowsCompacted: NotRequired[int]
     bytesCompacted: NotRequired[int]
@@ -221,13 +232,12 @@ class ScheduledTaskRun(TypedDict):
     hackerNewsFailures: NotRequired[int]
 
 
-class ScheduledTaskSummary(TypedDict):
+class _ScheduledTaskFields(TypedDict):
     description: str
     displayName: str
     enabled: bool
     failedRuns: int
     forceRunsAllowed: bool
-    latestRun: NotRequired[ScheduledTaskRun]
     lockBackend: str
     manualRunsAllowed: bool
     nextRunAt: NotRequired[str]
@@ -242,8 +252,20 @@ class ScheduledTaskSummary(TypedDict):
     timezone: str
 
 
+class ScheduledTaskListItem(_ScheduledTaskFields):
+    """A task in the list view, whose latest run carries no work counters."""
+
+    latestRun: NotRequired[ScheduledTaskListRunSummary]
+
+
+class ScheduledTaskSummary(_ScheduledTaskFields):
+    """A task in its detail read."""
+
+    latestRun: NotRequired[ScheduledTaskRun]
+
+
 class ScheduledTaskListResponse(TypedDict):
-    tasks: list[ScheduledTaskSummary]
+    tasks: list[ScheduledTaskListItem]
 
 
 class ScheduledTaskDetailResponse(TypedDict):
@@ -737,7 +759,7 @@ class ScheduledTaskRunRequest(TypedDict):
 
 
 class ScheduledTaskRunResponse(TypedDict):
-    run: ScheduledTaskRun
+    run: ScheduledTaskRunResponseSummary
 
 
 class StorageAlertRuleCreateRequest(TypedDict):
@@ -1069,9 +1091,10 @@ class SystemAdminClient:
         """Retry a discarded job."""
         return decode(JobRetryReceipt, request(self._admin, "POST", f"/api/v1/admin/jobs/{job_id}/retry"))
 
-    def retry_scheduled_task_run(self, run_uuid: str) -> None:
-        """Retry scheduled task run."""
-        request(self._admin, "POST", f"/api/v1/admin/scheduled-task-runs/{quote_path(run_uuid)}/retry")
+    def retry_scheduled_task_run(self, run_uuid: str) -> ScheduledTaskRunResponse:
+        """Retry a scheduled task run and return the run it queued."""
+        path = f"/api/v1/admin/scheduled-task-runs/{quote_path(run_uuid)}/retry"
+        return decode(ScheduledTaskRunResponse, request(self._admin, "POST", path))
 
     def pause_scheduled_task(self, task_name: str) -> None:
         """Pause scheduled task."""

@@ -9,6 +9,7 @@ use crate::Result;
 use crate::api_path::{NO_BODY, api_path};
 use crate::client::CustdClient;
 use crate::measurement::null_as_empty;
+use crate::tenants::{TenantOffboardingReceipt, TenantOffboardingReceiptFinalState};
 use crate::transport::{Method, percent_encode};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -57,7 +58,7 @@ pub struct OffboardingRequestBody {
 pub struct OffboardingRequestResponse {
     pub request_uuid: String,
     pub requested_at: String,
-    pub state: String,
+    pub state: TenantOffboardingReceiptFinalState,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -130,45 +131,6 @@ pub struct OffboardingExecuteRequest {
     pub waiver_role: String,
     #[serde(rename = "waiver_timestamp")]
     pub waiver_timestamp: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TenantOffboardingReceipt {
-    #[serde(rename = "company_id")]
-    pub company_id: i64,
-    #[serde(rename = "completed_at")]
-    pub completed_at: String,
-    #[serde(rename = "final_state")]
-    pub final_state: String,
-    #[serde(rename = "per_store", default, deserialize_with = "null_as_empty")]
-    pub per_store: Vec<TenantReceiptPerStore>,
-    #[serde(rename = "requested_at")]
-    pub requested_at: String,
-    #[serde(rename = "requested_by_kind")]
-    pub requested_by_kind: String,
-    pub sha256: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub waiver: Option<TenantReceiptWaiver>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TenantReceiptPerStore {
-    #[serde(rename = "deleted_count")]
-    pub deleted_count: i64,
-    #[serde(rename = "retained_exceptions_count")]
-    pub retained_exceptions_count: i64,
-    #[serde(rename = "retention_class")]
-    pub retention_class: String,
-    pub store: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TenantReceiptWaiver {
-    pub role: String,
-    pub timestamp: String,
 }
 
 impl CustdClient {

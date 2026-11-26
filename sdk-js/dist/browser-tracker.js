@@ -1,5 +1,6 @@
 import { startWebVitals } from "./browser-web-vitals.js";
 import { applyEnvironmentLabel, LocalStorageQueueStorage, MemoryQueueStorage, normalizeRetryOptions, prepareEvent, RetryableError, validateBrowserEvent, withRetry, } from "./index.js";
+import { emptySiteConfigNullLists } from "./response-lists.js";
 const defaultSchemaVersion = "1.0.0";
 const pageViewEventType = "page-view";
 const webVitalsEventType = "web-vitals";
@@ -439,13 +440,12 @@ export async function installBrowserTrackerFromScript(scriptElement) {
 }
 /** Reads a registered browser Site's public identity mode and allowed origins. */
 export async function fetchBrowserSiteConfig(baseUrl, siteUuid, fetchImpl = (input, init) => globalThis.fetch(input, init)) {
-    const response = await fetchImpl(`${baseUrl.replace(/\/$/, "")}/api/v1/sites/${encodeURIComponent(siteUuid)}/config`, {
-        credentials: "omit",
-    });
+    const path = `/api/v1/sites/${encodeURIComponent(siteUuid)}/config`;
+    const response = await fetchImpl(`${baseUrl.replace(/\/$/, "")}${path}`, { credentials: "omit" });
     if (!response.ok) {
         throw new Error(`custd: site config request failed with status ${response.status}`);
     }
-    return (await response.json());
+    return emptySiteConfigNullLists("GET", path, (await response.json()));
 }
 function browserContext(page) {
     const context = {

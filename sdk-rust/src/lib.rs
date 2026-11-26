@@ -20,8 +20,12 @@
 //! - [`CustdClient`] also sends events and raw lines, manages event schemas and parsers, and runs
 //!   the ingest operations: monitoring, diagnostics and generated-data cleanup plans and jobs.
 //! - [`SiteCollector`] collects events and captures errors with a Site's public write key.
-//! - [`get_site_config`], [`read_shared_site_report`], [`read_app_host_discovery`] and the other
-//!   public routes take no bearer token.
+//! - [`get_site_config`], [`read_shared_site_report`], [`read_app_host_discovery`],
+//!   [`read_public_status_page`] and the other public routes take no bearer token.
+//! - [`submit_site_heartbeat`], [`submit_private_uptime`] and [`get_private_uptime_work`] report for
+//!   one site monitor with its own write token.
+//! - [`redeem_site_ai_owner_handoff`] opens a [`SiteAIOwnerSession`] in which a data-space owner
+//!   changes their tenant's AI settings.
 //! - [`AppClient`] calls the hosted-app item routes (`/api/v1/app/`) with an app's Site key and a
 //!   link token, the signed-in user's token, or both: items, meetings, alerts and forecasts.
 //! - [`read_hosted_app_discovery`] reads a hosted app's `/.well-known/custd.json`.
@@ -76,12 +80,14 @@ mod reporting;
 mod reporting_packs;
 mod retention;
 mod schema_registry;
+mod site_ai_owner;
 mod site_analytics;
 mod site_collector;
 mod site_domains;
 mod site_findings;
 mod site_insights_admin;
 mod site_keywords;
+mod site_monitor_reports;
 mod site_monitors;
 mod site_pages;
 mod site_reports;
@@ -153,14 +159,14 @@ pub use measurement::{
     ProjectEstimateCreate, ProjectEstimateList, ProjectEstimateStatus,
 };
 pub use site_analytics::{
-    SiteAIAnswerSample, SiteAIAnswerSampleProduct, SiteAIConsentRequest, SiteAIPage,
-    SiteAISettings, SiteAISettingsRequest, SiteAITenantUsage, SiteAIUsageRow, SiteAIVisibility,
-    SiteAnalyticsConnection, SiteAnalyticsConnectionProvider, SiteAnalyticsConnectionRequest,
-    SiteAnalyticsConnectionStatus, SiteAnalyticsReport, SiteAnalyticsRow, SiteAnalyticsUnavailable,
-    SiteAnalyticsUnavailableReport, SiteTraffic, SiteTrafficClass, SiteTrafficCount,
-    SiteTrafficCoverage, SiteTrafficCrawler, SiteTrafficCrawlerIdentity, SiteTrafficDay,
-    SiteTrafficDayCoverage, SiteTrafficReferrer, SiteTrafficReferrerClass, SiteTrafficSlowPath,
-    SiteTrafficTotals,
+    SiteAIAnswerSample, SiteAIAnswerSampleProduct, SiteAIConsentAction, SiteAIConsentRequest,
+    SiteAIMode, SiteAIPage, SiteAISettings, SiteAISettingsRequest, SiteAITenantUsage,
+    SiteAIUsageRow, SiteAIVisibility, SiteAnalyticsConnection, SiteAnalyticsConnectionProvider,
+    SiteAnalyticsConnectionRequest, SiteAnalyticsConnectionStatus, SiteAnalyticsReport,
+    SiteAnalyticsRow, SiteAnalyticsUnavailable, SiteAnalyticsUnavailableReport, SiteTraffic,
+    SiteTrafficClass, SiteTrafficCount, SiteTrafficCoverage, SiteTrafficCrawler,
+    SiteTrafficCrawlerIdentity, SiteTrafficDay, SiteTrafficDayCoverage, SiteTrafficReferrer,
+    SiteTrafficReferrerClass, SiteTrafficSlowPath, SiteTrafficTotals,
 };
 pub use site_domains::{
     SiteBrowserCollector, SiteBrowserCollectorRequest, SiteBrowserCollectorRequestMode,
@@ -259,22 +265,23 @@ pub use admin_actions::{
 pub use admin_apps::{
     AppCreateRequest, AppCreation, AppDeployCredential, AppDeployCredentialList,
     AppDeployCredentialSummary, AppListResponse, AppOverview, AppReason, AppReleaseSummary,
-    AppSignInRequest, AppSignInRequestMode, AppSummary,
+    AppReleaseSummaryState, AppSignInRequest, AppSignInRequestMode, AppSummary, AppSummaryStatus,
 };
 pub use admin_sites::{
-    Site, SiteConfigResponse, SiteCreateRequest, SiteCreateResponse, SiteIngestTarget,
-    SiteListResponse, SiteUpdateRequest, SiteWriteKeyResponse,
+    Site, SiteConfigResponse, SiteCreateRequest, SiteCreateResponse, SiteIdentityMode,
+    SiteIngestTarget, SiteListResponse, SiteUpdateRequest, SiteWriteKeyResponse,
 };
 pub use admin_users::{
     AdminPasswordResetResponse, AdminUser, AdminUserCreateRequest, AdminUserDisableRequest,
-    AdminUserEnableRequest, AdminUserListResponse, AdminUserMembershipCreateRequest,
-    AdminUserQuery, AdminUserRemovalRequest, AdminUserRole, AdminUserRoleListResponse,
-    AdminUserUpdateRequest, TenantRole,
+    AdminUserEnableRequest, AdminUserGlobalUserState, AdminUserListResponse,
+    AdminUserMembershipCreateRequest, AdminUserMembershipState, AdminUserQuery,
+    AdminUserRemovalRequest, AdminUserRole, AdminUserRoleListResponse, AdminUserUpdateRequest,
+    TenantRole,
 };
 pub use analytics_events::{
-    AnalyticsEventsQueryRequest, AnalyticsEventsQueryResponse, AnalyticsLabelFilter,
-    AnalyticsRangeBucket, AnalyticsRangeQueryRequest, AnalyticsRangeQueryResponse,
-    AnalyticsSourceSummary, AnalyticsTimingSummary,
+    AnalyticsEventsQueryRequest, AnalyticsEventsQueryRequestSource, AnalyticsEventsQueryResponse,
+    AnalyticsLabelFilter, AnalyticsRangeBucket, AnalyticsRangeQueryRequest,
+    AnalyticsRangeQueryResponse, AnalyticsSourceSummary, AnalyticsTimingSummary,
 };
 pub use analytics_reads::{
     AnalyticsActiveNow, AnalyticsDashboardCoverage, AnalyticsDashboardDogfood,
@@ -300,58 +307,64 @@ pub use app_profile::{
     CurrentApplicationProfile,
 };
 pub use audit_accounting::{
-    AccountingEvidence, AccountingEvidenceCreateRequest, AccountingEvidenceListResponse,
-    AccountingEvidenceResponse, AuditChange, AuditDomainHistory, AuditEvent, AuditEventOutcome,
-    AuditEventQuery, AuditEventsFormat, AuditEventsScope, AuditListCursor, AuditListResponse,
+    AccountingEvidence, AccountingEvidenceCreateRequest, AccountingEvidenceKind,
+    AccountingEvidenceListResponse, AccountingEvidenceResponse, AccountingEvidenceUnit,
+    AuditChange, AuditDomainHistory, AuditEvent, AuditEventOutcome, AuditEventQuery,
+    AuditEventsFormat, AuditEventsScope, AuditListCursor, AuditListResponse,
     AuditNetworkDisclosure, AuditNetworkDisclosureIpAddressState, AuditRetentionDisclosure,
 };
 pub use auth_project_directories::{
     ApplicationIdentityTrait, ApplicationMembershipChoice, ApplicationMembershipContext,
     ApplicationMembershipRevocation, ApplicationMembershipRevokeRequest,
     ApplicationPrincipalErasure, ApplicationPrincipalErasureRequest, ApplicationPrincipalExport,
-    ApplicationPrincipalIdentityExport, ApplicationPrincipalListItem,
-    ApplicationPrincipalListResponse, ApplicationPrincipalMembershipView,
+    ApplicationPrincipalIdentityExport, ApplicationPrincipalIdentityExportTraitsStatus,
+    ApplicationPrincipalListItem, ApplicationPrincipalListResponse,
+    ApplicationPrincipalMembershipView, ApplicationPrincipalMembershipViewRole,
     ApplicationPrincipalProfile, ApplicationPrincipalProfileValueView,
     ApplicationPrincipalSuspension, ApplicationProfileField, ApplicationSession,
     ApplicationSessionInventory, ApplicationSessionRevocation, ApplicationSessionRevokeRequest,
     ApplicationSessionsRevokeAllRequest, AuthDirectoryAction, AuthProjectAudienceGrant,
     AuthProjectAudienceGrantRequest, AuthProjectDirectoryCapacity, AuthProjectDirectoryRequest,
-    AuthProjectDirectoryStatus, AuthProjectDirectoryView, AuthProjectEnvironmentOrganisation,
-    AuthProjectEnvironmentOrganisationList, AuthProjectInvitationIssueRequest,
-    AuthProjectInvitationIssued, AuthProjectInvitationListResponse,
-    AuthProjectInvitationRedeliveryRequest, AuthProjectInvitationRevocationRequest,
-    AuthProjectInvitationView, AuthProjectPrincipalAudience, AuthProjectPrincipalAudiences,
+    AuthProjectDirectoryStatus, AuthProjectDirectoryView, AuthProjectDirectoryViewState,
+    AuthProjectEnvironmentOrganisation, AuthProjectEnvironmentOrganisationList,
+    AuthProjectInvitationIssueRequest, AuthProjectInvitationIssued,
+    AuthProjectInvitationListResponse, AuthProjectInvitationRedeliveryRequest,
+    AuthProjectInvitationRevocationRequest, AuthProjectInvitationView,
+    AuthProjectPrincipalAudience, AuthProjectPrincipalAudiences,
 };
 pub use auth_project_domains::{
-    AuthDomainBindRequest, AuthDomainBinding, AuthDomainDNSProof,
-    AuthDomainImageOverrideSetRequest, AuthDomainImageOverrideStatus, AuthDomainImageSet,
-    AuthDomainImages, AuthDomainMintRequest, AuthProjectBrandLogo,
+    AuthDomainBindRequest, AuthDomainBinding, AuthDomainBindingLifecycle, AuthDomainBindingStatus,
+    AuthDomainDNSProof, AuthDomainImageOverrideSetRequest, AuthDomainImageOverrideStatus,
+    AuthDomainImageSet, AuthDomainImages, AuthDomainImagesConvergence, AuthDomainImagesSource,
+    AuthDomainMintRequest, AuthProjectBrandLogo,
 };
 pub use auth_project_releases::{
-    AuthProjectAppCacheRule, AuthProjectAppCreateReleaseRequest, AuthProjectAppHeaderRule,
-    AuthProjectAppPromotion, AuthProjectAppRelease, AuthProjectAppReleaseFile,
-    AuthProjectAppReleaseList, AuthProjectAppReleaseManifest, AuthProjectAppResponseHeader,
-    AuthProjectAppRoutingRules, AuthProjectAppSPAFallback, AuthProjectAppShareableRoute,
-    AuthProjectAppSiteCard, AuthProjectAppUploadedFile,
+    AuthProjectAppCacheRule, AuthProjectAppCacheRuleMode, AuthProjectAppCreateReleaseRequest,
+    AuthProjectAppHeaderRule, AuthProjectAppHeaderRuleFraming, AuthProjectAppPromotion,
+    AuthProjectAppRelease, AuthProjectAppReleaseFile, AuthProjectAppReleaseList,
+    AuthProjectAppReleaseManifest, AuthProjectAppResponseHeader, AuthProjectAppRoutingRules,
+    AuthProjectAppSPAFallback, AuthProjectAppShareableRoute, AuthProjectAppSiteCard,
+    AuthProjectAppUploadedFile,
 };
 pub use auth_projects::{
     AppItemEnvironmentLink, AppItemEnvironmentLinkKind, AppItemEnvironmentLinkList,
     AppItemEnvironmentLinkRole, AuthEnvironmentClientCleanup, AuthEnvironmentHostingRemoval,
     AuthEnvironmentHostingWithdrawal, AuthEnvironmentReleasedResources,
     AuthEnvironmentRetainedResources, AuthProjectAudienceBinding, AuthProjectCapability,
-    AuthProjectChange, AuthProjectClientRegistration, AuthProjectClientRegistrationStatus,
-    AuthProjectClientSyncReport, AuthProjectClientSyncRequest, AuthProjectClientSyncStatus,
-    AuthProjectCompanyBinding, AuthProjectCreateRequest,
+    AuthProjectChange, AuthProjectClientRegistration, AuthProjectClientRegistrationAction,
+    AuthProjectClientRegistrationStatus, AuthProjectClientSyncReport, AuthProjectClientSyncRequest,
+    AuthProjectClientSyncStatus, AuthProjectCompanyBinding, AuthProjectCreateRequest,
     AuthProjectCreateRequestAudienceEntitlementMode, AuthProjectCreateRequestIdentityMode,
     AuthProjectCreation, AuthProjectDeletion, AuthProjectDeletionRequest, AuthProjectDesiredState,
-    AuthProjectDesiredStateApplicationSessionPolicy, AuthProjectDesiredStateRequest,
-    AuthProjectEnvironmentCreateRequest, AuthProjectEnvironmentDeletion,
-    AuthProjectEnvironmentDeletionRequest, AuthProjectEnvironmentOffboardRequest,
-    AuthProjectEnvironmentOffboarding, AuthProjectHostedSignIn, AuthProjectHosting,
-    AuthProjectHostingIngestTarget, AuthProjectHostingRemoval, AuthProjectHostingStatus,
-    AuthProjectListResponse, AuthProjectOperation, AuthProjectPreview, AuthProjectProfileField,
-    AuthProjectReleasedResources, AuthProjectSocialCallbackURL, AuthProjectSocialProvider,
-    AuthProjectSocialProviderMode, AuthProjectSocialProviderProvider,
+    AuthProjectDesiredStateApplicationSessionPolicy, AuthProjectDesiredStateRegistrationPolicy,
+    AuthProjectDesiredStateRequest, AuthProjectEnvironmentCreateRequest,
+    AuthProjectEnvironmentDeletion, AuthProjectEnvironmentDeletionRequest,
+    AuthProjectEnvironmentOffboardRequest, AuthProjectEnvironmentOffboarding,
+    AuthProjectHostedSignIn, AuthProjectHosting, AuthProjectHostingIngestTarget,
+    AuthProjectHostingRemoval, AuthProjectHostingStatus, AuthProjectListResponse,
+    AuthProjectOperation, AuthProjectPreview, AuthProjectProfileField,
+    AuthProjectProfileFieldEditableBy, AuthProjectReleasedResources, AuthProjectSocialCallbackURL,
+    AuthProjectSocialProvider, AuthProjectSocialProviderMode, AuthProjectSocialProviderProvider,
     AuthProjectSocialProviderStatus, AuthProjectSocialProviderStatusState, AuthProjectSocialSignIn,
     AuthProjectSocialSignInStatus, AuthProjectStatus, AuthProjectSummary,
 };
@@ -373,21 +386,22 @@ pub use data_labels::{
     SchemaFieldDataLabelAssignmentRequest,
 };
 pub use data_scopes::{
-    DataScope, DataScopeCreateRequest, DataScopeGrant, DataScopeGrantListResponse,
-    DataScopeGrantRequest, DataScopeGrantTarget, DataScopeGrantsKind, DataScopeListResponse,
-    DataScopePrincipalRef, DataScopeResource, DataScopeResourceCreateRequest,
-    DataScopeResourceListResponse, DataScopeResourceUpdateRequest, DataScopeUpdateRequest,
-    DataScopeUpdateRequestStatus,
+    DataScope, DataScopeCreateRequest, DataScopeGrant, DataScopeGrantAction,
+    DataScopeGrantListResponse, DataScopeGrantRequest, DataScopeGrantTarget,
+    DataScopeGrantTargetKind, DataScopeGrantsKind, DataScopeListResponse, DataScopePrincipalRef,
+    DataScopeResource, DataScopeResourceCreateRequest, DataScopeResourceListResponse,
+    DataScopeResourceUpdateRequest, DataScopeUpdateRequest, DataScopeUpdateRequestStatus,
 };
 pub use data_spaces::{
     DataSpace, DataSpaceCreateRequest, DataSpaceEntitlementState, DataSpaceListResponse,
     DataSpaceStorageMeasurementState, DataSpaceUsageRow, DataSpaceUsageSummary,
     ProducerReservation, ProducerReservationClaimRequest, ProducerReservationCreateRequest,
-    ProducerReservationListResponse,
+    ProducerReservationListResponse, ProducerReservationStatus,
 };
 pub use error_issues::{
     ErrorIssue, ErrorIssueDetail, ErrorIssueEvent, ErrorIssueException, ErrorIssueFrame,
-    ErrorIssueListResponse, ErrorIssueStateRequest, ErrorIssuesSort, ErrorIssuesState,
+    ErrorIssueListResponse, ErrorIssueState, ErrorIssueStateRequest, ErrorIssuesSort,
+    ErrorIssuesState,
 };
 pub use event_types::{
     EventCategoryConfig, EventCategoryConfigListResponse, EventCategoryConfigUpdateRequest,
@@ -417,23 +431,23 @@ pub use ingest::{
     SystemMonitoringTotals,
 };
 pub use measurement_predictions::{
-    DurationForecastDefinition, DurationForecastEvaluation, DurationForecastEvaluationArtifact,
-    DurationForecastEvaluationFold, DurationForecastEvaluationMetric,
-    DurationForecastEvaluationMetrics, DurationForecastInterval,
+    DurationForecastDefinition, DurationForecastDefinitionMethod, DurationForecastEvaluation,
+    DurationForecastEvaluationArtifact, DurationForecastEvaluationFold,
+    DurationForecastEvaluationMetric, DurationForecastEvaluationMetrics, DurationForecastInterval,
     DurationForecastIntervalEvaluation, MeasurementDurationEvaluationOutcomeCounts,
     MeasurementDurationEvaluationRequest, MeasurementDurationEvaluationResponse,
     MeasurementDurationEvaluationVersion, MeasurementDurationEvaluationVersionEvidence,
     MeasurementDurationEvaluationVersionHistory, MeasurementDurationEvaluationVersionHistoryEntry,
     MeasurementPredictionActivateRequest, MeasurementPredictionDefinition,
     MeasurementPredictionDefinitionCreateRequest, MeasurementPredictionDefinitionListResponse,
-    MeasurementPredictionDefinitionUpdateRequest, MeasurementPredictionEvaluationSummary,
-    MeasurementPredictionOutcomeListResponse, MeasurementPredictionOutcomeSummary,
-    MeasurementPredictionPauseRequest, MeasurementPredictionRunListResponse,
-    MeasurementPredictionRunNowRequest, MeasurementPredictionRunSummary,
-    MeasurementPredictionThresholdEvent, MeasurementPredictionThresholdEventListResponse,
-    MeasurementPredictionVersion, MeasurementPredictionVersionPublishRequest,
-    MeasurementSignalSource, MeasurementSignalSourceCreateRequest,
-    MeasurementSignalSourceListResponse,
+    MeasurementPredictionDefinitionProjectKind, MeasurementPredictionDefinitionUpdateRequest,
+    MeasurementPredictionEvaluationSummary, MeasurementPredictionOutcomeListResponse,
+    MeasurementPredictionOutcomeSummary, MeasurementPredictionPauseRequest,
+    MeasurementPredictionRunListResponse, MeasurementPredictionRunNowRequest,
+    MeasurementPredictionRunSummary, MeasurementPredictionThresholdEvent,
+    MeasurementPredictionThresholdEventListResponse, MeasurementPredictionVersion,
+    MeasurementPredictionVersionPublishRequest, MeasurementSignalSource,
+    MeasurementSignalSourceCreateRequest, MeasurementSignalSourceListResponse,
 };
 pub use measurement_projects::{
     MeasurementCalibrationExerciseCreateRequest, MeasurementCalibrationExerciseResponse,
@@ -455,9 +469,9 @@ pub use measurement_reads::{
     MeasurementPredictionCalibrationBucket, MeasurementPredictionContribution,
     MeasurementPredictionSourceHealth, MeasurementPredictionStory,
     MeasurementPredictionStoryEvaluation, MeasurementPredictionStoryOutcome,
-    MeasurementPredictionStoryPoint, PresentationLayer, PresentationPoint, PresentationReference,
-    PresentationSupportingTable, PresentationSupportingTableRow, PresentationTableColumn,
-    PresentationTableRow,
+    MeasurementPredictionStoryPoint, PresentationLayer, PresentationLayerRole,
+    PresentationLayerYKind, PresentationPoint, PresentationReference, PresentationSupportingTable,
+    PresentationSupportingTableRow, PresentationTableColumn, PresentationTableRow,
 };
 pub use notifications::{
     EmailRelay, EmailRelayEffectiveSender, EmailRelayTestSendRequest, EmailRelayTestSendResult,
@@ -465,7 +479,7 @@ pub use notifications::{
     NotificationDestinationEventSlug, NotificationWebhookCreateRequest,
     NotificationWebhookEnabledRequest, NotificationWebhookListResponse, NotificationWebhookSecret,
     NotificationWebhookSubscription, NotificationWebhookSubscriptionKind, TenantDestination,
-    TenantDestinationRequest,
+    TenantDestinationChannel, TenantDestinationEventSlug, TenantDestinationRequest,
 };
 pub use oauth_clients::{
     OAuthClient, OAuthClientAdmission, OAuthClientAdmissionApproveRequest,
@@ -480,7 +494,6 @@ pub use offboarding::{
     OffboardingPreviewResponse, OffboardingRequestBody, OffboardingRequestCancellation,
     OffboardingRequestResponse, OffboardingSchedule, OffboardingScheduleListResponse,
     OffboardingScheduleRequest, TenantOffboardingExclusion, TenantOffboardingPreviewItem,
-    TenantOffboardingReceipt, TenantReceiptPerStore, TenantReceiptWaiver,
 };
 pub use parsers::{
     ParserDefinition, ParserDeleteResponse, ParserFraming, ParserFramingOutcome, ParserFramingType,
@@ -489,76 +502,96 @@ pub use parsers::{
     ParserSaveRequest, ParserType,
 };
 pub use privacy::{
-    PrivacyConsentListResponse, PrivacyConsentRecord, PrivacyConsentRecordRequest,
-    PrivacyErasureCreateRequest, PrivacyErasureListResponse, PrivacyErasureResponse,
-    PrivacyErasureSelector, PrivacyIdentifierListResponse, PrivacyIdentifierMapRequest,
-    PrivacyIdentifierMapping, PrivacyRule, PrivacyRulesReplaceRequest, PrivacyRulesResponse,
+    PrivacyConsentListResponse, PrivacyConsentRecord, PrivacyConsentRecordPurpose,
+    PrivacyConsentRecordRequest, PrivacyErasureCreateRequest, PrivacyErasureListResponse,
+    PrivacyErasureResponse, PrivacyErasureSelector, PrivacyIdentifierListResponse,
+    PrivacyIdentifierMapRequest, PrivacyIdentifierMapping, PrivacyRule, PrivacyRulesReplaceRequest,
+    PrivacyRulesResponse,
 };
 pub use producers::{
     ProducerEnvironmentUpdateRequest, ProducerProvisionListResponse, ProducerProvisionPublicClient,
     ProducerProvisionRequest, ProducerProvisionResponse, ProducerSecretRotationResponse,
 };
 pub use public_routes::{
-    AppAlertUnsubscribePage, AuthDomainMonitoringInventory, get_app_alert_unsubscribe_page,
+    AppAlertUnsubscribePage, AuthDomainMonitoringInventory, SiteStatusSubscriptionRequest,
+    SiteStatusSubscriptionToken, confirm_status_page_subscription, get_app_alert_unsubscribe_page,
     get_site_config, read_app_host_discovery, read_auth_domain_monitoring_inventory,
-    read_shared_site_report, unsubscribe_app_alert_email,
+    read_public_status_page, read_shared_site_report, subscribe_to_status_page,
+    unsubscribe_app_alert_email, unsubscribe_from_status_page,
 };
 pub use reporting::{
     CompletedRunExportAdjustmentSection, CompletedRunExportAnnotationsActionsSection,
     CompletedRunExportBlockSection, CompletedRunExportIdentity, CompletedRunExportIntegrity,
     CompletedRunExportMetadata, CompletedRunExportPredictionComparisonSection,
-    CompletedRunExportRedaction, CompletedRunExportRequest, CompletedRunExportSections,
-    CompletedRunExportSource, DashboardCatalogueEntry, DashboardCatalogueResponse,
-    DashboardCatalogueTrust, DashboardDefinition, DashboardGenerationRequest,
-    DashboardGenerationResponse, DashboardInteractionRule, DashboardSharePolicy,
-    ExecutiveReportDefinition, PreparedDataOutputListResponse, PreparedDataOutputStatus,
-    PreparedDataOutputStatusAvailability, PreparedDataOutputStatusProcessingState,
-    PreparedDataQueryEnvelope, PreparedDataReceiptStatus, PresentationPresetSelection,
+    CompletedRunExportRedaction, CompletedRunExportRedactionResult, CompletedRunExportRequest,
+    CompletedRunExportSections, CompletedRunExportSource, DashboardCatalogueEntry,
+    DashboardCatalogueEntryExportFormats, DashboardCatalogueEntryInteractions,
+    DashboardCatalogueResponse, DashboardCatalogueTrust, DashboardDefinition,
+    DashboardGenerationRequest, DashboardGenerationResponse, DashboardGenerationResponseState,
+    DashboardInteractionRule, DashboardInteractionRuleResetBehavior, DashboardSharePolicy,
+    DashboardSharePolicyRelativeRanges, ExecutiveReportDefinition,
+    ExecutiveReportDefinitionComparisonBasis, ExecutiveReportDefinitionRecipe,
+    PreparedDataOutputListResponse, PreparedDataOutputStatus, PreparedDataOutputStatusAvailability,
+    PreparedDataOutputStatusProcessingState, PreparedDataQueryEnvelope, PreparedDataReceiptStatus,
+    PresentationPresetSelection, PresentationPresetSelectionNonColorEncoding,
+    PresentationPresetSelectionPresetId, PresentationPresetSelectionSummaryTemplateId,
     RenderedAnomaly, RenderedCalibrationBucket, RenderedCohortCell, RenderedDistributionBin,
     RenderedDriver, RenderedInterval, RenderedLifecycleStage, RenderedMetricValue,
-    RenderedQuantile, RenderedVisualResult, RenderedWidgetBucket, RenderedWidgetData,
+    RenderedMetricValueDataSufficiency, RenderedMetricValueUnit, RenderedQuantile,
+    RenderedVisualResult, RenderedVisualResultKind, RenderedWidgetBucket, RenderedWidgetData,
     ReportExportArtifact, ReportExportCancelRequest, ReportExportCreateRequest, ReportExportJob,
     ReportExportJobList, ReportExportProgressCounter, ReportExportQueryParameters,
     ReportingDatasetRowCount, ReportingEmailDeliveryRecipient,
     ReportingEmailDeliveryRecipientOutcome, ReportingEmailDeliveryRecipients,
-    ReportingNarrativeBlock, ReportingNarrativeValueReference, ReportingNextActionHint,
-    ReportingNextActionHintAction, ReportingProvenance, ReportingQueryMetadata,
-    ReportingQueryRequest, ReportingQueryRequestComparison, ReportingReconciliationResult,
-    ReportingReportSectionDefinition, ReportingRequestedFilter, ReportingRequestedFilterOperator,
-    ReportingSnapshotColumn, ReportingSnapshotDatasetSchema, ReportingSnapshotLabelMetadata,
-    ReportingSnapshotLabelValue, ReportingSourceContribution, ReportingSourceDivergence,
-    ReportingSourceRange, ReportingSourceSummary, ReportingSubjectInsightRequest,
-    ReportingSubjectInsightResponse, ReportingTemporalTrust, ReportingTrust,
-    ReportingTrustRetryability, ReportingWarning, ReportingWidgetDefinition,
+    ReportingNarrativeBlock, ReportingNarrativeValueReference,
+    ReportingNarrativeValueReferenceValue, ReportingNextActionHint, ReportingNextActionHintAction,
+    ReportingProvenance, ReportingQueryMetadata, ReportingQueryRequest,
+    ReportingQueryRequestComparison, ReportingReconciliationResult,
+    ReportingReconciliationResultAvailability, ReportingReconciliationResultStatus,
+    ReportingReconciliationResultUnit, ReportingReportSectionDefinition,
+    ReportingReportSectionDefinitionLayout, ReportingRequestedFilter,
+    ReportingRequestedFilterOperator, ReportingSnapshotColumn, ReportingSnapshotColumnType,
+    ReportingSnapshotDatasetSchema, ReportingSnapshotLabelMetadata, ReportingSnapshotLabelValue,
+    ReportingSourceContribution, ReportingSourceDivergence, ReportingSourceRange,
+    ReportingSourceSummary, ReportingSubjectInsightRequest, ReportingSubjectInsightResponse,
+    ReportingTemporalTrust, ReportingTrust, ReportingTrustDataFreshness,
+    ReportingTrustRetryability, ReportingTrustStatus, ReportingWarning, ReportingWidgetDefinition,
+    ReportingWidgetDefinitionKind,
 };
 pub use reporting_packs::{
     ExecutiveComparisonResult, ExecutiveConfidence, ExecutivePeriod, ExecutivePrimaryResult,
     ExecutiveReport, ReportingPack, ReportingPackAccountingContract, ReportingPackActivationRule,
-    ReportingPackActivityRule, ReportingPackAllocationRule, ReportingPackAllocationTarget,
-    ReportingPackAssetHierarchy, ReportingPackAssetHierarchyEdge, ReportingPackAssetNode,
-    ReportingPackAuditEvent, ReportingPackAuditListResponse, ReportingPackDimension,
-    ReportingPackDraft, ReportingPackDraftCreateRequest, ReportingPackDraftListResponse,
+    ReportingPackActivationRuleIdentity, ReportingPackActivityRule, ReportingPackAllocationRule,
+    ReportingPackAllocationTarget, ReportingPackAssetHierarchy, ReportingPackAssetHierarchyEdge,
+    ReportingPackAssetHierarchyEdgeMode, ReportingPackAssetNode, ReportingPackAuditEvent,
+    ReportingPackAuditListResponse, ReportingPackDimension, ReportingPackDraft,
+    ReportingPackDraftCreateRequest, ReportingPackDraftListResponse,
     ReportingPackDraftUpdateRequest, ReportingPackFilterDefinition, ReportingPackFlowRule,
     ReportingPackGeneration, ReportingPackGenerationAcknowledgementStatus,
     ReportingPackGenerationStatus, ReportingPackGenerationStatusGeneration,
     ReportingPackGenerationValidity, ReportingPackGenerationValidityListResponse,
     ReportingPackIdentitySelectors, ReportingPackLogObservabilityBindings,
     ReportingPackMatchPredicate, ReportingPackMaterializationProvenance, ReportingPackMetric,
+    ReportingPackMetricCalculation, ReportingPackMetricFlowResult, ReportingPackMetricKind,
+    ReportingPackMetricMeasurementKind, ReportingPackMetricResetPolicy,
     ReportingPackNumericSelector, ReportingPackObservationAsset, ReportingPackObservationContract,
     ReportingPackObservationSource, ReportingPackPreviewRequest, ReportingPackPreviewResponse,
     ReportingPackProofProfile, ReportingPackRateTier, ReportingPackRedactionRule,
     ReportingPackRetentionRule, ReportingPackRollupDimension, ReportingPackRollupProvenance,
-    ReportingPackRollupRule, ReportingPackRoundingPolicy, ReportingPackSelectorDefinition,
+    ReportingPackRollupRule, ReportingPackRoundingPolicy, ReportingPackRoundingPolicyMode,
+    ReportingPackSelectorDefinition, ReportingPackSelectorDefinitionType,
     ReportingPackSemanticSeries, ReportingPackSetupBindingField, ReportingPackSetupTemplate,
     ReportingPackSetupTemplateBindRequest, ReportingPackSetupTemplateBindResponse,
     ReportingPackSetupTemplateListResponse, ReportingPackSourceReconciliation,
-    ReportingPackSourceSeries, ReportingPackSteppedRateSchedule, ReportingPackSubjectScopeRule,
-    ReportingPackTemplate, ReportingPackTransitionRule, ReportingPackTrustDiagnostics,
+    ReportingPackSourceReconciliationMode, ReportingPackSourceSeries,
+    ReportingPackSteppedRateSchedule, ReportingPackSteppedRateScheduleBillingBoundary,
+    ReportingPackSubjectScopeRule, ReportingPackTemplate, ReportingPackTemplateAggregation,
+    ReportingPackTemplateSourceModes, ReportingPackTransitionRule, ReportingPackTrustDiagnostics,
     ReportingPackValidateRequest, ReportingPackValidationResponse,
 };
 pub use retention::{
     RetentionPoliciesEnvelope, RetentionPolicy, RetentionPolicyListResponse,
-    RetentionPolicyUpsertRequest,
+    RetentionPolicyRetentionClass, RetentionPolicyScope, RetentionPolicyUpsertRequest,
 };
 pub use schema_registry::{
     EventSchemaCheckRequest, EventSchemaCheckResult, EventSchemaConflict, EventSchemaDocument,
@@ -566,21 +599,29 @@ pub use schema_registry::{
     EventSchemaRegisterRequest, EventSchemaStateResult, EventSchemaVersion, EventSchemaVersionList,
     EventType, EventTypeList,
 };
+pub use site_ai_owner::{
+    SiteAIOwnerHandoffRequest, SiteAIOwnerHandoffResponse, SiteAIOwnerSession, SiteAIOwnerSettings,
+    redeem_site_ai_owner_handoff,
+};
 pub use site_collector::{ErrorCaptureEvent, ErrorCaptureFrame, ErrorCaptureMode, SiteCollector};
 pub use site_insights_admin::{
     AccessLogHourReplay, AccessLogHourReplayPreviousStatus, AccessLogHourReplayRequest,
     SiteAIPlatformUsage, SiteAIPlatformUsagePeriod, SiteInsightsBacklog, SiteInsightsTaskList,
     SiteInsightsTaskStatus,
 };
+pub use site_monitor_reports::{
+    SiteMonitorDestination, get_private_uptime_work, submit_private_uptime, submit_site_heartbeat,
+};
 pub use storage_usage::{
     StorageAlertDelivery, StorageAlertEvaluation, StorageAlertEvent, StorageAlertEventListResponse,
-    StorageAlertMeasurement, StorageAlertRule, StorageAlertRuleCreateRequest,
-    StorageAlertRuleListResponse, StorageUsageBreakdown, StorageUsageSummary, TenantStorageUsage,
-    UsageResponse, UsageRow, UsageTotal,
+    StorageAlertMeasurement, StorageAlertRule, StorageAlertRuleChannel,
+    StorageAlertRuleCreateRequest, StorageAlertRuleListResponse, StorageUsageBreakdown,
+    StorageUsageSummary, TenantStorageUsage, UsageResponse, UsageRow, UsageTotal,
 };
 pub use subject_exports::{
     SubjectExportArtifactResponse, SubjectExportCreateRequest, SubjectExportListResponse,
-    SubjectExportResponse, SubjectExportStoreProgress,
+    SubjectExportResponse, SubjectExportResponseScope, SubjectExportResponseState,
+    SubjectExportScope, SubjectExportStoreProgress,
 };
 pub use support_access::{
     SupportAccessGrant, SupportAccessGrantCreateRequest, SupportAccessGrantListResponse,
@@ -591,39 +632,45 @@ pub use system_operations::{
     EnvironmentPolicy, EnvironmentPolicyReason, EnvironmentPolicyUpdateRequest, FailedJob,
     IngestClaim, IngestClaimListResponse, IngestClaimTerminalRequest, JobRetryReceipt,
     JobStatusResponse, OperationalBacklogSummary, OperationalStageSummary, OperationalSummary,
-    OutboxStatus, QueueCount, RLSExecuteRequest, RLSExecuteResponse, RLSPlan, RLSPlanRequest,
-    RLSPolicyDiff, RLSPolicySpec, RLSProofResponse, RLSStatus, RLSTableDiff, SDKUsageItem,
-    SDKUsageListResponse, SDKVersionDeprecation, SDKVersionDeprecationRequest,
-    ScheduledTaskListItem, ScheduledTaskListRunSummary, ScheduledTaskListViewResponse,
-    ScheduledTaskRunRequest, ScheduledTaskRunResponse, ScheduledTaskRunResponseSummary,
-    SystemRealmCapacity, SystemStageProgress, SystemStageSignals, SystemStageStatus,
-    SystemStatusKPIs, SystemStatusResponse, SystemStorageStatus, SystemTenantHotspot,
+    OutboxStatus, QueueCount, RLSExecuteRequest, RLSExecuteResponse, RLSExecuteResponseOutcome,
+    RLSPlan, RLSPlanRequest, RLSPolicyDiff, RLSPolicySpec, RLSProofResponse, RLSStatus,
+    RLSTableDiff, SDKUsageItem, SDKUsageListResponse, SDKVersionDeprecation,
+    SDKVersionDeprecationRequest, ScheduledTaskListItem, ScheduledTaskListRunSummary,
+    ScheduledTaskListViewResponse, ScheduledTaskRunRequest, ScheduledTaskRunResponse,
+    ScheduledTaskRunResponseSummary, SystemRealmCapacity, SystemStageProgress, SystemStageSignals,
+    SystemStageStatus, SystemStageStatusStatus, SystemStatusKPIs, SystemStatusResponse,
+    SystemStorageStatus, SystemTenantHotspot,
 };
 pub use tenant_manifest::{
     EventTypeConfigDesired, OAuthClientDesired, PrivacyDesired, ReportingPackDesired,
     RetentionDesired, SchemaDesired, TenantManifest, TenantManifestApplyResponse,
     TenantManifestOperationPendingStatus, TenantManifestOperationRetryFailure,
-    TenantManifestOperationStatus, TenantManifestReadiness, TenantManifestResourceStatus,
+    TenantManifestOperationStatus, TenantManifestOperationStatusState, TenantManifestReadiness,
+    TenantManifestResourceStatus,
 };
 pub use tenant_storage::{
     TenantStorageLocationCreateBody, TenantStorageLocationListResponse, TenantStorageLocationView,
 };
 pub use tenants::{
     DataSpaceEntitlementUpdateRequest, StorageLimit, StorageLimitUpdateRequest, Tenant,
-    TenantCreateRequest, TenantListResponse, TenantPurpose,
+    TenantCreateRequest, TenantListResponse, TenantOffboardingReceipt,
+    TenantOffboardingReceiptFinalState, TenantPurpose, TenantReceiptPerStore, TenantReceiptWaiver,
 };
 pub use time_plans::{
     CompletedDurationReport, CompletedDurationReportAdjustmentInput,
     CompletedDurationReportAllocation, CompletedDurationReportAllocationChange,
     CompletedDurationReportAnnotationInput, CompletedDurationReportBlockInput,
+    CompletedDurationReportBlockInputOutcome, CompletedDurationReportBlockInputStatus,
     CompletedDurationReportCalculationReceipt, CompletedDurationReportPredictionComparison,
-    CompletedDurationReportProvenance, CompletedDurationReportSummary, TimePlan,
-    TimePlanAllocation, TimePlanAllocationChange, TimePlanAllocationResult, TimePlanAnnotation,
+    CompletedDurationReportProvenance, CompletedDurationReportSummary,
+    CompletedDurationReportSummaryRunStatus, TimePlan, TimePlanAllocation,
+    TimePlanAllocationChange, TimePlanAllocationResult, TimePlanAnnotation,
     TimePlanAnnotationInput, TimePlanAnnotationListResponse, TimePlanAnnotationRedactBody,
     TimePlanAnnotationSchema, TimePlanAnnotationSchemaAllowedTypes, TimePlanAnnotationSchemaFields,
-    TimePlanCalculationReceipt, TimePlanCommandRequest, TimePlanCommandResult,
-    TimePlanCorrectedCommand, TimePlanCreateRunInput, TimePlanCreatedRun, TimePlanDefinition,
-    TimePlanDefinitionBlock, TimePlanDefinitionMathAdjustmentResult,
+    TimePlanCalculationReceipt, TimePlanCalculationReceiptReason, TimePlanCommandRequest,
+    TimePlanCommandRequestType, TimePlanCommandResult, TimePlanCorrectedCommand,
+    TimePlanCreateRunInput, TimePlanCreatedRun, TimePlanDefinition, TimePlanDefinitionBlock,
+    TimePlanDefinitionBlockBasis, TimePlanDefinitionMathAdjustmentResult,
     TimePlanDefinitionMathAllocationResult, TimePlanDefinitionMathDefinitionResult,
     TimePlanDefinitionMathProofResponse, TimePlanDefinitionMathProofSummary, TimePlanDraftInput,
     TimePlanDurationObservationIdentity, TimePlanDurationObservationReadResponse,
@@ -631,8 +678,8 @@ pub use time_plans::{
     TimePlanOutboxReplayResponse, TimePlanPredictionSnapshot, TimePlanPredictionSnapshotList,
     TimePlanProjectionLossResponse, TimePlanPublishedVersion, TimePlanPublishedVersionDetails,
     TimePlanReviseBody, TimePlanRevisionBody, TimePlanRunBlockView, TimePlanRunRepairResponse,
-    TimePlanRunView, TimePlanThresholdCue, TimePlanThresholdCueSeverity,
-    TimePlanTransitionHistoryResponse, TimePlanTransitionView,
+    TimePlanRunView, TimePlanRunViewStartPolicy, TimePlanThresholdCue,
+    TimePlanThresholdCueSeverity, TimePlanTransitionHistoryResponse, TimePlanTransitionView,
 };
 pub use uncertainty_models::{
     UncertaintyModel, UncertaintyModelBoundInput, UncertaintyModelBoundInputState,
@@ -649,18 +696,21 @@ pub use uploads::{AuditEventExport, ImageFile, OffboardingDownload, ReportExport
 pub use workflow_timings::{
     WorkflowTimingAttemptProjection, WorkflowTimingContributionEntry, WorkflowTimingDeclaration,
     WorkflowTimingDefinition, WorkflowTimingDefinitionList,
-    WorkflowTimingDefinitionReconcileResult, WorkflowTimingDimensionDefinition,
-    WorkflowTimingDurationHistoryEntry, WorkflowTimingDurationHistoryResponse,
-    WorkflowTimingDurationProjection, WorkflowTimingEvaluationResponse,
-    WorkflowTimingExcludedStepOutcome, WorkflowTimingExpectation, WorkflowTimingFactPayload,
+    WorkflowTimingDefinitionReconcileResult, WorkflowTimingDefinitionStatus,
+    WorkflowTimingDimensionDefinition, WorkflowTimingDurationHistoryEntry,
+    WorkflowTimingDurationHistoryResponse, WorkflowTimingDurationProjection,
+    WorkflowTimingEvaluationResponse, WorkflowTimingEvaluationResponseState,
+    WorkflowTimingExcludedStepOutcome, WorkflowTimingExcludedStepOutcomeOutcome,
+    WorkflowTimingExpectation, WorkflowTimingFactPayload, WorkflowTimingFactPayloadKind,
     WorkflowTimingFactProvenance, WorkflowTimingObservation, WorkflowTimingObservationBatchRequest,
     WorkflowTimingObservationBatchResult, WorkflowTimingObservationRequest,
     WorkflowTimingObservationResult, WorkflowTimingOutcomeCounts, WorkflowTimingRebuildResult,
     WorkflowTimingRevision, WorkflowTimingRunDurationFact, WorkflowTimingRunFact,
-    WorkflowTimingRunListResponse, WorkflowTimingRunPrediction, WorkflowTimingRunProjection,
-    WorkflowTimingRunProjectionStatus, WorkflowTimingRunReadResponse, WorkflowTimingRunSummary,
-    WorkflowTimingRunTimingSummary, WorkflowTimingStepDeclaration, WorkflowTimingStepDefinition,
-    WorkflowTimingStepDurationFact, WorkflowTimingStepFact,
+    WorkflowTimingRunFactState, WorkflowTimingRunListResponse, WorkflowTimingRunPrediction,
+    WorkflowTimingRunProjection, WorkflowTimingRunProjectionStatus, WorkflowTimingRunReadResponse,
+    WorkflowTimingRunSummary, WorkflowTimingRunTimingSummary, WorkflowTimingStepDeclaration,
+    WorkflowTimingStepDefinition, WorkflowTimingStepDurationFact, WorkflowTimingStepFact,
+    WorkflowTimingStepFactState,
 };
 /// This SDK's released version, taken from `Cargo.toml` (which `scripts/bump-version.sh` moves).
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

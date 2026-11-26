@@ -136,7 +136,7 @@ pub struct TenantManifestOperationStatus {
     pub lease_expires_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pending: Option<TenantManifestOperationPendingStatus>,
-    pub state: String,
+    pub state: TenantManifestOperationStatusState,
     pub updated_at: String,
     pub uuid: String,
 }
@@ -185,6 +185,30 @@ pub struct TenantManifestReadiness {
     pub safe_next_action_code: String,
     pub state: String,
     pub tenant_slug: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TenantManifestOperationStatusState {
+    #[serde(rename = "pending")]
+    Pending,
+    #[serde(rename = "success")]
+    Success,
+    #[serde(rename = "failure")]
+    Failure,
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+
+impl TenantManifestOperationStatusState {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Success => "success",
+            Self::Failure => "failure",
+            Self::Unknown => "unknown",
+        }
+    }
 }
 
 impl CustdClient {

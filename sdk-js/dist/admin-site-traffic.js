@@ -5,7 +5,7 @@
 export const ACCESS_LOG_HOUR_INVALID_CODE = "access_log_hour_invalid";
 /** The key that collects the rows beyond each day's top rows. */
 export const TRAFFIC_OTHER_KEY = "(other)";
-/** How much of one day was read; newer values may appear. */
+/** How much of one day was read. */
 export const SiteTrafficDayCoverage = {
     Complete: "complete",
     Partial: "partial",
@@ -16,7 +16,7 @@ export const SiteCrawlerIdentity = {
     Verified: "verified",
     ClaimsToBe: "claims_to_be",
 };
-/** The kind of site that referred a request; newer values may appear. */
+/** The kind of site that referred a request. */
 export const SiteReferrerClass = {
     Search: "search",
     AI: "ai",

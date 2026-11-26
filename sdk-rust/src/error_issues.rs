@@ -42,7 +42,7 @@ pub struct ErrorIssue {
     pub resolved_release: Option<String>,
     pub site_name: String,
     pub site_uuid: String,
-    pub state: String,
+    pub state: ErrorIssueState,
     pub title: String,
     pub uuid: String,
 }
@@ -136,10 +136,31 @@ pub struct ErrorIssueFrame {
     pub pre_context: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorIssueStateRequest {
-    pub state: String,
+    pub state: ErrorIssueState,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ErrorIssueState {
+    #[serde(rename = "open")]
+    Open,
+    #[serde(rename = "resolved")]
+    Resolved,
+    #[serde(rename = "ignored")]
+    Ignored,
+}
+
+impl ErrorIssueState {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Open => "open",
+            Self::Resolved => "resolved",
+            Self::Ignored => "ignored",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -7,7 +7,7 @@ export declare const SITE_AUDIT_PAGES_DEFAULT_LIMIT = 50;
 export declare const SITE_AUDIT_PAGES_MAX_LIMIT = 200;
 /** How many extra pages beside the home page Lighthouse may measure. */
 export declare const SITE_LIGHTHOUSE_MAX_EXTRA_PAGES = 5;
-/** Whether a crawled page can be indexed; newer values may appear. */
+/** Whether a crawled page can be indexed. */
 export declare const SiteAuditPageIndexability: {
     readonly Indexable: "indexable";
     readonly Noindex: "noindex";
@@ -16,13 +16,15 @@ export declare const SiteAuditPageIndexability: {
     readonly Error: "error";
     readonly NotHTML: "not_html";
 };
-/** How the latest audit run ended; newer values may appear. */
+export type SiteAuditPageIndexability = (typeof SiteAuditPageIndexability)[keyof typeof SiteAuditPageIndexability];
+/** How the latest audit run ended. */
 export declare const SiteAuditRun: {
     readonly NotAudited: "not_audited";
     readonly Failed: "failed";
     readonly Truncated: "truncated";
     readonly Complete: "complete";
 };
+export type SiteAuditRun = (typeof SiteAuditRun)[keyof typeof SiteAuditRun];
 /** One crawled URL. depth and inboundLinks are absent when unknown; a present 0 is a real 0. */
 export type SiteAuditPage = {
     url: string;
@@ -31,7 +33,7 @@ export type SiteAuditPage = {
     /** HTTP status of the first response; 0 when the request failed. */
     status: number;
     /** A SiteAuditPageIndexability value. */
-    indexability: string;
+    indexability: SiteAuditPageIndexability;
     /** Clicks from the home page. */
     depth?: number;
     /** Crawled pages that link here; absent on a truncated crawl. */
@@ -53,7 +55,7 @@ export type SiteAuditPageList = {
 export type SiteAuditDelta = {
     domainUuid: string;
     /** A SiteAuditRun value. */
-    run: string;
+    run: SiteAuditRun;
     auditedAt?: string;
     failure?: string;
     new: SiteFinding[];

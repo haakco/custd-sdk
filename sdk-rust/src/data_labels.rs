@@ -342,7 +342,6 @@ impl CustdClient {
     pub fn disable_data_label(
         &self,
         definition_uuid: &str,
-        include_disabled: Option<bool>,
         company_slug: Option<&str>,
     ) -> Result<()> {
         let path = api_path(
@@ -350,7 +349,7 @@ impl CustdClient {
                 "/api/v1/admin/data-labels/{}/disable",
                 percent_encode(definition_uuid)
             ),
-            &[("includeDisabled", include_disabled.map(|v| v.to_string()))],
+            &[],
             company_slug,
         );
         self.call(Method::Post, &path, NO_BODY)

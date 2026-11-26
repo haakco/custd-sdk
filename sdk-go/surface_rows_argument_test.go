@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // argumentSurfaceRows need real arguments: the SDK validates them before it
@@ -64,7 +65,7 @@ var argumentSurfaceRows = []surfaceRow{
 		return err
 	}},
 	{id: "admin-api GET /api/v1/admin/audit/events/export", path: "/api/v1/admin/audit/events/export", call: func(e *surfaceEnv) error {
-		_, err := e.client.Admin.Audit.ExportEvents(context.Background(), AuditListOptions{}, "csv")
+		_, err := e.client.Admin.Audit.ExportEvents(context.Background(), surfaceAuditOptions, "csv")
 		return err
 	}},
 	{id: "admin-api POST /api/v1/admin/time-plans/runs/{runUuid}/annotations", path: "/api/v1/admin/time-plans/runs/a2/annotations", call: func(e *surfaceEnv) error {
@@ -218,6 +219,11 @@ var argumentSurfaceRows = []surfaceRow{
 		_, err := e.client.Admin.DataScopes.ListGrants(context.Background(), surfaceGrant.Principal)
 		return err
 	}},
+	{id: "admin-api GET /api/v1/admin/data-scope-grants", path: "/api/v1/admin/data-scope-grants", call: func(e *surfaceEnv) error {
+		_, err := e.client.Admin.DataScopes.ListGrants(context.Background(),
+			DataScopePrincipalRef{Kind: DataScopePrincipalMachine, ClientID: "a1"})
+		return err
+	}},
 	{id: "admin-api POST /api/v1/admin/notification-webhooks/{uuid}/rotate-secret", path: "/api/v1/admin/notification-webhooks/a2/rotate-secret", call: func(e *surfaceEnv) error {
 		_, _, err := e.client.Admin.Webhooks.RotateSecret(context.Background(), "a1", "a2")
 		return err
@@ -297,9 +303,18 @@ const (
 )
 
 var (
-	surfaceAuthOptions = AuthProjectRequestOptions{IdempotencyKey: surfaceIdempotencyKey}
-	surfacePrincipal   = ApplicationPrincipalTarget{ProjectID: "a1", EnvironmentID: "a2", DirectoryID: "a3", ProviderSubject: "a4"}
-	surfaceGrant       = DataScopeGrant{
+	surfaceAuthOptions  = AuthProjectRequestOptions{IdempotencyKey: surfaceIdempotencyKey}
+	surfacePrincipal    = ApplicationPrincipalTarget{ProjectID: "a1", EnvironmentID: "a2", DirectoryID: "a3", ProviderSubject: "a4"}
+	surfaceAuditOptions = AuditListOptions{
+		Scope: AuditScopeGlobal, AffectedTenantSlug: "a1", Since: "2026-11-01T00:00:00Z", Until: "2026-11-02T00:00:00Z",
+		ActorKind: "a2", ActorReference: "a3", Action: "a4", ResourceType: "a5", ResourceID: "a6",
+		Outcome: AuditOutcomeSuccess, CorrelationID: "a7", Limit: 5, Cursor: "a8",
+	}
+	surfaceReservationScope = ProducerReservationScope{ParentCompanySlug: "p1"}
+	surfaceUsageQuery       = UsageQuery{
+		MeterSlug: "a1", Start: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), End: time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC), Limit: 5,
+	}
+	surfaceGrant = DataScopeGrant{
 		Principal: DataScopePrincipalRef{Kind: DataScopePrincipalHuman, UserUUID: surfaceUUID},
 		Target:    DataScopeGrantTarget{Kind: DataScopeGrantTargetParent},
 		Action:    DataScopeActionRead,

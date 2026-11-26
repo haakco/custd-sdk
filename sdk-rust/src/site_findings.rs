@@ -330,6 +330,7 @@ impl CustdClient {
         &self,
         domain_uuid: &str,
         request: &SiteFindingDismissalRequest,
+        company_slug: Option<&str>,
     ) -> Result<SiteFindingDismissal> {
         let path = api_path(
             format!(
@@ -337,13 +338,18 @@ impl CustdClient {
                 percent_encode(domain_uuid)
             ),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Post, &path, Some(request))
     }
 
     /// Restore an audit finding to active reporting if it is still observed.
-    pub fn restore_site_finding(&self, dismissal_uuid: &str, domain_uuid: &str) -> Result<()> {
+    pub fn restore_site_finding(
+        &self,
+        dismissal_uuid: &str,
+        domain_uuid: &str,
+        company_slug: Option<&str>,
+    ) -> Result<()> {
         let path = api_path(
             format!(
                 "{SITE_DOMAINS}/{}/finding-dismissals/{}",
@@ -351,7 +357,7 @@ impl CustdClient {
                 percent_encode(dismissal_uuid)
             ),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Delete, &path, NO_BODY)
     }

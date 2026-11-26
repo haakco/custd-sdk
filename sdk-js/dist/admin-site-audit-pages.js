@@ -9,7 +9,7 @@ export const SITE_AUDIT_PAGES_DEFAULT_LIMIT = 50;
 export const SITE_AUDIT_PAGES_MAX_LIMIT = 200;
 /** How many extra pages beside the home page Lighthouse may measure. */
 export const SITE_LIGHTHOUSE_MAX_EXTRA_PAGES = 5;
-/** Whether a crawled page can be indexed; newer values may appear. */
+/** Whether a crawled page can be indexed. */
 export const SiteAuditPageIndexability = {
     Indexable: "indexable",
     Noindex: "noindex",
@@ -18,7 +18,7 @@ export const SiteAuditPageIndexability = {
     Error: "error",
     NotHTML: "not_html",
 };
-/** How the latest audit run ended; newer values may appear. */
+/** How the latest audit run ended. */
 export const SiteAuditRun = {
     NotAudited: "not_audited",
     Failed: "failed",

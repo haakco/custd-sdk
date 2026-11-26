@@ -4,23 +4,25 @@ export declare const SITE_KEYWORD_LIST_NOT_FOUND_CODE = "site_keyword_list_not_f
 export declare const SITE_KEYWORD_LIST_LIMIT_CODE = "site_keyword_list_limit";
 /** Where keyword demand and related keywords come from. */
 export declare const SITE_KEYWORD_DEMAND_SOURCE_BING = "bing_keyword_research";
-/** Why a keyword list has demand numbers or not; newer values may appear. */
+/** Why a keyword list has demand numbers or not. */
 export declare const SiteKeywordDemandState: {
     readonly Available: "available";
     readonly NoMarket: "no_market";
     readonly NoBing: "no_bing";
 };
-/** Whether an inventoried domain is the Site's own or a named competitor; newer values may appear. */
+export type SiteKeywordDemandState = (typeof SiteKeywordDemandState)[keyof typeof SiteKeywordDemandState];
+/** Whether an inventoried domain is the Site's own or a named competitor. */
 export declare const SiteWebDomainRole: {
     readonly Own: "own";
     readonly Competitor: "competitor";
 };
+export type SiteWebDomainRole = (typeof SiteWebDomainRole)[keyof typeof SiteWebDomainRole];
 /** Where a page was found; newer sources may appear. */
 export declare const SiteWebPageSource: {
     readonly Sitemap: "sitemap";
     readonly Wayback: "wayback";
 };
-/** The state of one inventory source for a domain; newer values may appear. */
+/** The state of one inventory source for a domain. */
 export declare const SiteWebInventoryStatus: {
     readonly Pending: "pending";
     readonly Done: "done";
@@ -28,7 +30,8 @@ export declare const SiteWebInventoryStatus: {
     readonly Unavailable: "unavailable";
     readonly Failed: "failed";
 };
-/** A domain's band in the Tranco top-sites list; newer values may appear. */
+export type SiteWebInventoryStatus = (typeof SiteWebInventoryStatus)[keyof typeof SiteWebInventoryStatus];
+/** A domain's band in the Tranco top-sites list. */
 export declare const SiteTrancoBand: {
     readonly Top1K: "top-1k";
     readonly Top10K: "top-10k";
@@ -37,36 +40,40 @@ export declare const SiteTrancoBand: {
     readonly Unranked: "unranked";
     readonly Unknown: "unknown";
 };
-/** Whether a term's Wikipedia article was found; newer values may appear. */
+export type SiteTrancoBand = (typeof SiteTrancoBand)[keyof typeof SiteTrancoBand];
+/** Whether a term's Wikipedia article was found. */
 export declare const SiteTopicTrendStatus: {
     readonly Pending: "pending";
     readonly Found: "found";
     readonly NoArticle: "no_article";
     readonly Failed: "failed";
 };
+export type SiteTopicTrendStatus = (typeof SiteTopicTrendStatus)[keyof typeof SiteTopicTrendStatus];
 /** Where a trend term came from: a brand name or the content-gap seed. */
 export declare const SiteTopicTrendSource: {
     readonly Brand: "brand";
     readonly Seed: "seed";
 };
+export type SiteTopicTrendSource = (typeof SiteTopicTrendSource)[keyof typeof SiteTopicTrendSource];
 /** Whether the Site's own pages and queries could be read for a content gap. */
 export declare const SiteContentGapCoverage: {
     readonly Available: "available";
     readonly Unavailable: "unavailable";
 };
+export type SiteContentGapCoverage = (typeof SiteContentGapCoverage)[keyof typeof SiteContentGapCoverage];
 /** One inventoried domain. trancoRank, trancoListDay and inventoryAt are absent until known. */
 export type SiteWebDomain = {
     domain: string;
     /** A SiteWebDomainRole value. */
-    role: string;
+    role: SiteWebDomainRole;
     /** A SiteTrancoBand value. */
-    trancoBand: string;
+    trancoBand: SiteTrancoBand;
     trancoRank?: number;
     trancoListDay?: string;
     /** A SiteWebInventoryStatus value. */
-    sitemapStatus: string;
+    sitemapStatus: SiteWebInventoryStatus;
     /** A SiteWebInventoryStatus value. */
-    waybackStatus: string;
+    waybackStatus: SiteWebInventoryStatus;
     pageCount: number;
     lastFailure?: string;
     inventoryAt?: string;
@@ -105,11 +112,11 @@ export type SiteTopicTrendMonth = {
 export type SiteTopicTrend = {
     term: string;
     /** A SiteTopicTrendSource value. */
-    source: string;
+    source: SiteTopicTrendSource;
     project: string;
     article: string;
     /** A SiteTopicTrendStatus value. */
-    status: string;
+    status: SiteTopicTrendStatus;
     lastFailure?: string;
     checkedAt?: string;
     months: SiteTopicTrendMonth[];
@@ -142,7 +149,7 @@ export type SiteContentGap = {
     siteUuid: string;
     seed?: string;
     /** A SiteContentGapCoverage value. */
-    ownCoverage: string;
+    ownCoverage: SiteContentGapCoverage;
     ownPages: number;
     ownQueries: number;
     partial: boolean;
@@ -243,7 +250,7 @@ export type SiteKeywordDemand = {
 /** Holds only keywords Bing has been asked about; state says why it is empty. */
 export type SiteKeywordDemandSet = {
     /** A SiteKeywordDemandState value. */
-    state: string;
+    state: SiteKeywordDemandState;
     /** SITE_KEYWORD_DEMAND_SOURCE_BING. */
     source: string;
     market?: string;

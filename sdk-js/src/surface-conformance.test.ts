@@ -15,12 +15,13 @@ import {
 } from "./browser";
 import { installBrowserGlobals } from "./browser-globals.test-helper";
 import { CustdClient, type SubjectInsightRequest } from "./index";
-import { type Clients, dto, type Row, type RowArea } from "./surface-conformance.test-helper";
+import { auditFilter, type Clients, dto, type Row, type RowArea, usageWindow } from "./surface-conformance.test-helper";
 import { coreRows } from "./surface-rows-core.test-helper";
 import { ingestRows } from "./surface-rows-ingest.test-helper";
 import { measurementRows } from "./surface-rows-measurement.test-helper";
 import { notifyRows } from "./surface-rows-notify.test-helper";
 import { operatorRows } from "./surface-rows-operator.test-helper";
+import { publicRows } from "./surface-rows-public.test-helper";
 
 type Operation = {
   id: string;
@@ -28,6 +29,7 @@ type Operation = {
   path: string;
   sdk: "required" | "excluded";
   example?: string;
+  query?: { name: string; required: boolean }[];
 };
 
 type Example = { minimal: unknown; maximal: unknown };
@@ -47,13 +49,18 @@ function json(body: unknown): Response {
   return new Response(JSON.stringify(body ?? {}), { status: 200, headers: { "content-type": "application/json" } });
 }
 
-function newClients(respond: () => Response, requests: RecordedRequest[]): Clients {
+function newClients(respond: () => Response, requests: RecordedRequest[], actingCompanySlug?: string): Clients {
   const fetchImpl = (async (url: unknown, init?: RequestInit) => {
     requests.push({ method: init?.method ?? "GET", url: String(url) });
     return respond();
   }) as typeof fetch;
   return {
-    custd: new CustdClient({ baseUrl: "http://localhost:8080", getToken: () => "admin-token", fetch: fetchImpl }),
+    custd: new CustdClient({
+      baseUrl: "http://localhost:8080",
+      getToken: () => "admin-token",
+      fetch: fetchImpl,
+      actingCompanySlug,
+    }),
     items: new AppItemsClient({
       apiBaseUrl: "http://localhost:8080",
       siteKey: "site_pk_conformance",
@@ -212,26 +219,26 @@ const baselineRows: Row[] = [
   {
     id: "admin-api DELETE /api/v1/app/item/alerts/rules/{ruleUuid}",
     params: { ruleUuid: "ruleUuid-1" },
-    call: (c) => c.items.removeAlertRule("access-1", "ruleUuid-1"),
+    call: (c) => c.items.removeAlertRule({ item: "item-1" }, "ruleUuid-1"),
   },
   {
     id: "admin-api DELETE /api/v1/app/item/alerts/subscription",
-    call: (c) => c.items.unsubscribeAlertEmail("access-1"),
+    call: (c) => c.items.unsubscribeAlertEmail({ item: "item-1" }),
   },
   {
     id: "admin-api DELETE /api/v1/app/item/alerts/webhooks/{webhookUuid}",
     params: { webhookUuid: "webhookUuid-1" },
-    call: (c) => c.items.removeAlertWebhook("access-1", "webhookUuid-1"),
+    call: (c) => c.items.removeAlertWebhook({ item: "item-1" }, "webhookUuid-1"),
   },
   {
     id: "admin-api DELETE /api/v1/app/item/entries/{entryUuid}",
     params: { entryUuid: "entryUuid-1" },
-    call: (c) => c.items.removeEntry("access-1", "entryUuid-1"),
+    call: (c) => c.items.removeEntry({ item: "item-1" }, "entryUuid-1"),
   },
   {
     id: "admin-api DELETE /api/v1/app/item/links/{linkUuid}",
     params: { linkUuid: "linkUuid-1" },
-    call: (c) => c.items.revokeLink("access-1", "linkUuid-1"),
+    call: (c) => c.items.revokeLink({ item: "item-1" }, "linkUuid-1"),
   },
   { id: "admin-api DELETE /api/v1/app/profile/photo", call: (c) => c.profile.removePhoto() },
   {
@@ -253,17 +260,17 @@ const baselineRows: Row[] = [
   },
   {
     id: "admin-api DELETE /api/v1/site-domains/keyword-lists",
-    call: (c) => c.custd.admin.siteDomains.deleteKeywordList("name-1"),
+    call: (c) => c.custd.admin.siteDomains.deleteKeywordList("name-1", "siteUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api DELETE /api/v1/site-domains/{domainUuid}",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.delete("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.delete("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api DELETE /api/v1/site-domains/{domainUuid}/analytics/ga4",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.disconnectAnalytics("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.disconnectAnalytics("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api DELETE /api/v1/site-domains/{domainUuid}/attestation",
@@ -274,51 +281,51 @@ const baselineRows: Row[] = [
   {
     id: "admin-api DELETE /api/v1/site-domains/{domainUuid}/indexnow",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.disableIndexNow("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.disableIndexNow("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api DELETE /api/v1/site-domains/{domainUuid}/rankings/keywords/{keywordUuid}",
     params: { domainUuid: "domainUuid-1", keywordUuid: "keywordUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.untrackKeyword("domainUuid-1", "keywordUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.untrackKeyword("domainUuid-1", "keywordUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api DELETE /api/v1/site-domains/{domainUuid}/report-shares/{shareUuid}",
     params: { domainUuid: "domainUuid-1", shareUuid: "shareUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.revokeReportShare("domainUuid-1", "shareUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.revokeReportShare("domainUuid-1", "shareUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api DELETE /api/v1/site-domains/{domainUuid}/saved-reports/{reportUuid}",
     params: { domainUuid: "domainUuid-1", reportUuid: "reportUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.deleteSavedReport("domainUuid-1", "reportUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.deleteSavedReport("domainUuid-1", "reportUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api DELETE /api/v1/site-domains/{domainUuid}/search/{provider}",
     params: { domainUuid: "domainUuid-1", provider: "google" },
-    call: (c) => c.custd.admin.siteDomains.disconnectSearch("domainUuid-1", "google"),
+    call: (c) => c.custd.admin.siteDomains.disconnectSearch("domainUuid-1", "google", { companySlug: "acme" }),
   },
   {
     id: "admin-api DELETE /api/v1/site-domains/{domainUuid}/status-page",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.unpublishStatusPage("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.unpublishStatusPage("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api DELETE /api/v1/tenant-storage-locations/{id}",
     params: { id: "1" },
     call: (c) => c.custd.admin.tenantStorage.revoke(1),
   },
-  { id: "admin-api GET /api/v1/admin/apps", call: (c) => c.custd.admin.authProjects.listApps() },
+  { id: "admin-api GET /api/v1/admin/apps", call: (c) => c.custd.admin.authProjects.listApps("after-1") },
   {
     id: "admin-api GET /api/v1/admin/apps/{slug}",
     params: { slug: "slug-1" },
     call: (c) => c.custd.admin.authProjects.getApp("slug-1"),
   },
-  { id: "admin-api GET /api/v1/admin/audit/events", call: (c) => c.custd.admin.audit.listEvents() },
+  { id: "admin-api GET /api/v1/admin/audit/events", call: (c) => c.custd.admin.audit.listEvents(auditFilter) },
   {
     id: "admin-api GET /api/v1/admin/audit/events/{eventId}",
     params: { eventId: "eventId-1" },
-    call: (c) => c.custd.admin.audit.getEvent("eventId-1"),
+    call: (c) => c.custd.admin.audit.getEvent("eventId-1", { scope: "tenant", companySlug: "acme" }),
   },
-  { id: "admin-api GET /api/v1/admin/auth-projects", call: (c) => c.custd.admin.authProjects.listProjects() },
+  { id: "admin-api GET /api/v1/admin/auth-projects", call: (c) => c.custd.admin.authProjects.listProjects("after-1") },
   {
     id: "admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/capability",
     params: { projectId: "projectId-1", environmentId: "environmentId-1" },
@@ -388,7 +395,8 @@ const baselineRows: Row[] = [
   {
     id: "admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/principals",
     params: { projectId: "projectId-1", environmentId: "environmentId-1" },
-    call: (c) => c.custd.admin.authProjects.listPrincipals("projectId-1", "environmentId-1"),
+    call: (c) =>
+      c.custd.admin.authProjects.listPrincipals("projectId-1", "environmentId-1", { limit: 10, cursor: "cursor-1" }),
   },
   {
     id: "admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/principals/{providerSubject}/audiences",
@@ -398,7 +406,7 @@ const baselineRows: Row[] = [
   {
     id: "admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/releases",
     params: { projectId: "projectId-1", environmentId: "environmentId-1" },
-    call: (c) => c.custd.admin.authProjects.listAppReleases("projectId-1", "environmentId-1"),
+    call: (c) => c.custd.admin.authProjects.listAppReleases("projectId-1", "environmentId-1", 10),
   },
   {
     id: "admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/status",
@@ -406,15 +414,15 @@ const baselineRows: Row[] = [
     call: (c) => c.custd.admin.authProjects.getEnvironmentStatus("projectId-1", "environmentId-1"),
   },
   { id: "admin-api GET /api/v1/admin/data-label-assignments", call: (c) => c.custd.admin.dataLabels.listAssignments() },
-  { id: "admin-api GET /api/v1/admin/data-labels", call: (c) => c.custd.admin.dataLabels.list() },
-  { id: "admin-api GET /api/v1/admin/data-labels/catalogue", call: (c) => c.custd.admin.dataLabels.catalogue() },
+  { id: "admin-api GET /api/v1/admin/data-labels", call: (c) => c.custd.admin.dataLabels.list(true) },
+  { id: "admin-api GET /api/v1/admin/data-labels/catalogue", call: (c) => c.custd.admin.dataLabels.catalogue(true) },
   { id: "admin-api GET /api/v1/admin/data-labels/usage", call: (c) => c.custd.admin.dataLabels.listUsage() },
   {
     id: "admin-api GET /api/v1/admin/data-labels/{definitionUuid}",
     params: { definitionUuid: "uuid-1" },
-    call: (c) => c.custd.admin.dataLabels.get("uuid-1"),
+    call: (c) => c.custd.admin.dataLabels.get("uuid-1", true),
   },
-  { id: "admin-api GET /api/v1/admin/data-scopes", call: (c) => c.custd.admin.dataScopes.listScopes() },
+  { id: "admin-api GET /api/v1/admin/data-scopes", call: (c) => c.custd.admin.dataScopes.listScopes(true) },
   {
     id: "admin-api GET /api/v1/admin/data-scopes/{scopeUuid}",
     params: { scopeUuid: "scopeUuid-1" },
@@ -423,7 +431,7 @@ const baselineRows: Row[] = [
   {
     id: "admin-api GET /api/v1/admin/data-scopes/{scopeUuid}/resources",
     params: { scopeUuid: "scopeUuid-1" },
-    call: (c) => c.custd.admin.dataScopes.listResources("scopeUuid-1"),
+    call: (c) => c.custd.admin.dataScopes.listResources("scopeUuid-1", true),
   },
   {
     id: "admin-api GET /api/v1/admin/data-scopes/{scopeUuid}/resources/{resourceUuid}",
@@ -432,7 +440,7 @@ const baselineRows: Row[] = [
   },
   {
     id: "admin-api GET /api/v1/admin/measurement/predictions/definitions",
-    call: (c) => c.custd.admin.predictions.listDefinitions("companySlug-1"),
+    call: (c) => c.custd.admin.predictions.listDefinitions("companySlug-1", 10, "token-1"),
   },
   {
     id: "admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}",
@@ -457,7 +465,7 @@ const baselineRows: Row[] = [
   {
     id: "admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/threshold-events",
     params: { definitionUuid: "definitionUuid-1" },
-    call: (c) => c.custd.admin.predictions.listThresholdEvents("companySlug-1", "definitionUuid-1"),
+    call: (c) => c.custd.admin.predictions.listThresholdEvents("companySlug-1", "definitionUuid-1", 10),
   },
   {
     id: "admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/versions/{versionUuid}",
@@ -466,7 +474,7 @@ const baselineRows: Row[] = [
   },
   {
     id: "admin-api GET /api/v1/admin/measurement/predictions/sources",
-    call: (c) => c.custd.admin.predictions.listSignalSources("companySlug-1"),
+    call: (c) => c.custd.admin.predictions.listSignalSources("companySlug-1", 10, "token-1"),
   },
   {
     id: "admin-api GET /api/v1/admin/measurement/predictions/sources/{sourceUuid}",
@@ -566,14 +574,17 @@ const baselineRows: Row[] = [
   {
     id: "admin-api GET /api/v1/admin/retention/policies/{tenantSlug}/runs",
     params: { tenantSlug: "tenantSlug-1" },
-    call: (c) => c.custd.admin.retention.listRuns("tenantSlug-1"),
+    call: (c) => c.custd.admin.retention.listRuns("tenantSlug-1", { limit: 10, offset: 5 }),
   },
   {
     id: "admin-api GET /api/v1/admin/schema/audit",
     query: { tenantSlug: "acme" },
     call: (c) => c.custd.admin.schemas.audit("acme"),
   },
-  { id: "admin-api GET /api/v1/admin/site-insights/ai-usage", call: (c) => c.custd.admin.siteInsights.getAIUsage() },
+  {
+    id: "admin-api GET /api/v1/admin/site-insights/ai-usage",
+    call: (c) => c.custd.admin.siteInsights.getAIUsage("previous-month"),
+  },
   { id: "admin-api GET /api/v1/admin/site-insights/tasks", call: (c) => c.custd.admin.siteInsights.listTasks() },
   { id: "admin-api GET /api/v1/admin/sites", call: (c) => c.custd.admin.sites.list() },
   {
@@ -613,7 +624,7 @@ const baselineRows: Row[] = [
     params: { slug: "slug-1" },
     call: (c) => c.custd.admin.tenants.get("slug-1"),
   },
-  { id: "admin-api GET /api/v1/admin/time-plans", call: (c) => c.custd.admin.timePlans.list("companySlug-1") },
+  { id: "admin-api GET /api/v1/admin/time-plans", call: (c) => c.custd.admin.timePlans.list("companySlug-1", 10) },
   {
     id: "admin-api GET /api/v1/admin/time-plans/runs/{runUuid}",
     params: { runUuid: "runUuid-1" },
@@ -622,23 +633,23 @@ const baselineRows: Row[] = [
   {
     id: "admin-api GET /api/v1/admin/time-plans/runs/{runUuid}/annotations",
     params: { runUuid: "runUuid-1" },
-    call: (c) => c.custd.admin.timePlans.listAnnotations("companySlug-1", "runUuid-1"),
+    call: (c) => c.custd.admin.timePlans.listAnnotations("companySlug-1", "runUuid-1", 10),
   },
   {
     id: "admin-api GET /api/v1/admin/time-plans/runs/{runUuid}/history",
     params: { runUuid: "runUuid-1" },
-    call: (c) => c.custd.admin.timePlans.history("companySlug-1", "runUuid-1"),
+    call: (c) => c.custd.admin.timePlans.history("companySlug-1", "runUuid-1", 10),
   },
   {
     id: "admin-api GET /api/v1/admin/time-plans/{planUuid}",
     params: { planUuid: "planUuid-1" },
     call: (c) => c.custd.admin.timePlans.get("companySlug-1", "planUuid-1"),
   },
-  { id: "admin-api GET /api/v1/admin/usage/me", call: (c) => c.custd.admin.usage.get() },
-  { id: "admin-api GET /api/v1/app/item", call: (c) => c.items.readItem("access-1") },
-  { id: "admin-api GET /api/v1/app/item/alerts", call: (c) => c.items.alertSettings("access-1") },
-  { id: "admin-api GET /api/v1/app/item/alerts/deliveries", call: (c) => c.items.alertDeliveries("access-1") },
-  { id: "admin-api GET /api/v1/app/item/plan/forecast", call: (c) => c.items.planForecast("access-1") },
+  { id: "admin-api GET /api/v1/admin/usage/me", call: (c) => c.custd.admin.usage.get(usageWindow) },
+  { id: "admin-api GET /api/v1/app/item", call: (c) => c.items.readItem({ item: "item-1" }) },
+  { id: "admin-api GET /api/v1/app/item/alerts", call: (c) => c.items.alertSettings({ item: "item-1" }) },
+  { id: "admin-api GET /api/v1/app/item/alerts/deliveries", call: (c) => c.items.alertDeliveries({ item: "item-1" }) },
+  { id: "admin-api GET /api/v1/app/item/plan/forecast", call: (c) => c.items.planForecast({ item: "item-1" }) },
   { id: "admin-api GET /api/v1/app/items", call: (c) => c.items.listMyItems() },
   { id: "admin-api GET /api/v1/app/profile", call: (c) => c.profile.read() },
   { id: "admin-api GET /api/v1/app/profile/photo", response: photo, call: (c) => c.profile.readPhoto() },
@@ -653,210 +664,262 @@ const baselineRows: Row[] = [
     query: { parentCompanySlug: "acme" },
     call: (c) => c.custd.provisioning.reservations.list("dataSpaceSlug-1", "acme"),
   },
-  { id: "admin-api GET /api/v1/producer-provisioning", call: (c) => c.custd.provisioning.producers.list() },
-  { id: "admin-api GET /api/v1/site-domains", call: (c) => c.custd.admin.siteDomains.list() },
-  { id: "admin-api GET /api/v1/site-domains/ai-settings", call: (c) => c.custd.admin.siteDomains.getAISettings() },
-  { id: "admin-api GET /api/v1/site-domains/ai-usage", call: (c) => c.custd.admin.siteDomains.getAIUsage() },
+  { id: "admin-api GET /api/v1/producer-provisioning", call: (c) => c.custd.provisioning.producers.list("acme") },
+  {
+    id: "admin-api GET /api/v1/site-domains",
+    call: (c) => c.custd.admin.siteDomains.list("siteUuid-1", { companySlug: "acme" }),
+  },
+  {
+    id: "admin-api GET /api/v1/site-domains/ai-settings",
+    call: (c) => c.custd.admin.siteDomains.getAISettings({ companySlug: "acme" }),
+  },
+  {
+    id: "admin-api GET /api/v1/site-domains/ai-usage",
+    call: (c) => c.custd.admin.siteDomains.getAIUsage({ companySlug: "acme" }),
+  },
   {
     id: "admin-api GET /api/v1/site-domains/alert-destination",
-    call: (c) => c.custd.admin.siteDomains.getAlertDestination(),
+    call: (c) => c.custd.admin.siteDomains.getAlertDestination("siteUuid-1", { companySlug: "acme" }),
   },
-  { id: "admin-api GET /api/v1/site-domains/content-gap", call: (c) => c.custd.admin.siteDomains.getContentGap() },
+  {
+    id: "admin-api GET /api/v1/site-domains/content-gap",
+    call: (c) => c.custd.admin.siteDomains.getContentGap("siteUuid-1", "seed-1", { companySlug: "acme" }),
+  },
   {
     id: "admin-api GET /api/v1/site-domains/keyword-clusters",
-    call: (c) => c.custd.admin.siteDomains.getKeywordClusters("name-1"),
+    call: (c) => c.custd.admin.siteDomains.getKeywordClusters("name-1", "siteUuid-1", { companySlug: "acme" }),
   },
-  { id: "admin-api GET /api/v1/site-domains/keyword-lists", call: (c) => c.custd.admin.siteDomains.listKeywordLists() },
+  {
+    id: "admin-api GET /api/v1/site-domains/keyword-lists",
+    call: (c) => c.custd.admin.siteDomains.listKeywordLists("siteUuid-1", { companySlug: "acme" }),
+  },
   {
     id: "admin-api GET /api/v1/site-domains/portfolio-summary",
-    call: (c) => c.custd.admin.siteDomains.getPortfolioSummary(),
+    call: (c) => c.custd.admin.siteDomains.getPortfolioSummary({ companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/project-context",
-    call: (c) => c.custd.admin.siteDomains.getProjectContext(),
+    call: (c) => c.custd.admin.siteDomains.getProjectContext("siteUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/referring-domains",
-    call: (c) => c.custd.admin.siteDomains.getReferringDomains("domain-1"),
+    call: (c) => c.custd.admin.siteDomains.getReferringDomains("domain-1", "siteUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/regional-trends",
-    call: (c) => c.custd.admin.siteDomains.getRegionalTrends(),
+    call: (c) => c.custd.admin.siteDomains.getRegionalTrends("siteUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/search-account",
-    call: (c) => c.custd.admin.siteDomains.getSearchAccount(),
+    call: (c) => c.custd.admin.siteDomains.getSearchAccount({ companySlug: "acme" }),
   },
-  { id: "admin-api GET /api/v1/site-domains/search-pool", call: (c) => c.custd.admin.siteDomains.getSearchPool() },
+  {
+    id: "admin-api GET /api/v1/site-domains/search-pool",
+    call: (c) => c.custd.admin.siteDomains.getSearchPool({ companySlug: "acme" }),
+  },
   {
     id: "admin-api GET /api/v1/site-domains/search-pool/queries",
-    call: (c) => c.custd.admin.siteDomains.listSearchPoolQueries(),
+    call: (c) => c.custd.admin.siteDomains.listSearchPoolQueries("shoes", 10, { companySlug: "acme" }),
   },
-  { id: "admin-api GET /api/v1/site-domains/topic-trends", call: (c) => c.custd.admin.siteDomains.getTopicTrends() },
-  { id: "admin-api GET /api/v1/site-domains/web-domains", call: (c) => c.custd.admin.siteDomains.getWebDomains() },
+  {
+    id: "admin-api GET /api/v1/site-domains/topic-trends",
+    call: (c) => c.custd.admin.siteDomains.getTopicTrends("siteUuid-1", { companySlug: "acme" }),
+  },
+  {
+    id: "admin-api GET /api/v1/site-domains/web-domains",
+    call: (c) => c.custd.admin.siteDomains.getWebDomains("siteUuid-1", { companySlug: "acme" }),
+  },
   {
     id: "admin-api GET /api/v1/site-domains/web-pages",
-    call: (c) => c.custd.admin.siteDomains.listWebPages("domain-1"),
+    call: (c) =>
+      c.custd.admin.siteDomains.listWebPages(
+        "domain-1",
+        { siteUuid: "siteUuid-1", after: "after-1", limit: 10 },
+        { companySlug: "acme" },
+      ),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.get("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.get("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/ai-visibility",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getAIVisibility("domainUuid-1"),
+    call: (c) =>
+      c.custd.admin.siteDomains.getAIVisibility("domainUuid-1", "2026-11-01", "2026-11-20", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/analytics",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getAnalytics("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.getAnalytics("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/audit-delta",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getAuditDelta("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.getAuditDelta("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/audit-pages",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.listAuditPages("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.listAuditPages("domainUuid-1", 5, 10, { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/campaign-links",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.listCampaignLinks("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.listCampaignLinks("domainUuid-1", true, { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/export",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getExport("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.getExport("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/export/search-metrics",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.listExportSearchMetrics("domainUuid-1"),
+    call: (c) =>
+      c.custd.admin.siteDomains.listExportSearchMetrics(
+        "domainUuid-1",
+        { offset: 5, limit: 10 },
+        { companySlug: "acme" },
+      ),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/findings",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.listFindings("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.listFindings("domainUuid-1", "open", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/findings/{findingUuid}/search-impact",
     params: { domainUuid: "domainUuid-1", findingUuid: "findingUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getFindingSearchImpact("domainUuid-1", "findingUuid-1"),
+    call: (c) =>
+      c.custd.admin.siteDomains.getFindingSearchImpact("domainUuid-1", "findingUuid-1", 7, { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/incidents",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.listIncidents("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.listIncidents("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/indexnow",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getIndexNow("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.getIndexNow("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/lighthouse",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getLighthouseHistory("domainUuid-1"),
+    call: (c) =>
+      c.custd.admin.siteDomains.getLighthouseHistory("domainUuid-1", 7, {
+        companySlug: "acme",
+        url: "https://example.com/",
+      }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/lighthouse/pages",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getLighthousePages("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.getLighthousePages("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/next-actions",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getNextActions("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.getNextActions("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/page-facts",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getPageFacts("domainUuid-1", "url-1"),
+    call: (c) => c.custd.admin.siteDomains.getPageFacts("domainUuid-1", "url-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/page-rechecks/{recheckUuid}",
     params: { domainUuid: "domainUuid-1", recheckUuid: "recheckUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getPageRecheck("domainUuid-1", "recheckUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.getPageRecheck("domainUuid-1", "recheckUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/page-search-queries",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getPageSearchQueries("domainUuid-1", "url-1"),
+    call: (c) => c.custd.admin.siteDomains.getPageSearchQueries("domainUuid-1", "url-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/page-wording",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.comparePageWording("domainUuid-1", dto()),
+    call: (c) =>
+      c.custd.admin.siteDomains.comparePageWording(
+        "domainUuid-1",
+        { firstUrl: "https://example.com/a", secondUrl: "https://example.com/b" },
+        { companySlug: "acme" },
+      ),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/probes",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.listProbes("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.listProbes("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/rankings",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getRankings("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.getRankings("domainUuid-1", 7, { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/report",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getReport("domainUuid-1"),
+    call: (c) =>
+      c.custd.admin.siteDomains.getReport("domainUuid-1", { companySlug: "acme", template: "executive", days: 7 }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/report-shares",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.listReportShares("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.listReportShares("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/saved-reports",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.listSavedReports("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.listSavedReports("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/saved-reports/{reportUuid}",
     params: { domainUuid: "domainUuid-1", reportUuid: "reportUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getSavedReport("domainUuid-1", "reportUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.getSavedReport("domainUuid-1", "reportUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/search",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getSearchPerformance("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.getSearchPerformance("domainUuid-1", 7, { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/search-value",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getSearchValue("domainUuid-1", ["goal-1"]),
+    call: (c) => c.custd.admin.siteDomains.getSearchValue("domainUuid-1", ["goal-1"], 7, { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/search/inspections",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.listSearchInspections("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.listSearchInspections("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/search/rows",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.listSearchRows("domainUuid-1"),
+    call: (c) =>
+      c.custd.admin.siteDomains.listSearchRows(
+        "domainUuid-1",
+        { dimension: "page", provider: "google", days: 7, offset: 5, limit: 10 },
+        { companySlug: "acme" },
+      ),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/status-page",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getStatusPageSettings("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.getStatusPageSettings("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/traffic",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getTraffic("domainUuid-1"),
+    call: (c) =>
+      c.custd.admin.siteDomains.getTraffic("domainUuid-1", "2026-11-01", "2026-11-20", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/uptime-history",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getUptimeHistory("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.getUptimeHistory("domainUuid-1", 7, { companySlug: "acme" }),
   },
   { id: "admin-api GET /api/v1/tenant-storage-locations", call: (c) => c.custd.admin.tenantStorage.list() },
   {
@@ -884,12 +947,12 @@ const baselineRows: Row[] = [
     params: { clientId: "clientId-1" },
     call: (c) => c.custd.admin.oauthClients.updateScopes("clientId-1", dto()),
   },
-  { id: "admin-api PATCH /api/v1/app/item", call: (c) => c.items.updateSettings("access-1", dto()) },
+  { id: "admin-api PATCH /api/v1/app/item", call: (c) => c.items.updateSettings({ item: "item-1" }, dto()) },
   {
     id: "admin-api PATCH /api/v1/app/item/meeting/minutes",
-    call: (c) => c.items.updateMeetingMinutes("access-1", dto()),
+    call: (c) => c.items.updateMeetingMinutes({ item: "item-1" }, dto()),
   },
-  { id: "admin-api PATCH /api/v1/app/item/plan", call: (c) => c.items.updatePlan("access-1", dto()) },
+  { id: "admin-api PATCH /api/v1/app/item/plan", call: (c) => c.items.updatePlan({ item: "item-1" }, dto()) },
   { id: "admin-api PATCH /api/v1/app/profile", call: (c) => c.profile.update(dto()) },
   {
     id: "admin-api PATCH /api/v1/producer-provisioning/{clientId}/environment",
@@ -1199,7 +1262,7 @@ const baselineRows: Row[] = [
   {
     id: "admin-api POST /api/v1/admin/subject-exports/{requestId}/force",
     params: { requestId: "requestId-1" },
-    call: (c) => c.custd.admin.subjectExports.force("requestId-1"),
+    call: (c) => c.custd.admin.subjectExports.force("requestId-1", { companySlug: "acme" }),
   },
   { id: "admin-api POST /api/v1/admin/tenants", call: (c) => c.custd.admin.tenants.create(dto()) },
   {
@@ -1236,34 +1299,46 @@ const baselineRows: Row[] = [
     params: { planUuid: "planUuid-1" },
     call: (c) => c.custd.admin.timePlans.retire("companySlug-1", "planUuid-1"),
   },
-  { id: "admin-api POST /api/v1/app/item/alerts/rules", call: (c) => c.items.addAlertRule("access-1", dto()) },
-  { id: "admin-api POST /api/v1/app/item/alerts/slack", call: (c) => c.items.addAlertSlack("access-1", dto()) },
-  { id: "admin-api POST /api/v1/app/item/alerts/webhooks", call: (c) => c.items.addAlertWebhook("access-1", dto()) },
-  { id: "admin-api POST /api/v1/app/item/cancel", call: (c) => c.items.cancel("access-1") },
+  { id: "admin-api POST /api/v1/app/item/alerts/rules", call: (c) => c.items.addAlertRule({ item: "item-1" }, dto()) },
+  { id: "admin-api POST /api/v1/app/item/alerts/slack", call: (c) => c.items.addAlertSlack({ item: "item-1" }, dto()) },
+  {
+    id: "admin-api POST /api/v1/app/item/alerts/webhooks",
+    call: (c) => c.items.addAlertWebhook({ item: "item-1" }, dto()),
+  },
+  { id: "admin-api POST /api/v1/app/item/cancel", call: (c) => c.items.cancel({ item: "item-1" }) },
   {
     id: "admin-api POST /api/v1/app/item/claim",
     query: { item: "item-1" },
     call: (c) => c.items.claim("ownerToken-1", "item-1"),
   },
-  { id: "admin-api POST /api/v1/app/item/complete", call: (c) => c.items.complete("access-1", dto()) },
-  { id: "admin-api POST /api/v1/app/item/entries", call: (c) => c.items.addEntry("access-1", dto()) },
-  { id: "admin-api POST /api/v1/app/item/estimates", call: (c) => c.items.createEstimate("access-1", dto()) },
+  { id: "admin-api POST /api/v1/app/item/complete", call: (c) => c.items.complete({ item: "item-1" }, dto()) },
+  { id: "admin-api POST /api/v1/app/item/entries", call: (c) => c.items.addEntry({ item: "item-1" }, dto()) },
+  { id: "admin-api POST /api/v1/app/item/estimates", call: (c) => c.items.createEstimate({ item: "item-1" }, dto()) },
   {
     id: "admin-api POST /api/v1/app/item/links/{linkUuid}/rotate",
     params: { linkUuid: "linkUuid-1" },
-    call: (c) => c.items.rotateLink("access-1", "linkUuid-1"),
+    call: (c) => c.items.rotateLink({ item: "item-1" }, "linkUuid-1"),
   },
-  { id: "admin-api POST /api/v1/app/item/measurements", call: (c) => c.items.addMeasurements("access-1", dto()) },
+  {
+    id: "admin-api POST /api/v1/app/item/measurements",
+    call: (c) => c.items.addMeasurements({ item: "item-1" }, dto()),
+  },
   {
     id: "admin-api POST /api/v1/app/item/measurements/csv",
-    call: (c) => c.items.importMeasurementsCsv("access-1", "csv-1"),
+    call: (c) => c.items.importMeasurementsCsv({ item: "item-1" }, "csv-1"),
   },
-  { id: "admin-api POST /api/v1/app/item/meeting/advance", call: (c) => c.items.advanceMeeting("access-1", dto()) },
-  { id: "admin-api POST /api/v1/app/item/meeting/end", call: (c) => c.items.endMeeting("access-1") },
-  { id: "admin-api POST /api/v1/app/item/meeting/start", call: (c) => c.items.startMeeting("access-1") },
-  { id: "admin-api POST /api/v1/app/item/model/copy", call: (c) => c.items.copyModel("access-1") },
-  { id: "admin-api POST /api/v1/app/item/model/versions", call: (c) => c.items.addModelVersion("access-1", dto()) },
-  { id: "admin-api POST /api/v1/app/item/reopen", call: (c) => c.items.reopen("access-1") },
+  {
+    id: "admin-api POST /api/v1/app/item/meeting/advance",
+    call: (c) => c.items.advanceMeeting({ item: "item-1" }, dto()),
+  },
+  { id: "admin-api POST /api/v1/app/item/meeting/end", call: (c) => c.items.endMeeting({ item: "item-1" }) },
+  { id: "admin-api POST /api/v1/app/item/meeting/start", call: (c) => c.items.startMeeting({ item: "item-1" }) },
+  { id: "admin-api POST /api/v1/app/item/model/copy", call: (c) => c.items.copyModel({ item: "item-1" }) },
+  {
+    id: "admin-api POST /api/v1/app/item/model/versions",
+    call: (c) => c.items.addModelVersion({ item: "item-1" }, dto()),
+  },
+  { id: "admin-api POST /api/v1/app/item/reopen", call: (c) => c.items.reopen({ item: "item-1" }) },
   { id: "admin-api POST /api/v1/app/items", call: (c) => c.items.createItem(dto()) },
   { id: "admin-api POST /api/v1/app/profile", call: (c) => c.profile.initialize(dto()) },
   {
@@ -1289,7 +1364,10 @@ const baselineRows: Row[] = [
     params: { clientId: "clientId-1" },
     call: (c) => c.custd.provisioning.producers.rotateSecret("clientId-1"),
   },
-  { id: "admin-api POST /api/v1/site-domains", call: (c) => c.custd.admin.siteDomains.create(dto()) },
+  {
+    id: "admin-api POST /api/v1/site-domains",
+    call: (c) => c.custd.admin.siteDomains.create(dto(), { companySlug: "acme" }),
+  },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/attestation",
     params: { domainUuid: "domainUuid-1" },
@@ -1299,87 +1377,87 @@ const baselineRows: Row[] = [
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/audit",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.requestAudit("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.requestAudit("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/campaign-links",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.createCampaignLink("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.createCampaignLink("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/campaign-links/{linkUuid}/archive",
     params: { domainUuid: "domainUuid-1", linkUuid: "linkUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.archiveCampaignLink("domainUuid-1", "linkUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.archiveCampaignLink("domainUuid-1", "linkUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/indexnow/submissions",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.submitIndexNow("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.submitIndexNow("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/indexnow/verify",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.verifyIndexNowKey("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.verifyIndexNowKey("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/page-check",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.checkPage("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.checkPage("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/page-rechecks",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.requestPageRecheck("domainUuid-1", "url-1"),
+    call: (c) => c.custd.admin.siteDomains.requestPageRecheck("domainUuid-1", "url-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/rankings/keywords",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.trackKeyword("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.trackKeyword("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/report-shares",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.createReportShare("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.createReportShare("domainUuid-1", {}, { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/robots-test",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.testRobots("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.testRobots("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/saved-reports",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.saveReport("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.saveReport("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/search/inspections",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.requestSearchInspection("domainUuid-1", "url-1"),
+    call: (c) => c.custd.admin.siteDomains.requestSearchInspection("domainUuid-1", "url-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/search/{provider}/retry",
     params: { domainUuid: "domainUuid-1", provider: "google" },
-    call: (c) => c.custd.admin.siteDomains.retrySearchImport("domainUuid-1", "google"),
+    call: (c) => c.custd.admin.siteDomains.retrySearchImport("domainUuid-1", "google", { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/status-page/preview",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.previewStatusPage("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.previewStatusPage("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/status-page/updates",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.postStatusPageUpdate("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.postStatusPageUpdate("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/verify",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.verify("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.verify("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/wording-compare",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.compareWording("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.compareWording("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   { id: "admin-api POST /api/v1/tenant-storage-locations", call: (c) => c.custd.admin.tenantStorage.create() },
   {
@@ -1403,77 +1481,90 @@ const baselineRows: Row[] = [
     params: { tenantSlug: "tenantSlug-1" },
     call: (c) => c.custd.admin.retention.upsert("tenantSlug-1", dto()),
   },
-  { id: "admin-api PUT /api/v1/app/item/alerts/subscription", call: (c) => c.items.subscribeAlertEmail("access-1") },
-  { id: "admin-api PUT /api/v1/site-domains/ai-settings", call: (c) => c.custd.admin.siteDomains.setAISettings(dto()) },
+  {
+    id: "admin-api PUT /api/v1/app/item/alerts/subscription",
+    call: (c) => c.items.subscribeAlertEmail({ item: "item-1" }),
+  },
+  {
+    id: "admin-api PUT /api/v1/site-domains/ai-settings",
+    call: (c) => c.custd.admin.siteDomains.setAISettings(dto(), { companySlug: "acme" }),
+  },
   {
     id: "admin-api PUT /api/v1/site-domains/ai-settings/consent",
-    call: (c) => c.custd.admin.siteDomains.setAIConsent(dto()),
+    call: (c) => c.custd.admin.siteDomains.setAIConsent(dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api PUT /api/v1/site-domains/alert-destination",
-    call: (c) => c.custd.admin.siteDomains.setAlertDestination(dto()),
+    call: (c) =>
+      c.custd.admin.siteDomains.setAlertDestination(
+        { siteUuid: "siteUuid-1", emailRecipient: "" },
+        { companySlug: "acme" },
+      ),
   },
   {
     id: "admin-api PUT /api/v1/site-domains/project-context",
-    call: (c) => c.custd.admin.siteDomains.setProjectContext(dto()),
+    call: (c) => c.custd.admin.siteDomains.setProjectContext({ siteUuid: "siteUuid-1" }, { companySlug: "acme" }),
   },
   {
     id: "admin-api PUT /api/v1/site-domains/search-pool",
-    call: (c) => c.custd.admin.siteDomains.setSearchPool(true, "terms-1"),
+    call: (c) => c.custd.admin.siteDomains.setSearchPool(true, "terms-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api PUT /api/v1/site-domains/{domainUuid}/analytics/ga4",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.connectAnalytics("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.connectAnalytics("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api PUT /api/v1/site-domains/{domainUuid}/checks",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.setCheckMode("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.setCheckMode("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api PUT /api/v1/site-domains/{domainUuid}/indexnow",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.enableIndexNow("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.enableIndexNow("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api PUT /api/v1/site-domains/{domainUuid}/lighthouse/pages",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.setLighthousePages("domainUuid-1", ["https://example.com/"]),
+    call: (c) =>
+      c.custd.admin.siteDomains.setLighthousePages("domainUuid-1", ["https://example.com/"], { companySlug: "acme" }),
   },
   {
     id: "admin-api PUT /api/v1/site-domains/{domainUuid}/probes",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.setProbes("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.setProbes("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api PUT /api/v1/site-domains/{domainUuid}/rankings/keywords/{keywordUuid}",
     params: { domainUuid: "domainUuid-1", keywordUuid: "keywordUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.updateTrackedKeyword("domainUuid-1", "keywordUuid-1", dto()),
+    call: (c) =>
+      c.custd.admin.siteDomains.updateTrackedKeyword("domainUuid-1", "keywordUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api PUT /api/v1/site-domains/{domainUuid}/saved-reports/{reportUuid}",
     params: { domainUuid: "domainUuid-1", reportUuid: "reportUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.replaceSavedReport("domainUuid-1", "reportUuid-1", dto()),
+    call: (c) =>
+      c.custd.admin.siteDomains.replaceSavedReport("domainUuid-1", "reportUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api PUT /api/v1/site-domains/{domainUuid}/search/{provider}",
     params: { domainUuid: "domainUuid-1", provider: "google" },
-    call: (c) => c.custd.admin.siteDomains.connectSearch("domainUuid-1", "google", dto()),
+    call: (c) => c.custd.admin.siteDomains.connectSearch("domainUuid-1", "google", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api PUT /api/v1/site-domains/{domainUuid}/status-page",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.publishStatusPage("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.publishStatusPage("domainUuid-1", dto(), { companySlug: "acme" }),
   },
-  { id: "analytics-api GET /api/v1/app/forecast/latest", call: (c) => c.items.latestForecast("access-1") },
+  { id: "analytics-api GET /api/v1/app/forecast/latest", call: (c) => c.items.latestForecast({ item: "item-1" }) },
   {
     id: "analytics-api GET /api/v1/app/forecast/runs/{runUuid}",
     params: { runUuid: "runUuid-1" },
-    call: (c) => c.items.forecastRun("access-1", "runUuid-1"),
+    call: (c) => c.items.forecastRun({ item: "item-1" }, "runUuid-1"),
   },
-  { id: "analytics-api GET /api/v1/app/forecast/story", call: (c) => c.items.forecastStory("access-1") },
-  { id: "analytics-api GET /api/v1/app/models/latest", call: (c) => c.items.latestModelRun("access-1") },
+  { id: "analytics-api GET /api/v1/app/forecast/story", call: (c) => c.items.forecastStory({ item: "item-1" }) },
+  { id: "analytics-api GET /api/v1/app/models/latest", call: (c) => c.items.latestModelRun({ item: "item-1" }) },
   {
     id: "analytics-api GET /api/v1/reporting/dashboards/{key}",
     params: { key: "key-1" },
@@ -1481,9 +1572,12 @@ const baselineRows: Row[] = [
   },
   { id: "analytics-api GET /api/v1/reporting/outputs", call: (c) => c.custd.reporting.outputs() },
   { id: "analytics-api POST /api/v1/analytics/query", call: (c) => c.custd.analytics.query(dto()) },
-  { id: "analytics-api POST /api/v1/app/forecast/runs", call: (c) => c.items.runForecast("access-1") },
-  { id: "analytics-api POST /api/v1/app/models/calculate", call: (c) => c.items.calculateModel("access-1", dto()) },
-  { id: "analytics-api POST /api/v1/app/models/runs", call: (c) => c.items.runModel("access-1", dto()) },
+  { id: "analytics-api POST /api/v1/app/forecast/runs", call: (c) => c.items.runForecast({ item: "item-1" }) },
+  {
+    id: "analytics-api POST /api/v1/app/models/calculate",
+    call: (c) => c.items.calculateModel({ item: "item-1" }, dto()),
+  },
+  { id: "analytics-api POST /api/v1/app/models/runs", call: (c) => c.items.runModel({ item: "item-1" }, dto()) },
   { id: "analytics-api POST /api/v1/reporting/query", call: (c) => c.custd.reporting.query(dto()) },
   {
     id: "schema-registry DELETE /api/v1/parsers/{uuid}",
@@ -1538,16 +1632,19 @@ const baselineRows: Row[] = [
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/page-rechecks",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.listPageRechecks("domainUuid-1", ["recheck-1"]),
+    call: (c) => c.custd.admin.siteDomains.listPageRechecks("domainUuid-1", ["recheck-1"], { companySlug: "acme" }),
   },
   {
     id: "admin-api PUT /api/v1/site-domains/keyword-lists",
-    call: (c) => c.custd.admin.siteDomains.saveKeywordList({ name: "list-1", keywords: ["shoes"] }),
+    call: (c) =>
+      c.custd.admin.siteDomains.saveKeywordList({ name: "list-1", keywords: ["shoes"] }, "siteUuid-1", {
+        companySlug: "acme",
+      }),
   },
   {
     id: "admin-api GET /api/v1/admin/audit/events/export",
     response: auditExport,
-    call: (c) => c.custd.admin.audit.exportEvents(undefined, "csv"),
+    call: (c) => c.custd.admin.audit.exportEvents(auditFilter, "csv"),
   },
   {
     id: "admin-api POST /api/v1/admin/time-plans",
@@ -1894,112 +1991,127 @@ const baselineRows: Row[] = [
   {
     id: "admin-api DELETE /api/v1/site-domains/{domainUuid}/approval",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.withdrawApproval("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.withdrawApproval("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api DELETE /api/v1/site-domains/{domainUuid}/finding-dismissals/{dismissalUuid}",
     params: { domainUuid: "domainUuid-1", dismissalUuid: "dismissalUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.restoreFinding("domainUuid-1", "dismissalUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.restoreFinding("domainUuid-1", "dismissalUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api DELETE /api/v1/site-domains/{domainUuid}/heartbeats/{monitorUuid}",
     params: { domainUuid: "domainUuid-1", monitorUuid: "monitorUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.deleteHeartbeat("domainUuid-1", "monitorUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.deleteHeartbeat("domainUuid-1", "monitorUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api DELETE /api/v1/site-domains/{domainUuid}/maintenance/{windowUuid}",
     params: { domainUuid: "domainUuid-1", windowUuid: "windowUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.cancelMaintenance("domainUuid-1", "windowUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.cancelMaintenance("domainUuid-1", "windowUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api DELETE /api/v1/site-domains/{domainUuid}/private-uptime/{monitorUuid}",
     params: { domainUuid: "domainUuid-1", monitorUuid: "monitorUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.deletePrivateUptime("domainUuid-1", "monitorUuid-1"),
+    call: (c) =>
+      c.custd.admin.siteDomains.deletePrivateUptime("domainUuid-1", "monitorUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/finding-dismissals",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.listFindingDismissals("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.listFindingDismissals("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/heartbeats",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.listHeartbeats("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.listHeartbeats("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/maintenance",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.listMaintenance("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.listMaintenance("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api GET /api/v1/site-domains/{domainUuid}/private-uptime",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.getPrivateUptime("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.getPrivateUptime("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/approval",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.approve("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.approve("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/finding-dismissals",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.dismissFinding("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.dismissFinding("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/heartbeats",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.createHeartbeat("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.createHeartbeat("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/heartbeats/{monitorUuid}/credential",
     params: { domainUuid: "domainUuid-1", monitorUuid: "monitorUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.rotateHeartbeat("domainUuid-1", "monitorUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.rotateHeartbeat("domainUuid-1", "monitorUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/incidents/{incidentUuid}/acknowledgment",
     params: { domainUuid: "domainUuid-1", incidentUuid: "incidentUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.acknowledgeIncident("domainUuid-1", "incidentUuid-1"),
+    call: (c) =>
+      c.custd.admin.siteDomains.acknowledgeIncident("domainUuid-1", "incidentUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/maintenance",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.scheduleMaintenance("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.scheduleMaintenance("domainUuid-1", dto(), { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/private-uptime",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.createPrivateUptime("domainUuid-1", "office-lan"),
+    call: (c) => c.custd.admin.siteDomains.createPrivateUptime("domainUuid-1", "office-lan", { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/private-uptime/check",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.requestPrivateUptime("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.requestPrivateUptime("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/private-uptime/{monitorUuid}/credential",
     params: { domainUuid: "domainUuid-1", monitorUuid: "monitorUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.rotatePrivateUptime("domainUuid-1", "monitorUuid-1"),
+    call: (c) =>
+      c.custd.admin.siteDomains.rotatePrivateUptime("domainUuid-1", "monitorUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api POST /api/v1/site-domains/{domainUuid}/uptime-check",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.requestUptimeCheck("domainUuid-1"),
+    call: (c) => c.custd.admin.siteDomains.requestUptimeCheck("domainUuid-1", { companySlug: "acme" }),
   },
   {
     id: "admin-api PUT /api/v1/site-domains/{domainUuid}/browser-collector",
     params: { domainUuid: "domainUuid-1" },
-    call: (c) => c.custd.admin.siteDomains.setBrowserCollector("domainUuid-1", dto()),
+    call: (c) => c.custd.admin.siteDomains.setBrowserCollector("domainUuid-1", dto(), { companySlug: "acme" }),
   },
-  { id: "admin-api GET /api/v1/admin/users", call: (c) => c.custd.admin.users.list() },
+  {
+    id: "admin-api GET /api/v1/admin/users",
+    call: (c) =>
+      c.custd.admin.users.list({
+        companySlug: "acme",
+        role: "tenant_admin",
+        globalState: "enabled",
+        membershipState: "active",
+        welcomeStatus: "sent",
+        includeEnded: true,
+        includeDeleted: true,
+      }),
+  },
   {
     id: "admin-api GET /api/v1/admin/users/{userUuid}",
     params: { userUuid: "userUuid-1" },
-    call: (c) => c.custd.admin.users.get("userUuid-1"),
+    call: (c) => c.custd.admin.users.get("userUuid-1", { companySlug: "acme", includeEnded: true }),
   },
   {
     id: "admin-api GET /api/v1/admin/workflow-timings/definitions",
-    call: (c) => c.custd.admin.workflowTimings.listDefinitions("acme"),
+    call: (c) => c.custd.admin.workflowTimings.listDefinitions("acme", 10),
   },
   {
     id: "admin-api GET /api/v1/admin/workflow-timings/definitions/{workflowKey}",
@@ -2009,16 +2121,16 @@ const baselineRows: Row[] = [
   {
     id: "admin-api GET /api/v1/admin/workflow-timings/definitions/{workflowKey}/duration-history",
     params: { workflowKey: "workflowKey-1" },
-    call: (c) => c.custd.admin.workflowTimings.getDurationHistory("acme", "workflowKey-1"),
+    call: (c) => c.custd.admin.workflowTimings.getDurationHistory("acme", "workflowKey-1", 10),
   },
   {
     id: "admin-api GET /api/v1/admin/workflow-timings/definitions/{workflowKey}/evaluation",
     params: { workflowKey: "workflowKey-1" },
-    call: (c) => c.custd.admin.workflowTimings.getEvaluation("acme", "workflowKey-1"),
+    call: (c) => c.custd.admin.workflowTimings.getEvaluation("acme", "workflowKey-1", "series-1"),
   },
   {
     id: "admin-api GET /api/v1/admin/workflow-timings/runs",
-    call: (c) => c.custd.admin.workflowTimings.listRuns("acme"),
+    call: (c) => c.custd.admin.workflowTimings.listRuns("acme", { workflowKey: "workflowKey-1", limit: 10 }),
   },
   {
     id: "admin-api GET /api/v1/admin/workflow-timings/runs/{runUuid}",
@@ -2034,12 +2146,12 @@ const baselineRows: Row[] = [
   {
     id: "admin-api POST /api/v1/admin/users/{userUuid}/disable",
     params: { userUuid: "userUuid-1" },
-    call: (c) => c.custd.admin.users.disable("userUuid-1", { reason: "left" }),
+    call: (c) => c.custd.admin.users.disable("userUuid-1", { reason: "left", globalUser: true }),
   },
   {
     id: "admin-api POST /api/v1/admin/users/{userUuid}/enable",
     params: { userUuid: "userUuid-1" },
-    call: (c) => c.custd.admin.users.enable("userUuid-1", { roles: ["tenant_admin"] }),
+    call: (c) => c.custd.admin.users.enable("userUuid-1", { roles: ["tenant_admin"], globalUser: true }),
   },
   {
     id: "admin-api POST /api/v1/admin/users/{userUuid}/memberships",
@@ -2178,10 +2290,10 @@ const areas: RowArea[] = [
   measurementRows,
   notifyRows,
   operatorRows,
+  publicRows,
 ];
 const rows = areas.flatMap((area) => area.rows);
 const decodedOperations = areas.flatMap((area) => area.decoded);
-const minimalOnlyOperations = areas.flatMap((area) => area.minimalOnly ?? []);
 
 describe("route conformance", () => {
   it("covers exactly the operations in coverage/js.json, each once and each required", () => {
@@ -2206,8 +2318,51 @@ describe("route conformance", () => {
     const url = new URL(request?.url ?? "");
     expect(`${request?.method} ${url.pathname}`).toBe(`${method} ${expectedPath(operation, row.params)}`);
     for (const [name, value] of Object.entries(row.query ?? {})) expect(url.searchParams.get(name), name).toBe(value);
+    const unsent = (operation.query ?? []).filter(
+      (parameter) =>
+        !url.searchParams.has(parameter.name) &&
+        (parameter.required ||
+          (!actingCompanyCarries(operation, parameter.name) && !unsentQueryReasons[row.id]?.[parameter.name])),
+    );
+    expect(
+      unsent.map((parameter) => parameter.name),
+      "declared query parameters the row does not send",
+    ).toEqual([]);
   });
+
+  // Admin routes take companySlug from the client's actingCompanySlug, so a row need not pass it.
+  it.each(rows.filter((row) => actingCompanyRow(row)).map((row) => [row.id, row] as const))(
+    "%s sends the acting company",
+    async (_, row) => {
+      const operation = operations.get(row.id);
+      if (!operation) throw new Error(`${row.id} is not in operations.json`);
+      const respond = row.response ?? (() => json(example(operation)?.maximal));
+      const companySlug = async (acting?: string) => {
+        const requests: RecordedRequest[] = [];
+        await row.call(newClients(respond, requests, acting));
+        return new URL(requests[0]?.url ?? "").searchParams.get("companySlug");
+      };
+      const own = await companySlug();
+      expect(await companySlug("acting-co")).toBe(own ?? "acting-co");
+    },
+  );
 });
+
+// Optional query parameters one row cannot send, each with why the method still can.
+const unsentQueryReasons: Record<string, Record<string, string>> = {
+  "admin-api GET /api/v1/admin/data-scope-grants": {
+    clientId: "names a machine principal; listGrants sends it for kind machine and userUuid for kind human",
+  },
+};
+
+function actingCompanyCarries(operation: Operation, name: string): boolean {
+  return name === "companySlug" && operation.path.startsWith("/api/v1/admin/");
+}
+
+function actingCompanyRow(row: Row): boolean {
+  const operation = operations.get(row.id);
+  return operation?.query?.some((parameter) => actingCompanyCarries(operation, parameter.name)) ?? false;
+}
 
 describe("decode conformance", () => {
   it.each(decodedOperations)("%s decodes its minimal and maximal example", async (id) => {
@@ -2219,47 +2374,116 @@ describe("decode conformance", () => {
       await row.call(newClients(() => json(body), []));
     }
   });
-
-  it.each(minimalOnlyOperations)("%s decodes its minimal example", async (id) => {
-    const row = rows.find((candidate) => candidate.id === id);
-    const operation = operations.get(id);
-    const examples = operation && example(operation);
-    if (!row || !examples) throw new Error(`${id} needs a route row and an example`);
-    await row.call(newClients(() => json(examples.minimal), []));
-  });
-
-  // A key the SDK renames or unwraps is absent from its result and proven by its own decode.
-  it.each([...decodedOperations, ...minimalOnlyOperations])("%s decodes a top-level null list as empty", async (id) => {
-    const row = rows.find((candidate) => candidate.id === id);
-    const operation = operations.get(id);
-    const examples = operation && example(operation);
-    if (!row || !examples) throw new Error(`${id} needs a route row and an example`);
-    const minimal = (examples.minimal ?? {}) as Record<string, unknown>;
-    const maximal = (examples.maximal ?? {}) as Record<string, unknown>;
-    const nullLists = Object.keys(minimal).filter((key) => minimal[key] === null && Array.isArray(maximal[key]));
-    if (nullLists.length === 0) return;
-    const decoded = (await row.call(newClients(() => json(minimal), []))) as Record<string, unknown>;
-    for (const key of nullLists.filter((name) => name in decoded)) expect(decoded[key], key).toEqual([]);
-  });
 });
 
-describe("field conformance", () => {
-  it("maps every offboarding receipt field the server sends", async () => {
-    const id = "admin-api GET /api/v1/admin/offboarding/requests/{requestUuid}/receipt";
+/** Every path where the minimal example sends null for a field the maximal example fills with a list. */
+function nullListPaths(minimal: unknown, maximal: unknown, prefix: string[] = []): string[][] {
+  if (typeof minimal !== "object" || minimal === null || typeof maximal !== "object" || maximal === null) return [];
+  if (Array.isArray(minimal) || Array.isArray(maximal)) return [];
+  const full = maximal as Record<string, unknown>;
+  return Object.entries(minimal).flatMap(([key, value]) =>
+    value === null && Array.isArray(full[key]) ? [[...prefix, key]] : nullListPaths(value, full[key], [...prefix, key]),
+  );
+}
+
+function valueAt(value: unknown, path: string[]): { found: boolean; value?: unknown } {
+  let node = value;
+  for (const key of path) {
+    if (typeof node !== "object" || node === null || !(key in node)) return { found: false };
+    node = (node as Record<string, unknown>)[key];
+  }
+  return { found: true, value: node };
+}
+
+// A method that refuses the minimal example's empty list, with where the null list is proven instead.
+const nullListRefusals: Record<string, string> = {
+  "admin-api POST /api/v1/admin/measurement/projects/{projectUuid}/observations:bulk":
+    "one result per submitted row is required; admin.test.ts proves a null list counts as none",
+  "admin-api POST /api/v1/admin/measurement/projects/{projectUuid}/observations:csv":
+    "one result per submitted row is required; admin.test.ts proves a null list counts as none",
+};
+
+const nullListRows = rows.filter(
+  (row) => !row.response && operations.get(row.id)?.example && !nullListRefusals[row.id],
+);
+
+describe("null list conformance", () => {
+  // Go sends a nil list as null; every result shows it as an empty list. A key the SDK renames or
+  // unwraps is absent from its result and proven by its own decode.
+  it.each(nullListRows.map((row) => [row.id, row] as const))("%s decodes a null list as empty", async (id, row) => {
     const operation = operations.get(id);
     const examples = operation && example(operation);
     if (!examples) throw new Error(`${id} needs an example`);
-    const wire = examples.maximal as Record<string, unknown>;
-    const receipt = await newClients(() => json(wire), []).custd.admin.offboarding.receipt("requestUuid-1");
-    expect(receipt).toEqual({
+    const paths = nullListPaths(examples.minimal, examples.maximal);
+    if (paths.length === 0) return;
+    let decoded = await row.call(newClients(() => json(examples.minimal), []));
+    if (typeof decoded === "object" && decoded !== null && "etag" in decoded && "data" in decoded) {
+      decoded = decoded.data;
+    }
+    for (const path of paths) {
+      const found = valueAt(decoded, path);
+      if (found.found) expect(found.value, path.join(".")).toEqual([]);
+    }
+  });
+});
+
+type WireRecord = Record<string, unknown>;
+
+function maximalExample(id: string): WireRecord {
+  const operation = operations.get(id);
+  const examples = operation && example(operation);
+  if (!examples) throw new Error(`${id} needs an example`);
+  return examples.maximal as WireRecord;
+}
+
+async function decodeMaximal(id: string): Promise<unknown> {
+  const row = rows.find((candidate) => candidate.id === id);
+  if (!row) throw new Error(`${id} needs a route row`);
+  return row.call(newClients(() => json(maximalExample(id)), []));
+}
+
+const receiptOperations = [
+  "admin-api GET /api/v1/admin/offboarding/requests/{requestUuid}/receipt",
+  "admin-api POST /api/v1/admin/offboarding/requests/{requestUuid}/execute",
+  "admin-api POST /api/v1/admin/offboarding/requests/{requestUuid}/retry",
+  "admin-api POST /api/v1/admin/tenants/{slug}/historical-cleanup",
+];
+const previewOperation = "admin-api POST /api/v1/admin/offboarding/requests/{requestUuid}/preview";
+
+describe("field conformance", () => {
+  it.each(receiptOperations)("%s maps every receipt field the server sends", async (id) => {
+    const wire = maximalExample(id);
+    const perStore = wire.per_store as WireRecord[];
+    expect(perStore.length).toBeGreaterThan(0);
+    expect(await decodeMaximal(id)).toEqual({
       companyId: wire.company_id,
       requestedByKind: wire.requested_by_kind,
       requestedAt: wire.requested_at,
       completedAt: wire.completed_at,
       finalState: wire.final_state,
-      perStore: [{ store: "example", retentionClass: "example", deletedCount: 1, retainedExceptionsCount: 1 }],
+      perStore: perStore.map((store) => ({
+        store: store.store,
+        retentionClass: store.retention_class,
+        deletedCount: store.deleted_count,
+        retainedExceptionsCount: store.retained_exceptions_count,
+      })),
       waiver: wire.waiver,
       sha256: wire.sha256,
+    });
+  });
+
+  it("maps every offboarding preview field the server sends", async () => {
+    const { stores, ...wire } = maximalExample(previewOperation);
+    expect((stores as WireRecord[]).length).toBeGreaterThan(0);
+    expect(await decodeMaximal(previewOperation)).toEqual({
+      ...wire,
+      stores: (stores as WireRecord[]).map((store) => ({
+        store: store.store,
+        kind: store.kind,
+        retentionClass: store.retention_class,
+        estimatedCount: store.estimated_count,
+        sourceAuthority: store.source_authority,
+      })),
     });
   });
 });
@@ -2271,14 +2495,8 @@ function keyPaths(value: unknown, prefix = ""): string[] {
   return Object.entries(value).flatMap(([key, child]) => [`${prefix}.${key}`, ...keyPaths(child, `${prefix}.${key}`)]);
 }
 
-// The SDK renames these snake_case receipts to camelCase, proven field by field above.
-const renamedResponses = new Set([
-  "admin-api GET /api/v1/admin/offboarding/requests/{requestUuid}/receipt",
-  "admin-api POST /api/v1/admin/offboarding/requests/{requestUuid}/execute",
-  "admin-api POST /api/v1/admin/offboarding/requests/{requestUuid}/preview",
-  "admin-api POST /api/v1/admin/offboarding/requests/{requestUuid}/retry",
-  "admin-api POST /api/v1/admin/tenants/{slug}/historical-cleanup",
-]);
+// The SDK renames these snake_case responses to camelCase, proven field by field above.
+const renamedResponses = new Set([...receiptOperations, previewOperation]);
 
 describe("field retention", () => {
   // Response types are erased at runtime, so this proves the half a cast cannot: no decoder drops a

@@ -1,6 +1,7 @@
 //! Routes that take no Custd bearer token: a Site's public config, a shared site report, a hosted
-//! app host's discovery document, the auth-domain monitoring inventory (its own key header) and
-//! the alert email unsubscribe page. Each takes the API origin, such as `https://api.custd.com`.
+//! app host's discovery document, the auth-domain monitoring inventory (its own key header), the
+//! alert email unsubscribe page, and a published status page and its email subscriptions. Each
+//! takes the API origin, such as `https://api.custd.com`.
 
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +10,7 @@ use crate::measurement::null_as_empty;
 use crate::transport::{Method, UreqTransport, percent_encode};
 use crate::{
     AppAlertUnsubscribeRequest, HostedAppDiscovery, Result, SiteConfigResponse, SiteReport,
+    SiteStatusPage,
 };
 
 const AUTH_DOMAIN_MONITORING_KEY_HEADER: &str = "X-Custd-Auth-Domain-Monitoring-Key";
@@ -23,6 +25,18 @@ pub struct AuthDomainMonitoringInventory {
     /// appearing here was lost, not retired.
     #[serde(default, deserialize_with = "null_as_empty")]
     pub retired_hosts: Vec<String>,
+}
+
+/// Asks a published status page to email its updates to one address.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SiteStatusSubscriptionRequest {
+    pub email: String,
+}
+
+/// The single-use token from a status page subscription email.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SiteStatusSubscriptionToken {
+    pub token: String,
 }
 
 /// The HTML page an alert email's unsubscribe link opens.
@@ -94,5 +108,54 @@ pub fn unsubscribe_app_alert_email(
         "/api/v1/app/item/alerts/unsubscribe",
         Vec::new(),
         Some(request),
+    )
+}
+
+/// Read a published status page by its public key; an unpublished key answers 404.
+pub fn read_public_status_page(base_url: &str, key: &str) -> Result<SiteStatusPage> {
+    call_public(
+        base_url,
+        Method::Get,
+        &status_page_path(key, ""),
+        Vec::new(),
+        None::<&()>,
+    )
+}
+
+/// Ask for a confirmation email. Custd answers the same for an unknown key, so success does not
+/// prove the page exists.
+pub fn subscribe_to_status_page(
+    base_url: &str,
+    key: &str,
+    request: &SiteStatusSubscriptionRequest,
+) -> Result<()> {
+    let path = status_page_path(key, "/subscribe");
+    call_public(base_url, Method::Post, &path, Vec::new(), Some(request))
+}
+
+/// Confirm a status page subscription with the emailed token.
+pub fn confirm_status_page_subscription(
+    base_url: &str,
+    key: &str,
+    token: &SiteStatusSubscriptionToken,
+) -> Result<()> {
+    let path = status_page_path(key, "/confirm-subscription");
+    call_public(base_url, Method::Post, &path, Vec::new(), Some(token))
+}
+
+/// End a status page subscription with the emailed token.
+pub fn unsubscribe_from_status_page(
+    base_url: &str,
+    key: &str,
+    token: &SiteStatusSubscriptionToken,
+) -> Result<()> {
+    let path = status_page_path(key, "/unsubscribe");
+    call_public(base_url, Method::Post, &path, Vec::new(), Some(token))
+}
+
+fn status_page_path(key: &str, action: &str) -> String {
+    format!(
+        "/api/v1/public-status-pages/{}{action}",
+        percent_encode(key)
     )
 }

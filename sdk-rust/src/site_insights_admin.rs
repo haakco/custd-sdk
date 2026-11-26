@@ -15,7 +15,7 @@ use crate::transport::Method;
 #[serde(rename_all = "camelCase")]
 pub struct SiteAIPlatformUsage {
     pub from: String,
-    pub period: String,
+    pub period: SiteAIPlatformUsagePeriod,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub rows: Vec<SiteAIUsageRow>,
     pub sampling_monthly_cap_usd_micros: i64,
@@ -77,6 +77,27 @@ pub struct AccessLogHourReplay {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SiteAIPlatformUsagePeriod {
+    #[serde(rename = "day")]
+    Day,
+    #[serde(rename = "month")]
+    Month,
+    #[serde(rename = "previous-month")]
+    PreviousMonth,
+}
+
+impl SiteAIPlatformUsagePeriod {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Day => "day",
+            Self::Month => "month",
+            Self::PreviousMonth => "previous-month",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AccessLogHourReplayPreviousStatus {
     #[serde(rename = "done")]
     Done,
@@ -96,27 +117,6 @@ impl AccessLogHourReplayPreviousStatus {
             Self::Partial => "partial",
             Self::Failed => "failed",
             Self::Missing => "missing",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum SiteAIPlatformUsagePeriod {
-    #[serde(rename = "day")]
-    Day,
-    #[serde(rename = "month")]
-    Month,
-    #[serde(rename = "previous-month")]
-    PreviousMonth,
-}
-
-impl SiteAIPlatformUsagePeriod {
-    /// The wire value.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Day => "day",
-            Self::Month => "month",
-            Self::PreviousMonth => "previous-month",
         }
     }
 }

@@ -535,7 +535,16 @@ where the route accepts one.
 - Hosted apps: `adminApps()`. App data from a hosted app's server side:
   `appItems($siteKey, $origin, $userToken)` (Site key, link token or signed-in
   user token; never this client's credential), `appProfile($accessToken)` and the
-  credential-free `publicReads()`.
+  credential-free `publicReads()`: a published status page and its email
+  subscriptions (`statusPage()`, `subscribeToStatusPage()`,
+  `confirmStatusPageSubscription()`, `unsubscribeFromStatusPage()`), a monitor's
+  reports with its report path and write token (`submitSiteHeartbeat()`,
+  `submitPrivateUptime()`, `getPrivateUptimeWork()`), and an AI settings owner
+  session from a handoff `adminSiteDomains()->ai()->createOwnerHandoff()` issued
+  (`redeemSiteAIOwnerHandoff()`, then `getSettings()`, `setSettings()`,
+  `setConsent()`; keep `$session->origin`, `$session->handle` and
+  `$session->binding()` server-side and `resumeSiteAIOwnerSession()` on a later
+  request).
 - People and access: `adminUsers()`, `adminSupportAccess()`, `adminClientSetup()`,
   `adminStorage()`, `adminOAuthClientAdmissions()`.
 - Measurement, plans and models: `adminMeasurementWork()`, `measurement()`,

@@ -11,10 +11,15 @@ from typing import NotRequired, TypedDict
 
 class TimePlanDefinitionMathAdjustment(TypedDict):
     actualMs: int
+    allocations: list[TimePlanDefinitionMathAllocationValue]
     elapsedMs: int
+    exactConservation: bool
     horizonMs: int
     index: int
+    markFutureNotRun: bool
+    negativeAllocations: int
     overrunMs: int
+    passed: bool
     reason: str
     remainingMs: int
     unusedMs: int

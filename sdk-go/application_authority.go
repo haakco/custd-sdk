@@ -95,5 +95,6 @@ func (c *CustdClient) requestApplication(ctx context.Context, request *HTTPReque
 	}
 	return &HTTPResponse{StatusCode: response.StatusCode, Body: body, Headers: map[string]string{
 		"Content-Type": response.Header.Get("Content-Type"),
+		"Set-Cookie":   response.Header.Get("Set-Cookie"),
 	}}, nil
 }

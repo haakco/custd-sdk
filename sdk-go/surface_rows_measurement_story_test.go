@@ -45,7 +45,7 @@ var predictionReadSurfaceRows = []surfaceRow{
 		id:   "analytics-api GET /api/v1/measurement/predictions/definitions/{definitionUuid}/runs",
 		path: "/api/v1/measurement/predictions/definitions/a1/runs",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Measurement.Predictions.ListRuns(context.Background(), "a1", time.Time{})
+			_, err := e.client.Measurement.Predictions.ListRuns(context.Background(), "a1", time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
 			return err
 		},
 	},

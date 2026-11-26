@@ -21,7 +21,7 @@ export const SiteFindingImpactStatus = {
     Measured: "measured",
     Insufficient: "insufficient",
 };
-/** How much of the goal data could be read; newer values may appear. */
+/** How much of the goal data could be read. */
 export const SiteSearchGoalStatus = {
     Measured: "measured",
     Partial: "partial",

@@ -18,7 +18,7 @@ pub fn rows() -> Vec<Row> {
             "admin-api GET /api/v1/admin/retention/policies/{tenantSlug}",
             "/api/v1/admin/retention/policies/t-1",
             |c| {
-                drop(c.custd.get_retention_policy("t-1", &body::<RetentionPolicyUpsertRequest>(r#"{"legalHold":true,"maxAgeSeconds":1,"precedence":1,"retentionClass":"x","scope":"x"}"#)))
+                drop(c.custd.get_retention_policy("t-1", &body::<RetentionPolicyUpsertRequest>(r#"{"legalHold":true,"maxAgeSeconds":1,"precedence":1,"retentionClass":"raw","scope":"tenant"}"#)))
             },
             round_trip::<RetentionPoliciesEnvelope>,
         ),
@@ -26,7 +26,7 @@ pub fn rows() -> Vec<Row> {
             "admin-api PUT /api/v1/admin/retention/policies/{tenantSlug}",
             "/api/v1/admin/retention/policies/t-1",
             |c| {
-                drop(c.custd.upsert_retention_policy("t-1", &body::<RetentionPolicyUpsertRequest>(r#"{"legalHold":true,"maxAgeSeconds":1,"precedence":1,"retentionClass":"x","scope":"x"}"#)))
+                drop(c.custd.upsert_retention_policy("t-1", &body::<RetentionPolicyUpsertRequest>(r#"{"legalHold":true,"maxAgeSeconds":1,"precedence":1,"retentionClass":"raw","scope":"tenant"}"#)))
             },
             round_trip::<RetentionPolicy>,
         ),
@@ -34,7 +34,7 @@ pub fn rows() -> Vec<Row> {
             "admin-api DELETE /api/v1/admin/retention/policies/{tenantSlug}",
             "/api/v1/admin/retention/policies/t-1",
             |c| {
-                drop(c.custd.delete_retention_policy("t-1", &body::<RetentionPolicyUpsertRequest>(r#"{"legalHold":true,"maxAgeSeconds":1,"precedence":1,"retentionClass":"x","scope":"x"}"#)))
+                drop(c.custd.delete_retention_policy("t-1", &body::<RetentionPolicyUpsertRequest>(r#"{"legalHold":true,"maxAgeSeconds":1,"precedence":1,"retentionClass":"raw","scope":"tenant"}"#)))
             },
         ),
     ]

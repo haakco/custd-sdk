@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::Result;
+use crate::api_path::api_path;
 use crate::client::CustdClient;
 use crate::error::Error;
 use crate::transport::{Method, percent_encode};
@@ -22,18 +23,6 @@ where
     T: Deserialize<'de> + Default,
 {
     Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
-}
-
-/// Decodes a list of a recursive shape, dropping `null` items: a null child means no child.
-pub(crate) fn null_items_skipped<'de, D, T>(
-    deserializer: D,
-) -> std::result::Result<Vec<T>, D::Error>
-where
-    D: Deserializer<'de>,
-    T: Deserialize<'de>,
-{
-    let items = Option::<Vec<Option<T>>>::deserialize(deserializer)?;
-    Ok(items.into_iter().flatten().flatten().collect())
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -365,8 +354,14 @@ pub(crate) fn validate_import(
     Ok(import)
 }
 
-fn admin_project_path(project: &str, suffix: &str) -> String {
-    format!("{ADMIN_PROJECTS}/{}{suffix}", percent_encode(project))
+/// An Admin API project path; a system administrator names the tenant with `company_slug`.
+fn admin_project_path(project: Option<&str>, suffix: &str, company_slug: Option<&str>) -> String {
+    let project = project.map_or(String::new(), |p| format!("/{}", percent_encode(p)));
+    api_path(
+        format!("{ADMIN_PROJECTS}{project}{suffix}"),
+        &[],
+        company_slug,
+    )
 }
 
 fn analytics_project_path(project: &str, suffix: &str) -> String {
@@ -375,21 +370,34 @@ fn analytics_project_path(project: &str, suffix: &str) -> String {
 
 const NO_BODY: Option<&()> = None;
 
+/// The Admin API project routes take `company_slug`, sent as `?companySlug=`, so a system
+/// administrator can name the tenant; a tenant credential passes `None`.
 impl CustdClient {
     pub fn create_measurement_project(
         &self,
         request: &MeasurementProjectCreate,
+        company_slug: Option<&str>,
     ) -> Result<MeasurementProject> {
-        self.call(Method::Post, ADMIN_PROJECTS, Some(request))
+        let path = admin_project_path(None, "", company_slug);
+        self.call(Method::Post, &path, Some(request))
     }
 
-    pub fn list_measurement_projects(&self) -> Result<MeasurementProjectList> {
-        self.call(Method::Get, ADMIN_PROJECTS, NO_BODY)
+    pub fn list_measurement_projects(
+        &self,
+        company_slug: Option<&str>,
+    ) -> Result<MeasurementProjectList> {
+        let path = admin_project_path(None, "", company_slug);
+        self.call(Method::Get, &path, NO_BODY)
     }
 
     /// Reads a project by its UUID or code.
-    pub fn get_measurement_project(&self, project: &str) -> Result<MeasurementProject> {
-        self.call(Method::Get, &admin_project_path(project, ""), NO_BODY)
+    pub fn get_measurement_project(
+        &self,
+        project: &str,
+        company_slug: Option<&str>,
+    ) -> Result<MeasurementProject> {
+        let path = admin_project_path(Some(project), "", company_slug);
+        self.call(Method::Get, &path, NO_BODY)
     }
 
     /// Adds observations, one or in bulk, and checks every row's result.
@@ -397,8 +405,9 @@ impl CustdClient {
         &self,
         project: &str,
         request: &MeasurementObservationBulk,
+        company_slug: Option<&str>,
     ) -> Result<MeasurementObservationImport> {
-        let path = admin_project_path(project, "/observations:bulk");
+        let path = admin_project_path(Some(project), "/observations:bulk", company_slug);
         let import = self.call(Method::Post, &path, Some(request))?;
         validate_import(import, request.rows.len())
     }
@@ -409,8 +418,9 @@ impl CustdClient {
         project: &str,
         csv: &str,
         expected_rows: usize,
+        company_slug: Option<&str>,
     ) -> Result<MeasurementObservationImport> {
-        let path = admin_project_path(project, "/observations:csv");
+        let path = admin_project_path(Some(project), "/observations:csv", company_slug);
         let import = self.call(
             Method::Post,
             &path,
@@ -423,32 +433,29 @@ impl CustdClient {
         &self,
         project: &str,
         request: &ProjectEstimateCreate,
+        company_slug: Option<&str>,
     ) -> Result<ProjectEstimate> {
-        self.call(
-            Method::Post,
-            &admin_project_path(project, "/estimates"),
-            Some(request),
-        )
+        let path = admin_project_path(Some(project), "/estimates", company_slug);
+        self.call(Method::Post, &path, Some(request))
     }
 
-    pub fn list_project_estimates(&self, project: &str) -> Result<ProjectEstimateList> {
-        self.call(
-            Method::Get,
-            &admin_project_path(project, "/estimates"),
-            NO_BODY,
-        )
+    pub fn list_project_estimates(
+        &self,
+        project: &str,
+        company_slug: Option<&str>,
+    ) -> Result<ProjectEstimateList> {
+        let path = admin_project_path(Some(project), "/estimates", company_slug);
+        self.call(Method::Get, &path, NO_BODY)
     }
 
     pub fn complete_project(
         &self,
         project: &str,
         request: &ProjectComplete,
+        company_slug: Option<&str>,
     ) -> Result<MeasurementProject> {
-        self.call(
-            Method::Post,
-            &admin_project_path(project, "/complete"),
-            Some(request),
-        )
+        let path = admin_project_path(Some(project), "/complete", company_slug);
+        self.call(Method::Post, &path, Some(request))
     }
 
     pub fn run_measurement_forecast(

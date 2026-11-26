@@ -119,12 +119,7 @@ pub fn rows() -> Vec<Row> {
             "admin-api POST /api/v1/admin/data-scope-grants",
             "/api/v1/admin/data-scope-grants?companySlug=acme",
             |c| {
-                drop(c.custd.create_data_scope_grant(
-                    &body::<DataScopeGrantRequest>(
-                        r#"{"action":"x","principal":{"kind":"x"},"target":{"kind":"x"}}"#,
-                    ),
-                    Some("acme"),
-                ))
+                drop(c.custd.create_data_scope_grant(&body::<DataScopeGrantRequest>(r#"{"action":"read","principal":{"kind":"human"},"target":{"kind":"parent"}}"#), Some("acme")))
             },
             round_trip::<DataScopeGrant>,
         ),
@@ -132,12 +127,7 @@ pub fn rows() -> Vec<Row> {
             "admin-api POST /api/v1/admin/data-scope-grants/revoke",
             "/api/v1/admin/data-scope-grants/revoke?companySlug=acme",
             |c| {
-                drop(c.custd.revoke_data_scope_grant(
-                    &body::<DataScopeGrantRequest>(
-                        r#"{"action":"x","principal":{"kind":"x"},"target":{"kind":"x"}}"#,
-                    ),
-                    Some("acme"),
-                ))
+                drop(c.custd.revoke_data_scope_grant(&body::<DataScopeGrantRequest>(r#"{"action":"read","principal":{"kind":"human"},"target":{"kind":"parent"}}"#), Some("acme")))
             },
         ),
     ]

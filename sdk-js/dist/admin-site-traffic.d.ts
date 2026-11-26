@@ -2,24 +2,27 @@
 export declare const ACCESS_LOG_HOUR_INVALID_CODE = "access_log_hour_invalid";
 /** The key that collects the rows beyond each day's top rows. */
 export declare const TRAFFIC_OTHER_KEY = "(other)";
-/** How much of one day was read; newer values may appear. */
+/** How much of one day was read. */
 export declare const SiteTrafficDayCoverage: {
     readonly Complete: "complete";
     readonly Partial: "partial";
     readonly Missing: "missing";
 };
+export type SiteTrafficDayCoverage = (typeof SiteTrafficDayCoverage)[keyof typeof SiteTrafficDayCoverage];
 /** Whether DNS confirmed a crawler or its User-Agent only claims to be it. */
 export declare const SiteCrawlerIdentity: {
     readonly Verified: "verified";
     readonly ClaimsToBe: "claims_to_be";
 };
-/** The kind of site that referred a request; newer values may appear. */
+export type SiteCrawlerIdentity = (typeof SiteCrawlerIdentity)[keyof typeof SiteCrawlerIdentity];
+/** The kind of site that referred a request. */
 export declare const SiteReferrerClass: {
     readonly Search: "search";
     readonly AI: "ai";
     readonly Social: "social";
     readonly Other: "other";
 };
+export type SiteReferrerClass = (typeof SiteReferrerClass)[keyof typeof SiteReferrerClass];
 /** How a replayed hour stood before the replay; missing when it was never read. */
 export declare const AccessLogHourStatus: {
     readonly Done: "done";
@@ -27,6 +30,7 @@ export declare const AccessLogHourStatus: {
     readonly Failed: "failed";
     readonly Missing: "missing";
 };
+export type AccessLogHourStatus = (typeof AccessLogHourStatus)[keyof typeof AccessLogHourStatus];
 /** Hours of the range by how they were read; partial hours are a lower bound. */
 export type SiteTrafficCoverage = {
     hoursExpected: number;
@@ -48,7 +52,7 @@ export type SiteTrafficTotals = {
 export type SiteTrafficDay = {
     date: string;
     /** A SiteTrafficDayCoverage value. */
-    coverage: string;
+    coverage: SiteTrafficDayCoverage;
     hoursRead: number;
     hoursPartial: number;
     hoursFailed: number;
@@ -70,12 +74,12 @@ export type SiteTrafficSlowPath = {
 };
 export type SiteTrafficReferrerClass = {
     /** A SiteReferrerClass value. */
-    class: string;
+    class: SiteReferrerClass;
     requests: number;
 };
 export type SiteTrafficReferrer = {
     /** A SiteReferrerClass value. */
-    class: string;
+    class: SiteReferrerClass;
     domain: string;
     requests: number;
 };
@@ -83,7 +87,7 @@ export type SiteTrafficCrawler = {
     /** A crawler slug such as googlebot or gptbot. */
     crawler: string;
     /** A SiteCrawlerIdentity value. */
-    identity: string;
+    identity: SiteCrawlerIdentity;
     /** The crawler fetches pages for an AI assistant or its training. */
     ai: boolean;
     requests: number;
@@ -136,6 +140,6 @@ export type SiteAIAnswerSample = {
 export type AccessLogHourReplay = {
     hourStart: string;
     /** An AccessLogHourStatus value. */
-    previousStatus: string;
+    previousStatus: AccessLogHourStatus;
     requestedAt: string;
 };

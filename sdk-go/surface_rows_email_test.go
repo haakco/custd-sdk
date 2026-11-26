@@ -173,7 +173,7 @@ var emailSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/accounting/evidence",
 		path: "/api/v1/admin/accounting/evidence",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.AccountingEvidence.List(context.Background(), "", 0)
+			_, err := e.client.Admin.AccountingEvidence.List(context.Background(), "2026-11-26", 5)
 			return err
 		},
 	},

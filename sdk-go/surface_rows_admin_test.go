@@ -589,7 +589,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/retention/policies/{tenantSlug}/runs",
 		path: "/api/v1/admin/retention/policies/a1/runs",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.Retention.ListRuns(context.Background(), "a1")
+			_, err := e.client.Admin.Retention.ListRuns(context.Background(), "a1", RetentionRunsPage{Limit: 5, Offset: 2})
 			return err
 		},
 	},
@@ -636,7 +636,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/audit/events/{eventId}",
 		path: "/api/v1/admin/audit/events/a1",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.Audit.GetEvent(context.Background(), "a1")
+			_, err := e.client.Admin.Audit.GetEvent(context.Background(), "a1", AuditListOptions{Scope: AuditScopeGlobal})
 			return err
 		},
 	},
@@ -644,7 +644,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/audit/events",
 		path: "/api/v1/admin/audit/events",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.Audit.ListEvents(context.Background(), AuditListOptions{})
+			_, err := e.client.Admin.Audit.ListEvents(context.Background(), surfaceAuditOptions)
 			return err
 		},
 	},
@@ -777,40 +777,32 @@ var adminSurfaceRows = []surfaceRow{
 		},
 	},
 	{
-		id:          "admin-api POST /api/v1/admin/reporting-packs/setup-templates/{kind}/bind",
-		path:        "/api/v1/admin/reporting-packs/setup-templates/a1/bind",
-		skipExample: "maximal",
-		skipReason:  "the OpenAPI declares no enums for reporting-pack closed unions, so the example's placeholder strings are not members",
+		id:   "admin-api POST /api/v1/admin/reporting-packs/setup-templates/{kind}/bind",
+		path: "/api/v1/admin/reporting-packs/setup-templates/a1/bind",
 		call: func(e *surfaceEnv) error {
 			_, err := e.client.Admin.ReportingPacks.BindSetupTemplate(context.Background(), "a1", ReportingPackSetupTemplateBindRequest{})
 			return err
 		},
 	},
 	{
-		id:          "admin-api POST /api/v1/admin/reporting-packs/drafts",
-		path:        "/api/v1/admin/reporting-packs/drafts",
-		skipExample: "maximal",
-		skipReason:  "the OpenAPI declares no enums for reporting-pack closed unions, so the example's placeholder strings are not members",
+		id:   "admin-api POST /api/v1/admin/reporting-packs/drafts",
+		path: "/api/v1/admin/reporting-packs/drafts",
 		call: func(e *surfaceEnv) error {
 			_, err := e.client.Admin.ReportingPacks.CreateDraft(context.Background(), ReportingPackDraftCreate{})
 			return err
 		},
 	},
 	{
-		id:          "admin-api GET /api/v1/admin/reporting-packs/drafts/{draftId}",
-		path:        "/api/v1/admin/reporting-packs/drafts/a1",
-		skipExample: "maximal",
-		skipReason:  "the OpenAPI declares no enums for reporting-pack closed unions, so the example's placeholder strings are not members",
+		id:   "admin-api GET /api/v1/admin/reporting-packs/drafts/{draftId}",
+		path: "/api/v1/admin/reporting-packs/drafts/a1",
 		call: func(e *surfaceEnv) error {
 			_, err := e.client.Admin.ReportingPacks.GetDraft(context.Background(), "a1")
 			return err
 		},
 	},
 	{
-		id:          "admin-api GET /api/v1/admin/reporting-packs/generations/{generationId}",
-		path:        "/api/v1/admin/reporting-packs/generations/a1",
-		skipExample: "maximal",
-		skipReason:  "the OpenAPI declares no enums for reporting-pack closed unions, so the example's placeholder strings are not members",
+		id:   "admin-api GET /api/v1/admin/reporting-packs/generations/{generationId}",
+		path: "/api/v1/admin/reporting-packs/generations/a1",
 		call: func(e *surfaceEnv) error {
 			_, err := e.client.Admin.ReportingPacks.GetGeneration(context.Background(), "a1")
 			return err
@@ -833,10 +825,8 @@ var adminSurfaceRows = []surfaceRow{
 		},
 	},
 	{
-		id:          "admin-api GET /api/v1/admin/reporting-packs/drafts",
-		path:        "/api/v1/admin/reporting-packs/drafts",
-		skipExample: "maximal",
-		skipReason:  "the OpenAPI declares no enums for reporting-pack closed unions, so the example's placeholder strings are not members",
+		id:   "admin-api GET /api/v1/admin/reporting-packs/drafts",
+		path: "/api/v1/admin/reporting-packs/drafts",
 		call: func(e *surfaceEnv) error {
 			_, err := e.client.Admin.ReportingPacks.ListDrafts(context.Background())
 			return err
@@ -851,10 +841,8 @@ var adminSurfaceRows = []surfaceRow{
 		},
 	},
 	{
-		id:          "admin-api GET /api/v1/admin/reporting-packs/setup-templates",
-		path:        "/api/v1/admin/reporting-packs/setup-templates",
-		skipExample: "maximal",
-		skipReason:  "the OpenAPI declares no enums for reporting-pack closed unions, so the example's placeholder strings are not members",
+		id:   "admin-api GET /api/v1/admin/reporting-packs/setup-templates",
+		path: "/api/v1/admin/reporting-packs/setup-templates",
 		call: func(e *surfaceEnv) error {
 			_, err := e.client.Admin.ReportingPacks.ListSetupTemplates(context.Background())
 			return err
@@ -869,40 +857,32 @@ var adminSurfaceRows = []surfaceRow{
 		},
 	},
 	{
-		id:          "admin-api POST /api/v1/admin/reporting-packs/drafts/{draftId}/publish",
-		path:        "/api/v1/admin/reporting-packs/drafts/a1/publish",
-		skipExample: "maximal",
-		skipReason:  "the OpenAPI declares no enums for reporting-pack closed unions, so the example's placeholder strings are not members",
+		id:   "admin-api POST /api/v1/admin/reporting-packs/drafts/{draftId}/publish",
+		path: "/api/v1/admin/reporting-packs/drafts/a1/publish",
 		call: func(e *surfaceEnv) error {
 			_, err := e.client.Admin.ReportingPacks.Publish(context.Background(), "a1")
 			return err
 		},
 	},
 	{
-		id:          "admin-api POST /api/v1/admin/reporting-packs/drafts/{draftId}/restart",
-		path:        "/api/v1/admin/reporting-packs/drafts/a1/restart",
-		skipExample: "maximal",
-		skipReason:  "the OpenAPI declares no enums for reporting-pack closed unions, so the example's placeholder strings are not members",
+		id:   "admin-api POST /api/v1/admin/reporting-packs/drafts/{draftId}/restart",
+		path: "/api/v1/admin/reporting-packs/drafts/a1/restart",
 		call: func(e *surfaceEnv) error {
 			_, err := e.client.Admin.ReportingPacks.Restart(context.Background(), "a1")
 			return err
 		},
 	},
 	{
-		id:          "admin-api POST /api/v1/admin/reporting-packs/generations/{generationId}/rollback",
-		path:        "/api/v1/admin/reporting-packs/generations/a1/rollback",
-		skipExample: "maximal",
-		skipReason:  "the OpenAPI declares no enums for reporting-pack closed unions, so the example's placeholder strings are not members",
+		id:   "admin-api POST /api/v1/admin/reporting-packs/generations/{generationId}/rollback",
+		path: "/api/v1/admin/reporting-packs/generations/a1/rollback",
 		call: func(e *surfaceEnv) error {
 			_, err := e.client.Admin.ReportingPacks.RollbackGeneration(context.Background(), "a1")
 			return err
 		},
 	},
 	{
-		id:          "admin-api PUT /api/v1/admin/reporting-packs/drafts/{draftId}",
-		path:        "/api/v1/admin/reporting-packs/drafts/a1",
-		skipExample: "maximal",
-		skipReason:  "the OpenAPI declares no enums for reporting-pack closed unions, so the example's placeholder strings are not members",
+		id:   "admin-api PUT /api/v1/admin/reporting-packs/drafts/{draftId}",
+		path: "/api/v1/admin/reporting-packs/drafts/a1",
 		call: func(e *surfaceEnv) error {
 			_, err := e.client.Admin.ReportingPacks.UpdateDraft(context.Background(), "a1", ReportingPackDraftUpdate{})
 			return err
@@ -991,7 +971,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/subject-exports",
 		path: "/api/v1/admin/subject-exports",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.SubjectExports.List(context.Background(), 0)
+			_, err := e.client.Admin.SubjectExports.List(context.Background(), 5)
 			return err
 		},
 	},
@@ -1031,7 +1011,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/data-labels/catalogue",
 		path: "/api/v1/admin/data-labels/catalogue",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.DataLabels.Catalogue(context.Background(), false)
+			_, err := e.client.Admin.DataLabels.Catalogue(context.Background(), true)
 			return err
 		},
 	},
@@ -1069,7 +1049,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/data-labels/{definitionUuid}",
 		path: "/api/v1/admin/data-labels/a1",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.DataLabels.Get(context.Background(), "a1", false)
+			_, err := e.client.Admin.DataLabels.Get(context.Background(), "a1", true)
 			return err
 		},
 	},
@@ -1077,7 +1057,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/data-labels",
 		path: "/api/v1/admin/data-labels",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.DataLabels.List(context.Background(), false)
+			_, err := e.client.Admin.DataLabels.List(context.Background(), true)
 			return err
 		},
 	},
@@ -1150,10 +1130,8 @@ var adminSurfaceRows = []surfaceRow{
 		},
 	},
 	{
-		id:          "analytics-api POST /api/v1/reporting/exports/completed-run",
-		path:        "/api/v1/reporting/exports/completed-run",
-		skipExample: "maximal",
-		skipReason:  "the OpenAPI declares no enums for reporting-pack closed unions, so the example's placeholder strings are not members",
+		id:   "analytics-api POST /api/v1/reporting/exports/completed-run",
+		path: "/api/v1/reporting/exports/completed-run",
 		call: func(e *surfaceEnv) error {
 			_, err := e.client.Admin.TimePlans.CreateCompletedRunExport(context.Background(), CompletedRunExportRequest{})
 			return err
@@ -1299,7 +1277,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/usage/export",
 		path: "/api/v1/admin/usage/export",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.Usage.ExportUsage(context.Background(), "a1", UsageQuery{})
+			_, err := e.client.Admin.Usage.ExportUsage(context.Background(), "a1", surfaceUsageQuery)
 			return err
 		},
 	},
@@ -1307,7 +1285,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/usage/me",
 		path: "/api/v1/admin/usage/me",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.Usage.Get(context.Background(), UsageQuery{})
+			_, err := e.client.Admin.Usage.Get(context.Background(), surfaceUsageQuery)
 			return err
 		},
 	},
@@ -1323,7 +1301,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/usage/me",
 		path: "/api/v1/admin/usage/me",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.Usage.ListCurrentUsage(context.Background(), UsageQuery{})
+			_, err := e.client.Admin.Usage.ListCurrentUsage(context.Background(), surfaceUsageQuery)
 			return err
 		},
 	},
@@ -1331,7 +1309,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/usage",
 		path: "/api/v1/admin/usage",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.Usage.ListUsage(context.Background(), "a1", UsageQuery{})
+			_, err := e.client.Admin.Usage.ListUsage(context.Background(), "a1", surfaceUsageQuery)
 			return err
 		},
 	},
@@ -1369,7 +1347,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/data-scopes/{scopeUuid}/resources",
 		path: "/api/v1/admin/data-scopes/a1/resources",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.DataScopes.ListResources(context.Background(), "a1", false)
+			_, err := e.client.Admin.DataScopes.ListResources(context.Background(), "a1", true)
 			return err
 		},
 	},
@@ -1377,7 +1355,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/data-scopes",
 		path: "/api/v1/admin/data-scopes",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.DataScopes.ListScopes(context.Background(), false)
+			_, err := e.client.Admin.DataScopes.ListScopes(context.Background(), true)
 			return err
 		},
 	},
@@ -1529,7 +1507,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api POST /api/v1/admin/users/{userUuid}/disable",
 		path: "/api/v1/admin/users/a1/disable",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.AdminUsers.Disable(context.Background(), "a1", "a2", false)
+			_, err := e.client.Admin.AdminUsers.Disable(context.Background(), "a1", "a2", true)
 			return err
 		},
 	},
@@ -1537,7 +1515,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api POST /api/v1/admin/users/{userUuid}/enable",
 		path: "/api/v1/admin/users/a1/enable",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.AdminUsers.Enable(context.Background(), "a1", nil, false)
+			_, err := e.client.Admin.AdminUsers.Enable(context.Background(), "a1", nil, true)
 			return err
 		},
 	},
@@ -1545,7 +1523,7 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/users/{userUuid}",
 		path: "/api/v1/admin/users/a1",
 		call: func(e *surfaceEnv) error {
-			_, _, err := e.client.Admin.AdminUsers.Get(context.Background(), "a1", false)
+			_, _, err := e.client.Admin.AdminUsers.Get(context.Background(), "a1", true)
 			return err
 		},
 	},
@@ -1553,7 +1531,8 @@ var adminSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/users",
 		path: "/api/v1/admin/users",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.AdminUsers.List(context.Background(), AdminUserListOptions{CompanySlug: "a1"})
+			_, err := e.client.Admin.AdminUsers.List(context.Background(), AdminUserListOptions{CompanySlug: "a1", Role: "a2", GlobalState: "a3",
+				MembershipState: "a4", WelcomeStatus: "a5", IncludeEnded: true, IncludeDeleted: true})
 			return err
 		},
 	},

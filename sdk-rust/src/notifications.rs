@@ -153,18 +153,18 @@ pub struct NotificationDeliveryStatus {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TenantDestination {
-    pub channel: String,
+    pub channel: TenantDestinationChannel,
     pub configured: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub email_recipient: Option<String>,
     pub enabled: bool,
-    pub event_slug: String,
+    pub event_slug: TenantDestinationEventSlug,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TenantDestinationRequest {
-    pub channel: String,
+    pub channel: TenantDestinationChannel,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub email_recipient: Option<String>,
     pub enabled: bool,
@@ -184,6 +184,72 @@ impl NotificationWebhookSubscriptionKind {
         match self {
             Self::Webhook => "webhook",
             Self::Slack => "slack",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TenantDestinationChannel {
+    #[serde(rename = "email")]
+    Email,
+    #[serde(rename = "webhook")]
+    Webhook,
+    #[serde(rename = "slack")]
+    Slack,
+}
+
+impl TenantDestinationChannel {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Email => "email",
+            Self::Webhook => "webhook",
+            Self::Slack => "slack",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TenantDestinationEventSlug {
+    #[serde(rename = "email_relay_test_send")]
+    EmailRelayTestSend,
+    #[serde(rename = "identity_verify_email")]
+    IdentityVerifyEmail,
+    #[serde(rename = "identity_reset_password")]
+    IdentityResetPassword,
+    #[serde(rename = "user_welcome")]
+    UserWelcome,
+    #[serde(rename = "application_invitation")]
+    ApplicationInvitation,
+    #[serde(rename = "error_issue_alert")]
+    ErrorIssueAlert,
+    #[serde(rename = "site_finding_opened")]
+    SiteFindingOpened,
+    #[serde(rename = "site_incident")]
+    SiteIncident,
+    #[serde(rename = "site_ai_allowance")]
+    SiteAiAllowance,
+    #[serde(rename = "site_status_page_confirm")]
+    SiteStatusPageConfirm,
+    #[serde(rename = "site_status_page_update")]
+    SiteStatusPageUpdate,
+}
+
+impl TenantDestinationEventSlug {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::EmailRelayTestSend => "email_relay_test_send",
+            Self::IdentityVerifyEmail => "identity_verify_email",
+            Self::IdentityResetPassword => "identity_reset_password",
+            Self::UserWelcome => "user_welcome",
+            Self::ApplicationInvitation => "application_invitation",
+            Self::ErrorIssueAlert => "error_issue_alert",
+            Self::SiteFindingOpened => "site_finding_opened",
+            Self::SiteIncident => "site_incident",
+            Self::SiteAiAllowance => "site_ai_allowance",
+            Self::SiteStatusPageConfirm => "site_status_page_confirm",
+            Self::SiteStatusPageUpdate => "site_status_page_update",
         }
     }
 }

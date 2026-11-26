@@ -24,8 +24,7 @@ impl Transport for TestTokenEndpoint {
         assert_eq!(challenge, expected);
         Ok(HttpResponse {
             status: 200,
-            etag: None,
-            content_type: None,
+            headers: Vec::new(),
             body: br#"{"access_token":"test-bearer","token_type":"Bearer","expires_in":300}"#
                 .to_vec(),
         })

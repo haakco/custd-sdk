@@ -35,8 +35,8 @@ pub struct SubjectExportResponse {
     #[serde(default, deserialize_with = "null_as_empty")]
     pub per_store_progress: Vec<SubjectExportStoreProgress>,
     pub requested_at: String,
-    pub scope: String,
-    pub state: String,
+    pub scope: SubjectExportResponseScope,
+    pub state: SubjectExportResponseState,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -51,17 +51,15 @@ pub struct SubjectExportStoreProgress {
     pub store: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubjectExportCreateRequest {
     /// Stable key for retry-safe creation.
-    #[serde(rename = "idempotency_key")]
     pub idempotency_key: String,
     /// Tenant-scoped opaque subject identifier.
-    #[serde(rename = "opaque_subject_id")]
     pub opaque_subject_id: String,
     /// Export scope: access, portability, or both.
-    pub scope: String,
+    pub scope: SubjectExportResponseScope,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -77,16 +75,89 @@ pub struct SubjectExportArtifactResponse {
     pub record_count: i64,
     pub request_id: String,
     pub s3_key: String,
-    pub scope: String,
+    pub scope: SubjectExportResponseScope,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SubjectExportResponseScope {
+    #[serde(rename = "access")]
+    Access,
+    #[serde(rename = "portability")]
+    Portability,
+    #[serde(rename = "both")]
+    Both,
+}
+
+impl SubjectExportResponseScope {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Access => "access",
+            Self::Portability => "portability",
+            Self::Both => "both",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SubjectExportResponseState {
+    #[serde(rename = "queued")]
+    Queued,
+    #[serde(rename = "running")]
+    Running,
+    #[serde(rename = "complete")]
+    Complete,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "cancelled")]
+    Cancelled,
+    #[serde(rename = "expired")]
+    Expired,
+}
+
+impl SubjectExportResponseState {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Queued => "queued",
+            Self::Running => "running",
+            Self::Complete => "complete",
+            Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
+            Self::Expired => "expired",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SubjectExportScope {
+    #[serde(rename = "access")]
+    Access,
+    #[serde(rename = "portability")]
+    Portability,
+}
+
+impl SubjectExportScope {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Access => "access",
+            Self::Portability => "portability",
+        }
+    }
 }
 
 impl CustdClient {
     /// List subject exports.
-    pub fn list_subject_exports(&self, limit: Option<i64>) -> Result<SubjectExportListResponse> {
+    pub fn list_subject_exports(
+        &self,
+        limit: Option<i64>,
+        company_slug: Option<&str>,
+    ) -> Result<SubjectExportListResponse> {
         let path = api_path(
             "/api/v1/admin/subject-exports".to_owned(),
             &[("limit", limit.map(|v| v.to_string()))],
-            None,
+            company_slug,
         );
         self.call(Method::Get, &path, NO_BODY)
     }
@@ -95,33 +166,46 @@ impl CustdClient {
     pub fn create_subject_export(
         &self,
         request: &SubjectExportCreateRequest,
+        company_slug: Option<&str>,
     ) -> Result<SubjectExportResponse> {
-        let path = api_path("/api/v1/admin/subject-exports".to_owned(), &[], None);
+        let path = api_path(
+            "/api/v1/admin/subject-exports".to_owned(),
+            &[],
+            company_slug,
+        );
         self.call(Method::Post, &path, Some(request))
     }
 
     /// Get subject export status.
-    pub fn get_subject_export(&self, request_id: &str) -> Result<SubjectExportResponse> {
+    pub fn get_subject_export(
+        &self,
+        request_id: &str,
+        company_slug: Option<&str>,
+    ) -> Result<SubjectExportResponse> {
         let path = api_path(
             format!(
                 "/api/v1/admin/subject-exports/{}",
                 percent_encode(request_id)
             ),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Get, &path, NO_BODY)
     }
 
     /// Cancel a subject export.
-    pub fn cancel_subject_export(&self, request_id: &str) -> Result<SubjectExportResponse> {
+    pub fn cancel_subject_export(
+        &self,
+        request_id: &str,
+        company_slug: Option<&str>,
+    ) -> Result<SubjectExportResponse> {
         let path = api_path(
             format!(
                 "/api/v1/admin/subject-exports/{}/cancel",
                 percent_encode(request_id)
             ),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Post, &path, NO_BODY)
     }
@@ -147,15 +231,16 @@ impl CustdClient {
     pub fn download_subject_export(
         &self,
         request_id: &str,
-        scope: &str,
+        scope: SubjectExportScope,
+        company_slug: Option<&str>,
     ) -> Result<SubjectExportArtifactResponse> {
         let path = api_path(
             format!(
                 "/api/v1/admin/subject-exports/{}/download",
                 percent_encode(request_id)
             ),
-            &[("scope", Some(scope.to_owned()))],
-            None,
+            &[("scope", Some(scope.as_str().to_owned()))],
+            company_slug,
         );
         self.call(Method::Get, &path, NO_BODY)
     }

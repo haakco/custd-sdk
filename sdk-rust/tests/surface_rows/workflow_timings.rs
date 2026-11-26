@@ -69,7 +69,7 @@ pub fn rows() -> Vec<Row> {
             "admin-api POST /api/v1/admin/workflow-timings/observations",
             "/api/v1/admin/workflow-timings/observations?companySlug=acme",
             |c| {
-                drop(c.custd.append_workflow_timing_observation(&body::<WorkflowTimingObservationRequest>(r#"{"observation":{"externalRunId":"x","fact":{"kind":"x","occurredAt":"x"},"idempotencyKey":"x","workflowKey":"x"}}"#), Some("acme")))
+                drop(c.custd.append_workflow_timing_observation(&body::<WorkflowTimingObservationRequest>(r#"{"observation":{"externalRunId":"x","fact":{"kind":"run_started","occurredAt":"x"},"idempotencyKey":"x","workflowKey":"x"}}"#), Some("acme")))
             },
             round_trip::<WorkflowTimingObservationBatchResult>,
         ),
@@ -88,7 +88,7 @@ pub fn rows() -> Vec<Row> {
             "admin-api POST /api/v1/admin/workflow-timings/corrections",
             "/api/v1/admin/workflow-timings/corrections?companySlug=acme",
             |c| {
-                drop(c.custd.correct_workflow_timing_observation(&body::<WorkflowTimingObservationRequest>(r#"{"observation":{"externalRunId":"x","fact":{"kind":"x","occurredAt":"x"},"idempotencyKey":"x","workflowKey":"x"}}"#), Some("acme")))
+                drop(c.custd.correct_workflow_timing_observation(&body::<WorkflowTimingObservationRequest>(r#"{"observation":{"externalRunId":"x","fact":{"kind":"run_started","occurredAt":"x"},"idempotencyKey":"x","workflowKey":"x"}}"#), Some("acme")))
             },
             round_trip::<WorkflowTimingObservationBatchResult>,
         ),

@@ -110,7 +110,7 @@ pub fn rows() -> Vec<Row> {
             |c| {
                 drop(c.custd.put_notification_destination(
                     NotificationDestinationEventSlug::ErrorIssueAlert,
-                    &body::<TenantDestinationRequest>(r#"{"channel":"x","enabled":true}"#),
+                    &body::<TenantDestinationRequest>(r#"{"channel":"email","enabled":true}"#),
                     Some("acme"),
                 ))
             },

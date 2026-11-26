@@ -7,7 +7,7 @@ var uncertaintySurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/uncertainty-models",
 		path: "/api/v1/admin/uncertainty-models",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.UncertaintyModels.List(context.Background(), "", "")
+			_, err := e.client.Admin.UncertaintyModels.List(context.Background(), "", "a1")
 			return err
 		},
 	},

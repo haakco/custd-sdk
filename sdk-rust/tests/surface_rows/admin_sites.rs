@@ -35,7 +35,7 @@ pub fn rows() -> Vec<Row> {
                 drop(c.custd.update_site(
                     "s-1",
                     &body::<SiteUpdateRequest>(
-                        r#"{"allowedOrigins":[],"environment":"x","identityMode":"x"}"#,
+                        r#"{"allowedOrigins":[],"environment":"x","identityMode":"cookieless"}"#,
                     ),
                 ))
             },

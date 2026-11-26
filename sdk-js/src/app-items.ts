@@ -48,6 +48,7 @@ import {
   appRealtimeUrl,
   globalWebSocketFactory,
 } from "./app-push.js";
+import { emptyAppNullLists } from "./response-lists.js";
 
 export const APP_ITEM_SITE_KEY_HEADER = "X-Custd-Site-Key";
 /** Carries the signed-in user's access token beside the link token. */
@@ -1091,9 +1092,13 @@ export class AppItemsClient {
     });
     if (response.status === 304)
       return { status: "not_modified", etag: response.headers.get("etag") ?? options.etag ?? "" };
-    const data = (await response.json().catch(() => {
-      throw new AppItemError(response.status, APP_ITEM_ERROR_CODES.invalidResponse);
-    })) as T;
+    const data = emptyAppNullLists(
+      "GET",
+      path,
+      (await response.json().catch(() => {
+        throw new AppItemError(response.status, APP_ITEM_ERROR_CODES.invalidResponse);
+      })) as T,
+    );
     return { status: "modified", data, etag: response.headers.get("etag") };
   }
 
@@ -1116,7 +1121,7 @@ export class AppItemsClient {
   private async json<T>(request: AppRequest): Promise<T> {
     const response = await this.send(request);
     if (response.status === 204) return null as T;
-    return (await response.json()) as T;
+    return emptyAppNullLists(request.method, request.path, (await response.json()) as T);
   }
 
   private async send(request: AppRequest): Promise<Response> {

@@ -288,8 +288,8 @@ pub struct PresentationLayer {
     pub label: String,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub points: Vec<PresentationPoint>,
-    pub role: String,
-    pub y_kind: String,
+    pub role: PresentationLayerRole,
+    pub y_kind: PresentationLayerYKind,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -384,6 +384,51 @@ pub struct PresentationSupportingTableRow {
     #[serde(default, deserialize_with = "null_as_empty")]
     pub cells: Vec<String>,
     pub key: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PresentationLayerRole {
+    #[serde(rename = "observed_progress")]
+    ObservedProgress,
+    #[serde(rename = "previous_snapshots")]
+    PreviousSnapshots,
+    #[serde(rename = "outer_interval")]
+    OuterInterval,
+    #[serde(rename = "inner_interval")]
+    InnerInterval,
+    #[serde(rename = "median")]
+    Median,
+}
+
+impl PresentationLayerRole {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ObservedProgress => "observed_progress",
+            Self::PreviousSnapshots => "previous_snapshots",
+            Self::OuterInterval => "outer_interval",
+            Self::InnerInterval => "inner_interval",
+            Self::Median => "median",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PresentationLayerYKind {
+    #[serde(rename = "numeric")]
+    Numeric,
+    #[serde(rename = "temporal")]
+    Temporal,
+}
+
+impl PresentationLayerYKind {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Numeric => "numeric",
+            Self::Temporal => "temporal",
+        }
+    }
 }
 
 impl CustdClient {

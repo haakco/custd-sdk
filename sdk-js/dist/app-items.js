@@ -6,6 +6,7 @@ import { APP_LIVE_STATUSES, AppLiveRegistry, } from "./app-live.js";
 import { APP_MEETING_ERROR_CODES, } from "./app-meetings.js";
 import { APP_MODEL_ERROR_CODES, } from "./app-models.js";
 import { AppPushChannel, appRealtimeUrl, globalWebSocketFactory, } from "./app-push.js";
+import { emptyAppNullLists } from "./response-lists.js";
 export const APP_ITEM_SITE_KEY_HEADER = "X-Custd-Site-Key";
 /** Carries the signed-in user's access token beside the link token. */
 export const APP_ITEM_USER_TOKEN_HEADER = "X-Custd-User-Token";
@@ -402,9 +403,9 @@ export class AppItemsClient {
         });
         if (response.status === 304)
             return { status: "not_modified", etag: response.headers.get("etag") ?? options.etag ?? "" };
-        const data = (await response.json().catch(() => {
+        const data = emptyAppNullLists("GET", path, (await response.json().catch(() => {
             throw new AppItemError(response.status, APP_ITEM_ERROR_CODES.invalidResponse);
-        }));
+        })));
         return { status: "modified", data, etag: response.headers.get("etag") };
     }
     page(path, access, item, query) {
@@ -421,7 +422,7 @@ export class AppItemsClient {
         const response = await this.send(request);
         if (response.status === 204)
             return null;
-        return (await response.json());
+        return emptyAppNullLists(request.method, request.path, (await response.json()));
     }
     async send(request) {
         const url = new URL(`${this.baseUrl}${request.path}`);

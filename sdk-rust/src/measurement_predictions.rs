@@ -46,6 +46,8 @@ pub struct MeasurementPredictionDefinition {
         skip_serializing_if = "Option::is_none"
     )]
     pub candidate_version_uuid: Option<String>,
+    #[serde(rename = "created_at")]
+    pub created_at: String,
     #[serde(
         rename = "default_horizon_seconds",
         default,
@@ -61,10 +63,12 @@ pub struct MeasurementPredictionDefinition {
     #[serde(rename = "is_paused")]
     pub is_paused: bool,
     #[serde(rename = "project_kind")]
-    pub project_kind: String,
+    pub project_kind: MeasurementPredictionDefinitionProjectKind,
     #[serde(rename = "schedule_kind")]
     pub schedule_kind: String,
     pub status: String,
+    #[serde(rename = "updated_at")]
+    pub updated_at: String,
     pub uuid: String,
 }
 
@@ -82,7 +86,7 @@ pub struct MeasurementPredictionDefinitionCreateRequest {
         default,
         skip_serializing_if = "Option::is_none"
     )]
-    pub project_kind: Option<String>,
+    pub project_kind: Option<MeasurementPredictionDefinitionProjectKind>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -242,7 +246,7 @@ pub struct MeasurementDurationEvaluationVersion {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DurationForecastDefinition {
-    pub method: String,
+    pub method: DurationForecastDefinitionMethod,
     #[serde(rename = "method_version")]
     pub method_version: String,
     #[serde(rename = "minimum_history")]
@@ -314,7 +318,7 @@ pub struct DurationForecastEvaluationMetric {
     pub interval: DurationForecastIntervalEvaluation,
     #[serde(rename = "mean_absolute_error_ms")]
     pub mean_absolute_error_ms: f64,
-    pub method: String,
+    pub method: DurationForecastDefinitionMethod,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -525,6 +529,54 @@ pub struct MeasurementSignalSourceCreateRequest {
     pub source_key: String,
     #[serde(rename = "source_mode")]
     pub source_mode: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum MeasurementPredictionDefinitionProjectKind {
+    #[serde(rename = "deadline_forecast")]
+    DeadlineForecast,
+    #[serde(rename = "runway_forecast")]
+    RunwayForecast,
+    #[serde(rename = "decision_analysis")]
+    DecisionAnalysis,
+    #[serde(rename = "calibration")]
+    Calibration,
+    #[serde(rename = "duration")]
+    Duration,
+    #[serde(rename = "event_probability")]
+    EventProbability,
+}
+
+impl MeasurementPredictionDefinitionProjectKind {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::DeadlineForecast => "deadline_forecast",
+            Self::RunwayForecast => "runway_forecast",
+            Self::DecisionAnalysis => "decision_analysis",
+            Self::Calibration => "calibration",
+            Self::Duration => "duration",
+            Self::EventProbability => "event_probability",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DurationForecastDefinitionMethod {
+    #[serde(rename = "nominal")]
+    Nominal,
+    #[serde(rename = "duration_shrinkage")]
+    DurationShrinkage,
+}
+
+impl DurationForecastDefinitionMethod {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Nominal => "nominal",
+            Self::DurationShrinkage => "duration_shrinkage",
+        }
+    }
 }
 
 impl CustdClient {

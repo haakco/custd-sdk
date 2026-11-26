@@ -27,21 +27,22 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api POST /api/v1/site-domains/{domainUuid}/finding-dismissals",
-            "/api/v1/site-domains/d-1/finding-dismissals",
+            "/api/v1/site-domains/d-1/finding-dismissals?companySlug=acme",
             |c| {
                 drop(c.custd.dismiss_site_finding(
                     "d-1",
                     &body::<SiteFindingDismissalRequest>(
                         r#"{"findingUuid":"x","reason":"x","scope":"rule"}"#,
                     ),
+                    Some("acme"),
                 ))
             },
             round_trip::<SiteFindingDismissal>,
         ),
         bodiless(
             "admin-api DELETE /api/v1/site-domains/{domainUuid}/finding-dismissals/{dismissalUuid}",
-            "/api/v1/site-domains/d-1/finding-dismissals/d-1",
-            |c| drop(c.custd.restore_site_finding("d-1", "d-1")),
+            "/api/v1/site-domains/d-1/finding-dismissals/d-1?companySlug=acme",
+            |c| drop(c.custd.restore_site_finding("d-1", "d-1", Some("acme"))),
         ),
         row(
             "admin-api GET /api/v1/site-domains/{domainUuid}/audit-delta",

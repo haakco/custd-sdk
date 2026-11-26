@@ -1,22 +1,25 @@
-/** Where a referring domain was seen; newer sources may appear. */
+import type { SiteWebDomainRole } from "./admin-site-web-data.js";
+/** Where a referring domain was seen. */
 export declare const SiteLinkSource: {
     readonly Bing: "bing";
     readonly CommonCrawl: "commoncrawl";
     readonly Crawl: "crawl";
 };
-/** The state of one link source for the domain; newer values may appear. */
+export type SiteLinkSource = (typeof SiteLinkSource)[keyof typeof SiteLinkSource];
+/** The state of one link source for the domain. */
 export declare const SiteLinkSourceStatus: {
     readonly Available: "available";
     readonly Pending: "pending";
     readonly Failed: "failed";
     readonly Unavailable: "unavailable";
 };
+export type SiteLinkSourceStatus = (typeof SiteLinkSourceStatus)[keyof typeof SiteLinkSourceStatus];
 /** One source's totals. referringDomains and links are absent when the source did not count them. */
 export type SiteLinkSourceTotal = {
     /** A SiteLinkSource value. */
-    source: string;
+    source: SiteLinkSource;
     /** A SiteLinkSourceStatus value. */
-    status: string;
+    status: SiteLinkSourceStatus;
     /** What the totals cover, in words. */
     scope: string;
     /** The day the source was read (YYYY-MM-DD), or the Common Crawl release. */
@@ -65,7 +68,7 @@ export type SiteLostReferringDomain = {
 };
 export type SiteLostLinks = {
     /** A SiteLinkSourceStatus value: available, pending or unavailable. */
-    status: string;
+    status: "available" | "pending" | "unavailable";
     release?: string;
     previousRelease?: string;
     scope: string;
@@ -75,7 +78,7 @@ export type SiteReferringDomains = {
     siteUuid: string;
     domain: string;
     /** A SiteWebDomainRole value. */
-    role: string;
+    role: SiteWebDomainRole;
     sources: SiteLinkSourceTotal[];
     /** Absent until a Common Crawl release is read for the domain. */
     authority?: SiteDomainAuthority;

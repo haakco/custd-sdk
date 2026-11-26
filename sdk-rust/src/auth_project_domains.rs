@@ -24,14 +24,14 @@ pub struct AuthDomainBinding {
     pub images: AuthDomainImages,
     pub intent_revision: i64,
     pub issuer: String,
-    pub lifecycle: String,
+    pub lifecycle: AuthDomainBindingLifecycle,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub observed_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub site_domain_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub slot_ref: Option<String>,
-    pub status: String,
+    pub status: AuthDomainBindingStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -44,12 +44,12 @@ pub struct AuthDomainDNSProof {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthDomainImages {
-    pub convergence: String,
+    pub convergence: AuthDomainImagesConvergence,
     pub expected: AuthDomainImageSet,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub r#override: Option<AuthDomainImageOverrideStatus>,
     pub running: AuthDomainImageSet,
-    pub source: String,
+    pub source: AuthDomainImagesSource,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -110,6 +110,108 @@ pub struct AuthProjectBrandLogo {
     pub height: i64,
     pub updated_at: String,
     pub width: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AuthDomainBindingLifecycle {
+    #[serde(rename = "unclaimed")]
+    Unclaimed,
+    #[serde(rename = "admitted")]
+    Admitted,
+    #[serde(rename = "paused")]
+    Paused,
+    #[serde(rename = "retiring")]
+    Retiring,
+    #[serde(rename = "retired")]
+    Retired,
+}
+
+impl AuthDomainBindingLifecycle {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Unclaimed => "unclaimed",
+            Self::Admitted => "admitted",
+            Self::Paused => "paused",
+            Self::Retiring => "retiring",
+            Self::Retired => "retired",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AuthDomainBindingStatus {
+    #[serde(rename = "pending")]
+    Pending,
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "proof-withdrawn")]
+    ProofWithdrawn,
+    #[serde(rename = "disabled")]
+    Disabled,
+    #[serde(rename = "releasing")]
+    Releasing,
+}
+
+impl AuthDomainBindingStatus {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Active => "active",
+            Self::ProofWithdrawn => "proof-withdrawn",
+            Self::Disabled => "disabled",
+            Self::Releasing => "releasing",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AuthDomainImagesConvergence {
+    #[serde(rename = "converged")]
+    Converged,
+    #[serde(rename = "drifted")]
+    Drifted,
+    #[serde(rename = "not-running")]
+    NotRunning,
+    #[serde(rename = "unverified")]
+    Unverified,
+    #[serde(rename = "rolling-out")]
+    RollingOut,
+}
+
+impl AuthDomainImagesConvergence {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Converged => "converged",
+            Self::Drifted => "drifted",
+            Self::NotRunning => "not-running",
+            Self::Unverified => "unverified",
+            Self::RollingOut => "rolling-out",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AuthDomainImagesSource {
+    #[serde(rename = "release-default")]
+    ReleaseDefault,
+    #[serde(rename = "override")]
+    Override,
+    #[serde(rename = "undeclared")]
+    Undeclared,
+}
+
+impl AuthDomainImagesSource {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ReleaseDefault => "release-default",
+            Self::Override => "override",
+            Self::Undeclared => "undeclared",
+        }
+    }
 }
 
 impl CustdClient {

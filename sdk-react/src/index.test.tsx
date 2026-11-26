@@ -158,7 +158,10 @@ describe("Custd React reporting helpers", () => {
       ),
       getCustdReportingViewState(
         query({
-          data: data({ buckets: [], value: { ...data().value, sampleCount: 0, value: 0, dataSufficiency: "none" } }),
+          data: data({
+            buckets: [],
+            value: { ...data().value, sampleCount: 0, value: 0, dataSufficiency: "unknown" },
+          }),
           isPending: false,
           isSuccess: true,
           status: "success",

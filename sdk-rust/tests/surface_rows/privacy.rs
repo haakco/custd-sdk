@@ -20,7 +20,7 @@ pub fn rows() -> Vec<Row> {
             "admin-api POST /api/v1/admin/privacy/consent",
             "/api/v1/admin/privacy/consent",
             |c| {
-                drop(c.custd.record_privacy_consent(&body::<PrivacyConsentRecordRequest>(r#"{"companySlug":"x","granted":true,"purpose":"x","source":"x","subjectId":"x"}"#)))
+                drop(c.custd.record_privacy_consent(&body::<PrivacyConsentRecordRequest>(r#"{"companySlug":"x","granted":true,"purpose":"analytics","source":"x","subjectId":"x"}"#)))
             },
             round_trip::<PrivacyConsentRecord>,
         ),

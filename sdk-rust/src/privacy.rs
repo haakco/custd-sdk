@@ -27,7 +27,7 @@ pub struct PrivacyConsentRecord {
     pub granted: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub granted_at: Option<String>,
-    pub purpose: String,
+    pub purpose: PrivacyConsentRecordPurpose,
     pub recorded_at: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub revoked_at: Option<String>,
@@ -35,14 +35,14 @@ pub struct PrivacyConsentRecord {
     pub subject_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrivacyConsentRecordRequest {
     pub company_slug: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<String>,
     pub granted: bool,
-    pub purpose: String,
+    pub purpose: PrivacyConsentRecordPurpose,
     pub source: String,
     pub subject_id: String,
 }
@@ -178,6 +178,27 @@ pub struct PrivacyRulesReplaceRequest {
     pub enabled: bool,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub rules: Vec<PrivacyRule>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PrivacyConsentRecordPurpose {
+    #[serde(rename = "analytics")]
+    Analytics,
+    #[serde(rename = "product_improvement")]
+    ProductImprovement,
+    #[serde(rename = "marketing")]
+    Marketing,
+}
+
+impl PrivacyConsentRecordPurpose {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Analytics => "analytics",
+            Self::ProductImprovement => "product_improvement",
+            Self::Marketing => "marketing",
+        }
+    }
 }
 
 impl CustdClient {

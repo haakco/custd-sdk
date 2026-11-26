@@ -28,6 +28,7 @@ import { NotificationWebhookAdminClient } from "./admin-notification-webhooks.js
 import { OAuthClientAdmissionAdminClient } from "./admin-oauth-client-admissions.js";
 import { RlsAdminClient } from "./admin-rls.js";
 import { SdkUsageAdminClient } from "./admin-sdk-usage.js";
+import type { SiteAIOwnerHandoff } from "./admin-site-ai.js";
 import { SupportAccessAdminClient } from "./admin-support-access.js";
 import { SystemAdminClient } from "./admin-system.js";
 import { TimePlanAdminClient } from "./admin-timeplans.js";
@@ -43,6 +44,7 @@ import { ParserClient } from "./parsers.js";
 import { PublicReadClient } from "./public-reads.js";
 import type { CompletedRunExportRequest, ReportingDashboardCatalogue, ReportingDashboardGeneration, ReportingDashboardGenerationRequest, ReportingDraftPreviewRequest } from "./reporting-catalogue.js";
 import { type EventSchemaDocument, type EventSchemaRegisterRequest, type EventSchemaStateResult, type EventSchemaVersionList, type RegisteredEventType, type RegisteredEventTypeList } from "./schema-registry.js";
+import { type SiteAIOwnerSession } from "./site-ai-owner.js";
 export type { AppRelease, AppReleaseCacheMode, AppReleaseCacheRule, AppReleaseCreateRequest, AppReleaseFile, AppReleaseFramingMode, AppReleaseHeaderRule, AppReleaseList, AppReleaseManifest, AppReleasePromotion, AppReleaseResponseHeader, AppReleaseRouting, AppReleaseShareableRoute, AppReleaseSiteCard, AppReleaseSpaFallback, AppReleaseState, AppReleaseSummary, AppReleaseUploadedFile, } from "./admin-app-releases.js";
 export { APP_ERROR_CODES, APP_REASON_CODES, APP_SIGN_IN_MODES, APP_STATUSES, type AppCreateRequest, type AppCreation, type AppDeployCredential, type AppDeployCredentialList, type AppDeployCredentialSummary, type AppListResponse, type AppOverview, type AppReason, type AppReasonCode, type AppSignInMode, type AppSignInRequest, type AppStatus, type AppSummary, type AppTrafficReporting, } from "./admin-apps.js";
 export { type ApplicationIdentityTrait, type ApplicationIdentityTraitsStatus, type ApplicationIdentityTraitValue, type ApplicationMembershipChoice, type ApplicationMembershipContext, type ApplicationMembershipRevocation, type ApplicationMembershipRevokeRequest, type ApplicationPrincipalErasure, type ApplicationPrincipalErasureRequest, type ApplicationPrincipalExport, type ApplicationPrincipalIdentityExport, type ApplicationPrincipalListItem, type ApplicationPrincipalListQuery, type ApplicationPrincipalListResponse, type ApplicationPrincipalMembershipView, type ApplicationPrincipalProfile, type ApplicationPrincipalProfileValueView, type ApplicationPrincipalSuspension, type ApplicationPrincipalTarget, type ApplicationProfileField, type ApplicationProfileValue, type ApplicationProfileValuesRequest, type ApplicationSession, type ApplicationSessionInventory, type ApplicationSessionRevocation, type ApplicationSessionRevokeRequest, type ApplicationSessionsRevokeAllRequest, type AudienceGrant, type AudienceGrantRequest, type AuthEnvironmentClientCleanup, type AuthEnvironmentHostingRemoval, type AuthEnvironmentHostingWithdrawal, type AuthEnvironmentRetainedResources, AuthProjectAdminClient, type AuthProjectApplicationSessionPolicy, type AuthProjectAudienceBinding, type AuthProjectCapability, type AuthProjectChange, type AuthProjectClientRegistration, type AuthProjectClientSync, type AuthProjectClientSyncRegistration, type AuthProjectClientSyncReport, type AuthProjectClientSyncRequest, type AuthProjectCreateRequest, type AuthProjectCreation, type AuthProjectDeletion, type AuthProjectDeletionRequest, type AuthProjectDesiredState, type AuthProjectDesiredStateRequest, type AuthProjectDirectoryAction, type AuthProjectDirectoryCapacity, type AuthProjectDirectoryRequest, type AuthProjectDirectoryStatus, type AuthProjectDirectoryView, type AuthProjectEnvironmentCreateRequest, type AuthProjectEnvironmentDeletion, type AuthProjectEnvironmentDeletionRequest, type AuthProjectEnvironmentOffboarding, type AuthProjectEnvironmentOffboardRequest, type AuthProjectEnvironmentOrganisation, type AuthProjectEnvironmentOrganisationList, type AuthProjectEnvironmentReleasedResources, type AuthProjectHostedSignIn, type AuthProjectHosting, type AuthProjectHostingCapability, type AuthProjectHostingIngestTarget, type AuthProjectHostingMode, type AuthProjectHostingRemoval, type AuthProjectHostingStatus, type AuthProjectIdentityMode, type AuthProjectInvitation, type AuthProjectInvitationIssued, type AuthProjectInvitationIssueRequest, type AuthProjectInvitationListResponse, type AuthProjectInvitationRedeliveryRequest, type AuthProjectInvitationRevocationRequest, type AuthProjectListResponse, type AuthProjectOperation, type AuthProjectPreview, type AuthProjectProfileField, AuthProjectRealmNotConvergedError, AuthProjectRealmProvisionError, type AuthProjectRealmProvisionReceipt, type AuthProjectRealmProvisionRequest, type AuthProjectRealmStep, type AuthProjectReleasedResources, type AuthProjectSocialProvider, type AuthProjectSocialProviderName, type AuthProjectSocialSignIn, type AuthProjectSocialSignInStatus, type AuthProjectStatus, type AuthProjectSummary, type PrincipalAudience, type PrincipalAudiences, } from "./admin-auth-projects.js";
@@ -72,7 +74,7 @@ export { SITE_FINDING_IMPACT_DEFAULT_DAYS, SITE_FINDING_IMPACT_MAX_DAYS, SITE_FI
 export { type SiteStatusComponent, type SiteStatusComponentStatus, type SiteStatusPage, type SiteStatusPageDraft, type SiteStatusPagePublication, type SiteStatusPageSelection, type SiteStatusPageSettings, type SiteStatusUpdate, type SiteStatusUpdateHistory, type SiteStatusUpdateRequest, siteStatusPagePublicUrl, } from "./admin-site-status-page.js";
 export { ACCESS_LOG_HOUR_INVALID_CODE, type AccessLogHourReplay, AccessLogHourStatus, type SiteAIPage, type SiteAIVisibility, SiteCrawlerIdentity, SiteReferrerClass, type SiteTraffic, type SiteTrafficCount, type SiteTrafficCoverage, type SiteTrafficCrawler, type SiteTrafficDay, SiteTrafficDayCoverage, type SiteTrafficReferrer, type SiteTrafficReferrerClass, type SiteTrafficSlowPath, type SiteTrafficTotals, TRAFFIC_OTHER_KEY, } from "./admin-site-traffic.js";
 export { SITE_KEYWORD_DEMAND_SOURCE_BING, SITE_KEYWORD_LIST_LIMIT_CODE, SITE_KEYWORD_LIST_NOT_FOUND_CODE, type SiteContentGap, type SiteContentGapCompetitor, SiteContentGapCoverage, type SiteContentGapPage, type SiteContentGapTopic, type SiteKeywordCluster, type SiteKeywordClusters, type SiteKeywordDemand, type SiteKeywordDemandSet, SiteKeywordDemandState, type SiteKeywordList, type SiteKeywordListRequest, type SiteKeywordLists, type SiteRelatedKeyword, type SiteRelatedKeywords, type SiteStrikingKeyword, type SiteTopicTrend, type SiteTopicTrendMonth, SiteTopicTrendSource, SiteTopicTrendStatus, SiteTrancoBand, type SiteWebDomain, SiteWebDomainRole, type SiteWebDomains, SiteWebInventoryStatus, type SiteWebPage, SiteWebPageSource, type SiteWebPages, type SiteWebPagesQuery, } from "./admin-site-web-data.js";
-export { type SubjectExport, type SubjectExportArtifactScope, SubjectExportClient, type SubjectExportCreateRequest, type SubjectExportDownloadResponse, type SubjectExportListResponse, type SubjectExportScope, type SubjectExportStatus, type SubjectExportStoreProgress, } from "./admin-subject-exports.js";
+export { type SubjectExport, type SubjectExportArtifactScope, SubjectExportClient, type SubjectExportCreateRequest, type SubjectExportDownloadResponse, type SubjectExportForceOptions, type SubjectExportListResponse, type SubjectExportScope, type SubjectExportStatus, type SubjectExportStoreProgress, } from "./admin-subject-exports.js";
 export { TenantStorageClient, type TenantStorageListResponse, type TenantStorageLocation, } from "./admin-tenant-storage.js";
 export { type TimePlan, TimePlanAdminClient, type TimePlanAllocation, type TimePlanAllocationBasis, type TimePlanAllocationPreview, type TimePlanAnnotation, type TimePlanAnnotationField, type TimePlanAnnotationInput, type TimePlanAnnotationListResponse, type TimePlanAnnotationSchema, type TimePlanAnnotationType, type TimePlanCalculationChange, type TimePlanCalculationReceipt, type TimePlanCommandRequest, type TimePlanCommandResult, type TimePlanCorrectedCommand, type TimePlanCreatedRun, type TimePlanDefinition, type TimePlanDefinitionBlock, type TimePlanDraftRequest, type TimePlanDraftRevisionRequest, type TimePlanHistoryResponse, type TimePlanListResponse, type TimePlanRedactionRequest, type TimePlanRevisionRequest, type TimePlanRun, type TimePlanRunBlock, type TimePlanRunRequest, type TimePlanThresholdCue, type TimePlanThresholdCueSeverity, type TimePlanTransition, type TimePlanVersion, validateTimePlanDefinition, } from "./admin-timeplans.js";
 export { USAGE_DEFAULT_LIMIT, USAGE_MAX_LIMIT, UsageAdminClient, type UsageCompletenessState, type UsageQuery, type UsageReport, type UsageRow, type UsageTotal, } from "./admin-usage.js";
@@ -784,7 +786,7 @@ export type AdminStorageAlertRule = {
     tenantSlug: string;
     metric: string;
     thresholdPercent: number;
-    channel: string;
+    channel: "email" | "webhook";
     emailRecipient?: string;
     enabled: boolean;
     evaluation?: AdminStorageAlertEvaluation;
@@ -794,7 +796,7 @@ export type AdminStorageAlertRule = {
 export type AdminStorageAlertRuleCreateRequest = {
     metric: string;
     thresholdPercent: number;
-    channel: string;
+    channel: "email" | "webhook";
     /** Where an email-channel rule sends its alert. */
     emailRecipient?: string;
     enabled: boolean;
@@ -921,10 +923,21 @@ export type AdminReportingPackAuditListResponse = {
 };
 export type SelectorDefinition = {
     selector: string;
-    type: string;
+    /** Empty, with an empty selector, where the platform serialises an unset identity selector. */
+    type: "string" | "integer" | "number" | "";
 };
+/** The unit a numeric selector or rendered metric value is expressed in. */
+export type RenderedUnit = "currency_per_unit" | "count" | "milliseconds" | "bytes" | "percent" | "currency" | "W" | "kW" | "Wh" | "kWh" | "V" | "A" | "L" | "Cel" | "L/s" | "score";
+/** How a reporting-pack metric is computed. */
+export type PackMetricKind = "count" | "unique_count" | "rate" | "latency" | "percentile" | "failure_ratio" | "freshness_age" | "latest_value" | "probability" | "quantile" | "credible_interval" | "forecast_date" | "value_of_information";
+/** The accounting or measurement calculation a reporting-pack metric applies. */
+export type PackMetricCalculation = "usage_charge" | "marginal_rate" | "projection" | "purchased_vs_used" | "observed_balance" | "projected_balance" | "allocated_recovery" | "correction_count" | "count" | "failure_count" | "flow" | "distinct_count" | "sum" | "average" | "percentile" | "ratio" | "latest" | "minimum" | "maximum" | "firstLastDelta" | "timeWeightedAverage" | "rate" | "integral";
+/** A measurement series' canonical unit; By is bytes and 1 is a dimensionless count. */
+export type CanonicalUnit = "W" | "kW" | "Wh" | "kWh" | "V" | "A" | "L" | "Cel" | "By" | "1";
+/** How a reporting-pack template aggregates its source rows. */
+export type PackTemplateAggregation = "count" | "flow" | "distinct_count" | "sum" | "average" | "percentile" | "ratio";
 export type NumericSelector = SelectorDefinition & {
-    unit: string;
+    unit: RenderedUnit;
 };
 export type IdentitySelectors = {
     subject?: SelectorDefinition;
@@ -935,7 +948,7 @@ export type IdentitySelectors = {
 };
 export type FilterDefinition = {
     dimension: string;
-    operators: string[];
+    operators: ("eq" | "neq" | "in" | "contains")[];
 };
 export type SubjectScopeRule = {
     required: boolean;
@@ -961,17 +974,17 @@ export type FlowRule = {
 export type PackMetric = {
     key: string;
     label: string;
-    kind: string;
+    kind: PackMetricKind;
     unit?: string;
     description?: string;
-    calculation: string;
+    calculation: PackMetricCalculation;
     numeric?: NumericSelector;
     distinct?: SelectorDefinition;
-    measurementKind?: string;
+    measurementKind?: "gauge" | "monotonicCounter" | "intervalIncrement" | "state";
     maximumGapSeconds?: number;
-    resetPolicy?: string;
+    resetPolicy?: "as_increment" | "reject" | "rollover";
     rolloverAt?: number;
-    canonicalUnit?: string;
+    canonicalUnit?: CanonicalUnit;
     percentile?: number;
     numeratorMetric?: string;
     denominatorMetric?: string;
@@ -997,13 +1010,13 @@ export type PackTemplate = {
     allowedMetrics: string[];
     allowedDimensions?: string[];
     allowedFilters?: FilterDefinition[];
-    sourceModes: string[];
+    sourceModes: ("auto" | "postgres" | "duckdb")[];
     maxRows: number;
     defaultRange?: string;
     subjectScope?: SubjectScopeRule;
     compositionRules?: string[];
     eventTypes: string[];
-    aggregation: string;
+    aggregation: PackTemplateAggregation;
     flowRule?: string;
 };
 export type TrustDiagnostics = {
@@ -1033,10 +1046,10 @@ export type RollupRule = {
     completenessRequired: boolean;
 };
 export type PresentationPresetSelection = {
-    presetId: string;
+    presetId: "forecast_convergence_v1" | "anomaly_reference_v1" | "descriptive_driver_v1" | "uncertainty_reference_v1";
     version: number;
-    nonColorEncoding: string;
-    summaryTemplateId: string;
+    nonColorEncoding: "line_symbol_label" | "signed_bar_label" | "band_boundary_label";
+    summaryTemplateId: "forecast_window_evidence" | "anomaly_reference_evidence" | "descriptive_driver_evidence" | "uncertainty_reference_evidence";
 };
 export type PackWidgetDefinition = {
     key: string;
@@ -1048,22 +1061,22 @@ export type PackWidgetDefinition = {
     presentation?: PresentationPresetSelection;
 };
 export type DashboardSharePolicy = {
-    relativeRanges?: string[];
-    comparisonPresets?: string[];
+    relativeRanges?: ("1d" | "7d" | "14d" | "30d" | "90d")[];
+    comparisonPresets?: ("previous_period" | "previous_year")[];
 };
 export type DashboardInteractionRule = {
     key: string;
     sourceWidget: string;
     targetWidget: string;
     dimension: string;
-    action: string;
+    action: "filter" | "drill_down";
     linkedFilterGroup: string;
-    comparisonPreset?: string;
-    resetBehavior: string;
+    comparisonPreset?: "previous_period" | "previous_year";
+    resetBehavior: "interaction" | "dashboard";
 };
 export type NarrativeValueReference = {
     widgetKey: string;
-    value: string;
+    value: "primary" | "delta";
 };
 export type NarrativeBlock = {
     text: string;
@@ -1072,19 +1085,19 @@ export type NarrativeBlock = {
 export type ReportSectionDefinition = {
     key: string;
     title: string;
-    layout: string;
+    layout: "lead" | "grid" | "detail";
     columnSpan: number;
     widgetKeys?: string[];
     narrative?: NarrativeBlock[];
 };
 export type ExecutiveReportDefinition = {
-    recipe: string;
+    recipe: "blank" | "weekly-performance" | "operations-health" | "forecast-decision";
     primaryWidgetKey: string;
     primaryMetricKey: string;
     primaryLabel: string;
     primaryUnit: string;
     scopeLabel: string;
-    comparisonBasis: string;
+    comparisonBasis: "none" | "previous-period" | "target";
     comparisonLabel?: string;
     targetValue?: number;
     targetUnit?: string;
@@ -1118,7 +1131,7 @@ export type RedactionRule = {
 };
 export type TransitionRule = {
     key: string;
-    identity: string;
+    identity: "subject" | "session" | "correlation";
     stepSelector: string;
     steps: string[];
     maxDurationMs: number;
@@ -1126,7 +1139,7 @@ export type TransitionRule = {
 };
 export type ActivationRule = {
     key: string;
-    identity: string;
+    identity: "subject" | "session" | "correlation";
     predicate: MatchPredicate;
     cohortWindowDays: number;
 };
@@ -1138,7 +1151,7 @@ export type RetentionRule = {
 };
 export type ActivityRule = {
     key: string;
-    identity: string;
+    identity: "subject" | "session" | "correlation";
     bucketDays: number;
 };
 export type ObservationSource = {
@@ -1158,9 +1171,9 @@ export type SemanticSeries = {
     key: string;
     assetKey?: string;
     assetKeys?: string[];
-    measurementKind: string;
-    canonicalUnit: string;
-    allowedSourceUnits: string[];
+    measurementKind: "gauge" | "monotonicCounter" | "intervalIncrement" | "state";
+    canonicalUnit: CanonicalUnit;
+    allowedSourceUnits: CanonicalUnit[];
     expectedCadenceSeconds: number;
     maximumGapSeconds: number;
     sources: SourceSeries[];
@@ -1175,8 +1188,8 @@ export type SourceReconciliation = {
     version: number;
     tenantKey: string;
     seriesKey: string;
-    canonicalUnit?: string;
-    mode: string;
+    canonicalUnit?: CanonicalUnit;
+    mode: "priority" | "freshness" | "availability" | "agreement";
     maxAgeSeconds: number;
     absoluteTolerance?: number;
     relativeTolerance?: number;
@@ -1217,9 +1230,9 @@ export type RoundingPolicy = {
 export type SteppedRateSchedule = {
     key: string;
     usageMetric: string;
-    usageUnit: string;
+    usageUnit: CanonicalUnit;
     timezone: string;
-    billingBoundary: string;
+    billingBoundary: "calendar_month" | "calendar_day";
     effectiveFrom: string;
     effectiveTo?: string;
     currency: string;
@@ -1423,7 +1436,7 @@ export type ProducerReservation = {
     parentCompanySlug: string;
     childCompanySlug?: string;
     claimedByClientId?: string;
-    status: string;
+    status: "pending" | "claimed" | "released" | "expired";
     reservedAt?: string;
     expiresAt?: string;
     maxTtlSeconds?: number;
@@ -1685,10 +1698,10 @@ export type RenderedWidgetBucket = {
 };
 export type RenderedMetricValue = {
     value: number;
-    unit: string;
+    unit: RenderedUnit;
     currency?: string;
     sampleCount: number;
-    dataSufficiency: string;
+    dataSufficiency: "unknown" | "sufficient" | "partial" | "insufficient";
     complete: boolean;
     truncated?: boolean;
     trust?: ReportingTemporalTrust;
@@ -1858,6 +1871,12 @@ export declare class CustdClient {
     private auditExportDownload;
     private apiRequest;
     private publicRead;
+    /**
+     * Opens a data-space owner's AI settings session from a handoff, on the broker's hub server.
+     * hubOrigin is the broker's registered hub origin; the session never sends this client's credential.
+     */
+    redeemSiteAIOwnerHandoff(handoff: SiteAIOwnerHandoff, hubOrigin: string, options?: RequestOptions): Promise<SiteAIOwnerSession>;
+    private publicWrite;
     private apiDownload;
 }
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
@@ -2224,3 +2243,5 @@ export * from "./measurement.js";
 export * from "./public-reads.js";
 export * from "./reporting-catalogue.js";
 export type { EventSchemaDocument, EventSchemaRegisterRequest, EventSchemaStateResult, EventSchemaVersion, EventSchemaVersionList, RegisteredEventType, RegisteredEventTypeList, } from "./schema-registry.js";
+export { SiteAIOwnerSession, type SiteAIOwnerSettings, type SiteAIOwnerTransport } from "./site-ai-owner.js";
+export * from "./site-monitor-reports.js";

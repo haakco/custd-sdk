@@ -131,7 +131,7 @@ var clientSurfaceRows = []surfaceRow{
 		id:   "admin-api POST /api/v1/data-spaces",
 		path: "/api/v1/data-spaces",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Provisioning.DataSpaces.Create(context.Background(), DataSpaceCreate{}, "")
+			_, err := e.client.Provisioning.DataSpaces.Create(context.Background(), DataSpaceCreate{}, "p1")
 			return err
 		},
 	},
@@ -139,7 +139,7 @@ var clientSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/data-spaces",
 		path: "/api/v1/data-spaces",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Provisioning.DataSpaces.List(context.Background(), "")
+			_, err := e.client.Provisioning.DataSpaces.List(context.Background(), "p1")
 			return err
 		},
 	},
@@ -147,7 +147,7 @@ var clientSurfaceRows = []surfaceRow{
 		id:   "admin-api DELETE /api/v1/data-spaces/{slug}",
 		path: "/api/v1/data-spaces/a1",
 		call: func(e *surfaceEnv) error {
-			return e.client.Provisioning.DataSpaces.Revoke(context.Background(), "a1", "")
+			return e.client.Provisioning.DataSpaces.Revoke(context.Background(), "a1", "p1")
 		},
 	},
 	{
@@ -193,7 +193,7 @@ var clientSurfaceRows = []surfaceRow{
 		id:   "admin-api POST /api/v1/data-spaces/{slug}/producer-reservations/{producerSlug}/claim",
 		path: "/api/v1/data-spaces/a1/producer-reservations/a2/claim",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Provisioning.Reservations.Claim(context.Background(), "a1", "a2", ProducerReservationClaimRequest{})
+			_, err := e.client.Provisioning.Reservations.Claim(context.Background(), "a1", "a2", ProducerReservationClaimRequest{}, surfaceReservationScope)
 			return err
 		},
 	},
@@ -201,7 +201,7 @@ var clientSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/data-spaces/{slug}/producer-reservations",
 		path: "/api/v1/data-spaces/a1/producer-reservations",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Provisioning.Reservations.List(context.Background(), "a1")
+			_, err := e.client.Provisioning.Reservations.List(context.Background(), "a1", surfaceReservationScope)
 			return err
 		},
 	},
@@ -209,22 +209,20 @@ var clientSurfaceRows = []surfaceRow{
 		id:   "admin-api DELETE /api/v1/data-spaces/{slug}/producer-reservations/{producerSlug}",
 		path: "/api/v1/data-spaces/a1/producer-reservations/a2",
 		call: func(e *surfaceEnv) error {
-			return e.client.Provisioning.Reservations.Release(context.Background(), "a1", "a2")
+			return e.client.Provisioning.Reservations.Release(context.Background(), "a1", "a2", surfaceReservationScope)
 		},
 	},
 	{
 		id:   "admin-api POST /api/v1/data-spaces/{slug}/producer-reservations",
 		path: "/api/v1/data-spaces/a1/producer-reservations",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Provisioning.Reservations.Reserve(context.Background(), "a1", ProducerReservationCreateRequest{})
+			_, err := e.client.Provisioning.Reservations.Reserve(context.Background(), "a1", ProducerReservationCreateRequest{}, surfaceReservationScope)
 			return err
 		},
 	},
 	{
-		id:          "analytics-api GET /api/v1/reporting/dashboards/{key}",
-		path:        "/api/v1/reporting/dashboards/a1",
-		skipExample: "maximal",
-		skipReason:  "the OpenAPI declares no enums for reporting-pack closed unions, so the example's placeholder strings are not members",
+		id:   "analytics-api GET /api/v1/reporting/dashboards/{key}",
+		path: "/api/v1/reporting/dashboards/a1",
 		call: func(e *surfaceEnv) error {
 			_, err := e.client.Reporting.Dashboard(context.Background(), "a1")
 			return err

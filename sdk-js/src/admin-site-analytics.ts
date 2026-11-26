@@ -12,11 +12,14 @@ export const SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE = "site_analytics_connecti
 /** The analytics provider a connection reads. */
 export const SITE_ANALYTICS_PROVIDER_GA4 = "ga4";
 
-/** A GA4 report Custd does not import, as SiteAnalyticsReport.unavailable names it; newer values may appear. */
+/** A GA4 report Custd does not import, as SiteAnalyticsReport.unavailable names it. */
 export const SiteAnalyticsUnavailableReport = {
   Ecommerce: "ecommerce",
   Audience: "audience",
 } as const;
+
+export type SiteAnalyticsUnavailableReport =
+  (typeof SiteAnalyticsUnavailableReport)[keyof typeof SiteAnalyticsUnavailableReport];
 
 /** The GA4 property: 123456789 or properties/123456789. */
 export type SiteAnalyticsConnectionRequest = {
@@ -25,7 +28,7 @@ export type SiteAnalyticsConnectionRequest = {
 
 export type SiteAnalyticsConnection = {
   /** SITE_ANALYTICS_PROVIDER_GA4. */
-  provider: string;
+  provider: "ga4";
   propertyId: string;
   status: SiteSearchConnectionStatus;
   lastImportedAt?: string;
@@ -42,7 +45,7 @@ export type SiteAnalyticsRow = {
 
 export type SiteAnalyticsUnavailable = {
   /** A SiteAnalyticsUnavailableReport value. */
-  report: string;
+  report: SiteAnalyticsUnavailableReport;
   reason: string;
 };
 

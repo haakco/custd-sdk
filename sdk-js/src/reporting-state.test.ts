@@ -48,7 +48,7 @@ describe("reporting state", () => {
       "empty",
       data({
         buckets: [],
-        value: { value: 0, unit: "count", sampleCount: 0, dataSufficiency: "none", complete: true },
+        value: { value: 0, unit: "count", sampleCount: 0, dataSufficiency: "unknown", complete: true },
       }),
     ],
     ["stale", data({ trust: trust({ dataFreshness: "stale" }) })],

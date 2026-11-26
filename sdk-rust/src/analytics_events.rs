@@ -13,7 +13,7 @@ use crate::client::CustdClient;
 use crate::measurement::null_as_empty;
 use crate::transport::Method;
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnalyticsEventsQueryRequest {
     pub date: String,
@@ -25,7 +25,15 @@ pub struct AnalyticsEventsQueryRequest {
     )]
     pub label_filters: Vec<AnalyticsLabelFilter>,
     pub limit: i64,
-    pub source: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub service: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub severity: Option<String>,
+    pub source: AnalyticsEventsQueryRequestSource,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sub_client: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -55,7 +63,7 @@ pub struct AnalyticsSourceSummary {
     pub freshness_lag_ms: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
-    pub name: String,
+    pub name: AnalyticsEventsQueryRequestSource,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parquet_uri_count: Option<i64>,
     pub query_duration_ms: i64,
@@ -75,7 +83,7 @@ pub struct AnalyticsTimingSummary {
     pub snapshot_age_ms: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnalyticsRangeQueryRequest {
     pub event_type: String,
@@ -88,7 +96,15 @@ pub struct AnalyticsRangeQueryRequest {
     )]
     pub label_filters: Vec<AnalyticsLabelFilter>,
     pub limit: i64,
-    pub source: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub service: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub severity: Option<String>,
+    pub source: AnalyticsEventsQueryRequestSource,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sub_client: Option<String>,
     pub to: String,
 }
 
@@ -116,7 +132,34 @@ pub struct AnalyticsRangeBucket {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parquet_uri_count: Option<i64>,
     pub query_duration_ms: i64,
-    pub source: String,
+    pub source: AnalyticsEventsQueryRequestSource,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AnalyticsEventsQueryRequestSource {
+    #[serde(rename = "auto")]
+    Auto,
+    #[serde(rename = "postgres")]
+    Postgres,
+    #[serde(rename = "duckdb")]
+    Duckdb,
+    #[serde(rename = "rollup")]
+    Rollup,
+    #[serde(rename = "materialized")]
+    Materialized,
+}
+
+impl AnalyticsEventsQueryRequestSource {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Postgres => "postgres",
+            Self::Duckdb => "duckdb",
+            Self::Rollup => "rollup",
+            Self::Materialized => "materialized",
+        }
+    }
 }
 
 impl CustdClient {

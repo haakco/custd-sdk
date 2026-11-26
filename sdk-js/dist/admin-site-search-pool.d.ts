@@ -23,18 +23,20 @@ export declare const SEARCH_POOL_MIN_CONTRIBUTORS = 5;
 export declare const SEARCH_POOL_MIN_IMPRESSIONS = 100;
 /** The days the pool covers. */
 export declare const SEARCH_POOL_WINDOW_DAYS = 28;
-/** A pooled query's impressions over the window; newer bands may appear. */
+/** A pooled query's impressions over the window. */
 export declare const SearchPoolDemandBand: {
     readonly Hundreds: "100_999";
     readonly Thousands: "1k_10k";
     readonly TensOfThousands: "10k_100k";
     readonly HundredThousandPlus: "100k_plus";
 };
+export type SearchPoolDemandBand = (typeof SearchPoolDemandBand)[keyof typeof SearchPoolDemandBand];
 /** Whether the tenant takes part in the pool, as SiteRankings.pool reports it. */
 export declare const SearchPoolAccess: {
     readonly Joined: "joined";
     readonly NotJoined: "not_joined";
 };
+export type SearchPoolAccess = (typeof SearchPoolAccess)[keyof typeof SearchPoolAccess];
 export type SearchPoolSetting = {
     /** true while the tenant contributes to and may read the pool. */
     joined: boolean;
@@ -57,7 +59,7 @@ export type SearchPoolPositions = {
 };
 export type SearchPoolBand = {
     /** A SearchPoolDemandBand value. */
-    demandBand: string;
+    demandBand: SearchPoolDemandBand;
     positions: SearchPoolPositions;
 };
 export type SearchPoolQuery = SearchPoolBand & {

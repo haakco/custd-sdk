@@ -2,7 +2,7 @@
 // together), with title options and pages to link from built from them.
 // SiteDomainAdminClient.getPageSearchQueries sends the read.
 
-/** Why a page has ranking queries to show or not; newer values may appear. */
+/** Why a page has ranking queries to show or not. */
 export const SitePageQueriesState = {
   Available: "available",
   NotConnected: "not_connected",
@@ -10,11 +10,15 @@ export const SitePageQueriesState = {
   NoQueries: "no_queries",
 } as const;
 
-/** The shape a suggested title takes; newer values may appear. */
+export type SitePageQueriesState = (typeof SitePageQueriesState)[keyof typeof SitePageQueriesState];
+
+/** The shape a suggested title takes. */
 export const SiteTitleTemplate = {
   General: "general",
   Guide: "guide",
 } as const;
+
+export type SiteTitleTemplate = (typeof SiteTitleTemplate)[keyof typeof SiteTitleTemplate];
 
 /** Where a page to link from mentions the query; newer values may appear. */
 export const SitePageLinkSourceWhere = {
@@ -36,7 +40,7 @@ export type SitePageQuery = {
 export type SiteTitleOption = {
   title: string;
   /** A SiteTitleTemplate value. */
-  template: string;
+  template: SiteTitleTemplate;
   query: string;
   impressions: number;
 };
@@ -52,7 +56,7 @@ export type SitePageLinkSource = {
 
 /** The imported window the queries cover; from and to are YYYY-MM-DD. */
 export type SitePageQueryWindow = {
-  provider: string;
+  provider: "google" | "bing";
   from: string;
   to: string;
   importedAt: string;
@@ -62,7 +66,7 @@ export type SitePageSearchQueries = {
   domainUuid: string;
   url: string;
   /** A SitePageQueriesState value. */
-  state: string;
+  state: SitePageQueriesState;
   /** Absent until a search import has covered the page. */
   window?: SitePageQueryWindow;
   maxQueries: number;

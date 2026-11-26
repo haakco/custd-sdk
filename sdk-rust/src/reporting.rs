@@ -29,10 +29,10 @@ pub struct DashboardCatalogueEntry {
     pub default_range: String,
     pub description: String,
     #[serde(default, deserialize_with = "null_as_empty")]
-    pub export_formats: Vec<String>,
+    pub export_formats: Vec<DashboardCatalogueEntryExportFormats>,
     pub group: String,
     #[serde(default, deserialize_with = "null_as_empty")]
-    pub interactions: Vec<String>,
+    pub interactions: Vec<DashboardCatalogueEntryInteractions>,
     pub key: String,
     pub refresh_seconds: i64,
     pub title: String,
@@ -59,7 +59,7 @@ pub struct DashboardDefinition {
         deserialize_with = "null_as_empty",
         skip_serializing_if = "Vec::is_empty"
     )]
-    pub export_formats: Vec<String>,
+    pub export_formats: Vec<DashboardCatalogueEntryExportFormats>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
     #[serde(
@@ -87,7 +87,7 @@ pub struct DashboardDefinition {
     pub widgets: Vec<ReportingWidgetDefinition>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecutiveReportDefinition {
     #[serde(
@@ -96,7 +96,7 @@ pub struct ExecutiveReportDefinition {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub actions: Vec<String>,
-    pub comparison_basis: String,
+    pub comparison_basis: ExecutiveReportDefinitionComparisonBasis,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub comparison_label: Option<String>,
     #[serde(
@@ -109,7 +109,7 @@ pub struct ExecutiveReportDefinition {
     pub primary_metric_key: String,
     pub primary_unit: String,
     pub primary_widget_key: String,
-    pub recipe: String,
+    pub recipe: ExecutiveReportDefinitionRecipe,
     pub scope_label: String,
     #[serde(
         default,
@@ -123,26 +123,26 @@ pub struct ExecutiveReportDefinition {
     pub target_value: Option<f64>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DashboardInteractionRule {
-    pub action: String,
+    pub action: DashboardCatalogueEntryInteractions,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub comparison_preset: Option<String>,
+    pub comparison_preset: Option<ReportingQueryRequestComparison>,
     pub dimension: String,
     pub key: String,
     pub linked_filter_group: String,
-    pub reset_behavior: String,
+    pub reset_behavior: DashboardInteractionRuleResetBehavior,
     pub source_widget: String,
     pub target_widget: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingReportSectionDefinition {
     pub column_span: i64,
     pub key: String,
-    pub layout: String,
+    pub layout: ReportingReportSectionDefinitionLayout,
     #[serde(
         default,
         deserialize_with = "null_as_empty",
@@ -166,16 +166,16 @@ pub struct DashboardSharePolicy {
         deserialize_with = "null_as_empty",
         skip_serializing_if = "Vec::is_empty"
     )]
-    pub comparison_presets: Vec<String>,
+    pub comparison_presets: Vec<ReportingQueryRequestComparison>,
     #[serde(
         default,
         deserialize_with = "null_as_empty",
         skip_serializing_if = "Vec::is_empty"
     )]
-    pub relative_ranges: Vec<String>,
+    pub relative_ranges: Vec<DashboardSharePolicyRelativeRanges>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingWidgetDefinition {
     #[serde(
@@ -185,7 +185,7 @@ pub struct ReportingWidgetDefinition {
     )]
     pub dimensions: Vec<String>,
     pub key: String,
-    pub kind: String,
+    pub kind: ReportingWidgetDefinitionKind,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub metrics: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -206,19 +206,19 @@ pub struct ReportingNarrativeBlock {
     pub text: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PresentationPresetSelection {
-    pub non_color_encoding: String,
-    pub preset_id: String,
-    pub summary_template_id: String,
+    pub non_color_encoding: PresentationPresetSelectionNonColorEncoding,
+    pub preset_id: PresentationPresetSelectionPresetId,
+    pub summary_template_id: PresentationPresetSelectionSummaryTemplateId,
     pub version: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingNarrativeValueReference {
-    pub value: String,
+    pub value: ReportingNarrativeValueReferenceValue,
     pub widget_key: String,
 }
 
@@ -259,7 +259,7 @@ pub struct DashboardGenerationResponse {
     pub poll_after_seconds: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub snapshot_sha256: Option<String>,
-    pub state: String,
+    pub state: DashboardGenerationResponseState,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub url_expires_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -270,7 +270,7 @@ pub struct DashboardGenerationResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ReportExportQueryParameters {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub comparison: Option<String>,
+    pub comparison: Option<ReportingQueryRequestComparison>,
     #[serde(
         default,
         deserialize_with = "null_as_empty",
@@ -326,7 +326,7 @@ pub struct ReportingSnapshotColumn {
     pub key: String,
     pub label: String,
     pub nullable: bool,
-    pub r#type: String,
+    pub r#type: ReportingSnapshotColumnType,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
 }
@@ -435,13 +435,13 @@ pub struct RenderedMetricValue {
     pub complete: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
-    pub data_sufficiency: String,
+    pub data_sufficiency: RenderedMetricValueDataSufficiency,
     pub sample_count: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub truncated: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trust: Option<ReportingTemporalTrust>,
-    pub unit: String,
+    pub unit: RenderedMetricValueUnit,
     pub value: f64,
 }
 
@@ -498,7 +498,7 @@ pub struct ReportingTrust {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contract_version: Option<String>,
     pub coverage: String,
-    pub data_freshness: String,
+    pub data_freshness: ReportingTrustDataFreshness,
     pub export_state: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_export: Option<String>,
@@ -517,7 +517,7 @@ pub struct ReportingTrust {
     pub rollup_state: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub schema_version: Option<String>,
-    pub status: String,
+    pub status: ReportingTrustStatus,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unavailable_reason: Option<String>,
 }
@@ -561,7 +561,7 @@ pub struct RenderedVisualResult {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub intervals: Vec<RenderedInterval>,
-    pub kind: String,
+    pub kind: RenderedVisualResultKind,
     #[serde(
         default,
         deserialize_with = "null_as_empty",
@@ -705,7 +705,7 @@ pub struct RenderedQuantile {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingReconciliationResult {
-    pub availability: String,
+    pub availability: ReportingReconciliationResultAvailability,
     #[serde(
         default,
         deserialize_with = "null_as_empty",
@@ -720,10 +720,10 @@ pub struct ReportingReconciliationResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selected_source_series: Option<String>,
     pub series_key: String,
-    pub status: String,
+    pub status: ReportingReconciliationResultStatus,
     pub tenant_key: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub unit: Option<String>,
+    pub unit: Option<ReportingReconciliationResultUnit>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<f64>,
 }
@@ -738,7 +738,7 @@ pub struct ReportingSourceRange {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingSourceContribution {
-    pub availability: String,
+    pub availability: ReportingReconciliationResultAvailability,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub freshness_seconds: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -750,7 +750,7 @@ pub struct ReportingSourceContribution {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stale: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub unit: Option<String>,
+    pub unit: Option<ReportingReconciliationResultUnit>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<f64>,
 }
@@ -815,7 +815,7 @@ pub struct ReportExportJob {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub finished_at: Option<String>,
     #[serde(default, deserialize_with = "null_as_empty")]
-    pub formats: Vec<String>,
+    pub formats: Vec<DashboardCatalogueEntryExportFormats>,
     pub id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub next_attempt_at: Option<String>,
@@ -844,9 +844,9 @@ pub struct ReportExportJob {
 pub struct ReportExportArtifact {
     pub artifact_key: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fallback_for_format: Option<String>,
+    pub fallback_for_format: Option<DashboardCatalogueEntryExportFormats>,
     pub filename: String,
-    pub format: String,
+    pub format: DashboardCatalogueEntryExportFormats,
     pub id: String,
     pub media_type: String,
     pub object_bytes: i64,
@@ -873,23 +873,23 @@ pub struct ReportExportProgressCounter {
 pub struct ReportExportCreateRequest {
     pub dashboard_key: String,
     #[serde(default, deserialize_with = "null_as_empty")]
-    pub formats: Vec<String>,
+    pub formats: Vec<DashboardCatalogueEntryExportFormats>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub idempotency_key: Option<String>,
     pub parameters: ReportExportQueryParameters,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletedRunExportRequest {
     #[serde(default, deserialize_with = "null_as_empty")]
-    pub formats: Vec<String>,
+    pub formats: Vec<DashboardCatalogueEntryExportFormats>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub idempotency_key: Option<String>,
     pub source: CompletedRunExportSource,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletedRunExportSource {
     pub contract_version: String,
@@ -927,14 +927,14 @@ pub struct CompletedRunExportMetadata {
     pub report_version: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletedRunExportRedaction {
     pub redacted_annotation_count: i64,
-    pub result: String,
+    pub result: CompletedRunExportRedactionResult,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletedRunExportSections {
     pub adjustments: CompletedRunExportAdjustmentSection,
@@ -1061,6 +1061,363 @@ pub struct PreparedDataReceiptStatus {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DashboardCatalogueEntryExportFormats {
+    #[serde(rename = "csv")]
+    Csv,
+    #[serde(rename = "xlsx")]
+    Xlsx,
+    #[serde(rename = "html")]
+    Html,
+    #[serde(rename = "pdf")]
+    Pdf,
+    #[serde(rename = "svg")]
+    Svg,
+    #[serde(rename = "png")]
+    Png,
+    #[serde(rename = "parquet")]
+    Parquet,
+    #[serde(rename = "manifest")]
+    Manifest,
+}
+
+impl DashboardCatalogueEntryExportFormats {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Csv => "csv",
+            Self::Xlsx => "xlsx",
+            Self::Html => "html",
+            Self::Pdf => "pdf",
+            Self::Svg => "svg",
+            Self::Png => "png",
+            Self::Parquet => "parquet",
+            Self::Manifest => "manifest",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DashboardCatalogueEntryInteractions {
+    #[serde(rename = "filter")]
+    Filter,
+    #[serde(rename = "drill_down")]
+    DrillDown,
+}
+
+impl DashboardCatalogueEntryInteractions {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Filter => "filter",
+            Self::DrillDown => "drill_down",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ExecutiveReportDefinitionComparisonBasis {
+    #[serde(rename = "none")]
+    None,
+    #[serde(rename = "previous-period")]
+    PreviousPeriod,
+    #[serde(rename = "target")]
+    Target,
+}
+
+impl ExecutiveReportDefinitionComparisonBasis {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::PreviousPeriod => "previous-period",
+            Self::Target => "target",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ExecutiveReportDefinitionRecipe {
+    #[serde(rename = "blank")]
+    Blank,
+    #[serde(rename = "weekly-performance")]
+    WeeklyPerformance,
+    #[serde(rename = "operations-health")]
+    OperationsHealth,
+    #[serde(rename = "forecast-decision")]
+    ForecastDecision,
+}
+
+impl ExecutiveReportDefinitionRecipe {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Blank => "blank",
+            Self::WeeklyPerformance => "weekly-performance",
+            Self::OperationsHealth => "operations-health",
+            Self::ForecastDecision => "forecast-decision",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingQueryRequestComparison {
+    #[serde(rename = "previous_period")]
+    PreviousPeriod,
+    #[serde(rename = "previous_year")]
+    PreviousYear,
+}
+
+impl ReportingQueryRequestComparison {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::PreviousPeriod => "previous_period",
+            Self::PreviousYear => "previous_year",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DashboardInteractionRuleResetBehavior {
+    #[serde(rename = "interaction")]
+    Interaction,
+    #[serde(rename = "dashboard")]
+    Dashboard,
+}
+
+impl DashboardInteractionRuleResetBehavior {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Interaction => "interaction",
+            Self::Dashboard => "dashboard",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingReportSectionDefinitionLayout {
+    #[serde(rename = "lead")]
+    Lead,
+    #[serde(rename = "grid")]
+    Grid,
+    #[serde(rename = "detail")]
+    Detail,
+}
+
+impl ReportingReportSectionDefinitionLayout {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Lead => "lead",
+            Self::Grid => "grid",
+            Self::Detail => "detail",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DashboardSharePolicyRelativeRanges {
+    #[serde(rename = "1d")]
+    N1d,
+    #[serde(rename = "7d")]
+    N7d,
+    #[serde(rename = "14d")]
+    N14d,
+    #[serde(rename = "30d")]
+    N30d,
+    #[serde(rename = "90d")]
+    N90d,
+}
+
+impl DashboardSharePolicyRelativeRanges {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::N1d => "1d",
+            Self::N7d => "7d",
+            Self::N14d => "14d",
+            Self::N30d => "30d",
+            Self::N90d => "90d",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingWidgetDefinitionKind {
+    #[serde(rename = "stat_tile")]
+    StatTile,
+    #[serde(rename = "time_series")]
+    TimeSeries,
+    #[serde(rename = "breakdown_table")]
+    BreakdownTable,
+    #[serde(rename = "top_list")]
+    TopList,
+    #[serde(rename = "health_list")]
+    HealthList,
+    #[serde(rename = "freshness_panel")]
+    FreshnessPanel,
+    #[serde(rename = "export_table")]
+    ExportTable,
+    #[serde(rename = "lifecycle_funnel")]
+    LifecycleFunnel,
+    #[serde(rename = "cohort_retention")]
+    CohortRetention,
+    #[serde(rename = "forecast_fan")]
+    ForecastFan,
+    #[serde(rename = "uncertainty_band")]
+    UncertaintyBand,
+    #[serde(rename = "probability_tile")]
+    ProbabilityTile,
+    #[serde(rename = "distribution_histogram")]
+    DistributionHistogram,
+    #[serde(rename = "voi_ranked_list")]
+    VoiRankedList,
+    #[serde(rename = "calibration_panel")]
+    CalibrationPanel,
+    #[serde(rename = "runway_tile")]
+    RunwayTile,
+    #[serde(rename = "anomaly_timeline")]
+    AnomalyTimeline,
+    #[serde(rename = "driver_breakdown")]
+    DriverBreakdown,
+}
+
+impl ReportingWidgetDefinitionKind {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::StatTile => "stat_tile",
+            Self::TimeSeries => "time_series",
+            Self::BreakdownTable => "breakdown_table",
+            Self::TopList => "top_list",
+            Self::HealthList => "health_list",
+            Self::FreshnessPanel => "freshness_panel",
+            Self::ExportTable => "export_table",
+            Self::LifecycleFunnel => "lifecycle_funnel",
+            Self::CohortRetention => "cohort_retention",
+            Self::ForecastFan => "forecast_fan",
+            Self::UncertaintyBand => "uncertainty_band",
+            Self::ProbabilityTile => "probability_tile",
+            Self::DistributionHistogram => "distribution_histogram",
+            Self::VoiRankedList => "voi_ranked_list",
+            Self::CalibrationPanel => "calibration_panel",
+            Self::RunwayTile => "runway_tile",
+            Self::AnomalyTimeline => "anomaly_timeline",
+            Self::DriverBreakdown => "driver_breakdown",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PresentationPresetSelectionNonColorEncoding {
+    #[serde(rename = "line_symbol_label")]
+    LineSymbolLabel,
+    #[serde(rename = "signed_bar_label")]
+    SignedBarLabel,
+    #[serde(rename = "band_boundary_label")]
+    BandBoundaryLabel,
+}
+
+impl PresentationPresetSelectionNonColorEncoding {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::LineSymbolLabel => "line_symbol_label",
+            Self::SignedBarLabel => "signed_bar_label",
+            Self::BandBoundaryLabel => "band_boundary_label",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PresentationPresetSelectionPresetId {
+    #[serde(rename = "forecast_convergence_v1")]
+    ForecastConvergenceV1,
+    #[serde(rename = "anomaly_reference_v1")]
+    AnomalyReferenceV1,
+    #[serde(rename = "descriptive_driver_v1")]
+    DescriptiveDriverV1,
+    #[serde(rename = "uncertainty_reference_v1")]
+    UncertaintyReferenceV1,
+}
+
+impl PresentationPresetSelectionPresetId {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ForecastConvergenceV1 => "forecast_convergence_v1",
+            Self::AnomalyReferenceV1 => "anomaly_reference_v1",
+            Self::DescriptiveDriverV1 => "descriptive_driver_v1",
+            Self::UncertaintyReferenceV1 => "uncertainty_reference_v1",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PresentationPresetSelectionSummaryTemplateId {
+    #[serde(rename = "forecast_window_evidence")]
+    ForecastWindowEvidence,
+    #[serde(rename = "anomaly_reference_evidence")]
+    AnomalyReferenceEvidence,
+    #[serde(rename = "descriptive_driver_evidence")]
+    DescriptiveDriverEvidence,
+    #[serde(rename = "uncertainty_reference_evidence")]
+    UncertaintyReferenceEvidence,
+}
+
+impl PresentationPresetSelectionSummaryTemplateId {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ForecastWindowEvidence => "forecast_window_evidence",
+            Self::AnomalyReferenceEvidence => "anomaly_reference_evidence",
+            Self::DescriptiveDriverEvidence => "descriptive_driver_evidence",
+            Self::UncertaintyReferenceEvidence => "uncertainty_reference_evidence",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingNarrativeValueReferenceValue {
+    #[serde(rename = "primary")]
+    Primary,
+    #[serde(rename = "delta")]
+    Delta,
+}
+
+impl ReportingNarrativeValueReferenceValue {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Primary => "primary",
+            Self::Delta => "delta",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DashboardGenerationResponseState {
+    #[serde(rename = "building")]
+    Building,
+    #[serde(rename = "ready")]
+    Ready,
+    #[serde(rename = "unavailable")]
+    Unavailable,
+}
+
+impl DashboardGenerationResponseState {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Building => "building",
+            Self::Ready => "ready",
+            Self::Unavailable => "unavailable",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ReportingRequestedFilterOperator {
     #[serde(rename = "eq")]
     Eq,
@@ -1085,19 +1442,154 @@ impl ReportingRequestedFilterOperator {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ReportingQueryRequestComparison {
-    #[serde(rename = "previous_period")]
-    PreviousPeriod,
-    #[serde(rename = "previous_year")]
-    PreviousYear,
+pub enum ReportingSnapshotColumnType {
+    #[serde(rename = "text")]
+    Text,
+    #[serde(rename = "integer")]
+    Integer,
+    #[serde(rename = "number")]
+    Number,
+    #[serde(rename = "percentage")]
+    Percentage,
+    #[serde(rename = "currency")]
+    Currency,
+    #[serde(rename = "date")]
+    Date,
+    #[serde(rename = "datetime")]
+    Datetime,
+    #[serde(rename = "duration")]
+    Duration,
+    #[serde(rename = "boolean")]
+    Boolean,
+    #[serde(rename = "null")]
+    Null,
 }
 
-impl ReportingQueryRequestComparison {
+impl ReportingSnapshotColumnType {
     /// The wire value.
     pub fn as_str(self) -> &'static str {
         match self {
-            Self::PreviousPeriod => "previous_period",
-            Self::PreviousYear => "previous_year",
+            Self::Text => "text",
+            Self::Integer => "integer",
+            Self::Number => "number",
+            Self::Percentage => "percentage",
+            Self::Currency => "currency",
+            Self::Date => "date",
+            Self::Datetime => "datetime",
+            Self::Duration => "duration",
+            Self::Boolean => "boolean",
+            Self::Null => "null",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RenderedMetricValueDataSufficiency {
+    #[serde(rename = "unknown")]
+    Unknown,
+    #[serde(rename = "sufficient")]
+    Sufficient,
+    #[serde(rename = "partial")]
+    Partial,
+    #[serde(rename = "insufficient")]
+    Insufficient,
+}
+
+impl RenderedMetricValueDataSufficiency {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Unknown => "unknown",
+            Self::Sufficient => "sufficient",
+            Self::Partial => "partial",
+            Self::Insufficient => "insufficient",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RenderedMetricValueUnit {
+    #[serde(rename = "currency_per_unit")]
+    CurrencyPerUnit,
+    #[serde(rename = "count")]
+    Count,
+    #[serde(rename = "milliseconds")]
+    Milliseconds,
+    #[serde(rename = "bytes")]
+    Bytes,
+    #[serde(rename = "percent")]
+    Percent,
+    #[serde(rename = "currency")]
+    Currency,
+    #[serde(rename = "W")]
+    W,
+    #[serde(rename = "kW")]
+    KW,
+    #[serde(rename = "Wh")]
+    Wh,
+    #[serde(rename = "kWh")]
+    KWh,
+    #[serde(rename = "V")]
+    V,
+    #[serde(rename = "A")]
+    A,
+    #[serde(rename = "L")]
+    L,
+    #[serde(rename = "Cel")]
+    Cel,
+    #[serde(rename = "L/s")]
+    LS,
+    #[serde(rename = "score")]
+    Score,
+}
+
+impl RenderedMetricValueUnit {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::CurrencyPerUnit => "currency_per_unit",
+            Self::Count => "count",
+            Self::Milliseconds => "milliseconds",
+            Self::Bytes => "bytes",
+            Self::Percent => "percent",
+            Self::Currency => "currency",
+            Self::W => "W",
+            Self::KW => "kW",
+            Self::Wh => "Wh",
+            Self::KWh => "kWh",
+            Self::V => "V",
+            Self::A => "A",
+            Self::L => "L",
+            Self::Cel => "Cel",
+            Self::LS => "L/s",
+            Self::Score => "score",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingTrustDataFreshness {
+    #[serde(rename = "unknown")]
+    Unknown,
+    #[serde(rename = "current")]
+    Current,
+    #[serde(rename = "fresh")]
+    Fresh,
+    #[serde(rename = "stale")]
+    Stale,
+    #[serde(rename = "unavailable")]
+    Unavailable,
+}
+
+impl ReportingTrustDataFreshness {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Unknown => "unknown",
+            Self::Current => "current",
+            Self::Fresh => "fresh",
+            Self::Stale => "stale",
+            Self::Unavailable => "unavailable",
         }
     }
 }
@@ -1116,6 +1608,57 @@ impl ReportingTrustRetryability {
         match self {
             Self::None => "none",
             Self::Bounded => "bounded",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingTrustStatus {
+    #[serde(rename = "healthy")]
+    Healthy,
+    #[serde(rename = "partial")]
+    Partial,
+    #[serde(rename = "unavailable")]
+    Unavailable,
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+
+impl ReportingTrustStatus {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Healthy => "healthy",
+            Self::Partial => "partial",
+            Self::Unavailable => "unavailable",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RenderedVisualResultKind {
+    #[serde(rename = "lifecycle")]
+    Lifecycle,
+    #[serde(rename = "cohort")]
+    Cohort,
+    #[serde(rename = "distribution")]
+    Distribution,
+    #[serde(rename = "uncertainty")]
+    Uncertainty,
+    #[serde(rename = "anomaly_driver")]
+    AnomalyDriver,
+}
+
+impl RenderedVisualResultKind {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Lifecycle => "lifecycle",
+            Self::Cohort => "cohort",
+            Self::Distribution => "distribution",
+            Self::Uncertainty => "uncertainty",
+            Self::AnomalyDriver => "anomaly_driver",
         }
     }
 }
@@ -1164,6 +1707,105 @@ impl ReportingNextActionHintAction {
             Self::Retry => "retry",
             Self::Rotate => "rotate",
             Self::Escalate => "escalate",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingReconciliationResultAvailability {
+    #[serde(rename = "available")]
+    Available,
+    #[serde(rename = "unavailable")]
+    Unavailable,
+}
+
+impl ReportingReconciliationResultAvailability {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Available => "available",
+            Self::Unavailable => "unavailable",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingReconciliationResultStatus {
+    #[serde(rename = "available")]
+    Available,
+    #[serde(rename = "stale")]
+    Stale,
+    #[serde(rename = "unavailable")]
+    Unavailable,
+}
+
+impl ReportingReconciliationResultStatus {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Available => "available",
+            Self::Stale => "stale",
+            Self::Unavailable => "unavailable",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingReconciliationResultUnit {
+    #[serde(rename = "W")]
+    W,
+    #[serde(rename = "kW")]
+    KW,
+    #[serde(rename = "Wh")]
+    Wh,
+    #[serde(rename = "kWh")]
+    KWh,
+    #[serde(rename = "V")]
+    V,
+    #[serde(rename = "A")]
+    A,
+    #[serde(rename = "L")]
+    L,
+    #[serde(rename = "Cel")]
+    Cel,
+    #[serde(rename = "By")]
+    By,
+    #[serde(rename = "1")]
+    N1,
+}
+
+impl ReportingReconciliationResultUnit {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::W => "W",
+            Self::KW => "kW",
+            Self::Wh => "Wh",
+            Self::KWh => "kWh",
+            Self::V => "V",
+            Self::A => "A",
+            Self::L => "L",
+            Self::Cel => "Cel",
+            Self::By => "By",
+            Self::N1 => "1",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompletedRunExportRedactionResult {
+    #[serde(rename = "not_required")]
+    NotRequired,
+    #[serde(rename = "applied")]
+    Applied,
+}
+
+impl CompletedRunExportRedactionResult {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NotRequired => "not_required",
+            Self::Applied => "applied",
         }
     }
 }

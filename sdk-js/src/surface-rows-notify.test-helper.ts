@@ -186,7 +186,15 @@ export const notifyRows: RowArea = {
     {
       id: "admin-api GET /api/v1/error-issues",
       query: { companySlug: "acme", state: "open", limit: "20" },
-      call: (c) => c.custd.admin.errorIssues.list({ companySlug: "acme", state: "open", limit: 20 }),
+      call: (c) =>
+        c.custd.admin.errorIssues.list({
+          companySlug: "acme",
+          siteUuid: "site-1",
+          state: "open",
+          sort: "recent",
+          limit: 20,
+          cursor: "cursor-1",
+        }),
     },
     {
       id: "admin-api GET /api/v1/error-issues/{issueUuid}",

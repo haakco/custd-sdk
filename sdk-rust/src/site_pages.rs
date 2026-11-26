@@ -9,7 +9,9 @@ use crate::Result;
 use crate::api_path::{NO_BODY, SITE_DOMAINS, api_path};
 use crate::client::CustdClient;
 use crate::measurement::null_as_empty;
+use crate::site_domains::SiteNextActionSeverity;
 use crate::site_findings::{SiteGeneratedFix, SiteRemedy};
+use crate::site_search::SiteSearchProvider;
 use crate::transport::{Method, percent_encode};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -215,7 +217,7 @@ pub struct SitePageCheckFinding {
     pub fix: String,
     pub remedy: SiteRemedy,
     pub rule: String,
-    pub severity: String,
+    pub severity: SiteNextActionSeverity,
     pub source: String,
     pub title: String,
     pub url: String,
@@ -344,8 +346,8 @@ pub struct SitePageQueryWindow {
     /// First day of the window, YYYY-MM-DD.
     pub from: String,
     pub imported_at: String,
-    /// The provider the queries come from: google.
-    pub provider: String,
+    /// The provider the queries come from.
+    pub provider: SiteSearchProvider,
     /// Last day of the window, YYYY-MM-DD.
     pub to: String,
 }

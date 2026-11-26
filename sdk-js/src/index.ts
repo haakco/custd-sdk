@@ -11,10 +11,10 @@ import { PredictionAdminClient } from "./admin-predictions.js";
 import { PrivacyErasureClient } from "./admin-privacy-erasures.js";
 import { RetentionClient } from "./admin-retention.js";
 import { SiteDomainAdminClient } from "./admin-site-domains.js";
-
 import { SiteInsightsAdminClient } from "./admin-site-insights-tasks.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+import { isLocalHostname } from "./secure-url.js";
 
 export {
   AUTH_PROJECT_DOMAIN_CONVERGENCES,
@@ -118,6 +118,7 @@ import { NotificationWebhookAdminClient } from "./admin-notification-webhooks.js
 import { OAuthClientAdmissionAdminClient } from "./admin-oauth-client-admissions.js";
 import { RlsAdminClient } from "./admin-rls.js";
 import { SdkUsageAdminClient } from "./admin-sdk-usage.js";
+import type { SiteAIOwnerHandoff } from "./admin-site-ai.js";
 import { SupportAccessAdminClient } from "./admin-support-access.js";
 import { SystemAdminClient } from "./admin-system.js";
 import { TimePlanAdminClient } from "./admin-timeplans.js";
@@ -142,6 +143,7 @@ import type {
   ReportingSnapshotColumn,
   ReportingSnapshotDatasetSchema,
 } from "./reporting-catalogue.js";
+import { emptyApiNullLists } from "./response-lists.js";
 import {
   type EventSchemaDocument,
   type EventSchemaRegisterRequest,
@@ -153,6 +155,7 @@ import {
   type RegisteredEventTypeList,
   schemaRegistryPath,
 } from "./schema-registry.js";
+import { redeemSiteAIOwnerHandoff, type SiteAIOwnerSession } from "./site-ai-owner.js";
 import { SDK_IDENTITY } from "./version.js";
 
 export type {
@@ -830,6 +833,7 @@ export {
   SubjectExportClient,
   type SubjectExportCreateRequest,
   type SubjectExportDownloadResponse,
+  type SubjectExportForceOptions,
   type SubjectExportListResponse,
   type SubjectExportScope,
   type SubjectExportStatus,
@@ -1813,7 +1817,7 @@ export type AdminStorageAlertRule = {
   tenantSlug: string;
   metric: string;
   thresholdPercent: number;
-  channel: string;
+  channel: "email" | "webhook";
   emailRecipient?: string;
   enabled: boolean;
   evaluation?: AdminStorageAlertEvaluation;
@@ -1824,7 +1828,7 @@ export type AdminStorageAlertRule = {
 export type AdminStorageAlertRuleCreateRequest = {
   metric: string;
   thresholdPercent: number;
-  channel: string;
+  channel: "email" | "webhook";
   /** Where an email-channel rule sends its alert. */
   emailRecipient?: string;
   enabled: boolean;
@@ -1964,11 +1968,79 @@ export type AdminReportingPackAuditListResponse = {
 
 export type SelectorDefinition = {
   selector: string;
-  type: string;
+  /** Empty, with an empty selector, where the platform serialises an unset identity selector. */
+  type: "string" | "integer" | "number" | "";
 };
 
+/** The unit a numeric selector or rendered metric value is expressed in. */
+export type RenderedUnit =
+  | "currency_per_unit"
+  | "count"
+  | "milliseconds"
+  | "bytes"
+  | "percent"
+  | "currency"
+  | "W"
+  | "kW"
+  | "Wh"
+  | "kWh"
+  | "V"
+  | "A"
+  | "L"
+  | "Cel"
+  | "L/s"
+  | "score";
+
+/** How a reporting-pack metric is computed. */
+export type PackMetricKind =
+  | "count"
+  | "unique_count"
+  | "rate"
+  | "latency"
+  | "percentile"
+  | "failure_ratio"
+  | "freshness_age"
+  | "latest_value"
+  | "probability"
+  | "quantile"
+  | "credible_interval"
+  | "forecast_date"
+  | "value_of_information";
+
+/** The accounting or measurement calculation a reporting-pack metric applies. */
+export type PackMetricCalculation =
+  | "usage_charge"
+  | "marginal_rate"
+  | "projection"
+  | "purchased_vs_used"
+  | "observed_balance"
+  | "projected_balance"
+  | "allocated_recovery"
+  | "correction_count"
+  | "count"
+  | "failure_count"
+  | "flow"
+  | "distinct_count"
+  | "sum"
+  | "average"
+  | "percentile"
+  | "ratio"
+  | "latest"
+  | "minimum"
+  | "maximum"
+  | "firstLastDelta"
+  | "timeWeightedAverage"
+  | "rate"
+  | "integral";
+
+/** A measurement series' canonical unit; By is bytes and 1 is a dimensionless count. */
+export type CanonicalUnit = "W" | "kW" | "Wh" | "kWh" | "V" | "A" | "L" | "Cel" | "By" | "1";
+
+/** How a reporting-pack template aggregates its source rows. */
+export type PackTemplateAggregation = "count" | "flow" | "distinct_count" | "sum" | "average" | "percentile" | "ratio";
+
 export type NumericSelector = SelectorDefinition & {
-  unit: string;
+  unit: RenderedUnit;
 };
 
 export type IdentitySelectors = {
@@ -1981,7 +2053,7 @@ export type IdentitySelectors = {
 
 export type FilterDefinition = {
   dimension: string;
-  operators: string[];
+  operators: ("eq" | "neq" | "in" | "contains")[];
 };
 
 export type SubjectScopeRule = {
@@ -2011,17 +2083,17 @@ export type FlowRule = {
 export type PackMetric = {
   key: string;
   label: string;
-  kind: string;
+  kind: PackMetricKind;
   unit?: string;
   description?: string;
-  calculation: string;
+  calculation: PackMetricCalculation;
   numeric?: NumericSelector;
   distinct?: SelectorDefinition;
-  measurementKind?: string;
+  measurementKind?: "gauge" | "monotonicCounter" | "intervalIncrement" | "state";
   maximumGapSeconds?: number;
-  resetPolicy?: string;
+  resetPolicy?: "as_increment" | "reject" | "rollover";
   rolloverAt?: number;
-  canonicalUnit?: string;
+  canonicalUnit?: CanonicalUnit;
   percentile?: number;
   numeratorMetric?: string;
   denominatorMetric?: string;
@@ -2049,13 +2121,13 @@ export type PackTemplate = {
   allowedMetrics: string[];
   allowedDimensions?: string[];
   allowedFilters?: FilterDefinition[];
-  sourceModes: string[];
+  sourceModes: ("auto" | "postgres" | "duckdb")[];
   maxRows: number;
   defaultRange?: string;
   subjectScope?: SubjectScopeRule;
   compositionRules?: string[];
   eventTypes: string[];
-  aggregation: string;
+  aggregation: PackTemplateAggregation;
   flowRule?: string;
 };
 
@@ -2090,10 +2162,14 @@ export type RollupRule = {
 };
 
 export type PresentationPresetSelection = {
-  presetId: string;
+  presetId: "forecast_convergence_v1" | "anomaly_reference_v1" | "descriptive_driver_v1" | "uncertainty_reference_v1";
   version: number;
-  nonColorEncoding: string;
-  summaryTemplateId: string;
+  nonColorEncoding: "line_symbol_label" | "signed_bar_label" | "band_boundary_label";
+  summaryTemplateId:
+    | "forecast_window_evidence"
+    | "anomaly_reference_evidence"
+    | "descriptive_driver_evidence"
+    | "uncertainty_reference_evidence";
 };
 
 export type PackWidgetDefinition = {
@@ -2107,8 +2183,8 @@ export type PackWidgetDefinition = {
 };
 
 export type DashboardSharePolicy = {
-  relativeRanges?: string[];
-  comparisonPresets?: string[];
+  relativeRanges?: ("1d" | "7d" | "14d" | "30d" | "90d")[];
+  comparisonPresets?: ("previous_period" | "previous_year")[];
 };
 
 export type DashboardInteractionRule = {
@@ -2116,15 +2192,15 @@ export type DashboardInteractionRule = {
   sourceWidget: string;
   targetWidget: string;
   dimension: string;
-  action: string;
+  action: "filter" | "drill_down";
   linkedFilterGroup: string;
-  comparisonPreset?: string;
-  resetBehavior: string;
+  comparisonPreset?: "previous_period" | "previous_year";
+  resetBehavior: "interaction" | "dashboard";
 };
 
 export type NarrativeValueReference = {
   widgetKey: string;
-  value: string;
+  value: "primary" | "delta";
 };
 
 export type NarrativeBlock = {
@@ -2135,20 +2211,20 @@ export type NarrativeBlock = {
 export type ReportSectionDefinition = {
   key: string;
   title: string;
-  layout: string;
+  layout: "lead" | "grid" | "detail";
   columnSpan: number;
   widgetKeys?: string[];
   narrative?: NarrativeBlock[];
 };
 
 export type ExecutiveReportDefinition = {
-  recipe: string;
+  recipe: "blank" | "weekly-performance" | "operations-health" | "forecast-decision";
   primaryWidgetKey: string;
   primaryMetricKey: string;
   primaryLabel: string;
   primaryUnit: string;
   scopeLabel: string;
-  comparisonBasis: string;
+  comparisonBasis: "none" | "previous-period" | "target";
   comparisonLabel?: string;
   targetValue?: number;
   targetUnit?: string;
@@ -2185,7 +2261,7 @@ export type RedactionRule = {
 
 export type TransitionRule = {
   key: string;
-  identity: string;
+  identity: "subject" | "session" | "correlation";
   stepSelector: string;
   steps: string[];
   maxDurationMs: number;
@@ -2194,7 +2270,7 @@ export type TransitionRule = {
 
 export type ActivationRule = {
   key: string;
-  identity: string;
+  identity: "subject" | "session" | "correlation";
   predicate: MatchPredicate;
   cohortWindowDays: number;
 };
@@ -2208,7 +2284,7 @@ export type RetentionRule = {
 
 export type ActivityRule = {
   key: string;
-  identity: string;
+  identity: "subject" | "session" | "correlation";
   bucketDays: number;
 };
 
@@ -2222,9 +2298,9 @@ export type SemanticSeries = {
   key: string;
   assetKey?: string;
   assetKeys?: string[];
-  measurementKind: string;
-  canonicalUnit: string;
-  allowedSourceUnits: string[];
+  measurementKind: "gauge" | "monotonicCounter" | "intervalIncrement" | "state";
+  canonicalUnit: CanonicalUnit;
+  allowedSourceUnits: CanonicalUnit[];
   expectedCadenceSeconds: number;
   maximumGapSeconds: number;
   sources: SourceSeries[];
@@ -2241,8 +2317,8 @@ export type SourceReconciliation = {
   version: number;
   tenantKey: string;
   seriesKey: string;
-  canonicalUnit?: string;
-  mode: string;
+  canonicalUnit?: CanonicalUnit;
+  mode: "priority" | "freshness" | "availability" | "agreement";
   maxAgeSeconds: number;
   absoluteTolerance?: number;
   relativeTolerance?: number;
@@ -2272,9 +2348,9 @@ export type RoundingPolicy = { mode: RoundingMode; decimalPlaces: number };
 export type SteppedRateSchedule = {
   key: string;
   usageMetric: string;
-  usageUnit: string;
+  usageUnit: CanonicalUnit;
   timezone: string;
-  billingBoundary: string;
+  billingBoundary: "calendar_month" | "calendar_day";
   effectiveFrom: string;
   effectiveTo?: string;
   currency: string;
@@ -2488,7 +2564,7 @@ export type ProducerReservation = {
   parentCompanySlug: string;
   childCompanySlug?: string;
   claimedByClientId?: string;
-  status: string;
+  status: "pending" | "claimed" | "released" | "expired";
   reservedAt?: string;
   expiresAt?: string;
   maxTtlSeconds?: number;
@@ -2783,10 +2859,10 @@ export type RenderedWidgetBucket = {
 
 export type RenderedMetricValue = {
   value: number;
-  unit: string;
+  unit: RenderedUnit;
   currency?: string;
   sampleCount: number;
-  dataSufficiency: string;
+  dataSufficiency: "unknown" | "sufficient" | "partial" | "insufficient";
   complete: boolean;
   truncated?: boolean;
   trust?: ReportingTemporalTrust;
@@ -3035,7 +3111,10 @@ export class CustdClient {
       (method, path, body, options, headers) => this.apiRequest(method, path, body, options, headers),
       this.actingCompanySlug,
     );
-    this.publicReads = new PublicReadClient((path, headers, options) => this.publicRead(path, headers, options));
+    this.publicReads = new PublicReadClient(
+      (path, headers, options) => this.publicRead(path, headers, options),
+      (path, body, options) => this.publicWrite(path, body, options),
+    );
 
     if (this.queueEnabled) {
       this.queue = this.queueStorage.load();
@@ -3528,7 +3607,7 @@ export class CustdClient {
     if (response.status === 204) {
       return undefined as T;
     }
-    return (await response.json()) as T;
+    return emptyApiNullLists(method, `/api/v1${path}`, (await response.json()) as T);
   }
 
   // publicRead issues a GET that carries none of the client's own credentials.
@@ -3544,7 +3623,36 @@ export class CustdClient {
       throw transportRequestError(error);
     }
     if (!response.ok) throw await responseRequestError(response, "request_failed");
-    return (await response.json()) as T;
+    return emptyApiNullLists("GET", `/api/v1${path}`, (await response.json()) as T);
+  }
+
+  /**
+   * Opens a data-space owner's AI settings session from a handoff, on the broker's hub server.
+   * hubOrigin is the broker's registered hub origin; the session never sends this client's credential.
+   */
+  redeemSiteAIOwnerHandoff(
+    handoff: SiteAIOwnerHandoff,
+    hubOrigin: string,
+    options?: RequestOptions,
+  ): Promise<SiteAIOwnerSession> {
+    const failure = (response: Response) => responseRequestError(response, "request_failed");
+    return redeemSiteAIOwnerHandoff({ fetch: this.fetchImpl, failure }, handoff, hubOrigin, options);
+  }
+
+  // publicWrite posts JSON that carries none of the client's own credentials and expects no body back.
+  private async publicWrite(path: string, body: unknown, options?: RequestOptions): Promise<void> {
+    let response: Response;
+    try {
+      response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Custd-Sdk": SDK_IDENTITY },
+        body: JSON.stringify(body),
+        signal: options?.signal,
+      });
+    } catch (error) {
+      throw transportRequestError(error);
+    }
+    if (!response.ok) throw await responseRequestError(response, "request_failed");
   }
 
   private async apiDownload(path: string, options?: RequestOptions): Promise<Uint8Array> {
@@ -5367,12 +5475,6 @@ function assertSecureOrLocalHTTP(rawUrl: string, field: string): void {
   throw new Error(`custd: ${field} must use https unless it targets localhost`);
 }
 
-function isLocalHostname(hostname: string): boolean {
-  return (
-    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "host.docker.internal"
-  );
-}
-
 export function normalizeRetryOptions(options?: RetryOptions): Required<RetryOptions> {
   return {
     maxAttempts: options?.maxAttempts ?? 3,
@@ -5510,3 +5612,5 @@ export type {
   RegisteredEventType,
   RegisteredEventTypeList,
 } from "./schema-registry.js";
+export { SiteAIOwnerSession, type SiteAIOwnerSettings, type SiteAIOwnerTransport } from "./site-ai-owner.js";
+export * from "./site-monitor-reports.js";

@@ -42,7 +42,9 @@ import { MeasurementClient } from "./measurement.js";
 import { basicAuthorization } from "./oauth.js";
 import { ParserClient } from "./parsers.js";
 import { PublicReadClient } from "./public-reads.js";
+import { emptyApiNullLists } from "./response-lists.js";
 import { eventSchemaPath, schemaRegistryPath, } from "./schema-registry.js";
+import { redeemSiteAIOwnerHandoff } from "./site-ai-owner.js";
 import { SDK_IDENTITY } from "./version.js";
 export { APP_ERROR_CODES, APP_REASON_CODES, APP_SIGN_IN_MODES, APP_STATUSES, } from "./admin-apps.js";
 export { AuthProjectAdminClient, AuthProjectRealmNotConvergedError, AuthProjectRealmProvisionError, } from "./admin-auth-projects.js";
@@ -253,7 +255,7 @@ export class CustdClient {
         this.parsers = new ParserClient((method, path, body, options) => this.apiRequest(method, path, body, options));
         this.measurement = new MeasurementClient((method, path, body, options) => this.apiRequest(method, path, body, options));
         this.ingestOperations = new IngestOperationsClient((method, path, body, options, headers) => this.apiRequest(method, path, body, options, headers), this.actingCompanySlug);
-        this.publicReads = new PublicReadClient((path, headers, options) => this.publicRead(path, headers, options));
+        this.publicReads = new PublicReadClient((path, headers, options) => this.publicRead(path, headers, options), (path, body, options) => this.publicWrite(path, body, options));
         if (this.queueEnabled) {
             this.queue = this.queueStorage.load();
         }
@@ -691,7 +693,7 @@ export class CustdClient {
         if (response.status === 204) {
             return undefined;
         }
-        return (await response.json());
+        return emptyApiNullLists(method, `/api/v1${path}`, (await response.json()));
     }
     // publicRead issues a GET that carries none of the client's own credentials.
     async publicRead(path, headers, options) {
@@ -708,7 +710,32 @@ export class CustdClient {
         }
         if (!response.ok)
             throw await responseRequestError(response, "request_failed");
-        return (await response.json());
+        return emptyApiNullLists("GET", `/api/v1${path}`, (await response.json()));
+    }
+    /**
+     * Opens a data-space owner's AI settings session from a handoff, on the broker's hub server.
+     * hubOrigin is the broker's registered hub origin; the session never sends this client's credential.
+     */
+    redeemSiteAIOwnerHandoff(handoff, hubOrigin, options) {
+        const failure = (response) => responseRequestError(response, "request_failed");
+        return redeemSiteAIOwnerHandoff({ fetch: this.fetchImpl, failure }, handoff, hubOrigin, options);
+    }
+    // publicWrite posts JSON that carries none of the client's own credentials and expects no body back.
+    async publicWrite(path, body, options) {
+        let response;
+        try {
+            response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-Custd-Sdk": SDK_IDENTITY },
+                body: JSON.stringify(body),
+                signal: options?.signal,
+            });
+        }
+        catch (error) {
+            throw transportRequestError(error);
+        }
+        if (!response.ok)
+            throw await responseRequestError(response, "request_failed");
     }
     async apiDownload(path, options) {
         const token = await this.getToken(options);
@@ -2200,3 +2227,5 @@ export * from "./ingest-operations.js";
 export * from "./measurement.js";
 export * from "./public-reads.js";
 export * from "./reporting-catalogue.js";
+export { SiteAIOwnerSession } from "./site-ai-owner.js";
+export * from "./site-monitor-reports.js";

@@ -30,14 +30,35 @@ export type RowArea = {
   rows: Row[];
   /** Decoded operations proven against both the minimal and the maximal example. */
   decoded: string[];
-  /**
-   * Decoded operations proven against the minimal example only, because the maximal example holds an
-   * "example" placeholder for a closed set the OpenAPI does not yet declare as an enum.
-   */
-  minimalOnly?: string[];
 };
 
 /** A request body whose fields the route does not depend on. */
 export function dto<T>(value: object = {}): T {
   return value as T;
 }
+
+/** Every optional usage query parameter, so a usage row proves it sends them all. */
+export const usageWindow = {
+  meterSlug: "events",
+  start: "2026-11-01T00:00:00Z",
+  end: "2026-11-20T00:00:00Z",
+  limit: 10,
+};
+
+/** Every optional audit filter, so an audit row proves it sends them all. */
+export const auditFilter = {
+  scope: "tenant",
+  companySlug: "acme",
+  affectedTenantSlug: "tenant-1",
+  since: "2026-11-01T00:00:00Z",
+  until: "2026-11-20T00:00:00Z",
+  actorKind: "user",
+  actorReference: "actor-1",
+  action: "site_domain.create",
+  resourceType: "site_domain",
+  resourceId: "resource-1",
+  outcome: "success",
+  correlationId: "correlation-1",
+  limit: 10,
+  cursor: "cursor-1",
+} as const;

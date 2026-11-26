@@ -30,7 +30,7 @@ pub fn rows() -> Vec<Row> {
             "admin-api POST /api/v1/admin/storage/alerts/{tenantSlug}",
             "/api/v1/admin/storage/alerts/t-1",
             |c| {
-                drop(c.custd.create_storage_alert_rule("t-1", &body::<StorageAlertRuleCreateRequest>(r#"{"channel":"x","emailRecipient":"x","enabled":true,"metric":"x","thresholdPercent":1}"#)))
+                drop(c.custd.create_storage_alert_rule("t-1", &body::<StorageAlertRuleCreateRequest>(r#"{"channel":"email","emailRecipient":"x","enabled":true,"metric":"x","thresholdPercent":1}"#)))
             },
             round_trip::<StorageAlertRule>,
         ),

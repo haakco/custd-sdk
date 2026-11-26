@@ -1,7 +1,7 @@
 // The keywords a domain tracks and each day's Search Console rank for them.
 // SiteDomainAdminClient sends them. A day the keyword did not rank has no position, never 0.
 
-import type { SearchPoolBand } from "./admin-site-search-pool.js";
+import type { SearchPoolAccess, SearchPoolBand } from "./admin-site-search-pool.js";
 
 /** A 400 on trackKeyword or updateTrackedKeyword: keyword, country, device or notifyPosition is out of range. */
 export const SITE_TRACKED_KEYWORD_INVALID_CODE = "site_tracked_keyword_invalid";
@@ -44,7 +44,7 @@ export const SiteRankDevice = {
   Tablet: "tablet",
 } as const;
 
-/** The state of the Search Console connection the ranks come from; newer values may appear. */
+/** The state of the Search Console connection the ranks come from. */
 export const SiteRankingsSource = {
   NotConnected: "not_connected",
   Pending: "pending",
@@ -52,6 +52,8 @@ export const SiteRankingsSource = {
   Failing: "failing",
   Revoked: "revoked",
 } as const;
+
+export type SiteRankingsSource = (typeof SiteRankingsSource)[keyof typeof SiteRankingsSource];
 
 /** One day of a keyword. rankingUrl and position are absent unless the state is ranking. */
 export type SiteRankObservation = {
@@ -86,10 +88,10 @@ export type SiteTrackedKeyword = {
 
 export type SiteRankings = {
   /** A SiteRankingsSource value. */
-  source: string;
+  source: SiteRankingsSource;
   sourceFailure?: string;
   /** A SearchPoolAccess value; absent from servers before the shared search pool. */
-  pool?: string;
+  pool?: SearchPoolAccess;
   from: string;
   to: string;
   maxKeywords: number;

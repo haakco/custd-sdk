@@ -1,8 +1,9 @@
-//! Admin API routes whose OpenAPI operation names no response schema: impersonation sessions,
-//! retention runs, one scheduled task and its pause, resume and retry, notification replay, a forced
-//! privacy erasure, managed-audit producer provisioning and a deleted tenant's historical cleanup.
+//! Hand-written Admin API routes: impersonation sessions, retention runs, one scheduled task and its
+//! pause, resume and retry, notification replay, a forced privacy erasure, managed-audit producer
+//! provisioning and a deleted tenant's historical cleanup.
 //!
-//! Shapes follow the admin-api handler and service types.
+//! Retention runs and historical cleanup follow the admin-api OpenAPI document; the other shapes
+//! follow the admin-api handler and service types, because their operations name no response schema.
 
 use std::collections::BTreeMap;
 
@@ -12,10 +13,10 @@ use crate::Result;
 use crate::api_path::{NO_BODY, api_path};
 use crate::client::{CustdClient, IDEMPOTENCY_KEY};
 use crate::measurement::null_as_empty;
-use crate::offboarding::TenantOffboardingReceipt;
 use crate::privacy::PrivacyErasureResponse;
 use crate::producers::{ProducerProvisionRequest, ProducerProvisionResponse};
 use crate::system_operations::{ScheduledTaskRunResponse, ScheduledTaskRunResponseSummary};
+use crate::tenants::TenantOffboardingReceipt;
 use crate::transport::{Method, percent_encode};
 
 const IMPERSONATION_SESSIONS: &str = "/api/v1/admin/impersonation-sessions";
@@ -301,10 +302,18 @@ impl CustdClient {
     }
 
     /// Force a pending privacy erasure to run now.
-    pub fn force_privacy_erasure(&self, request_uuid: &str) -> Result<PrivacyErasureForceResponse> {
-        let path = format!(
-            "/api/v1/admin/privacy/erasures/{}/force",
-            percent_encode(request_uuid)
+    pub fn force_privacy_erasure(
+        &self,
+        request_uuid: &str,
+        company_slug: Option<&str>,
+    ) -> Result<PrivacyErasureForceResponse> {
+        let path = api_path(
+            format!(
+                "/api/v1/admin/privacy/erasures/{}/force",
+                percent_encode(request_uuid)
+            ),
+            &[],
+            company_slug,
         );
         self.call(Method::Post, &path, NO_BODY)
     }

@@ -234,16 +234,16 @@ export const measurementRows: RowArea = {
     {
       id: "admin-api GET /api/v1/app/item/measurements",
       query: { after: "cursor-1", limit: "10", run: "run-1" },
-      call: (c) => c.items.listMeasurements("access-1", { after: "cursor-1", limit: 10, run: "run-1" }),
+      call: (c) => c.items.listMeasurements({ item: "item-1" }, { after: "cursor-1", limit: 10, run: "run-1" }),
     },
     {
       id: "admin-api GET /api/v1/app/item/runs",
       query: { item: "item-1", limit: "10" },
-      call: (c) => c.items.listRuns({ item: "item-1" }, { limit: 10 }),
+      call: (c) => c.items.listRuns({ item: "item-1" }, { after: "after-1", limit: 10 }),
     },
     {
       id: "admin-api POST /api/v1/app/item/runs",
-      call: (c) => c.items.startRun("access-1", { projectCode: "run-2" }),
+      call: (c) => c.items.startRun({ item: "item-1" }, { projectCode: "run-2" }),
     },
     {
       id: "analytics-api GET /api/v1/measurement/overview",

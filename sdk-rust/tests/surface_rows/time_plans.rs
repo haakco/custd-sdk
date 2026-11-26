@@ -37,19 +37,20 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api PATCH /api/v1/admin/time-plans/{planUuid}",
-            "/api/v1/admin/time-plans/p-1",
+            "/api/v1/admin/time-plans/p-1?companySlug=acme",
             |c| {
-                drop(c.custd.revise_time_plan("p-1", &body::<TimePlanReviseBody>(r#"{"definition":{"autoAdvance":true,"blocks":[],"horizonMs":1,"redistributionMode":"x"},"description":"x","expectedRevision":1,"name":"x","planKey":"x"}"#)))
+                drop(c.custd.revise_time_plan("p-1", &body::<TimePlanReviseBody>(r#"{"definition":{"autoAdvance":true,"blocks":[],"horizonMs":1,"redistributionMode":"x"},"description":"x","expectedRevision":1,"name":"x","planKey":"x"}"#), Some("acme")))
             },
             round_trip::<TimePlan>,
         ),
         row(
             "admin-api POST /api/v1/admin/time-plans/{planUuid}/publish",
-            "/api/v1/admin/time-plans/p-1/publish",
+            "/api/v1/admin/time-plans/p-1/publish?companySlug=acme",
             |c| {
                 drop(c.custd.publish_time_plan(
                     "p-1",
                     &body::<TimePlanRevisionBody>(r#"{"expectedRevision":1}"#),
+                    Some("acme"),
                 ))
             },
             round_trip::<TimePlanPublishedVersion>,
@@ -100,13 +101,7 @@ pub fn rows() -> Vec<Row> {
             "admin-api POST /api/v1/admin/time-plans/runs/{runUuid}/commands",
             "/api/v1/admin/time-plans/runs/r-1/commands?companySlug=acme",
             |c| {
-                drop(c.custd.execute_time_plan_command(
-                    "r-1",
-                    &body::<TimePlanCommandRequest>(
-                        r#"{"commandId":"x","expectedVersion":1,"idempotencyKey":"x","type":"x"}"#,
-                    ),
-                    Some("acme"),
-                ))
+                drop(c.custd.execute_time_plan_command("r-1", &body::<TimePlanCommandRequest>(r#"{"commandId":"x","expectedVersion":1,"idempotencyKey":"x","type":"schedule_run"}"#), Some("acme")))
             },
             round_trip::<TimePlanCommandResult>,
         ),
@@ -127,7 +122,7 @@ pub fn rows() -> Vec<Row> {
             |c| {
                 drop(c.custd.create_time_plan_annotation(
                     "r-1",
-                    &body::<TimePlanAnnotationInput>(r#"{"type":"x"}"#),
+                    &body::<TimePlanAnnotationInput>(r#"{"type":"note"}"#),
                     Some("acme"),
                 ))
             },
@@ -135,24 +130,26 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api POST /api/v1/admin/time-plans/runs/{runUuid}/annotations/{annotationUuid}/corrections",
-            "/api/v1/admin/time-plans/runs/r-1/annotations/a-1/corrections",
+            "/api/v1/admin/time-plans/runs/r-1/annotations/a-1/corrections?companySlug=acme",
             |c| {
                 drop(c.custd.correct_time_plan_annotation(
                     "r-1",
                     "a-1",
-                    &body::<TimePlanAnnotationInput>(r#"{"type":"x"}"#),
+                    &body::<TimePlanAnnotationInput>(r#"{"type":"note"}"#),
+                    Some("acme"),
                 ))
             },
             round_trip::<TimePlanAnnotation>,
         ),
         bodiless(
             "admin-api POST /api/v1/admin/time-plans/runs/{runUuid}/annotations/{annotationUuid}/redact",
-            "/api/v1/admin/time-plans/runs/r-1/annotations/a-1/redact",
+            "/api/v1/admin/time-plans/runs/r-1/annotations/a-1/redact?companySlug=acme",
             |c| {
                 drop(c.custd.redact_time_plan_annotation(
                     "r-1",
                     "a-1",
                     &body::<TimePlanAnnotationRedactBody>(r#"{"reason":"x"}"#),
+                    Some("acme"),
                 ))
             },
         ),
@@ -169,8 +166,8 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api GET /api/v1/admin/time-plans/runs/{runUuid}/history",
-            "/api/v1/admin/time-plans/runs/r-1/history?limit=7",
-            |c| drop(c.custd.list_time_plan_history("r-1", Some(7))),
+            "/api/v1/admin/time-plans/runs/r-1/history?limit=7&companySlug=acme",
+            |c| drop(c.custd.list_time_plan_history("r-1", Some(7), Some("acme"))),
             round_trip::<TimePlanTransitionHistoryResponse>,
         ),
         row(
@@ -198,8 +195,8 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api POST /api/v1/admin/time-plans/runs/{runUuid}/repair",
-            "/api/v1/admin/time-plans/runs/r-1/repair",
-            |c| drop(c.custd.repair_time_plan_run("r-1")),
+            "/api/v1/admin/time-plans/runs/r-1/repair?companySlug=acme",
+            |c| drop(c.custd.repair_time_plan_run("r-1", Some("acme"))),
             round_trip::<TimePlanRunRepairResponse>,
         ),
         row(

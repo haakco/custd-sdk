@@ -25,7 +25,7 @@ use custd_sdk::{
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use support::{FakeServer, answer};
+use support::{Answer, FakeServer, answer};
 
 struct Clients {
     custd: CustdClient,
@@ -43,6 +43,9 @@ struct Row {
     decode: Option<Decode>,
     /// The method the SDK sends for an `ANY` operation; otherwise the id's method.
     method: Option<&'static str>,
+    /// Answers to the requests the call makes before the operation's own, such as a session's
+    /// redeem; those requests are not checked.
+    prelude: fn() -> Vec<Answer>,
 }
 
 fn shape<T: DeserializeOwned>(value: &Value) -> Result<(), serde_json::Error> {
@@ -56,6 +59,7 @@ const fn row(id: &'static str, path: &'static str, call: fn(&Clients), decode: D
         call,
         decode: Some(decode),
         method: None,
+        prelude: Vec::new,
     }
 }
 
@@ -66,6 +70,7 @@ const fn bodiless(id: &'static str, path: &'static str, call: fn(&Clients)) -> R
         call,
         decode: None,
         method: None,
+        prelude: Vec::new,
     }
 }
 
@@ -75,6 +80,11 @@ const fn sends(method: &'static str, row: Row) -> Row {
         method: Some(method),
         ..row
     }
+}
+
+/// A row whose call first makes the requests `prelude` answers.
+const fn after(prelude: fn() -> Vec<Answer>, row: Row) -> Row {
+    Row { prelude, ..row }
 }
 
 const TOKEN: &str = "tok-1";
@@ -385,56 +395,76 @@ fn app_alert_and_meeting_rows() -> Vec<Row> {
     ]
 }
 
-const PROJECTS: &str = "/api/v1/admin/measurement/projects";
+const PROJECTS: &str = "/api/v1/admin/measurement/projects?companySlug=acme";
 
 fn measurement_rows() -> Vec<Row> {
     vec![
         row(
             "admin-api POST /api/v1/admin/measurement/projects",
             PROJECTS,
-            |c| drop(c.custd.create_measurement_project(&project_create())),
+            |c| {
+                drop(
+                    c.custd
+                        .create_measurement_project(&project_create(), Some("acme")),
+                )
+            },
             shape::<MeasurementProject>,
         ),
         row(
             "admin-api GET /api/v1/admin/measurement/projects",
             PROJECTS,
-            |c| drop(c.custd.list_measurement_projects()),
+            |c| drop(c.custd.list_measurement_projects(Some("acme"))),
             shape::<MeasurementProjectList>,
         ),
         row(
             "admin-api GET /api/v1/admin/measurement/projects/{projectUuid}",
-            "/api/v1/admin/measurement/projects/p-1",
-            |c| drop(c.custd.get_measurement_project("p-1")),
+            "/api/v1/admin/measurement/projects/p-1?companySlug=acme",
+            |c| drop(c.custd.get_measurement_project("p-1", Some("acme"))),
             shape::<MeasurementProject>,
         ),
         row(
             "admin-api POST /api/v1/admin/measurement/projects/{projectUuid}/observations:bulk",
-            "/api/v1/admin/measurement/projects/p-1/observations:bulk",
-            |c| drop(c.custd.add_measurement_observations("p-1", &no_rows())),
+            "/api/v1/admin/measurement/projects/p-1/observations:bulk?companySlug=acme",
+            |c| {
+                drop(
+                    c.custd
+                        .add_measurement_observations("p-1", &no_rows(), Some("acme")),
+                )
+            },
             shape::<MeasurementObservationImport>,
         ),
         row(
             "admin-api POST /api/v1/admin/measurement/projects/{projectUuid}/observations:csv",
-            "/api/v1/admin/measurement/projects/p-1/observations:csv",
-            |c| drop(c.custd.import_measurement_observations_csv("p-1", "a\n", 0)),
+            "/api/v1/admin/measurement/projects/p-1/observations:csv?companySlug=acme",
+            |c| {
+                drop(
+                    c.custd
+                        .import_measurement_observations_csv("p-1", "a\n", 0, Some("acme")),
+                )
+            },
             shape::<MeasurementObservationImport>,
         ),
         row(
             "admin-api POST /api/v1/admin/measurement/projects/{projectUuid}/estimates",
-            "/api/v1/admin/measurement/projects/p-1/estimates",
-            |c| drop(c.custd.create_project_estimate("p-1", &estimate())),
+            "/api/v1/admin/measurement/projects/p-1/estimates?companySlug=acme",
+            |c| {
+                drop(
+                    c.custd
+                        .create_project_estimate("p-1", &estimate(), Some("acme")),
+                )
+            },
             shape::<ProjectEstimate>,
         ),
         row(
             "admin-api GET /api/v1/admin/measurement/projects/{projectUuid}/estimates",
-            "/api/v1/admin/measurement/projects/p-1/estimates",
-            |c| drop(c.custd.list_project_estimates("p-1")),
+            "/api/v1/admin/measurement/projects/p-1/estimates?companySlug=acme",
+            |c| drop(c.custd.list_project_estimates("p-1", Some("acme"))),
             shape::<ProjectEstimateList>,
         ),
         row(
             "admin-api POST /api/v1/admin/measurement/projects/{projectUuid}/complete",
-            "/api/v1/admin/measurement/projects/p-1/complete",
-            |c| drop(c.custd.complete_project("p-1", &complete())),
+            "/api/v1/admin/measurement/projects/p-1/complete?companySlug=acme",
+            |c| drop(c.custd.complete_project("p-1", &complete(), Some("acme"))),
             shape::<MeasurementProject>,
         ),
         row(
@@ -455,7 +485,7 @@ fn measurement_rows() -> Vec<Row> {
     ]
 }
 
-const STATUS_PAGE: &str = "/api/v1/site-domains/d-1/status-page";
+const STATUS_PAGE: &str = "/api/v1/site-domains/d-1/status-page?companySlug=acme";
 
 fn status_page_rows() -> Vec<Row> {
     vec![
@@ -467,30 +497,33 @@ fn status_page_rows() -> Vec<Row> {
         ),
         row(
             "admin-api POST /api/v1/site-domains/{domainUuid}/status-page/preview",
-            "/api/v1/site-domains/d-1/status-page/preview",
-            |c| drop(c.custd.preview_status_page("d-1", &draft(), None)),
+            "/api/v1/site-domains/d-1/status-page/preview?companySlug=acme",
+            |c| drop(c.custd.preview_status_page("d-1", &draft(), Some("acme"))),
             shape::<SiteStatusPage>,
         ),
         row(
             "admin-api PUT /api/v1/site-domains/{domainUuid}/status-page",
             STATUS_PAGE,
-            |c| drop(c.custd.publish_status_page("d-1", &draft(), None)),
+            |c| drop(c.custd.publish_status_page("d-1", &draft(), Some("acme"))),
             shape::<SiteStatusPublication>,
         ),
         bodiless(
             "admin-api DELETE /api/v1/site-domains/{domainUuid}/status-page",
             STATUS_PAGE,
-            |c| drop(c.custd.unpublish_status_page("d-1", None)),
+            |c| drop(c.custd.unpublish_status_page("d-1", Some("acme"))),
         ),
         row(
             "admin-api POST /api/v1/site-domains/{domainUuid}/status-page/updates",
-            "/api/v1/site-domains/d-1/status-page/updates",
+            "/api/v1/site-domains/d-1/status-page/updates?companySlug=acme",
             |c| {
                 let request = SiteStatusUpdateRequest {
                     request_uuid: "u-1".to_owned(),
                     message: "Fixed".to_owned(),
                 };
-                drop(c.custd.post_status_page_update("d-1", &request, None));
+                drop(
+                    c.custd
+                        .post_status_page_update("d-1", &request, Some("acme")),
+                );
             },
             shape::<SiteStatusUpdateHistory>,
         ),
@@ -522,13 +555,19 @@ fn read_json(path: &Path) -> Value {
 #[test]
 fn every_row_sends_its_operation_method_and_path() {
     for row in rows() {
-        let server = FakeServer::start(vec![answer(204, "")]);
+        let mut answers = (row.prelude)();
+        let skipped = answers.len();
+        answers.push(answer(204, ""));
+        let server = FakeServer::start(answers);
         let clients = Clients {
             custd: CustdClient::new(&server.base_url, "t"),
             app: AppClient::new(&server.base_url, "site-key", "https://app.example"),
             base_url: server.base_url.clone(),
         };
         (row.call)(&clients);
+        for _ in 0..skipped {
+            server.next();
+        }
         let received = server.next();
         let method = row
             .method
@@ -548,6 +587,45 @@ fn every_row_sends_its_operation_method_and_path() {
             row.id
         );
     }
+}
+
+/// `item` on an app route is carried by the link, not an argument: a link token names its own
+/// item, and an [`AppClient::owned_item`] link adds `?item=` to every call it makes (proven by
+/// `admin_requests::an_owned_item_names_itself_after_the_query`).
+fn carried_by_the_link(row: &Row, name: &str) -> bool {
+    name == "item" && row.path.starts_with("/api/v1/app/")
+}
+
+/// The query parameter names a request target carries.
+fn query_names(target: &str) -> BTreeSet<String> {
+    let query = target.split_once('?').map_or("", |(_, query)| query);
+    query
+        .split('&')
+        .filter(|pair| !pair.is_empty())
+        .map(|pair| pair.split('=').next().unwrap().to_owned())
+        .collect()
+}
+
+/// Each row's call sends every query parameter its operation declares, so every optional filter
+/// is reachable from the method.
+#[test]
+fn every_row_sends_each_declared_query_parameter() {
+    let snapshot = read_json(&api_dir().join("operations.json"));
+    let operations = snapshot["operations"].as_array().unwrap();
+    let mut failures = Vec::new();
+    for row in rows() {
+        let operation = operations.iter().find(|o| o["id"] == row.id).unwrap();
+        let sent = query_names(row.path);
+        for parameter in operation["query"].as_array().into_iter().flatten() {
+            let name = parameter["name"].as_str().unwrap();
+            let required = parameter["required"].as_bool().unwrap();
+            if !sent.contains(name) && (required || !carried_by_the_link(&row, name)) {
+                let kind = if required { "required" } else { "optional" };
+                failures.push(format!("{} does not send {kind} `{name}`", row.id));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "\n{}", failures.join("\n"));
 }
 
 #[test]

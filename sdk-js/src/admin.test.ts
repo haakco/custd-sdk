@@ -354,9 +354,9 @@ describe("CustdClient admin", () => {
     );
   });
 
-  it("rejects measurement bulk responses with mismatched result counts", async () => {
+  it("rejects measurement bulk responses with mismatched result counts, a null list counting as none", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ results: [] }), {
+      new Response(JSON.stringify({ results: null }), {
         status: 202,
         headers: { "Content-Type": "application/json" },
       }),

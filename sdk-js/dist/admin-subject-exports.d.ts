@@ -54,6 +54,10 @@ export type SubjectExportDownloadResponse = {
     generatedAt: string;
     expiresAt: string;
 };
+/** force's options: companySlug names the tenant that owns the export. */
+export type SubjectExportForceOptions = RequestOptions & {
+    companySlug?: string;
+};
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 export declare class SubjectExportClient {
     private readonly request;
@@ -66,6 +70,10 @@ export declare class SubjectExportClient {
     cancel(requestId: string, options?: RequestOptions): Promise<SubjectExport>;
     /** Returns one stored artifact's metadata; scope names the artifact. The object keys are tenant data; do not log them. */
     download(requestId: string, scope: SubjectExportArtifactScope, options?: RequestOptions): Promise<SubjectExportDownloadResponse>;
-    force(requestId: string, options?: RequestOptions): Promise<SubjectExport>;
+    /**
+     * Restarts a stuck export. The route is system-admin only and names the owning tenant in companySlug;
+     * without one the client's actingCompanySlug is sent.
+     */
+    force(requestId: string, options?: SubjectExportForceOptions): Promise<SubjectExport>;
 }
 export {};

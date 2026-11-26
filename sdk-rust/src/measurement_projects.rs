@@ -12,8 +12,8 @@ use crate::Result;
 use crate::api_path::{NO_BODY, api_path};
 use crate::app_item_runs::{AppItemProjectUpdateRequest, AppItemRunCreateRequest};
 use crate::client::CustdClient;
+use crate::measurement::null_as_empty;
 use crate::measurement::{MeasurementObservationResult, MeasurementProject};
-use crate::measurement::{null_as_empty, null_items_skipped};
 use crate::transport::{Method, percent_encode};
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -183,7 +183,7 @@ pub struct MeasurementDecisionVariableResponse {
 pub struct MeasurementDecisionExpression {
     #[serde(
         default,
-        deserialize_with = "null_items_skipped",
+        deserialize_with = "null_as_empty",
         skip_serializing_if = "Vec::is_empty"
     )]
     pub children: Vec<MeasurementDecisionExpression>,

@@ -5,6 +5,7 @@ import {
   CustdRequestError,
   SAVED_SITE_REPORT_LIMIT_CODE,
   SAVED_SITE_REPORT_NAME_TAKEN_CODE,
+  type SavedSiteReportRequest,
   SITE_SAVED_REPORTS_MAX,
   SiteReportTemplate,
 } from "./index";
@@ -53,7 +54,7 @@ describe("site saved reports", () => {
     expect(executive).toEqual(saved.executiveReport);
     expect(executive.template).toBe(SiteReportTemplate.Executive);
     expect((await domains.listSavedReports(domainUuid)).reports).toEqual([]);
-    const created = await domains.saveReport(domainUuid, saved.savedReportRequest);
+    const created = await domains.saveReport(domainUuid, saved.savedReportRequest as SavedSiteReportRequest);
     expect(created).toEqual(saved.savedReport);
     expect(created.report.template).toBe(SiteReportTemplate.Executive);
     const list = await domains.listSavedReports(domainUuid);
@@ -93,7 +94,7 @@ describe("site saved reports", () => {
     [saved.savedReportLimitProblem, SAVED_SITE_REPORT_LIMIT_CODE],
   ])("surfaces the recorded %s problem code", async (problem, code) => {
     const { domains } = newDomains(respond(problem.status, problem));
-    const refusal = domains.saveReport(domainUuid, saved.savedReportRequest);
+    const refusal = domains.saveReport(domainUuid, saved.savedReportRequest as SavedSiteReportRequest);
     await expect(refusal).rejects.toBeInstanceOf(CustdRequestError);
     await expect(refusal).rejects.toMatchObject({ status: 409, code });
   });

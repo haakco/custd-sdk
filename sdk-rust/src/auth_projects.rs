@@ -22,12 +22,12 @@ pub struct AuthProjectListResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthProjectSummary {
-    pub audience_entitlement_mode: String,
+    pub audience_entitlement_mode: AuthProjectCreateRequestAudienceEntitlementMode,
     #[serde(default)]
     pub company_uuid: Option<String>,
     pub environment_id: String,
     pub environment_slug: String,
-    pub identity_mode: String,
+    pub identity_mode: AuthProjectCreateRequestIdentityMode,
     pub name: String,
     pub project_id: String,
     pub slug: String,
@@ -209,7 +209,7 @@ pub struct AuthEnvironmentRetainedResources {
     pub reserved_slots: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthProjectDesiredStateRequest {
     pub desired_state: AuthProjectDesiredState,
@@ -228,7 +228,7 @@ pub struct AuthProjectOperation {
     pub status: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthProjectDesiredState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -241,11 +241,11 @@ pub struct AuthProjectDesiredState {
     pub entry_path: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hosting: Option<AuthProjectHosting>,
-    pub identity_mode: String,
+    pub identity_mode: AuthProjectCreateRequestIdentityMode,
     pub login_paused: bool,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub profile_fields: Vec<AuthProjectProfileField>,
-    pub registration_policy: String,
+    pub registration_policy: AuthProjectDesiredStateRegistrationPolicy,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub sign_in_methods: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -277,10 +277,10 @@ pub struct AuthProjectHosting {
     pub mode: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthProjectProfileField {
-    pub editable_by: String,
+    pub editable_by: AuthProjectProfileFieldEditableBy,
     pub key: String,
     pub required: bool,
     pub visible_to_application: bool,
@@ -324,19 +324,19 @@ pub struct AuthProjectSocialSignInStatus {
     pub providers: Vec<AuthProjectSocialProviderStatus>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthProjectSocialCallbackURL {
-    pub provider: String,
+    pub provider: AuthProjectSocialProviderProvider,
     pub url: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthProjectSocialProviderStatus {
-    pub mode: String,
+    pub mode: AuthProjectSocialProviderMode,
     pub note: String,
-    pub provider: String,
+    pub provider: AuthProjectSocialProviderProvider,
     pub state: AuthProjectSocialProviderStatusState,
 }
 
@@ -431,11 +431,11 @@ pub struct AuthProjectHostedSignIn {
 pub struct AuthProjectCapability {
     pub audience_constraints: String,
     #[serde(default, deserialize_with = "null_as_empty")]
-    pub identity_modes: Vec<String>,
+    pub identity_modes: Vec<AuthProjectCreateRequestIdentityMode>,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub profile_field_keys: Vec<String>,
     #[serde(default, deserialize_with = "null_as_empty")]
-    pub registration_policies: Vec<String>,
+    pub registration_policies: Vec<AuthProjectDesiredStateRegistrationPolicy>,
     pub subject_uniqueness: String,
 }
 
@@ -461,7 +461,7 @@ pub struct AuthProjectClientSyncReport {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthProjectClientRegistration {
-    pub action: String,
+    pub action: AuthProjectClientRegistrationAction,
     pub audience: String,
     pub client_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -542,6 +542,45 @@ impl AuthProjectDesiredStateApplicationSessionPolicy {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AuthProjectDesiredStateRegistrationPolicy {
+    #[serde(rename = "invite_only")]
+    InviteOnly,
+    #[serde(rename = "open")]
+    Open,
+}
+
+impl AuthProjectDesiredStateRegistrationPolicy {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::InviteOnly => "invite_only",
+            Self::Open => "open",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AuthProjectProfileFieldEditableBy {
+    #[serde(rename = "user")]
+    User,
+    #[serde(rename = "provider")]
+    Provider,
+    #[serde(rename = "administrator")]
+    Administrator,
+}
+
+impl AuthProjectProfileFieldEditableBy {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::User => "user",
+            Self::Provider => "provider",
+            Self::Administrator => "administrator",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AuthProjectSocialProviderMode {
     #[serde(rename = "shared")]
     Shared,
@@ -597,6 +636,33 @@ impl AuthProjectSocialProviderStatusState {
             Self::Applying => "applying",
             Self::Unavailable => "unavailable",
             Self::WaitingForDirectory => "waiting_for_directory",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AuthProjectClientRegistrationAction {
+    #[serde(rename = "created")]
+    Created,
+    #[serde(rename = "updated")]
+    Updated,
+    #[serde(rename = "unchanged")]
+    Unchanged,
+    #[serde(rename = "removed")]
+    Removed,
+    #[serde(rename = "refused")]
+    Refused,
+}
+
+impl AuthProjectClientRegistrationAction {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Created => "created",
+            Self::Updated => "updated",
+            Self::Unchanged => "unchanged",
+            Self::Removed => "removed",
+            Self::Refused => "refused",
         }
     }
 }

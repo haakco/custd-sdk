@@ -577,7 +577,7 @@ impl AppLink<'_> {
             return Ok(Conditional::NotModified);
         }
         Ok(Conditional::Modified {
-            etag: response.etag,
+            etag: response.header("etag").map(str::to_owned),
             value: decode(&response.body)?,
         })
     }

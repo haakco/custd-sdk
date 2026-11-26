@@ -9,6 +9,7 @@ use crate::Result;
 use crate::api_path::{NO_BODY, SITE_DOMAINS, api_path};
 use crate::client::CustdClient;
 use crate::measurement::null_as_empty;
+use crate::site_analytics::SiteAnalyticsConnectionStatus;
 use crate::transport::{Method, percent_encode};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -48,8 +49,8 @@ pub struct SiteSearchConnection {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_imported_at: Option<String>,
     pub property: String,
-    pub provider: String,
-    pub status: String,
+    pub provider: SiteSearchProvider,
+    pub status: SiteAnalyticsConnectionStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -62,13 +63,13 @@ pub struct SiteSearchSource {
     pub days: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
-    pub granularity: String,
+    pub granularity: SiteFindingImpactSourceGranularity,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub imported_at: Option<String>,
     /// Totals for the same number of days before the window, if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub previous: Option<SiteSearchTotals>,
-    pub provider: String,
+    pub provider: SiteSearchProvider,
     pub source: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
@@ -79,7 +80,7 @@ pub struct SiteSearchSource {
 #[serde(rename_all = "camelCase")]
 pub struct SiteSearchRow {
     pub key: String,
-    pub provider: String,
+    pub provider: SiteSearchProvider,
     pub totals: SiteSearchTotals,
 }
 
@@ -113,12 +114,12 @@ pub struct SiteSearchConnectionRequest {
 #[serde(rename_all = "camelCase")]
 pub struct SiteSearchRowPage {
     pub days: i64,
-    pub dimension: String,
+    pub dimension: SiteSearchRowsDimension,
     pub domain_uuid: String,
     pub limit: i64,
     pub offset: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider: Option<String>,
+    pub provider: Option<SiteSearchProvider>,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub rows: Vec<SiteSearchRow>,
     /// Rows matching the read before paging.
@@ -131,7 +132,7 @@ pub struct SiteSearchRowPage {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SiteSearchUnavailable {
-    pub provider: String,
+    pub provider: SiteSearchProvider,
     pub reason: String,
 }
 

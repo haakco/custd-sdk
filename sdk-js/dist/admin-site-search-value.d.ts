@@ -19,12 +19,14 @@ export declare const SiteFindingImpactStatus: {
     readonly Measured: "measured";
     readonly Insufficient: "insufficient";
 };
-/** How much of the goal data could be read; newer values may appear. */
+export type SiteFindingImpactStatus = (typeof SiteFindingImpactStatus)[keyof typeof SiteFindingImpactStatus];
+/** How much of the goal data could be read. */
 export declare const SiteSearchGoalStatus: {
     readonly Measured: "measured";
     readonly Partial: "partial";
     readonly Unavailable: "unavailable";
 };
+export type SiteSearchGoalStatus = (typeof SiteSearchGoalStatus)[keyof typeof SiteSearchGoalStatus];
 /** UTC days, YYYY-MM-DD. */
 export type SiteFindingImpactWindow = {
     from: string;
@@ -45,9 +47,9 @@ export type SiteFindingImpactSource = {
     provider: SiteSearchProvider;
     source: string;
     /** daily or weekly. */
-    granularity: string;
+    granularity: "daily" | "weekly";
     /** A SiteFindingImpactStatus value: measured or insufficient. */
-    status: string;
+    status: "measured" | "insufficient";
     before: SiteFindingImpactPeriod;
     after: SiteFindingImpactPeriod;
 };
@@ -59,7 +61,7 @@ export type SiteFindingImpact = {
     /** The finding's URL without its fragment, as search providers report it. */
     pageUrl: string;
     /** A SiteFindingImpactStatus value. */
-    status: string;
+    status: SiteFindingImpactStatus;
     /** Absent while the finding is open, as are before and after. */
     fixedAt?: string;
     windowDays: number;
@@ -87,7 +89,7 @@ export type SiteSearchValue = {
     /** The goal event types the read named. */
     goals: string[];
     /** A SiteSearchGoalStatus value. */
-    goalStatus: string;
+    goalStatus: SiteSearchGoalStatus;
     goalReason?: string;
     /** How goals are credited to pages; show it beside the numbers. */
     attribution: string;

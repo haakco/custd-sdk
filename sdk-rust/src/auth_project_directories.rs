@@ -8,7 +8,10 @@ use serde_json::Value;
 use crate::Result;
 use crate::api_path::{NO_BODY, api_path};
 use crate::app_profile::ApplicationProfileValuesRequest;
-use crate::auth_projects::{AuthProjectCreateRequestAudienceEntitlementMode, AuthProjectOperation};
+use crate::auth_projects::{
+    AuthProjectCreateRequestAudienceEntitlementMode, AuthProjectOperation,
+    AuthProjectProfileFieldEditableBy,
+};
 use crate::client::{CustdClient, IDEMPOTENCY_KEY};
 use crate::measurement::null_as_empty;
 use crate::transport::{Method, percent_encode};
@@ -48,7 +51,7 @@ pub struct AuthProjectDirectoryView {
     pub runtime_public_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub slot_ref: Option<String>,
-    pub state: String,
+    pub state: AuthProjectDirectoryViewState,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -100,7 +103,7 @@ pub struct ApplicationPrincipalIdentityExport {
     pub provider_subject: String,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub traits: Vec<ApplicationIdentityTrait>,
-    pub traits_status: String,
+    pub traits_status: ApplicationPrincipalIdentityExportTraitsStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -112,7 +115,7 @@ pub struct ApplicationPrincipalMembershipView {
     pub organisation_slug: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub removed_at: Option<String>,
-    pub role: String,
+    pub role: ApplicationPrincipalMembershipViewRole,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -184,7 +187,7 @@ pub struct ApplicationPrincipalProfile {
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationProfileField {
     pub editable: bool,
-    pub editable_by: String,
+    pub editable_by: AuthProjectProfileFieldEditableBy,
     pub field_key: String,
     pub present: bool,
     pub required: bool,
@@ -258,7 +261,7 @@ pub struct ApplicationMembershipChoice {
     pub organisation_id: String,
     pub organisation_name: String,
     pub organisation_slug: String,
-    pub role: String,
+    pub role: ApplicationPrincipalMembershipViewRole,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -383,6 +386,84 @@ pub struct AuthProjectInvitationRedeliveryRequest {
 #[serde(rename_all = "camelCase")]
 pub struct AuthProjectInvitationRevocationRequest {
     pub invitation_id: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AuthProjectDirectoryViewState {
+    #[serde(rename = "draft")]
+    Draft,
+    #[serde(rename = "provisioning")]
+    Provisioning,
+    #[serde(rename = "ready")]
+    Ready,
+    #[serde(rename = "paused")]
+    Paused,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "released")]
+    Released,
+}
+
+impl AuthProjectDirectoryViewState {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Draft => "draft",
+            Self::Provisioning => "provisioning",
+            Self::Ready => "ready",
+            Self::Paused => "paused",
+            Self::Failed => "failed",
+            Self::Released => "released",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ApplicationPrincipalIdentityExportTraitsStatus {
+    #[serde(rename = "included")]
+    Included,
+    #[serde(rename = "incomplete")]
+    Incomplete,
+    #[serde(rename = "identity_absent")]
+    IdentityAbsent,
+    #[serde(rename = "directory_unavailable")]
+    DirectoryUnavailable,
+    #[serde(rename = "provider_unreadable")]
+    ProviderUnreadable,
+}
+
+impl ApplicationPrincipalIdentityExportTraitsStatus {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Included => "included",
+            Self::Incomplete => "incomplete",
+            Self::IdentityAbsent => "identity_absent",
+            Self::DirectoryUnavailable => "directory_unavailable",
+            Self::ProviderUnreadable => "provider_unreadable",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ApplicationPrincipalMembershipViewRole {
+    #[serde(rename = "administrator")]
+    Administrator,
+    #[serde(rename = "member")]
+    Member,
+    #[serde(rename = "viewer")]
+    Viewer,
+}
+
+impl ApplicationPrincipalMembershipViewRole {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Administrator => "administrator",
+            Self::Member => "member",
+            Self::Viewer => "viewer",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -17,6 +17,7 @@ surface-check *args:
 # Refresh the operation snapshot and generated examples from a Custd checkout (default ../custd).
 sync-api-contract custd="../custd":
   uv run --with pyyaml python scripts/sync-api-contract.py --custd {{custd}}
+  pnpm -C sdk-js run generate:response-lists
 
 diff-check:
   git diff --check

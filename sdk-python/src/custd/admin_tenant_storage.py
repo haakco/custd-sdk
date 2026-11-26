@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any, TypedDict, cast
+from typing import Any, NotRequired, TypedDict, cast
 
 from .client import AdminClient, problem_request_error
 
@@ -30,6 +30,9 @@ class TenantStorageLocation(TypedDict):
     isolationTier: str
     validationStatus: str
     writeEnabled: bool
+    createdAt: str
+    updatedAt: str
+    validatedAt: NotRequired[str]
 
 
 class TenantStorageListResponse(TypedDict):

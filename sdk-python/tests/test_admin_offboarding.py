@@ -1,6 +1,4 @@
-import base64
 import hashlib
-import json
 import pathlib
 import sys
 import unittest
@@ -9,7 +7,6 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
 from custd import CustdClient
 
-FIXTURES = pathlib.Path(__file__).resolve().parents[2] / "contract-fixtures" / "lifecycle" / "offboarding"
 REQUEST_ID = "ob_01J5K7N4Y8X9Z2B6V3D1M0Q7RJ"
 
 
@@ -23,10 +20,12 @@ class QueueAdminTransport:
         return self.responses.pop(0)
 
 
+EXPORT_BODY = b"custd offboarding export\n"
+
+
 def load_binary_fixture():
-    fixture = json.loads((FIXTURES / "valid-download-binary.json").read_text())
-    body = base64.b64decode(fixture["bodyBase64"])
-    return fixture, body
+    fixture = {"checksumSha256": hashlib.sha256(EXPORT_BODY).hexdigest(), "byteSize": len(EXPORT_BODY)}
+    return fixture, EXPORT_BODY
 
 
 class OffboardingClientTest(unittest.TestCase):

@@ -140,7 +140,7 @@ pub struct AccountingEvidence {
     pub delta: Option<f64>,
     pub effective_at: String,
     pub id: String,
-    pub kind: String,
+    pub kind: AccountingEvidenceKind,
     pub observed_at: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quantity: Option<f64>,
@@ -150,12 +150,12 @@ pub struct AccountingEvidence {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub target_kind: Option<String>,
+    pub target_kind: Option<AccountingEvidenceKind>,
     pub tenant_key: String,
-    pub unit: String,
+    pub unit: AccountingEvidenceUnit,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountingEvidenceCreateRequest {
     pub audit_correlation_id: String,
@@ -165,7 +165,7 @@ pub struct AccountingEvidenceCreateRequest {
     pub delta: Option<f64>,
     pub effective_at: String,
     pub id: String,
-    pub kind: String,
+    pub kind: AccountingEvidenceKind,
     pub observed_at: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quantity: Option<f64>,
@@ -175,8 +175,8 @@ pub struct AccountingEvidenceCreateRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub target_kind: Option<String>,
-    pub unit: String,
+    pub target_kind: Option<AccountingEvidenceKind>,
+    pub unit: AccountingEvidenceUnit,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -232,6 +232,69 @@ impl AuditNetworkDisclosureIpAddressState {
             Self::Available => "available",
             Self::Redacted => "redacted",
             Self::NotRecorded => "not_recorded",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AccountingEvidenceKind {
+    #[serde(rename = "purchase")]
+    Purchase,
+    #[serde(rename = "balance")]
+    Balance,
+    #[serde(rename = "correction")]
+    Correction,
+}
+
+impl AccountingEvidenceKind {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Purchase => "purchase",
+            Self::Balance => "balance",
+            Self::Correction => "correction",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AccountingEvidenceUnit {
+    #[serde(rename = "W")]
+    W,
+    #[serde(rename = "kW")]
+    KW,
+    #[serde(rename = "Wh")]
+    Wh,
+    #[serde(rename = "kWh")]
+    KWh,
+    #[serde(rename = "V")]
+    V,
+    #[serde(rename = "A")]
+    A,
+    #[serde(rename = "L")]
+    L,
+    #[serde(rename = "Cel")]
+    Cel,
+    #[serde(rename = "By")]
+    By,
+    #[serde(rename = "1")]
+    N1,
+}
+
+impl AccountingEvidenceUnit {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::W => "W",
+            Self::KW => "kW",
+            Self::Wh => "Wh",
+            Self::KWh => "kWh",
+            Self::V => "V",
+            Self::A => "A",
+            Self::L => "L",
+            Self::Cel => "Cel",
+            Self::By => "By",
+            Self::N1 => "1",
         }
     }
 }

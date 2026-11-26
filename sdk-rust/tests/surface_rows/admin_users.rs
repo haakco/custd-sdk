@@ -11,12 +11,17 @@ pub fn rows() -> Vec<Row> {
     vec![
         row(
             "admin-api GET /api/v1/admin/users",
-            "/api/v1/admin/users?companySlug=acme",
+            "/api/v1/admin/users?role=r-1&globalState=g-1&membershipState=m-1&welcomeStatus=w-1&includeEnded=true&includeDeleted=true&companySlug=acme",
             |c| {
-                drop(
-                    c.custd
-                        .list_admin_users(&AdminUserQuery::default(), Some("acme")),
-                )
+                let query = AdminUserQuery {
+                    role: Some("r-1".to_owned()),
+                    global_state: Some("g-1".to_owned()),
+                    membership_state: Some("m-1".to_owned()),
+                    welcome_status: Some("w-1".to_owned()),
+                    include_ended: Some(true),
+                    include_deleted: Some(true),
+                };
+                drop(c.custd.list_admin_users(&query, Some("acme")))
             },
             round_trip::<AdminUserListResponse>,
         ),
@@ -85,13 +90,8 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api POST /api/v1/admin/users/{userUuid}/reset-password",
-            "/api/v1/admin/users/u-1/reset-password?includeEnded=true&companySlug=acme",
-            |c| {
-                drop(
-                    c.custd
-                        .reset_admin_user_password("u-1", Some(true), Some("acme")),
-                )
-            },
+            "/api/v1/admin/users/u-1/reset-password?companySlug=acme",
+            |c| drop(c.custd.reset_admin_user_password("u-1", Some("acme"))),
             round_trip::<AdminPasswordResetResponse>,
         ),
         row(
@@ -108,13 +108,8 @@ pub fn rows() -> Vec<Row> {
         ),
         bodiless(
             "admin-api POST /api/v1/admin/users/{userUuid}/retry-welcome",
-            "/api/v1/admin/users/u-1/retry-welcome?includeEnded=true&companySlug=acme",
-            |c| {
-                drop(
-                    c.custd
-                        .retry_admin_user_welcome("u-1", Some(true), Some("acme")),
-                )
-            },
+            "/api/v1/admin/users/u-1/retry-welcome?companySlug=acme",
+            |c| drop(c.custd.retry_admin_user_welcome("u-1", Some("acme"))),
         ),
         row(
             "admin-api POST /api/v1/admin/users/{userUuid}/soft-delete",

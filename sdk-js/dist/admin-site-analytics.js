@@ -7,7 +7,7 @@ export const SITE_ANALYTICS_PROPERTY_INVALID_CODE = "site_analytics_property_inv
 export const SITE_ANALYTICS_CONNECTION_NOT_FOUND_CODE = "site_analytics_connection_not_found";
 /** The analytics provider a connection reads. */
 export const SITE_ANALYTICS_PROVIDER_GA4 = "ga4";
-/** A GA4 report Custd does not import, as SiteAnalyticsReport.unavailable names it; newer values may appear. */
+/** A GA4 report Custd does not import, as SiteAnalyticsReport.unavailable names it. */
 export const SiteAnalyticsUnavailableReport = {
     Ecommerce: "ecommerce",
     Audience: "audience",

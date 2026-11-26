@@ -3,10 +3,13 @@
 ROUTES has one case per operation the SDK implements. Each case calls the public method through the
 default urllib transports with urlopen patched, and asserts the HTTP method and path it sends. The
 keys must equal contract-fixtures/api/coverage/python.json, so that file never claims more than this
-test proves. NULL_LISTS proves that a JSON null list in a minimal example comes back as an empty
-list. test_response_fields.py decodes every example and checks each response DTO's fields.
+test proves. Every required query parameter in the snapshot must be sent by the route case, and
+every declared one by the route case, the acting company or a QUERY_CASES call. NULL_LISTS proves
+that a JSON null list in a minimal example comes back as an empty list. test_response_fields.py
+decodes every example and checks each response DTO's fields.
 """
 
+import contextlib
 import json
 import pathlib
 import re
@@ -15,11 +18,17 @@ import unittest
 from collections.abc import Callable
 from typing import Any, NamedTuple
 from unittest import mock
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
 from custd import CustdClient, RequestError
+from custd.admin_site_status_page import (
+    confirm_public_status_page_subscription,
+    read_public_status_page,
+    subscribe_to_public_status_page,
+    unsubscribe_from_public_status_page,
+)
 from custd.app_items import (
     AppClient,
     read_alert_unsubscribe_page,
@@ -33,6 +42,13 @@ from custd.ingest_operations import (
     collect_events,
     read_auth_domain_monitoring_inventory,
     read_shared_site_report,
+)
+from custd.site_ai_owner import SiteAIOwnerClient, redeem_site_ai_owner_handoff
+from custd.site_monitor_reports import (
+    SiteMonitorDestination,
+    get_private_uptime_work,
+    submit_private_uptime,
+    submit_site_heartbeat,
 )
 
 API = pathlib.Path(__file__).resolve().parents[2] / "contract-fixtures" / "api"
@@ -110,6 +126,22 @@ ERROR_EVENT: Any = {
 }
 
 
+def _monitor(prefix: str) -> SiteMonitorDestination:
+    return SiteMonitorDestination(base_url=BASE_URL, report_path=f"{prefix}acme/{U}", write_token="w" * 64)
+
+
+def _ai_owner() -> SiteAIOwnerClient:
+    return SiteAIOwnerClient({"origin": BASE_URL, "cookie": "c" * 26})
+
+
+AI_HANDOFF: Any = {"code": "c" * 26, "redeemUrl": BASE_URL + "/api/v1/site-ai-owner/redeem"}
+AI_SETTINGS: Any = {"aiMode": "off", "monthlyCapUsdMicros": 0}
+HEARTBEAT_REPORT: Any = {"scheduledFor": "2026-11-01T02:00:00Z", "outcome": "succeeded"}
+UPTIME_REPORT: Any = {"reportUuid": U, "observedAt": "2026-11-01T00:00:00Z", "responseMs": 1}
+HEARTBEAT_REPORTS = "/api/v1/site-heartbeat-reports/"
+UPTIME_REPORTS = "/api/v1/site-private-uptime-reports/"
+
+
 def _error_capture() -> ErrorCaptureClient:
     return ErrorCaptureClient(BASE_URL, write_key="site_pk_" + "k" * 32, environment="production")
 
@@ -171,6 +203,46 @@ def _track_in_batch() -> object:
 
 
 ROUTES: dict[str, RouteCase] = {
+    "admin-api GET /api/v1/public-status-pages/{key}": RouteCase(
+        "/api/v1/public-status-pages/page-key", lambda c: read_public_status_page(BASE_URL, "page-key")
+    ),
+    "admin-api POST /api/v1/public-status-pages/{key}/subscribe": RouteCase(
+        "/api/v1/public-status-pages/page-key/subscribe",
+        lambda c: subscribe_to_public_status_page(BASE_URL, "page-key", {"email": "ada@example.com"}),
+    ),
+    "admin-api POST /api/v1/public-status-pages/{key}/confirm-subscription": RouteCase(
+        "/api/v1/public-status-pages/page-key/confirm-subscription",
+        lambda c: confirm_public_status_page_subscription(BASE_URL, "page-key", "sealed"),
+    ),
+    "admin-api POST /api/v1/public-status-pages/{key}/unsubscribe": RouteCase(
+        "/api/v1/public-status-pages/page-key/unsubscribe",
+        lambda c: unsubscribe_from_public_status_page(BASE_URL, "page-key", "sealed"),
+    ),
+    "admin-api POST /api/v1/site-heartbeat-reports/{companySlug}/{monitorUuid}": RouteCase(
+        f"{HEARTBEAT_REPORTS}acme/{U}", lambda c: submit_site_heartbeat(_monitor(HEARTBEAT_REPORTS), HEARTBEAT_REPORT)
+    ),
+    "admin-api POST /api/v1/site-private-uptime-reports/{companySlug}/{monitorUuid}": RouteCase(
+        f"{UPTIME_REPORTS}acme/{U}", lambda c: submit_private_uptime(_monitor(UPTIME_REPORTS), UPTIME_REPORT)
+    ),
+    "admin-api GET /api/v1/site-private-uptime-reports/{companySlug}/{monitorUuid}": RouteCase(
+        f"{UPTIME_REPORTS}acme/{U}", lambda c: get_private_uptime_work(_monitor(UPTIME_REPORTS))
+    ),
+    "admin-api POST /api/v1/site-ai-owner/redeem": RouteCase(
+        "/api/v1/site-ai-owner/redeem", lambda c: redeem_site_ai_owner_handoff(AI_HANDOFF, "https://hub.example")
+    ),
+    "admin-api GET /api/v1/site-ai-owner/settings": RouteCase(
+        "/api/v1/site-ai-owner/settings", lambda c: _ai_owner().get_settings()
+    ),
+    "admin-api PUT /api/v1/site-ai-owner/settings": RouteCase(
+        "/api/v1/site-ai-owner/settings", lambda c: _ai_owner().set_settings("binding", AI_SETTINGS)
+    ),
+    "admin-api PUT /api/v1/site-ai-owner/consent": RouteCase(
+        "/api/v1/site-ai-owner/consent", lambda c: _ai_owner().set_consent("binding", {"action": "revoke"})
+    ),
+    "admin-api POST /api/v1/site-domains/ai-owner-handoffs": RouteCase(
+        "/api/v1/site-domains/ai-owner-handoffs",
+        lambda c: c.admin.site_domains.create_ai_owner_handoff({"tenantSlug": "acme", "ownerSubject": "owner-1"}),
+    ),
     ("admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/organisations"): RouteCase(
         f"/api/v1/admin/auth-projects/{U}/environments/{U}/organisations",
         lambda c: c.admin.auth_projects.list_environment_organisations(U, U),
@@ -2379,6 +2451,196 @@ NULL_LISTS: dict[str, tuple[str, ...]] = {
 }
 
 
+# Each optional query parameter a route case leaves out, sent by the same public method. Together
+# with the route case and the acting company, every declared parameter must be sent. Rows that
+# declare ``item`` also run as the owned item, which sends it.
+AUDIT_FILTERS: Any = {
+    "scope": "tenant",
+    "affectedTenantSlug": "acme",
+    "since": "2026-11-01T00:00:00Z",
+    "until": "2026-11-02T00:00:00Z",
+    "actorKind": "human",
+    "actorReference": "a",
+    "action": "a",
+    "resourceType": "r",
+    "resourceId": "r",
+    "outcome": "success",
+    "correlationId": "c",
+}
+USAGE_WINDOW: Any = {"meterSlug": "events", "start": "2026-11-01T00:00:00Z", "end": "2026-11-02T00:00:00Z", "limit": 1}
+_RESERVATIONS = "/api/v1/data-spaces/{slug}/producer-reservations"
+_SITE_DOMAINS = "/api/v1/site-domains"
+QUERY_CASES: dict[str, Callable[[CustdClient], object]] = {
+    "admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/threshold-events": (
+        lambda c: c.admin.predictions.list_threshold_events("acme", U, page_size=10)
+    ),
+    "admin-api DELETE /api/v1/data-spaces/{slug}": lambda c: c.provisioning.data_spaces.revoke("acme", "parent"),
+    "admin-api GET /api/v1/admin/audit/events/export": lambda c: c.admin.audit.export_events(AUDIT_FILTERS),
+    "admin-api GET /api/v1/admin/audit/events/{eventId}": lambda c: c.admin.audit.get_event(U, {"scope": "tenant"}),
+    "admin-api GET /api/v1/admin/audit/events": (
+        lambda c: c.admin.audit.list_events({**AUDIT_FILTERS, "limit": 1, "cursor": "next"})
+    ),
+    "admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/principals": (
+        lambda c: c.admin.auth_projects.list_principals(U, U, {"limit": 1, "cursor": "next"})
+    ),
+    "admin-api GET /api/v1/admin/auth-projects": lambda c: c.admin.auth_projects.list_projects("next"),
+    "admin-api GET /api/v1/admin/data-scope-grants": (
+        lambda c: c.admin.data_scopes.list_grants({"kind": "machine", "clientId": "web"})
+    ),
+    "admin-api GET /api/v1/admin/data-scopes/{scopeUuid}/resources": (
+        lambda c: c.admin.data_scopes.list_resources(U, include_disabled=True)
+    ),
+    "admin-api GET /api/v1/admin/data-scopes": lambda c: c.admin.data_scopes.list_scopes(include_disabled=True),
+    "admin-api GET /api/v1/admin/data-labels/catalogue": lambda c: c.admin.data_labels.catalogue(include_disabled=True),
+    "admin-api GET /api/v1/admin/data-labels/{definitionUuid}": (
+        lambda c: c.admin.data_labels.get(U, include_disabled=True)
+    ),
+    "admin-api GET /api/v1/admin/data-labels": lambda c: c.admin.data_labels.list(include_disabled=True),
+    "admin-api GET /api/v1/admin/site-insights/ai-usage": lambda c: c.admin.site_domains.get_platform_ai_usage("day"),
+    "admin-api GET /api/v1/admin/measurement/predictions/definitions": (
+        lambda c: c.admin.predictions.list_definitions("acme", page_size=10, page_token="next")
+    ),
+    "admin-api GET /api/v1/admin/measurement/predictions/sources": (
+        lambda c: c.admin.predictions.list_signal_sources("acme", page_size=10, page_token="next")
+    ),
+    "admin-api GET /api/v1/admin/retention/policies/{tenantSlug}/runs": (
+        lambda c: c.admin.retention.list_runs("acme", limit=10, offset=10)
+    ),
+    "admin-api GET /api/v1/admin/time-plans/runs/{runUuid}/annotations": (
+        lambda c: c.admin.time_plans.list_annotations("acme", U, limit=10)
+    ),
+    "admin-api GET /api/v1/admin/time-plans/runs/{runUuid}/history": (
+        lambda c: c.admin.time_plans.history("acme", U, limit=10)
+    ),
+    "admin-api GET /api/v1/admin/time-plans": lambda c: c.admin.time_plans.list("acme", limit=10),
+    "admin-api GET /api/v1/admin/usage/me": lambda c: c.admin.usage.get(USAGE_WINDOW),
+    "admin-api GET /api/v1/admin/subject-exports": lambda c: c.admin.subject_exports.list(limit=10),
+    "admin-api GET /api/v1/data-spaces": lambda c: c.provisioning.data_spaces.list("parent"),
+    "admin-api GET /api/v1/data-spaces/usage": lambda c: c.provisioning.data_spaces.get_usage("parent"),
+    "admin-api POST /api/v1/data-spaces": lambda c: c.provisioning.data_spaces.create({}, "parent"),
+    f"admin-api GET {_RESERVATIONS}": lambda c: c.provisioning.reservations.list("acme", "parent"),
+    f"admin-api POST {_RESERVATIONS}": (
+        lambda c: c.provisioning.reservations.reserve("acme", {"producerSlug": "web", "ttlSeconds": 60}, "parent")
+    ),
+    f"admin-api POST {_RESERVATIONS}/{{producerSlug}}/claim": (
+        lambda c: c.provisioning.reservations.claim("acme", "web", {"claimedByClientId": U}, "parent")
+    ),
+    f"admin-api DELETE {_RESERVATIONS}/{{producerSlug}}": (
+        lambda c: c.provisioning.reservations.release("acme", "web", "parent")
+    ),
+    "admin-api GET /api/v1/producer-provisioning": lambda c: c.provisioning.producers.list("acme"),
+    f"admin-api DELETE {_SITE_DOMAINS}/keyword-lists": lambda c: c.admin.site_domains.delete_keyword_list("core", U),
+    f"admin-api GET {_SITE_DOMAINS}/alert-destination": lambda c: c.admin.site_domains.get_alert_destination(U),
+    f"admin-api PUT {_SITE_DOMAINS}/alert-destination": (
+        lambda c: c.admin.site_domains.set_alert_destination("ops@example.com", U)
+    ),
+    f"admin-api GET {_SITE_DOMAINS}/content-gap": lambda c: c.admin.site_domains.get_content_gap(U, "seed"),
+    f"admin-api GET {_SITE_DOMAINS}/search-pool/queries": (
+        lambda c: c.admin.site_domains.list_search_pool_queries("custd", 10)
+    ),
+    f"admin-api GET {_SITE_DOMAINS}/keyword-clusters": lambda c: c.admin.site_domains.get_keyword_clusters("core", U),
+    f"admin-api GET {_SITE_DOMAINS}/keyword-lists": lambda c: c.admin.site_domains.list_keyword_lists(U),
+    f"admin-api PUT {_SITE_DOMAINS}/keyword-lists": (
+        lambda c: c.admin.site_domains.save_keyword_list({"name": "Core", "keywords": ["custd"]}, U)
+    ),
+    f"admin-api GET {_SITE_DOMAINS}/project-context": lambda c: c.admin.site_domains.get_project_context(U),
+    f"admin-api PUT {_SITE_DOMAINS}/project-context": lambda c: c.admin.site_domains.set_project_context({}, U),
+    f"admin-api GET {_SITE_DOMAINS}/referring-domains": (
+        lambda c: c.admin.site_domains.get_referring_domains("example.com", U)
+    ),
+    f"admin-api GET {_SITE_DOMAINS}/regional-trends": lambda c: c.admin.site_domains.get_regional_trends(U),
+    f"admin-api GET {_SITE_DOMAINS}/topic-trends": lambda c: c.admin.site_domains.get_topic_trends(U),
+    f"admin-api GET {_SITE_DOMAINS}/web-domains": lambda c: c.admin.site_domains.get_web_domains(U),
+    f"admin-api GET {_SITE_DOMAINS}/web-pages": (
+        lambda c: c.admin.site_domains.list_web_pages("example.com", U, after="next", limit=10)
+    ),
+    f"admin-api GET {_SITE_DOMAINS}": lambda c: c.admin.site_domains.list(U),
+    f"admin-api GET {_SITE_DOMAINS}/{{domainUuid}}/ai-visibility": (
+        lambda c: c.admin.site_domains.get_ai_visibility(U, "2026-11-01", "2026-11-02")
+    ),
+    f"admin-api GET {_SITE_DOMAINS}/{{domainUuid}}/audit-pages": (
+        lambda c: c.admin.site_domains.list_audit_pages(U, 1, 1)
+    ),
+    f"admin-api GET {_SITE_DOMAINS}/{{domainUuid}}/campaign-links": (
+        lambda c: c.admin.site_domains.list_campaign_links(U, True)
+    ),
+    f"admin-api GET {_SITE_DOMAINS}/{{domainUuid}}/search-value": (
+        lambda c: c.admin.site_domains.get_search_value(U, ["signup"], 7)
+    ),
+    f"admin-api GET {_SITE_DOMAINS}/{{domainUuid}}/search/rows": (
+        lambda c: c.admin.site_domains.list_search_rows(U, "query", provider="google", days=7, offset=1, limit=1)
+    ),
+    f"admin-api GET {_SITE_DOMAINS}/{{domainUuid}}/search": lambda c: c.admin.site_domains.get_search_performance(U, 7),
+    f"admin-api GET {_SITE_DOMAINS}/{{domainUuid}}/export/search-metrics": (
+        lambda c: c.admin.site_domains.export_search_metrics(U, 1, 1)
+    ),
+    f"admin-api GET {_SITE_DOMAINS}/{{domainUuid}}/findings/{{findingUuid}}/search-impact": (
+        lambda c: c.admin.site_domains.get_finding_search_impact(U, U, 7)
+    ),
+    f"admin-api GET {_SITE_DOMAINS}/{{domainUuid}}/findings": lambda c: c.admin.site_domains.list_findings(U, "open"),
+    f"admin-api GET {_SITE_DOMAINS}/{{domainUuid}}/lighthouse": (
+        lambda c: c.admin.site_domains.get_lighthouse_history(U, 7, "https://example.com/")
+    ),
+    f"admin-api GET {_SITE_DOMAINS}/{{domainUuid}}/rankings": lambda c: c.admin.site_domains.get_rankings(U, 7),
+    f"admin-api GET {_SITE_DOMAINS}/{{domainUuid}}/report": (
+        lambda c: c.admin.site_domains.get_report(U, template="executive", days=7)
+    ),
+    f"admin-api GET {_SITE_DOMAINS}/{{domainUuid}}/traffic": (
+        lambda c: c.admin.site_domains.get_traffic(U, "2026-11-01", "2026-11-02")
+    ),
+    f"admin-api GET {_SITE_DOMAINS}/{{domainUuid}}/uptime-history": (
+        lambda c: c.admin.site_domains.get_uptime_history(U, 7)
+    ),
+    "admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/releases": (
+        lambda c: c.admin.auth_projects.list_app_releases(U, U, 10)
+    ),
+    "admin-api GET /api/v1/app/item/measurements": lambda c: _link().list_measurements(after="next", item=U),
+    "admin-api GET /api/v1/app/item/runs": lambda c: _link().list_runs(after="next"),
+    "admin-api GET /api/v1/admin/workflow-timings/definitions": (
+        lambda c: c.admin.workflow_timings.list_definitions(limit=10)
+    ),
+    "admin-api GET /api/v1/admin/users": lambda c: c.admin.users.list(
+        {
+            "role": "tenant_admin",
+            "globalState": "active",
+            "membershipState": "active",
+            "welcomeStatus": "sent",
+            "includeEnded": True,
+            "includeDeleted": True,
+        }
+    ),
+    "admin-api GET /api/v1/admin/users/{userUuid}": lambda c: c.admin.users.get(U, include_ended=True),
+    "admin-api POST /api/v1/admin/users/{userUuid}/disable": (
+        lambda c: c.admin.users.disable(U, {"reason": "left", "globalUser": True})
+    ),
+    "admin-api POST /api/v1/admin/users/{userUuid}/enable": (
+        lambda c: c.admin.users.enable(U, {"roles": ["tenant_admin"], "globalUser": True})
+    ),
+    "admin-api GET /api/v1/admin/uncertainty-models": lambda c: c.admin.uncertainty_models.list(source="manual"),
+    "analytics-api GET /api/v1/measurement/predictions/definitions/{definitionUuid}/runs": (
+        lambda c: c.measurement.predictions.list_runs("a1", since="2026-11-01T00:00:00Z")
+    ),
+    "admin-api GET /api/v1/admin/time-plans/runs/{runUuid}/predictions": (
+        lambda c: c.admin.time_plans.list_run_predictions("acme", "a1", limit=10)
+    ),
+    "analytics-api GET /api/v1/telemetry/event-count": (
+        lambda c: c.analytics.telemetry_event_count("2026-11-26", event_type="page_view")
+    ),
+    "admin-api DELETE /api/v1/admin/privacy/consent/{subjectId}": (
+        lambda c: c.admin.privacy.delete_consent("a1", "a1", source="banner")
+    ),
+    "admin-api GET /api/v1/admin/accounting/evidence": (
+        lambda c: c.admin.accounting_evidence.list(as_of="2026-11-01T00:00:00Z", limit=10)
+    ),
+    "admin-api GET /api/v1/admin/ingest/claims/{tenantSlug}": lambda c: c.admin.ingest_claims.list("a1", limit=10),
+    "admin-api GET /api/v1/admin/usage": lambda c: c.admin.usage.list_usage(USAGE_WINDOW),
+    "admin-api GET /api/v1/admin/usage/export": lambda c: c.admin.usage.export_usage(USAGE_WINDOW),
+    "admin-api GET /api/v1/error-issues": lambda c: c.admin.error_issues.list(
+        site_uuid=U, state="open", sort="last_seen", limit=10, cursor="next"
+    ),
+}
+
+
 def load_operations() -> dict[str, dict[str, Any]]:
     snapshot = json.loads((API / "operations.json").read_text(encoding="utf-8"))
     return {operation["id"]: operation for operation in snapshot["operations"]}
@@ -2388,9 +2650,17 @@ def template_pattern(path: str) -> re.Pattern[str]:
     return re.compile("^" + re.sub(r"\\\{[^}]+\\\}", "[^/]+", re.escape(path)) + "$")
 
 
+def recording(urlopen: "RecordingUrlopen") -> Any:
+    """Route the default transport and the no-redirect transport through one recorder."""
+    stack = contextlib.ExitStack()
+    stack.enter_context(mock.patch("custd.client.urllib.request.urlopen", urlopen))
+    stack.enter_context(mock.patch("custd.client._NO_REDIRECT_OPENER.open", urlopen))
+    return stack
+
+
 def send(case: RouteCase, body: bytes = b"{}") -> list[tuple[str, str]]:
     urlopen = RecordingUrlopen(body)
-    with mock.patch("custd.client.urllib.request.urlopen", urlopen):
+    with recording(urlopen):
         client = CustdClient(base_url=BASE_URL, token="token")
         try:
             case.call(client)
@@ -2400,8 +2670,21 @@ def send(case: RouteCase, body: bytes = b"{}") -> list[tuple[str, str]]:
     return urlopen.requests
 
 
+def query_sent(call: Callable[[CustdClient], object], acting_company: str = "", owned_item: bool = False) -> set[str]:
+    """The query parameter names ``call`` sends, optionally with an acting company or as the owned item."""
+    urlopen = RecordingUrlopen()
+    with recording(urlopen), contextlib.ExitStack() as stack:
+        if owned_item:
+            stack.enter_context(mock.patch(f"{__name__}._link", lambda: _app().owned_item(U)))
+        try:
+            call(CustdClient(base_url=BASE_URL, token="token", acting_company_slug=acting_company))
+        except DECODE_ERRORS:
+            pass
+    return {name for _, url in urlopen.requests for name, _ in parse_qsl(urlsplit(url).query)}
+
+
 def decode(case: RouteCase, body: object) -> Any:
-    with mock.patch("custd.client.urllib.request.urlopen", RecordingUrlopen(json.dumps(body).encode("utf-8"))):
+    with recording(RecordingUrlopen(json.dumps(body).encode("utf-8"))):
         return case.call(CustdClient(base_url=BASE_URL, token="token"))
 
 
@@ -2426,6 +2709,25 @@ class SurfaceConformanceTest(unittest.TestCase):
                 method, url = requests[0]
                 self.assertEqual(expected_method, method)
                 self.assertEqual(case.path, urlsplit(url).path)
+
+    def test_each_route_case_sends_its_required_query_parameters(self) -> None:
+        for operation_id, case in ROUTES.items():
+            required = {q["name"] for q in self.operations[operation_id].get("query") or [] if q["required"]}
+            with self.subTest(operation_id):
+                self.assertLessEqual(required, query_sent(case.call))
+
+    def test_every_declared_query_parameter_can_be_sent(self) -> None:
+        self.assertLessEqual(set(QUERY_CASES), set(ROUTES))
+        for operation_id, case in ROUTES.items():
+            declared = {q["name"] for q in self.operations[operation_id].get("query") or []}
+            owned = "item" in declared
+            sent = query_sent(case.call, "acme", owned)
+            with self.subTest(operation_id):
+                if operation_id in QUERY_CASES:
+                    extra = query_sent(QUERY_CASES[operation_id], "acme", owned)
+                    self.assertTrue(extra - sent, "the query case sends nothing the route case does not")
+                    sent |= extra
+                self.assertEqual(set(), declared - sent, "declared but never sent")
 
     def test_null_lists_decode_as_empty(self) -> None:
         for operation_id, field_path in NULL_LISTS.items():

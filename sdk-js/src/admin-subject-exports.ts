@@ -67,6 +67,9 @@ export type SubjectExportDownloadResponse = {
   expiresAt: string;
 };
 
+/** force's options: companySlug names the tenant that owns the export. */
+export type SubjectExportForceOptions = RequestOptions & { companySlug?: string };
+
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 
 function exportPath(requestId: string, action = ""): string {
@@ -110,7 +113,15 @@ export class SubjectExportClient {
     return this.request("GET", `${exportPath(requestId, "/download")}?${query}`, undefined, options);
   }
 
-  async force(requestId: string, options?: RequestOptions): Promise<SubjectExport> {
-    return normalizeExport(await this.request("POST", exportPath(requestId, "/force"), undefined, options));
+  /**
+   * Restarts a stuck export. The route is system-admin only and names the owning tenant in companySlug;
+   * without one the client's actingCompanySlug is sent.
+   */
+  async force(requestId: string, options: SubjectExportForceOptions = {}): Promise<SubjectExport> {
+    const { companySlug, ...requestOptions } = options;
+    const query = companySlug ? `?${new URLSearchParams({ companySlug })}` : "";
+    return normalizeExport(
+      await this.request("POST", `${exportPath(requestId, "/force")}${query}`, undefined, requestOptions),
+    );
   }
 }

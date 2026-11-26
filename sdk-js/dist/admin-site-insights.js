@@ -18,14 +18,14 @@ export const SITE_SEARCH_INSPECTION_URL_INVALID_CODE = "site_search_inspection_u
 export const SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE = "site_search_inspection_not_connected";
 /** A 429 on requestSearchInspection: the tenant's daily URL inspections are used up. */
 export const SITE_SEARCH_INSPECTION_LIMIT_CODE = "site_search_inspection_limit";
-/** What a fix changes. An unknown rule carries an empty kind; newer kinds may appear. */
+/** What a fix changes. An unknown rule carries an empty kind. */
 export const SiteRemedyKind = {
     Markup: "markup",
     Setting: "setting",
     Content: "content",
     Server: "server",
 };
-/** The formats generated fix code comes in; newer formats may appear. */
+/** The formats generated fix code comes in. */
 export const SiteGeneratedFormat = {
     HTML: "html",
     RobotsTxt: "robots.txt",
@@ -52,7 +52,7 @@ export const SITE_INDEXNOW_KEY_UNVERIFIED_CODE = "site_indexnow_key_unverified";
 export const SITE_INDEXNOW_URLS_INVALID_CODE = "site_indexnow_urls_invalid";
 /** A 429 on submitIndexNow: the tenant's daily IndexNow URLs are used up. */
 export const SITE_INDEXNOW_LIMIT_CODE = "site_indexnow_limit";
-/** An IndexNow submission's status; newer statuses may appear. */
+/** An IndexNow submission's status. */
 export const IndexNowSubmissionStatus = {
     Queued: "queued",
     Accepted: "accepted",

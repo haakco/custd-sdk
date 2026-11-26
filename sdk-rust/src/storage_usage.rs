@@ -75,7 +75,7 @@ pub struct StorageAlertRuleListResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StorageAlertRule {
-    pub channel: String,
+    pub channel: StorageAlertRuleChannel,
     pub created_at: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub email_recipient: Option<String>,
@@ -99,10 +99,10 @@ pub struct StorageAlertEvaluation {
     pub measured_value: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StorageAlertRuleCreateRequest {
-    pub channel: String,
+    pub channel: StorageAlertRuleChannel,
     pub email_recipient: String,
     pub enabled: bool,
     pub metric: String,
@@ -119,7 +119,7 @@ pub struct StorageAlertEventListResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StorageAlertEvent {
-    pub channel: String,
+    pub channel: StorageAlertRuleChannel,
     pub delivery: StorageAlertDelivery,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub email_recipient: Option<String>,
@@ -193,6 +193,24 @@ pub struct UsageTotal {
     pub meter_slug: String,
     pub quantity: i64,
     pub unit: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum StorageAlertRuleChannel {
+    #[serde(rename = "email")]
+    Email,
+    #[serde(rename = "webhook")]
+    Webhook,
+}
+
+impl StorageAlertRuleChannel {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Email => "email",
+            Self::Webhook => "webhook",
+        }
+    }
 }
 
 impl CustdClient {

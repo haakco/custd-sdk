@@ -2,9 +2,10 @@
 
 For each route case whose operation has an example, the public method's declared return type is
 resolved and walked alongside the maximal example, which carries every field the server sends. A
-key the server sends that the DTO lacks fails, and so does a DTO field the server never sends. An
-untyped value (``Any``, ``object`` or ``dict[str, Any]``) over a structured object fails unless it
-is a genuinely free-form map named in FREE_FORM. The walk fails closed: a row whose method or
+key the server sends that the DTO lacks fails, and so does a DTO field the server never sends, or a
+Literal that does not admit the value the server sends. An untyped value (``Any``, ``object`` or
+``dict[str, Any]``) over a structured object fails unless it is a genuinely free-form map named in
+FREE_FORM. The walk fails closed: a row whose method or
 return type cannot be resolved, or whose shape does not line up, is reported, never skipped.
 """
 
@@ -35,48 +36,25 @@ UNSHOWN_FIELDS: dict[str, str] = {
     "TimePlanThresholdCue.remainingFractionBps": (
         "a cue carries remainingMs or remainingFractionBps, never both; the example shows remainingMs"
     ),
-    **{
-        f"ScheduledTaskRun.{field}": "dto.ScheduledTaskRunProof (omitempty) is not yet in the OpenAPI snapshot"
-        for field in (
-            "jobsCompacted",
-            "rowsCompacted",
-            "bytesCompacted",
-            "sourcesRetired",
-            "bytesRetired",
-            "regionalTrendReads",
-            "regionalTrendItems",
-            "regionalTrendFailures",
-            "hackerNewsReads",
-            "hackerNewsItems",
-            "hackerNewsFailures",
-        )
-    },
-    **{
-        f"PredictionDefinition.{field}": "dto.MeasurementPredictionDefinitionAudit is not yet in the OpenAPI snapshot"
-        for field in ("created_at", "updated_at")
-    },
+}
+
+# Literal fields whose example value the SDK rightly does not admit. Keyed by "<DTO>.<field>".
+LITERAL_EXAMPLES: dict[str, str] = {
+    "SiteDomainOwnership.verifiedBy": "siteaudit's verifiedBy carries no enum tag, so the example is \"example\"",
+    "SiteAITenantUsage.period": "the tenant read is always the current month; the shared enum also has day",
 }
 
 # Operations whose example is not the body the SDK method decodes. Each is reported to the owner.
 UNCHECKED_BODY: dict[str, str] = {
-    "admin-api POST /api/v1/admin/tenants/{slug}/historical-cleanup": (
-        "OpenAPI declares a free-form object; the handler writes offboarding.TenantOffboardingReceipt"
-    ),
     "admin-api GET /api/v1/admin/audit/events/export": (
         "the method returns the raw download (format=csv or json) with its headers, not a decoded page"
     ),
 }
 
-# Example bodies a method's own validation rightly refuses: the snapshot fills an enum it does not
-# declare with "example", or omits per-row results the SDK requires. The test asserts the refusal.
-_TIME_PLAN_BASIS = "a time-plan block basis is a closed set the snapshot fills with \"example\""
+# Example bodies a method's own validation rightly refuses: the snapshot omits per-row results the
+# SDK requires. The test asserts the refusal.
 _ROW_RESULTS = "the SDK requires one result per submitted row; the minimal example has none"
 REFUSED_EXAMPLES: dict[tuple[str, str], str] = {
-    ("admin-api GET /api/v1/admin/time-plans", "maximal"): _TIME_PLAN_BASIS,
-    ("admin-api GET /api/v1/admin/time-plans/{planUuid}", "maximal"): _TIME_PLAN_BASIS,
-    ("admin-api PATCH /api/v1/admin/time-plans/{planUuid}", "maximal"): _TIME_PLAN_BASIS,
-    ("admin-api POST /api/v1/admin/time-plans", "maximal"): _TIME_PLAN_BASIS,
-    ("admin-api POST /api/v1/admin/time-plans/{planUuid}/retire", "maximal"): _TIME_PLAN_BASIS,
     ("admin-api POST /api/v1/app/item/measurements", "minimal"): _ROW_RESULTS,
     ("admin-api POST /api/v1/app/item/measurements/csv", "minimal"): _ROW_RESULTS,
     ("admin-api POST /api/v1/admin/measurement/projects/{projectUuid}/observations:bulk", "minimal"): _ROW_RESULTS,
@@ -177,6 +155,11 @@ class FieldWalk:
             self.walk_map(typing.get_args(hint)[1], value, path, owner)
         elif is_structured(hint) or (origin is not None and is_structured(origin)):
             self.walk_object(origin or hint, value, path)
+        elif origin is typing.Literal and value not in typing.get_args(hint):
+            if owner in LITERAL_EXAMPLES:
+                self.exemptions_used.add(owner)
+            else:
+                self.report(path, f"declared {hint!r} but the server sends {value!r}")
         elif isinstance(value, (dict, list)):
             self.report(path, f"declared {hint!r} but the server sends a {type(value).__name__}")
 
@@ -264,7 +247,7 @@ class ResponseFieldConformanceTest(unittest.TestCase):
                 walk.walk(hint, load_example(operation)["maximal"], ROOT)
                 self.assertEqual([], walk.drifts)
                 used |= walk.exemptions_used
-        self.assertEqual(set(FREE_FORM) | set(UNSHOWN_FIELDS), used, "an exemption no longer applies")
+        self.assertEqual(set(FREE_FORM) | set(UNSHOWN_FIELDS) | set(LITERAL_EXAMPLES), used, "an exemption is stale")
 
     def test_every_method_decodes_the_server_examples(self) -> None:
         for operation_id, operation in example_rows().items():

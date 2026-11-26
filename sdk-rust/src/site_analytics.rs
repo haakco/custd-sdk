@@ -9,6 +9,7 @@ use crate::Result;
 use crate::api_path::{NO_BODY, SITE_DOMAINS, api_path};
 use crate::client::CustdClient;
 use crate::measurement::null_as_empty;
+use crate::site_insights_admin::SiteAIPlatformUsagePeriod;
 use crate::transport::{Method, percent_encode};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -257,7 +258,7 @@ pub struct SiteAIPage {
 pub struct SiteAISettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub accepted_terms_version: Option<String>,
-    pub ai_mode: String,
+    pub ai_mode: SiteAIMode,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub consent_accepted_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -275,12 +276,12 @@ pub struct SiteAISettings {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SiteAITenantUsage {
-    pub ai_mode: String,
+    pub ai_mode: SiteAIMode,
     pub from: String,
     pub monthly_cap_usd_micros: i64,
     /// Usage counted toward the active monthly cap.
     pub monthly_cap_used_usd_micros: i64,
-    pub period: String,
+    pub period: SiteAIPlatformUsagePeriod,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub rows: Vec<SiteAIUsageRow>,
     pub until: String,
@@ -315,21 +316,60 @@ pub struct SiteAIUsageRow {
     pub unsettled_attempts: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SiteAISettingsRequest {
-    pub ai_mode: String,
+    pub ai_mode: SiteAIMode,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
     pub monthly_cap_usd_micros: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SiteAIConsentRequest {
-    pub action: String,
+    pub action: SiteAIConsentAction,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub terms_version: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SiteAIMode {
+    #[serde(rename = "off")]
+    Off,
+    #[serde(rename = "platform")]
+    Platform,
+    #[serde(rename = "own-key")]
+    OwnKey,
+}
+
+impl SiteAIMode {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Platform => "platform",
+            Self::OwnKey => "own-key",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SiteAIConsentAction {
+    #[serde(rename = "grant")]
+    Grant,
+    #[serde(rename = "revoke")]
+    Revoke,
+}
+
+impl SiteAIConsentAction {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Grant => "grant",
+            Self::Revoke => "revoke",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

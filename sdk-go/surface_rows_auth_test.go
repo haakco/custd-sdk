@@ -176,7 +176,7 @@ var authProjectSurfaceRows = []surfaceRow{
 		id:   "admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/principals",
 		path: "/api/v1/admin/auth-projects/a1/environments/a2/principals",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Admin.AuthProjects.ListPrincipals(context.Background(), "a1", "a2", ApplicationPrincipalListQuery{}, AuthProjectRequestOptions{})
+			_, err := e.client.Admin.AuthProjects.ListPrincipals(context.Background(), "a1", "a2", ApplicationPrincipalListQuery{Cursor: "c1", Limit: 5}, AuthProjectRequestOptions{})
 			return err
 		},
 	},

@@ -1,4 +1,4 @@
-import { dto, type RowArea } from "./surface-conformance.test-helper";
+import { dto, type RowArea, usageWindow } from "./surface-conformance.test-helper";
 
 const idempotent = { idempotencyKey: "idempotency-key-1" };
 
@@ -144,7 +144,7 @@ export const operatorRows: RowArea = {
     {
       id: "admin-api GET /api/v1/admin/accounting/evidence",
       query: { limit: "5" },
-      call: (c) => c.custd.admin.accountingEvidence.list({ limit: 5 }),
+      call: (c) => c.custd.admin.accountingEvidence.list({ asOf: "2026-11-20T06:00:00Z", limit: 5 }),
     },
     {
       id: "admin-api POST /api/v1/admin/accounting/evidence",
@@ -153,12 +153,12 @@ export const operatorRows: RowArea = {
     {
       id: "admin-api GET /api/v1/admin/usage",
       query: { companySlug: "acme" },
-      call: (c) => c.custd.admin.usage.listUsage({ companySlug: "acme" }),
+      call: (c) => c.custd.admin.usage.listUsage({ companySlug: "acme", ...usageWindow }),
     },
     {
       id: "admin-api GET /api/v1/admin/usage/export",
       query: { companySlug: "acme" },
-      call: (c) => c.custd.admin.usage.exportUsage({ companySlug: "acme" }),
+      call: (c) => c.custd.admin.usage.exportUsage({ companySlug: "acme", ...usageWindow }),
     },
     { id: "admin-api GET /api/v1/admin/storage-usage", call: (c) => c.custd.admin.usage.listStorageUsage() },
     { id: "admin-api GET /api/v1/admin/storage-usage/me", call: (c) => c.custd.admin.usage.getRetainedUsage() },

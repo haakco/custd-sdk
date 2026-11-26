@@ -43,7 +43,7 @@ fn project_series_carry_the_unit_label() {
     let server = FakeServer::start(vec![answer(200, &project)]);
     let client = CustdClient::new(&server.base_url, "token-1");
 
-    let project = client.get_measurement_project("p-1").unwrap();
+    let project = client.get_measurement_project("p-1", None).unwrap();
 
     assert_eq!(project.series[0].unit_label.as_deref(), Some("tasks"));
 }
@@ -54,7 +54,7 @@ fn creates_a_project_with_identity_and_bearer() {
     let client = CustdClient::new(format!("{}/", server.base_url), "token-1");
 
     let project = client
-        .create_measurement_project(&project_create())
+        .create_measurement_project(&project_create(), None)
         .unwrap();
 
     assert_eq!(
@@ -91,6 +91,7 @@ fn observation_import_checks_every_row() {
         &MeasurementObservationBulk {
             rows: vec![row(), row()],
         },
+        None,
     );
 
     assert!(
@@ -109,7 +110,7 @@ fn problem_details_become_a_typed_error() {
     "retryability":"none","nextAction":{}}"#;
     let server = FakeServer::start(vec![answer(404, problem)]);
 
-    let result = CustdClient::new(&server.base_url, "t").get_measurement_project("missing");
+    let result = CustdClient::new(&server.base_url, "t").get_measurement_project("missing", None);
 
     let Err(Error::Api(api)) = result else {
         panic!("want Api error, got {result:?}")

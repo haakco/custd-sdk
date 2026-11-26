@@ -177,6 +177,11 @@ pub(crate) fn execute(transport: &dyn Transport, request: &HttpRequest) -> Resul
     let response = transport
         .send(request)
         .map_err(|error| Error::Transport(error.message().to_owned()))?;
+    checked(response)
+}
+
+/// A 2xx or 304 answer as is; anything else becomes [`Error::Api`].
+pub(crate) fn checked(response: HttpResponse) -> Result<HttpResponse> {
     if (200..300).contains(&response.status) || response.status == 304 {
         return Ok(response);
     }

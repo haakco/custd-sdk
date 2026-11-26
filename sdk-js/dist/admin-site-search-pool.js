@@ -27,7 +27,7 @@ export const SEARCH_POOL_MIN_CONTRIBUTORS = 5;
 export const SEARCH_POOL_MIN_IMPRESSIONS = 100;
 /** The days the pool covers. */
 export const SEARCH_POOL_WINDOW_DAYS = 28;
-/** A pooled query's impressions over the window; newer bands may appear. */
+/** A pooled query's impressions over the window. */
 export const SearchPoolDemandBand = {
     Hundreds: "100_999",
     Thousands: "1k_10k",

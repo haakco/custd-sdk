@@ -29,10 +29,10 @@ pub struct AdminUser {
     #[serde(default)]
     pub deleted_by_user_uuid: Option<String>,
     pub email: String,
-    pub global_user_state: String,
+    pub global_user_state: AdminUserGlobalUserState,
     #[serde(default)]
     pub last_login_at: Option<String>,
-    pub membership_state: String,
+    pub membership_state: AdminUserMembershipState,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub roles: Vec<TenantRole>,
     pub user_uuid: String,
@@ -102,7 +102,43 @@ pub struct AdminUserRoleListResponse {
 pub struct AdminUserRole {
     pub description: String,
     pub name: String,
-    pub slug: String,
+    pub slug: TenantRole,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AdminUserGlobalUserState {
+    #[serde(rename = "enabled")]
+    Enabled,
+    #[serde(rename = "suspended")]
+    Suspended,
+}
+
+impl AdminUserGlobalUserState {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Enabled => "enabled",
+            Self::Suspended => "suspended",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AdminUserMembershipState {
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "ended")]
+    Ended,
+}
+
+impl AdminUserMembershipState {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::Ended => "ended",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -257,7 +293,6 @@ impl CustdClient {
     pub fn reset_admin_user_password(
         &self,
         user_uuid: &str,
-        include_ended: Option<bool>,
         company_slug: Option<&str>,
     ) -> Result<AdminPasswordResetResponse> {
         let path = api_path(
@@ -265,7 +300,7 @@ impl CustdClient {
                 "/api/v1/admin/users/{}/reset-password",
                 percent_encode(user_uuid)
             ),
-            &[("includeEnded", include_ended.map(|v| v.to_string()))],
+            &[],
             company_slug,
         );
         self.call(Method::Post, &path, NO_BODY)
@@ -290,7 +325,6 @@ impl CustdClient {
     pub fn retry_admin_user_welcome(
         &self,
         user_uuid: &str,
-        include_ended: Option<bool>,
         company_slug: Option<&str>,
     ) -> Result<()> {
         let path = api_path(
@@ -298,7 +332,7 @@ impl CustdClient {
                 "/api/v1/admin/users/{}/retry-welcome",
                 percent_encode(user_uuid)
             ),
-            &[("includeEnded", include_ended.map(|v| v.to_string()))],
+            &[],
             company_slug,
         );
         self.call(Method::Post, &path, NO_BODY)

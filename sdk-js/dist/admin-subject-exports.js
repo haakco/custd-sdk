@@ -32,7 +32,13 @@ export class SubjectExportClient {
         const query = new URLSearchParams({ scope });
         return this.request("GET", `${exportPath(requestId, "/download")}?${query}`, undefined, options);
     }
-    async force(requestId, options) {
-        return normalizeExport(await this.request("POST", exportPath(requestId, "/force"), undefined, options));
+    /**
+     * Restarts a stuck export. The route is system-admin only and names the owning tenant in companySlug;
+     * without one the client's actingCompanySlug is sent.
+     */
+    async force(requestId, options = {}) {
+        const { companySlug, ...requestOptions } = options;
+        const query = companySlug ? `?${new URLSearchParams({ companySlug })}` : "";
+        return normalizeExport(await this.request("POST", `${exportPath(requestId, "/force")}${query}`, undefined, requestOptions));
     }
 }

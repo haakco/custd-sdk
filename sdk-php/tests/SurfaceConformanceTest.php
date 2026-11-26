@@ -48,70 +48,14 @@ final class SurfaceConformanceTest extends TestCase
      * A refusal that stops matching fails its case, so a fixed example removes its entry.
      */
     private const FIXTURE_LIMITS = [
-        // The OpenAPI field is a free string, so the example carries the "example" placeholder where the server
-        // only ever sends one of the closed values the SDK checks.
-        'admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/directories/{directoryId}/principals/{providerSubject}/export maximal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/status maximal' => 'custd: auth-project identityMode must be isolated or shared',
-        'admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/status minimal' => 'custd: auth-project identityMode must be isolated or shared',
-        'admin-api GET /api/v1/admin/data-scope-grants maximal' => 'custd: data scope principal kind must be "human" or "machine"',
-        'admin-api GET /api/v1/admin/reporting-packs/drafts maximal' => 'custd: rounding policy mode must be one of half_up, half_even, down, up',
-        'admin-api GET /api/v1/admin/reporting-packs/drafts/{draftId} maximal' => 'custd: rounding policy mode must be one of half_up, half_even, down, up',
-        'admin-api GET /api/v1/admin/reporting-packs/setup-templates maximal' => 'custd: rounding policy mode must be one of half_up, half_even, down, up',
-        'admin-api GET /api/v1/admin/site-insights/ai-usage maximal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/admin/site-insights/ai-usage minimal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/admin/time-plans maximal' => 'custd: time-plan block basis is invalid',
-        'admin-api GET /api/v1/admin/time-plans/{planUuid} maximal' => 'custd: time-plan block basis is invalid',
-        'admin-api GET /api/v1/site-domains/ai-settings maximal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/site-domains/ai-settings minimal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/site-domains/ai-usage maximal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/site-domains/ai-usage minimal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/site-domains/{domainUuid}/export maximal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/site-domains/{domainUuid}/report maximal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/site-domains/{domainUuid}/saved-reports/{reportUuid} maximal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/site-domains/{domainUuid}/search maximal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/site-domains/{domainUuid}/search/rows maximal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/site-domains/{domainUuid}/search/rows minimal' => 'is not a valid backing value',
-        'admin-api PATCH /api/v1/admin/time-plans/{planUuid} maximal' => 'custd: time-plan block basis is invalid',
-        'admin-api POST /api/v1/admin/data-scope-grants maximal' => 'custd: data scope principal kind must be "human" or "machine"',
-        'admin-api POST /api/v1/admin/data-scope-grants minimal' => 'custd: data scope principal kind must be "human" or "machine"',
-        'admin-api POST /api/v1/admin/reporting-packs/drafts maximal' => 'custd: rounding policy mode must be one of half_up, half_even, down, up',
-        'admin-api POST /api/v1/admin/reporting-packs/drafts/{draftId}/publish maximal' => 'custd: rounding policy mode must be one of half_up, half_even, down, up',
-        'admin-api POST /api/v1/admin/reporting-packs/setup-templates/{kind}/bind maximal' => 'custd: rounding policy mode must be one of half_up, half_even, down, up',
-        'admin-api POST /api/v1/admin/time-plans maximal' => 'custd: time-plan block basis is invalid',
-        'admin-api POST /api/v1/admin/time-plans/{planUuid}/retire maximal' => 'custd: time-plan block basis is invalid',
-        'admin-api POST /api/v1/site-domains/{domainUuid}/saved-reports maximal' => 'is not a valid backing value',
-        'admin-api POST /api/v1/site-domains/{domainUuid}/search/{provider}/retry maximal' => 'is not a valid backing value',
-        'admin-api POST /api/v1/site-domains/{domainUuid}/search/{provider}/retry minimal' => 'is not a valid backing value',
-        'admin-api PUT /api/v1/admin/reporting-packs/drafts/{draftId} maximal' => 'custd: rounding policy mode must be one of half_up, half_even, down, up',
-        'admin-api PUT /api/v1/site-domains/ai-settings maximal' => 'is not a valid backing value',
-        'admin-api PUT /api/v1/site-domains/ai-settings minimal' => 'is not a valid backing value',
-        'admin-api PUT /api/v1/site-domains/ai-settings/consent maximal' => 'is not a valid backing value',
-        'admin-api PUT /api/v1/site-domains/ai-settings/consent minimal' => 'is not a valid backing value',
-        'admin-api PUT /api/v1/site-domains/{domainUuid}/saved-reports/{reportUuid} maximal' => 'is not a valid backing value',
-        'admin-api PUT /api/v1/site-domains/{domainUuid}/search/{provider} maximal' => 'is not a valid backing value',
-        'admin-api PUT /api/v1/site-domains/{domainUuid}/search/{provider} minimal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/releases maximal' => 'is not a valid backing value',
-        'admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/releases maximal' => 'is not a valid backing value',
-        'admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/releases minimal' => 'is not a valid backing value',
-        'admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/releases/{releaseId}/verify maximal' => 'is not a valid backing value',
-        'admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/releases/{releaseId}/verify minimal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/data-spaces/{slug}/producer-reservations maximal' => 'is not a valid backing value',
-        'admin-api POST /api/v1/data-spaces/{slug}/producer-reservations maximal' => 'is not a valid backing value',
-        'admin-api POST /api/v1/data-spaces/{slug}/producer-reservations minimal' => 'is not a valid backing value',
-        'admin-api POST /api/v1/data-spaces/{slug}/producer-reservations/{producerSlug}/claim maximal' => 'is not a valid backing value',
-        'admin-api POST /api/v1/data-spaces/{slug}/producer-reservations/{producerSlug}/claim minimal' => 'is not a valid backing value',
-        'admin-api GET /api/v1/admin/reporting-packs/generations/{generationId} maximal' => 'custd: rounding policy mode must be one of half_up, half_even, down, up',
-        'admin-api POST /api/v1/admin/reporting-packs/drafts/{draftId}/restart maximal' => 'custd: rounding policy mode must be one of half_up, half_even, down, up',
-        'admin-api POST /api/v1/admin/reporting-packs/generations/{generationId}/rollback maximal' => 'custd: rounding policy mode must be one of half_up, half_even, down, up',
-        // A decision expression nests itself; the generated example stops the recursion with a null child.
-        'admin-api GET /api/v1/admin/measurement/projects/{projectUuid}/decisions maximal' => 'custd: response field children must contain objects',
-        'admin-api GET /api/v1/admin/measurement/projects/{projectUuid}/decisions/{decisionUuid} maximal' => 'custd: response field children must contain objects',
-        'admin-api PATCH /api/v1/admin/measurement/projects/{projectUuid}/decisions/{decisionUuid} maximal' => 'custd: response field children must contain objects',
-        'admin-api POST /api/v1/admin/measurement/projects/{projectUuid}/decisions maximal' => 'custd: response field children must contain objects',
-        // The OpenAPI types the cleanup receipt as an open object, so its example is empty; the receipt always
-        // carries the fields the SDK reads.
-        'admin-api POST /api/v1/admin/tenants/{slug}/historical-cleanup maximal' => 'custd: response field company_id is required',
-        'admin-api POST /api/v1/admin/tenants/{slug}/historical-cleanup minimal' => 'custd: response field company_id is required',
+        // displayNameSource is a free string in the OpenAPI, so the example carries the "example" placeholder where
+        // the server only ever sends application or hosting.
+        'admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/status maximal' => 'custd: desired-state displayNameSource must be application or hosting',
+        'admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/status minimal' => 'custd: desired-state displayNameSource must be application or hosting',
+        // A principal carries userUuid for a human and clientId for a machine; the schema cannot state that pairing.
+        'admin-api GET /api/v1/admin/data-scope-grants maximal' => 'custd: a human principal requires userUuid and no clientId',
+        'admin-api POST /api/v1/admin/data-scope-grants maximal' => 'custd: a human principal requires userUuid and no clientId',
+        'admin-api POST /api/v1/admin/data-scope-grants minimal' => 'custd: a human principal requires userUuid and no clientId',
         // The response must account for every submitted item; the example cannot correlate with the request.
         'admin-api POST /api/v1/admin/measurement/projects/{projectUuid}/observations:bulk minimal' => 'custd: measurement result count 0 does not match submitted row count 1',
         'admin-api POST /api/v1/admin/measurement/projects/{projectUuid}/observations:csv minimal' => 'custd: measurement result count 0 does not match submitted row count 1',
@@ -160,6 +104,12 @@ final class SurfaceConformanceTest extends TestCase
         self::assertNotEmpty($calls, "{$id} sent no request");
         self::assertSame($method, $calls[0]['method']);
         self::assertSame(self::BASE_URL . self::expandPath($operation['path'], $pathValues), strtok($calls[0]['url'], '?'));
+        parse_str((string) parse_url($calls[0]['url'], PHP_URL_QUERY), $sent);
+        foreach ($operation['query'] ?? [] as $parameter) {
+            if ($parameter['required']) {
+                self::assertArrayHasKey($parameter['name'], $sent, "{$id} must send its required {$parameter['name']} query parameter");
+            }
+        }
     }
 
     /** @param \Closure(CustdClient): mixed $call */
@@ -249,7 +199,7 @@ final class SurfaceConformanceTest extends TestCase
         return $path;
     }
 
-    /** @return array<string, array{id: string, method: string, path: string, sdk: string, example?: string}> */
+    /** @return array<string, array{id: string, method: string, path: string, sdk: string, example?: string, query?: list<array{name: string, required: bool}>}> */
     public static function operations(): array
     {
         $operations = [];
@@ -327,7 +277,7 @@ final class SurfaceConformanceTest extends TestCase
             ['admin-api DELETE /api/v1/site-domains/{domainUuid}/saved-reports/{reportUuid}', 'DELETE', ['domainUuid' => self::A, 'reportUuid' => self::B], fn (CustdClient $c) => $c->adminSiteDomains()->deleteSavedReport(self::A, self::B)],
             ['admin-api GET /api/v1/site-domains/{domainUuid}/audit-pages', 'GET', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->listAuditPages(self::A)],
             ['admin-api GET /api/v1/site-domains/{domainUuid}/findings/{findingUuid}/search-impact', 'GET', ['domainUuid' => self::A, 'findingUuid' => self::B], fn (CustdClient $c) => $c->adminSiteDomains()->getFindingSearchImpact(self::A, self::B)],
-            ['admin-api GET /api/v1/site-domains/{domainUuid}/search-value', 'GET', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->getSearchValue(self::A, [])],
+            ['admin-api GET /api/v1/site-domains/{domainUuid}/search-value', 'GET', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->getSearchValue(self::A, ['signup'])],
             ['admin-api GET /api/v1/site-domains/{domainUuid}/audit-delta', 'GET', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->getAuditDelta(self::A)],
             ['admin-api GET /api/v1/site-domains/{domainUuid}/uptime-history', 'GET', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->getUptimeHistory(self::A)],
             ['admin-api GET /api/v1/site-domains/{domainUuid}/lighthouse', 'GET', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->getLighthouseHistory(self::A)],
@@ -531,6 +481,7 @@ final class SurfaceConformanceTest extends TestCase
             ['ingest-api ANY /api/v1/parser-preview', 'POST', [], fn (CustdClient $c) => $c->parsers()->preview(new ParserPreviewRequest('code', 'Name', 'regex', '^\\S+', '2006-01-02T15:04:05Z07:00', [], 'line', 20))],
             ['admin-api PUT /api/v1/site-domains/ai-settings', 'PUT', [], fn (CustdClient $c) => $c->adminSiteDomains()->ai()->setSettings(new SD\SiteAISettingsRequest(SD\SiteAIMode::Off, 0))],
             ['admin-api PUT /api/v1/site-domains/ai-settings/consent', 'PUT', [], fn (CustdClient $c) => $c->adminSiteDomains()->ai()->setConsent(SD\SiteAIConsentRequest::grant('2026-01'))],
+            ['admin-api POST /api/v1/site-domains/ai-owner-handoffs', 'POST', [], fn (CustdClient $c) => $c->adminSiteDomains()->ai()->createOwnerHandoff(new SD\SiteAIOwnerHandoffRequest('acme', 'owner-1'))],
             ['admin-api POST /api/v1/site-domains/{domainUuid}/campaign-links', 'POST', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->campaignLinks()->createCampaignLink(self::A, new SD\SiteCampaignLinkRequest('https://example.com/', 'news', 'email', 'launch'))],
             ['admin-api POST /api/v1/site-domains/{domainUuid}/rankings/keywords', 'POST', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->rankings()->trackKeyword(self::A, new SD\SiteTrackKeywordRequest('custd'))],
             ['admin-api PUT /api/v1/site-domains/{domainUuid}/rankings/keywords/{keywordUuid}', 'PUT', ['domainUuid' => self::A, 'keywordUuid' => self::B], fn (CustdClient $c) => $c->adminSiteDomains()->rankings()->updateTrackedKeyword(self::A, self::B, new SD\SiteUpdateTrackedKeywordRequest(true))],
@@ -650,6 +601,17 @@ final class SurfaceConformanceTest extends TestCase
             ['analytics-api POST /api/v1/reporting/draft-preview', 'POST', [], fn (CustdClient $c) => $c->reporting()->previewDraft(new RP\ReportingPackPreviewRequest($pack, 'acme', new RP\QueryHint('t', ['m'])))],
             ['ingest-api POST /api/v1/collect/events', 'POST', [], fn (CustdClient $c) => $c->collectEvent(self::event(), 'site_pk_test', 'https://example.com')],
             ['ingest-api POST /api/v1/collect/events/batch', 'POST', [], fn (CustdClient $c) => $c->collectEvents([self::event()], 'site_pk_test', 'https://example.com')],
+            ['admin-api GET /api/v1/public-status-pages/{key}', 'GET', ['key' => 'page-key'], fn (CustdClient $c) => $c->publicReads()->statusPage('page-key')],
+            ['admin-api POST /api/v1/public-status-pages/{key}/subscribe', 'POST', ['key' => 'page-key'], fn (CustdClient $c) => $c->publicReads()->subscribeToStatusPage('page-key', 'owner@example.com')],
+            ['admin-api POST /api/v1/public-status-pages/{key}/confirm-subscription', 'POST', ['key' => 'page-key'], fn (CustdClient $c) => $c->publicReads()->confirmStatusPageSubscription('page-key', 'token-1')],
+            ['admin-api POST /api/v1/public-status-pages/{key}/unsubscribe', 'POST', ['key' => 'page-key'], fn (CustdClient $c) => $c->publicReads()->unsubscribeFromStatusPage('page-key', 'token-1')],
+            ['admin-api POST /api/v1/site-heartbeat-reports/{companySlug}/{monitorUuid}', 'POST', ['companySlug' => 'acme', 'monitorUuid' => self::A], fn (CustdClient $c) => $c->publicReads()->submitSiteHeartbeat('/api/v1/site-heartbeat-reports/acme/' . self::A, self::DIGEST, new SD\SiteHeartbeatReport('2026-01-01T00:00:00Z', SD\SiteHeartbeatOutcome::Succeeded))],
+            ['admin-api POST /api/v1/site-private-uptime-reports/{companySlug}/{monitorUuid}', 'POST', ['companySlug' => 'acme', 'monitorUuid' => self::A], fn (CustdClient $c) => $c->publicReads()->submitPrivateUptime('/api/v1/site-private-uptime-reports/acme/' . self::A, self::DIGEST, new SD\PrivateUptimeReport(self::B, '2026-01-01T00:00:00Z', 12, 200))],
+            ['admin-api GET /api/v1/site-private-uptime-reports/{companySlug}/{monitorUuid}', 'GET', ['companySlug' => 'acme', 'monitorUuid' => self::A], fn (CustdClient $c) => $c->publicReads()->getPrivateUptimeWork('/api/v1/site-private-uptime-reports/acme/' . self::A, self::DIGEST)],
+            ['admin-api POST /api/v1/site-ai-owner/redeem', 'POST', [], fn (CustdClient $c) => $c->publicReads()->redeemSiteAIOwnerHandoff(new SD\SiteAIOwnerHandoff('code-1', self::BASE_URL . '/api/v1/site-ai-owner/redeem'), 'https://hub.example.com')],
+            ['admin-api GET /api/v1/site-ai-owner/settings', 'GET', [], fn (CustdClient $c) => $c->publicReads()->resumeSiteAIOwnerSession(self::BASE_URL, 'handle-1')->getSettings()],
+            ['admin-api PUT /api/v1/site-ai-owner/settings', 'PUT', [], fn (CustdClient $c) => $c->publicReads()->resumeSiteAIOwnerSession(self::BASE_URL, 'handle-1', 'binding-1')->setSettings(new SD\SiteAISettingsRequest(SD\SiteAIMode::Off, 0))],
+            ['admin-api PUT /api/v1/site-ai-owner/consent', 'PUT', [], fn (CustdClient $c) => $c->publicReads()->resumeSiteAIOwnerSession(self::BASE_URL, 'handle-1', 'binding-1')->setConsent(SD\SiteAIConsentRequest::revoke())],
         ];
     }
 

@@ -123,7 +123,9 @@ describe("principal lifecycle", () => {
     } satisfies ApplicationPrincipalExport;
     const fetchImpl = mockFetch(exported);
     const result = await newClient(fetchImpl).admin.authProjects.exportPrincipal(target, options);
-    expect(result).toEqual(exported);
+    // A null traits list arrives empty; traitsStatus, not the list, says whether the set is complete.
+    const [included, incomplete] = exported.identities;
+    expect(result).toEqual({ ...exported, identities: [included, { ...incomplete, traits: [] }] });
     expect(result.identities?.[0]?.traits?.[0]?.value).toBe(true);
     expect(result.identities?.[1]?.traitsStatus).toBe("incomplete");
   });

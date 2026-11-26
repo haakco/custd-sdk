@@ -33,6 +33,7 @@ mod reporting;
 mod reporting_packs;
 mod retention;
 mod schema_registry;
+mod site_ai_owner;
 mod site_analytics;
 mod site_domains;
 mod site_findings;
@@ -54,6 +55,7 @@ mod time_plans;
 mod uncertainty_models;
 mod workflow_timings;
 
+use custd_sdk::{AuditEventQuery, AuditEventsScope};
 use serde::Serialize;
 use serde::de::{DeserializeOwned, Error};
 use serde_json::Value;
@@ -63,6 +65,26 @@ use crate::Row;
 /// A request body from JSON holding the required fields only.
 pub fn body<T: DeserializeOwned>(json: &str) -> T {
     serde_json::from_str(json).unwrap()
+}
+
+/// An audit filter with every field set.
+pub fn audit_query() -> AuditEventQuery {
+    let text = |value: &str| Some(value.to_owned());
+    AuditEventQuery {
+        scope: Some(AuditEventsScope::Tenant),
+        affected_tenant_slug: text("acme"),
+        since: text("s-1"),
+        until: text("u-1"),
+        actor_kind: text("k-1"),
+        actor_reference: text("r-1"),
+        action: text("a-1"),
+        resource_type: text("t-1"),
+        resource_id: text("i-1"),
+        outcome: text("o-1"),
+        correlation_id: text("c-1"),
+        limit: Some(7),
+        cursor: text("n-1"),
+    }
 }
 
 /// Decodes an example and encodes it again: every field the example sets must survive, so a
@@ -78,7 +100,7 @@ pub fn round_trip<T: DeserializeOwned + Serialize>(value: &Value) -> Result<(), 
     }
 }
 
-/// The value without nulls (fields or list items), empty lists or `$schema`, which mean the same
+/// The value without null fields, empty lists or `$schema`, which mean the same
 /// as absent.
 fn set_fields(value: &Value) -> Value {
     match value {
@@ -90,13 +112,7 @@ fn set_fields(value: &Value) -> Value {
                 .filter(|(_, value)| !is_unset(value))
                 .collect(),
         ),
-        Value::Array(items) => Value::Array(
-            items
-                .iter()
-                .filter(|item| !item.is_null())
-                .map(set_fields)
-                .collect(),
-        ),
+        Value::Array(items) => Value::Array(items.iter().map(set_fields).collect()),
         other => other.clone(),
     }
 }
@@ -135,6 +151,7 @@ pub fn admin_rows() -> Vec<Row> {
     rows.extend(admin_sites::rows());
     rows.extend(app_item_runs::rows());
     rows.extend(hand_written::rows());
+    rows.extend(site_ai_owner::rows());
     rows
 }
 

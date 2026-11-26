@@ -9,6 +9,7 @@ use crate::Result;
 use crate::api_path::{NO_BODY, SITE_DOMAINS, api_path};
 use crate::client::CustdClient;
 use crate::measurement::null_as_empty;
+use crate::site_analytics::SiteAIMode;
 use crate::transport::{Method, percent_encode};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -323,7 +324,7 @@ pub struct SiteNextActions {
     pub actions: Vec<SiteNextAction>,
     /// Account AI mode. Absent when status is unavailable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ai_mode: Option<String>,
+    pub ai_mode: Option<SiteAIMode>,
     /// The latest uptime check.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub checked_at: Option<String>,

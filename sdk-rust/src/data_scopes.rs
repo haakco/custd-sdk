@@ -24,7 +24,7 @@ pub struct DataScope {
     pub code: String,
     pub created_at: String,
     pub name: String,
-    pub status: String,
+    pub status: DataScopeUpdateRequestStatus,
     pub updated_at: String,
     pub uuid: String,
 }
@@ -59,7 +59,7 @@ pub struct DataScopeResource {
     pub created_at: String,
     pub name: String,
     pub scope_uuid: String,
-    pub status: String,
+    pub status: DataScopeUpdateRequestStatus,
     pub updated_at: String,
     pub uuid: String,
 }
@@ -90,35 +90,35 @@ pub struct DataScopeGrantListResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DataScopeGrant {
-    pub action: String,
+    pub action: DataScopeGrantAction,
     pub principal: DataScopePrincipalRef,
     pub target: DataScopeGrantTarget,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DataScopePrincipalRef {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub client_id: Option<String>,
-    pub kind: String,
+    pub kind: DataScopeGrantsKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_uuid: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DataScopeGrantTarget {
-    pub kind: String,
+    pub kind: DataScopeGrantTargetKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resource_uuid: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope_uuid: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DataScopeGrantRequest {
-    pub action: String,
+    pub action: DataScopeGrantAction,
     pub principal: DataScopePrincipalRef,
     pub target: DataScopeGrantTarget,
 }
@@ -142,6 +142,24 @@ impl DataScopeUpdateRequestStatus {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DataScopeGrantAction {
+    #[serde(rename = "read")]
+    Read,
+    #[serde(rename = "write")]
+    Write,
+}
+
+impl DataScopeGrantAction {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Read => "read",
+            Self::Write => "write",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DataScopeGrantsKind {
     #[serde(rename = "human")]
     Human,
@@ -155,6 +173,27 @@ impl DataScopeGrantsKind {
         match self {
             Self::Human => "human",
             Self::Machine => "machine",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DataScopeGrantTargetKind {
+    #[serde(rename = "parent")]
+    Parent,
+    #[serde(rename = "sub_client")]
+    SubClient,
+    #[serde(rename = "resource")]
+    Resource,
+}
+
+impl DataScopeGrantTargetKind {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Parent => "parent",
+            Self::SubClient => "sub_client",
+            Self::Resource => "resource",
         }
     }
 }

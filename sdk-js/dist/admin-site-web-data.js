@@ -8,13 +8,13 @@ export const SITE_KEYWORD_LIST_NOT_FOUND_CODE = "site_keyword_list_not_found";
 export const SITE_KEYWORD_LIST_LIMIT_CODE = "site_keyword_list_limit";
 /** Where keyword demand and related keywords come from. */
 export const SITE_KEYWORD_DEMAND_SOURCE_BING = "bing_keyword_research";
-/** Why a keyword list has demand numbers or not; newer values may appear. */
+/** Why a keyword list has demand numbers or not. */
 export const SiteKeywordDemandState = {
     Available: "available",
     NoMarket: "no_market",
     NoBing: "no_bing",
 };
-/** Whether an inventoried domain is the Site's own or a named competitor; newer values may appear. */
+/** Whether an inventoried domain is the Site's own or a named competitor. */
 export const SiteWebDomainRole = {
     Own: "own",
     Competitor: "competitor",
@@ -24,7 +24,7 @@ export const SiteWebPageSource = {
     Sitemap: "sitemap",
     Wayback: "wayback",
 };
-/** The state of one inventory source for a domain; newer values may appear. */
+/** The state of one inventory source for a domain. */
 export const SiteWebInventoryStatus = {
     Pending: "pending",
     Done: "done",
@@ -32,7 +32,7 @@ export const SiteWebInventoryStatus = {
     Unavailable: "unavailable",
     Failed: "failed",
 };
-/** A domain's band in the Tranco top-sites list; newer values may appear. */
+/** A domain's band in the Tranco top-sites list. */
 export const SiteTrancoBand = {
     Top1K: "top-1k",
     Top10K: "top-10k",
@@ -41,7 +41,7 @@ export const SiteTrancoBand = {
     Unranked: "unranked",
     Unknown: "unknown",
 };
-/** Whether a term's Wikipedia article was found; newer values may appear. */
+/** Whether a term's Wikipedia article was found. */
 export const SiteTopicTrendStatus = {
     Pending: "pending",
     Found: "found",

@@ -46,7 +46,7 @@ let token = login.run(|code| {
 })?;
 
 let client = CustdClient::new("https://api.custd.com", token.access_token);
-let projects = client.list_measurement_projects()?;
+let projects = client.list_measurement_projects(None)?;
 let forecast = client.run_measurement_forecast(
     &projects.projects[0].project_uuid,
     &MeasurementForecastRunRequest::default(),

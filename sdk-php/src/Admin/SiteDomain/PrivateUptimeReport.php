@@ -18,6 +18,20 @@ final readonly class PrivateUptimeReport
     ) {
     }
 
+    /** @return array{reportUuid: string, observedAt: string, responseMs: int, statusCode?: int, failure?: string} */
+    public function toPayload(): array
+    {
+        $payload = ['reportUuid' => $this->reportUuid, 'observedAt' => $this->observedAt, 'responseMs' => $this->responseMs];
+        if ($this->statusCode !== null) {
+            $payload['statusCode'] = $this->statusCode;
+        }
+        if ($this->failure !== null) {
+            $payload['failure'] = $this->failure->value;
+        }
+
+        return $payload;
+    }
+
     public static function fromPayload(\stdClass $payload): self
     {
         $failure = Fields::optionalString($payload, 'failure');

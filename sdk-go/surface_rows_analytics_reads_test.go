@@ -48,7 +48,7 @@ var analyticsReadSurfaceRows = []surfaceRow{
 		id:   "analytics-api GET /api/v1/telemetry/event-count",
 		path: "/api/v1/telemetry/event-count",
 		call: func(e *surfaceEnv) error {
-			_, err := e.client.Analytics.TelemetryEventCount(context.Background(), "2026-11-26", "")
+			_, err := e.client.Analytics.TelemetryEventCount(context.Background(), "2026-11-26", "a1")
 			return err
 		},
 	},

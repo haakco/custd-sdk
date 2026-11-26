@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::Result;
-use crate::admin_apps::AppReleaseSummary;
+use crate::admin_apps::{AppReleaseSummary, AppReleaseSummaryState};
 use crate::api_path::{NO_BODY, api_path};
 use crate::client::CustdClient;
 use crate::measurement::null_as_empty;
@@ -38,7 +38,7 @@ pub struct AuthProjectAppRelease {
     pub label: Option<String>,
     pub manifest: AuthProjectAppReleaseManifest,
     pub release_id: String,
-    pub state: String,
+    pub state: AppReleaseSummaryState,
     pub total_bytes: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub verified_at: Option<String>,
@@ -99,18 +99,18 @@ pub struct AuthProjectAppReleaseManifest {
     pub version: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthProjectAppCacheRule {
     pub r#match: String,
-    pub mode: String,
+    pub mode: AuthProjectAppCacheRuleMode,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthProjectAppHeaderRule {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub framing: Option<String>,
+    pub framing: Option<AuthProjectAppHeaderRuleFraming>,
     #[serde(
         default,
         deserialize_with = "null_as_empty",
@@ -170,6 +170,51 @@ pub struct AuthProjectAppPromotion {
     pub previous_release_id: Option<String>,
     pub promoted_at: String,
     pub release_id: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AuthProjectAppCacheRuleMode {
+    #[serde(rename = "immutable")]
+    Immutable,
+    #[serde(rename = "revalidate")]
+    Revalidate,
+    #[serde(rename = "short")]
+    Short,
+    #[serde(rename = "no-store")]
+    NoStore,
+}
+
+impl AuthProjectAppCacheRuleMode {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Immutable => "immutable",
+            Self::Revalidate => "revalidate",
+            Self::Short => "short",
+            Self::NoStore => "no-store",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AuthProjectAppHeaderRuleFraming {
+    #[serde(rename = "deny")]
+    Deny,
+    #[serde(rename = "same-origin")]
+    SameOrigin,
+    #[serde(rename = "any")]
+    Any,
+}
+
+impl AuthProjectAppHeaderRuleFraming {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Deny => "deny",
+            Self::SameOrigin => "same-origin",
+            Self::Any => "any",
+        }
+    }
 }
 
 impl CustdClient {

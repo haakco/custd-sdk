@@ -401,7 +401,19 @@ null list always comes back as `[]`.
 - Credential-free routes are module functions in `custd.ingest_operations`:
   `collect_event` / `collect_events` (a Site's public write key), `ErrorCaptureClient`
   (error metadata relay), `read_shared_site_report` and
-  `read_auth_domain_monitoring_inventory`.
+  `read_auth_domain_monitoring_inventory`. A published status page's own calls are
+  `read_public_status_page`, `subscribe_to_public_status_page`,
+  `confirm_public_status_page_subscription` and `unsubscribe_from_public_status_page`
+  in `custd.admin_site_status_page` (the page's public key is their authority). A
+  monitored job or private probe reports with `submit_site_heartbeat`,
+  `submit_private_uptime` and `get_private_uptime_work` in `custd.site_monitor_reports`,
+  given a `SiteMonitorDestination` built from the monitor's `reportPath` and one-time
+  token; they send only that token and never follow a redirect. All are also exported
+  from `custd`.
+- A data-space broker issues an owner a one-minute AI settings code with
+  `client.admin.site_domains.create_ai_owner_handoff`; `redeem_site_ai_owner_handoff`
+  opens that owner's session and `SiteAIOwnerClient` reads and changes its settings and
+  consent (`custd.site_ai_owner`).
 
 ## Auth-project admin helpers
 

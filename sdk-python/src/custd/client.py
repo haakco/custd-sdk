@@ -1625,8 +1625,10 @@ class ProducerReservationsClient:
     def __init__(self, provisioning: ProvisioningClient) -> None:
         self._provisioning = provisioning
 
-    def reserve(self, data_space_slug: str, request: ProducerReservationCreateRequest) -> ProducerReservation:
-        path = _reservations_path(data_space_slug)
+    def reserve(
+        self, data_space_slug: str, request: ProducerReservationCreateRequest, parent_company_slug: str | None = None
+    ) -> ProducerReservation:
+        path = _reservations_path(data_space_slug) + _parent_company_query(parent_company_slug)
         return cast(ProducerReservation, self._provisioning.request("POST", path, dict(request)))
 
     def list(self, data_space_slug: str, parent_company_slug: str | None = None) -> ProducerReservationListResponse:
@@ -1635,9 +1637,14 @@ class ProducerReservationsClient:
         return ProducerReservationListResponse(reservations=reservations or [])
 
     def claim(
-        self, data_space_slug: str, producer_slug: str, request: ProducerReservationClaimRequest
+        self,
+        data_space_slug: str,
+        producer_slug: str,
+        request: ProducerReservationClaimRequest,
+        parent_company_slug: str | None = None,
     ) -> ProducerReservation:
         path = f"{_reservations_path(data_space_slug)}/{quote_path(producer_slug)}/claim"
+        path += _parent_company_query(parent_company_slug)
         return cast(ProducerReservation, self._provisioning.request("POST", path, dict(request)))
 
     def release(self, data_space_slug: str, producer_slug: str, parent_company_slug: str | None = None) -> None:
@@ -2533,6 +2540,38 @@ def default_admin_transport(
         return {"status": err.code, "body": err.read().decode("utf-8")}
     except urllib.error.URLError as err:
         raise RetryableError(f"custd: admin request failed: {err}") from err
+
+
+class _KeepRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *_: object) -> None:
+        return None
+
+
+_NO_REDIRECT_OPENER = urllib.request.build_opener(_KeepRedirect)
+
+
+def no_redirect_transport(
+    method: str,
+    url: str,
+    payload: dict[str, Any] | bytes | None,
+    headers: dict[str, str],
+    timeout: float,
+) -> TransportResult:
+    """Send one request and return a redirect as the answer instead of following it.
+
+    A credential in the headers then never reaches another address, and the redirect's own
+    headers (such as Set-Cookie) stay readable.
+    """
+    data = payload if isinstance(payload, bytes) else None if payload is None else json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with _NO_REDIRECT_OPENER.open(request, timeout=timeout) as response:
+            body = response.read().decode("utf-8")
+            return {"status": response.status, "body": body, "headers": dict(response.headers.items())}
+    except urllib.error.HTTPError as err:
+        return {"status": err.code, "body": err.read().decode("utf-8"), "headers": dict(err.headers.items())}
+    except urllib.error.URLError as err:
+        raise RetryableError(f"custd: request failed: {err}") from err
 
 
 def quote_path(value: str) -> str:

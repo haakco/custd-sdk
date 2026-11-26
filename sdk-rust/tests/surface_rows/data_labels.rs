@@ -41,8 +41,8 @@ pub fn rows() -> Vec<Row> {
         ),
         bodiless(
             "admin-api POST /api/v1/admin/data-labels/{definitionUuid}/disable",
-            "/api/v1/admin/data-labels/d-1/disable?includeDisabled=true&companySlug=acme",
-            |c| drop(c.custd.disable_data_label("d-1", Some(true), Some("acme"))),
+            "/api/v1/admin/data-labels/d-1/disable?companySlug=acme",
+            |c| drop(c.custd.disable_data_label("d-1", Some("acme"))),
         ),
         row(
             "admin-api GET /api/v1/admin/data-labels/catalogue",

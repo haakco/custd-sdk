@@ -26,7 +26,7 @@ final readonly class CalculationReceipt
     {
         return new self(
             Payload::string($payload, "allocatorVersion"),
-            Payload::string($payload, "reason"),
+            Payload::optionalString($payload, "reason") ?? "",
             Payload::string($payload, "summary"),
             array_map(Allocation::fromPayload(...), Payload::objects($payload, "source")),
             array_map(Allocation::fromPayload(...), Payload::objects($payload, "result")),

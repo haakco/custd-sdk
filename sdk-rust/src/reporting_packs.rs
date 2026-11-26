@@ -10,8 +10,11 @@ use crate::api_path::{NO_BODY, api_path};
 use crate::client::CustdClient;
 use crate::measurement::null_as_empty;
 use crate::reporting::{
-    DashboardDefinition, PresentationPresetSelection, RenderedMetricValue, RenderedWidgetData,
-    ReportingQueryRequest,
+    DashboardCatalogueEntryExportFormats, DashboardDefinition,
+    ExecutiveReportDefinitionComparisonBasis, ExecutiveReportDefinitionRecipe,
+    PresentationPresetSelection, RenderedMetricValue, RenderedMetricValueUnit, RenderedWidgetData,
+    ReportingQueryRequest, ReportingReconciliationResultUnit, ReportingRequestedFilterOperator,
+    ReportingTrustStatus,
 };
 use crate::transport::{Method, percent_encode};
 
@@ -70,7 +73,7 @@ pub struct ReportingPack {
         deserialize_with = "null_as_empty",
         skip_serializing_if = "Vec::is_empty"
     )]
-    pub export_formats: Vec<String>,
+    pub export_formats: Vec<DashboardCatalogueEntryExportFormats>,
     #[serde(
         default,
         deserialize_with = "null_as_empty",
@@ -137,20 +140,20 @@ pub struct ReportingPackAccountingContract {
     pub version: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingPackActivationRule {
     pub cohort_window_days: i64,
-    pub identity: String,
+    pub identity: ReportingPackActivationRuleIdentity,
     pub key: String,
     pub predicate: ReportingPackMatchPredicate,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingPackActivityRule {
     pub bucket_days: i64,
-    pub identity: String,
+    pub identity: ReportingPackActivationRuleIdentity,
     pub key: String,
 }
 
@@ -228,12 +231,12 @@ pub struct ReportingPackIdentitySelectors {
     pub subject: Option<ReportingPackSelectorDefinition>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingPackMetric {
-    pub calculation: String,
+    pub calculation: ReportingPackMetricCalculation,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub canonical_unit: Option<String>,
+    pub canonical_unit: Option<ReportingReconciliationResultUnit>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub denominator_metric: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -241,11 +244,11 @@ pub struct ReportingPackMetric {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub distinct: Option<ReportingPackSelectorDefinition>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub flow_result: Option<String>,
+    pub flow_result: Option<ReportingPackMetricFlowResult>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hierarchy_root_key: Option<String>,
     pub key: String,
-    pub kind: String,
+    pub kind: ReportingPackMetricKind,
     pub label: String,
     #[serde(
         default,
@@ -256,7 +259,7 @@ pub struct ReportingPackMetric {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub maximum_gap_seconds: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub measurement_kind: Option<String>,
+    pub measurement_kind: Option<ReportingPackMetricMeasurementKind>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub numerator_metric: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -264,7 +267,7 @@ pub struct ReportingPackMetric {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub percentile: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reset_policy: Option<String>,
+    pub reset_policy: Option<ReportingPackMetricResetPolicy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rollover_at: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -298,15 +301,15 @@ pub struct ReportingPackProofProfile {
     pub templates: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingPackSourceReconciliation {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub absolute_tolerance: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub canonical_unit: Option<String>,
+    pub canonical_unit: Option<ReportingReconciliationResultUnit>,
     pub max_age_seconds: i64,
-    pub mode: String,
+    pub mode: ReportingPackSourceReconciliationMode,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relative_tolerance: Option<f64>,
     pub series_key: String,
@@ -367,10 +370,10 @@ pub struct ReportingPackRollupRule {
     pub templates: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingPackTemplate {
-    pub aggregation: String,
+    pub aggregation: ReportingPackTemplateAggregation,
     #[serde(
         default,
         deserialize_with = "null_as_empty",
@@ -400,15 +403,15 @@ pub struct ReportingPackTemplate {
     pub max_rows: i64,
     pub name: String,
     #[serde(default, deserialize_with = "null_as_empty")]
-    pub source_modes: Vec<String>,
+    pub source_modes: Vec<ReportingPackTemplateSourceModes>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subject_scope: Option<ReportingPackSubjectScopeRule>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingPackTransitionRule {
-    pub identity: String,
+    pub identity: ReportingPackActivationRuleIdentity,
     pub key: String,
     pub max_duration_ms: i64,
     pub max_events: i64,
@@ -426,7 +429,7 @@ pub struct ReportingPackTrustDiagnostics {
     pub safe_fields: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingPackAllocationRule {
     pub key: String,
@@ -436,10 +439,10 @@ pub struct ReportingPackAllocationRule {
     pub targets: Vec<ReportingPackAllocationTarget>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingPackSteppedRateSchedule {
-    pub billing_boundary: String,
+    pub billing_boundary: ReportingPackSteppedRateScheduleBillingBoundary,
     pub currency: String,
     pub effective_from: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -450,7 +453,7 @@ pub struct ReportingPackSteppedRateSchedule {
     pub tiers: Vec<ReportingPackRateTier>,
     pub timezone: String,
     pub usage_metric: String,
-    pub usage_unit: String,
+    pub usage_unit: ReportingReconciliationResultUnit,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -471,11 +474,11 @@ pub struct ReportingPackMatchPredicate {
     pub selector: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingPackAssetHierarchyEdge {
     pub child_key: String,
-    pub mode: String,
+    pub mode: ReportingPackAssetHierarchyEdgeMode,
     pub parent_key: String,
     pub tenant_key: String,
 }
@@ -488,19 +491,19 @@ pub struct ReportingPackAssetNode {
     pub tenant_key: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingPackSelectorDefinition {
     pub selector: String,
-    pub r#type: String,
+    pub r#type: ReportingPackSelectorDefinitionType,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingPackNumericSelector {
     pub selector: String,
-    pub r#type: String,
-    pub unit: String,
+    pub r#type: ReportingPackSelectorDefinitionType,
+    pub unit: RenderedMetricValueUnit,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -510,11 +513,11 @@ pub struct ReportingPackObservationAsset {
     pub label: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingPackSemanticSeries {
     #[serde(default, deserialize_with = "null_as_empty")]
-    pub allowed_source_units: Vec<String>,
+    pub allowed_source_units: Vec<ReportingReconciliationResultUnit>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub asset_key: Option<String>,
     #[serde(
@@ -523,11 +526,11 @@ pub struct ReportingPackSemanticSeries {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub asset_keys: Vec<String>,
-    pub canonical_unit: String,
+    pub canonical_unit: ReportingReconciliationResultUnit,
     pub expected_cadence_seconds: i64,
     pub key: String,
     pub maximum_gap_seconds: i64,
-    pub measurement_kind: String,
+    pub measurement_kind: ReportingPackMetricMeasurementKind,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub sources: Vec<ReportingPackSourceSeries>,
 }
@@ -562,7 +565,7 @@ pub struct ReportingPackRollupDimension {
 pub struct ReportingPackFilterDefinition {
     pub dimension: String,
     #[serde(default, deserialize_with = "null_as_empty")]
-    pub operators: Vec<String>,
+    pub operators: Vec<ReportingRequestedFilterOperator>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -572,11 +575,11 @@ pub struct ReportingPackSubjectScopeRule {
     pub required: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportingPackRoundingPolicy {
     pub decimal_places: i64,
-    pub mode: String,
+    pub mode: ReportingPackRoundingPolicyMode,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -670,7 +673,7 @@ pub struct ExecutiveReport {
     pub generated_at: String,
     pub period: ExecutivePeriod,
     pub primary: ExecutivePrimaryResult,
-    pub recipe: String,
+    pub recipe: ExecutiveReportDefinitionRecipe,
     #[serde(
         default,
         deserialize_with = "null_as_empty",
@@ -685,7 +688,7 @@ pub struct ExecutiveReport {
 #[serde(rename_all = "camelCase")]
 pub struct ExecutiveComparisonResult {
     pub available: bool,
-    pub basis: String,
+    pub basis: ExecutiveReportDefinitionComparisonBasis,
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub percent_change: Option<f64>,
@@ -701,7 +704,7 @@ pub struct ExecutiveConfidence {
     pub completeness: String,
     pub coverage: String,
     pub freshness: String,
-    pub status: String,
+    pub status: ReportingTrustStatus,
     #[serde(
         default,
         deserialize_with = "null_as_empty",
@@ -857,6 +860,396 @@ pub struct ReportingPackAuditEvent {
     pub created_at: String,
     pub pack_key: String,
     pub resource_type: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingPackActivationRuleIdentity {
+    #[serde(rename = "subject")]
+    Subject,
+    #[serde(rename = "session")]
+    Session,
+    #[serde(rename = "correlation")]
+    Correlation,
+}
+
+impl ReportingPackActivationRuleIdentity {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Subject => "subject",
+            Self::Session => "session",
+            Self::Correlation => "correlation",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingPackMetricCalculation {
+    #[serde(rename = "usage_charge")]
+    UsageCharge,
+    #[serde(rename = "marginal_rate")]
+    MarginalRate,
+    #[serde(rename = "projection")]
+    Projection,
+    #[serde(rename = "purchased_vs_used")]
+    PurchasedVsUsed,
+    #[serde(rename = "observed_balance")]
+    ObservedBalance,
+    #[serde(rename = "projected_balance")]
+    ProjectedBalance,
+    #[serde(rename = "allocated_recovery")]
+    AllocatedRecovery,
+    #[serde(rename = "correction_count")]
+    CorrectionCount,
+    #[serde(rename = "count")]
+    Count,
+    #[serde(rename = "failure_count")]
+    FailureCount,
+    #[serde(rename = "flow")]
+    Flow,
+    #[serde(rename = "distinct_count")]
+    DistinctCount,
+    #[serde(rename = "sum")]
+    Sum,
+    #[serde(rename = "average")]
+    Average,
+    #[serde(rename = "percentile")]
+    Percentile,
+    #[serde(rename = "ratio")]
+    Ratio,
+    #[serde(rename = "latest")]
+    Latest,
+    #[serde(rename = "minimum")]
+    Minimum,
+    #[serde(rename = "maximum")]
+    Maximum,
+    #[serde(rename = "firstLastDelta")]
+    FirstLastDelta,
+    #[serde(rename = "timeWeightedAverage")]
+    TimeWeightedAverage,
+    #[serde(rename = "rate")]
+    Rate,
+    #[serde(rename = "integral")]
+    Integral,
+}
+
+impl ReportingPackMetricCalculation {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::UsageCharge => "usage_charge",
+            Self::MarginalRate => "marginal_rate",
+            Self::Projection => "projection",
+            Self::PurchasedVsUsed => "purchased_vs_used",
+            Self::ObservedBalance => "observed_balance",
+            Self::ProjectedBalance => "projected_balance",
+            Self::AllocatedRecovery => "allocated_recovery",
+            Self::CorrectionCount => "correction_count",
+            Self::Count => "count",
+            Self::FailureCount => "failure_count",
+            Self::Flow => "flow",
+            Self::DistinctCount => "distinct_count",
+            Self::Sum => "sum",
+            Self::Average => "average",
+            Self::Percentile => "percentile",
+            Self::Ratio => "ratio",
+            Self::Latest => "latest",
+            Self::Minimum => "minimum",
+            Self::Maximum => "maximum",
+            Self::FirstLastDelta => "firstLastDelta",
+            Self::TimeWeightedAverage => "timeWeightedAverage",
+            Self::Rate => "rate",
+            Self::Integral => "integral",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingPackMetricFlowResult {
+    #[serde(rename = "steps")]
+    Steps,
+    #[serde(rename = "starts")]
+    Starts,
+    #[serde(rename = "completions")]
+    Completions,
+    #[serde(rename = "drop_offs")]
+    DropOffs,
+    #[serde(rename = "completion_rate")]
+    CompletionRate,
+    #[serde(rename = "uncorrelated")]
+    Uncorrelated,
+}
+
+impl ReportingPackMetricFlowResult {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Steps => "steps",
+            Self::Starts => "starts",
+            Self::Completions => "completions",
+            Self::DropOffs => "drop_offs",
+            Self::CompletionRate => "completion_rate",
+            Self::Uncorrelated => "uncorrelated",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingPackMetricKind {
+    #[serde(rename = "count")]
+    Count,
+    #[serde(rename = "unique_count")]
+    UniqueCount,
+    #[serde(rename = "rate")]
+    Rate,
+    #[serde(rename = "latency")]
+    Latency,
+    #[serde(rename = "percentile")]
+    Percentile,
+    #[serde(rename = "failure_ratio")]
+    FailureRatio,
+    #[serde(rename = "freshness_age")]
+    FreshnessAge,
+    #[serde(rename = "latest_value")]
+    LatestValue,
+    #[serde(rename = "probability")]
+    Probability,
+    #[serde(rename = "quantile")]
+    Quantile,
+    #[serde(rename = "credible_interval")]
+    CredibleInterval,
+    #[serde(rename = "forecast_date")]
+    ForecastDate,
+    #[serde(rename = "value_of_information")]
+    ValueOfInformation,
+}
+
+impl ReportingPackMetricKind {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Count => "count",
+            Self::UniqueCount => "unique_count",
+            Self::Rate => "rate",
+            Self::Latency => "latency",
+            Self::Percentile => "percentile",
+            Self::FailureRatio => "failure_ratio",
+            Self::FreshnessAge => "freshness_age",
+            Self::LatestValue => "latest_value",
+            Self::Probability => "probability",
+            Self::Quantile => "quantile",
+            Self::CredibleInterval => "credible_interval",
+            Self::ForecastDate => "forecast_date",
+            Self::ValueOfInformation => "value_of_information",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingPackMetricMeasurementKind {
+    #[serde(rename = "gauge")]
+    Gauge,
+    #[serde(rename = "monotonicCounter")]
+    MonotonicCounter,
+    #[serde(rename = "intervalIncrement")]
+    IntervalIncrement,
+    #[serde(rename = "state")]
+    State,
+}
+
+impl ReportingPackMetricMeasurementKind {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Gauge => "gauge",
+            Self::MonotonicCounter => "monotonicCounter",
+            Self::IntervalIncrement => "intervalIncrement",
+            Self::State => "state",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingPackMetricResetPolicy {
+    #[serde(rename = "as_increment")]
+    AsIncrement,
+    #[serde(rename = "reject")]
+    Reject,
+    #[serde(rename = "rollover")]
+    Rollover,
+}
+
+impl ReportingPackMetricResetPolicy {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::AsIncrement => "as_increment",
+            Self::Reject => "reject",
+            Self::Rollover => "rollover",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingPackSourceReconciliationMode {
+    #[serde(rename = "priority")]
+    Priority,
+    #[serde(rename = "freshness")]
+    Freshness,
+    #[serde(rename = "availability")]
+    Availability,
+    #[serde(rename = "agreement")]
+    Agreement,
+}
+
+impl ReportingPackSourceReconciliationMode {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Priority => "priority",
+            Self::Freshness => "freshness",
+            Self::Availability => "availability",
+            Self::Agreement => "agreement",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingPackTemplateAggregation {
+    #[serde(rename = "count")]
+    Count,
+    #[serde(rename = "flow")]
+    Flow,
+    #[serde(rename = "distinct_count")]
+    DistinctCount,
+    #[serde(rename = "sum")]
+    Sum,
+    #[serde(rename = "average")]
+    Average,
+    #[serde(rename = "percentile")]
+    Percentile,
+    #[serde(rename = "ratio")]
+    Ratio,
+}
+
+impl ReportingPackTemplateAggregation {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Count => "count",
+            Self::Flow => "flow",
+            Self::DistinctCount => "distinct_count",
+            Self::Sum => "sum",
+            Self::Average => "average",
+            Self::Percentile => "percentile",
+            Self::Ratio => "ratio",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingPackTemplateSourceModes {
+    #[serde(rename = "auto")]
+    Auto,
+    #[serde(rename = "postgres")]
+    Postgres,
+    #[serde(rename = "duckdb")]
+    Duckdb,
+}
+
+impl ReportingPackTemplateSourceModes {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Postgres => "postgres",
+            Self::Duckdb => "duckdb",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingPackSteppedRateScheduleBillingBoundary {
+    #[serde(rename = "calendar_month")]
+    CalendarMonth,
+    #[serde(rename = "calendar_day")]
+    CalendarDay,
+}
+
+impl ReportingPackSteppedRateScheduleBillingBoundary {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::CalendarMonth => "calendar_month",
+            Self::CalendarDay => "calendar_day",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingPackAssetHierarchyEdgeMode {
+    #[serde(rename = "inclusive")]
+    Inclusive,
+    #[serde(rename = "exclusive")]
+    Exclusive,
+    #[serde(rename = "informational")]
+    Informational,
+}
+
+impl ReportingPackAssetHierarchyEdgeMode {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Inclusive => "inclusive",
+            Self::Exclusive => "exclusive",
+            Self::Informational => "informational",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingPackSelectorDefinitionType {
+    #[serde(rename = "string")]
+    String,
+    #[serde(rename = "integer")]
+    Integer,
+    #[serde(rename = "number")]
+    Number,
+}
+
+impl ReportingPackSelectorDefinitionType {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::String => "string",
+            Self::Integer => "integer",
+            Self::Number => "number",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReportingPackRoundingPolicyMode {
+    #[serde(rename = "half_up")]
+    HalfUp,
+    #[serde(rename = "half_even")]
+    HalfEven,
+    #[serde(rename = "down")]
+    Down,
+    #[serde(rename = "up")]
+    Up,
+}
+
+impl ReportingPackRoundingPolicyMode {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::HalfUp => "half_up",
+            Self::HalfEven => "half_even",
+            Self::Down => "down",
+            Self::Up => "up",
+        }
+    }
 }
 
 impl CustdClient {

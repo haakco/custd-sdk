@@ -28,7 +28,7 @@ pub struct WorkflowTimingDefinition {
     pub description: String,
     pub name: String,
     pub revision_count: i64,
-    pub status: String,
+    pub status: WorkflowTimingDefinitionStatus,
     pub uuid: String,
     pub workflow_key: String,
 }
@@ -177,12 +177,12 @@ pub struct WorkflowTimingEvaluationResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prediction_version_uuid: Option<String>,
     pub series_key: String,
-    pub state: String,
+    pub state: WorkflowTimingEvaluationResponseState,
     pub workflow_key: String,
     pub workflow_uuid: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkflowTimingObservationRequest {
     pub observation: WorkflowTimingObservation,
@@ -198,7 +198,7 @@ pub struct WorkflowTimingObservationBatchResult {
     pub results: Vec<WorkflowTimingObservationResult>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkflowTimingObservation {
     pub external_run_id: String,
@@ -230,12 +230,12 @@ pub struct WorkflowTimingObservationResult {
     pub workflow_key: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkflowTimingFactPayload {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub dimensions: BTreeMap<String, String>,
-    pub kind: String,
+    pub kind: WorkflowTimingFactPayloadKind,
     pub occurred_at: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub run: Option<WorkflowTimingRunFact>,
@@ -252,19 +252,19 @@ pub struct WorkflowTimingFactProvenance {
     pub collector: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkflowTimingRunFact {
-    pub state: String,
+    pub state: WorkflowTimingRunFactState,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkflowTimingStepFact {
     pub attempt: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error_class: Option<String>,
-    pub state: String,
+    pub state: WorkflowTimingStepFactState,
     pub step_key: String,
 }
 
@@ -294,7 +294,7 @@ pub struct WorkflowTimingRunSummary {
     pub run_uuid: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub started_at: Option<String>,
-    pub state: String,
+    pub state: WorkflowTimingRunFactState,
     pub workflow_key: String,
 }
 
@@ -318,7 +318,7 @@ pub struct WorkflowTimingRunReadResponse {
     pub source_occurred_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub started_at: Option<String>,
-    pub state: String,
+    pub state: WorkflowTimingRunFactState,
     pub workflow_key: String,
     pub workflow_uuid: String,
 }
@@ -335,7 +335,7 @@ pub struct WorkflowTimingAttemptProjection {
     pub receipt_at: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub started_at: Option<String>,
-    pub state: String,
+    pub state: WorkflowTimingStepFactState,
     pub step_key: String,
 }
 
@@ -360,7 +360,7 @@ pub struct WorkflowTimingRunPrediction {
     pub generated_at: String,
     pub run: WorkflowTimingExpectation,
     pub run_uuid: String,
-    pub state: String,
+    pub state: WorkflowTimingRunFactState,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub steps: Vec<WorkflowTimingExpectation>,
     pub workflow_key: String,
@@ -387,7 +387,7 @@ pub struct WorkflowTimingExpectation {
     pub prediction_version_uuid: Option<String>,
     pub sample_count: i64,
     pub series_key: String,
-    pub state: String,
+    pub state: WorkflowTimingEvaluationResponseState,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step_key: Option<String>,
     #[serde(default, deserialize_with = "null_as_empty")]
@@ -439,14 +439,14 @@ pub struct WorkflowTimingRunProjection {
     pub run_uuid: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub started_at: Option<String>,
-    pub state: String,
+    pub state: WorkflowTimingRunFactState,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkflowTimingExcludedStepOutcome {
     pub attempt: i64,
-    pub outcome: String,
+    pub outcome: WorkflowTimingExcludedStepOutcomeOutcome,
     pub step_key: String,
 }
 
@@ -469,6 +469,159 @@ pub struct WorkflowTimingStepDurationFact {
     pub started_at: String,
     pub step_key: String,
     pub value_ms: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum WorkflowTimingDefinitionStatus {
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "retired")]
+    Retired,
+}
+
+impl WorkflowTimingDefinitionStatus {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::Retired => "retired",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum WorkflowTimingEvaluationResponseState {
+    #[serde(rename = "ready")]
+    Ready,
+    #[serde(rename = "cold_start")]
+    ColdStart,
+    #[serde(rename = "sparse")]
+    Sparse,
+    #[serde(rename = "stale")]
+    Stale,
+    #[serde(rename = "partial")]
+    Partial,
+    #[serde(rename = "unavailable")]
+    Unavailable,
+    #[serde(rename = "error")]
+    Error,
+}
+
+impl WorkflowTimingEvaluationResponseState {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ready => "ready",
+            Self::ColdStart => "cold_start",
+            Self::Sparse => "sparse",
+            Self::Stale => "stale",
+            Self::Partial => "partial",
+            Self::Unavailable => "unavailable",
+            Self::Error => "error",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum WorkflowTimingFactPayloadKind {
+    #[serde(rename = "run_started")]
+    RunStarted,
+    #[serde(rename = "run_finished")]
+    RunFinished,
+    #[serde(rename = "step_started")]
+    StepStarted,
+    #[serde(rename = "step_finished")]
+    StepFinished,
+}
+
+impl WorkflowTimingFactPayloadKind {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::RunStarted => "run_started",
+            Self::RunFinished => "run_finished",
+            Self::StepStarted => "step_started",
+            Self::StepFinished => "step_finished",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum WorkflowTimingRunFactState {
+    #[serde(rename = "running")]
+    Running,
+    #[serde(rename = "completed")]
+    Completed,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "cancelled")]
+    Cancelled,
+}
+
+impl WorkflowTimingRunFactState {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Running => "running",
+            Self::Completed => "completed",
+            Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum WorkflowTimingStepFactState {
+    #[serde(rename = "running")]
+    Running,
+    #[serde(rename = "completed")]
+    Completed,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "cancelled")]
+    Cancelled,
+    #[serde(rename = "skipped")]
+    Skipped,
+}
+
+impl WorkflowTimingStepFactState {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Running => "running",
+            Self::Completed => "completed",
+            Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
+            Self::Skipped => "skipped",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum WorkflowTimingExcludedStepOutcomeOutcome {
+    #[serde(rename = "completed")]
+    Completed,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "cancelled")]
+    Cancelled,
+    #[serde(rename = "skipped")]
+    Skipped,
+    #[serde(rename = "open")]
+    Open,
+}
+
+impl WorkflowTimingExcludedStepOutcomeOutcome {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Completed => "completed",
+            Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
+            Self::Skipped => "skipped",
+            Self::Open => "open",
+        }
+    }
 }
 
 impl CustdClient {

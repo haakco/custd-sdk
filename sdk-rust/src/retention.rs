@@ -43,11 +43,11 @@ pub struct RetentionPolicy {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub next_run_at: Option<String>,
     pub precedence: i64,
-    pub retention_class: String,
-    pub scope: String,
+    pub retention_class: RetentionPolicyRetentionClass,
+    pub scope: RetentionPolicyScope,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RetentionPolicyUpsertRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -61,8 +61,8 @@ pub struct RetentionPolicyUpsertRequest {
     pub legal_hold_until: Option<String>,
     pub max_age_seconds: i64,
     pub precedence: i64,
-    pub retention_class: String,
-    pub scope: String,
+    pub retention_class: RetentionPolicyRetentionClass,
+    pub scope: RetentionPolicyScope,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -70,6 +70,66 @@ pub struct RetentionPolicyUpsertRequest {
 pub struct RetentionPoliciesEnvelope {
     #[serde(default, deserialize_with = "null_as_empty")]
     pub policies: Vec<RetentionPolicy>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RetentionPolicyRetentionClass {
+    #[serde(rename = "raw")]
+    Raw,
+    #[serde(rename = "archive")]
+    Archive,
+    #[serde(rename = "materialized")]
+    Materialized,
+    #[serde(rename = "cache")]
+    Cache,
+    #[serde(rename = "object")]
+    Object,
+    #[serde(rename = "audit_event")]
+    AuditEvent,
+    #[serde(rename = "audit_ip_address")]
+    AuditIpAddress,
+    #[serde(rename = "audit_user_agent")]
+    AuditUserAgent,
+}
+
+impl RetentionPolicyRetentionClass {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Raw => "raw",
+            Self::Archive => "archive",
+            Self::Materialized => "materialized",
+            Self::Cache => "cache",
+            Self::Object => "object",
+            Self::AuditEvent => "audit_event",
+            Self::AuditIpAddress => "audit_ip_address",
+            Self::AuditUserAgent => "audit_user_agent",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RetentionPolicyScope {
+    #[serde(rename = "tenant")]
+    Tenant,
+    #[serde(rename = "data_space")]
+    DataSpace,
+    #[serde(rename = "event_type")]
+    EventType,
+    #[serde(rename = "global")]
+    Global,
+}
+
+impl RetentionPolicyScope {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Tenant => "tenant",
+            Self::DataSpace => "data_space",
+            Self::EventType => "event_type",
+            Self::Global => "global",
+        }
+    }
 }
 
 impl CustdClient {

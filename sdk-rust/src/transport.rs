@@ -5,8 +5,9 @@ use std::time::Duration;
 
 use crate::SDK_IDENTITY;
 
-/// The largest answer read into memory.
-const MAX_RESPONSE_BYTES: u64 = 10 << 20;
+/// The largest answer read into memory: the Go SDK's limit for binary admin answers, so an
+/// offboarding archive that Go can download, Rust can too.
+const MAX_RESPONSE_BYTES: u64 = 64 << 20;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,9 +30,19 @@ pub(crate) struct HttpRequest {
 #[derive(Debug, Clone)]
 pub(crate) struct HttpResponse {
     pub status: u16,
-    pub etag: Option<String>,
-    pub content_type: Option<String>,
+    /// Every response header that is valid text, names lowercased.
+    pub headers: Vec<(String, String)>,
     pub body: Vec<u8>,
+}
+
+impl HttpResponse {
+    /// The first value of a response header, matched case-insensitively.
+    pub fn header(&self, name: &str) -> Option<&str> {
+        self.headers
+            .iter()
+            .find(|(key, _)| key.eq_ignore_ascii_case(name))
+            .map(|(_, value)| value.as_str())
+    }
 }
 
 /// A failed exchange. `PreSend` means the request provably never reached the server (name
@@ -88,16 +99,13 @@ impl Transport for UreqTransport {
         let mut response = result
             .map_err(|error| TransportError::Failed(error.to_string()))?
             .map_err(classify)?;
-        let etag = response
+        let headers = response
             .headers()
-            .get("etag")
-            .and_then(|value| value.to_str().ok())
-            .map(str::to_owned);
-        let content_type = response
-            .headers()
-            .get("content-type")
-            .and_then(|value| value.to_str().ok())
-            .map(str::to_owned);
+            .iter()
+            .filter_map(|(name, value)| {
+                Some((name.as_str().to_owned(), value.to_str().ok()?.to_owned()))
+            })
+            .collect();
         let body = response
             .body_mut()
             .with_config()
@@ -106,8 +114,7 @@ impl Transport for UreqTransport {
             .map_err(|error| TransportError::Failed(error.to_string()))?;
         Ok(HttpResponse {
             status: response.status().as_u16(),
-            etag,
-            content_type,
+            headers,
             body,
         })
     }

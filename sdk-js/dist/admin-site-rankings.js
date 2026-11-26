@@ -36,7 +36,7 @@ export const SiteRankDevice = {
     Mobile: "mobile",
     Tablet: "tablet",
 };
-/** The state of the Search Console connection the ranks come from; newer values may appear. */
+/** The state of the Search Console connection the ranks come from. */
 export const SiteRankingsSource = {
     NotConnected: "not_connected",
     Pending: "pending",

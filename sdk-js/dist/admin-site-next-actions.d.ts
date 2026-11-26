@@ -43,7 +43,7 @@ export type SiteNextAction = {
     title: string;
     why: string;
     /** high, medium, low or info. */
-    severity: string;
+    severity: "high" | "medium" | "low" | "info";
     /** The pages a finding affects; 0 for an action about the whole site. */
     affectedCount: number;
     /** The rule of a finding action. */
@@ -57,7 +57,7 @@ export type SiteNextActions = {
     domainUuid: string;
     host: string;
     /** unknown, up, failing, down or paused. */
-    status: string;
+    status: "unknown" | "up" | "failing" | "down" | "paused";
     /** One plain sentence: whether the site works and how much is left to do. */
     headline: string;
     /** The latest uptime check. */
@@ -79,7 +79,7 @@ export type SitePortfolioDomain = {
     domainUuid: string;
     siteUuid: string;
     host: string;
-    status: string;
+    status: "unknown" | "up" | "failing" | "down" | "paused";
     headline: string;
     checkedAt?: string;
     actionCount: number;

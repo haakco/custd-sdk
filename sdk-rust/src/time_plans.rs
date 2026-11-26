@@ -70,10 +70,10 @@ pub struct TimePlanAnnotationSchema {
     pub fields: Vec<TimePlanAnnotationSchemaFields>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TimePlanDefinitionBlock {
-    pub basis: String,
+    pub basis: TimePlanDefinitionBlockBasis,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -223,7 +223,7 @@ pub struct TimePlanRunView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scheduled_starts_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub start_policy: Option<String>,
+    pub start_policy: Option<TimePlanRunViewStartPolicy>,
     pub status: String,
     pub stream_version: i64,
     pub unused_ms: i64,
@@ -248,7 +248,7 @@ pub struct TimePlanRunBlockView {
     pub wall_started_at: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TimePlanCommandRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -269,10 +269,10 @@ pub struct TimePlanCommandRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scheduled_starts_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub start_policy: Option<String>,
+    pub start_policy: Option<TimePlanRunViewStartPolicy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub supersedes_transition_uuid: Option<String>,
-    pub r#type: String,
+    pub r#type: TimePlanCommandRequestType,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -284,7 +284,7 @@ pub struct TimePlanCommandResult {
     pub transition_uuid: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TimePlanCorrectedCommand {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -293,8 +293,8 @@ pub struct TimePlanCorrectedCommand {
     pub boundary_ends_at: Option<String>,
     pub effective_at: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub start_policy: Option<String>,
-    pub r#type: String,
+    pub start_policy: Option<TimePlanRunViewStartPolicy>,
+    pub r#type: TimePlanCommandRequestType,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -303,7 +303,8 @@ pub struct TimePlanCalculationReceipt {
     pub allocator_version: String,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub changes: Vec<TimePlanAllocationChange>,
-    pub reason: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<TimePlanCalculationReceiptReason>,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub result: Vec<TimePlanAllocation>,
     #[serde(default, deserialize_with = "null_as_empty")]
@@ -353,11 +354,11 @@ pub struct TimePlanAnnotation {
     pub supersedes_uuid: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
-    pub r#type: String,
+    pub r#type: TimePlanAnnotationSchemaAllowedTypes,
     pub uuid: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TimePlanAnnotationInput {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -374,7 +375,7 @@ pub struct TimePlanAnnotationInput {
     pub run_block_uuid: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
-    pub r#type: String,
+    pub r#type: TimePlanAnnotationSchemaAllowedTypes,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -606,7 +607,7 @@ pub struct CompletedDurationReportAnnotationInput {
     pub uuid: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletedDurationReportBlockInput {
     #[serde(rename = "actual_ms", default, skip_serializing_if = "Option::is_none")]
@@ -623,13 +624,13 @@ pub struct CompletedDurationReportBlockInput {
     pub category: Option<String>,
     #[serde(rename = "current_ms")]
     pub current_ms: i64,
-    pub outcome: String,
+    pub outcome: CompletedDurationReportBlockInputOutcome,
     #[serde(rename = "planned_ms")]
     pub planned_ms: i64,
     #[serde(rename = "semantic_key")]
     pub semantic_key: String,
     pub sequence: i64,
-    pub status: String,
+    pub status: CompletedDurationReportBlockInputStatus,
     #[serde(
         default,
         deserialize_with = "null_as_empty",
@@ -728,7 +729,7 @@ pub struct CompletedDurationReportProvenance {
     pub report_version: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletedDurationReportSummary {
     #[serde(rename = "actual_block_count")]
@@ -784,7 +785,7 @@ pub struct CompletedDurationReportSummary {
     #[serde(rename = "run_id")]
     pub run_id: String,
     #[serde(rename = "run_status")]
-    pub run_status: String,
+    pub run_status: CompletedDurationReportSummaryRunStatus,
     #[serde(
         rename = "scheduled_ends_at",
         default,
@@ -898,11 +899,17 @@ pub struct TimePlanDefinitionMathProofResponse {
 #[serde(rename_all = "camelCase")]
 pub struct TimePlanDefinitionMathAdjustmentResult {
     pub actual_ms: i64,
+    #[serde(default, deserialize_with = "null_as_empty")]
+    pub allocations: Vec<TimePlanAllocation>,
     pub elapsed_ms: i64,
+    pub exact_conservation: bool,
     pub horizon_ms: i64,
     pub index: i64,
+    pub mark_future_not_run: bool,
+    pub negative_allocations: i64,
     pub overrun_ms: i64,
-    pub reason: String,
+    pub passed: bool,
+    pub reason: TimePlanCalculationReceiptReason,
     pub remaining_ms: i64,
     pub unused_ms: i64,
     pub vector_id: String,
@@ -1030,6 +1037,27 @@ impl TimePlanAnnotationSchemaFields {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TimePlanDefinitionBlockBasis {
+    #[serde(rename = "absolute")]
+    Absolute,
+    #[serde(rename = "horizon_fraction")]
+    HorizonFraction,
+    #[serde(rename = "remainder_weight")]
+    RemainderWeight,
+}
+
+impl TimePlanDefinitionBlockBasis {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Absolute => "absolute",
+            Self::HorizonFraction => "horizon_fraction",
+            Self::RemainderWeight => "remainder_weight",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TimePlanThresholdCueSeverity {
     #[serde(rename = "info")]
     Info,
@@ -1046,6 +1074,165 @@ impl TimePlanThresholdCueSeverity {
             Self::Info => "info",
             Self::Warning => "warning",
             Self::Critical => "critical",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TimePlanRunViewStartPolicy {
+    #[serde(rename = "full_duration")]
+    FullDuration,
+    #[serde(rename = "fit_scheduled_window")]
+    FitScheduledWindow,
+}
+
+impl TimePlanRunViewStartPolicy {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::FullDuration => "full_duration",
+            Self::FitScheduledWindow => "fit_scheduled_window",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TimePlanCommandRequestType {
+    #[serde(rename = "schedule_run")]
+    ScheduleRun,
+    #[serde(rename = "start_run")]
+    StartRun,
+    #[serde(rename = "start_block")]
+    StartBlock,
+    #[serde(rename = "complete_block")]
+    CompleteBlock,
+    #[serde(rename = "skip_block")]
+    SkipBlock,
+    #[serde(rename = "change_boundary")]
+    ChangeBoundary,
+    #[serde(rename = "complete_run")]
+    CompleteRun,
+    #[serde(rename = "cancel_run")]
+    CancelRun,
+    #[serde(rename = "append_correction")]
+    AppendCorrection,
+}
+
+impl TimePlanCommandRequestType {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ScheduleRun => "schedule_run",
+            Self::StartRun => "start_run",
+            Self::StartBlock => "start_block",
+            Self::CompleteBlock => "complete_block",
+            Self::SkipBlock => "skip_block",
+            Self::ChangeBoundary => "change_boundary",
+            Self::CompleteRun => "complete_run",
+            Self::CancelRun => "cancel_run",
+            Self::AppendCorrection => "append_correction",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TimePlanCalculationReceiptReason {
+    #[serde(rename = "late_start")]
+    LateStart,
+    #[serde(rename = "early_completion")]
+    EarlyCompletion,
+    #[serde(rename = "overrun")]
+    Overrun,
+    #[serde(rename = "skip")]
+    Skip,
+    #[serde(rename = "completion")]
+    Completion,
+    #[serde(rename = "boundary_change")]
+    BoundaryChange,
+}
+
+impl TimePlanCalculationReceiptReason {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::LateStart => "late_start",
+            Self::EarlyCompletion => "early_completion",
+            Self::Overrun => "overrun",
+            Self::Skip => "skip",
+            Self::Completion => "completion",
+            Self::BoundaryChange => "boundary_change",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompletedDurationReportBlockInputOutcome {
+    #[serde(rename = "completed")]
+    Completed,
+    #[serde(rename = "skipped")]
+    Skipped,
+    #[serde(rename = "cancelled")]
+    Cancelled,
+    #[serde(rename = "not_run")]
+    NotRun,
+    #[serde(rename = "censored")]
+    Censored,
+}
+
+impl CompletedDurationReportBlockInputOutcome {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Completed => "completed",
+            Self::Skipped => "skipped",
+            Self::Cancelled => "cancelled",
+            Self::NotRun => "not_run",
+            Self::Censored => "censored",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompletedDurationReportBlockInputStatus {
+    #[serde(rename = "completed")]
+    Completed,
+    #[serde(rename = "skipped")]
+    Skipped,
+    #[serde(rename = "not_run")]
+    NotRun,
+    #[serde(rename = "pending")]
+    Pending,
+    #[serde(rename = "active")]
+    Active,
+}
+
+impl CompletedDurationReportBlockInputStatus {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Completed => "completed",
+            Self::Skipped => "skipped",
+            Self::NotRun => "not_run",
+            Self::Pending => "pending",
+            Self::Active => "active",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompletedDurationReportSummaryRunStatus {
+    #[serde(rename = "completed")]
+    Completed,
+    #[serde(rename = "cancelled")]
+    Cancelled,
+}
+
+impl CompletedDurationReportSummaryRunStatus {
+    /// The wire value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Completed => "completed",
+            Self::Cancelled => "cancelled",
         }
     }
 }
@@ -1090,11 +1277,12 @@ impl CustdClient {
         &self,
         plan_uuid: &str,
         request: &TimePlanReviseBody,
+        company_slug: Option<&str>,
     ) -> Result<TimePlan> {
         let path = api_path(
             format!("/api/v1/admin/time-plans/{}", percent_encode(plan_uuid)),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Patch, &path, Some(request))
     }
@@ -1104,6 +1292,7 @@ impl CustdClient {
         &self,
         plan_uuid: &str,
         request: &TimePlanRevisionBody,
+        company_slug: Option<&str>,
     ) -> Result<TimePlanPublishedVersion> {
         let path = api_path(
             format!(
@@ -1111,7 +1300,7 @@ impl CustdClient {
                 percent_encode(plan_uuid)
             ),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Post, &path, Some(request))
     }
@@ -1254,6 +1443,7 @@ impl CustdClient {
         run_uuid: &str,
         annotation_uuid: &str,
         request: &TimePlanAnnotationInput,
+        company_slug: Option<&str>,
     ) -> Result<TimePlanAnnotation> {
         let path = api_path(
             format!(
@@ -1262,7 +1452,7 @@ impl CustdClient {
                 percent_encode(annotation_uuid)
             ),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Post, &path, Some(request))
     }
@@ -1273,6 +1463,7 @@ impl CustdClient {
         run_uuid: &str,
         annotation_uuid: &str,
         request: &TimePlanAnnotationRedactBody,
+        company_slug: Option<&str>,
     ) -> Result<()> {
         let path = api_path(
             format!(
@@ -1281,7 +1472,7 @@ impl CustdClient {
                 percent_encode(annotation_uuid)
             ),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Post, &path, Some(request))
     }
@@ -1308,6 +1499,7 @@ impl CustdClient {
         &self,
         run_uuid: &str,
         limit: Option<i64>,
+        company_slug: Option<&str>,
     ) -> Result<TimePlanTransitionHistoryResponse> {
         let path = api_path(
             format!(
@@ -1315,7 +1507,7 @@ impl CustdClient {
                 percent_encode(run_uuid)
             ),
             &[("limit", limit.map(|v| v.to_string()))],
-            None,
+            company_slug,
         );
         self.call(Method::Get, &path, NO_BODY)
     }
@@ -1373,14 +1565,18 @@ impl CustdClient {
     }
 
     /// Rebuild a time-plan run projection from immutable history.
-    pub fn repair_time_plan_run(&self, run_uuid: &str) -> Result<TimePlanRunRepairResponse> {
+    pub fn repair_time_plan_run(
+        &self,
+        run_uuid: &str,
+        company_slug: Option<&str>,
+    ) -> Result<TimePlanRunRepairResponse> {
         let path = api_path(
             format!(
                 "/api/v1/admin/time-plans/runs/{}/repair",
                 percent_encode(run_uuid)
             ),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Post, &path, NO_BODY)
     }

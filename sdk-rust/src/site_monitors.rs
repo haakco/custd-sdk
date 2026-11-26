@@ -524,6 +524,7 @@ impl CustdClient {
         &self,
         incident_uuid: &str,
         domain_uuid: &str,
+        company_slug: Option<&str>,
     ) -> Result<SiteIncident> {
         let path = api_path(
             format!(
@@ -532,7 +533,7 @@ impl CustdClient {
                 percent_encode(incident_uuid)
             ),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Post, &path, NO_BODY)
     }
@@ -573,11 +574,12 @@ impl CustdClient {
         &self,
         domain_uuid: &str,
         request: &SiteHeartbeatCreate,
+        company_slug: Option<&str>,
     ) -> Result<SiteHeartbeatCredential> {
         let path = api_path(
             format!("{SITE_DOMAINS}/{}/heartbeats", percent_encode(domain_uuid)),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Post, &path, Some(request))
     }
@@ -587,6 +589,7 @@ impl CustdClient {
         &self,
         monitor_uuid: &str,
         domain_uuid: &str,
+        company_slug: Option<&str>,
     ) -> Result<SiteHeartbeatCredential> {
         let path = api_path(
             format!(
@@ -595,13 +598,18 @@ impl CustdClient {
                 percent_encode(monitor_uuid)
             ),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Post, &path, NO_BODY)
     }
 
     /// Remove a job monitor and revoke its write credential.
-    pub fn delete_site_heartbeat(&self, monitor_uuid: &str, domain_uuid: &str) -> Result<()> {
+    pub fn delete_site_heartbeat(
+        &self,
+        monitor_uuid: &str,
+        domain_uuid: &str,
+        company_slug: Option<&str>,
+    ) -> Result<()> {
         let path = api_path(
             format!(
                 "{SITE_DOMAINS}/{}/heartbeats/{}",
@@ -609,7 +617,7 @@ impl CustdClient {
                 percent_encode(monitor_uuid)
             ),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Delete, &path, NO_BODY)
     }
@@ -636,6 +644,7 @@ impl CustdClient {
         &self,
         domain_uuid: &str,
         request: &SitePrivateUptimeMonitorCreate,
+        company_slug: Option<&str>,
     ) -> Result<SitePrivateUptimeCredential> {
         let path = api_path(
             format!(
@@ -643,7 +652,7 @@ impl CustdClient {
                 percent_encode(domain_uuid)
             ),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Post, &path, Some(request))
     }
@@ -653,6 +662,7 @@ impl CustdClient {
         &self,
         monitor_uuid: &str,
         domain_uuid: &str,
+        company_slug: Option<&str>,
     ) -> Result<SitePrivateUptimeCredential> {
         let path = api_path(
             format!(
@@ -661,13 +671,18 @@ impl CustdClient {
                 percent_encode(monitor_uuid)
             ),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Post, &path, NO_BODY)
     }
 
     /// Remove the private monitor and revoke its write credential.
-    pub fn delete_private_uptime(&self, monitor_uuid: &str, domain_uuid: &str) -> Result<()> {
+    pub fn delete_private_uptime(
+        &self,
+        monitor_uuid: &str,
+        domain_uuid: &str,
+        company_slug: Option<&str>,
+    ) -> Result<()> {
         let path = api_path(
             format!(
                 "{SITE_DOMAINS}/{}/private-uptime/{}",
@@ -675,7 +690,7 @@ impl CustdClient {
                 percent_encode(monitor_uuid)
             ),
             &[],
-            None,
+            company_slug,
         );
         self.call(Method::Delete, &path, NO_BODY)
     }

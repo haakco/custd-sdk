@@ -1,23 +1,15 @@
-//! Rows for the hand-written Admin API methods whose operation names no response schema, and the
-//! audit export and offboarding download.
+//! Rows for the hand-written Admin API methods: impersonation, retention runs, scheduled tasks,
+//! notification replay, forced erasure, managed-audit provisioning, historical cleanup, the audit
+//! export and the offboarding download.
 
 use custd_sdk::{
-    AuditEventExport, AuditEventQuery, AuditEventsFormat, AuditListResponse,
-    ImpersonationSessionCreateRequest, NotificationDeliveryReplayRequest, OffboardingDownload,
-    ProducerProvisionRequest,
+    AuditEventExport, AuditEventsFormat, AuditListResponse, ImpersonationSessionCreateRequest,
+    NotificationDeliveryReplayRequest, OffboardingDownload, ProducerProvisionRequest,
+    RetentionRunListResponse, RetentionRunPreview, TenantOffboardingReceipt,
 };
 
-use serde::Deserialize;
-use serde_json::{Map, Value};
-
-use super::round_trip;
+use super::{audit_query, round_trip};
 use crate::{Row, bodiless, row};
-
-/// The OpenAPI document gives historical cleanup an untyped object (so its example is one), while
-/// the handler answers with a `TenantOffboardingReceipt`; the example can only prove an object.
-fn object(value: &Value) -> Result<(), serde_json::Error> {
-    Map::<String, Value>::deserialize(value).map(|_| ())
-}
 
 pub fn rows() -> Vec<Row> {
     vec![
@@ -44,20 +36,23 @@ pub fn rows() -> Vec<Row> {
             "/api/v1/admin/impersonation-sessions/s-1/terminate",
             |c| drop(c.custd.terminate_impersonation_session("s-1")),
         ),
-        bodiless(
+        row(
             "admin-api GET /api/v1/admin/retention/policies/{tenantSlug}/runs",
             "/api/v1/admin/retention/policies/acme/runs?limit=7&offset=2",
             |c| drop(c.custd.list_retention_runs("acme", Some(7), Some(2))),
+            round_trip::<RetentionRunListResponse>,
         ),
-        bodiless(
+        row(
             "admin-api POST /api/v1/admin/retention/policies/{tenantSlug}/preview",
             "/api/v1/admin/retention/policies/acme/preview",
             |c| drop(c.custd.preview_retention_run("acme")),
+            round_trip::<RetentionRunPreview>,
         ),
-        bodiless(
+        row(
             "admin-api POST /api/v1/admin/retention/policies/{tenantSlug}/apply",
             "/api/v1/admin/retention/policies/acme/apply",
             |c| drop(c.custd.apply_retention_run("acme")),
+            round_trip::<RetentionRunPreview>,
         ),
         bodiless(
             "admin-api GET /api/v1/admin/scheduled-tasks/{taskName}",
@@ -92,8 +87,8 @@ pub fn rows() -> Vec<Row> {
         ),
         bodiless(
             "admin-api POST /api/v1/admin/privacy/erasures/{requestUuid}/force",
-            "/api/v1/admin/privacy/erasures/r-1/force",
-            |c| drop(c.custd.force_privacy_erasure("r-1")),
+            "/api/v1/admin/privacy/erasures/r-1/force?companySlug=acme",
+            |c| drop(c.custd.force_privacy_erasure("r-1", Some("acme"))),
         ),
         bodiless(
             "admin-api POST /api/v1/managed-audit/provision",
@@ -107,14 +102,14 @@ pub fn rows() -> Vec<Row> {
             "admin-api POST /api/v1/admin/tenants/{slug}/historical-cleanup",
             "/api/v1/admin/tenants/acme/historical-cleanup?companyId=7",
             |c| drop(c.custd.historical_cleanup_tenant("acme", 7, "key-0001")),
-            object,
+            round_trip::<TenantOffboardingReceipt>,
         ),
         row(
             "admin-api GET /api/v1/admin/audit/events/export",
-            "/api/v1/admin/audit/events/export?format=csv&companySlug=acme",
+            "/api/v1/admin/audit/events/export?scope=tenant&affectedTenantSlug=acme&since=s-1&until=u-1&actorKind=k-1&actorReference=r-1&action=a-1&resourceType=t-1&resourceId=i-1&outcome=o-1&correlationId=c-1&format=csv&companySlug=acme",
             |c| {
                 drop::<Result<AuditEventExport, _>>(c.custd.export_audit_events(
-                    &AuditEventQuery::default(),
+                    &audit_query(),
                     AuditEventsFormat::Csv,
                     Some("acme"),
                 ))

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Admin;
 
 use HaakCo\Custd\Admin\SiteDomain\SiteAIConsentRequest;
+use HaakCo\Custd\Admin\SiteDomain\SiteAIOwnerHandoff;
+use HaakCo\Custd\Admin\SiteDomain\SiteAIOwnerHandoffRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteAIPlatformUsage;
 use HaakCo\Custd\Admin\SiteDomain\SiteAISettings;
 use HaakCo\Custd\Admin\SiteDomain\SiteAISettingsRequest;
@@ -47,5 +49,16 @@ final class SiteAIClient
         $query = $period === null ? [] : ['period' => $period->value];
 
         return SiteAIPlatformUsage::fromPayload($this->http->send('GET', '/admin/site-insights/ai-usage', $query, null));
+    }
+
+    /**
+     * Issue a one-time AI settings handoff for one owner of a data space this broker manages. The tenant is in
+     * the request, so no acting company is sent. Redeem it with {@see \HaakCo\Custd\App\PublicReadClient::redeemSiteAIOwnerHandoff()}.
+     */
+    public function createOwnerHandoff(SiteAIOwnerHandoffRequest $request): SiteAIOwnerHandoff
+    {
+        return SiteAIOwnerHandoff::fromPayload(
+            $this->http->send('POST', SiteDomainHttp::COLLECTION . '/ai-owner-handoffs', [], null, $request->serialise()),
+        );
     }
 }

@@ -41,7 +41,8 @@
     "lint": "biome check src",
     "lint:fix": "biome check --write src",
     "test": "vitest run src",
-    "smoke:dev": "pnpm run build && node scripts/smoke-dev.js"
+    "smoke:dev": "pnpm run build && node scripts/smoke-dev.js",
+    "generate:response-lists": "node scripts/generate-response-lists.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.8",

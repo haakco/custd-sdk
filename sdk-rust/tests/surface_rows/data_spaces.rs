@@ -39,16 +39,17 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api GET /api/v1/data-spaces/{slug}/producer-reservations",
-            "/api/v1/data-spaces/s-1/producer-reservations",
-            |c| drop(c.custd.list_producer_reservations("s-1")),
+            "/api/v1/data-spaces/s-1/producer-reservations?parentCompanySlug=p-1",
+            |c| drop(c.custd.list_producer_reservations("s-1", Some("p-1"))),
             round_trip::<ProducerReservationListResponse>,
         ),
         row(
             "admin-api POST /api/v1/data-spaces/{slug}/producer-reservations",
-            "/api/v1/data-spaces/s-1/producer-reservations",
+            "/api/v1/data-spaces/s-1/producer-reservations?parentCompanySlug=p-1",
             |c| {
                 drop(c.custd.reserve_producer_reservation(
                     "s-1",
+                    Some("p-1"),
                     &body::<ProducerReservationCreateRequest>(
                         r#"{"producerSlug":"x","ttlSeconds":1}"#,
                     ),
@@ -58,11 +59,12 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api POST /api/v1/data-spaces/{slug}/producer-reservations/{producerSlug}/claim",
-            "/api/v1/data-spaces/s-1/producer-reservations/p-1/claim",
+            "/api/v1/data-spaces/s-1/producer-reservations/p-1/claim?parentCompanySlug=p-1",
             |c| {
                 drop(c.custd.claim_producer_reservation(
                     "s-1",
                     "p-1",
+                    Some("p-1"),
                     &body::<ProducerReservationClaimRequest>(r#"{"claimedByClientId":"x"}"#),
                 ))
             },
@@ -70,8 +72,13 @@ pub fn rows() -> Vec<Row> {
         ),
         bodiless(
             "admin-api DELETE /api/v1/data-spaces/{slug}/producer-reservations/{producerSlug}",
-            "/api/v1/data-spaces/s-1/producer-reservations/p-1",
-            |c| drop(c.custd.release_producer_reservation("s-1", "p-1")),
+            "/api/v1/data-spaces/s-1/producer-reservations/p-1?parentCompanySlug=p-1",
+            |c| {
+                drop(
+                    c.custd
+                        .release_producer_reservation("s-1", "p-1", Some("p-1")),
+                )
+            },
         ),
     ]
 }

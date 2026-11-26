@@ -21,14 +21,21 @@ use HaakCo\Custd\Fields;
  * realm branding, `hosting` when the Hosting platform's application label is
  * the source of truth and Custd only mirrors it, so a Custd editor must not
  * overwrite it. Both are null when the caller does not know the field, which
- * leaves the stored value alone.
+ * leaves the stored value alone. A status always reports the source and reports
+ * an unnamed realm as `""`, which this class reads as a null name: applied again,
+ * the reported source alone clears the name that is already clear.
  *
- * The remaining sections are sent only when set, so a consumer that leaves them null sends what it
- * sent before: `entryPath` is the realm's public entry path, `brandAccent` its `#rrggbb` sign-in
- * accent, `signInMethods` narrows the sign-in methods it offers, `applicationSessionPolicy` is
- * `offer_remember_me` or `short_only`, `hosting` serves the environment as a hosted application and
- * `socialSignIn` is the social providers it offers. A null `hosting` or `socialSignIn` keeps the
- * stored section.
+ * The remaining sections are sent only when set: `entryPath` is the realm's public entry path,
+ * `brandAccent` its `#rrggbb` sign-in accent, `signInMethods` narrows the sign-in methods it offers,
+ * `applicationSessionPolicy` is `offer_remember_me` or `short_only`, `hosting` serves the environment
+ * as a hosted application and `socialSignIn` is the social providers it offers.
+ *
+ * What an unset section means follows Custd's apply. `entryPath`, `brandAccent` and `signInMethods`
+ * have no keep: Custd stores an omitted, empty or null value as unset, so an apply that leaves them
+ * unset clears them. A status reports an unset value as `""` or an empty list, and this class reads
+ * that as null and never sends it, so a desired state read from a status and applied again is a
+ * no-op, and it compares equal to one that never named the section. A null
+ * `applicationSessionPolicy`, `hosting` or `socialSignIn` keeps the stored section.
  */
 final readonly class DesiredState
 {
@@ -124,7 +131,7 @@ final readonly class DesiredState
             "socialSignIn" => $this->socialSignIn?->toPayload(),
         ];
         foreach ($sections as $key => $value) {
-            if ($value !== null) {
+            if ($value !== null && $value !== "" && $value !== []) {
                 $payload[$key] = $value;
             }
         }
@@ -145,16 +152,28 @@ final readonly class DesiredState
             Fields::boolean($payload, "loginPaused"),
             $audiences === null ? null : array_map(AudienceBinding::fromPayload(...), $audiences),
             $profileFields === null ? null : array_map(ProfileField::fromPayload(...), $profileFields),
-            Fields::optionalString($payload, "displayName"),
+            self::unsetWhenEmpty(Fields::optionalString($payload, "displayName")),
             Fields::optionalString($payload, "displayNameSource"),
             false,
-            Fields::optionalString($payload, "entryPath"),
-            Fields::optionalString($payload, "brandAccent"),
-            Fields::optionalStrings($payload, "signInMethods"),
+            self::unsetWhenEmpty(Fields::optionalString($payload, "entryPath")),
+            self::unsetWhenEmpty(Fields::optionalString($payload, "brandAccent")),
+            self::unsetWhenEmpty(Fields::optionalStrings($payload, "signInMethods")),
             Fields::optionalString($payload, "applicationSessionPolicy"),
             $hosting === null ? null : Hosting::fromPayload($hosting),
             $socialSignIn === null ? null : SocialSignIn::fromPayload($socialSignIn),
         );
+    }
+
+    /**
+     * Custd reports an unset name, entry path, accent or method list as empty; null is this class's unset.
+     *
+     * @template T of string|list<string>
+     * @param T|null $value
+     * @return T|null
+     */
+    private static function unsetWhenEmpty(string|array|null $value): string|array|null
+    {
+        return $value === "" || $value === [] ? null : $value;
     }
 
     private static function assertDisplayNameSource(string $source): void

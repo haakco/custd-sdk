@@ -17,6 +17,8 @@ from typing import Any, Literal, NotRequired, TypedDict, cast
 from .admin_site_access_logs import SiteAccessLogHourReplay, SiteAIVisibility, SiteTraffic
 from .admin_site_ai import (
     SiteAIConsentRequest,
+    SiteAIOwnerHandoff,
+    SiteAIOwnerHandoffRequest,
     SiteAIPlatformUsage,
     SiteAISettings,
     SiteAISettingsRequest,
@@ -216,6 +218,8 @@ SiteDomainVerifiedBy = Literal["dns", "file", "attested", "parent", "operator"]
 # imports through Custd's service account, which the client adds as a (Restricted) user on its
 # Search Console property; Bing imports with the client's API key.
 SiteSearchProvider = Literal["google", "bing"]
+# Whether a provider's totals are per day (Google) or per week (Bing).
+SiteSearchGranularity = Literal["daily", "weekly"]
 SITE_SEARCH_PROVIDER_GOOGLE: SiteSearchProvider = "google"
 SITE_SEARCH_PROVIDER_BING: SiteSearchProvider = "bing"
 
@@ -744,7 +748,7 @@ class SiteSearchSource(_SiteSearchSourceWindow):
 
     provider: SiteSearchProvider
     source: str
-    granularity: str
+    granularity: SiteSearchGranularity
     days: int
     totals: SiteSearchTotals
     daily: list[SiteSearchDay]
@@ -1546,6 +1550,15 @@ class SiteDomainAdminClient:
         """Grant consent for the accepted terms version, or revoke it."""
         path = SITE_DOMAINS_PATH + "/ai-settings/consent"
         return cast(SiteAISettings, self._request("PUT", path, {}, None, dict(request)))
+
+    def create_ai_owner_handoff(self, request: SiteAIOwnerHandoffRequest) -> SiteAIOwnerHandoff:
+        """Issue a data-space owner a one-minute code that opens Custd's AI settings page for that space.
+
+        Only an approved data-space broker may call this. The owner's browser posts the code to
+        ``redeemUrl`` as a form; see ``custd.site_ai_owner`` for that session's calls.
+        """
+        path = SITE_DOMAINS_PATH + "/ai-owner-handoffs"
+        return cast(SiteAIOwnerHandoff, self._request("POST", path, {}, None, dict(request)))
 
     def get_ai_usage(self) -> SiteAITenantUsage:
         """Read the tenant’s current UTC month of AI usage in USD micros."""

@@ -16,6 +16,7 @@ import {
   SITE_SEARCH_INSPECTION_URL_INVALID_CODE,
   type SiteFinding,
   SiteGeneratedFormat,
+  type SitePageCheckRequest,
   SitePageCheckScope,
   type SiteRegionalTrends,
   type SiteRemedy,
@@ -64,7 +65,7 @@ describe("site insights page tools", () => {
       format: SiteGeneratedFormat.HTML,
       code: '<link rel="canonical" href="https://example.com/plans">',
     });
-    const unknown: SiteRemedy = tools.remedyUnknownRule;
+    const unknown = tools.remedyUnknownRule as SiteRemedy;
     expect(unknown).toEqual({ kind: "", element: "" });
     expect(unknown.generated).toBeUndefined();
   });
@@ -214,7 +215,7 @@ describe("site insights page tools", () => {
       respond(200, tools.pageCheckDraftTools),
     );
 
-    const check = await domains.checkPage(domainUuid, tools.pageCheckContentRequest);
+    const check = await domains.checkPage(domainUuid, tools.pageCheckContentRequest as SitePageCheckRequest);
     expect(check).toEqual(tools.pageCheckContent);
     expect(check.scope).toBe(SitePageCheckScope.Content);
     expect(check.checkedRules).toContain(SiteRule.ImageNotLazy);

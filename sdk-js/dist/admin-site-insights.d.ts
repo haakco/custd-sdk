@@ -16,14 +16,15 @@ export declare const SITE_SEARCH_INSPECTION_URL_INVALID_CODE = "site_search_insp
 export declare const SITE_SEARCH_INSPECTION_NOT_CONNECTED_CODE = "site_search_inspection_not_connected";
 /** A 429 on requestSearchInspection: the tenant's daily URL inspections are used up. */
 export declare const SITE_SEARCH_INSPECTION_LIMIT_CODE = "site_search_inspection_limit";
-/** What a fix changes. An unknown rule carries an empty kind; newer kinds may appear. */
+/** What a fix changes. An unknown rule carries an empty kind. */
 export declare const SiteRemedyKind: {
     readonly Markup: "markup";
     readonly Setting: "setting";
     readonly Content: "content";
     readonly Server: "server";
 };
-/** The formats generated fix code comes in; newer formats may appear. */
+export type SiteRemedyKind = (typeof SiteRemedyKind)[keyof typeof SiteRemedyKind];
+/** The formats generated fix code comes in. */
 export declare const SiteGeneratedFormat: {
     readonly HTML: "html";
     readonly RobotsTxt: "robots.txt";
@@ -32,13 +33,13 @@ export declare const SiteGeneratedFormat: {
 };
 /** Ready-to-copy code for one finding. It is never a published change. */
 export type SiteGeneratedFix = {
-    format: string;
+    format: "html" | "robots.txt" | "redirect";
     code: string;
 };
 /** What a finding's fix changes; the recommendation itself is the finding's `fix` text. */
 export type SiteRemedy = {
     /** A SiteRemedyKind value, or empty for a rule without a remedy shape. */
-    kind: string;
+    kind: SiteRemedyKind | "";
     /** The element, file or setting the fix changes. */
     element: string;
     /** Present only for rules with a generator that saw enough to fill it in. */
@@ -139,6 +140,7 @@ export declare const SitePageCheckScope: {
     readonly Page: "page";
     readonly Content: "content";
 };
+export type SitePageCheckScope = (typeof SitePageCheckScope)[keyof typeof SitePageCheckScope];
 export type SitePageCheckRequest = {
     /** The address the draft will be published at, on the domain's host. */
     url: string;
@@ -149,7 +151,7 @@ export type SitePageCheckRequest = {
     /** A search phrase, at most 100 characters, to find in the draft. */
     phrase?: string;
     /** A SitePageCheckScope value; omitted, the server checks the whole page. */
-    scope?: string;
+    scope?: SitePageCheckScope;
 };
 /** Where one phrase appears in a draft and how often, with no target or verdict. */
 export type SitePhraseUse = {
@@ -173,7 +175,7 @@ export type SitePageCheckResponse = {
     redirect?: SiteGeneratedFix;
     phrase?: SitePhraseUse;
     /** The draft's SitePageCheckScope; absent from a recheck or an older server. */
-    scope?: string;
+    scope?: "page" | "content";
     /** Set only for scope content: the rules checked, so a rule here and not in findings passed. */
     checkedRules?: string[];
 };
@@ -451,7 +453,7 @@ export type SiteReport = {
      * A SiteReportTemplate value; executive leaves out the technical appendix. Absent on servers
      * before the template field; the server's default template is full.
      */
-    template?: string;
+    template?: "executive" | "full";
     uptime: SiteReportUptime;
     certificate: SiteReportCertificate;
     speed: SiteReportSpeed[];
@@ -491,13 +493,14 @@ export declare const SITE_INDEXNOW_KEY_UNVERIFIED_CODE = "site_indexnow_key_unve
 export declare const SITE_INDEXNOW_URLS_INVALID_CODE = "site_indexnow_urls_invalid";
 /** A 429 on submitIndexNow: the tenant's daily IndexNow URLs are used up. */
 export declare const SITE_INDEXNOW_LIMIT_CODE = "site_indexnow_limit";
-/** An IndexNow submission's status; newer statuses may appear. */
+/** An IndexNow submission's status. */
 export declare const IndexNowSubmissionStatus: {
     readonly Queued: "queued";
     readonly Accepted: "accepted";
     readonly Rejected: "rejected";
     readonly Failed: "failed";
 };
+export type IndexNowSubmissionStatus = (typeof IndexNowSubmissionStatus)[keyof typeof IndexNowSubmissionStatus];
 export type IndexNowSubmissionRequest = {
     /** 1 to 100 URLs on the domain's own host. */
     urls: string[];
@@ -506,7 +509,7 @@ export type IndexNowSubmissionRequest = {
 export type IndexNowSubmission = {
     submissionUuid: string;
     /** An IndexNowSubmissionStatus value. */
-    status: string;
+    status: IndexNowSubmissionStatus;
     urls: string[];
     /** IndexNow's HTTP status; 202 means received while the key is validated. */
     providerStatus?: number;
