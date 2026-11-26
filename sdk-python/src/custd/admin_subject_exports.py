@@ -20,8 +20,8 @@ SubjectExportStatus = Literal["queued", "running", "complete", "failed", "cancel
 
 SUBJECT_EXPORTS_PATH = "/api/v1/admin/subject-exports"
 
-SUBJECT_EXPORT_SCOPE_ACCESS: SubjectExportScope = "access"
-SUBJECT_EXPORT_SCOPE_PORTABILITY: SubjectExportScope = "portability"
+SUBJECT_EXPORT_SCOPE_ACCESS: SubjectExportDownloadScope = "access"
+SUBJECT_EXPORT_SCOPE_PORTABILITY: SubjectExportDownloadScope = "portability"
 SUBJECT_EXPORT_SCOPE_BOTH: SubjectExportScope = "both"
 
 

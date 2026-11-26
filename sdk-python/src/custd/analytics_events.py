@@ -32,7 +32,8 @@ ANALYTICS_QUERY_SOURCES = ("auto", "postgres", "duckdb", "rollup", "materialized
 # range API accepts only omitted/empty, auto, or duckdb; the single-day query's
 # retired postgres, rollup, and materialized sources are not part of it. An empty
 # source is accepted as the default and normalized to an omitted wire field.
-ANALYTICS_RANGE_QUERY_SOURCES = ("auto", "duckdb")
+AnalyticsRangeQuerySource = Literal["auto", "duckdb"]
+ANALYTICS_RANGE_QUERY_SOURCES: tuple[AnalyticsRangeQuerySource, ...] = ("auto", "duckdb")
 
 
 class AnalyticsLabelFilter(TypedDict):
@@ -118,7 +119,7 @@ AnalyticsEventRangeQueryRequest = TypedDict(
         "to": str,
         "eventType": NotRequired[str],
         "limit": NotRequired[int],
-        "source": NotRequired[AnalyticsQuerySource],
+        "source": NotRequired[AnalyticsRangeQuerySource],
         "groupBy": NotRequired[str],
         "labelFilters": NotRequired[list[AnalyticsLabelFilter]],
         "severity": NotRequired[str],

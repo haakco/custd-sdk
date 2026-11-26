@@ -32,6 +32,7 @@ from .app_types import (
     AppItemCreated,
     AppItemCreateKind,
     AppItemCreateRequest,
+    AppItemKind,
     AppItemLinkRotated,
     AppItemList,
     AppItemMeasurementPage,
@@ -68,10 +69,10 @@ from .client import AdminTransport, default_admin_transport, problem_request_err
 APP_ITEM_SITE_KEY_HEADER = "X-Custd-Site-Key"
 APP_ITEM_USER_TOKEN_HEADER = "X-Custd-User-Token"
 
-APP_ITEM_KIND_MEASUREMENT_PROJECT: AppItemCreateKind = "measurement_project"
-APP_ITEM_KIND_LINK_COLLECTION: AppItemCreateKind = "link_collection"
-APP_ITEM_KIND_UNCERTAINTY_MODEL: AppItemCreateKind = "uncertainty_model"
-APP_ITEM_KIND_MEETING: AppItemCreateKind = "meeting"
+APP_ITEM_KIND_MEASUREMENT_PROJECT: AppItemKind = "measurement_project"
+APP_ITEM_KIND_LINK_COLLECTION: AppItemKind = "link_collection"
+APP_ITEM_KIND_UNCERTAINTY_MODEL: AppItemKind = "uncertainty_model"
+APP_ITEM_KIND_MEETING: AppItemKind = "meeting"
 APP_ITEM_KIND_PLAN: AppItemCreateKind = "plan"
 
 APP_LINK_ROLE_OWNER: AppLinkRole = "owner"
