@@ -19,7 +19,8 @@ before a consumer does.
     release with Custd `2fef916ba` serves `https://custd.com/docs/openapi/api-operations.json`; the
     first run then opens a pull request for the drift Custd has gained since `82873e00c`. The `sdk`
     disposition in Custd and the changelog snapshot digest are still open.
-  - **M5:** consumers do not yet bump automatically or replay Custd's fixtures.
+  - **M5:** Go, PHP and Rust pins now get Dependabot bump pull requests. JS pins cannot be bumped
+    until the SDK mirrors its JS packages, and no consumer replays Custd's fixtures yet.
 - **Resume:** pick M4 or M5. Consumers with no local checkout are in the
   [SDK 3.66 consumer adoption plan](./2026-11-26_0300_sdk-3-66-consumer-adoption_plan.md).
 
@@ -130,7 +131,37 @@ heuristic script. People cannot keep five SDKs and about 540 admin operations al
 
 - Publish a machine-readable release note per tag: added, changed or removed operations from the manifest
   diff, and the fixture digest.
-- Give consumers a Renovate rule (or the existing Dependabot setup) for the SDK tag.
+- Give consumers a Renovate rule (or the existing Dependabot setup) for the SDK tag. No repository
+  uses Renovate, so each consumer has one Dependabot entry per pin ecosystem. Each entry allows only
+  the SDK, runs weekly, and excludes the SDK from the default three-day cooldown. `target-branch: main`
+  keeps the `allow` list off security updates; without it, Dependabot applies `allow` to security
+  updates too (`dependabot-core` `Job#allowed_update?`). State on 2026-11-26, all configs
+  schema-valid against SchemaStore `dependabot-2.0.json`:
+
+  | Consumer | Pin form | Automatic bump | Commit |
+  | --- | --- | --- | --- |
+  | Hosting API | Composer `^3.66.0`, VCS repository | Dependabot `composer` `/api` (already present, fixed so composer security updates work) | `14500df4e`, pushed |
+  | Hosting frontend | `github:haakco/custd-sdk#v3.66.0&path:/sdk-js` | None, see below | — |
+  | Vorrent Go | `github.com/haakco/custd-sdk-go/v3 v3.66.0` in `/` and `/media_cache` | Dependabot `gomod`, one grouped pull request | `5a1b447e`, pushed |
+  | Vorrent JS (frontend, mobile, shared) | `github:…#v3.66.0&path:/sdk-js` | None, see below | — |
+  | done-when-app CLI | Cargo git `tag = "v3.66.0"` | Dependabot `cargo` `/cli` | `13cf6f5`, pushed |
+  | done-when-app JS and React | `github:…#v3.66.0&path:/sdk-js` and `/sdk-react` | None, see below | — |
+  | dzine-canvas | Release tarball URL in `package-lock.json` | None, see below | — |
+  | Custd Go | `custd-sdk-go/v3 v3.66.0` in custdctl, loadgen, lifecycle-m6 | Dependabot `gomod`, one grouped pull request | `af503223a`, not pushed |
+  | Custd PHP loadgen | Composer `^3.66.0`, VCS repository | Dependabot `composer` | `af503223a`, not pushed |
+  | Custd JS (frontend, loadgen) | `github:…#v3.66.0&path:/sdk-js` and `/sdk-react` | `scripts/dev/update-custd-sdk.sh` by hand | — |
+
+  - **JS cannot be bumped by Dependabot in any consumer.** Its npm parser reads everything after `#`
+    as the ref, so `v3.66.0&path:/sdk-js` never matches a version tag. It ignores a non-git URL such as
+    dzine's tarball. npm has no git-subdirectory syntax, so no `github:` form works there either.
+    The fix is SDK-side: mirror `sdk-js` and `sdk-react` as built packages to their own repositories on
+    each tag, like `custd-sdk-go`, so consumers pin `github:haakco/custd-sdk-js#vX`, a form Dependabot
+    bumps. Publishing to a package registry also works but needs a token.
+  - **CI on the bump pull request:** Hosting (`quality.yml`) and Vorrent (`ci.yml`) run on
+    `pull_request` to `main`. done-when-app has no pull-request CI, only `cli-release` on `cli-v*` tags,
+    so its pull request opens with no checks. Dependabot pull requests get only Dependabot secrets.
+    Hosting's composer registry reads `COMPOSER_GITHUB_TOKEN` there; it is not a repository
+    Dependabot secret, so it must be an organization one.
 - Give them a fixture check: their fakes replay `contract-fixtures/` at the pinned tag, so a fake that
   disagrees with Custd fails their CI, not production.
 - `contract-fixtures/` is `export-ignore`d, so it is not in the Composer dist. Ship the fixtures a consumer
