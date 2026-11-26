@@ -324,6 +324,45 @@ export type ProducerSigningKeys = {
     clientId: string;
     companySlug: string;
     publicKeys: string[];
+    /** The keys' sha256 fingerprints, `sha256:<hex>`, in publicKeys order. */
+    keyFingerprints: string[];
+};
+/** Whether a data space still accepts signed events. */
+export type DataSpaceSigningState = "active" | "revoked" | "erased";
+/** Whether a signing producer's events are accepted. */
+export type SigningProducerState = "ready" | "awaiting_keys" | "cancelled";
+/** The signed events ingest refused for one producer, by reason. */
+export type SigningRefusalCounts = {
+    bindingNotReady: number;
+    bindingCancelled: number;
+    invalidSignature: number;
+    lastRefusedAt?: string;
+};
+/** One signing producer of a data space: its keys and its refusals. */
+export type SigningProducerStatus = {
+    clientId: string;
+    state: SigningProducerState;
+    keyFingerprints: string[];
+    refusals: SigningRefusalCounts;
+};
+/** Whether a data space's signing producers can deliver events. */
+export type DataSpaceSigningStatus = {
+    dataSpaceSlug: string;
+    parentCompanySlug: string;
+    state: DataSpaceSigningState;
+    erasedAt?: string;
+    producers: SigningProducerStatus[];
+};
+/** Whether an adoption moved the Site or found it already moved. */
+export type DataSpaceSiteAdoptionStatus = "adopted" | "already_adopted";
+/** The result of moving a parent's Site into an owned data space. */
+export type DataSpaceSiteAdoption = {
+    siteUuid: string;
+    dataSpaceSlug: string;
+    parentCompanySlug: string;
+    status: DataSpaceSiteAdoptionStatus;
+    movedRecords: number;
+    credentialClientIds: string[];
 };
 export type ProducerProvisionPublicClient = {
     clientId: string;
@@ -2082,6 +2121,13 @@ declare class ProvisioningDataSpaceNamespace {
     /** Asks Custd to erase everything a data space holds. The answer is the accepted request, not the finished erasure. */
     erase(slug: string, parentCompanySlug?: string): Promise<DataSpaceErasure>;
     getErasure(slug: string, parentCompanySlug?: string): Promise<DataSpaceErasure>;
+    /** Reads whether a data space's signing producers are ready and what ingest refused. */
+    getSigningStatus(slug: string, parentCompanySlug?: string): Promise<DataSpaceSigningStatus>;
+    /**
+     * Moves a parent's Site, with every record keyed to it, into the data space. Its credentials keep their
+     * client id and secret. Repeating it answers `already_adopted`.
+     */
+    adoptSite(slug: string, siteUuid: string, parentCompanySlug?: string): Promise<DataSpaceSiteAdoption>;
 }
 declare class ProvisioningProducerNamespace {
     private readonly request;
@@ -2099,6 +2145,8 @@ declare class ProvisioningProducerNamespace {
     updateEnvironment(clientId: string, environment: string): Promise<ProducerProvisionPublicClient>;
     /** Replaces the public keys a producer minted with the hosting-email-delivery template signs with. */
     setSigningKeys(clientId: string, update: ProducerSigningKeysUpdate): Promise<ProducerSigningKeys>;
+    /** Reads the public keys, and their fingerprints, a signing producer's events are verified with. */
+    getSigningKeys(clientId: string): Promise<ProducerSigningKeys>;
     revoke(clientId: string): Promise<void>;
 }
 declare class AdminTenantNamespace {

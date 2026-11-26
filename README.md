@@ -16,7 +16,7 @@ Public SDKs for sending events to Custd.
 
 ## Supported versions
 
-Installation examples reviewed: 2026-11-26 against released **3.69.0**.
+Installation examples reviewed: 2026-11-26 against released **3.70.0**.
 
 Only the 3.x line is supported. The 1.x tags and their releases were removed on 2026-09-23, and `v3.0.0`
 replaced the reporting-pack shapes with the canonical contract: a consumer resolving an older range silently
@@ -24,14 +24,14 @@ installs code that cannot express a canonical pack.
 
 | Package | Install |
 | --- | --- |
-| `haakco/custd-sdk` (PHP) | `3.69.0` |
-| `haakco/custd-laravel` | `3.69.0` |
-| `haakco/custd-wordpress` | `3.69.0` |
-| `github.com/haakco/custd-sdk-go/v3` | `v3.69.0` |
-| `@haakco/custd-sdk` (JS) | `github:haakco/custd-sdk#v3.69.0&path:/sdk-js`, installed with pnpm |
-| `@haakco/custd-react` (JS) | `github:haakco/custd-sdk#v3.69.0&path:/sdk-react`, installed with pnpm |
-| `custd-sdk` (Python) | `git+https://github.com/haakco/custd-sdk.git@v3.69.0#subdirectory=sdk-python` |
-| `custd-sdk` (Rust) | `custd-sdk = { git = "https://github.com/haakco/custd-sdk", tag = "v3.69.0" }` |
+| `haakco/custd-sdk` (PHP) | `3.70.0` |
+| `haakco/custd-laravel` | `3.70.0` |
+| `haakco/custd-wordpress` | `3.70.0` |
+| `github.com/haakco/custd-sdk-go/v3` | `v3.70.0` |
+| `@haakco/custd-sdk` (JS) | `github:haakco/custd-sdk#v3.70.0&path:/sdk-js`, installed with pnpm |
+| `@haakco/custd-react` (JS) | `github:haakco/custd-sdk#v3.70.0&path:/sdk-react`, installed with pnpm |
+| `custd-sdk` (Python) | `git+https://github.com/haakco/custd-sdk.git@v3.70.0#subdirectory=sdk-python` |
+| `custd-sdk` (Rust) | `custd-sdk = { git = "https://github.com/haakco/custd-sdk", tag = "v3.70.0" }` |
 
 Deleting a Go tag does not remove the version from `proxy.golang.org`, which keeps serving what it has already
 cached: the earlier module paths still answer for the versions they published. Treat them as unsupported, and
@@ -141,8 +141,8 @@ core TypeScript SDK at the same released tag, keeping your app's supported
 React and React Query versions (React 18/19 and TanStack Query 5):
 
 ```bash
-pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.69.0&path:/sdk-js' \
-  '@haakco/custd-react@github:haakco/custd-sdk#v3.69.0&path:/sdk-react'
+pnpm add '@haakco/custd-sdk@github:haakco/custd-sdk#v3.70.0&path:/sdk-js' \
+  '@haakco/custd-react@github:haakco/custd-sdk#v3.70.0&path:/sdk-react'
 ```
 
 `@haakco/custd-react` does not create a Custd client or hold browser
@@ -258,7 +258,7 @@ do not run it into a terminal, CI log, proof log or rendered environment file.
 The bearer token is supplied privately as `CUSTD_ADMIN_TOKEN`, never an argument:
 
 ```bash
-go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@v3.69.0 \
+go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@v3.70.0 \
   --base-url=https://custd.com \
   --admin-url=https://custd.com \
   --token-url=https://auth.custd.com/oauth2/token \
@@ -702,7 +702,7 @@ path is appropriate, capture its generated `CUSTD_WP_*` block through the privat
 secret-delivery flow described above:
 
 ```bash
-go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@v3.69.0 \
+go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@v3.70.0 \
   --base-url=https://custd.com \
   --admin-url=https://custd.com \
   --token-url=https://auth.custd.com/oauth2/token \
@@ -752,7 +752,7 @@ For an authorized setup-helper operation, reuse the existing company and
 capture its output through the private secret-delivery flow described above:
 
 ```bash
-go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@v3.69.0 \
+go run github.com/haakco/custd-sdk-go/v3/cmd/custd-sdk-setup@v3.70.0 \
   --base-url=https://custd.com \
   --admin-url=https://custd.com \
   --token-url=https://auth.custd.com/oauth2/token \

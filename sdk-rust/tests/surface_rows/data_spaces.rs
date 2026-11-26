@@ -1,7 +1,8 @@
 use custd_sdk::{
     DataSpace, DataSpaceCreateRequest, DataSpaceErasure, DataSpaceListResponse,
-    DataSpaceUsageSummary, ProducerReservation, ProducerReservationClaimRequest,
-    ProducerReservationCreateRequest, ProducerReservationListResponse,
+    DataSpaceSigningStatus, DataSpaceSiteAdoption, DataSpaceUsageSummary, ProducerReservation,
+    ProducerReservationClaimRequest, ProducerReservationCreateRequest,
+    ProducerReservationListResponse,
 };
 
 use super::{body, round_trip};
@@ -48,6 +49,18 @@ pub fn rows() -> Vec<Row> {
             "/api/v1/data-spaces/s-1/erasure?parentCompanySlug=p-1",
             |c| drop(c.custd.get_data_space_erasure("s-1", Some("p-1"))),
             round_trip::<DataSpaceErasure>,
+        ),
+        row(
+            "admin-api GET /api/v1/data-spaces/{slug}/signing-status",
+            "/api/v1/data-spaces/s-1/signing-status?parentCompanySlug=p-1",
+            |c| drop(c.custd.get_data_space_signing_status("s-1", Some("p-1"))),
+            round_trip::<DataSpaceSigningStatus>,
+        ),
+        row(
+            "admin-api POST /api/v1/data-spaces/{slug}/sites/{siteUuid}/adopt",
+            "/api/v1/data-spaces/s-1/sites/u-1/adopt?parentCompanySlug=p-1",
+            |c| drop(c.custd.adopt_data_space_site("s-1", "u-1", Some("p-1"))),
+            round_trip::<DataSpaceSiteAdoption>,
         ),
         row(
             "admin-api GET /api/v1/data-spaces/{slug}/producer-reservations",

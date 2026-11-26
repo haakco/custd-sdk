@@ -1197,6 +1197,27 @@ class ProvisioningDataSpaceNamespace {
     getErasure(slug, parentCompanySlug) {
         return this.request("GET", `/data-spaces/${encodeURIComponent(slug)}/erasure${parentQuery(parentCompanySlug)}`);
     }
+    /** Reads whether a data space's signing producers are ready and what ingest refused. */
+    async getSigningStatus(slug, parentCompanySlug) {
+        const path = `/data-spaces/${encodeURIComponent(slug)}/signing-status${parentQuery(parentCompanySlug)}`;
+        const status = await this.request("GET", path);
+        return {
+            ...status,
+            producers: (status.producers ?? []).map((producer) => ({
+                ...producer,
+                keyFingerprints: producer.keyFingerprints ?? [],
+            })),
+        };
+    }
+    /**
+     * Moves a parent's Site, with every record keyed to it, into the data space. Its credentials keep their
+     * client id and secret. Repeating it answers `already_adopted`.
+     */
+    async adoptSite(slug, siteUuid, parentCompanySlug) {
+        const path = `/data-spaces/${encodeURIComponent(slug)}/sites/${encodeURIComponent(siteUuid)}/adopt${parentQuery(parentCompanySlug)}`;
+        const adoption = await this.request("POST", path);
+        return { ...adoption, credentialClientIds: adoption.credentialClientIds ?? [] };
+    }
 }
 function parentQuery(parentCompanySlug) {
     return parentCompanySlug ? `?${new URLSearchParams({ parentCompanySlug })}` : "";
@@ -1239,12 +1260,19 @@ class ProvisioningProducerNamespace {
     /** Replaces the public keys a producer minted with the hosting-email-delivery template signs with. */
     async setSigningKeys(clientId, update) {
         const path = `/producer-provisioning/${encodeURIComponent(clientId)}/signing-keys`;
-        const keys = await this.request("PUT", path, update);
-        return { ...keys, publicKeys: keys.publicKeys ?? [] };
+        return signingKeys(await this.request("PUT", path, update));
+    }
+    /** Reads the public keys, and their fingerprints, a signing producer's events are verified with. */
+    async getSigningKeys(clientId) {
+        const path = `/producer-provisioning/${encodeURIComponent(clientId)}/signing-keys`;
+        return signingKeys(await this.request("GET", path));
     }
     revoke(clientId) {
         return this.request("DELETE", `/producer-provisioning/${encodeURIComponent(clientId)}`);
     }
+}
+function signingKeys(keys) {
+    return { ...keys, publicKeys: keys.publicKeys ?? [], keyFingerprints: keys.keyFingerprints ?? [] };
 }
 function publicProducer(producer) {
     return { ...producer, scopes: producer.scopes ?? [], allowedEnvironments: producer.allowedEnvironments ?? [] };

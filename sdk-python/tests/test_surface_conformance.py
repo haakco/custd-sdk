@@ -418,6 +418,15 @@ ROUTES: dict[str, RouteCase] = {
         f"/api/v1/producer-provisioning/{U}/signing-keys",
         lambda c: c.provisioning.producers.set_signing_keys(U, {"publicKeys": ["AAAA"]}),
     ),
+    "admin-api GET /api/v1/producer-provisioning/{clientId}/signing-keys": RouteCase(
+        f"/api/v1/producer-provisioning/{U}/signing-keys", lambda c: c.provisioning.producers.get_signing_keys(U)
+    ),
+    "admin-api GET /api/v1/data-spaces/{slug}/signing-status": RouteCase(
+        "/api/v1/data-spaces/acme/signing-status", lambda c: c.provisioning.data_spaces.get_signing_status("acme")
+    ),
+    "admin-api POST /api/v1/data-spaces/{slug}/sites/{siteUuid}/adopt": RouteCase(
+        f"/api/v1/data-spaces/acme/sites/{U}/adopt", lambda c: c.provisioning.data_spaces.adopt_site("acme", U)
+    ),
     "admin-api DELETE /api/v1/site-domains/keyword-lists": RouteCase(
         "/api/v1/site-domains/keyword-lists", lambda c: c.admin.site_domains.delete_keyword_list("sample")
     ),
@@ -2496,6 +2505,12 @@ QUERY_CASES: dict[str, Callable[[CustdClient], object]] = {
     ),
     "admin-api DELETE /api/v1/data-spaces/{slug}": lambda c: c.provisioning.data_spaces.revoke("acme", "parent"),
     "admin-api POST /api/v1/data-spaces/{slug}/erasure": lambda c: c.provisioning.data_spaces.erase("acme", "parent"),
+    "admin-api GET /api/v1/data-spaces/{slug}/signing-status": (
+        lambda c: c.provisioning.data_spaces.get_signing_status("acme", "parent")
+    ),
+    "admin-api POST /api/v1/data-spaces/{slug}/sites/{siteUuid}/adopt": (
+        lambda c: c.provisioning.data_spaces.adopt_site("acme", U, "parent")
+    ),
     "admin-api GET /api/v1/data-spaces/{slug}/erasure": (
         lambda c: c.provisioning.data_spaces.get_erasure("acme", "parent")
     ),

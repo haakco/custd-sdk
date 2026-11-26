@@ -113,6 +113,9 @@ pub struct ProducerSigningKeysResponse {
     pub company_slug: String,
     #[serde(default, deserialize_with = "null_as_empty")]
     pub public_keys: Vec<String>,
+    /// The keys' sha256 fingerprints, `sha256:<hex>`, in `public_keys` order.
+    #[serde(default, deserialize_with = "null_as_empty")]
+    pub key_fingerprints: Vec<String>,
 }
 
 impl CustdClient {
@@ -212,5 +215,21 @@ impl CustdClient {
             None,
         );
         self.call(Method::Put, &path, Some(request))
+    }
+
+    /// Read the public keys, and their fingerprints, a signing producer's events are verified with.
+    pub fn get_producer_signing_keys(
+        &self,
+        client_id: &str,
+    ) -> Result<ProducerSigningKeysResponse> {
+        let path = api_path(
+            format!(
+                "/api/v1/producer-provisioning/{}/signing-keys",
+                percent_encode(client_id)
+            ),
+            &[],
+            None,
+        );
+        self.call(Method::Get, &path, NO_BODY)
     }
 }

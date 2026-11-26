@@ -157,6 +157,81 @@ pub enum DataSpaceErasureStatus {
     Failed,
 }
 
+/// Whether a data space still accepts signed events.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DataSpaceSigningState {
+    Active,
+    Revoked,
+    Erased,
+}
+
+/// Whether a signing producer's events are accepted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SigningProducerState {
+    Ready,
+    AwaitingKeys,
+    Cancelled,
+}
+
+/// The signed events ingest refused for one producer, by reason.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SigningRefusalCounts {
+    pub binding_not_ready: i64,
+    pub binding_cancelled: i64,
+    pub invalid_signature: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_refused_at: Option<String>,
+}
+
+/// One signing producer of a data space: its keys and its refusals.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SigningProducerStatus {
+    pub client_id: String,
+    pub state: SigningProducerState,
+    /// The keys' sha256 fingerprints, `sha256:<hex>`.
+    #[serde(default, deserialize_with = "null_as_empty")]
+    pub key_fingerprints: Vec<String>,
+    pub refusals: SigningRefusalCounts,
+}
+
+/// Whether a data space's signing producers can deliver events.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DataSpaceSigningStatus {
+    pub data_space_slug: String,
+    pub parent_company_slug: String,
+    pub state: DataSpaceSigningState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub erased_at: Option<String>,
+    #[serde(default, deserialize_with = "null_as_empty")]
+    pub producers: Vec<SigningProducerStatus>,
+}
+
+/// Whether an adoption moved the Site or found it already moved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DataSpaceSiteAdoptionStatus {
+    Adopted,
+    AlreadyAdopted,
+}
+
+/// The result of moving a parent's Site into an owned data space.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DataSpaceSiteAdoption {
+    pub site_uuid: String,
+    pub data_space_slug: String,
+    pub parent_company_slug: String,
+    pub status: DataSpaceSiteAdoptionStatus,
+    pub moved_records: i64,
+    #[serde(default, deserialize_with = "null_as_empty")]
+    pub credential_client_ids: Vec<String>,
+}
+
 impl CustdClient {
     /// List data spaces.
     pub fn list_data_spaces(
@@ -232,6 +307,43 @@ impl CustdClient {
             &erasure_path(slug, parent_company_slug),
             NO_BODY,
         )
+    }
+
+    /// Read whether a data space's signing producers are ready and what ingest refused.
+    pub fn get_data_space_signing_status(
+        &self,
+        slug: &str,
+        parent_company_slug: Option<&str>,
+    ) -> Result<DataSpaceSigningStatus> {
+        let path = api_path(
+            format!(
+                "/api/v1/data-spaces/{}/signing-status",
+                percent_encode(slug)
+            ),
+            &[("parentCompanySlug", parent_company_slug.map(str::to_owned))],
+            None,
+        );
+        self.call(Method::Get, &path, NO_BODY)
+    }
+
+    /// Move a parent's Site, with every record keyed to it, into the data space. Its credentials keep
+    /// their client id and secret. Repeating it answers `AlreadyAdopted`.
+    pub fn adopt_data_space_site(
+        &self,
+        slug: &str,
+        site_uuid: &str,
+        parent_company_slug: Option<&str>,
+    ) -> Result<DataSpaceSiteAdoption> {
+        let path = api_path(
+            format!(
+                "/api/v1/data-spaces/{}/sites/{}/adopt",
+                percent_encode(slug),
+                percent_encode(site_uuid)
+            ),
+            &[("parentCompanySlug", parent_company_slug.map(str::to_owned))],
+            None,
+        );
+        self.call(Method::Post, &path, NO_BODY)
     }
 
     /// List producer reservations for a data space.

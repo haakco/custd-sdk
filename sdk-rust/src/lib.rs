@@ -394,9 +394,11 @@ pub use data_scopes::{
 };
 pub use data_spaces::{
     DataSpace, DataSpaceCreateRequest, DataSpaceEntitlementState, DataSpaceErasure,
-    DataSpaceErasureStatus, DataSpaceListResponse, DataSpaceStorageMeasurementState,
+    DataSpaceErasureStatus, DataSpaceListResponse, DataSpaceSigningState, DataSpaceSigningStatus,
+    DataSpaceSiteAdoption, DataSpaceSiteAdoptionStatus, DataSpaceStorageMeasurementState,
     DataSpaceUsageRow, DataSpaceUsageSummary, ProducerReservation, ProducerReservationClaimRequest,
     ProducerReservationCreateRequest, ProducerReservationListResponse, ProducerReservationStatus,
+    SigningProducerState, SigningProducerStatus, SigningRefusalCounts,
 };
 pub use error_issues::{
     ErrorIssue, ErrorIssueDetail, ErrorIssueEvent, ErrorIssueException, ErrorIssueFrame,

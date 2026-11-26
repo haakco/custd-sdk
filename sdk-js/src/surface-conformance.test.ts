@@ -265,6 +265,23 @@ const baselineRows: Row[] = [
     call: (c) => c.custd.provisioning.producers.setSigningKeys("clientId-1", { publicKeys: ["AAAA"] }),
   },
   {
+    id: "admin-api GET /api/v1/producer-provisioning/{clientId}/signing-keys",
+    params: { clientId: "clientId-1" },
+    call: (c) => c.custd.provisioning.producers.getSigningKeys("clientId-1"),
+  },
+  {
+    id: "admin-api GET /api/v1/data-spaces/{slug}/signing-status",
+    params: { slug: "slug-1" },
+    query: { parentCompanySlug: "acme" },
+    call: (c) => c.custd.provisioning.dataSpaces.getSigningStatus("slug-1", "acme"),
+  },
+  {
+    id: "admin-api POST /api/v1/data-spaces/{slug}/sites/{siteUuid}/adopt",
+    params: { slug: "slug-1", siteUuid: "siteUuid-1" },
+    query: { parentCompanySlug: "acme" },
+    call: (c) => c.custd.provisioning.dataSpaces.adoptSite("slug-1", "siteUuid-1", "acme"),
+  },
+  {
     id: "admin-api DELETE /api/v1/data-spaces/{slug}/producer-reservations/{producerSlug}",
     params: { slug: "dataSpaceSlug-1", producerSlug: "producerSlug-1" },
     query: { parentCompanySlug: "acme" },

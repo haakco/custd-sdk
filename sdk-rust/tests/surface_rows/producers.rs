@@ -64,5 +64,11 @@ pub fn rows() -> Vec<Row> {
             },
             round_trip::<ProducerSigningKeysResponse>,
         ),
+        row(
+            "admin-api GET /api/v1/producer-provisioning/{clientId}/signing-keys",
+            "/api/v1/producer-provisioning/c-1/signing-keys",
+            |c| drop(c.custd.get_producer_signing_keys("c-1")),
+            round_trip::<ProducerSigningKeysResponse>,
+        ),
     ]
 }

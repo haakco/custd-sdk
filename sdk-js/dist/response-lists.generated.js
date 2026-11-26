@@ -499,6 +499,7 @@ export const API_RESPONSE_LISTS = {
     "GET /api/v1/app-hosts/{host}/discovery": ["allowedOrigins", "capabilities"],
     "GET /api/v1/data-spaces": ["dataSpaces"],
     "GET /api/v1/data-spaces/{slug}/producer-reservations": ["reservations"],
+    "GET /api/v1/data-spaces/{slug}/signing-status": ["producers", "producers[].keyFingerprints"],
     "GET /api/v1/data-spaces/usage": ["dataSpaces"],
     "GET /api/v1/error-issues": ["issues", "issues[].environments"],
     "GET /api/v1/error-issues/{issueUuid}": [
@@ -555,6 +556,7 @@ export const API_RESPONSE_LISTS = {
     "GET /api/v1/processing/{receiptUuid}": ["warnings"],
     "GET /api/v1/producer-provisioning": ["producers", "producers[].allowedEnvironments", "producers[].scopes"],
     "GET /api/v1/producer-provisioning/{clientId}": ["allowedEnvironments", "scopes"],
+    "GET /api/v1/producer-provisioning/{clientId}/signing-keys": ["keyFingerprints", "publicKeys"],
     "GET /api/v1/reporting/dashboards": ["dashboards", "dashboards[].exportFormats", "dashboards[].interactions"],
     "GET /api/v1/reporting/dashboards/{key}": [
         "executive.actions",
@@ -1285,6 +1287,7 @@ export const API_RESPONSE_LISTS = {
     ],
     "POST /api/v1/analytics/query": ["results", "sources"],
     "POST /api/v1/analytics/query-range": ["buckets", "rows", "sources"],
+    "POST /api/v1/data-spaces/{slug}/sites/{siteUuid}/adopt": ["credentialClientIds"],
     "POST /api/v1/error-issues/{issueUuid}/state": ["environments"],
     "POST /api/v1/measurement/projects/{projectUuid}/decisions/{decisionUuid}/simulation-runs": ["variables", "warnings"],
     "POST /api/v1/measurement/projects/{projectUuid}/forecast-runs": [
@@ -1610,7 +1613,7 @@ export const API_RESPONSE_LISTS = {
         "definition.currentRevision.dimensions",
         "definition.currentRevision.steps",
     ],
-    "PUT /api/v1/producer-provisioning/{clientId}/signing-keys": ["publicKeys"],
+    "PUT /api/v1/producer-provisioning/{clientId}/signing-keys": ["keyFingerprints", "publicKeys"],
     "PUT /api/v1/site-domains/{domainUuid}/indexnow": ["submissions", "submissions[].urls"],
     "PUT /api/v1/site-domains/{domainUuid}/lighthouse/pages": ["urls"],
     "PUT /api/v1/site-domains/{domainUuid}/probes": [

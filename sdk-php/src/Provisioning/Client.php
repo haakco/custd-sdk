@@ -93,6 +93,27 @@ final class Client
         );
     }
 
+    /** Read whether a data space's signing producers are ready and what ingest refused. */
+    public function getDataSpaceSigningStatus(string $slug, ?string $parentCompanySlug = null): DataSpaceSigningStatus
+    {
+        return DataSpaceSigningStatus::fromPayload(
+            $this->send("GET", self::withQuery(self::dataSpace($slug) . "/signing-status", "parentCompanySlug", $parentCompanySlug))
+        );
+    }
+
+    /**
+     * Move a parent's Site, with every record keyed to it, into the data space. Its credentials keep their
+     * client id and secret. Repeating it answers DataSpaceSiteAdoptionStatus::ALREADY_ADOPTED.
+     */
+    public function adoptDataSpaceSite(string $slug, string $siteUuid, ?string $parentCompanySlug = null): DataSpaceSiteAdoption
+    {
+        $path = self::dataSpace($slug) . "/sites/" . rawurlencode($siteUuid) . "/adopt";
+
+        return DataSpaceSiteAdoption::fromPayload(
+            $this->send("POST", self::withQuery($path, "parentCompanySlug", $parentCompanySlug))
+        );
+    }
+
     /** Hold a producer slug in a data space until it is claimed, released or expires. */
     public function reserveProducer(string $dataSpaceSlug, ProducerReservationRequest $request, ?string $parentCompanySlug = null): ProducerReservation
     {
@@ -171,6 +192,12 @@ final class Client
         return ProducerSigningKeys::fromPayload(
             $this->send("PUT", self::producer($clientId) . "/signing-keys", $request->serialise())
         );
+    }
+
+    /** Read the public keys, and their fingerprints, a signing producer's events are verified with. */
+    public function getProducerSigningKeys(string $clientId): ProducerSigningKeys
+    {
+        return ProducerSigningKeys::fromPayload($this->send("GET", self::producer($clientId) . "/signing-keys"));
     }
 
     public function revokeProducer(string $clientId): void

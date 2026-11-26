@@ -1658,6 +1658,52 @@ class ProducerSigningKeys(TypedDict):
     clientId: str
     companySlug: str
     publicKeys: list[str]
+    keyFingerprints: list[str]
+    """The keys' sha256 fingerprints, ``sha256:<hex>``, in ``publicKeys`` order."""
+
+
+DataSpaceSigningState = Literal["active", "revoked", "erased"]
+SigningProducerState = Literal["ready", "awaiting_keys", "cancelled"]
+DataSpaceSiteAdoptionStatus = Literal["adopted", "already_adopted"]
+
+
+class SigningRefusalCounts(TypedDict):
+    """The signed events ingest refused for one producer, by reason."""
+
+    bindingNotReady: int
+    bindingCancelled: int
+    invalidSignature: int
+    lastRefusedAt: NotRequired[str]
+
+
+class SigningProducerStatus(TypedDict):
+    """One signing producer of a data space: its keys and its refusals."""
+
+    clientId: str
+    state: SigningProducerState
+    keyFingerprints: list[str]
+    refusals: SigningRefusalCounts
+
+
+class DataSpaceSigningStatus(TypedDict):
+    """Whether a data space's signing producers can deliver events."""
+
+    dataSpaceSlug: str
+    parentCompanySlug: str
+    state: DataSpaceSigningState
+    erasedAt: NotRequired[str]
+    producers: list[SigningProducerStatus]
+
+
+class DataSpaceSiteAdoption(TypedDict):
+    """The result of moving a parent's Site into an owned data space."""
+
+    siteUuid: str
+    dataSpaceSlug: str
+    parentCompanySlug: str
+    status: DataSpaceSiteAdoptionStatus
+    movedRecords: int
+    credentialClientIds: list[str]
 
 
 class ProducerReservationClaimRequest(TypedDict):
@@ -1688,6 +1734,21 @@ class DataSpaceProvisioningClient:
     def get_erasure(self, slug: str, parent_company_slug: str | None = None) -> DataSpaceErasure:
         path = f"/data-spaces/{quote_path(slug)}/erasure" + _parent_company_query(parent_company_slug)
         return _decode_dto(DataSpaceErasure, self._provisioning.request("GET", path))
+
+    def get_signing_status(self, slug: str, parent_company_slug: str | None = None) -> DataSpaceSigningStatus:
+        """Read whether the data space's signing producers are ready and what ingest refused."""
+        path = f"/data-spaces/{quote_path(slug)}/signing-status" + _parent_company_query(parent_company_slug)
+        return _decode_dto(DataSpaceSigningStatus, self._provisioning.request("GET", path))
+
+    def adopt_site(self, slug: str, site_uuid: str, parent_company_slug: str | None = None) -> DataSpaceSiteAdoption:
+        """Move a parent's Site, with every record keyed to it, into the data space.
+
+        Its credentials keep their client id and secret. Repeating it answers ``already_adopted``.
+        """
+        path = f"/data-spaces/{quote_path(slug)}/sites/{quote_path(site_uuid)}/adopt" + _parent_company_query(
+            parent_company_slug
+        )
+        return _decode_dto(DataSpaceSiteAdoption, self._provisioning.request("POST", path))
 
     def get_usage(self, parent_company_slug: str | None = None) -> DataSpaceUsageSummary:
         """Report the retained storage of every data space the caller owns."""
@@ -1733,6 +1794,11 @@ class ProducerProvisioningClient:
         """Replace the public keys a hosting-email-delivery producer's events are verified with."""
         path = f"/producer-provisioning/{quote_path(client_id)}/signing-keys"
         return _decode_dto(ProducerSigningKeys, self._provisioning.request("PUT", path, dict(request)))
+
+    def get_signing_keys(self, client_id: str) -> ProducerSigningKeys:
+        """Read the public keys, and their fingerprints, a signing producer's events are verified with."""
+        path = f"/producer-provisioning/{quote_path(client_id)}/signing-keys"
+        return _decode_dto(ProducerSigningKeys, self._provisioning.request("GET", path))
 
     def get(self, client_id: str) -> ProducerProvisionPublicClient:
         producer = self._provisioning.request("GET", f"/producer-provisioning/{quote_path(client_id)}")

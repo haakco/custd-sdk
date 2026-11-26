@@ -9,11 +9,15 @@ use HaakCo\Custd\Fields;
 /** ProducerSigningKeys is the set of public keys Custd now verifies a producer's signed events with. */
 final readonly class ProducerSigningKeys
 {
-    /** @param list<string> $publicKeys */
+    /**
+     * @param list<string> $publicKeys
+     * @param list<string> $keyFingerprints the keys' sha256 fingerprints, `sha256:<hex>`, in publicKeys order
+     */
     public function __construct(
         public string $clientId,
         public string $companySlug,
         public array $publicKeys,
+        public array $keyFingerprints,
     ) {
     }
 
@@ -23,6 +27,7 @@ final readonly class ProducerSigningKeys
             Fields::string($payload, 'clientId'),
             Fields::string($payload, 'companySlug'),
             Fields::strings($payload, 'publicKeys'),
+            Fields::strings($payload, 'keyFingerprints'),
         );
     }
 }
