@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Tests;
 
-use HaakCo\Custd\Admin\SiteDomain\SearchPoolBand;
 use HaakCo\Custd\Admin\SiteDomain\SiteTrackedKeyword;
 use HaakCo\Custd\Admin\SiteDomain\SiteTrackKeywordRequest;
 use HaakCo\Custd\Admin\SiteDomain\SiteUpdateTrackedKeywordRequest;
@@ -65,17 +64,6 @@ final class SiteRankingClientTest extends TestCase
             'GET ' . self::BASE,
             'GET ' . self::BASE,
         ], array_column($calls, 'route'));
-    }
-
-    public function testRankingsFromBeforeThePoolHaveNoPool(): void
-    {
-        $rankings = $this->replay($calls, 'rankingsBeforePool')->rankings()->getRankings('d-1');
-
-        self::assertNull($rankings->pool);
-        self::assertSame([null, null], array_map(
-            static fn (SiteTrackedKeyword $keyword): ?SearchPoolBand => $keyword->pool,
-            $rankings->keywords
-        ));
     }
 
     public function testTrackUpdateAndUntrackSendOnlyTheirFields(): void

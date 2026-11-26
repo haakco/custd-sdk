@@ -149,12 +149,12 @@ final class SitePageToolsClientTest extends TestCase
         self::assertSame(2, $check->phrase?->count);
         self::assertTrue($check->phrase->inDescription);
         self::assertSame(3.85, $check->phrase->densityPercent);
-        self::assertNull($wordless->densityPercent);
+        self::assertSame(0.0, $wordless->densityPercent);
         self::assertSame('https://example.com/img/team.jpg', $facts->shareImage);
         self::assertStringContainsString('FAQPage', (string) $facts->faqSchema?->code);
     }
 
-    public function testWordingCompareLeavesTheShareOfUncomparedTextsNull(): void
+    public function testWordingCompareReadsTheShareOfUncomparedTextsAsZero(): void
     {
         $request = $this->fixture('wordingCompareRequest');
         $compared = $this->client($calls, 'wordingCompare')
@@ -166,7 +166,7 @@ final class SitePageToolsClientTest extends TestCase
         self::assertSame(91, $compared->sharedPercent);
         self::assertTrue($compared->nearDuplicate);
         self::assertFalse($short->compared);
-        self::assertNull($short->sharedPercent);
+        self::assertSame(0, $short->sharedPercent);
         self::assertSame(200, $short->minWords);
         self::assertSame(
             ['POST ' . self::BASE . '/d-1/wording-compare', 'POST ' . self::BASE . '/d-1/wording-compare'],
@@ -199,7 +199,7 @@ final class SitePageToolsClientTest extends TestCase
         self::assertSame(WordingObservationState::SHORT, $short->first->state);
         self::assertNotNull($short->comparison);
         self::assertSame(80, $short->comparison->firstWords);
-        self::assertNull($short->comparison->sharedPercent);
+        self::assertSame(0, $short->comparison->sharedPercent);
     }
 
     public function testPageRechecksQueueAndPoll(): void

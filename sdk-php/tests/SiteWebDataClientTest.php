@@ -116,6 +116,10 @@ final class SiteWebDataClientTest extends TestCase
         self::assertNull($unmeasured->avgPosition);
         self::assertSame(6.5, $clusters->strikingDistance[0]->position);
         self::assertSame(['name' => 'Brand', 'keywords' => []], (new SiteKeywordListRequest('Brand', []))->serialise());
+        self::assertSame(
+            ['name' => 'Trail', 'seedTerm' => 'trail running', 'keywords' => ['trail shoes'], 'marketSampleEnabled' => true],
+            (new SiteKeywordListRequest('Trail', ['trail shoes'], 'trail running', true))->serialise(),
+        );
         self::assertSame([
             'GET ' . self::BASE . '/keyword-lists',
             'PUT ' . self::BASE . '/keyword-lists?siteUuid=' . self::SITE,

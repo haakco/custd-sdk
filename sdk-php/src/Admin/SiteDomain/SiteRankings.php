@@ -9,7 +9,7 @@ use HaakCo\Custd\Fields;
 /**
  * SiteRankings is a domain's tracked keywords over from..to (YYYY-MM-DD). source is the Search
  * Console connection's state (a SiteRankingsSource value); sourceFailure says why a failing one fails. pool is
- * the tenant's shared search pool access (a SearchPoolAccess value), null from an older server.
+ * the tenant's shared search pool access (a SearchPoolAccess value).
  */
 final readonly class SiteRankings
 {
@@ -22,7 +22,7 @@ final readonly class SiteRankings
 
     /**
      * @param list<SiteTrackedKeyword> $keywords
-     * @param SearchPoolAccess::*|null $pool
+     * @param SearchPoolAccess::* $pool
      * @param SiteRankingsSource::* $source
      */
     public function __construct(
@@ -31,8 +31,8 @@ final readonly class SiteRankings
         public string $to,
         public int $maxKeywords,
         public array $keywords,
+        public string $pool,
         public ?string $sourceFailure = null,
-        public ?string $pool = null,
     ) {
     }
 
@@ -44,8 +44,8 @@ final readonly class SiteRankings
             Fields::string($payload, 'to'),
             Fields::integer($payload, 'maxKeywords'),
             array_map(SiteTrackedKeyword::fromPayload(...), Fields::objects($payload, 'keywords')),
+            Fields::string($payload, 'pool'),
             Fields::optionalString($payload, 'sourceFailure'),
-            Fields::optionalString($payload, 'pool'),
         );
     }
 }

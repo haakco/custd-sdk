@@ -7,8 +7,7 @@ namespace HaakCo\Custd\Admin\SiteDomain;
 use HaakCo\Custd\Fields;
 
 /**
- * SiteReport is the client report of one domain, built from the SiteReportTemplate layout it names. template
- * is null on servers before the template field; the server's default template is full. nextActions
+ * SiteReport is the client report of one domain, built from the SiteReportTemplate layout it names. nextActions
  * are the first three of SiteNextActionClient::forDomain(), and empty in reports built or saved
  * before servers sent them.
  */
@@ -17,7 +16,7 @@ final readonly class SiteReport
     /**
      * @param list<SiteReportSpeed> $speed
      * @param list<SiteNextAction> $nextActions
-     * @param SiteReportTemplate::*|null $template
+     * @param SiteReportTemplate::* $template
      */
     public function __construct(
         public string $host,
@@ -27,7 +26,7 @@ final readonly class SiteReport
         public array $speed,
         public SiteReportSearch $search,
         public SiteReportAudit $audit,
-        public ?string $template = null,
+        public string $template,
         public array $nextActions = [],
     ) {
     }
@@ -42,7 +41,7 @@ final readonly class SiteReport
             array_map(SiteReportSpeed::fromPayload(...), Fields::objects($payload, 'speed')),
             SiteReportSearch::fromPayload(Fields::object($payload, 'search')),
             SiteReportAudit::fromPayload(Fields::object($payload, 'audit')),
-            Fields::optionalString($payload, 'template'),
+            Fields::string($payload, 'template'),
             array_map(SiteNextAction::fromPayload(...), Fields::optionalObjects($payload, 'nextActions') ?? []),
         );
     }

@@ -9,7 +9,7 @@ use HaakCo\Custd\Fields;
 /**
  * SiteWordingCompare is how much wording two texts share, measured as the content.near-duplicate
  * rule does; wording overlap, not plagiarism. Texts under minWords are not compared: compared is
- * false and sharedPercent null.
+ * false and sharedPercent 0.
  */
 final readonly class SiteWordingCompare
 {
@@ -18,7 +18,7 @@ final readonly class SiteWordingCompare
         public int $secondWords,
         public int $minWords,
         public bool $compared,
-        public ?int $sharedPercent,
+        public int $sharedPercent,
         public int $thresholdPercent,
         public bool $nearDuplicate,
     ) {
@@ -26,14 +26,12 @@ final readonly class SiteWordingCompare
 
     public static function fromPayload(\stdClass $payload): self
     {
-        $compared = Fields::boolean($payload, 'compared');
-
         return new self(
             Fields::integer($payload, 'firstWords'),
             Fields::integer($payload, 'secondWords'),
             Fields::integer($payload, 'minWords'),
-            $compared,
-            $compared ? Fields::optionalInteger($payload, 'sharedPercent') : null,
+            Fields::boolean($payload, 'compared'),
+            Fields::integer($payload, 'sharedPercent'),
             Fields::integer($payload, 'thresholdPercent'),
             Fields::boolean($payload, 'nearDuplicate'),
         );

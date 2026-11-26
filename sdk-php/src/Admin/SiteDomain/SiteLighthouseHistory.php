@@ -8,8 +8,7 @@ use HaakCo\Custd\Fields;
 
 /**
  * SiteLighthouseHistory is the lab runs of one page (url: the home page unless an extra page was
- * asked for) and, in pages, every measured page's latest score against its previous one. Servers
- * before per-page Lighthouse send neither: url is then null and pages empty.
+ * asked for) and, in pages, every measured page's latest score against its previous one.
  */
 final readonly class SiteLighthouseHistory
 {
@@ -21,7 +20,7 @@ final readonly class SiteLighthouseHistory
         public string $domainUuid,
         public int $days,
         public array $runs,
-        public ?string $url = null,
+        public string $url,
         public array $pages = [],
     ) {
     }
@@ -32,7 +31,7 @@ final readonly class SiteLighthouseHistory
             Fields::string($payload, 'domainUuid'),
             Fields::integer($payload, 'days'),
             array_map(SiteLighthouseRun::fromPayload(...), Fields::objects($payload, 'runs')),
-            Fields::optionalString($payload, 'url'),
+            Fields::string($payload, 'url'),
             array_map(SiteLighthousePageComparison::fromPayload(...), Fields::optionalObjects($payload, 'pages') ?? []),
         );
     }
