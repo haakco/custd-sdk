@@ -384,7 +384,7 @@ func (r *ReportingClient) requestViaDoer(ctx context.Context, method string, pat
 	resp, err := r.client.config.HTTPClient.Do(&HTTPRequest{
 		Method:  method,
 		URL:     r.endpoint(path),
-		Headers: r.client.headers(false),
+		Headers: r.headers(),
 		Body:    body,
 	})
 	if err != nil {
@@ -402,7 +402,7 @@ func (r *ReportingClient) requestViaHTTP(ctx context.Context, method string, pat
 	if err != nil {
 		return fmt.Errorf("custd: create reporting request: %w", err)
 	}
-	for k, v := range r.client.headers(false) {
+	for k, v := range r.headers() {
 		req.Header.Set(k, v)
 	}
 	resp, err := r.client.httpClient.Do(req)
@@ -418,6 +418,14 @@ func (r *ReportingClient) requestViaHTTP(ctx context.Context, method string, pat
 		return err
 	}
 	return decodeReportingResponse(respBody, out)
+}
+
+// headers are the credential headers plus the caller's audit labels, so a reporting read is
+// attributed to the command that made it like an admin call.
+func (r *ReportingClient) headers() map[string]string {
+	headers := r.client.headers(false)
+	r.client.Admin.applyRequestLabels(headers)
+	return headers
 }
 
 func (r *ReportingClient) endpoint(path string) string {

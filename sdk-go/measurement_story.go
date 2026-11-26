@@ -39,12 +39,13 @@ type MeasurementOverviewResponse struct {
 }
 
 type MeasurementForecastStoryEstimate struct {
-	EstimatedAt  time.Time `json:"estimatedAt"`
-	High         time.Time `json:"high"`
-	Low          time.Time `json:"low"`
-	MovementDays float64   `json:"movementDays,omitempty"`
-	Note         string    `json:"note,omitempty"`
-	WidthDays    float64   `json:"widthDays"`
+	EstimatedAt time.Time `json:"estimatedAt"`
+	High        time.Time `json:"high"`
+	Low         time.Time `json:"low"`
+	// MovementDays is nil for the first estimate, which has nothing to move from.
+	MovementDays *float64 `json:"movementDays,omitempty"`
+	Note         string   `json:"note,omitempty"`
+	WidthDays    float64  `json:"widthDays"`
 }
 
 type MeasurementForecastStoryDelivery struct {

@@ -380,10 +380,10 @@ func TestReportingSubjectInsightRejectsMalformedOptionalTrust(t *testing.T) {
 	}
 }
 
-// TestMeasurementAndReportingRecordTheRequestID proves both clients report the server's request id
-// on the context recorder through a caller's doer and through the built-in HTTP client, including
-// on a refusal, which is when a caller needs to quote it.
-func TestMeasurementAndReportingRecordTheRequestID(t *testing.T) {
+// TestClientsRecordTheRequestID proves the measurement, reporting, analytics and parser clients
+// report the server's request id on the context recorder through a caller's doer and through the
+// built-in HTTP client, including on a refusal, which is when a caller needs to quote it.
+func TestClientsRecordTheRequestID(t *testing.T) {
 	calls := map[string]func(ctx context.Context, client *CustdClient) error{
 		"measurement": func(ctx context.Context, client *CustdClient) error {
 			_, err := client.Measurement.Overview(ctx)
@@ -391,6 +391,14 @@ func TestMeasurementAndReportingRecordTheRequestID(t *testing.T) {
 		},
 		"reporting": func(ctx context.Context, client *CustdClient) error {
 			_, err := client.Reporting.Outputs(ctx)
+			return err
+		},
+		"analytics": func(ctx context.Context, client *CustdClient) error {
+			_, err := client.Analytics.DashboardSummary(ctx)
+			return err
+		},
+		"parsers": func(ctx context.Context, client *CustdClient) error {
+			_, err := client.Parsers.List(ctx)
 			return err
 		},
 	}
@@ -421,18 +429,45 @@ func TestMeasurementAndReportingRecordTheRequestID(t *testing.T) {
 	}
 }
 
-// TestReportingQueryOutputDocumentIsSentVerbatim proves a stored query document reaches the
-// output query route unchanged.
-func TestReportingQueryOutputDocumentIsSentVerbatim(t *testing.T) {
-	doer := newCaptureDoer(http.StatusOK, preparedDataQueryBody)
-	client := newAdminTestClient(t, doer, "http://localhost:8080")
+// TestReportingPreparedDataRoutes proves the receipt, output catalogue and output query reach the
+// reporting API with the caller's body, a stored query document unchanged.
+func TestReportingPreparedDataRoutes(t *testing.T) {
+	const receipt, output = "11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"
 	document := `{"template":"count","metrics":["events"],"futureOption":true}`
-	output := "22222222-2222-4222-8222-222222222222"
-	if _, err := client.Reporting.QueryOutputDocument(context.Background(), output, json.RawMessage(document)); err != nil {
-		t.Fatalf("QueryOutputDocument error: %v", err)
+	cases := []struct {
+		name, body, method, path, wantBody string
+		call                               func(*CustdClient) error
+	}{
+		{"receipt", preparedDataReceiptBody, http.MethodGet, "/api/v1/processing/" + receipt, "", func(c *CustdClient) error {
+			_, err := c.Reporting.Receipt(context.Background(), receipt)
+			return err
+		}},
+		{"outputs", preparedDataOutputListBody, http.MethodGet, "/api/v1/reporting/outputs", "", func(c *CustdClient) error {
+			_, err := c.Reporting.Outputs(context.Background())
+			return err
+		}},
+		{"output", preparedDataOutputBody, http.MethodGet, "/api/v1/reporting/outputs/" + output, "", func(c *CustdClient) error {
+			_, err := c.Reporting.Output(context.Background(), output)
+			return err
+		}},
+		{"typed query", preparedDataQueryBody, http.MethodPost, "/api/v1/reporting/outputs/" + output + "/query",
+			`{"template":"count","metrics":["events"]}`, func(c *CustdClient) error {
+				_, err := c.Reporting.QueryOutput(context.Background(), output, ReportingQueryRequest{Template: "count", Metrics: []string{"events"}})
+				return err
+			}},
+		{"query document", preparedDataQueryBody, http.MethodPost, "/api/v1/reporting/outputs/" + output + "/query",
+			document, func(c *CustdClient) error {
+				_, err := c.Reporting.QueryOutputDocument(context.Background(), output, json.RawMessage(document))
+				return err
+			}},
 	}
-	request := doer.requests[0]
-	if string(request.Body) != document || !strings.HasSuffix(request.URL, "/outputs/"+output+"/query") {
-		t.Fatalf("request = %s %s", request.URL, request.Body)
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			doer := newCaptureDoer(http.StatusOK, testCase.body)
+			if err := testCase.call(newAdminTestClient(t, doer, "http://localhost:8080")); err != nil {
+				t.Fatalf("call error: %v", err)
+			}
+			assertPreparedDataRequest(t, doer, testCase.method, testCase.path, testCase.wantBody)
+		})
 	}
 }

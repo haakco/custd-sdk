@@ -258,4 +258,11 @@ func TestMeasurementProjectUpdateClearsWithAnEmptyString(t *testing.T) {
 	if status.ChanceByDeliveryTarget != nil || status.MovementDays != nil {
 		t.Fatalf("unknown chance or movement read as a value: %+v", status)
 	}
+	var first MeasurementForecastStoryEstimate
+	if err := json.Unmarshal([]byte(`{"estimatedAt":"2026-11-01T00:00:00Z","high":"2026-12-01T00:00:00Z","low":"2026-11-20T00:00:00Z","widthDays":11}`), &first); err != nil {
+		t.Fatal(err)
+	}
+	if first.MovementDays != nil {
+		t.Fatalf("first story estimate movement = %v, want nil", *first.MovementDays)
+	}
 }
