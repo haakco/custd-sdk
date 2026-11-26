@@ -2,6 +2,7 @@ package custd
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -154,7 +155,7 @@ func TestActingCompanyTargetsByQueryOnBinaryRequests(t *testing.T) {
 	client := newAdminTestClient(t, doer, "http://localhost:8080")
 	client.config.ActingCompanySlug = "haakco"
 
-	if _, err := client.Admin.Audit.ExportEvents(context.Background(), AuditListOptions{}, "csv"); err != nil {
+	if _, err := client.Admin.Audit.ExportEvents(context.Background(), AuditListOptions{}, "csv", io.Discard); err != nil {
 		t.Fatalf("ExportEvents returned error: %v", err)
 	}
 	assertTenantTargetedByQueryOnly(t, recordDoerRequest(doer), "haakco")

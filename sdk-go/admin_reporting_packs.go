@@ -175,7 +175,7 @@ type ReportingPackGenerationAcknowledgement struct {
 type ReportingPackRollupProvenance struct {
 	GenerationID          int64                                    `json:"generationId"`
 	DefinitionFingerprint string                                   `json:"definitionFingerprint"`
-	TenantSlug            string                                   `json:"tenantSlug,omitempty"`
+	TenantSlug            string                                   `json:"tenantSlug"`
 	Materializations      []ReportingPackMaterializationProvenance `json:"materializations"`
 }
 

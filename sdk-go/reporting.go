@@ -361,12 +361,12 @@ func (r *ReportingClient) request(ctx context.Context, method string, path strin
 		}
 	}
 	if r.client.config.HTTPClient != nil {
-		return r.requestViaDoer(method, path, body, out)
+		return r.requestViaDoer(ctx, method, path, body, out)
 	}
 	return r.requestViaHTTP(ctx, method, path, body, out)
 }
 
-func (r *ReportingClient) requestViaDoer(method string, path string, body []byte, out any) error {
+func (r *ReportingClient) requestViaDoer(ctx context.Context, method string, path string, body []byte, out any) error {
 	resp, err := r.client.config.HTTPClient.Do(&HTTPRequest{
 		Method:  method,
 		URL:     r.endpoint(path),
@@ -376,6 +376,7 @@ func (r *ReportingClient) requestViaDoer(method string, path string, body []byte
 	if err != nil {
 		return &RequestError{Message: "custd: reporting request failed: " + err.Error(), Retryable: true, Cause: err}
 	}
+	recordMetadata(ctx, responseHeader(resp.Headers, requestIDHeader))
 	if err := r.client.checkStatus(resp.StatusCode, resp.Body); err != nil {
 		return err
 	}
@@ -398,6 +399,7 @@ func (r *ReportingClient) requestViaHTTP(ctx context.Context, method string, pat
 	if bodyErr != nil {
 		return fmt.Errorf("custd: read reporting response: %w", bodyErr)
 	}
+	recordMetadata(ctx, resp.Header.Get(requestIDHeader))
 	if err := r.client.checkStatus(resp.StatusCode, respBody); err != nil {
 		return err
 	}

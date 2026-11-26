@@ -860,8 +860,10 @@ type AuditListOptions struct {
 	ResourceID         string
 	Outcome            AuditOutcome
 	CorrelationID      string
-	Limit              int
-	Cursor             string
+	// EnvironmentID narrows the events to one environment's realm.
+	EnvironmentID string
+	Limit         int
+	Cursor        string
 }
 
 // AuditExportFormat is the file format an audit export is served in.
@@ -872,9 +874,12 @@ const (
 	AuditExportFormatJSON AuditExportFormat = "json"
 )
 
-type AuditExportResponse struct {
-	Body        []byte
+// AuditExport describes an audit export ExportEvents wrote: the media type the server served,
+// the bytes written and the answer's request id.
+type AuditExport struct {
 	ContentType string
+	ByteSize    int64
+	Metadata    ResponseMetadata
 }
 
 type ReportingPackAuditEvent struct {
@@ -925,7 +930,11 @@ func (c *AuditAdminClient) GetEvent(ctx context.Context, eventID string, options
 	return &out, err
 }
 
-func (c *AuditAdminClient) ExportEvents(ctx context.Context, opts AuditListOptions, format AuditExportFormat) (*AuditExportResponse, error) {
+// ExportEvents streams the audit events matching opts into w in the given format, JSON when
+// empty. On error w may hold a partial export.
+func (c *AuditAdminClient) ExportEvents(
+	ctx context.Context, opts AuditListOptions, format AuditExportFormat, w io.Writer,
+) (*AuditExport, error) {
 	if format == "" {
 		format = AuditExportFormatJSON
 	}
@@ -934,12 +943,16 @@ func (c *AuditAdminClient) ExportEvents(ctx context.Context, opts AuditListOptio
 	}
 	params := auditExportParams(opts)
 	params.Set("format", string(format))
-	path := "/audit/events/export?" + params.Encode()
-	body, headers, err := c.admin.requestBytes(ctx, http.MethodGet, path)
+	path := c.admin.actingCompanyPath("/audit/events/export?" + params.Encode())
+	download, err := c.admin.openAdminDownload(ctx, path, "audit export")
 	if err != nil {
 		return nil, err
 	}
-	return &AuditExportResponse{Body: body, ContentType: responseHeader(headers, "Content-Type")}, nil
+	written, copyErr := io.Copy(w, download.body)
+	if err := errors.Join(copyErr, download.body.Close()); err != nil {
+		return nil, fmt.Errorf("custd: stream audit export: %w", err)
+	}
+	return &AuditExport{ContentType: download.header.Get("Content-Type"), ByteSize: written, Metadata: download.metadata}, nil
 }
 
 func (c *AuditAdminClient) ListReportingPackEvents(ctx context.Context, packKey string) (*ReportingPackAuditListResponse, error) {
@@ -1162,14 +1175,13 @@ type OffboardingExportResponse struct {
 	PreviewInventoryDigest string `json:"previewInventoryDigest"`
 }
 
-const maxOffboardingDownloadBytes int64 = 64 << 20
-
-// OffboardingDownloadResponse contains authenticated export bytes and the
-// integrity metadata verified against the response headers.
-type OffboardingDownloadResponse struct {
-	Bytes          []byte
+// OffboardingDownload describes the bundle Download wrote and the integrity it verified: the
+// declared length and SHA-256 both matched the bytes written.
+type OffboardingDownload struct {
+	ContentType    string
 	ChecksumSHA256 string
 	ByteSize       int64
+	Metadata       ResponseMetadata
 }
 
 // OffboardingAcknowledgeResponse is the body for POST
@@ -1243,81 +1255,49 @@ func (c *OffboardingAdminClient) Export(
 	return &out, err
 }
 
-// Download returns the authenticated export bytes. It rejects missing or
-// inconsistent integrity headers and responses larger than 64 MiB.
+// Download streams the authenticated export bundle into w, hashing it as it copies. It refuses a
+// response without valid Content-Length and X-Checksum-SHA256 headers before writing anything,
+// and fails when the bytes written do not match them. On error w may hold a partial or
+// unverified bundle, which the caller must discard.
 func (c *OffboardingAdminClient) Download(
-	ctx context.Context,
-	requestUUID string,
-) (*OffboardingDownloadResponse, error) {
+	ctx context.Context, requestUUID string, w io.Writer,
+) (*OffboardingDownload, error) {
 	path := "/offboarding/requests/" + url.PathEscape(requestUUID) + "/download"
-	if c.admin.client.config.HTTPClient != nil {
-		return c.downloadViaDoer(path)
-	}
-	return c.downloadViaHTTP(ctx, path)
-}
-
-func (c *OffboardingAdminClient) downloadViaDoer(path string) (*OffboardingDownloadResponse, error) {
-	resp, err := c.admin.client.config.HTTPClient.Do(&HTTPRequest{
-		Method: http.MethodGet, URL: c.admin.endpoint(path), Headers: c.admin.client.headers(false),
-	})
+	download, err := c.admin.openAdminDownload(ctx, path, "offboarding download")
 	if err != nil {
-		return nil, fmt.Errorf("custd: offboarding download failed: %w", err)
-	}
-	if err := c.admin.client.checkStatus(resp.StatusCode, resp.Body); err != nil {
 		return nil, err
 	}
-	return verifiedOffboardingDownload(resp.Body, responseHeader(resp.Headers, "Content-Length"), responseHeader(resp.Headers, "X-Checksum-SHA256"))
+	result, err := writeVerifiedOffboardingDownload(download, w)
+	if closeErr := download.body.Close(); err == nil && closeErr != nil {
+		return nil, fmt.Errorf("custd: close offboarding download: %w", closeErr)
+	}
+	return result, err
 }
 
-func (c *OffboardingAdminClient) downloadViaHTTP(ctx context.Context, path string) (*OffboardingDownloadResponse, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.admin.endpoint(path), nil)
-	if err != nil {
-		return nil, fmt.Errorf("custd: create offboarding download: %w", err)
-	}
-	for key, value := range c.admin.client.headers(false) {
-		req.Header.Set(key, value)
-	}
-	resp, err := c.admin.client.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("custd: offboarding download failed: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.ContentLength > maxOffboardingDownloadBytes {
-		return nil, errors.New("custd: offboarding download exceeds 64 MiB")
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxOffboardingDownloadBytes+1))
-	if err != nil {
-		return nil, fmt.Errorf("custd: read offboarding download: %w", err)
-	}
-	if err := c.admin.client.checkStatus(resp.StatusCode, body); err != nil {
-		return nil, err
-	}
-	return verifiedOffboardingDownload(body, resp.Header.Get("Content-Length"), resp.Header.Get("X-Checksum-SHA256"))
-}
-
-func verifiedOffboardingDownload(body []byte, lengthHeader, checksumHeader string) (*OffboardingDownloadResponse, error) {
-	if int64(len(body)) > maxOffboardingDownloadBytes {
-		return nil, errors.New("custd: offboarding download exceeds 64 MiB")
-	}
-	declared, err := strconv.ParseInt(strings.TrimSpace(lengthHeader), 10, 64)
+func writeVerifiedOffboardingDownload(download *adminDownload, w io.Writer) (*OffboardingDownload, error) {
+	declared, err := strconv.ParseInt(strings.TrimSpace(download.header.Get("Content-Length")), 10, 64)
 	if err != nil || declared < 0 {
 		return nil, errors.New("custd: offboarding download content length is invalid")
 	}
-	if declared > maxOffboardingDownloadBytes {
-		return nil, errors.New("custd: offboarding download exceeds 64 MiB")
-	}
-	checksum := strings.ToLower(strings.TrimSpace(checksumHeader))
+	checksum := strings.ToLower(strings.TrimSpace(download.header.Get("X-Checksum-SHA256")))
 	if decoded, err := hex.DecodeString(checksum); err != nil || len(decoded) != sha256.Size {
 		return nil, errors.New("custd: offboarding download checksum header is invalid")
 	}
-	actual := sha256.Sum256(body)
-	if checksum != hex.EncodeToString(actual[:]) {
-		return nil, errors.New("custd: offboarding download checksum mismatch")
+	hash := sha256.New()
+	written, err := io.Copy(io.MultiWriter(w, hash), io.LimitReader(download.body, declared+1))
+	if err != nil {
+		return nil, fmt.Errorf("custd: stream offboarding download: %w", err)
 	}
-	if declared != int64(len(body)) {
+	if written != declared {
 		return nil, errors.New("custd: offboarding download content length mismatch")
 	}
-	return &OffboardingDownloadResponse{Bytes: body, ChecksumSHA256: checksum, ByteSize: declared}, nil
+	if checksum != hex.EncodeToString(hash.Sum(nil)) {
+		return nil, errors.New("custd: offboarding download checksum mismatch")
+	}
+	return &OffboardingDownload{
+		ContentType: download.header.Get("Content-Type"), ChecksumSHA256: checksum,
+		ByteSize: written, Metadata: download.metadata,
+	}, nil
 }
 
 func responseHeader(headers map[string]string, name string) string {
@@ -1450,6 +1430,9 @@ func auditFilterParams(opts AuditListOptions) url.Values {
 	}
 	if opts.CorrelationID != "" {
 		params.Set("correlationId", opts.CorrelationID)
+	}
+	if opts.EnvironmentID != "" {
+		params.Set("environmentId", opts.EnvironmentID)
 	}
 	return params
 }

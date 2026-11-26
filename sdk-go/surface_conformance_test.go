@@ -230,10 +230,6 @@ func assertSurfaceExampleDecodes(t *testing.T, row surfaceRow, operation surface
 			err := unmarshalStrict(data, out)
 			if err == nil && name != "maximal" {
 				for _, key := range droppedExampleKeys(data, out) {
-					if reason := knownDroppedKeys[fmt.Sprintf("%T%s", out, key)]; reason != "" {
-						t.Logf("%T%s dropped: %s", out, key, reason)
-						continue
-					}
 					dropped = append(dropped, fmt.Sprintf("%T%s", out, key))
 				}
 			}
@@ -287,20 +283,6 @@ func zeroValue(value any) any {
 		return false
 	}
 	return value
-}
-
-// knownDroppedKeys names, by Go type and JSON path, an always-present server field the SDK type
-// still marks omitempty, with the reason it is not fixed yet. Delete an entry once its type is fixed.
-var knownDroppedKeys = map[string]string{
-	"*custd.AdminSiteCreateResponse.environment":      "always sent; outside the Site Insights fix, not reviewed yet",
-	"*custd.AdminSite.environment":                    "always sent; outside the Site Insights fix, not reviewed yet",
-	"*custd.MeasurementProject.description":           "always sent; outside the Site Insights fix, not reviewed yet",
-	"*custd.ProducerReservation.childCompanySlug":     "always sent; outside the Site Insights fix, not reviewed yet",
-	"*custd.ProducerReservation.maxTtlSeconds":        "always sent; outside the Site Insights fix, not reviewed yet",
-	"*custd.ReportingPackRollupProvenance.tenantSlug": "always sent; outside the Site Insights fix, not reviewed yet",
-	"*custd.TimePlan.definition.autoAdvance":          "always sent; TimePlanDefinition is also a request body",
-	"*custd.TimePlan.definition.redistributionMode":   "always sent; TimePlanDefinition is also a request body",
-	"*custd.TimePlan.description":                     "always sent; outside the Site Insights fix, not reviewed yet",
 }
 
 // droppedExampleKeys re-encodes a decoded response and names every key the server example sent

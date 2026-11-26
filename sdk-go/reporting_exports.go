@@ -151,6 +151,7 @@ func (r *ReportingClient) DownloadExportArtifact(
 		if err != nil {
 			return nil, fmt.Errorf("custd: report export download failed: %w", err)
 		}
+		recordMetadata(ctx, responseHeader(resp.Headers, requestIDHeader))
 		if err := r.client.checkStatus(resp.StatusCode, resp.Body); err != nil {
 			return nil, err
 		}
@@ -178,6 +179,7 @@ func (r *ReportingClient) DownloadExportArtifact(
 	if err != nil {
 		return nil, fmt.Errorf("custd: read report export download: %w", err)
 	}
+	recordMetadata(ctx, resp.Header.Get(requestIDHeader))
 	if err := r.client.checkStatus(resp.StatusCode, body); err != nil {
 		return nil, err
 	}

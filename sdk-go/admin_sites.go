@@ -59,7 +59,7 @@ type AdminSite struct {
 	CompanySlug         string              `json:"companySlug"`
 	Name                string              `json:"name"`
 	IdentityMode        BrowserIdentityMode `json:"identityMode"`
-	Environment         string              `json:"environment,omitempty"`
+	Environment         string              `json:"environment"`
 	AllowedOrigins      []string            `json:"allowedOrigins"`
 	AllowedEnvironments []string            `json:"allowedEnvironments"`
 	RateLimitPerMinute  int                 `json:"rateLimitPerMinute"`

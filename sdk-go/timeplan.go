@@ -42,8 +42,8 @@ type TimePlanDefinition struct {
 	HorizonMS          int64                     `json:"horizonMs"`
 	DefaultStartsAt    string                    `json:"defaultStartsAt,omitempty"`
 	DefaultEndsAt      string                    `json:"defaultEndsAt,omitempty"`
-	RedistributionMode string                    `json:"redistributionMode,omitempty"`
-	AutoAdvance        bool                      `json:"autoAdvance,omitempty"`
+	RedistributionMode string                    `json:"redistributionMode"`
+	AutoAdvance        bool                      `json:"autoAdvance"`
 	AnnotationSchema   *TimePlanAnnotationSchema `json:"annotationSchema,omitempty"`
 	ThresholdCues      []TimePlanThresholdCue    `json:"thresholdCues,omitempty"`
 	Blocks             []TimePlanBlock           `json:"blocks"`
@@ -202,7 +202,7 @@ type TimePlan struct {
 	UUID          string             `json:"uuid"`
 	PlanKey       string             `json:"planKey"`
 	Name          string             `json:"name"`
-	Description   string             `json:"description,omitempty"`
+	Description   string             `json:"description"`
 	Status        string             `json:"status"`
 	DraftRevision int64              `json:"draftRevision"`
 	Definition    TimePlanDefinition `json:"definition"`

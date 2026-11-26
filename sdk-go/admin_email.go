@@ -168,9 +168,11 @@ type EmailRelay struct {
 	Username        string    `json:"username"`
 }
 
+// EmailRelayView is a tenant's own relay and the sender its next message carries. Relay is nil
+// when the tenant has set no relay of its own and sends through Custd's.
 type EmailRelayView struct {
 	Effective EmailRelayEffectiveSender `json:"effective"`
-	Relay     EmailRelay                `json:"relay"`
+	Relay     *EmailRelay               `json:"relay"`
 }
 
 type EmailRelayWriteRequest struct {

@@ -47,7 +47,7 @@ type MeasurementProject struct {
 	Name        string                     `json:"name"`
 	Kind        string                     `json:"kind"`
 	Status      string                     `json:"status"`
-	Description string                     `json:"description,omitempty"`
+	Description string                     `json:"description"`
 	Series      []MeasurementSeries        `json:"series,omitempty"`
 	Target      *MeasurementTarget         `json:"target,omitempty"`
 	Delivery    MeasurementProjectDelivery `json:"delivery"`
@@ -501,12 +501,12 @@ func (c *MeasurementClient) request(ctx context.Context, method string, path str
 		}
 	}
 	if c.client.config.HTTPClient != nil {
-		return c.requestViaDoer(method, path, body, out)
+		return c.requestViaDoer(ctx, method, path, body, out)
 	}
 	return c.requestViaHTTP(ctx, method, path, body, out)
 }
 
-func (c *MeasurementClient) requestViaDoer(method string, path string, body []byte, out any) error {
+func (c *MeasurementClient) requestViaDoer(ctx context.Context, method string, path string, body []byte, out any) error {
 	resp, err := c.client.config.HTTPClient.Do(&HTTPRequest{
 		Method:  method,
 		URL:     c.endpoint(path),
@@ -516,6 +516,7 @@ func (c *MeasurementClient) requestViaDoer(method string, path string, body []by
 	if err != nil {
 		return fmt.Errorf("custd: measurement request failed: %w", err)
 	}
+	recordMetadata(ctx, responseHeader(resp.Headers, requestIDHeader))
 	if err := c.client.checkStatus(resp.StatusCode, resp.Body); err != nil {
 		return err
 	}
@@ -538,6 +539,7 @@ func (c *MeasurementClient) requestViaHTTP(ctx context.Context, method string, p
 	if bodyErr != nil {
 		return fmt.Errorf("custd: read measurement response: %w", bodyErr)
 	}
+	recordMetadata(ctx, resp.Header.Get(requestIDHeader))
 	if err := c.client.checkStatus(resp.StatusCode, respBody); err != nil {
 		return err
 	}

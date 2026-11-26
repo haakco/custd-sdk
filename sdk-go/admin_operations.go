@@ -563,10 +563,11 @@ type ErrorIssueFrame struct {
 type ErrorIssueException struct {
 	Frames        []ErrorIssueFrame `json:"frames,omitempty"`
 	FramesOmitted int64             `json:"framesOmitted,omitempty"`
-	Handled       bool              `json:"handled,omitempty"`
-	Module        string            `json:"module,omitempty"`
-	Type          string            `json:"type"`
-	Value         string            `json:"value,omitempty"`
+	// Handled is nil when the reporting SDK did not say; an explicit false is kept.
+	Handled *bool  `json:"handled,omitempty"`
+	Module  string `json:"module,omitempty"`
+	Type    string `json:"type"`
+	Value   string `json:"value,omitempty"`
 }
 
 type ErrorIssueEvent struct {

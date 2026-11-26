@@ -2,6 +2,7 @@ package custd
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
@@ -162,6 +163,23 @@ func (c *PreparedDataClient) QueryPreparedDataOutput(
 		http.MethodPost,
 		preparedDataReportingRoot+"/"+url.PathEscape(outputUUID)+"/query",
 		req,
+		&out,
+	)
+	return &out, metadata, err
+}
+
+// QueryPreparedDataOutputDocument runs a query document the caller already holds, such as one a
+// report definition stores, against a ready prepared output. The document is sent verbatim, so
+// fields this SDK does not model yet still reach the server, which validates it.
+func (c *PreparedDataClient) QueryPreparedDataOutputDocument(
+	ctx context.Context, outputUUID string, query json.RawMessage,
+) (*PreparedDataQueryEnvelope, ResponseMetadata, error) {
+	var out PreparedDataQueryEnvelope
+	metadata, err := c.requestAtRoot(
+		ctx,
+		http.MethodPost,
+		preparedDataReportingRoot+"/"+url.PathEscape(outputUUID)+"/query",
+		query,
 		&out,
 	)
 	return &out, metadata, err

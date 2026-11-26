@@ -379,3 +379,43 @@ func TestReportingSubjectInsightRejectsMalformedOptionalTrust(t *testing.T) {
 		t.Fatalf("error = %v, want mention of trust", err)
 	}
 }
+
+// TestMeasurementAndReportingRecordTheRequestID proves both clients report the server's request id
+// on the context recorder through a caller's doer and through the built-in HTTP client, including
+// on a refusal, which is when a caller needs to quote it.
+func TestMeasurementAndReportingRecordTheRequestID(t *testing.T) {
+	calls := map[string]func(ctx context.Context, client *CustdClient) error{
+		"measurement": func(ctx context.Context, client *CustdClient) error {
+			_, err := client.Measurement.Overview(ctx)
+			return err
+		},
+		"reporting": func(ctx context.Context, client *CustdClient) error {
+			_, err := client.Reporting.Outputs(ctx)
+			return err
+		},
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set(requestIDHeader, "req-http")
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"type":"not_found","status":404}`))
+	}))
+	t.Cleanup(server.Close)
+	for name, call := range calls {
+		doer := &captureDoer{status: http.StatusNotFound, body: `{"type":"not_found","status":404}`,
+			headers: map[string]string{requestIDHeader: "req-doer"}}
+		transports := map[string]*CustdClient{
+			"doer": newAdminTestClient(t, doer, "http://localhost:8080"),
+			"http": NewClient(&ClientConfig{BaseURL: server.URL, APIKey: "admin-token", FlushInterval: time.Hour}),
+		}
+		for transport, client := range transports {
+			var recorder MetadataRecorder
+			if err := call(WithMetadataRecorder(context.Background(), &recorder), client); err == nil {
+				t.Fatalf("%s via %s: expected the 404", name, transport)
+			}
+			if want := "req-" + transport; recorder.RequestID != want {
+				t.Errorf("%s via %s recorded %q, want %q", name, transport, recorder.RequestID, want)
+			}
+		}
+	}
+}

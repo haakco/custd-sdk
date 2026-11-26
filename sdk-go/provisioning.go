@@ -48,12 +48,12 @@ const (
 type ProducerReservation struct {
 	ProducerSlug      string                    `json:"producerSlug"`
 	ParentCompanySlug string                    `json:"parentCompanySlug"`
-	ChildCompanySlug  string                    `json:"childCompanySlug,omitempty"`
+	ChildCompanySlug  string                    `json:"childCompanySlug"`
 	ClaimedByClientID string                    `json:"claimedByClientId,omitempty"`
 	Status            ProducerReservationStatus `json:"status"`
 	ReservedAt        string                    `json:"reservedAt,omitempty"`
 	ExpiresAt         string                    `json:"expiresAt,omitempty"`
-	MaxTTLSeconds     int64                     `json:"maxTtlSeconds,omitempty"`
+	MaxTTLSeconds     int64                     `json:"maxTtlSeconds"`
 }
 
 type ProducerReservationListResponse struct {

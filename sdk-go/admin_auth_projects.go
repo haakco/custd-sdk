@@ -230,15 +230,22 @@ const (
 // binding, and IdentityMode, RegistrationPolicy, LoginPaused and ProfileFields
 // carry the rest. The legal scalar vocabularies are read from the capability
 // operation Custd exposes for the environment, not fixed here.
+//
+// EntryPath, BrandAccent, LoginPaused, SignInMethods and ProfileFields follow one
+// rule on an apply or preview: nil keeps the stored value, so a tool can reconcile
+// only its own sections; an explicit empty value ("" or an empty, non-nil slice)
+// clears it; LoginPaused true or false sets it. A status read always fills them.
 type AuthProjectDesiredState struct {
 	IdentityMode       AuthProjectIdentityMode       `json:"identityMode"`
 	RegistrationPolicy AuthProjectRegistrationPolicy `json:"registrationPolicy"`
-	LoginPaused        bool                          `json:"loginPaused"`
-	// EntryPath is the realm's public entry path, empty when it has none. A configured path is
-	// validated and globally unique, so a taken path is refused rather than silently moved.
-	EntryPath string `json:"entryPath"`
-	// BrandAccent is the realm's optional sign-in accent as #rrggbb, empty for the shared default.
-	BrandAccent string `json:"brandAccent"`
+	// LoginPaused pauses or resumes sign-in; nil keeps the stored pause.
+	LoginPaused *bool `json:"loginPaused,omitempty"`
+	// EntryPath is the realm's public entry path; "" clears it and nil keeps it. A configured
+	// path is validated and globally unique, so a taken path is refused rather than silently moved.
+	EntryPath *string `json:"entryPath,omitempty"`
+	// BrandAccent is the realm's optional sign-in accent as #rrggbb; "" restores the shared
+	// default and nil keeps the stored accent.
+	BrandAccent *string `json:"brandAccent,omitempty"`
 	// DisplayName is the customer-facing application name the realm shows on invitations, hosted
 	// sign-in and hosted account settings. It is presentation only, empty when the realm has not
 	// chosen a name, and it is not the environment's own name.
@@ -253,13 +260,15 @@ type AuthProjectDesiredState struct {
 	// instruction, never stored state, so a status read never returns it.
 	WithdrawDisplayName bool `json:"withdrawDisplayName,omitempty"`
 	// SignInMethods narrows the methods the realm offers to a non-empty subset of the closed set.
-	// Empty means no narrowing.
+	// An empty, non-nil slice clears the narrowing; nil is sent as null and keeps it.
 	SignInMethods []string `json:"signInMethods"`
 	// ApplicationSessionPolicy is whether hosted sign-in offers a remembered session: one of the
 	// AuthProjectSessionPolicy constants. Leaving it empty keeps the stored setting.
 	ApplicationSessionPolicy AuthProjectApplicationSessionPolicy `json:"applicationSessionPolicy,omitempty"`
 	Audiences                []AuthProjectAudienceBinding        `json:"audiences"`
-	ProfileFields            []AuthProjectProfileField           `json:"profileFields"`
+	// ProfileFields are the profile fields the realm collects. An empty, non-nil slice clears
+	// them; nil is sent as null and keeps them.
+	ProfileFields []AuthProjectProfileField `json:"profileFields"`
 	// Hosting serves the environment as a hosted application. Leaving it nil
 	// keeps the stored section, so an apply cannot switch an app off by omission.
 	Hosting *AuthProjectHosting `json:"hosting,omitempty"`

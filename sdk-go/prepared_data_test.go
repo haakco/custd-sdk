@@ -2,6 +2,7 @@ package custd
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -279,4 +280,23 @@ func TestPreparedDataQueryPreparedDataOutput(t *testing.T) {
 			assertPreparedDataRequest(t, doer, http.MethodPost, testCase.wantPath, testCase.wantBody)
 		})
 	}
+}
+
+// TestPreparedDataQueryDocumentIsSentVerbatim proves a stored query document reaches the server
+// with fields the typed request does not model.
+func TestPreparedDataQueryDocumentIsSentVerbatim(t *testing.T) {
+	doer := newCaptureDoer(http.StatusOK, preparedDataQueryBody)
+	client := newPreparedDataTestClient(t, doer)
+	document := `{"template":"count","metrics":["events"],"futureOption":{"mode":"x"}}`
+	envelope, _, err := client.QueryPreparedDataOutputDocument(
+		context.Background(), "22222222-2222-4222-8222-222222222222", json.RawMessage(document),
+	)
+	if err != nil {
+		t.Fatalf("QueryPreparedDataOutputDocument error: %v", err)
+	}
+	if envelope.Output.ProcessingState != "ready" {
+		t.Fatalf("envelope = %+v", envelope)
+	}
+	assertPreparedDataRequest(t, doer, http.MethodPost,
+		"/api/v1/reporting/outputs/22222222-2222-4222-8222-222222222222/query", document)
 }
