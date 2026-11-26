@@ -147,8 +147,8 @@ type PendingSignIn = {
  * Hosted settings sends a person back with this query parameter when managing their sign-in methods
  * needs a fresh sign-in. `restore()` then signs them in and reopens settings on the same page.
  */
-export const ACCOUNT_SIGN_IN_PARAM = "custd_account";
-export const ACCOUNT_SIGN_IN_AGAIN = "sign_in_again";
+const ACCOUNT_SIGN_IN_PARAM = "custd_account";
+const ACCOUNT_SIGN_IN_AGAIN = "sign_in_again";
 
 type TokenResponse = {
   access_token?: unknown;
