@@ -16,8 +16,10 @@ from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
+from custd import RequestError
 from custd.app_items import AppClient, read_app_discovery, unsubscribe_alert_email_by_token
-from custd.app_profile import CurrentAppProfileClient
+from custd.app_profile import AppAccountEntryRequest, CurrentAppProfileClient
+from custd.version import IDENTITY
 
 BASE_URL = "https://api.example.com"
 ORIGIN = "https://app.example.com"
@@ -122,6 +124,72 @@ class CurrentAppProfileClientTest(unittest.TestCase):
         with patched(Urlopen(png, {"Content-Type": "image/png"})):
             photo = CurrentAppProfileClient(BASE_URL, "app-token").read_photo()
         self.assertEqual({"contentType": "image/png", "data": png}, photo)
+
+
+ISSUER = "https://auth.canvas.test"
+ACTION = ISSUER + "/settings/entry"
+TICKET = "A" * 43
+
+
+class EntryTransport:
+    def __init__(self, status: int = 200, body: object = None) -> None:
+        self.status = status
+        self.body = json.dumps({"actionUrl": ACTION, "ticket": TICKET} if body is None else body)
+        self.requests: list[tuple[str, str, Any, dict[str, str]]] = []
+
+    def __call__(self, method: str, url: str, payload: Any, headers: dict[str, str], timeout: float) -> Any:
+        self.requests.append((method, url, payload, headers))
+        return {"status": self.status, "body": self.body}
+
+
+def _entry(transport: EntryTransport, return_path: str = "", origin: str = "https://canvas.test") -> Any:
+    client = CurrentAppProfileClient(BASE_URL, "app-token", transport=transport)
+    return client.create_account_entry(AppAccountEntryRequest(ISSUER + "/", origin, return_path))
+
+
+class AppAccountEntryTest(unittest.TestCase):
+    def test_entry_posts_to_the_issuer_with_the_app_token(self) -> None:
+        for return_path, body in (
+            ("", {"applicationOrigin": "https://canvas.test"}),
+            ("/mine", {"applicationOrigin": "https://canvas.test", "returnPath": "/mine"}),
+        ):
+            transport = EntryTransport()
+            entry = _entry(transport, return_path)
+            self.assertEqual((ACTION, TICKET), (entry.action_url, entry.ticket))
+            self.assertNotIn(TICKET, repr(entry))
+            method, url, payload, headers = transport.requests[0]
+            self.assertEqual(("POST", ACTION + "/ticket", body), (method, url, payload))
+            self.assertEqual("Bearer app-token", headers["Authorization"])
+            self.assertEqual(IDENTITY, headers["X-Custd-Sdk"])
+
+    def test_entry_refuses_untrusted_input_and_answers(self) -> None:
+        other_action = {"actionUrl": "https://other.test/settings/entry", "ticket": TICKET}
+        cases: list[tuple[str, str, str, object, bool]] = [
+            # name, origin, return path, answer, whether the request is sent
+            ("origin with path", "https://canvas.test/app", "", None, False),
+            ("origin with :443", "https://canvas.test:443", "", None, False),
+            ("backslash host", "https://canvas.test\\evil", "", None, False),
+            ("scheme-relative", ORIGIN, "//evil", None, False),
+            ("fragment", ORIGIN, "/a#b", None, False),
+            ("relative", ORIGIN, "mine", None, False),
+            ("backslash", ORIGIN, "/\\x", None, False),
+            ("513 bytes", ORIGIN, "/" + "a" * 512, None, False),
+            ("other action", ORIGIN, "", other_action, True),
+            ("short ticket", ORIGIN, "", {"actionUrl": ACTION, "ticket": "A" * 42}, True),
+            ("non-canonical ticket", ORIGIN, "", {"actionUrl": ACTION, "ticket": "A" * 42 + "B"}, True),
+        ]
+        for name, origin, return_path, answer, sent in cases:
+            transport = EntryTransport(body=answer)
+            with self.subTest(name), self.assertRaises(ValueError) as refused:
+                _entry(transport, return_path, origin)
+            self.assertNotIn("A" * 42, str(refused.exception))
+            self.assertEqual(sent, bool(transport.requests))
+
+    def test_entry_error_carries_the_status_only(self) -> None:
+        with self.assertRaises(RequestError) as refused:
+            _entry(EntryTransport(403, {"detail": TICKET}))
+        self.assertEqual(403, refused.exception.status)
+        self.assertNotIn(TICKET, str(refused.exception))
 
 
 if __name__ == "__main__":

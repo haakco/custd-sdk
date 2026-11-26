@@ -979,6 +979,8 @@ __all__ = [
     "OAuthClientUpdateScopesRequest",
     "CURRENT_APP_PROFILE_PHOTO_TYPES",
     "MAX_CURRENT_APP_PROFILE_PHOTO_BYTES",
+    "AppAccountEntry",
+    "AppAccountEntryRequest",
     "CurrentAppProfile",
     "CurrentAppProfileClient",
     "CurrentAppProfileField",
@@ -2975,6 +2977,8 @@ from .app_items import (
 from .app_profile import (
     CURRENT_APP_PROFILE_PHOTO_TYPES,
     MAX_CURRENT_APP_PROFILE_PHOTO_BYTES,
+    AppAccountEntry,
+    AppAccountEntryRequest,
     CurrentAppProfile,
     CurrentAppProfileClient,
     CurrentAppProfileField,

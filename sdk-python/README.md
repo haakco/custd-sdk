@@ -481,6 +481,23 @@ item with no link. Alert-email links use `read_alert_unsubscribe_page` and
 `unsubscribe_alert_email_by_token`. `CurrentAppProfileClient(api_base_url,
 access_token)` reads and changes the signed-in user's own profile and photo.
 
+`create_account_entry` obtains a one-use ticket that opens hosted account
+settings, with a link back to `return_path` on the app. POST the ticket as a
+form field to `action_url` in the same tab; keep it out of URLs and logs.
+
+```python
+from custd import AppAccountEntryRequest, CurrentAppProfileClient
+
+entry = CurrentAppProfileClient("https://api.custd.com", access_token).create_account_entry(
+    AppAccountEntryRequest(
+        issuer="https://auth.example.com",
+        application_origin="https://app.example.com",
+        return_path="/mine",
+    )
+)
+# Render <form method="post" action={entry.action_url}> with a hidden "ticket" field.
+```
+
 ## Analytics range query
 
 `client.analytics.query_range` reads a tenant's own events across an inclusive

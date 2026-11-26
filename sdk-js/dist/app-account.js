@@ -1,20 +1,19 @@
 import { optionalString, requireBoolean, requireObjectList, requireRecord, requireString, } from "./response-validation.js";
-/** Build the account link without accepting destinations from browser navigation state. */
-export function appAccountNavigation(config) {
-    const issuer = appHttpsUrl(config.issuer);
-    if (issuer.search || issuer.hash)
-        throw new TypeError("custd: invalid account issuer");
-    const settings = new URL(`${issuer.pathname.replace(/\/$/, "")}/settings`, issuer.origin);
-    if (settings.origin !== issuer.origin)
-        throw new TypeError("custd: invalid account issuer path");
-    return { settingsUrl: settings.href, returnUrl: appHttpsUrl(config.applicationHome).href };
-}
 function appHttpsUrl(value) {
     const url = new URL(value);
     if (url.protocol !== "https:" || url.username || url.password) {
         throw new TypeError("custd: app account URLs must use HTTPS without credentials");
     }
     return url;
+}
+/** The issuer's bound on a return path. */
+const maxReturnPathBytes = 512;
+function validReturnPath(path) {
+    if (new TextEncoder().encode(path).length > maxReturnPathBytes || !path.startsWith("/") || path.startsWith("//")) {
+        return false;
+    }
+    // No backslash, fragment, whitespace or control character: the issuer refuses each of them.
+    return [...path].every((char) => char !== "\\" && char !== "#" && char.charCodeAt(0) > 0x20 && char.charCodeAt(0) !== 0x7f);
 }
 /** Issue a hosted settings entry ticket for the remembered application session. */
 export async function createAppAccountEntry(options) {
@@ -26,11 +25,16 @@ export async function createAppAccountEntry(options) {
     if (applicationOrigin !== options.applicationOrigin) {
         throw new TypeError("custd: account entry requires a serialized application origin");
     }
+    if (options.returnPath !== undefined && !validReturnPath(options.returnPath)) {
+        throw new TypeError("custd: account return path must be a path on the application origin");
+    }
     const actionUrl = `${issuer.origin}/settings/entry`;
     const response = await requestWithAppGrant(options.fetch ?? globalThis.fetch.bind(globalThis), options.accessToken, new URL(`${actionUrl}/ticket`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applicationOrigin }),
+        body: JSON.stringify(options.returnPath === undefined
+            ? { applicationOrigin }
+            : { applicationOrigin, returnPath: options.returnPath }),
     });
     if (!response.ok)
         throw new AppAccountEntryError(response.status);
@@ -42,6 +46,29 @@ export async function createAppAccountEntry(options) {
         throw new TypeError("custd: invalid app account entry response");
     }
     return { actionUrl, ticket };
+}
+/**
+ * Open hosted account settings in the same tab from a browser app. It asks the issuer for a one-use
+ * ticket and posts it in a native form, so settings shows a verified link back to the app.
+ */
+export async function openAppAccountSettings(options) {
+    const page = options.document ?? globalThis.document;
+    const entry = await createAppAccountEntry({
+        ...options,
+        applicationOrigin: options.applicationOrigin ?? globalThis.location.origin,
+    });
+    const form = page.createElement("form");
+    form.method = "post";
+    form.action = entry.actionUrl;
+    form.target = "_self";
+    form.hidden = true;
+    const ticket = page.createElement("input");
+    ticket.type = "hidden";
+    ticket.name = "ticket";
+    ticket.value = entry.ticket;
+    form.append(ticket);
+    page.body.append(form);
+    form.submit();
 }
 export class AppAccountEntryError extends Error {
     constructor(status) {

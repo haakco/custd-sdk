@@ -78,6 +78,21 @@ meetings (`start_meeting`, `advance_meeting(block_uuid)`, `end_meeting`) and ale
 `read_hosted_app_discovery(app_origin)` reads `/.well-known/custd.json`, and
 `AppClient::from_discovery` builds a client from it.
 
+`create_app_account_entry` obtains a one-use ticket that opens hosted account settings, with a link
+back to `return_path` on the app. POST the ticket as a form field to `action_url` in the same tab;
+keep it out of URLs and logs (`Debug` redacts it). A refusal is `Error::Api` with its status only.
+
+```rust
+use custd_sdk::AppAccountEntryRequest;
+
+let entry = client.create_app_account_entry(&app_access_token, &AppAccountEntryRequest {
+    issuer: "https://auth.example.com".into(),
+    application_origin: "https://app.example.com".into(),
+    return_path: "/mine".into(),
+})?;
+// Render <form method="post" action={entry.action_url}> with a hidden "ticket" field.
+```
+
 A Site's public write key collects events and captures errors without a login:
 
 ```rust

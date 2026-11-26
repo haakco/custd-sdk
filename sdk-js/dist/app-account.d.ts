@@ -1,21 +1,14 @@
-export type AppAccountNavigationConfig = {
-    /** The application's configured Custd issuer. */
-    issuer: string;
-    /** The same app home configured on the issuer for the settings return link. */
-    applicationHome: string;
-};
-export type AppAccountNavigation = {
-    settingsUrl: string;
-    returnUrl: string;
-};
-/** Build the account link without accepting destinations from browser navigation state. */
-export declare function appAccountNavigation(config: AppAccountNavigationConfig): AppAccountNavigation;
 export type CreateAppAccountEntryOptions = {
     /** The trusted issuer that authenticated this application session. */
     issuer: string;
     /** The registered application's serialized HTTPS origin. */
     applicationOrigin: string;
     accessToken: string;
+    /**
+     * The page on the application origin hosted settings links back to, such as "/mine". Defaults to
+     * the application's home. Never pass the current URL blindly: a fragment or path may hold a link token.
+     */
+    returnPath?: string;
     fetch?: typeof globalThis.fetch;
 };
 export type AppAccountEntry = {
@@ -25,6 +18,17 @@ export type AppAccountEntry = {
 };
 /** Issue a hosted settings entry ticket for the remembered application session. */
 export declare function createAppAccountEntry(options: CreateAppAccountEntryOptions): Promise<AppAccountEntry>;
+export type OpenAppAccountSettingsOptions = Omit<CreateAppAccountEntryOptions, "applicationOrigin"> & {
+    /** Defaults to the page's own origin, which must be registered for the application. */
+    applicationOrigin?: string;
+    /** Defaults to the page's document; pass one in tests. */
+    document?: Document;
+};
+/**
+ * Open hosted account settings in the same tab from a browser app. It asks the issuer for a one-use
+ * ticket and posts it in a native form, so settings shows a verified link back to the app.
+ */
+export declare function openAppAccountSettings(options: OpenAppAccountSettingsOptions): Promise<void>;
 export declare class AppAccountEntryError extends Error {
     readonly status: number;
     constructor(status: number);

@@ -83,20 +83,31 @@ signed in. The consumer owns placement, wording and styling.
 
 ## Application account settings
 
-Add the account link to the signed-in application menu. Use the issuer and app
-home from the application's deployment configuration. The issuer uses its
-registered app home for the return link.
+Put the account button in the signed-in application menu. It asks the issuer for
+a one-use ticket and opens hosted settings in the same tab, and settings shows a
+verified **Back to <app>** link. Pass `returnPath` to choose the page that link
+opens; it is recommended, and without it the link opens the app's home. Use a
+fixed path such as `/mine`, never the current URL: apps keep link tokens in paths
+and fragments.
 
 ```tsx
-import { CustdAccountMenuItem } from "@haakco/custd-react";
+import { CustdAccountMenuItem, useCustdSession } from "@haakco/custd-react";
+
+function AccountMenu({ issuer }: { issuer: string }) {
+  const { session } = useCustdSession();
+  if (!session) return null;
+  return <CustdAccountMenuItem issuer={issuer} accessToken={() => session.accessToken} returnPath="/mine" />;
+}
+```
+
+The page's origin must be registered for the application, which a hosted app's
+is. Without React, call `openAppAccountSettings` from `@haakco/custd-sdk/browser`
+with the same options.
+
+Read and change the signed-in member's profile with the current app profile client:
+
+```tsx
 import { CurrentAppProfileClient } from "@haakco/custd-sdk/browser";
-
-const account = {
-  issuer: "https://auth.canvas.example/",
-  applicationHome: "https://canvas.example/",
-};
-
-<CustdAccountMenuItem account={account} role="menuitem" />;
 
 const profile = new CurrentAppProfileClient({
   apiBaseUrl: "https://api.custd.com",
@@ -115,15 +126,12 @@ existing app data, `initialize` and `initializePhoto` fill only fields that
 have never been written. Use the returned profile, which includes any current
 value saved concurrently. A cleared value remains initialized.
 
-A gateway-owned remembered session can use an account entry ticket instead of
-asking the user to authenticate again. The app backend calls
-`createAppAccountEntry` or Go's `CreateAppAccountEntry` with the forwarded app
-bearer, the configured issuer, and the registered app origin. If the issuer
-refuses a ticket for a short session, use the ordinary account settings link.
-
-Render the returned action and ticket as an escaped native form on the app
-origin. The form is a top-level, same-tab POST. Keep the ticket out of URLs,
-logs, browser storage and cached responses.
+A gateway-owned session keeps the app bearer on the server. There the backend
+calls `createAppAccountEntry` (or Go's `CreateAppAccountEntry`) with the
+forwarded bearer, the configured issuer, the registered app origin and an
+optional `returnPath`. It renders the returned action and ticket as an escaped
+native form on the app origin: a top-level, same-tab POST. Keep the ticket out of
+URLs, logs, browser storage and cached responses.
 
 ```tsx
 <form action={entry.actionUrl} method="post" target="_self">

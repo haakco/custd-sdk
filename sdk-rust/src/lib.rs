@@ -42,6 +42,7 @@ mod analytics_events;
 mod analytics_reads;
 mod api_path;
 mod app;
+mod app_account_entry;
 mod app_alerts;
 mod app_item_runs;
 mod app_meetings;
@@ -294,6 +295,7 @@ pub use analytics_reads::{
     MeasurementSimulationRunRequest, MeasurementSimulationVariable, MeasurementSimulationWarning,
     ReportingDraftPreviewRequest,
 };
+pub use app_account_entry::{AppAccountEntry, AppAccountEntryRequest};
 pub use app_item_runs::{
     AppAlertUnsubscribeRequest, AppItemInput, AppItemInputDistribution, AppItemInputShape,
     AppItemInputSource, AppItemInputSourceField, AppItemInputSourceKind, AppItemMeasurement,

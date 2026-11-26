@@ -1,24 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  appAccountNavigation,
   CurrentAppProfileClient,
   CurrentAppProfileError,
   createAppAccountEntry,
+  openAppAccountSettings,
 } from "./app-account.js";
-
-describe("app account navigation", () => {
-  it("builds the same-tab entry without sending the return destination as request data", () => {
-    expect(
-      appAccountNavigation({ issuer: "https://auth.canvas.test/", applicationHome: "https://canvas.test/" }),
-    ).toEqual({ settingsUrl: "https://auth.canvas.test/settings", returnUrl: "https://canvas.test/" });
-    expect(() =>
-      appAccountNavigation({
-        issuer: "https://auth.canvas.test/?return=https://elsewhere.test",
-        applicationHome: "https://canvas.test/",
-      }),
-    ).toThrow(TypeError);
-  });
-});
 
 it("issues an account entry for the exact issuer and refuses a different form action", async () => {
   const actionUrl = "https://auth.canvas.test/settings/entry";
@@ -46,6 +32,55 @@ it("issues an account entry for the exact issuer and refuses a different form ac
       fetch: async () => Response.json({ actionUrl: `${actionUrl}?ticket=${ticket}`, ticket }),
     }),
   ).rejects.toThrow("invalid app account entry response");
+});
+
+it("sends a return path on the app origin and refuses one that could leave it or carry a token", async () => {
+  const actionUrl = "https://auth.canvas.test/settings/entry";
+  const options = { issuer: "https://auth.canvas.test", applicationOrigin: "https://canvas.test", accessToken: "t" };
+  const bodies: unknown[] = [];
+  const fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    bodies.push(await new Request(input, init).json());
+    return Response.json({ actionUrl, ticket: "A".repeat(43) });
+  };
+  await createAppAccountEntry({ ...options, returnPath: "/mine?view=all", fetch });
+  expect(bodies).toEqual([{ applicationOrigin: "https://canvas.test", returnPath: "/mine?view=all" }]);
+  for (const returnPath of ["//evil.test", "/a#owner", "mine", "/\\evil", `/${"a".repeat(512)}`]) {
+    await expect(createAppAccountEntry({ ...options, returnPath, fetch })).rejects.toThrow(TypeError);
+  }
+  expect(bodies).toHaveLength(1);
+});
+
+it("opens settings in the same tab by posting the ticket in a hidden native form", async () => {
+  const actionUrl = "https://auth.canvas.test/settings/entry";
+  const ticket = "A".repeat(43);
+  const created: Record<string, unknown>[] = [];
+  let submitted: Record<string, unknown> | undefined;
+  const page = {
+    createElement: () => {
+      const element: Record<string, unknown> = {
+        children: [] as unknown[],
+        append(child: unknown) {
+          (element.children as unknown[]).push(child);
+        },
+        submit() {
+          submitted = element;
+        },
+      };
+      created.push(element);
+      return element;
+    },
+    body: { append: () => undefined },
+  } as unknown as Document;
+  await openAppAccountSettings({
+    issuer: "https://auth.canvas.test",
+    applicationOrigin: "https://canvas.test",
+    accessToken: "t",
+    returnPath: "/mine",
+    document: page,
+    fetch: async () => Response.json({ actionUrl, ticket }),
+  });
+  expect(submitted).toMatchObject({ method: "post", action: actionUrl, target: "_self", hidden: true });
+  expect(created[1]).toMatchObject({ type: "hidden", name: "ticket", value: ticket });
 });
 
 describe("current application profile", () => {

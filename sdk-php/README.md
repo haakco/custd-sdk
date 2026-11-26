@@ -562,6 +562,22 @@ where the route accepts one.
   option, which is sent as `X-Custd-Effective-Company` on the cleanup-job list,
   read, proof and cancel calls only.
 
+`appProfile($accessToken)->createAccountEntry()` obtains a one-use ticket that
+opens hosted account settings, with a link back to `returnPath` on the app.
+POST the ticket as a form field to `actionUrl` in the same tab; keep it out of
+URLs and logs. A refusal throws `AppAccountEntryException` with its status.
+
+```php
+use HaakCo\Custd\App\AppAccountEntryRequest;
+
+$entry = $client->appProfile($accessToken)->createAccountEntry(new AppAccountEntryRequest(
+    issuer: 'https://auth.example.com',
+    applicationOrigin: 'https://app.example.com',
+    returnPath: '/mine',
+));
+// Render <form method="post" action="$entry->actionUrl"> with a hidden "ticket" field.
+```
+
 ## Time-plan administration
 
 `$client->adminTimePlans()` exposes typed, readonly `TimePlan` DTO classes for
