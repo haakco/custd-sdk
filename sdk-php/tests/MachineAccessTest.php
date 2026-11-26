@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\AdminProblemException;
+use HaakCo\Custd\Admin\AdminWorkflowException;
 use HaakCo\Custd\Admin\MachineAccess\MachineAccessAreaSetting;
 use HaakCo\Custd\Admin\MachineAccess\MachineAccessCompanyUpdateRequest;
 use HaakCo\Custd\CustdClient;
@@ -37,6 +38,7 @@ final class MachineAccessTest extends TestCase
             } catch (AdminProblemException $error) {
                 self::assertBlocked($error->problem);
                 self::assertSame(403, $error->status);
+                self::assertSame('req-header-1', $error->requestId, $name);
             }
         }
     }
@@ -49,6 +51,7 @@ final class MachineAccessTest extends TestCase
             self::fail('reporting accepted a refusal');
         } catch (RequestException $error) {
             self::assertSame(Problem::MACHINE_ACCESS_BLOCKED_CODE, $error->errorCode);
+            self::assertSame('req-header-1', $error->requestId);
             self::assertNotNull($error->problem);
             self::assertBlocked($error->problem);
         }
@@ -65,6 +68,21 @@ final class MachineAccessTest extends TestCase
             self::assertSame('bounded', $error->problem->retryability);
             self::assertSame('req-machine-access-2', $error->problem->traceId);
             self::assertNull($error->problem->machineAccess);
+        }
+    }
+
+    public function testFlatEnvelopeRequestIdStandsInWithoutTheHeader(): void
+    {
+        $body = '{"error":"erasure refused","code":"erasure_locked","requestId":"req-flat-1"}';
+        $client = new CustdClient('http://localhost:8080', 'token', [
+            'admin_http_client' => static fn (): array => ['status' => 409, 'body' => $body],
+        ]);
+        try {
+            $client->adminMachineAccess()->get();
+            self::fail('accepted a refusal');
+        } catch (AdminWorkflowException $error) {
+            self::assertSame('req-flat-1', $error->requestId);
+            self::assertSame('erasure_locked', $error->workflowCode);
         }
     }
 

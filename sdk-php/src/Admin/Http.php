@@ -220,7 +220,8 @@ final class Http
         if ($reason === "" || ($code === "" && $safeNextAction === "")) {
             return null;
         }
-        return new AdminWorkflowException($status, $reason, $code, $safeNextAction);
+        $requestId = is_string($decoded["requestId"] ?? null) ? $decoded["requestId"] : "";
+        return new AdminWorkflowException($status, $reason, $code, $safeNextAction, $requestId);
     }
 
     /**

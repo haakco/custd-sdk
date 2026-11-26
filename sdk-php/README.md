@@ -605,12 +605,15 @@ try {
     if ($error->problem->code === Problem::MACHINE_ACCESS_BLOCKED_CODE) {
         echo $error->problem->machineAccess?->blockedBy; // company, machine or support_automation
     }
-    echo $error->problem->traceId, ' ', $recorder->requestId; // quote either in a support request
+    echo $error->requestId; // quote it in a support request
 }
+echo $recorder->requestId;
 ```
 
 `MetadataRecorder::record()` captures the `X-Request-Id` of every answer made inside the call,
-refusals included. A custom transport reports it by returning `headers` with its answer.
+refusals included. A custom transport reports it by returning `headers` with its answer. Every
+refusal exception carries `requestId`: the `X-Request-Id`, else the flat envelope's `requestId`,
+else the problem's `traceId`.
 
 ## Time-plan administration
 

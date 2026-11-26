@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HaakCo\Custd\Admin;
 
+use HaakCo\Custd\MetadataRecorder;
 use HaakCo\Custd\Problem;
 
 /**
@@ -13,10 +14,14 @@ use HaakCo\Custd\Problem;
  */
 final class AdminProblemException extends \RuntimeException
 {
+    /** The ID to quote in a support request: the answer's X-Request-Id, else the problem's requestId or traceId. */
+    public readonly string $requestId;
+
     public function __construct(
         public readonly int $status,
         public readonly Problem $problem,
     ) {
+        $this->requestId = MetadataRecorder::refusalRequestId($problem->requestId, $problem->traceId);
         parent::__construct("custd: " . $problem->message(), $status);
     }
 }

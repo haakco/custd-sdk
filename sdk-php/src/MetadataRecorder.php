@@ -23,6 +23,9 @@ final class MetadataRecorder
     /** @var list<self> */
     private static array $active = [];
 
+    /** The X-Request-Id of the last answer, so the refusal built from it can carry it. */
+    private static string $answerRequestId = '';
+
     /**
      * Run $call while this recorder records, and return its result. A refusal still records before it throws.
      *
@@ -48,17 +51,34 @@ final class MetadataRecorder
      */
     public static function capture(mixed $headers): void
     {
-        $recorder = self::$active[array_key_last(self::$active) ?? -1] ?? null;
-        if ($recorder === null || !is_array($headers)) {
-            return;
-        }
-        foreach ($headers as $name => $value) {
+        self::$answerRequestId = '';
+        foreach (is_array($headers) ? $headers : [] as $name => $value) {
             if (is_string($name) && strtolower($name) === self::REQUEST_ID_HEADER && is_string($value) && $value !== '') {
-                $recorder->requestId = $value;
-
-                return;
+                self::$answerRequestId = $value;
+                break;
             }
         }
+        $recorder = self::$active[array_key_last(self::$active) ?? -1] ?? null;
+        if ($recorder !== null && self::$answerRequestId !== '') {
+            $recorder->requestId = self::$answerRequestId;
+        }
+    }
+
+    /**
+     * The ID a refusal carries: the last answer's X-Request-Id, else the first non-empty fallback (the flat
+     * envelope's requestId, then the problem's traceId).
+     *
+     * @internal
+     */
+    public static function refusalRequestId(string ...$fallbacks): string
+    {
+        foreach ([self::$answerRequestId, ...$fallbacks] as $candidate) {
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return '';
     }
 
     /**
