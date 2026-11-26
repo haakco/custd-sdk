@@ -1,6 +1,7 @@
 import { startWebVitals } from "./browser-web-vitals.js";
 import { applyEnvironmentLabel, LocalStorageQueueStorage, MemoryQueueStorage, normalizeRetryOptions, prepareEvent, RetryableError, validateBrowserEvent, withRetry, } from "./index.js";
 import { emptySiteConfigNullLists } from "./response-lists.js";
+import { isLocalHostname } from "./secure-url.js";
 const defaultSchemaVersion = "1.0.0";
 const pageViewEventType = "page-view";
 const webVitalsEventType = "web-vitals";
@@ -757,9 +758,6 @@ function assertSecureOrLocalHTTP(rawUrl, field) {
         return;
     }
     throw new Error(`custd: ${field} must use https unless it targets localhost`);
-}
-function isLocalHostname(hostname) {
-    return (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "host.docker.internal");
 }
 function randomUUID() {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {

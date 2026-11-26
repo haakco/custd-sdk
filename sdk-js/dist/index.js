@@ -10,6 +10,7 @@ import { SiteDomainAdminClient } from "./admin-site-domains.js";
 import { SiteInsightsAdminClient } from "./admin-site-insights-tasks.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+import { isLocalHostname } from "./secure-url.js";
 export { AUTH_PROJECT_DOMAIN_CONVERGENCES, AUTH_PROJECT_DOMAIN_IMAGE_COMPONENTS, AUTH_PROJECT_DOMAIN_IMAGE_SOURCES, AUTH_PROJECT_DOMAIN_LIFECYCLES, AUTH_PROJECT_DOMAIN_STATUSES, } from "./admin-auth-project-domain.js";
 export { ADMIN_USER_GLOBAL_STATES, ADMIN_USER_MEMBERSHIP_STATES, ADMIN_USER_ROLES, AdminUserAdminClient, } from "./admin-users.js";
 export { WORKFLOW_TIMING_FACT_KINDS, WORKFLOW_TIMING_STATES, WorkflowTimingAdminClient, } from "./admin-workflow-timings.js";
@@ -2122,9 +2123,6 @@ function assertSecureOrLocalHTTP(rawUrl, field) {
         return;
     }
     throw new Error(`custd: ${field} must use https unless it targets localhost`);
-}
-function isLocalHostname(hostname) {
-    return (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "host.docker.internal");
 }
 export function normalizeRetryOptions(options) {
     return {
