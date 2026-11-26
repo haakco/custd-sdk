@@ -4,7 +4,13 @@ name: Release Mirrors
 #
 #   split              split each framework/SDK subtree into its read-only mirror
 #                      repo and copy the tag onto it. Consumers point Composer VCS
-#                      / Go modules at the mirrors (no Packagist). The push token
+#                      / Go modules at the mirrors (no Packagist). The JS and React
+#                      mirrors hold only the built package (dist, README and a
+#                      package.json without monorepo-only fields), so consumers
+#                      install github:haakco/custd-sdk-js#v<VERSION> and
+#                      github:haakco/custd-sdk-react#v<VERSION>, which Dependabot
+#                      can bump. React keeps the SDK as a peer, satisfied by the
+#                      JS mirror at the same version. The push token
 #                      is pulled from Infisical at runtime (Universal Auth,
 #                      matching custd/cb) and passed via http.extraheader so it
 #                      never lands in argv/process list or logs.
@@ -69,6 +75,12 @@ jobs:
             mirror: haakco/custd-sdk-wordpress
           - prefix: sdk-go
             mirror: haakco/custd-sdk-go
+          - prefix: sdk-js
+            mirror: haakco/custd-sdk-js
+            kind: js-package
+          - prefix: sdk-react
+            mirror: haakco/custd-sdk-react
+            kind: js-package
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -78,6 +90,11 @@ jobs:
           # Authorization header (git push → HTTP 400). The repo is public, so
           # the initial fetch needs no persisted credential.
           persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        if: matrix.kind == 'js-package'
+        with:
+          node-version: 26.13.1
+          package-manager-cache: false
       - name: Install Infisical CLI
         env:
           MISE_GITHUB_TOKEN: ${{ github.token }}
@@ -90,6 +107,7 @@ jobs:
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           PREFIX: ${{ matrix.prefix }}
           MIRROR: ${{ matrix.mirror }}
+          KIND: ${{ matrix.kind }}
           TAG: ${{ github.ref_name }}
         run: |
           domain="https://secrets.k8.haak.co/api"
@@ -101,7 +119,11 @@ jobs:
             --token="$token" --projectId=952c94fb-3c39-4384-8087-2e459812bc3d \
             --env=prod --path=/custd-sdk --domain="$domain" --plain --silent)"
 
-          split_sha="$(git subtree split --prefix="$PREFIX" | tr -d '[:space:]')"
+          if [ "$KIND" = "js-package" ]; then
+            split_sha="$(bash scripts/build-js-mirror-commit.sh "$PREFIX")"
+          else
+            split_sha="$(git subtree split --prefix="$PREFIX" | tr -d '[:space:]')"
+          fi
 
           # The Go module's tests read shared contract fixtures that live at the
           # monorepo root, outside the sdk-go prefix. Vendor them into the split
