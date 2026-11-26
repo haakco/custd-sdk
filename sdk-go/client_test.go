@@ -678,17 +678,17 @@ func TestCloseFlushesRemaining(t *testing.T) {
 
 func TestContextCancellationStopsRetry(t *testing.T) {
 	var attempts atomic.Int32
-	srv := newCountingFailureServer(&attempts)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		attempts.Add(1)
+		cancel()
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
 	defer srv.Close()
 
 	client := newRetryClient(srv.URL)
 	defer func() { _ = client.Close(context.Background()) }()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		time.Sleep(10 * time.Millisecond)
-		cancel()
-	}()
 
 	client.q.enqueue(validEvent())
 	if err := client.Flush(ctx); err == nil {
@@ -697,13 +697,6 @@ func TestContextCancellationStopsRetry(t *testing.T) {
 	if attempts.Load() < 1 {
 		t.Fatalf("expected at least 1 attempt, got %d", attempts.Load())
 	}
-}
-
-func newCountingFailureServer(attempts *atomic.Int32) *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		attempts.Add(1)
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}))
 }
 
 func newRetryClient(baseURL string) *CustdClient {
