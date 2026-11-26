@@ -111,11 +111,11 @@ final class OperationsClient
     }
 
     /**
-     * Retry a failed scheduled task run.
+     * Retry a failed scheduled task run. The answer is the queued run.
      */
-    public function retryScheduledTaskRun(string $runUuid): void
+    public function retryScheduledTaskRun(string $runUuid): ScheduledTaskRunResponse
     {
-        $this->http->none('POST', '/api/v1/admin/scheduled-task-runs/' . rawurlencode($runUuid) . '/retry', [], null);
+        return ScheduledTaskRunResponse::fromPayload($this->http->object('POST', '/api/v1/admin/scheduled-task-runs/' . rawurlencode($runUuid) . '/retry', [], null));
     }
 
     /**
