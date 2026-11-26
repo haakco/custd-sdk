@@ -336,3 +336,41 @@ describe("signInConfigFromDiscovery", () => {
     ).toThrow(/https/);
   });
 });
+
+describe("BrowserSignIn account settings sign-in", () => {
+  it("signs in again when hosted settings asks, then reopens settings on the same page", async () => {
+    const storage = memoryStorage();
+    const navigate = vi.fn();
+    const openAccountSettings = vi.fn().mockResolvedValue(undefined);
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(
+        tokenResponse({ access_token: "fresh-access", token_type: "Bearer", expires_in: 300, refresh_token: "r" }),
+      );
+    const signIn = new BrowserSignIn({
+      issuer: ISSUER,
+      authorizationEndpoint: "https://auth.example.com/oauth2/auth",
+      tokenEndpoint: "https://auth.example.com/oauth2/token",
+      clientId: "app-client",
+      redirectUri: REDIRECT_URI,
+      storage,
+      fetch: fetchImpl,
+      now: () => 1_000_000,
+      navigate,
+      openAccountSettings,
+    });
+
+    await signIn.restore("https://app.example.com/mine?view=all&custd_account=sign_in_again");
+    const authorize = new URL(navigate.mock.calls[0]?.[0] as string);
+    expect(authorize.origin + authorize.pathname).toBe("https://auth.example.com/oauth2/auth");
+
+    const result = await signIn.restore(`${REDIRECT_URI}?code=c&state=${authorize.searchParams.get("state")}`);
+    expect(openAccountSettings).toHaveBeenCalledWith({
+      issuer: ISSUER,
+      accessToken: "fresh-access",
+      returnPath: "/mine?view=all",
+      fetch: fetchImpl,
+    });
+    expect(result.returnTo).toBeUndefined();
+  });
+});

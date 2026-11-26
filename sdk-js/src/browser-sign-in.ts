@@ -4,6 +4,8 @@
 // state and the token set live in sessionStorage by default. Tokens are never
 // placed in error messages.
 
+import { type OpenAppAccountSettingsOptions, openAppAccountSettings } from "./app-account.js";
+
 /** Sign-in block of the hosted app discovery file `/.well-known/custd.json`. */
 export type CustdDiscoverySignIn = {
   issuer: string;
@@ -35,6 +37,8 @@ export type BrowserSignInConfig = BrowserSignInEndpoints & {
   fetch?: typeof fetch;
   now?: () => number;
   navigate?: (url: string) => void;
+  /** Opens hosted account settings after a sign-in settings asked for; replace it in tests. */
+  openAccountSettings?: (options: OpenAppAccountSettingsOptions) => Promise<void>;
 };
 
 export type SignInDiscoveryOptions = {
@@ -55,6 +59,8 @@ export type SignInSession = {
 export type SignInStartOptions = {
   /** Same-origin path to return to after sign-in. Defaults to the current page. */
   returnTo?: string;
+  /** Reopen hosted account settings, linking back to `returnTo`, once sign-in completes. */
+  openAccountSettings?: boolean;
 };
 
 export type SignInStart = {
@@ -64,6 +70,7 @@ export type SignInStart = {
 export type SignInCompletion = {
   session: SignInSession;
   returnTo: string;
+  openAccountSettings?: boolean;
 };
 
 export type SignOutOptions = {
@@ -132,7 +139,16 @@ type PendingSignIn = {
   state: string;
   codeVerifier: string;
   returnTo: string;
+  /** Set when hosted settings asked for this sign-in; settings reopens once it completes. */
+  openAccountSettings?: boolean;
 };
+
+/**
+ * Hosted settings sends a person back with this query parameter when managing their sign-in methods
+ * needs a fresh sign-in. `restore()` then signs them in and reopens settings on the same page.
+ */
+export const ACCOUNT_SIGN_IN_PARAM = "custd_account";
+export const ACCOUNT_SIGN_IN_AGAIN = "sign_in_again";
 
 type TokenResponse = {
   access_token?: unknown;
@@ -180,6 +196,7 @@ export class BrowserSignIn {
   private readonly fetchImpl: typeof fetch;
   private readonly now: () => number;
   private readonly navigate: (url: string) => void;
+  private readonly openAccountSettings: (options: OpenAppAccountSettingsOptions) => Promise<void>;
   private readonly listeners = new Set<() => void>();
   private state: SignInState;
   private completion: Promise<SignInCompletion> | null = null;
@@ -187,12 +204,13 @@ export class BrowserSignIn {
 
   constructor(config: BrowserSignInConfig) {
     validateEndpoints(config);
-    const { storage, fetch: fetchImpl, now, navigate, ...endpoints } = config;
+    const { storage, fetch: fetchImpl, now, navigate, openAccountSettings, ...endpoints } = config;
     this.config = endpoints;
     this.storage = storage ?? defaultStorage();
     this.fetchImpl = fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
     this.now = now ?? Date.now;
     this.navigate = navigate ?? ((url) => window.location.assign(url));
+    this.openAccountSettings = openAccountSettings ?? openAppAccountSettings;
     this.state = this.initialState();
   }
 
@@ -219,6 +237,7 @@ export class BrowserSignIn {
       codeVerifier: randomToken(),
       returnTo: safeReturnTo(options.returnTo ?? currentPath()),
     };
+    if (options.openAccountSettings) pending.openAccountSettings = true;
     this.storage.setItem(this.storageKey("pending"), JSON.stringify(pending));
     const url = new URL(this.config.authorizationEndpoint);
     url.searchParams.set("response_type", "code");
@@ -265,10 +284,18 @@ export class BrowserSignIn {
    * redirect URI, otherwise reads the stored session and refreshes it if expired.
    */
   async restore(url: string = currentHref()): Promise<SignInRestoreResult> {
+    const settingsReturn = accountSignInReturn(url);
+    if (settingsReturn !== null) {
+      await this.signIn({ returnTo: settingsReturn, openAccountSettings: true });
+      return { state: this.state };
+    }
     if (this.isPendingCallback(url)) {
       this.setState({ status: SIGN_IN_STATUSES.signingIn });
       try {
         const completion = await this.completeSignIn(url);
+        if (completion.openAccountSettings && (await this.reopenAccountSettings(completion))) {
+          return { state: this.state };
+        }
         return { state: this.state, returnTo: completion.returnTo };
       } catch (error) {
         this.setState({ status: SIGN_IN_STATUSES.error, error: toSignInError(error) });
@@ -344,7 +371,22 @@ export class BrowserSignIn {
       code_verifier: pending.codeVerifier,
     });
     this.saveSession(session);
-    return { session, returnTo: pending.returnTo };
+    return { session, returnTo: pending.returnTo, openAccountSettings: pending.openAccountSettings === true };
+  }
+
+  /** Opens settings after the sign-in it asked for; a refusal leaves the person on the app page. */
+  private async reopenAccountSettings(completion: SignInCompletion): Promise<boolean> {
+    try {
+      await this.openAccountSettings({
+        issuer: this.config.issuer,
+        accessToken: completion.session.accessToken,
+        returnPath: completion.returnTo,
+        fetch: this.fetchImpl,
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private async exchangeRefreshToken(): Promise<SignInSession> {
@@ -476,6 +518,14 @@ function base64Url(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** The page to return to when `url` carries the settings sign-in request, otherwise null. */
+function accountSignInReturn(url: string): string | null {
+  const parsed = new URL(url);
+  if (parsed.searchParams.get(ACCOUNT_SIGN_IN_PARAM) !== ACCOUNT_SIGN_IN_AGAIN) return null;
+  parsed.searchParams.delete(ACCOUNT_SIGN_IN_PARAM);
+  return `${parsed.pathname}${parsed.search}`;
 }
 
 function safeReturnTo(path: string): string {
