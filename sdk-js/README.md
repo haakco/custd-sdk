@@ -13,7 +13,7 @@ release **3.52.0** on 2026-11-17, including Node 26, pnpm 12 and Expo 58 consume
 Both packages are public on npmjs and released at every SDK tag:
 
 ```bash
-pnpm add @haakco/custd-sdk@^3.71.1
+pnpm add @haakco/custd-sdk@^3.71.2
 ```
 
 A pnpm project with `minimumReleaseAge` set should list `@haakco/*` in
