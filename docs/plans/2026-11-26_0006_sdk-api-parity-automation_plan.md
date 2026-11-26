@@ -4,45 +4,23 @@
 or a recorded reason it is excluded, and a machine check on each side catches the next gap or drift
 before a consumer does.
 
-**Status (2026-11-26, checkpoint 2):** Active.
+**Status (2026-11-26, checkpoint 3):** Active. Route parity is finished; M4 and M5 are open.
 
-- **M1 is built:** `contract-fixtures/api/operations.json` (701 operations, 623 required) and
-  `examples/` come from `just sync-api-contract`. `just surface-check` runs in `just check` and CI.
-- **M2 and M3** route and example-decode conformance tests exist in every SDK, each owning
-  `contract-fixtures/api/coverage/<sdk>.json`.
-- **Coverage now (of 623):** Go 622, JS 622, Python 445, Rust 264, PHP 308.
-  - The last Go and JS gap, `POST …/cleanup/jobs/{uuid}/proof`, was a Custd routing bug: it
-    cancelled the job. It is fixed in Custd and the phantom operation is removed from the catalogue.
-- **Running:**
-  - Python P3: everything left.
-  - PHP PH1: fixes, typed provisioning, Site and account areas.
-  - Rust R3: measurement and reporting.
-  - Go G2 and JS J3: small defect fixes.
-  - Custd: route sources derived instead of hand-listed, so served routes cannot go missing from
-    the catalogue, plus OpenAPI gaps.
-- **Next after the batches:**
-  - Resync the snapshot from Custd, which now has enums and the newly catalogued routes.
-  - Drop the example placeholder limits that the enums make obsolete.
-  - Fill the new public routes in every SDK.
-  - Run `just check`, then release.
-- **Resume:** `just surface-check`, then the next batch for each SDK from
-  `python3 scripts/check-sdk-surface.py --missing <sdk>`.
-- **Found by the baselines and being fixed:**
-  - methods in Go, JS, Python and PHP that call routes no service serves (`/api/v1/admin/schemas`,
-    prediction `rollbackVersion`);
-  - null-list decoders in every SDK;
-  - Go envelope and type drift (prediction lists, privacy mappings, tenant storage, workflow
-    rebuild);
-  - the Go webhook replay and rotate URL bug;
-  - Python's tenant-storage and schemas paths;
-  - Custd's OpenAPI has no enums for closed string sets.
-- **Custd catalogue gaps to fix:** `docs/api/api-parity.json` misses the public monitor routes
-  (`/api/v1/site-heartbeat-reports/…`, `/api/v1/site-private-uptime-reports/…`,
-  `/api/v1/public-status-pages/{key}` and its subscribe, confirm and unsubscribe routes), and both it
-  and the OpenAPI miss `POST /api/v1/site-domains/ai-owner-handoffs`.
-- **The release this plan follows** is
-  [archived](../../archive/docs/plans/2026-11-26_0006_2026-11-25_2300_review-fixes-and-status-page-parity_plan.md)
-  (`v3.65.1`).
+- **Done:**
+  - **M1:** the snapshot, its exclusion rule, query parameters and `just surface-check`.
+  - **M2:** route conformance in every SDK, asserting method, path and declared query parameters.
+  - **M3:** example decoding plus strict field checks in Go, Python and PHP, a field-retention check in
+    JS, and decode and re-encode round trips in Rust.
+  - **M6:** Go, JS, Python, PHP and Rust each cover all 634 required operations of the Custd
+    `82873e00c` snapshot.
+  - **M7:** `v3.66.0` is released, and every consumer on the development server runs it.
+- **Open:**
+  - **M4:** a Custd change to its catalogue or OpenAPI does not yet update the SDK snapshot by itself.
+    Today `just sync-api-contract ../custd`, then `just surface-check`, is the manual step. A cross-repo
+    pull request needs a token decision, because Custd is private.
+  - **M5:** consumers do not yet bump automatically or replay Custd's fixtures.
+- **Resume:** pick M4 or M5. Consumers with no local checkout are in the
+  [SDK 3.66 consumer adoption plan](./2026-11-26_0300_sdk-3-66-consumer-adoption_plan.md).
 
 **Rule:** a change to any SDK lands in every SDK in the same release. A route present in one SDK and
 absent or different in another is a defect, not a backlog preference.
@@ -142,20 +120,22 @@ done until every consumer on the development server runs it with its own checks 
 bumps through its normal dependency command, never a local path replacement. The changes go in using
 that repository's own rules, and each item below records its commit.
 
-- [ ] Resync the snapshot from Custd `82873e00c`, then run the final pass in every SDK, then
-  `just check`, then tag and push `v3.66.0`.
-- [ ] **Custd:** custdctl, loadgen (Go, JS and PHP), the frontend and the lifecycle-m6 proof, bumped
+- [x] Resync the snapshot from Custd `82873e00c`, then run the final pass in every SDK, then
+  `just check`, then tag and push `v3.66.0` (`8642f02`). Release Mirrors run `45746963763` succeeded, the
+  Go mirror carries the tag and the JS tarball is attached. CI's only failure was a blank line at the end
+  of a Python file, fixed in `a658030`.
+- [x] **Custd** (`84368c5a4`, `6414bea46`; `just lint` and `just test` pass; release `v1.7.139`): custdctl, loadgen (Go, JS and PHP), the frontend and the lifecycle-m6 proof, bumped
   with `scripts/dev/update-custd-sdk.sh v3.66.0`. Then `just lint` and `just test`, commit, push,
   release and deploy. Before deploying, check production for queued cleanup jobs, because the
   approval key change invalidates their scope hash.
-- [ ] **Hosting API:** PHP `^3.66`. Move provisioning to the typed DTOs
+- [x] **Hosting API** (`5f2fe006d`; Plan 247 in `d6b3020bc`): PHP `^3.66`. Move provisioning to the typed DTOs
   (`HostingSiteInsightCredentials`), give `FakeSiteDomainTransport::provisioning()` the full server
   shape, and update Plan 247 with the changes.
-- [ ] **Hosting frontend:** JS.
-- [ ] **Vorrent:** Go root module and media cache, plus JS frontend, mobile and shared.
-- [ ] **done-when-app:** JS and React, plus the Rust CLI.
-- [ ] **dzine-canvas:** JS release tarball.
-- [ ] Consumers with no checkout on this server are handed to the
+- [x] **Hosting frontend:** JS, from `v3.35.2` to `v3.66.0` (`5f2fe006d`).
+- [x] **Vorrent** (`07c87d0d`): Go root module and media cache, plus JS frontend, mobile and shared.
+- [x] **done-when-app** (`f4ccd51`, `7b09fc3`): JS and React, plus the Rust CLI.
+- [x] **dzine-canvas** (`3a3de6c`): JS release tarball.
+- [x] Consumers with no checkout on this server are handed to the
   [SDK 3.66 consumer adoption plan](./2026-11-26_0300_sdk-3-66-consumer-adoption_plan.md).
 
 ## Acceptance
