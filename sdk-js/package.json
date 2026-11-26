@@ -1,6 +1,6 @@
 {
   "name": "@haakco/custd-sdk",
-  "version": "3.71.1",
+  "version": "3.71.2",
   "type": "module",
   "engines": {
     "node": ">=24 <27"
@@ -49,5 +49,11 @@
     "typescript": "^7.0.2",
     "vite": "8.3.8",
     "vitest": "^5.1.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haakco/custd-sdk.git",
+    "directory": "sdk-js"
   }
 }

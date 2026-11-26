@@ -2,5 +2,9 @@
 packages:
   - "."
 
+# Our own SDK installs on the day it is released.
+minimumReleaseAgeExclude:
+  - "@haakco/*"
+
 onlyBuiltDependencies:
   - esbuild
