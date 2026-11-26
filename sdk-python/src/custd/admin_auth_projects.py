@@ -393,31 +393,53 @@ class AuthProjectSocialSignIn(TypedDict):
     status: NotRequired[AuthProjectSocialSignInStatus]
 
 
-class AuthProjectDesiredState(TypedDict):
+class _AuthProjectEnvironmentConfig(TypedDict):
+    identityMode: AuthProjectIdentityMode
+    registrationPolicy: AuthProjectRegistrationPolicy
+    audiences: list[AuthProjectAudienceBinding] | None
+    # An apply leaves the display name and its owner alone when it sends neither.
+    displayName: NotRequired[str]
+    displayNameSource: NotRequired[AuthProjectDisplayNameSource]
+    applicationSessionPolicy: NotRequired[AuthProjectApplicationSessionPolicy]
+    withdrawDisplayName: NotRequired[bool]
+    hosting: NotRequired[AuthProjectHosting]
+    socialSignIn: NotRequired[AuthProjectSocialSignIn]
+
+
+class AuthProjectDesiredState(_AuthProjectEnvironmentConfig):
     """The environment configuration an apply writes.
 
     A consumer builds it from these fields alone: ``audiences`` carries the
     audience binding, and the remaining fields carry the rest. The legal scalar
     vocabularies are read from the environment's capability operation, not fixed
     here.
+
+    The realm fields ``loginPaused``, ``entryPath``, ``brandAccent``,
+    ``signInMethods`` and ``profileFields`` keep their stored value when left out
+    or sent as None. An empty value clears: ``""`` for a string, ``[]`` for a
+    list (an empty ``signInMethods`` offers every method). ``loginPaused`` True or
+    False sets the pause.
     """
 
-    identityMode: AuthProjectIdentityMode
-    registrationPolicy: AuthProjectRegistrationPolicy
+    loginPaused: NotRequired[bool]
+    entryPath: NotRequired[str]
+    brandAccent: NotRequired[str]
+    signInMethods: NotRequired[list[str] | None]
+    profileFields: NotRequired[list[AuthProjectProfileField] | None]
+
+
+class AuthProjectStoredDesiredState(_AuthProjectEnvironmentConfig):
+    """The environment configuration a status reports: every realm field with its stored value.
+
+    ``entryPath`` and ``brandAccent`` are ``""`` when unset; ``signInMethods``
+    empty or None means every method is offered.
+    """
+
     loginPaused: bool
-    audiences: list[AuthProjectAudienceBinding] | None
-    profileFields: list[AuthProjectProfileField] | None
-    # An apply replaces the entry path and accent; it leaves the display name and its owner alone
-    # when it sends neither, and offers every method when signInMethods is empty or absent.
     entryPath: str
     brandAccent: str
-    displayName: NotRequired[str]
-    displayNameSource: NotRequired[AuthProjectDisplayNameSource]
-    signInMethods: NotRequired[list[str] | None]
-    applicationSessionPolicy: NotRequired[AuthProjectApplicationSessionPolicy]
-    withdrawDisplayName: NotRequired[bool]
-    hosting: NotRequired[AuthProjectHosting]
-    socialSignIn: NotRequired[AuthProjectSocialSignIn]
+    signInMethods: list[str] | None
+    profileFields: list[AuthProjectProfileField] | None
 
 
 class AuthProjectDesiredStateRequest(TypedDict):
@@ -518,7 +540,7 @@ class AuthProjectStatus(TypedDict):
     projectId: str
     environmentId: str
     revision: int
-    desired: AuthProjectDesiredState
+    desired: AuthProjectStoredDesiredState
     reconciled: bool
     reconcileNote: str
     loginReady: bool
