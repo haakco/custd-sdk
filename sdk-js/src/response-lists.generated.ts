@@ -73,6 +73,9 @@ export const API_RESPONSE_LISTS: ResponseListTable = {
   "GET /api/v1/admin/event-types": ["eventTypes"],
   "GET /api/v1/admin/ingest/claims/{tenantSlug}": ["claims"],
   "GET /api/v1/admin/jobs": ["outboxes", "queueCounts", "recentFailures"],
+  "GET /api/v1/admin/machine-access": ["areas"],
+  "GET /api/v1/admin/machine-access/clients/{clientId}": ["areas"],
+  "GET /api/v1/admin/machine-access/clients/{clientId}/effective": ["areas", "scopes"],
   "GET /api/v1/admin/measurement/predictions/definitions": ["items"],
   "GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/outcomes": ["outcomes"],
   "GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/runs": ["runs"],
@@ -1542,6 +1545,8 @@ export const API_RESPONSE_LISTS: ResponseListTable = {
   ],
   "POST /api/v1/site-domains/{domainUuid}/status-page/preview": ["components", "updates"],
   "POST /api/v1/site-domains/{domainUuid}/status-page/updates": ["updates"],
+  "PUT /api/v1/admin/machine-access": ["areas"],
+  "PUT /api/v1/admin/machine-access/clients/{clientId}": ["areas"],
   "PUT /api/v1/admin/privacy/rules": ["rules"],
   "PUT /api/v1/admin/reporting-packs/drafts/{draftId}": [
     "definition.accounting.allocations",
