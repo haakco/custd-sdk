@@ -1,5 +1,5 @@
 import type { SiteResponseHour, SiteUptimeDay, SiteUptimeWindow } from "@haakco/custd-sdk";
-import type { CSSProperties } from "react";
+import { type CSSProperties } from "react";
 /** Round down so a missed check never displays as 100%. */
 export declare function uptimePercent({ checks, upChecks }: SiteUptimeWindow): number | undefined;
 export type DailyUptimeChartProps = {
@@ -23,5 +23,6 @@ export type UptimeResponseChartProps = {
         slowestMs: number;
     }) => string;
     formatTime?: (timestamp: string) => string;
+    dataLabel?: string;
 };
-export declare function UptimeResponseChart({ hours, className, style, emptyLabel, averageLabel, slowestLabel, formatSummary, formatTime, }: UptimeResponseChartProps): import("react").JSX.Element;
+export declare function UptimeResponseChart({ hours, className, style, emptyLabel, averageLabel, slowestLabel, formatSummary, formatTime, dataLabel, }: UptimeResponseChartProps): import("react").JSX.Element;

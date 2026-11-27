@@ -3,7 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import { expect, it } from "vitest";
 import { DailyUptimeChart, UptimeResponseChart } from "./index.js";
 
-it("shows daily failures and leaves gaps in the passing response time", () => {
+it("shows daily failures and leaves gaps in the passing response time", async () => {
   const { container } = render(
     <>
       <DailyUptimeChart
@@ -27,4 +27,12 @@ it("shows daily failures and leaves gaps in the passing response time", () => {
   expect(daily.getByRole("listitem", { name: "2026-11-27: 91.66% up (12 checks)" })).toBeTruthy();
   expect(screen.getByRole("img", { name: "Response time: 140 ms on average, slowest 260 ms." })).toBeTruthy();
   expect(container.querySelectorAll("svg line")).toHaveLength(2);
+  expect(screen.queryByRole("table", { name: "Hourly data" })).toBeNull();
+  const details = screen.getByText("Hourly data").closest("details");
+  if (!details) throw new Error("Expected hourly data disclosure");
+  details.open = true;
+  const table = within(await screen.findByRole("table", { name: "Hourly data" }));
+  expect(table.getByRole("columnheader", { name: "Average (ms)" })).toBeTruthy();
+  const failedHour = table.getByRole("rowheader", { name: /01:00 UTC/ }).closest("tr");
+  expect(failedHour?.textContent).toMatch(/——$/);
 });
