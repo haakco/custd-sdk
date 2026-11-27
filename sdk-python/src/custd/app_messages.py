@@ -14,7 +14,7 @@ from .version import IDENTITY
 _MESSAGES_PATH = "/api/v1/app/messages"
 _Response = TypeVar("_Response")
 
-AppMessageSource = Literal["sms", "imessage"]
+AppMessageSource = Literal["sms", "imessage", "whatsapp"]
 AppMessageDirection = Literal["incoming", "outgoing"]
 AppMessageImportStatus = Literal["accepted", "already_accepted", "invalid"]
 
@@ -35,9 +35,18 @@ class AppMessageInput(TypedDict):
     text: str
 
 
+class AppMessageMedia(TypedDict):
+    mediaUuid: str
+    contentType: str
+    byteCount: int
+    ocrStatus: str
+    ocrText: NotRequired[str]
+
+
 class AppMessage(AppMessageInput):
     source: AppMessageSource
     messageUuid: str
+    media: NotRequired[list[AppMessageMedia]]
 
 
 class AppMessagesBatchRequest(TypedDict):
@@ -59,7 +68,8 @@ class AppMessagesBatchResponse(TypedDict):
 AppMessagesSearchRequest = TypedDict(
     "AppMessagesSearchRequest",
     {
-        "query": str,
+        "query": NotRequired[str],
+        "cursor": NotRequired[str],
         "source": NotRequired[AppMessageSource],
         "sender": NotRequired[str],
         "threadId": NotRequired[str],
@@ -71,6 +81,7 @@ AppMessagesSearchRequest = TypedDict(
 
 class AppMessagesSearchResponse(TypedDict):
     messages: list[AppMessage]
+    nextCursor: NotRequired[str]
 
 
 class AppMessageReadResponse(TypedDict):
@@ -127,14 +138,18 @@ class AppMessagesClient:
             raise ValueError("custd: app message ID must be a UUID") from None
         return self._request(AppMessageReadResponse, "GET", f"/{safe_id}")
 
+    def upload_media(self, message_uuid: str, image: bytes) -> AppMessageMedia:
+        """Attach a JPEG or PNG image to a message in this private archive."""
+        return self._request(AppMessageMedia, "PUT", f"/{UUID(message_uuid)}/media", image)
+
     def delete_source(self, source: AppMessageSource) -> AppMessagesDeleteSourceResponse:
         """Delete the authorized archive's messages for one source."""
-        if source not in ("sms", "imessage"):
+        if source not in ("sms", "imessage", "whatsapp"):
             raise ValueError("custd: app message source is unknown")
         return self._request(AppMessagesDeleteSourceResponse, "DELETE", f"/sources/{source}")
 
     def _request(
-        self, dto: type[_Response], method: str, suffix: str, body: dict[str, Any] | None = None
+        self, dto: type[_Response], method: str, suffix: str, body: dict[str, Any] | bytes | None = None
     ) -> _Response:
         token = self._access_token() if callable(self._access_token) else self._access_token
         if not token or any(character.isspace() for character in token):
@@ -142,7 +157,9 @@ class AppMessagesClient:
         path = _MESSAGES_PATH + suffix
         headers = {"Accept": "application/json", "Authorization": f"Bearer {token}", "X-Custd-Sdk": IDENTITY}
         if body is not None:
-            headers["Content-Type"] = "application/json"
+            headers["Content-Type"] = (
+                "application/octet-stream" if isinstance(body, bytes) else "application/json"
+            )
 
         try:
             result = self._transport(method, self.api_base_url + path, body, headers, self.timeout)
