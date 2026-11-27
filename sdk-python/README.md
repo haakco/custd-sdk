@@ -524,6 +524,27 @@ entry = CurrentAppProfileClient("https://api.custd.com", access_token).create_ac
 # Render <form method="post" action={entry.action_url}> with a hidden "ticket" field.
 ```
 
+## Private app messages
+
+`AppMessagesClient` uses the signed-in user's application access token and the
+HTTPS API origin. Pass a token callback when the application refreshes tokens.
+It sends search terms in the JSON body and stops on HTTP redirects.
+
+```python
+from custd import AppMessagesClient
+
+messages = AppMessagesClient("https://api.custd.com", access_token)
+session = messages.session()
+if session["importAllowed"]:
+    batch = messages.import_batch({"source": "imessage", "messages": imported_messages})
+    # Apply each result to the corresponding external ID before advancing the import.
+page = messages.search({"query": "meeting", "limit": 25})
+```
+
+Search continues by passing `nextCursor` as `cursor` with the same filters.
+Keep returned message content and bearer tokens out of logs. An HTTP refusal
+raises `RequestError` with its status and omits the response body.
+
 ## Analytics range query
 
 `client.analytics.query_range` reads a tenant's own events across an inclusive
