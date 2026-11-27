@@ -46,7 +46,7 @@ class AppMessageMedia(TypedDict):
 class AppMessage(AppMessageInput):
     source: AppMessageSource
     messageUuid: str
-    media: NotRequired[list[AppMessageMedia]]
+    media: list[AppMessageMedia]
 
 
 class AppMessagesBatchRequest(TypedDict):

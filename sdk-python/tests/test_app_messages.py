@@ -30,7 +30,7 @@ class AppMessagesClientTest(unittest.TestCase):
         }
         session = {"companySlug": "example", "principalId": "principal-1", "importAllowed": True}
         imported = {"results": [{"externalId": "example-1", "status": "accepted", "messageUuid": "message-1"}]}
-        page = {"messages": [{**message, "source": "sms", "messageUuid": "message-1"}]}
+        page = {"messages": [{**message, "source": "sms", "messageUuid": "message-1", "media": []}], "nextCursor": "example-cursor"}
         transport = mock.Mock(side_effect=[{"status": 200, "body": json.dumps(value)} for value in (
             session, imported, page,
         )])
@@ -40,7 +40,7 @@ class AppMessagesClientTest(unittest.TestCase):
         self.assertEqual(session, client.session())
         self.assertEqual(imported, client.import_batch({"source": "sms", "messages": [message]}))
         search: AppMessagesSearchRequest = {
-            "query": "meeting reminder",
+            "cursor": "previous-page",
             "sender": "recipient-1",
             "threadId": "meeting-thread",
             "from": "2026-11-27T00:00:00Z",
@@ -78,6 +78,18 @@ class AppMessagesClientTest(unittest.TestCase):
             [("GET", PATH + "/" + message_id), ("DELETE", PATH + "/sources/sms")],
             [(method, url) for method, url, *_ in (call.args for call in transport.call_args_list)],
         )
+
+    def test_media_upload_uses_raw_bytes_and_whatsapp_can_be_removed(self) -> None:
+        message_id = "cf6d72ac-c5c2-4e2f-b141-0cc4c8e2b2cd"
+        media = {"mediaUuid": "fixture", "contentType": "image/png", "byteCount": 5, "ocrStatus": "pending"}
+        deleted = {"source": "whatsapp", "deletedCount": 1}
+        transport = mock.Mock(side_effect=[{"status": 200, "body": value} for value in (media, deleted)])
+        client = AppMessagesClient(ORIGIN, "fixture-token", transport=transport)
+        self.assertEqual(media, client.upload_media(message_id, b"image"))
+        self.assertEqual(deleted, client.delete_source("whatsapp"))
+        method, url, body, headers, _ = transport.call_args_list[0].args
+        self.assertEqual(("PUT", PATH + "/" + message_id + "/media", b"image"), (method, url, body))
+        self.assertEqual("application/octet-stream", headers["Content-Type"])
 
     def test_default_transport_refuses_redirects_and_omits_error_content(self) -> None:
         response_headers = Message()
