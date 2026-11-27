@@ -16,7 +16,7 @@ Public SDKs for sending events to Custd.
 
 ## Supported versions
 
-Installation examples reviewed: 2026-11-27 against released **3.72.1**.
+Installation examples reviewed: 2026-11-27 against released **3.73.0**.
 
 Only the 3.x line is supported. The 1.x tags and their releases were removed on 2026-09-23, and `v3.0.0`
 replaced the reporting-pack shapes with the canonical contract: a consumer resolving an older range silently
@@ -24,14 +24,14 @@ installs code that cannot express a canonical pack.
 
 | Package | Install |
 | --- | --- |
-| `haakco/custd-sdk` (PHP) | `3.72.1` |
-| `haakco/custd-laravel` | `3.72.1` |
-| `haakco/custd-wordpress` | `3.72.1` |
-| `github.com/haakco/custd-sdk-go/v3` | `v3.72.1` |
-| `@haakco/custd-sdk` (JS) | `3.72.1` on npmjs |
-| `@haakco/custd-react` (JS) | `3.72.1` on npmjs |
-| `custd-sdk` (Python) | `git+https://github.com/haakco/custd-sdk.git@v3.72.1#subdirectory=sdk-python` |
-| `custd-sdk` (Rust) | `custd-sdk = { git = "https://github.com/haakco/custd-sdk", tag = "v3.72.1" }` |
+| `haakco/custd-sdk` (PHP) | `3.73.0` |
+| `haakco/custd-laravel` | `3.73.0` |
+| `haakco/custd-wordpress` | `3.73.0` |
+| `github.com/haakco/custd-sdk-go/v3` | `v3.73.0` |
+| `@haakco/custd-sdk` (JS) | `3.73.0` on npmjs |
+| `@haakco/custd-react` (JS) | `3.73.0` on npmjs |
+| `custd-sdk` (Python) | `git+https://github.com/haakco/custd-sdk.git@v3.73.0#subdirectory=sdk-python` |
+| `custd-sdk` (Rust) | `custd-sdk = { git = "https://github.com/haakco/custd-sdk", tag = "v3.73.0" }` |
 
 Deleting a Go tag does not remove the version from `proxy.golang.org`, which keeps serving what it has already
 cached: the earlier module paths still answer for the versions they published. Treat them as unsupported, and
@@ -141,7 +141,7 @@ core TypeScript SDK at the same released version, keeping your app's supported
 React and React Query versions (React 18/19 and TanStack Query 5):
 
 ```bash
-pnpm add @haakco/custd-sdk@^3.72.1 @haakco/custd-react@^3.72.1
+pnpm add @haakco/custd-sdk@^3.73.0 @haakco/custd-react@^3.73.0
 ```
 
 `@haakco/custd-react` does not create a Custd client or hold browser
@@ -167,6 +167,69 @@ The display helper exposes loading, error, unavailable, empty, stale,
 partial, stale/partial, and ready states with semantic status/alert markup.
 Consumers own wording, placement, and styling through `labels`,
 `renderState`, and `className`.
+
+### Site monitoring templates
+
+Render `SiteUptimePanel` inside your app's existing `QueryClientProvider`.
+The panel loads uptime history, shows the three uptime windows and both charts,
+and handles response-range selection and retries.
+
+```tsx
+import { SiteUptimePanel } from "@haakco/custd-react";
+import "@haakco/custd-react/monitoring.css";
+
+<SiteUptimePanel
+  queryKey={[sessionScope, companySlug, domainUuid]}
+  loadHistory={(days, signal) =>
+    client.admin.siteDomains.getUptimeHistory(domainUuid, days, { companySlug, signal })
+  }
+  className="availability"
+  labels={{ title: "Service availability", range: "Response time range" }}
+/>;
+```
+
+Use a non-secret account or session scope in the query key and include the
+tenant and domain. The app owns authentication and the query provider.
+
+Import the shared stylesheet once. Set the variables on `:root` for the
+whole site or on a theme container to scope them to one page. All three
+templates use the same layout and typography variables.
+
+```css
+:root {
+  --custd-monitoring-surface: var(--surface);
+  --custd-monitoring-text: var(--text);
+  --custd-monitoring-font: var(--body-font);
+  --custd-monitoring-space: 1rem;
+  --custd-monitoring-padding: 1rem;
+  --custd-monitoring-radius: 0.75rem;
+  --custd-monitoring-border: var(--border);
+  --custd-uptime-up: var(--success);
+  --custd-uptime-down: var(--danger);
+  --custd-uptime-bar-height: 1rem;
+  --custd-chart-primary: var(--accent);
+}
+```
+
+For a one-off variation, use the template's `className`, `style`, and
+`data-custd-part` hooks. You can also supply your own stylesheet.
+
+The other chart variables are `--custd-uptime-degraded`, `--custd-uptime-down`,
+`--custd-uptime-no-data`, and `--custd-chart-secondary`. Use `formatPercent`
+and the `dailyChart` and `responseChart` props for localized values, chart
+labels, timestamps, and summaries. The individual `DailyUptimeChart` and
+`UptimeResponseChart` can also render history in a custom layout.
+
+`SiteLighthousePanel` takes `history` from
+`client.admin.siteDomains.getLighthouseHistory(...)` and shows the latest
+desktop and mobile scores, including missing and failed runs.
+`SiteStatusPageView` takes `page` from
+`client.publicReads.statusPage(publicKey)` and shows component status and
+published updates. Both take `className`, `style`, `labels`, and
+`formatTime`. Style status rows with `[data-custd-part="status-component"]`
+and `[data-state="down"]`, and Lighthouse rows with
+`[data-custd-part="lighthouse-profile"]` and `[data-profile="mobile"]`.
+The application controls public-page routing and data loading.
 
 ## Go Usage
 
