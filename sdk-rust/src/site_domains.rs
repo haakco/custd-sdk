@@ -14,22 +14,29 @@ use crate::transport::{Method, percent_encode};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SiteDomainListResponse {
+#[serde(bound(deserialize = "D: Deserialize<'de>"))]
+pub struct SiteDomainList<D> {
     #[serde(default, deserialize_with = "null_as_empty")]
-    pub domains: Vec<SiteDomain>,
+    pub domains: Vec<D>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SiteDomain {
+pub struct SiteDomainRecord<C> {
     pub audit: SiteDomainAudit,
-    pub checks: SiteDomainChecks,
+    pub checks: C,
     pub created_at: String,
     pub domain_uuid: String,
     pub host: String,
     pub ownership: SiteDomainOwnership,
     pub site_uuid: String,
 }
+
+pub type SiteDomainListResponse = SiteDomainList<SiteDomain>;
+pub type SiteDomainListWithUptimePaths = SiteDomainList<SiteDomainWithUptimePath>;
+pub type SiteDomain = SiteDomainRecord<SiteDomainChecks>;
+pub type SiteDomainWithUptimePath =
+    SiteDomainRecord<SiteDomainCheckRecord<SiteHTTPPathExpectations>>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -46,11 +53,11 @@ pub struct SiteDomainAudit {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SiteDomainChecks {
+pub struct SiteDomainCheckRecord<E> {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chrome_ux: Option<SiteChromeUX>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub http_expectations: Option<SiteHTTPExpectations>,
+    pub http_expectations: Option<E>,
     pub mode: SiteDomainChecksMode,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub open_incident: Option<SiteIncident>,
@@ -59,6 +66,17 @@ pub struct SiteDomainChecks {
     pub tls: SiteTLS,
     pub uptime: SiteUptime,
     pub warming: SiteWarming,
+}
+
+pub type SiteDomainChecks = SiteDomainCheckRecord<SiteHTTPExpectations>;
+
+/// HTTP expectations including the optional path configured on the verified host.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct SiteHTTPPathExpectations {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    #[serde(flatten)]
+    pub expectations: SiteHTTPExpectations,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -435,6 +453,23 @@ impl CustdClient {
         site_uuid: Option<&str>,
         company_slug: Option<&str>,
     ) -> Result<SiteDomainListResponse> {
+        self.list_site_domain_records(site_uuid, company_slug)
+    }
+
+    /// List domains, including their configured public uptime paths.
+    pub fn list_site_domains_with_uptime_paths(
+        &self,
+        site_uuid: Option<&str>,
+        company_slug: Option<&str>,
+    ) -> Result<SiteDomainListWithUptimePaths> {
+        self.list_site_domain_records(site_uuid, company_slug)
+    }
+
+    fn list_site_domain_records<T: serde::de::DeserializeOwned>(
+        &self,
+        site_uuid: Option<&str>,
+        company_slug: Option<&str>,
+    ) -> Result<T> {
         let path = api_path(
             SITE_DOMAINS.to_owned(),
             &[("siteUuid", site_uuid.map(str::to_owned))],
@@ -449,6 +484,23 @@ impl CustdClient {
         domain_uuid: &str,
         company_slug: Option<&str>,
     ) -> Result<SiteDomain> {
+        self.get_site_domain_record(domain_uuid, company_slug)
+    }
+
+    /// Get a domain, including the configured public uptime path.
+    pub fn get_site_domain_with_uptime_path(
+        &self,
+        domain_uuid: &str,
+        company_slug: Option<&str>,
+    ) -> Result<SiteDomainWithUptimePath> {
+        self.get_site_domain_record(domain_uuid, company_slug)
+    }
+
+    fn get_site_domain_record<T: serde::de::DeserializeOwned>(
+        &self,
+        domain_uuid: &str,
+        company_slug: Option<&str>,
+    ) -> Result<T> {
         let path = api_path(
             format!("{SITE_DOMAINS}/{}", percent_encode(domain_uuid)),
             &[],

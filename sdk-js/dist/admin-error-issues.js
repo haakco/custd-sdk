@@ -18,8 +18,8 @@ export class ErrorIssueAdminClient {
     async get(issueUuid, companySlug) {
         const detail = await this.request("GET", scoped(issuePath(issueUuid), companySlug));
         return {
+            ...detail,
             issue: issue(detail.issue),
-            latestEventUuid: detail.latestEventUuid,
             latestEvent: event(detail.latestEvent),
         };
     }

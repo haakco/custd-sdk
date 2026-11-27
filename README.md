@@ -16,7 +16,7 @@ Public SDKs for sending events to Custd.
 
 ## Supported versions
 
-Installation examples reviewed: 2026-11-27 against released **3.75.0**.
+Installation examples reviewed: 2026-11-27 against released **3.76.0**.
 
 Only the 3.x line is supported. The 1.x tags and their releases were removed on 2026-09-23, and `v3.0.0`
 replaced the reporting-pack shapes with the canonical contract: a consumer resolving an older range silently
@@ -24,18 +24,25 @@ installs code that cannot express a canonical pack.
 
 | Package | Install |
 | --- | --- |
-| `haakco/custd-sdk` (PHP) | `3.75.0` |
-| `haakco/custd-laravel` | `3.75.0` |
-| `haakco/custd-wordpress` | `3.75.0` |
-| `github.com/haakco/custd-sdk-go/v3` | `v3.75.0` |
-| `@haakco/custd-sdk` (JS) | `3.75.0` on npmjs |
-| `@haakco/custd-react` (JS) | `3.75.0` on npmjs |
-| `custd-sdk` (Python) | `git+https://github.com/haakco/custd-sdk.git@v3.75.0#subdirectory=sdk-python` |
-| `custd-sdk` (Rust) | `custd-sdk = { git = "https://github.com/haakco/custd-sdk", tag = "v3.75.0" }` |
+| `haakco/custd-sdk` (PHP) | `3.76.0` |
+| `haakco/custd-laravel` | `3.76.0` |
+| `haakco/custd-wordpress` | `3.76.0` |
+| `github.com/haakco/custd-sdk-go/v3` | `v3.76.0` |
+| `@haakco/custd-sdk` (JS) | `3.76.0` on npmjs |
+| `@haakco/custd-react` (JS) | `3.76.0` on npmjs |
+| `custd-sdk` (Python) | `git+https://github.com/haakco/custd-sdk.git@v3.76.0#subdirectory=sdk-python` |
+| `custd-sdk` (Rust) | `custd-sdk = { git = "https://github.com/haakco/custd-sdk", tag = "v3.76.0" }` |
 
 Deleting a Go tag does not remove the version from `proxy.golang.org`, which keeps serving what it has already
 cached: the earlier module paths still answer for the versions they published. Treat them as unsupported, and
 add a `retract` directive on a path if it must be actively rejected.
+
+## Rust uptime paths
+
+Use `get_site_domain_with_uptime_path`, `list_site_domains_with_uptime_paths` or
+`export_site_insights_with_uptime_path` to read the optional configured path
+under `checks.http_expectations`. The existing methods keep their original
+return types, and `set_site_check_path` sets the path.
 
 ## Rule
 
@@ -141,7 +148,7 @@ core TypeScript SDK at the same released version, keeping your app's supported
 React and React Query versions (React 18/19 and TanStack Query 5):
 
 ```bash
-pnpm add @haakco/custd-sdk@^3.75.0 @haakco/custd-react@^3.75.0
+pnpm add @haakco/custd-sdk@^3.76.0 @haakco/custd-react@^3.76.0
 ```
 
 `@haakco/custd-react` does not create a Custd client or hold browser

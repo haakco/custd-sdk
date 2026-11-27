@@ -57,6 +57,15 @@ pub struct ErrorIssueDetail {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ErrorIssueDetailWithCompanyName {
+    #[serde(flatten)]
+    pub detail: ErrorIssueDetail,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub company_name: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ErrorIssueEvent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub correlation_id: Option<String>,
@@ -236,6 +245,23 @@ impl CustdClient {
         issue_uuid: &str,
         company_slug: Option<&str>,
     ) -> Result<ErrorIssueDetail> {
+        self.get_error_issue_record(issue_uuid, company_slug)
+    }
+
+    /// Get one error issue with its latest error and company name.
+    pub fn get_error_issue_with_company_name(
+        &self,
+        issue_uuid: &str,
+        company_slug: Option<&str>,
+    ) -> Result<ErrorIssueDetailWithCompanyName> {
+        self.get_error_issue_record(issue_uuid, company_slug)
+    }
+
+    fn get_error_issue_record<T: serde::de::DeserializeOwned>(
+        &self,
+        issue_uuid: &str,
+        company_slug: Option<&str>,
+    ) -> Result<T> {
         let path = api_path(
             format!("/api/v1/error-issues/{}", percent_encode(issue_uuid)),
             &[],

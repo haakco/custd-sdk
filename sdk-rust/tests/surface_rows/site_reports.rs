@@ -1,6 +1,6 @@
 use custd_sdk::{
     SavedSiteReport, SavedSiteReportListResponse, SavedSiteReportRequest, SiteCampaignLink,
-    SiteCampaignLinkList, SiteCampaignLinkRequest, SiteInsightsExport, SiteReport,
+    SiteCampaignLinkList, SiteCampaignLinkRequest, SiteInsightsExportWithUptimePath, SiteReport,
     SiteReportShareCreated, SiteReportShareListResponse, SiteReportShareRequest,
     SiteReportTemplate,
 };
@@ -91,8 +91,13 @@ pub fn rows() -> Vec<Row> {
         row(
             "admin-api GET /api/v1/site-domains/{domainUuid}/export",
             "/api/v1/site-domains/d-1/export?companySlug=acme",
-            |c| drop(c.custd.export_site_insights("d-1", Some("acme"))),
-            round_trip::<SiteInsightsExport>,
+            |c| {
+                drop(
+                    c.custd
+                        .export_site_insights_with_uptime_path("d-1", Some("acme")),
+                )
+            },
+            round_trip::<SiteInsightsExportWithUptimePath>,
         ),
         row(
             "admin-api GET /api/v1/site-domains/{domainUuid}/campaign-links",

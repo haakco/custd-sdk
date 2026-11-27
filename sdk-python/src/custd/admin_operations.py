@@ -599,6 +599,7 @@ class ErrorIssueEvent(TypedDict):
 
 
 class ErrorIssueDetail(TypedDict):
+    companyName: NotRequired[str]
     issue: ErrorIssue
     latestEvent: ErrorIssueEvent
     latestEventUuid: str

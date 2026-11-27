@@ -74,6 +74,7 @@ export type ErrorIssueEvent = {
     truncated?: boolean;
 };
 export type ErrorIssueDetail = {
+    companyName?: string;
     issue: ErrorIssue;
     latestEventUuid: string;
     latestEvent: ErrorIssueEvent;
