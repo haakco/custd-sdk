@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, Literal, NotRequired, TypedDict, TypeVar
 from urllib.parse import urlsplit
+from uuid import UUID
 
 from . import _wire
 from .client import AdminTransport, RequestError, no_redirect_transport
@@ -55,24 +56,24 @@ class AppMessagesBatchResponse(TypedDict):
     results: list[AppMessageImportResult]
 
 
-AppMessagesSearchRequest = TypedDict(
-    "AppMessagesSearchRequest",
-    {
-        "query": str,
-        "source": NotRequired[AppMessageSource],
-        "threadId": NotRequired[str],
-        "sender": NotRequired[str],
-        "from": NotRequired[str],
-        "to": NotRequired[str],
-        "limit": NotRequired[int],
-        "cursor": NotRequired[str],
-    },
-)
+class AppMessagesSearchRequest(TypedDict):
+    query: str
+    source: NotRequired[AppMessageSource]
+    sender: NotRequired[str]
+    limit: NotRequired[int]
 
 
 class AppMessagesSearchResponse(TypedDict):
     messages: list[AppMessage]
-    nextCursor: NotRequired[str]
+
+
+class AppMessageReadResponse(TypedDict):
+    message: AppMessage
+
+
+class AppMessagesDeleteSourceResponse(TypedDict):
+    source: AppMessageSource
+    deletedCount: int
 
 
 class AppMessagesClient:
@@ -109,8 +110,22 @@ class AppMessagesClient:
         return self._request(AppMessagesBatchResponse, "POST", "/batch", dict(request))
 
     def search(self, request: AppMessagesSearchRequest) -> AppMessagesSearchResponse:
-        """Search private message text and filters, continuing with the returned cursor."""
+        """Search this archive using text and optional sender or source filters."""
         return self._request(AppMessagesSearchResponse, "POST", "/search", dict(request))
+
+    def get_message(self, message_uuid: str) -> AppMessageReadResponse:
+        """Read one message directly within this private archive."""
+        try:
+            safe_id = UUID(message_uuid)
+        except ValueError:
+            raise ValueError("custd: app message ID must be a UUID") from None
+        return self._request(AppMessageReadResponse, "GET", f"/{safe_id}")
+
+    def delete_source(self, source: AppMessageSource) -> AppMessagesDeleteSourceResponse:
+        """Delete the authorized archive's messages for one source."""
+        if source not in ("sms", "imessage"):
+            raise ValueError("custd: app message source is unknown")
+        return self._request(AppMessagesDeleteSourceResponse, "DELETE", f"/sources/{source}")
 
     def _request(
         self, dto: type[_Response], method: str, suffix: str, body: dict[str, Any] | None = None

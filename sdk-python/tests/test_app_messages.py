@@ -30,7 +30,7 @@ class AppMessagesClientTest(unittest.TestCase):
         }
         session = {"companySlug": "example", "principalId": "principal-1", "importAllowed": True}
         imported = {"results": [{"externalId": "example-1", "status": "accepted", "messageUuid": "message-1"}]}
-        page = {"messages": [{**message, "source": "sms", "messageUuid": "message-1"}], "nextCursor": "next-page"}
+        page = {"messages": [{**message, "source": "sms", "messageUuid": "message-1"}]}
         transport = mock.Mock(side_effect=[{"status": 200, "body": json.dumps(value)} for value in (
             session, imported, page,
         )])
@@ -39,14 +39,14 @@ class AppMessagesClientTest(unittest.TestCase):
 
         self.assertEqual(session, client.session())
         self.assertEqual(imported, client.import_batch({"source": "sms", "messages": [message]}))
-        self.assertEqual(page, client.search({"query": "meeting reminder", "from": "2026-11-27T00:00:00Z"}))
+        self.assertEqual(page, client.search({"query": "meeting reminder", "sender": "recipient-1"}))
 
         requests = [call.args for call in transport.call_args_list]
         self.assertEqual(
             [
                 ("GET", PATH + "/session", None),
                 ("POST", PATH + "/batch", {"source": "sms", "messages": [message]}),
-                ("POST", PATH + "/search", {"query": "meeting reminder", "from": "2026-11-27T00:00:00Z"}),
+                ("POST", PATH + "/search", {"query": "meeting reminder", "sender": "recipient-1"}),
             ],
             [(method, url, body) for method, url, body, _, _ in requests],
         )
@@ -56,6 +56,21 @@ class AppMessagesClientTest(unittest.TestCase):
             self.assertEqual("application/json" if method == "POST" else None, headers.get("Content-Type"))
             self.assertNotIn("X-Custd-Site-Key", headers)
             self.assertEqual(5, timeout)
+
+    def test_direct_read_and_source_removal_encode_only_valid_resource_paths(self) -> None:
+        message_id = "cf6d72ac-c5c2-4e2f-b141-0cc4c8e2b2cd"
+        read = {"message": {"messageUuid": message_id}}
+        deleted = {"source": "sms", "deletedCount": 1}
+        transport = mock.Mock(side_effect=[{"status": 200, "body": value} for value in (read, deleted)])
+        client = AppMessagesClient(ORIGIN, "fixture-token", transport=transport)
+        self.assertEqual(read, client.get_message(message_id.upper()))
+        self.assertEqual(deleted, client.delete_source("sms"))
+        with self.assertRaises(ValueError):
+            client.get_message("../sources/sms")
+        self.assertEqual(
+            [("GET", PATH + "/" + message_id), ("DELETE", PATH + "/sources/sms")],
+            [(method, url) for method, url, *_ in (call.args for call in transport.call_args_list)],
+        )
 
     def test_default_transport_refuses_redirects_and_omits_error_content(self) -> None:
         response_headers = Message()
