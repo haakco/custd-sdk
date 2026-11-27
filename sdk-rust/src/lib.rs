@@ -9,6 +9,8 @@
 //!   locations and Sites. Hosted applications are under `/api/v1/admin/apps`.
 //! - [`CustdClient`] built with an application member's access token reads and writes that
 //!   member's own profile (`/api/v1/app/profile`).
+//! - [`CustdClient`] with an archive owner's access token imports messages and images into that
+//!   owner's private archive (`/api/v1/app/messages`).
 //! - [`CustdClient`] also runs measurement predictions, decisions and project changes, time plans,
 //!   workflow timings, uncertainty models and reporting packs (Admin API), and the tenant's
 //!   reporting, event queries, measurement reads and prepared-data receipts (Analytics API).
@@ -46,6 +48,7 @@ mod app_account_entry;
 mod app_alerts;
 mod app_item_runs;
 mod app_meetings;
+mod app_messages;
 mod app_models;
 mod app_profile;
 mod app_story;
@@ -129,6 +132,11 @@ pub use app_meetings::{
     APP_ITEM_MEETING_STEP_REFUSED, AppMeeting, AppMeetingAction, AppMeetingBlock,
     AppMeetingBlockCreate, AppMeetingCreate, AppMeetingMinutes, AppMeetingMinutesUpdate,
     AppMeetingSummary, AppPlanMeetingSummary,
+};
+pub use app_messages::{
+    APP_MESSAGES_MAX_BATCH_BYTES, APP_MESSAGES_MAX_BATCH_MESSAGES, AppMessageDirection,
+    AppMessageImportResult, AppMessageImportStatus, AppMessageInput, AppMessageMedia,
+    AppMessageSource, AppMessagesBatchRequest, AppMessagesBatchResponse, AppMessagesSession,
 };
 pub use app_models::{
     AppModelHistogram, AppModelPercentiles, AppModelQuantityError, AppModelQuantityResult,
