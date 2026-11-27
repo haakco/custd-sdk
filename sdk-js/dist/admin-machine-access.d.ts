@@ -27,6 +27,8 @@ export type MachineAccessState = (typeof MACHINE_ACCESS_STATES)[keyof typeof MAC
 export declare const MACHINE_ACCESS_DECIDED_BY: {
     readonly company: "company";
     readonly machine: "machine";
+    /** The effective view found no matching OAuth scope for the area. */
+    readonly scope: "scope";
     /** The target company's "Allow Custd support automation" setting, for Custd's platform operator machine. */
     readonly supportAutomation: "support_automation";
 };
