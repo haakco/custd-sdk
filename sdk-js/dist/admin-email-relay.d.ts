@@ -48,6 +48,7 @@ export type CampaignEmailSelection = {
 export type EmailRelayTestSendRequest = {
     recipient: string;
     campaign?: CampaignEmailSelection;
+    receiptRevision?: string;
 };
 export type EmailRelayTestSendResult = {
     accepted: boolean;

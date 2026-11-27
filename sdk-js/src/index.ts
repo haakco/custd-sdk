@@ -16,6 +16,7 @@ import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
 import { type CustdDownloadStream, responseDownloadStream } from "./download-stream.js";
 import { isLocalHostname } from "./secure-url.js";
+import { StorefrontClient } from "./storefront.js";
 
 export {
   AUTH_PROJECT_DOMAIN_CONVERGENCES,
@@ -3140,6 +3141,7 @@ export class CustdClient {
   public readonly measurement: MeasurementClient;
   public readonly ingestOperations: IngestOperationsClient;
   public readonly publicReads: PublicReadClient;
+  public readonly storefronts: StorefrontClient;
   private baseUrl: string;
   private getToken: (options?: RequestOptions) => string | Promise<string>;
   private fetchImpl: typeof fetch;
@@ -3199,6 +3201,9 @@ export class CustdClient {
     this.reporting = new ReportingNamespace(
       (method, path, body, options) => this.apiRequest(method, path, body, options),
       (path, options) => this.apiDownload(path, options),
+    );
+    this.storefronts = new StorefrontClient((method, path, body, options) =>
+      this.apiRequest(method, path, body, options),
     );
     this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
     this.analytics = new AnalyticsEventClient((method, path, body, options) =>
@@ -5729,3 +5734,5 @@ export type {
 } from "./schema-registry.js";
 export { SiteAIOwnerSession, type SiteAIOwnerSettings, type SiteAIOwnerTransport } from "./site-ai-owner.js";
 export * from "./site-monitor-reports.js";
+
+export * from "./storefront.js";

@@ -113,6 +113,7 @@ class CampaignTestSelection(TypedDict):
 
 class EmailRelayTestSendRequest(TypedDict):
     campaign: NotRequired[CampaignTestSelection]
+    receiptRevision: NotRequired[str]
     recipient: str
 
 

@@ -62,6 +62,8 @@ pub struct EmailRelayWriteRequest {
 pub struct EmailRelayTestSendRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub campaign: Option<CampaignTestSelection>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub receipt_revision: Option<String>,
     pub recipient: String,
 }
 

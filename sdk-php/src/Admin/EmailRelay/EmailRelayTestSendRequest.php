@@ -9,6 +9,7 @@ final readonly class EmailRelayTestSendRequest
     public function __construct(
         public string $recipient,
         public ?CampaignTestSelection $campaign = null,
+        public ?string $receiptRevision = null,
     ) {
     }
 
@@ -20,6 +21,10 @@ final readonly class EmailRelayTestSendRequest
         ];
         if ($this->campaign !== null) {
             $body['campaign'] = $this->campaign->serialise();
+        }
+
+        if ($this->receiptRevision !== null) {
+            $body['receiptRevision'] = $this->receiptRevision;
         }
 
         return $body;

@@ -49,7 +49,11 @@ export type EmailRelayWriteRequest = {
 /** A published campaign revision and the slot values to render it with. */
 export type CampaignEmailSelection = { revision: string; values: Record<string, string> };
 
-export type EmailRelayTestSendRequest = { recipient: string; campaign?: CampaignEmailSelection };
+export type EmailRelayTestSendRequest = {
+  recipient: string;
+  campaign?: CampaignEmailSelection;
+  receiptRevision?: string;
+};
 
 export type EmailRelayTestSendResult = {
   accepted: boolean;
