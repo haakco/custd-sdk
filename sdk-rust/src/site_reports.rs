@@ -209,8 +209,8 @@ pub struct SavedSiteReportRequest {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SiteInsightsExport {
-    pub domain: SiteDomain,
+pub struct SiteInsightsExportRecord<D> {
+    pub domain: D,
     pub exported_at: String,
     pub monitoring: SiteInsightsMonitoringExport,
     pub reports: SiteInsightsReportsExport,
@@ -218,6 +218,10 @@ pub struct SiteInsightsExport {
     pub search: SiteInsightsSearchExport,
     pub site: SiteInsightsSiteExport,
 }
+
+pub type SiteInsightsExport = SiteInsightsExportRecord<SiteDomain>;
+pub type SiteInsightsExportWithUptimePath =
+    SiteInsightsExportRecord<crate::site_domains::SiteDomainWithUptimePath>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -499,6 +503,23 @@ impl CustdClient {
         domain_uuid: &str,
         company_slug: Option<&str>,
     ) -> Result<SiteInsightsExport> {
+        self.export_site_insights_record(domain_uuid, company_slug)
+    }
+
+    /// Export Site Insights, including the domain's configured public uptime path.
+    pub fn export_site_insights_with_uptime_path(
+        &self,
+        domain_uuid: &str,
+        company_slug: Option<&str>,
+    ) -> Result<SiteInsightsExportWithUptimePath> {
+        self.export_site_insights_record(domain_uuid, company_slug)
+    }
+
+    fn export_site_insights_record<T: serde::de::DeserializeOwned>(
+        &self,
+        domain_uuid: &str,
+        company_slug: Option<&str>,
+    ) -> Result<T> {
         let path = api_path(
             format!("{SITE_DOMAINS}/{}/export", percent_encode(domain_uuid)),
             &[],

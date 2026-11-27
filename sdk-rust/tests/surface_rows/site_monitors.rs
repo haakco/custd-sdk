@@ -1,9 +1,10 @@
 use custd_sdk::{
-    SiteAlertDestination, SiteAlertDestinationRequest, SiteDomain, SiteHeartbeatCreate,
-    SiteHeartbeatCredential, SiteHeartbeatList, SiteIncident, SiteIncidentListResponse,
-    SiteMaintenanceWindow, SiteMaintenanceWindowRequest, SiteMaintenanceWindows,
-    SitePrivateUptimeCredential, SitePrivateUptimeMonitor, SitePrivateUptimeMonitorCreate,
-    SitePrivateUptimeWork, SiteProbeListResponse, SiteProbesRequest, SiteUptimeHistory,
+    SiteAlertDestination, SiteAlertDestinationRequest, SiteDomainWithUptimePath,
+    SiteHeartbeatCreate, SiteHeartbeatCredential, SiteHeartbeatList, SiteIncident,
+    SiteIncidentListResponse, SiteMaintenanceWindow, SiteMaintenanceWindowRequest,
+    SiteMaintenanceWindows, SitePrivateUptimeCredential, SitePrivateUptimeMonitor,
+    SitePrivateUptimeMonitorCreate, SitePrivateUptimeWork, SiteProbeListResponse,
+    SiteProbesRequest, SiteUptimeHistory,
 };
 
 use super::{body, round_trip};
@@ -32,7 +33,7 @@ pub fn rows() -> Vec<Row> {
             "admin-api POST /api/v1/site-domains/{domainUuid}/uptime-check",
             "/api/v1/site-domains/d-1/uptime-check?companySlug=acme",
             |c| drop(c.custd.request_site_uptime_check("d-1", Some("acme"))),
-            round_trip::<SiteDomain>,
+            round_trip::<SiteDomainWithUptimePath>,
         ),
         row(
             "admin-api GET /api/v1/site-domains/{domainUuid}/heartbeats",

@@ -24,6 +24,12 @@ GitHub tags with checked-in distributions are the publication owner, not a
 private registry. The state-display component renders DOM elements and is for
 web applications; native apps use the core SDK and authenticated backend relay.
 
+## Site monitoring templates
+
+Use the [site monitoring templates](../README.md#site-monitoring-templates) for
+drop-in uptime history, Lighthouse scores, and a public status view. Each can
+use your site's CSS and display copy.
+
 ## Query and display
 
 ```tsx

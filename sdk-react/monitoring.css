@@ -1,0 +1,72 @@
+/* Set these variables at the site or theme root to style every monitoring template. */
+:where([data-custd-monitoring]) {
+  display: grid;
+  gap: var(--custd-monitoring-space, 1rem);
+  padding: var(--custd-monitoring-padding, 1rem);
+  border: 1px solid var(--custd-monitoring-border, color-mix(in srgb, currentColor 20%, transparent));
+  border-radius: var(--custd-monitoring-radius, 0.75rem);
+  background: var(--custd-monitoring-surface, transparent);
+  color: var(--custd-monitoring-text, inherit);
+  font-family: var(--custd-monitoring-font, inherit);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:where([data-custd-monitoring] h2, [data-custd-monitoring] h3, [data-custd-monitoring] p) {
+  margin: 0;
+}
+
+:where([data-custd-metrics]) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--custd-monitoring-space, 1rem);
+  margin: 0;
+}
+
+:where([data-custd-metrics] dd) {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+:where([data-custd-part="lighthouse-profile"], [data-custd-part="uptime-error"]) {
+  display: grid;
+  gap: calc(var(--custd-monitoring-space, 1rem) / 2);
+  justify-items: start;
+}
+
+:where([data-custd-part="status-components"], [data-custd-part="status-updates"]) {
+  display: grid;
+  gap: calc(var(--custd-monitoring-space, 1rem) / 2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:where([data-custd-part="status-component"]) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--custd-monitoring-space, 1rem) / 2);
+}
+
+:where([data-custd-part="status-update"] p) {
+  white-space: pre-wrap;
+}
+
+:where([data-custd-monitoring] select, [data-custd-monitoring] button) {
+  font: inherit;
+  border-radius: var(--custd-monitoring-radius, 0.75rem);
+}
+
+:where([data-custd-part="status-component"][data-state="up"] strong) {
+  color: var(--custd-uptime-up, inherit);
+}
+
+:where([data-custd-part="status-component"][data-state="failing"] strong, [data-custd-part="status-component"][data-state="maintenance"] strong) {
+  color: var(--custd-uptime-degraded, inherit);
+}
+
+:where([data-custd-part="status-component"][data-state="down"] strong) {
+  color: var(--custd-uptime-down, inherit);
+}

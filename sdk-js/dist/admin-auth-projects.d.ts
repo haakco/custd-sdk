@@ -228,6 +228,10 @@ export type AuthProjectProfileField = {
     visibleToApplication: boolean;
     editableBy: string;
 };
+/** Whether hosted realm surfaces show shared product marks. */
+export type AuthProjectBrandMode = "shared" | "white_label";
+/** The realm’s color scheme. */
+export type AuthProjectBrandPalette = "default" | "light" | "dark";
 /**
  * The environment configuration an apply writes. A consumer builds it from these
  * fields alone: `audiences` carries the audience binding, and the remaining
@@ -251,6 +255,18 @@ export type AuthProjectDesiredState = {
     entryPath?: string | null;
     /** The sign-in accent as #rrggbb. Leaving it out keeps it; `""` restores the shared default. */
     brandAccent?: string | null;
+    /** Leaving it out or sending null keeps the stored mode. `shared` restores product marks. */
+    brandMode?: AuthProjectBrandMode | null;
+    /** Leaving it out or sending null keeps the stored palette. `default` restores the shared theme. */
+    brandPalette?: AuthProjectBrandPalette | null;
+    /** An HTTPS support link on the verified app origin. Null or omission keeps it; `""` clears it. */
+    brandSupportUrl?: string | null;
+    /** An HTTPS privacy link on the verified app origin. Null or omission keeps it; `""` clears it. */
+    brandPrivacyUrl?: string | null;
+    /** Registered HTTPS destination from hosted account settings. Null or omission keeps it; `""` clears it. */
+    accountReturnUrl?: string | null;
+    /** Label for the hosted account return destination. Null or omission keeps it; `""` clears it. */
+    accountReturnLabel?: string | null;
     /** The application name shown on invitations and hosted sign-in; empty when none is chosen. */
     displayName?: string;
     /** Which surface owns the display name: `application` or `hosting`. Provenance, never authority. */
@@ -416,6 +432,8 @@ export type AuthProjectStatus = {
     reconcileNote: string;
     loginReady: boolean;
     loginNote: string;
+    /** Non-failing configuration guidance, when available. */
+    recommendations?: string[] | null;
     clientSync?: AuthProjectClientSync;
     /** Persisted company of this environment's project; null means explicitly unbound, never inferred. */
     companyUuid: string | null;

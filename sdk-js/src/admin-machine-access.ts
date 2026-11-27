@@ -29,6 +29,8 @@ export type MachineAccessState = (typeof MACHINE_ACCESS_STATES)[keyof typeof MAC
 export const MACHINE_ACCESS_DECIDED_BY = {
   company: "company",
   machine: "machine",
+  /** The effective view found no matching OAuth scope for the area. */
+  scope: "scope",
   /** The target company's "Allow Custd support automation" setting, for Custd's platform operator machine. */
   supportAutomation: "support_automation",
 } as const;

@@ -483,6 +483,7 @@ final class AuthProjectClientTest extends TestCase
             "reconcileNote" => "",
             "loginReady" => false,
             "loginNote" => "",
+            "recommendations" => ["Set an account return URL."],
             "clientSync" => [
                 "clientIds" => ["custd-app-environment-1-hosting-edge"],
                 "revision" => 7,
@@ -502,6 +503,7 @@ final class AuthProjectClientTest extends TestCase
             new RequestOptions(owningUserUuid: self::OWNING_USER),
         );
 
+        self::assertSame(["Set an account return URL."], $status->recommendations);
         self::assertSame(["GET"], array_column($calls, "method"));
         self::assertSame(
             ["http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/status"],
@@ -562,19 +564,23 @@ final class AuthProjectClientTest extends TestCase
     public function testReadsAnUntouchedRealmsReportedStateAsTheValuesSent(): void
     {
         $observed = DesiredState::fromPayload(json_decode('{"identityMode":"isolated","registrationPolicy":"invite_only",
-            "loginPaused":false,"entryPath":"","brandAccent":"","displayName":"","displayNameSource":"application",
+            "loginPaused":false,"entryPath":"","brandAccent":"","brandMode":"shared","brandPalette":"default",
+            "displayName":"","displayNameSource":"application","brandSupportUrl":"","brandPrivacyUrl":"","accountReturnUrl":"","accountReturnLabel":"",
             "audiences":[],"profileFields":[],"signInMethods":[],"applicationSessionPolicy":"offer_remember_me",
             "socialSignIn":{"providers":[]}}', false, flags: JSON_THROW_ON_ERROR));
 
         self::assertNull($observed->displayName);
         self::assertSame("", $observed->entryPath);
         self::assertSame("", $observed->brandAccent);
+        self::assertSame("shared", $observed->brandMode);
+        self::assertSame("default", $observed->brandPalette);
         self::assertSame([], $observed->signInMethods);
         self::assertFalse($observed->loginPaused);
         self::assertSame([
             "identityMode" => "isolated", "registrationPolicy" => "invite_only", "loginPaused" => false,
             "audiences" => [], "profileFields" => [], "displayNameSource" => "application",
-            "entryPath" => "", "brandAccent" => "", "signInMethods" => [],
+            "entryPath" => "", "brandAccent" => "", "brandMode" => "shared", "brandPalette" => "default",
+            "brandSupportUrl" => "", "brandPrivacyUrl" => "", "accountReturnUrl" => "", "accountReturnLabel" => "", "signInMethods" => [],
             "applicationSessionPolicy" => "offer_remember_me", "socialSignIn" => ["providers" => []],
         ], $observed->toPayload());
     }

@@ -38,6 +38,7 @@ export const API_RESPONSE_LISTS = {
         "desired.socialSignIn.providers",
         "desired.socialSignIn.status.callbackUrls",
         "desired.socialSignIn.status.providers",
+        "recommendations",
     ],
     "GET /api/v1/admin/bootstrap": ["warnings"],
     "GET /api/v1/admin/campaign-email-runs/{runId}": ["deliveries"],

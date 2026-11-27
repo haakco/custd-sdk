@@ -1,6 +1,6 @@
 {
   "name": "@haakco/custd-react",
-  "version": "3.72.0",
+  "version": "3.77.1",
   "type": "module",
   "engines": {
     "node": ">=24 <27"
@@ -16,10 +16,12 @@
     "./testing": {
       "types": "./dist/testing.d.ts",
       "import": "./dist/testing.js"
-    }
+    },
+    "./monitoring.css": "./monitoring.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "monitoring.css"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

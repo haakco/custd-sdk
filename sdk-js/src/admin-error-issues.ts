@@ -81,7 +81,12 @@ export type ErrorIssueEvent = {
   truncated?: boolean;
 };
 
-export type ErrorIssueDetail = { issue: ErrorIssue; latestEventUuid: string; latestEvent: ErrorIssueEvent };
+export type ErrorIssueDetail = {
+  companyName?: string;
+  issue: ErrorIssue;
+  latestEventUuid: string;
+  latestEvent: ErrorIssueEvent;
+};
 
 export type ErrorIssueStateRequest = { state: ErrorIssueState };
 
@@ -108,13 +113,12 @@ export class ErrorIssueAdminClient {
   }
 
   async get(issueUuid: string, companySlug?: string): Promise<ErrorIssueDetail> {
-    const detail = await this.request<{ issue: WireIssue; latestEventUuid: string; latestEvent: WireEvent }>(
-      "GET",
-      scoped(issuePath(issueUuid), companySlug),
-    );
+    const detail = await this.request<
+      Omit<ErrorIssueDetail, "issue" | "latestEvent"> & { issue: WireIssue; latestEvent: WireEvent }
+    >("GET", scoped(issuePath(issueUuid), companySlug));
     return {
+      ...detail,
       issue: issue(detail.issue),
-      latestEventUuid: detail.latestEventUuid,
       latestEvent: event(detail.latestEvent),
     };
   }

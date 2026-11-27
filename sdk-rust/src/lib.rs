@@ -174,11 +174,12 @@ pub use site_domains::{
     SiteBrowserCollector, SiteBrowserCollectorRequest, SiteBrowserCollectorRequestMode,
     SiteCheckSettingsRequest, SiteChromeUX, SiteChromeUXObservation, SiteDomain,
     SiteDomainAttestation, SiteDomainAudit, SiteDomainChecks, SiteDomainChecksMode,
-    SiteDomainCreateRequest, SiteDomainListResponse, SiteDomainOwnership, SiteDomainVerification,
-    SiteFindingCounts, SiteHTTPExpectations, SiteHTTPJSONExpectation, SiteIncident, SiteNextAction,
-    SiteNextActionSeverity, SiteNextActionTarget, SiteNextActions, SitePortfolioDomain,
-    SitePortfolioSummary, SiteRegistrationExpiry, SiteSummary, SiteTLS, SiteUptime,
-    SiteUptimeStatus, SiteWarming,
+    SiteDomainCreateRequest, SiteDomainListResponse, SiteDomainListWithUptimePaths,
+    SiteDomainOwnership, SiteDomainVerification, SiteDomainWithUptimePath, SiteFindingCounts,
+    SiteHTTPExpectations, SiteHTTPJSONExpectation, SiteHTTPPathExpectations, SiteIncident,
+    SiteNextAction, SiteNextActionSeverity, SiteNextActionTarget, SiteNextActions,
+    SitePortfolioDomain, SitePortfolioSummary, SiteRegistrationExpiry, SiteSummary, SiteTLS,
+    SiteUptime, SiteUptimeStatus, SiteWarming,
 };
 pub use site_findings::{
     SiteAuditDelta, SiteAuditDeltaRun, SiteAuditPage, SiteAuditPageIndexability, SiteAuditPageList,
@@ -224,10 +225,11 @@ pub use site_pages::{
 pub use site_reports::{
     SavedSiteReport, SavedSiteReportListResponse, SavedSiteReportRequest, SavedSiteReportSummary,
     SiteCampaignLink, SiteCampaignLinkList, SiteCampaignLinkRequest, SiteInsightsExport,
-    SiteInsightsMonitoringExport, SiteInsightsReportsExport, SiteInsightsSearchExport,
-    SiteInsightsSiteExport, SiteReport, SiteReportAudit, SiteReportCertificate, SiteReportFinding,
-    SiteReportSearch, SiteReportShare, SiteReportShareCreated, SiteReportShareListResponse,
-    SiteReportShareRequest, SiteReportSpeed, SiteReportTemplate, SiteReportUptime,
+    SiteInsightsExportWithUptimePath, SiteInsightsMonitoringExport, SiteInsightsReportsExport,
+    SiteInsightsSearchExport, SiteInsightsSiteExport, SiteReport, SiteReportAudit,
+    SiteReportCertificate, SiteReportFinding, SiteReportSearch, SiteReportShare,
+    SiteReportShareCreated, SiteReportShareListResponse, SiteReportShareRequest, SiteReportSpeed,
+    SiteReportTemplate, SiteReportUptime,
 };
 pub use site_search::{
     SiteFindingImpact, SiteFindingImpactSource, SiteFindingImpactSourceGranularity,
@@ -353,8 +355,9 @@ pub use auth_projects::{
     AppItemEnvironmentLink, AppItemEnvironmentLinkKind, AppItemEnvironmentLinkList,
     AppItemEnvironmentLinkRole, AuthEnvironmentClientCleanup, AuthEnvironmentHostingRemoval,
     AuthEnvironmentHostingWithdrawal, AuthEnvironmentReleasedResources,
-    AuthEnvironmentRetainedResources, AuthProjectAudienceBinding, AuthProjectCapability,
-    AuthProjectChange, AuthProjectClientRegistration, AuthProjectClientRegistrationAction,
+    AuthEnvironmentRetainedResources, AuthProjectAudienceBinding, AuthProjectBrandMode,
+    AuthProjectBrandPalette, AuthProjectCapability, AuthProjectChange,
+    AuthProjectClientRegistration, AuthProjectClientRegistrationAction,
     AuthProjectClientRegistrationStatus, AuthProjectClientSyncReport, AuthProjectClientSyncRequest,
     AuthProjectClientSyncStatus, AuthProjectCompanyBinding, AuthProjectCreateRequest,
     AuthProjectCreateRequestAudienceEntitlementMode, AuthProjectCreateRequestIdentityMode,
@@ -405,9 +408,9 @@ pub use data_spaces::{
     SigningProducerState, SigningProducerStatus, SigningRefusalCounts,
 };
 pub use error_issues::{
-    ErrorIssue, ErrorIssueDetail, ErrorIssueEvent, ErrorIssueException, ErrorIssueFrame,
-    ErrorIssueListResponse, ErrorIssueState, ErrorIssueStateRequest, ErrorIssuesSort,
-    ErrorIssuesState,
+    ErrorIssue, ErrorIssueDetail, ErrorIssueDetailWithCompanyName, ErrorIssueEvent,
+    ErrorIssueException, ErrorIssueFrame, ErrorIssueListResponse, ErrorIssueState,
+    ErrorIssueStateRequest, ErrorIssuesSort, ErrorIssuesState,
 };
 pub use event_types::{
     EventCategoryConfig, EventCategoryConfigListResponse, EventCategoryConfigUpdateRequest,

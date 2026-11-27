@@ -237,6 +237,8 @@ export {
   AuthProjectAdminClient,
   type AuthProjectApplicationSessionPolicy,
   type AuthProjectAudienceBinding,
+  type AuthProjectBrandMode,
+  type AuthProjectBrandPalette,
   type AuthProjectCapability,
   type AuthProjectChange,
   type AuthProjectClientRegistration,

@@ -23,6 +23,7 @@ use HaakCo\Custd\Fields;
  */
 final readonly class Status
 {
+    /** @param list<string>|null $recommendations Non-failing configuration guidance. */
     public function __construct(
         public DesiredState $desired,
         public string $projectId = '',
@@ -37,6 +38,7 @@ final readonly class Status
         public ?string $companySlug = null,
         public ?string $brandLogoUrl = null,
         public ?HostingStatus $hosting = null,
+        public ?array $recommendations = null,
     ) {
     }
 
@@ -60,6 +62,7 @@ final readonly class Status
             Fields::optionalString($object, 'companySlug'),
             Fields::optionalString($object, 'brandLogoUrl'),
             $hosting === null ? null : HostingStatus::fromPayload($hosting),
+            Fields::optionalStrings($object, "recommendations"),
         );
     }
 }
