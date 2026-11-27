@@ -43,6 +43,8 @@ pub struct AppMeeting {
     #[serde(default, deserialize_with = "null_as_empty")]
     pub blocks: Vec<AppMeetingBlock>,
     pub summary: AppMeetingSummary,
+    #[serde(default)]
+    pub adjustments: Vec<AppMeetingAdjustment>,
 }
 
 /// One block as it runs. `status` is `pending`, `active`, `completed`, `skipped` or `not_run`.
@@ -55,12 +57,28 @@ pub struct AppMeetingBlock {
     pub status: String,
     /// The time the agenda predicted.
     pub predicted_ms: i64,
-    /// The time it has now: an overrun earlier block shrinks the blocks after it.
+    /// The time currently allocated to the block.
     pub allocated_ms: i64,
+    pub allocated_at_start_ms: Option<i64>,
     /// The time it took, once it is done.
     pub actual_ms: i64,
     pub started_at: Option<String>,
     pub ended_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppMeetingAllocationChange {
+    pub block_uuid: String,
+    pub before_ms: i64,
+    pub after_ms: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppMeetingAdjustment {
+    pub block_uuid: String,
+    pub changes: Vec<AppMeetingAllocationChange>,
 }
 
 /// The agenda's predicted time against the time its finished blocks took.

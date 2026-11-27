@@ -10,6 +10,7 @@ final readonly class AppMeeting
 {
     /**
      * @param list<AppMeetingBlock> $blocks
+     * @param list<AppMeetingAdjustment> $adjustments
      * @param AppMeetingStatus::* $status
      */
     public function __construct(
@@ -20,6 +21,7 @@ final readonly class AppMeeting
         public ?string $currentBlockUuid = null,
         public ?string $endsAt = null,
         public ?string $startedAt = null,
+        public array $adjustments = [],
     ) {
     }
 
@@ -33,6 +35,7 @@ final readonly class AppMeeting
             Fields::optionalString($payload, 'currentBlockUuid'),
             Fields::optionalString($payload, 'endsAt'),
             Fields::optionalString($payload, 'startedAt'),
+            isset($payload->adjustments) ? array_map(AppMeetingAdjustment::fromPayload(...), Fields::objects($payload, 'adjustments')) : [],
         );
     }
 }

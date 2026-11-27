@@ -126,9 +126,9 @@ pub use app_alerts::{
     AppAlertWebhookCreated,
 };
 pub use app_meetings::{
-    APP_ITEM_MEETING_STEP_REFUSED, AppMeeting, AppMeetingAction, AppMeetingBlock,
-    AppMeetingBlockCreate, AppMeetingCreate, AppMeetingMinutes, AppMeetingMinutesUpdate,
-    AppMeetingSummary, AppPlanMeetingSummary,
+    APP_ITEM_MEETING_STEP_REFUSED, AppMeeting, AppMeetingAction, AppMeetingAdjustment,
+    AppMeetingAllocationChange, AppMeetingBlock, AppMeetingBlockCreate, AppMeetingCreate,
+    AppMeetingMinutes, AppMeetingMinutesUpdate, AppMeetingSummary, AppPlanMeetingSummary,
 };
 pub use app_models::{
     AppModelHistogram, AppModelPercentiles, AppModelQuantityError, AppModelQuantityResult,

@@ -21,6 +21,7 @@ final readonly class AppMeetingBlock
         public string $title,
         public ?string $endedAt = null,
         public ?string $startedAt = null,
+        public ?int $allocatedAtStartMs = null,
     ) {
     }
 
@@ -36,6 +37,7 @@ final readonly class AppMeetingBlock
             Fields::string($payload, 'title'),
             Fields::optionalString($payload, 'endedAt'),
             Fields::optionalString($payload, 'startedAt'),
+            Fields::optionalInteger($payload, 'allocatedAtStartMs'),
         );
     }
 }

@@ -45,8 +45,10 @@ export type AppMeetingBlock = {
     status: AppMeetingBlockStatus;
     /** The time the agenda predicted. */
     predictedMs: number;
-    /** The time it has now: an overrun earlier block shrinks the blocks after it. */
+    /** The time currently allocated to the block. */
     allocatedMs: number;
+    /** The allocation recorded when the block began. */
+    allocatedAtStartMs?: number;
     /** The time it took, once it is done. */
     actualMs: number;
     startedAt?: string;
@@ -61,6 +63,15 @@ export type AppMeetingSummary = {
     /** How far the meeting ran past its planned end. */
     overrunMs: number;
 };
+export type AppMeetingAllocationChange = {
+    blockUuid: string;
+    beforeMs: number;
+    afterMs: number;
+};
+export type AppMeetingAdjustment = {
+    blockUuid: string;
+    changes: AppMeetingAllocationChange[];
+};
 /** A meeting as it runs. `startedAt` and `endsAt` are set once it starts. */
 export type AppMeeting = {
     name: string;
@@ -72,6 +83,7 @@ export type AppMeeting = {
     currentBlockUuid?: string;
     blocks: AppMeetingBlock[] | null;
     summary: AppMeetingSummary;
+    adjustments?: AppMeetingAdjustment[];
 };
 export type AppMeetingAction = {
     description: string;

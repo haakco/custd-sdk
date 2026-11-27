@@ -314,6 +314,7 @@ class MeasurementProject(TypedDict):
 
 
 class AppMeeting(TypedDict):
+    adjustments: NotRequired[list[AppMeetingAdjustment]]
     blocks: list[AppMeetingBlock]
     currentBlockUuid: NotRequired[str]
     endsAt: NotRequired[str]
@@ -525,7 +526,19 @@ class MeasurementTargetResponse(TypedDict):
     targetValue: float
 
 
+class AppMeetingAllocationChange(TypedDict):
+    blockUuid: str
+    beforeMs: int
+    afterMs: int
+
+
+class AppMeetingAdjustment(TypedDict):
+    blockUuid: str
+    changes: list[AppMeetingAllocationChange]
+
+
 class AppMeetingBlock(TypedDict):
+    allocatedAtStartMs: NotRequired[int]
     actualMs: int
     allocatedMs: int
     blockUuid: str
