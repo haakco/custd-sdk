@@ -562,19 +562,22 @@ final class AuthProjectClientTest extends TestCase
     public function testReadsAnUntouchedRealmsReportedStateAsTheValuesSent(): void
     {
         $observed = DesiredState::fromPayload(json_decode('{"identityMode":"isolated","registrationPolicy":"invite_only",
-            "loginPaused":false,"entryPath":"","brandAccent":"","displayName":"","displayNameSource":"application",
+            "loginPaused":false,"entryPath":"","brandAccent":"","brandMode":"shared","brandPalette":"default",
+            "displayName":"","displayNameSource":"application",
             "audiences":[],"profileFields":[],"signInMethods":[],"applicationSessionPolicy":"offer_remember_me",
             "socialSignIn":{"providers":[]}}', false, flags: JSON_THROW_ON_ERROR));
 
         self::assertNull($observed->displayName);
         self::assertSame("", $observed->entryPath);
         self::assertSame("", $observed->brandAccent);
+        self::assertSame("shared", $observed->brandMode);
+        self::assertSame("default", $observed->brandPalette);
         self::assertSame([], $observed->signInMethods);
         self::assertFalse($observed->loginPaused);
         self::assertSame([
             "identityMode" => "isolated", "registrationPolicy" => "invite_only", "loginPaused" => false,
             "audiences" => [], "profileFields" => [], "displayNameSource" => "application",
-            "entryPath" => "", "brandAccent" => "", "signInMethods" => [],
+            "entryPath" => "", "brandAccent" => "", "brandMode" => "shared", "brandPalette" => "default", "signInMethods" => [],
             "applicationSessionPolicy" => "offer_remember_me", "socialSignIn" => ["providers" => []],
         ], $observed->toPayload());
     }

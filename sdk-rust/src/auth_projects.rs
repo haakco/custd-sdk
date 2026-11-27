@@ -228,6 +228,23 @@ pub struct AuthProjectOperation {
     pub status: String,
 }
 
+/// Whether the realm shows shared product marks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthProjectBrandMode {
+    Shared,
+    WhiteLabel,
+}
+
+/// The color scheme displayed on the realm's hosted pages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthProjectBrandPalette {
+    Default,
+    Light,
+    Dark,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthProjectDesiredState {
@@ -239,6 +256,12 @@ pub struct AuthProjectDesiredState {
     /// `Some("")` clears it. A status always reports it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub brand_accent: Option<String>,
+    /// `None` keeps the stored mode; `Shared` restores product marks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brand_mode: Option<AuthProjectBrandMode>,
+    /// `None` keeps the stored palette; `Default` restores the shared theme.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brand_palette: Option<AuthProjectBrandPalette>,
     pub display_name: String,
     pub display_name_source: String,
     /// The public entry path. An apply that leaves it `None` keeps the stored path; `Some("")`

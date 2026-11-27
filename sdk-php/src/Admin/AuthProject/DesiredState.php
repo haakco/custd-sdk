@@ -63,6 +63,8 @@ final readonly class DesiredState
      * @param AuthProjectIdentityMode::* $identityMode
      * @param AuthProjectApplicationSessionPolicy::*|null $applicationSessionPolicy
      * @param AuthProjectRegistrationPolicy::* $registrationPolicy
+     * @param AuthProjectBrandMode::*|null $brandMode Null keeps the stored mode.
+     * @param AuthProjectBrandPalette::*|null $brandPalette Null keeps the stored palette.
      */
     public function __construct(
         public string $identityMode,
@@ -79,6 +81,8 @@ final readonly class DesiredState
         public ?string $applicationSessionPolicy = null,
         public ?Hosting $hosting = null,
         public ?SocialSignIn $socialSignIn = null,
+        public ?string $brandMode = null,
+        public ?string $brandPalette = null,
     ) {
         AuthProjectClient::assertIdentityMode($identityMode);
         if (trim($registrationPolicy) === "") {
@@ -133,10 +137,12 @@ final readonly class DesiredState
      */
     private function withSections(array $payload): array
     {
-        // A sent empty value clears a realm field, so only null is left out of these three.
+        // Only null is left out so explicit default selections and empty values reach Custd.
         $realmFields = [
             "entryPath" => $this->entryPath,
             "brandAccent" => $this->brandAccent,
+            "brandMode" => $this->brandMode,
+            "brandPalette" => $this->brandPalette,
             "signInMethods" => $this->signInMethods,
         ];
         foreach ($realmFields as $key => $value) {
@@ -180,6 +186,8 @@ final readonly class DesiredState
             Fields::optionalString($payload, "applicationSessionPolicy"),
             $hosting === null ? null : Hosting::fromPayload($hosting),
             $socialSignIn === null ? null : SocialSignIn::fromPayload($socialSignIn),
+            Fields::optionalString($payload, "brandMode"),
+            Fields::optionalString($payload, "brandPalette"),
         );
     }
 

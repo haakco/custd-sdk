@@ -505,7 +505,15 @@ describe("admin auth projects", () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ id: "op-1", revision: 7 }), { status: 200 }));
     const client = newClient(fetchImpl);
     const keeping = { identityMode: "isolated", registrationPolicy: "invite_only", audiences: null } as const;
-    const clearing = { ...keeping, entryPath: "", brandAccent: "", signInMethods: [], profileFields: [] };
+    const clearing = {
+      ...keeping,
+      entryPath: "",
+      brandAccent: "",
+      brandMode: "shared",
+      brandPalette: "default",
+      signInMethods: [],
+      profileFields: [],
+    } as const satisfies AuthProjectDesiredState;
 
     for (const state of [keeping, { ...clearing, loginPaused: false }] satisfies AuthProjectDesiredState[]) {
       await client.admin.authProjects.applyEnvironmentDesiredState(

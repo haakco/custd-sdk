@@ -4,10 +4,11 @@ mod support;
 
 use custd_sdk::{
     AppClient, AppItemRunCreateRequest, AuditEventExport, AuditEventQuery, AuditEventsFormat,
-    AuthDirectoryAction, AuthProjectDesiredState, AuthProjectDirectoryRequest, CustdClient,
-    EmailRelayView, ImageFile, OffboardingDownload, SiteAIConsentAction, SiteAIConsentRequest,
-    SiteAIOwnerHandoffResponse, SiteMonitorDestination, get_private_uptime_work,
-    read_auth_domain_monitoring_inventory, read_shared_site_report, redeem_site_ai_owner_handoff,
+    AuthDirectoryAction, AuthProjectBrandMode, AuthProjectBrandPalette, AuthProjectDesiredState,
+    AuthProjectDirectoryRequest, CustdClient, EmailRelayView, ImageFile, OffboardingDownload,
+    SiteAIConsentAction, SiteAIConsentRequest, SiteAIOwnerHandoffResponse, SiteMonitorDestination,
+    get_private_uptime_work, read_auth_domain_monitoring_inventory, read_shared_site_report,
+    redeem_site_ai_owner_handoff,
 };
 use serde_json::json;
 use support::{Answer, FakeServer, answer};
@@ -215,7 +216,7 @@ fn audit_exports_stream_to_the_writer_with_their_metadata_and_realm_filter() {
 #[test]
 fn a_realm_apply_sends_only_the_fields_it_sets_and_empty_values_clear() {
     let status: AuthProjectDesiredState = serde_json::from_str(
-        r##"{"audiences":[],"brandAccent":"#112233","displayName":"","displayNameSource":"application","entryPath":"/go","identityMode":"isolated","loginPaused":true,"profileFields":[],"registrationPolicy":"invite_only","signInMethods":["password"]}"##,
+        r##"{"audiences":[],"brandAccent":"#112233","brandMode":"white_label","brandPalette":"dark","displayName":"","displayNameSource":"application","entryPath":"/go","identityMode":"isolated","loginPaused":true,"profileFields":[],"registrationPolicy":"invite_only","signInMethods":["password"]}"##,
     )
     .unwrap();
     assert_eq!(
@@ -231,9 +232,14 @@ fn a_realm_apply_sends_only_the_fields_it_sets_and_empty_values_clear() {
         )
     );
 
+    assert_eq!(status.brand_mode, Some(AuthProjectBrandMode::WhiteLabel));
+    assert_eq!(status.brand_palette, Some(AuthProjectBrandPalette::Dark));
+
     let keep = AuthProjectDesiredState {
         entry_path: None,
         brand_accent: None,
+        brand_mode: None,
+        brand_palette: None,
         login_paused: None,
         sign_in_methods: None,
         profile_fields: None,
@@ -243,6 +249,8 @@ fn a_realm_apply_sends_only_the_fields_it_sets_and_empty_values_clear() {
     for field in [
         "entryPath",
         "brandAccent",
+        "brandMode",
+        "brandPalette",
         "loginPaused",
         "signInMethods",
         "profileFields",
@@ -253,12 +261,16 @@ fn a_realm_apply_sends_only_the_fields_it_sets_and_empty_values_clear() {
     let clear = AuthProjectDesiredState {
         entry_path: Some(String::new()),
         brand_accent: Some(String::new()),
+        brand_mode: Some(AuthProjectBrandMode::Shared),
+        brand_palette: Some(AuthProjectBrandPalette::Default),
         login_paused: Some(false),
         sign_in_methods: Some(Vec::new()),
         profile_fields: Some(Vec::new()),
         ..status
     };
     let sent = serde_json::to_value(&clear).unwrap();
+    assert_eq!(sent["brandMode"], "shared");
+    assert_eq!(sent["brandPalette"], "default");
     assert_eq!(
         [
             &sent["entryPath"],

@@ -225,6 +225,23 @@ const (
 	AuthProjectRegistrationPolicyOpen       AuthProjectRegistrationPolicy = "open"
 )
 
+// AuthProjectBrandMode selects which product marks appear on the realm.
+type AuthProjectBrandMode string
+
+const (
+	AuthProjectBrandModeShared     AuthProjectBrandMode = "shared"
+	AuthProjectBrandModeWhiteLabel AuthProjectBrandMode = "white_label"
+)
+
+// AuthProjectBrandPalette selects the realm’s color scheme.
+type AuthProjectBrandPalette string
+
+const (
+	AuthProjectBrandPaletteDefault AuthProjectBrandPalette = "default"
+	AuthProjectBrandPaletteLight   AuthProjectBrandPalette = "light"
+	AuthProjectBrandPaletteDark    AuthProjectBrandPalette = "dark"
+)
+
 // AuthProjectDesiredState is the environment configuration an apply writes. A
 // consumer builds it from these fields alone: Audiences carries the audience
 // binding, and IdentityMode, RegistrationPolicy, LoginPaused and ProfileFields
@@ -246,6 +263,10 @@ type AuthProjectDesiredState struct {
 	// BrandAccent is the realm's optional sign-in accent as #rrggbb; "" restores the shared
 	// default and nil keeps the stored accent.
 	BrandAccent *string `json:"brandAccent,omitempty"`
+	// BrandMode selects product or white-label marks; nil keeps the stored mode.
+	BrandMode *AuthProjectBrandMode `json:"brandMode,omitempty"`
+	// BrandPalette selects the color scheme; nil keeps the stored palette.
+	BrandPalette *AuthProjectBrandPalette `json:"brandPalette,omitempty"`
 	// DisplayName is the customer-facing application name the realm shows on invitations, hosted
 	// sign-in and hosted account settings. It is presentation only, empty when the realm has not
 	// chosen a name, and it is not the environment's own name.

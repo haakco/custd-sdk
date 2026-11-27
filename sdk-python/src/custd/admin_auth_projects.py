@@ -41,6 +41,8 @@ ApplicationMembershipRole = Literal["administrator", "member", "viewer"]
 AuthProjectApplicationSessionPolicy = Literal["offer_remember_me", "short_only"]
 AuthProjectClientSyncAction = Literal["created", "updated", "unchanged", "removed", "refused"]
 AuthProjectDirectoryState = Literal["draft", "provisioning", "ready", "paused", "failed", "released"]
+AuthProjectBrandMode = Literal["shared", "white_label"]
+AuthProjectBrandPalette = Literal["default", "light", "dark"]
 AuthProjectDisplayNameSource = Literal["", "application", "hosting"]
 AuthProjectProfileEditor = Literal["user", "provider", "administrator"]
 AuthProjectRegistrationPolicy = Literal["invite_only", "open"]
@@ -400,6 +402,9 @@ class _AuthProjectEnvironmentConfig(TypedDict):
     # An apply leaves the display name and its owner alone when it sends neither.
     displayName: NotRequired[str]
     displayNameSource: NotRequired[AuthProjectDisplayNameSource]
+    # Omitted or None preserves the stored choice on writes.
+    brandMode: NotRequired[AuthProjectBrandMode | None]
+    brandPalette: NotRequired[AuthProjectBrandPalette | None]
     applicationSessionPolicy: NotRequired[AuthProjectApplicationSessionPolicy]
     withdrawDisplayName: NotRequired[bool]
     hosting: NotRequired[AuthProjectHosting]

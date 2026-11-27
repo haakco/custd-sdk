@@ -38,6 +38,8 @@
         }
       ],
       "brandAccent": "example",
+      "brandMode": "shared",
+      "brandPalette": "default",
       "displayName": "example",
       "displayNameSource": "",
       "entryPath": "example",
