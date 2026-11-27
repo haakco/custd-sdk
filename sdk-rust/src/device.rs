@@ -18,6 +18,7 @@ use crate::transport::{
 use crate::{Result, SDK_IDENTITY};
 
 const DEVICE_CODE_GRANT: &str = "urn:ietf:params:oauth:grant-type:device_code";
+const REFRESH_TOKEN_GRANT: &str = "refresh_token";
 const DEFAULT_POLL_INTERVAL: Duration = Duration::from_secs(5);
 const SLOW_DOWN_INCREMENT: Duration = Duration::from_secs(5);
 const MAX_LIFETIME_SECONDS: u64 = 365 * 24 * 60 * 60;
@@ -44,7 +45,7 @@ pub struct DeviceInstructions {
     pub expires_in: Duration,
 }
 
-/// The bearer token the login produced.
+/// The bearer token produced by device login or refresh.
 #[derive(Clone)]
 pub struct DeviceToken {
     pub access_token: String,
@@ -77,6 +78,49 @@ impl fmt::Display for DeviceLoginError {
                 "device authorization could not be confirmed; start login again with a new code"
             }
         })
+    }
+}
+
+/// The outcome of an unsuccessful device-token refresh. Provider details are redacted.
+#[derive(Debug)]
+pub enum DeviceRefreshError {
+    /// The caller supplied an empty refresh token.
+    MissingToken,
+    /// The issuer or its metadata could not be validated.
+    Discovery(Error),
+    /// The request failed before the token could be sent.
+    Unavailable,
+    /// The refresh grant was rejected as invalid, expired or revoked.
+    InvalidGrant,
+    /// The endpoint declined the request with this HTTP status.
+    Rejected { status: u16 },
+    /// The exchange may have rotated the token before the response was lost or could be read.
+    Unconfirmed,
+}
+
+impl fmt::Display for DeviceRefreshError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingToken => f.write_str("device refresh token is required"),
+            Self::Discovery(error) => write!(f, "device refresh discovery failed: {error}"),
+            Self::Unavailable => {
+                f.write_str("could not reach OAuth token endpoint for device refresh")
+            }
+            Self::InvalidGrant => f.write_str("device refresh grant is invalid; sign in again"),
+            Self::Rejected { status } => write!(f, "device refresh was rejected (HTTP {status})"),
+            Self::Unconfirmed => {
+                f.write_str("device refresh could not be confirmed; sign in again")
+            }
+        }
+    }
+}
+
+impl std::error::Error for DeviceRefreshError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Discovery(error) => Some(error),
+            _ => None,
+        }
     }
 }
 
@@ -185,14 +229,63 @@ impl DeviceLogin {
         self.run_with(&UreqTransport::new(), &SystemClock, announce)
     }
 
+    /// Exchanges a refresh token with the same issuer, public client and audience used at login.
+    /// Keep the returned refresh token for the next exchange. It retains the supplied token if
+    /// the issuer omits a replacement. Callers must serialize exchanges of the same token.
+    pub fn refresh(
+        &self,
+        refresh_token: &str,
+    ) -> std::result::Result<DeviceToken, DeviceRefreshError> {
+        self.refresh_with(&UreqTransport::new(), refresh_token)
+    }
+
+    fn refresh_with(
+        &self,
+        transport: &dyn Transport,
+        refresh_token: &str,
+    ) -> std::result::Result<DeviceToken, DeviceRefreshError> {
+        if refresh_token.is_empty() {
+            return Err(DeviceRefreshError::MissingToken);
+        }
+        let origin = self
+            .issuer_origin()
+            .map_err(DeviceRefreshError::Discovery)?;
+        let metadata = self
+            .discover(transport, &origin)
+            .map_err(DeviceRefreshError::Discovery)?;
+        let form = self.token_form(REFRESH_TOKEN_GRANT, "refresh_token", refresh_token);
+        let request = oauth_request(Method::Post, metadata.token_endpoint, Some(form));
+        let response = match transport.send(&request) {
+            Ok(response) => response,
+            Err(TransportError::PreSend(_)) => return Err(DeviceRefreshError::Unavailable),
+            Err(TransportError::Failed(_)) => return Err(DeviceRefreshError::Unconfirmed),
+        };
+        if (200..300).contains(&response.status) {
+            let mut token = decode_token(&response.body).ok_or(DeviceRefreshError::Unconfirmed)?;
+            token
+                .refresh_token
+                .get_or_insert_with(|| refresh_token.to_owned());
+            return Ok(token);
+        }
+        let error = if response.status >= 500 || response.body.len() > MAX_OAUTH_RESPONSE_BYTES {
+            DeviceRefreshError::Unconfirmed
+        } else if oauth_error_code(&response.body) == "invalid_grant" {
+            DeviceRefreshError::InvalidGrant
+        } else {
+            DeviceRefreshError::Rejected {
+                status: response.status,
+            }
+        };
+        Err(error)
+    }
+
     pub(crate) fn run_with(
         &self,
         transport: &dyn Transport,
         clock: &dyn Clock,
         announce: impl FnOnce(&DeviceInstructions),
     ) -> Result<DeviceToken> {
-        let origin = https_origin(&self.issuer_url)
-            .ok_or_else(|| Error::InvalidInput("issuer must be an HTTPS URL".to_owned()))?;
+        let origin = self.issuer_origin()?;
         let metadata = self.discover(transport, &origin)?;
         let authorization = self.authorize(transport, &metadata, &origin)?;
         let expires_in = Duration::from_secs(authorization.expires_in as u64);
@@ -202,7 +295,7 @@ impl DeviceLogin {
             user_code: authorization.user_code.clone(),
             expires_in,
         });
-        let form = self.token_form(&authorization.device_code);
+        let form = self.token_form(DEVICE_CODE_GRANT, "device_code", &authorization.device_code);
         let interval = poll_interval(authorization.interval);
         poll(
             transport,
@@ -212,6 +305,11 @@ impl DeviceLogin {
             deadline,
             interval,
         )
+    }
+
+    fn issuer_origin(&self) -> Result<String> {
+        https_origin(&self.issuer_url)
+            .ok_or_else(|| Error::InvalidInput("issuer must be an HTTPS URL".to_owned()))
     }
 
     fn discover(
@@ -244,10 +342,6 @@ impl DeviceLogin {
         ] {
             require_issuer_origin(endpoint, origin)?;
         }
-        if metadata.device_authorization_endpoint.is_empty() {
-            return Err(Error::DeviceLogin(DeviceLoginError::Unsupported));
-        }
-        require_issuer_origin(&metadata.device_authorization_endpoint, origin)?;
         Ok(metadata)
     }
 
@@ -257,6 +351,10 @@ impl DeviceLogin {
         metadata: &AuthorizationServerMetadata,
         origin: &str,
     ) -> Result<DeviceAuthorization> {
+        if metadata.device_authorization_endpoint.is_empty() {
+            return Err(Error::DeviceLogin(DeviceLoginError::Unsupported));
+        }
+        require_issuer_origin(&metadata.device_authorization_endpoint, origin)?;
         let scope = self.scopes.join(" ");
         let mut fields = vec![("client_id", self.client_id.as_str())];
         if !scope.is_empty() {
@@ -278,23 +376,21 @@ impl DeviceLogin {
         Ok(authorization)
     }
 
-    fn token_form(&self, device_code: &str) -> Vec<u8> {
+    fn token_form(&self, grant: &str, credential_name: &str, credential: &str) -> Vec<u8> {
         let mut fields = vec![
-            ("client_id", self.client_id.clone()),
-            ("grant_type", DEVICE_CODE_GRANT.to_owned()),
-            ("device_code", device_code.to_owned()),
+            ("client_id", self.client_id.as_str()),
+            ("grant_type", grant),
+            (credential_name, credential),
         ];
-        if let Some(audience) = self.audience.as_deref().filter(|a| !a.is_empty()) {
-            match canonical_resource_uri(audience) {
-                Some(resource) => {
-                    fields.push(("audience", resource.clone()));
-                    fields.push(("resource", resource));
-                }
-                None => fields.push(("audience", audience.to_owned())),
+        let audience = self.audience.as_deref().filter(|a| !a.is_empty());
+        let resource = audience.and_then(canonical_resource_uri);
+        if let Some(audience) = audience {
+            fields.push(("audience", resource.as_deref().unwrap_or(audience)));
+            if let Some(resource) = resource.as_deref() {
+                fields.push(("resource", resource));
             }
         }
-        let borrowed: Vec<(&str, &str)> = fields.iter().map(|(k, v)| (*k, v.as_str())).collect();
-        form_body(&borrowed)
+        form_body(&fields)
     }
 }
 
@@ -343,16 +439,19 @@ fn redeem(transport: &dyn Transport, token_endpoint: &str, form: &[u8]) -> Resul
     if response.status >= 500 || response.body.len() > MAX_OAUTH_RESPONSE_BYTES {
         return Err(device_error(DeviceLoginError::Unconfirmed));
     }
-    let code = serde_json::from_slice::<OAuthErrorAnswer>(&response.body)
-        .map(|answer| answer.error)
-        .unwrap_or_default();
-    match code.as_str() {
+    match oauth_error_code(&response.body).as_str() {
         "authorization_pending" => Ok(PollOutcome::Pending),
         "slow_down" => Ok(PollOutcome::SlowDown),
         "access_denied" => Err(device_error(DeviceLoginError::Denied)),
         "expired_token" => Err(device_error(DeviceLoginError::Expired)),
         _ => Err(device_error(DeviceLoginError::Rejected)),
     }
+}
+
+fn oauth_error_code(body: &[u8]) -> String {
+    decode_bounded::<OAuthErrorAnswer>(body)
+        .map(|answer| answer.error)
+        .unwrap_or_default()
 }
 
 pub(crate) fn decode_token(body: &[u8]) -> Option<DeviceToken> {

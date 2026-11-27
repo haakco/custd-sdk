@@ -175,6 +175,101 @@ fn polls_at_the_provider_pace_until_approved() {
 }
 
 #[test]
+fn refresh_uses_the_public_client_and_preserves_the_latest_refresh_token() {
+    let mut login = login();
+    login.audience = Some("HTTPS://API.Custd.test/v1/".to_owned());
+    let transport = FakeTransport::new(vec![
+        metadata(),
+        token(),
+        metadata(),
+        json(
+            200,
+            r#"{"access_token":"at-2","token_type":"Bearer","expires_in":120}"#,
+        ),
+    ]);
+    let rotated = login.refresh_with(&transport, "previous +&").unwrap();
+    assert_eq!(rotated.refresh_token.as_deref(), Some("rt-1"));
+    let retained = login
+        .refresh_with(&transport, rotated.refresh_token.as_deref().unwrap())
+        .unwrap();
+    assert_eq!(retained.access_token, "at-2");
+    assert_eq!(retained.expires_in, Duration::from_secs(120));
+    assert_eq!(retained.refresh_token.as_deref(), Some("rt-1"));
+    assert!(!format!("{retained:?}").contains("rt-1"));
+    assert_eq!(
+        transport.token_requests(),
+        [
+            "client_id=custd-cli&grant_type=refresh_token&refresh_token=previous%20%2B%26&audience=https%3A%2F%2Fapi.custd.test%2Fv1&resource=https%3A%2F%2Fapi.custd.test%2Fv1",
+            "client_id=custd-cli&grant_type=refresh_token&refresh_token=rt-1&audience=https%3A%2F%2Fapi.custd.test%2Fv1&resource=https%3A%2F%2Fapi.custd.test%2Fv1",
+        ]
+    );
+    let requests = transport.requests.lock().unwrap();
+    assert_eq!(requests.len(), 4);
+    assert_eq!(requests[0].method, Method::Get);
+    assert_eq!(requests[1].method, Method::Post);
+}
+
+#[test]
+fn refresh_returns_safe_terminal_errors_without_repeating_the_exchange() {
+    for (response, expected) in [
+        (
+            json(
+                400,
+                r#"{"error":"invalid_grant","error_description":"private-provider-details"}"#,
+            ),
+            DeviceRefreshError::InvalidGrant,
+        ),
+        (
+            oauth_error("private-provider-details"),
+            DeviceRefreshError::Rejected { status: 400 },
+        ),
+        (
+            Err(TransportError::PreSend(
+                "private-provider-details".to_owned(),
+            )),
+            DeviceRefreshError::Unavailable,
+        ),
+        (
+            Err(TransportError::Failed(
+                "private-provider-details".to_owned(),
+            )),
+            DeviceRefreshError::Unconfirmed,
+        ),
+        (json(503, "{}"), DeviceRefreshError::Unconfirmed),
+        (json(200, "{}"), DeviceRefreshError::Unconfirmed),
+    ] {
+        let transport = FakeTransport::new(vec![metadata(), response]);
+        let error = login()
+            .refresh_with(&transport, "private-refresh")
+            .unwrap_err();
+        assert_eq!(
+            std::mem::discriminant(&error),
+            std::mem::discriminant(&expected),
+        );
+        if let DeviceRefreshError::Rejected { status } = error {
+            assert_eq!(status, 400);
+        }
+        let diagnostic = format!("{error:?} {error}");
+        assert!(!diagnostic.contains("private-"));
+        assert_eq!(transport.token_requests().len(), 1);
+    }
+}
+
+#[test]
+fn refresh_refuses_a_foreign_token_endpoint_before_sending_the_grant() {
+    let transport = FakeTransport::new(vec![json(
+        200,
+        r#"{"issuer":"https://auth.custd.test","authorization_endpoint":"https://auth.custd.test/a",
+        "token_endpoint":"https://other.test/oauth2/token","jwks_uri":"https://auth.custd.test/j"}"#,
+    )]);
+    assert!(matches!(
+        login().refresh_with(&transport, "private-refresh"),
+        Err(DeviceRefreshError::Discovery(Error::InvalidResponse(_)))
+    ));
+    assert_eq!(transport.requests.lock().unwrap().len(), 1);
+}
+
+#[test]
 fn terminal_poll_outcomes_end_the_login() {
     let cases = [
         (oauth_error("access_denied"), DeviceLoginError::Denied),

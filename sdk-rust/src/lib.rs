@@ -151,7 +151,8 @@ pub use app_story::{
 pub use browser_login::BrowserLogin;
 pub use client::CustdClient;
 pub use device::{
-    DeviceInstructions, DeviceLogin, DeviceLoginError, DeviceToken, device_user_code_groups,
+    DeviceInstructions, DeviceLogin, DeviceLoginError, DeviceRefreshError, DeviceToken,
+    device_user_code_groups,
 };
 pub use discovery::{
     HOSTED_APP_DISCOVERY_PATH, HostedAppDiscovery, HostedAppSignIn, read_hosted_app_discovery,

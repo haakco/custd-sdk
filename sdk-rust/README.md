@@ -53,6 +53,12 @@ let forecast = client.run_measurement_forecast(
 )?;
 ```
 
+When the issuer returns a refresh token, keep it in secure session storage. Call
+`login.refresh(&refresh_token)` with the same issuer, client ID and audience to obtain a new
+access token. Serialize refreshes and save the returned refresh token before attempting another
+exchange. The SDK retains the previous refresh token when the issuer omits a replacement.
+`DeviceRefreshError::InvalidGrant` and `DeviceRefreshError::Unconfirmed` require a new sign-in.
+
 `base_url` is the API edge origin, such as `https://api.custd.com` (or `https://api.dev.custd.com`
 locally), which routes both the Admin and Analytics API paths.
 
