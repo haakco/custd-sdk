@@ -541,7 +541,7 @@ if session["importAllowed"]:
 page = messages.search({"query": "meeting", "limit": 25})
 ```
 
-Read a returned result with `get_message(message_uuid)`. An authorized importer can
+Read a returned result with `get_message(message_uuid)`. The signed-in owner can
 remove a source with `delete_source(source)` after confirming the operation with the user.
 Keep returned message content and bearer tokens out of logs. An HTTP refusal
 raises `RequestError` with its status and omits the response body.
