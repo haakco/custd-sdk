@@ -11,7 +11,7 @@ from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
-from custd import AppMessageInput, AppMessagesClient, RequestError
+from custd import AppMessageInput, AppMessagesClient, AppMessagesSearchRequest, RequestError
 
 ORIGIN = "https://api.example.test"
 PATH = ORIGIN + "/api/v1/app/messages"
@@ -39,14 +39,21 @@ class AppMessagesClientTest(unittest.TestCase):
 
         self.assertEqual(session, client.session())
         self.assertEqual(imported, client.import_batch({"source": "sms", "messages": [message]}))
-        self.assertEqual(page, client.search({"query": "meeting reminder", "sender": "recipient-1"}))
+        search: AppMessagesSearchRequest = {
+            "query": "meeting reminder",
+            "sender": "recipient-1",
+            "threadId": "meeting-thread",
+            "from": "2026-11-27T00:00:00Z",
+            "to": "2026-11-28T00:00:00Z",
+        }
+        self.assertEqual(page, client.search(search))
 
         requests = [call.args for call in transport.call_args_list]
         self.assertEqual(
             [
                 ("GET", PATH + "/session", None),
                 ("POST", PATH + "/batch", {"source": "sms", "messages": [message]}),
-                ("POST", PATH + "/search", {"query": "meeting reminder", "sender": "recipient-1"}),
+                ("POST", PATH + "/search", search),
             ],
             [(method, url, body) for method, url, body, _, _ in requests],
         )

@@ -56,12 +56,18 @@ class AppMessagesBatchResponse(TypedDict):
     results: list[AppMessageImportResult]
 
 
-class AppMessagesSearchRequest(TypedDict):
-    query: str
-    source: NotRequired[AppMessageSource]
-    sender: NotRequired[str]
-    limit: NotRequired[int]
-
+AppMessagesSearchRequest = TypedDict(
+    "AppMessagesSearchRequest",
+    {
+        "query": str,
+        "source": NotRequired[AppMessageSource],
+        "sender": NotRequired[str],
+        "threadId": NotRequired[str],
+        "from": NotRequired[str],
+        "to": NotRequired[str],
+        "limit": NotRequired[int],
+    },
+)
 
 class AppMessagesSearchResponse(TypedDict):
     messages: list[AppMessage]
@@ -110,7 +116,7 @@ class AppMessagesClient:
         return self._request(AppMessagesBatchResponse, "POST", "/batch", dict(request))
 
     def search(self, request: AppMessagesSearchRequest) -> AppMessagesSearchResponse:
-        """Search this archive using text and optional sender or source filters."""
+        """Search this archive using text and optional sender, source, thread and timestamp filters."""
         return self._request(AppMessagesSearchResponse, "POST", "/search", dict(request))
 
     def get_message(self, message_uuid: str) -> AppMessageReadResponse:
