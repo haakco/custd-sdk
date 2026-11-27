@@ -601,6 +601,7 @@ class SiteHTTPJSONExpectation(TypedDict):
 class SiteHTTPExpectations(TypedDict):
     """What an uptime check requires of the answer beyond reaching the host."""
 
+    path: NotRequired[str]
     statusCode: NotRequired[int]
     bodyContains: NotRequired[str]
     json: NotRequired[SiteHTTPJSONExpectation]

@@ -274,6 +274,8 @@ export type SiteRegistration = {
 };
 /** What a domain's uptime probe expects from the response, beyond a successful status. */
 export type SiteHTTPExpectations = {
+    /** Absolute path on the verified host. Omit to check /. */
+    path?: string;
     statusCode?: number;
     bodyContains?: string;
     json?: {

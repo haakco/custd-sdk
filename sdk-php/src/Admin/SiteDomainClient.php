@@ -23,6 +23,7 @@ use HaakCo\Custd\Admin\SiteDomain\SiteFindingState;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingDismissal;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingDismissalList;
 use HaakCo\Custd\Admin\SiteDomain\SiteFindingDismissalRequest;
+use HaakCo\Custd\Admin\SiteDomain\SiteHttpExpectations;
 use HaakCo\Custd\Admin\SiteDomain\SiteIncident;
 use HaakCo\Custd\Admin\SiteDomain\SiteIncidentList;
 use HaakCo\Custd\Admin\SiteDomain\SiteIndexNowState;
@@ -302,10 +303,19 @@ final class SiteDomainClient
      *
      * @param SiteCheckMode::* $mode
      */
-    public function setCheckMode(string $domainUuid, string $mode, ?string $companySlug = null): SiteDomain
-    {
+    public function setCheckMode(
+        string $domainUuid,
+        string $mode,
+        ?string $companySlug = null,
+        ?SiteHttpExpectations $httpExpectations = null,
+    ): SiteDomain {
+        $body = ['mode' => $mode];
+        if ($httpExpectations !== null) {
+            $body['httpExpectations'] = $httpExpectations->toPayload();
+        }
+
         return SiteDomain::fromPayload(
-            $this->send('PUT', self::item($domainUuid) . '/checks', [], $companySlug, ['mode' => $mode])
+            $this->send('PUT', self::item($domainUuid) . '/checks', [], $companySlug, $body)
         );
     }
 

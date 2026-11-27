@@ -12,6 +12,7 @@ final readonly class ErrorIssueDetail
         public ErrorIssue $issue,
         public Event $latestEvent,
         public string $latestEventUuid,
+        public ?string $companyName = null,
     ) {
     }
 
@@ -21,6 +22,7 @@ final readonly class ErrorIssueDetail
             ErrorIssue::fromPayload(Fields::object($payload, 'issue')),
             Event::fromPayload(Fields::object($payload, 'latestEvent')),
             Fields::string($payload, 'latestEventUuid'),
+            Fields::optionalString($payload, 'companyName'),
         );
     }
 }

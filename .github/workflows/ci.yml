@@ -289,6 +289,9 @@ jobs:
       options: --user root
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # The whitespace check needs the parent to inspect only this commit.
+          fetch-depth: 2
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "1.27.4"
@@ -314,7 +317,7 @@ jobs:
       - name: Lint Markdown
         run: pnpm exec markdownlint-cli2 '**/*.md' '#**/node_modules' '#**/target' '#vendor' '#sdk-php/vendor' '#laravel-package/vendor' '#wordpress-plugin/vendor' '#.opencode' '#docs/tmp'
       - name: Check diff whitespace
-        run: git diff-tree --check --no-commit-id --root -r HEAD
+        run: git diff-tree --check --no-commit-id --root --diff-merges=first-parent -r HEAD
       - name: Check SDK identity constants
         run: bash scripts/check-sdk-version-identity.sh
       - name: Check SDK route coverage against the Custd snapshot
