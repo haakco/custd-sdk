@@ -67,6 +67,8 @@ final readonly class DesiredState
      * @param AuthProjectBrandPalette::*|null $brandPalette Null keeps the stored palette.
      * @param string|null $brandSupportUrl Verified app support link; null keeps and `""` clears it.
      * @param string|null $brandPrivacyUrl Verified app privacy link; null keeps and `""` clears it.
+     * @param string|null $accountReturnUrl Registered HTTPS account return destination; null keeps and `""` clears it.
+     * @param string|null $accountReturnLabel Account return label; null keeps and `""` clears it.
      */
     public function __construct(
         public string $identityMode,
@@ -87,6 +89,8 @@ final readonly class DesiredState
         public ?string $brandPalette = null,
         public ?string $brandSupportUrl = null,
         public ?string $brandPrivacyUrl = null,
+        public ?string $accountReturnUrl = null,
+        public ?string $accountReturnLabel = null,
     ) {
         AuthProjectClient::assertIdentityMode($identityMode);
         if (trim($registrationPolicy) === "") {
@@ -149,6 +153,8 @@ final readonly class DesiredState
             "brandPalette" => $this->brandPalette,
             "brandSupportUrl" => $this->brandSupportUrl,
             "brandPrivacyUrl" => $this->brandPrivacyUrl,
+            "accountReturnUrl" => $this->accountReturnUrl,
+            "accountReturnLabel" => $this->accountReturnLabel,
             "signInMethods" => $this->signInMethods,
         ];
         foreach ($realmFields as $key => $value) {
@@ -196,6 +202,8 @@ final readonly class DesiredState
             Fields::optionalString($payload, "brandPalette"),
             Fields::optionalString($payload, "brandSupportUrl"),
             Fields::optionalString($payload, "brandPrivacyUrl"),
+            Fields::optionalString($payload, "accountReturnUrl"),
+            Fields::optionalString($payload, "accountReturnLabel"),
         );
     }
 

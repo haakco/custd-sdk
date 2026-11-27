@@ -513,6 +513,8 @@ describe("admin auth projects", () => {
       brandPalette: "default",
       brandSupportUrl: "",
       brandPrivacyUrl: "",
+      accountReturnUrl: "",
+      accountReturnLabel: "",
       signInMethods: [],
       profileFields: [],
     } as const satisfies AuthProjectDesiredState;

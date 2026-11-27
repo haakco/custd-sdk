@@ -268,6 +268,12 @@ pub struct AuthProjectDesiredState {
     /// HTTPS privacy link on the verified app origin. `None` keeps and `Some("")` clears it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub brand_privacy_url: Option<String>,
+    /// Registered HTTPS account return destination. `None` keeps; `Some("")` clears.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_return_url: Option<String>,
+    /// Account return label. `None` keeps; `Some("")` clears.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_return_label: Option<String>,
     pub display_name: String,
     pub display_name_source: String,
     /// The public entry path. An apply that leaves it `None` keeps the stored path; `Some("")`
@@ -420,6 +426,9 @@ pub struct AuthProjectStatus {
     pub login_ready: bool,
     pub project_id: String,
     pub reconcile_note: String,
+    /// Non-failing configuration guidance, when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recommendations: Option<Vec<String>>,
     pub reconciled: bool,
     pub revision: i64,
 }

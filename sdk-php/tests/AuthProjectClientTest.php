@@ -483,6 +483,7 @@ final class AuthProjectClientTest extends TestCase
             "reconcileNote" => "",
             "loginReady" => false,
             "loginNote" => "",
+            "recommendations" => ["Set an account return URL."],
             "clientSync" => [
                 "clientIds" => ["custd-app-environment-1-hosting-edge"],
                 "revision" => 7,
@@ -502,6 +503,7 @@ final class AuthProjectClientTest extends TestCase
             new RequestOptions(owningUserUuid: self::OWNING_USER),
         );
 
+        self::assertSame(["Set an account return URL."], $status->recommendations);
         self::assertSame(["GET"], array_column($calls, "method"));
         self::assertSame(
             ["http://localhost:8080/api/v1/admin/auth-projects/project-1/environments/environment-1/status"],
@@ -563,7 +565,7 @@ final class AuthProjectClientTest extends TestCase
     {
         $observed = DesiredState::fromPayload(json_decode('{"identityMode":"isolated","registrationPolicy":"invite_only",
             "loginPaused":false,"entryPath":"","brandAccent":"","brandMode":"shared","brandPalette":"default",
-            "displayName":"","displayNameSource":"application","brandSupportUrl":"","brandPrivacyUrl":"",
+            "displayName":"","displayNameSource":"application","brandSupportUrl":"","brandPrivacyUrl":"","accountReturnUrl":"","accountReturnLabel":"",
             "audiences":[],"profileFields":[],"signInMethods":[],"applicationSessionPolicy":"offer_remember_me",
             "socialSignIn":{"providers":[]}}', false, flags: JSON_THROW_ON_ERROR));
 
@@ -578,7 +580,7 @@ final class AuthProjectClientTest extends TestCase
             "identityMode" => "isolated", "registrationPolicy" => "invite_only", "loginPaused" => false,
             "audiences" => [], "profileFields" => [], "displayNameSource" => "application",
             "entryPath" => "", "brandAccent" => "", "brandMode" => "shared", "brandPalette" => "default",
-            "brandSupportUrl" => "", "brandPrivacyUrl" => "", "signInMethods" => [],
+            "brandSupportUrl" => "", "brandPrivacyUrl" => "", "accountReturnUrl" => "", "accountReturnLabel" => "", "signInMethods" => [],
             "applicationSessionPolicy" => "offer_remember_me", "socialSignIn" => ["providers" => []],
         ], $observed->toPayload());
     }

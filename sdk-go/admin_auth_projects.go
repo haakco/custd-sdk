@@ -270,6 +270,10 @@ type AuthProjectDesiredState struct {
 	// BrandSupportURL and BrandPrivacyURL link to the verified app; nil keeps and "" clears each link.
 	BrandSupportURL *string `json:"brandSupportUrl,omitempty"`
 	BrandPrivacyURL *string `json:"brandPrivacyUrl,omitempty"`
+	// AccountReturnURL and AccountReturnLabel configure the realm's hosted account return link.
+	// Nil keeps each recorded value; an empty string clears it.
+	AccountReturnURL   *string `json:"accountReturnUrl,omitempty"`
+	AccountReturnLabel *string `json:"accountReturnLabel,omitempty"`
 	// DisplayName is the customer-facing application name the realm shows on invitations, hosted
 	// sign-in and hosted account settings. It is presentation only, empty when the realm has not
 	// chosen a name, and it is not the environment's own name.
@@ -455,7 +459,9 @@ type AuthProjectStatus struct {
 	ReconcileNote string                  `json:"reconcileNote"`
 	LoginReady    bool                    `json:"loginReady"`
 	LoginNote     string                  `json:"loginNote"`
-	ClientSync    *AuthProjectClientSync  `json:"clientSync,omitempty"`
+	// Recommendations are non-failing configuration guidance for this environment.
+	Recommendations []string               `json:"recommendations,omitempty"`
+	ClientSync      *AuthProjectClientSync `json:"clientSync,omitempty"`
 	// CompanyUUID is the persisted company of this environment's project; nil
 	// means explicitly unbound, never inferred.
 	CompanyUUID *string `json:"companyUuid"`

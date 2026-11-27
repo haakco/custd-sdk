@@ -408,6 +408,9 @@ class _AuthProjectEnvironmentConfig(TypedDict):
     # Link targets belong to the verified app origin. Empty strings clear them.
     brandSupportUrl: NotRequired[str | None]
     brandPrivacyUrl: NotRequired[str | None]
+    # Registered HTTPS return destination and its label. Omission or null keeps; "" clears.
+    accountReturnUrl: NotRequired[str | None]
+    accountReturnLabel: NotRequired[str | None]
     applicationSessionPolicy: NotRequired[AuthProjectApplicationSessionPolicy]
     withdrawDisplayName: NotRequired[bool]
     hosting: NotRequired[AuthProjectHosting]
@@ -553,6 +556,7 @@ class AuthProjectStatus(TypedDict):
     reconcileNote: str
     loginReady: bool
     loginNote: str
+    recommendations: NotRequired[list[str] | None]
     clientSync: NotRequired[AuthProjectClientSync]
     # Persisted company of this environment's project; None means explicitly unbound.
     companyUuid: str | None

@@ -330,6 +330,10 @@ export type AuthProjectDesiredState = {
   brandSupportUrl?: string | null;
   /** An HTTPS privacy link on the verified app origin. Null or omission keeps it; `""` clears it. */
   brandPrivacyUrl?: string | null;
+  /** Registered HTTPS destination from hosted account settings. Null or omission keeps it; `""` clears it. */
+  accountReturnUrl?: string | null;
+  /** Label for the hosted account return destination. Null or omission keeps it; `""` clears it. */
+  accountReturnLabel?: string | null;
   /** The application name shown on invitations and hosted sign-in; empty when none is chosen. */
   displayName?: string;
   /** Which surface owns the display name: `application` or `hosting`. Provenance, never authority. */
@@ -511,6 +515,8 @@ export type AuthProjectStatus = {
   reconcileNote: string;
   loginReady: boolean;
   loginNote: string;
+  /** Non-failing configuration guidance, when available. */
+  recommendations?: string[] | null;
   clientSync?: AuthProjectClientSync;
   /** Persisted company of this environment's project; null means explicitly unbound, never inferred. */
   companyUuid: string | null;
