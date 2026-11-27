@@ -568,6 +568,48 @@ impl CustdClient {
         request: &SiteCheckSettingsRequest,
         company_slug: Option<&str>,
     ) -> Result<SiteDomain> {
+        self.put_site_check_settings(domain_uuid, request, company_slug)
+    }
+
+    /// Set uptime expectations for an absolute path on the verified host.
+    pub fn set_site_check_path(
+        &self,
+        domain_uuid: &str,
+        mode: SiteDomainChecksMode,
+        path: &str,
+        expectations: &SiteHTTPExpectations,
+        company_slug: Option<&str>,
+    ) -> Result<SiteDomain> {
+        #[derive(Serialize)]
+        struct PathExpectations<'a> {
+            path: &'a str,
+            #[serde(flatten)]
+            expectations: &'a SiteHTTPExpectations,
+        }
+
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Request<'a> {
+            mode: SiteDomainChecksMode,
+            http_expectations: PathExpectations<'a>,
+        }
+
+        self.put_site_check_settings(
+            domain_uuid,
+            &Request {
+                mode,
+                http_expectations: PathExpectations { path, expectations },
+            },
+            company_slug,
+        )
+    }
+
+    fn put_site_check_settings(
+        &self,
+        domain_uuid: &str,
+        request: &impl Serialize,
+        company_slug: Option<&str>,
+    ) -> Result<SiteDomain> {
         let path = api_path(
             format!("{SITE_DOMAINS}/{}/checks", percent_encode(domain_uuid)),
             &[],
