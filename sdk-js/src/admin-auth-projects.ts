@@ -326,6 +326,10 @@ export type AuthProjectDesiredState = {
   brandMode?: AuthProjectBrandMode | null;
   /** Leaving it out or sending null keeps the stored palette. `default` restores the shared theme. */
   brandPalette?: AuthProjectBrandPalette | null;
+  /** An HTTPS support link on the verified app origin. Null or omission keeps it; `""` clears it. */
+  brandSupportUrl?: string | null;
+  /** An HTTPS privacy link on the verified app origin. Null or omission keeps it; `""` clears it. */
+  brandPrivacyUrl?: string | null;
   /** The application name shown on invitations and hosted sign-in; empty when none is chosen. */
   displayName?: string;
   /** Which surface owns the display name: `application` or `hosting`. Provenance, never authority. */

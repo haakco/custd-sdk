@@ -267,6 +267,9 @@ type AuthProjectDesiredState struct {
 	BrandMode *AuthProjectBrandMode `json:"brandMode,omitempty"`
 	// BrandPalette selects the color scheme; nil keeps the stored palette.
 	BrandPalette *AuthProjectBrandPalette `json:"brandPalette,omitempty"`
+	// BrandSupportURL and BrandPrivacyURL link to the verified app; nil keeps and "" clears each link.
+	BrandSupportURL *string `json:"brandSupportUrl,omitempty"`
+	BrandPrivacyURL *string `json:"brandPrivacyUrl,omitempty"`
 	// DisplayName is the customer-facing application name the realm shows on invitations, hosted
 	// sign-in and hosted account settings. It is presentation only, empty when the realm has not
 	// chosen a name, and it is not the environment's own name.

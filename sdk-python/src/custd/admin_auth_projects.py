@@ -405,6 +405,9 @@ class _AuthProjectEnvironmentConfig(TypedDict):
     # Omitted or None preserves the stored choice on writes.
     brandMode: NotRequired[AuthProjectBrandMode | None]
     brandPalette: NotRequired[AuthProjectBrandPalette | None]
+    # Link targets belong to the verified app origin. Empty strings clear them.
+    brandSupportUrl: NotRequired[str | None]
+    brandPrivacyUrl: NotRequired[str | None]
     applicationSessionPolicy: NotRequired[AuthProjectApplicationSessionPolicy]
     withdrawDisplayName: NotRequired[bool]
     hosting: NotRequired[AuthProjectHosting]

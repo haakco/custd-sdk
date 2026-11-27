@@ -563,7 +563,7 @@ final class AuthProjectClientTest extends TestCase
     {
         $observed = DesiredState::fromPayload(json_decode('{"identityMode":"isolated","registrationPolicy":"invite_only",
             "loginPaused":false,"entryPath":"","brandAccent":"","brandMode":"shared","brandPalette":"default",
-            "displayName":"","displayNameSource":"application",
+            "displayName":"","displayNameSource":"application","brandSupportUrl":"","brandPrivacyUrl":"",
             "audiences":[],"profileFields":[],"signInMethods":[],"applicationSessionPolicy":"offer_remember_me",
             "socialSignIn":{"providers":[]}}', false, flags: JSON_THROW_ON_ERROR));
 
@@ -577,7 +577,8 @@ final class AuthProjectClientTest extends TestCase
         self::assertSame([
             "identityMode" => "isolated", "registrationPolicy" => "invite_only", "loginPaused" => false,
             "audiences" => [], "profileFields" => [], "displayNameSource" => "application",
-            "entryPath" => "", "brandAccent" => "", "brandMode" => "shared", "brandPalette" => "default", "signInMethods" => [],
+            "entryPath" => "", "brandAccent" => "", "brandMode" => "shared", "brandPalette" => "default",
+            "brandSupportUrl" => "", "brandPrivacyUrl" => "", "signInMethods" => [],
             "applicationSessionPolicy" => "offer_remember_me", "socialSignIn" => ["providers" => []],
         ], $observed->toPayload());
     }

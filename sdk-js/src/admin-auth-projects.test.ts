@@ -511,6 +511,8 @@ describe("admin auth projects", () => {
       brandAccent: "",
       brandMode: "shared",
       brandPalette: "default",
+      brandSupportUrl: "",
+      brandPrivacyUrl: "",
       signInMethods: [],
       profileFields: [],
     } as const satisfies AuthProjectDesiredState;

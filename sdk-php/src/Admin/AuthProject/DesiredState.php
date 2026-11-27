@@ -65,6 +65,8 @@ final readonly class DesiredState
      * @param AuthProjectRegistrationPolicy::* $registrationPolicy
      * @param AuthProjectBrandMode::*|null $brandMode Null keeps the stored mode.
      * @param AuthProjectBrandPalette::*|null $brandPalette Null keeps the stored palette.
+     * @param string|null $brandSupportUrl Verified app support link; null keeps and `""` clears it.
+     * @param string|null $brandPrivacyUrl Verified app privacy link; null keeps and `""` clears it.
      */
     public function __construct(
         public string $identityMode,
@@ -83,6 +85,8 @@ final readonly class DesiredState
         public ?SocialSignIn $socialSignIn = null,
         public ?string $brandMode = null,
         public ?string $brandPalette = null,
+        public ?string $brandSupportUrl = null,
+        public ?string $brandPrivacyUrl = null,
     ) {
         AuthProjectClient::assertIdentityMode($identityMode);
         if (trim($registrationPolicy) === "") {
@@ -143,6 +147,8 @@ final readonly class DesiredState
             "brandAccent" => $this->brandAccent,
             "brandMode" => $this->brandMode,
             "brandPalette" => $this->brandPalette,
+            "brandSupportUrl" => $this->brandSupportUrl,
+            "brandPrivacyUrl" => $this->brandPrivacyUrl,
             "signInMethods" => $this->signInMethods,
         ];
         foreach ($realmFields as $key => $value) {
@@ -188,6 +194,8 @@ final readonly class DesiredState
             $socialSignIn === null ? null : SocialSignIn::fromPayload($socialSignIn),
             Fields::optionalString($payload, "brandMode"),
             Fields::optionalString($payload, "brandPalette"),
+            Fields::optionalString($payload, "brandSupportUrl"),
+            Fields::optionalString($payload, "brandPrivacyUrl"),
         );
     }
 

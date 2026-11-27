@@ -624,7 +624,7 @@ func TestAuthProjectDesiredStateKeepsWhatItLeavesOut(t *testing.T) {
 	if err := json.Unmarshal(kept, &keptFields); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"entryPath", "brandAccent", "brandMode", "brandPalette", "loginPaused"} {
+	for _, key := range []string{"entryPath", "brandAccent", "brandMode", "brandPalette", "brandSupportUrl", "brandPrivacyUrl", "loginPaused"} {
 		if _, sent := keptFields[key]; sent {
 			t.Errorf("unset %s was sent: %s", key, kept)
 		}
@@ -637,12 +637,16 @@ func TestAuthProjectDesiredStateKeepsWhatItLeavesOut(t *testing.T) {
 	cleared, err := json.Marshal(AuthProjectDesiredState{
 		EntryPath: new(""), BrandAccent: new(""), LoginPaused: new(false),
 		BrandMode: new(AuthProjectBrandModeShared), BrandPalette: new(AuthProjectBrandPaletteDefault),
+		BrandSupportURL: new(""), BrandPrivacyURL: new(""),
 		SignInMethods: []string{}, ProfileFields: []AuthProjectProfileField{},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"entryPath":""`, `"brandAccent":""`, `"brandMode":"shared"`, `"brandPalette":"default"`, `"loginPaused":false`, `"signInMethods":[]`, `"profileFields":[]`} {
+	for _, want := range []string{
+		`"entryPath":""`, `"brandAccent":""`, `"brandMode":"shared"`, `"brandPalette":"default"`,
+		`"brandSupportUrl":""`, `"brandPrivacyUrl":""`, `"loginPaused":false`, `"signInMethods":[]`, `"profileFields":[]`,
+	} {
 		if !strings.Contains(string(cleared), want) {
 			t.Errorf("clearing body %s lacks %s", cleared, want)
 		}

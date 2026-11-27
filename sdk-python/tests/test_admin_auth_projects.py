@@ -374,6 +374,7 @@ class AuthProjectAdminClientTest(unittest.TestCase):
         keeps = {key: DESIRED_STATE[key] for key in ("identityMode", "registrationPolicy", "audiences")}
         clears = {
             **keeps, "entryPath": "", "brandAccent": "", "brandMode": "shared", "brandPalette": "default",
+            "brandSupportUrl": "", "brandPrivacyUrl": "",
             "signInMethods": [], "profileFields": [],
         }
 

@@ -40,6 +40,8 @@
       "brandAccent": "example",
       "brandMode": "shared",
       "brandPalette": "default",
+      "brandPrivacyUrl": "example",
+      "brandSupportUrl": "example",
       "displayName": "example",
       "displayNameSource": "",
       "entryPath": "example",

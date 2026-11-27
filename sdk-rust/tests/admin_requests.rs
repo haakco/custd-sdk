@@ -216,7 +216,7 @@ fn audit_exports_stream_to_the_writer_with_their_metadata_and_realm_filter() {
 #[test]
 fn a_realm_apply_sends_only_the_fields_it_sets_and_empty_values_clear() {
     let status: AuthProjectDesiredState = serde_json::from_str(
-        r##"{"audiences":[],"brandAccent":"#112233","brandMode":"white_label","brandPalette":"dark","displayName":"","displayNameSource":"application","entryPath":"/go","identityMode":"isolated","loginPaused":true,"profileFields":[],"registrationPolicy":"invite_only","signInMethods":["password"]}"##,
+        r##"{"audiences":[],"brandAccent":"#112233","brandMode":"white_label","brandPalette":"dark","brandSupportUrl":"https://canvas.example/help","brandPrivacyUrl":"https://canvas.example/privacy","displayName":"","displayNameSource":"application","entryPath":"/go","identityMode":"isolated","loginPaused":true,"profileFields":[],"registrationPolicy":"invite_only","signInMethods":["password"]}"##,
     )
     .unwrap();
     assert_eq!(
@@ -234,12 +234,22 @@ fn a_realm_apply_sends_only_the_fields_it_sets_and_empty_values_clear() {
 
     assert_eq!(status.brand_mode, Some(AuthProjectBrandMode::WhiteLabel));
     assert_eq!(status.brand_palette, Some(AuthProjectBrandPalette::Dark));
+    assert_eq!(
+        status.brand_support_url.as_deref(),
+        Some("https://canvas.example/help")
+    );
+    assert_eq!(
+        status.brand_privacy_url.as_deref(),
+        Some("https://canvas.example/privacy")
+    );
 
     let keep = AuthProjectDesiredState {
         entry_path: None,
         brand_accent: None,
         brand_mode: None,
         brand_palette: None,
+        brand_support_url: None,
+        brand_privacy_url: None,
         login_paused: None,
         sign_in_methods: None,
         profile_fields: None,
@@ -251,6 +261,8 @@ fn a_realm_apply_sends_only_the_fields_it_sets_and_empty_values_clear() {
         "brandAccent",
         "brandMode",
         "brandPalette",
+        "brandSupportUrl",
+        "brandPrivacyUrl",
         "loginPaused",
         "signInMethods",
         "profileFields",
@@ -263,6 +275,8 @@ fn a_realm_apply_sends_only_the_fields_it_sets_and_empty_values_clear() {
         brand_accent: Some(String::new()),
         brand_mode: Some(AuthProjectBrandMode::Shared),
         brand_palette: Some(AuthProjectBrandPalette::Default),
+        brand_support_url: Some(String::new()),
+        brand_privacy_url: Some(String::new()),
         login_paused: Some(false),
         sign_in_methods: Some(Vec::new()),
         profile_fields: Some(Vec::new()),
@@ -271,6 +285,8 @@ fn a_realm_apply_sends_only_the_fields_it_sets_and_empty_values_clear() {
     let sent = serde_json::to_value(&clear).unwrap();
     assert_eq!(sent["brandMode"], "shared");
     assert_eq!(sent["brandPalette"], "default");
+    assert_eq!(sent["brandSupportUrl"], "");
+    assert_eq!(sent["brandPrivacyUrl"], "");
     assert_eq!(
         [
             &sent["entryPath"],

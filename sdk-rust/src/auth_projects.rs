@@ -262,6 +262,12 @@ pub struct AuthProjectDesiredState {
     /// `None` keeps the stored palette; `Default` restores the shared theme.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub brand_palette: Option<AuthProjectBrandPalette>,
+    /// HTTPS support link on the verified app origin. `None` keeps and `Some("")` clears it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brand_support_url: Option<String>,
+    /// HTTPS privacy link on the verified app origin. `None` keeps and `Some("")` clears it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brand_privacy_url: Option<String>,
     pub display_name: String,
     pub display_name_source: String,
     /// The public entry path. An apply that leaves it `None` keeps the stored path; `Some("")`
