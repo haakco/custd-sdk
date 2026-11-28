@@ -1,5 +1,5 @@
 import type { RequestOptions } from "./index.js";
-import type { EnrollUsageRequest, IssueUsageResult, PublishUsageTariffRequest, StorefrontUsagePageRequest, UsageCertificate, UsageEnrollment, UsageEnrollmentPage, UsageInvoiceOptIn, UsageSchedule, UsageTariffPage, UsageTariffRevision } from "./storefront-usage.js";
+import type { EnrollUsageRequest, InvoiceNotice, IssueUsageResult, PublishUsageTariffRequest, StorefrontUsagePageRequest, UsageCertificate, UsageEnrollment, UsageEnrollmentPage, UsageInvoiceOptIn, UsageSchedule, UsageTariffPage, UsageTariffRevision } from "./storefront-usage.js";
 export type * from "./storefront-usage.js";
 type StorefrontRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 /** An exact signed minor-unit count encoded as a decimal string. */
@@ -246,6 +246,7 @@ export type StorefrontSetOffEligibility = {
     eligible: boolean;
 };
 export type StorefrontPurchase = {
+    invoiceNotice?: InvoiceNotice;
     setOff?: StorefrontSetOff;
     usage?: UsageCertificate;
     activationStatus?: "pending" | "applied" | "review_required";

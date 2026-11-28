@@ -1,6 +1,7 @@
 import type { RequestOptions } from "./index.js";
 import type {
   EnrollUsageRequest,
+  InvoiceNotice,
   IssueUsageResult,
   PublishUsageTariffRequest,
   StorefrontUsagePageRequest,
@@ -259,6 +260,7 @@ export type StorefrontSetOff = {
 export type StorefrontSetOffEligibility = { eligible: boolean };
 
 export type StorefrontPurchase = {
+  invoiceNotice?: InvoiceNotice;
   setOff?: StorefrontSetOff;
   usage?: UsageCertificate;
   activationStatus?: "pending" | "applied" | "review_required";

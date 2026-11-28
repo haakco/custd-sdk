@@ -77,7 +77,13 @@ export type IssueUsageResult =
 
 export type UsageScheduleState = "scheduled" | "cancelled" | "invoice_issued" | "no_amount_due" | "review_required";
 
+export type InvoiceNotice = {
+  status: "pending" | "queued" | "sent" | "failed" | "unknown" | "seller_unavailable" | "review_required";
+  reason?: "invalid_document" | "payload_mismatch";
+};
+
 export type UsageSchedule = {
+  invoiceNotice?: InvoiceNotice;
   enrollmentUuid: string;
   state: UsageScheduleState;
   consentedAt: string;
