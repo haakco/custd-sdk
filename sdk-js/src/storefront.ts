@@ -245,7 +245,21 @@ export type StorefrontPartnerEarning = {
   remainder: StorefrontMoney;
 };
 
+export type StorefrontSetOff = {
+  setOffUuid: string;
+  invoiceUuid: string;
+  amount: StorefrontMoney;
+  appliedAt: string;
+  appliedOn: string;
+  preferenceUuid: string;
+  taxDisclosureUuid: string;
+  reversal?: { creditNoteUuid: string; reversedAt: string };
+};
+
+export type StorefrontSetOffEligibility = { eligible: boolean };
+
 export type StorefrontPurchase = {
+  setOff?: StorefrontSetOff;
   usage?: UsageCertificate;
   activationStatus?: "pending" | "applied" | "review_required";
   refund?: StorefrontRefund;
@@ -304,6 +318,21 @@ export type PartnerTaxDisclosureSelection = {
   current?: PartnerTaxDisclosure;
   next?: PartnerTaxDisclosure;
 };
+export type RecordPartnerPayoutRequest = {
+  externalReference: string;
+  amount: StorefrontMoney;
+  paidAt: string;
+};
+export type PartnerPayout = RecordPartnerPayoutRequest & {
+  payoutUuid: string;
+  partnerCompanyUuid: string;
+  paidOn: string;
+  recordedAt: string;
+  preferenceUuid: string;
+  taxDisclosureUuid: string;
+};
+export type PartnerPayoutPageRequest = { partnerCompanyUuid: string; before?: string };
+export type PartnerPayoutPage = { payouts: PartnerPayout[]; nextBefore?: string };
 export type BillingPartnerInvitation = { code: string; expiresAt: string };
 export type AcceptBillingPartnerInvitationRequest = { code: string };
 export type AcceptedBillingPartnerInvitation = { sellerCompanyName: string };
@@ -423,6 +452,34 @@ export class StorefrontClient {
       input,
       options,
     );
+  }
+
+  async listPartnerPayouts(input: PartnerPayoutPageRequest, options?: RequestOptions): Promise<PartnerPayoutPage> {
+    const query = input.before ? `?${new URLSearchParams({ before: input.before })}` : "";
+    const page = await this.request<PartnerPayoutPage>(
+      "GET",
+      `${billingPartnersPath}/${encodeURIComponent(input.partnerCompanyUuid)}/payouts${query}`,
+      undefined,
+      options,
+    );
+    for (const payout of page.payouts) validateMoney(payout.amount);
+    return page;
+  }
+
+  async recordPartnerPayout(
+    partnerUuid: string,
+    input: RecordPartnerPayoutRequest,
+    options?: RequestOptions,
+  ): Promise<PartnerPayout> {
+    validateMoney(input.amount);
+    const payout = await this.request<PartnerPayout>(
+      "POST",
+      `${billingPartnersPath}/${encodeURIComponent(partnerUuid)}/payouts`,
+      input,
+      options,
+    );
+    validateMoney(payout.amount);
+    return payout;
   }
 
   createBillingPartnerInvitation(options?: RequestOptions): Promise<BillingPartnerInvitation> {
@@ -687,6 +744,39 @@ export class StorefrontClient {
     );
   }
 
+  async issueStorefrontInvoice(
+    storefront: string,
+    quoteUuid: string,
+    options?: RequestOptions,
+  ): Promise<StorefrontPurchase> {
+    return validatePurchase(
+      await this.request("POST", storefrontPath(storefront, "quotes", quoteUuid, "invoice"), undefined, options),
+    );
+  }
+
+  getStorefrontSetOffEligibility(
+    storefront: string,
+    invoiceUuid: string,
+    options?: RequestOptions,
+  ): Promise<StorefrontSetOffEligibility> {
+    return this.request("GET", storefrontPath(storefront, "purchases", invoiceUuid, "set-off"), undefined, options);
+  }
+
+  async applyStorefrontSetOff(
+    storefront: string,
+    invoiceUuid: string,
+    options?: RequestOptions,
+  ): Promise<StorefrontSetOff> {
+    const setOff = await this.request<StorefrontSetOff>(
+      "POST",
+      storefrontPath(storefront, "purchases", invoiceUuid, "set-off"),
+      undefined,
+      options,
+    );
+    validateMoney(setOff.amount);
+    return setOff;
+  }
+
   async getPurchase(storefront: string, invoiceUuid: string, options?: RequestOptions): Promise<StorefrontPurchase> {
     return validatePurchase(
       await this.request("GET", storefrontPath(storefront, "purchases", invoiceUuid), undefined, options),
@@ -759,6 +849,7 @@ function validateQuote(quote: StorefrontQuote): StorefrontQuote {
 }
 
 function validatePurchase(purchase: StorefrontPurchase): StorefrontPurchase {
+  if (purchase.setOff) validateMoney(purchase.setOff.amount);
   if (purchase.usage) validateUsageCertificate(purchase.usage);
   validateTotals(purchase.totals);
   if (purchase.receipt) {

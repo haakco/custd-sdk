@@ -229,7 +229,24 @@ export type StorefrontPartnerEarning = {
     costToProvide: StorefrontMoney;
     remainder: StorefrontMoney;
 };
+export type StorefrontSetOff = {
+    setOffUuid: string;
+    invoiceUuid: string;
+    amount: StorefrontMoney;
+    appliedAt: string;
+    appliedOn: string;
+    preferenceUuid: string;
+    taxDisclosureUuid: string;
+    reversal?: {
+        creditNoteUuid: string;
+        reversedAt: string;
+    };
+};
+export type StorefrontSetOffEligibility = {
+    eligible: boolean;
+};
 export type StorefrontPurchase = {
+    setOff?: StorefrontSetOff;
     usage?: UsageCertificate;
     activationStatus?: "pending" | "applied" | "review_required";
     refund?: StorefrontRefund;
@@ -299,6 +316,27 @@ export type PartnerTaxDisclosureSelection = {
     current?: PartnerTaxDisclosure;
     next?: PartnerTaxDisclosure;
 };
+export type RecordPartnerPayoutRequest = {
+    externalReference: string;
+    amount: StorefrontMoney;
+    paidAt: string;
+};
+export type PartnerPayout = RecordPartnerPayoutRequest & {
+    payoutUuid: string;
+    partnerCompanyUuid: string;
+    paidOn: string;
+    recordedAt: string;
+    preferenceUuid: string;
+    taxDisclosureUuid: string;
+};
+export type PartnerPayoutPageRequest = {
+    partnerCompanyUuid: string;
+    before?: string;
+};
+export type PartnerPayoutPage = {
+    payouts: PartnerPayout[];
+    nextBefore?: string;
+};
 export type BillingPartnerInvitation = {
     code: string;
     expiresAt: string;
@@ -363,6 +401,8 @@ export declare class StorefrontClient {
     getSellerTaxDisclosure(sellerUuid: string, options?: RequestOptions): Promise<PartnerTaxDisclosureSelection>;
     getPartnerTaxDisclosure(partnerUuid: string, options?: RequestOptions): Promise<PartnerTaxDisclosureSelection>;
     recordPartnerTaxDisclosure(sellerUuid: string, input: RecordPartnerTaxDisclosureRequest, options?: RequestOptions): Promise<PartnerTaxDisclosure>;
+    listPartnerPayouts(input: PartnerPayoutPageRequest, options?: RequestOptions): Promise<PartnerPayoutPage>;
+    recordPartnerPayout(partnerUuid: string, input: RecordPartnerPayoutRequest, options?: RequestOptions): Promise<PartnerPayout>;
     createBillingPartnerInvitation(options?: RequestOptions): Promise<BillingPartnerInvitation>;
     listPartnerProductTerms(input: PartnerProductTermsPageRequest, options?: RequestOptions): Promise<PartnerProductTermsPage>;
     publishPartnerProductTerms(storefront: string, offerUuid: string, input: PublishPartnerProductTermsRequest, options?: RequestOptions): Promise<PartnerProductTermsVersion>;
@@ -398,6 +438,9 @@ export declare class StorefrontClient {
     getQuote(storefront: string, quoteUuid: string, options?: RequestOptions): Promise<StorefrontQuote>;
     /** Start or resume the purchase for an accepted quote. */
     checkout(storefront: string, quoteUuid: string, options?: RequestOptions): Promise<StorefrontPurchase>;
+    issueStorefrontInvoice(storefront: string, quoteUuid: string, options?: RequestOptions): Promise<StorefrontPurchase>;
+    getStorefrontSetOffEligibility(storefront: string, invoiceUuid: string, options?: RequestOptions): Promise<StorefrontSetOffEligibility>;
+    applyStorefrontSetOff(storefront: string, invoiceUuid: string, options?: RequestOptions): Promise<StorefrontSetOff>;
     getPurchase(storefront: string, invoiceUuid: string, options?: RequestOptions): Promise<StorefrontPurchase>;
     /** Resume or retry payment for the same invoice. */
     startPayment(storefront: string, invoiceUuid: string, options?: RequestOptions): Promise<StorefrontPurchase>;

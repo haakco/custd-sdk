@@ -32,6 +32,19 @@ export class StorefrontClient {
     recordPartnerTaxDisclosure(sellerUuid, input, options) {
         return this.request("POST", `${billingPartnersPath}/sellers/${encodeURIComponent(sellerUuid)}/tax-disclosure`, input, options);
     }
+    async listPartnerPayouts(input, options) {
+        const query = input.before ? `?${new URLSearchParams({ before: input.before })}` : "";
+        const page = await this.request("GET", `${billingPartnersPath}/${encodeURIComponent(input.partnerCompanyUuid)}/payouts${query}`, undefined, options);
+        for (const payout of page.payouts)
+            validateMoney(payout.amount);
+        return page;
+    }
+    async recordPartnerPayout(partnerUuid, input, options) {
+        validateMoney(input.amount);
+        const payout = await this.request("POST", `${billingPartnersPath}/${encodeURIComponent(partnerUuid)}/payouts`, input, options);
+        validateMoney(payout.amount);
+        return payout;
+    }
     createBillingPartnerInvitation(options) {
         return this.request("POST", `${billingPartnersPath}/invitations`, undefined, options);
     }
@@ -166,6 +179,17 @@ export class StorefrontClient {
     async checkout(storefront, quoteUuid, options) {
         return validatePurchase(await this.request("POST", storefrontPath(storefront, "quotes", quoteUuid, "checkout"), undefined, options));
     }
+    async issueStorefrontInvoice(storefront, quoteUuid, options) {
+        return validatePurchase(await this.request("POST", storefrontPath(storefront, "quotes", quoteUuid, "invoice"), undefined, options));
+    }
+    getStorefrontSetOffEligibility(storefront, invoiceUuid, options) {
+        return this.request("GET", storefrontPath(storefront, "purchases", invoiceUuid, "set-off"), undefined, options);
+    }
+    async applyStorefrontSetOff(storefront, invoiceUuid, options) {
+        const setOff = await this.request("POST", storefrontPath(storefront, "purchases", invoiceUuid, "set-off"), undefined, options);
+        validateMoney(setOff.amount);
+        return setOff;
+    }
     async getPurchase(storefront, invoiceUuid, options) {
         return validatePurchase(await this.request("GET", storefrontPath(storefront, "purchases", invoiceUuid), undefined, options));
     }
@@ -224,6 +248,8 @@ function validateQuote(quote) {
     return quote;
 }
 function validatePurchase(purchase) {
+    if (purchase.setOff)
+        validateMoney(purchase.setOff.amount);
     if (purchase.usage)
         validateUsageCertificate(purchase.usage);
     validateTotals(purchase.totals);

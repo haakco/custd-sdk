@@ -295,3 +295,51 @@ it("preserves an absent tax disclosure and sends explicit non-registration only 
     ],
   ]);
 });
+
+it("issues an invoice and applies set-off without calling the provider checkout", async () => {
+  const amount = { currency: "ZAR", amountMinor: "9007199254740993" };
+  const totals = { netTotal: amount, taxTotal: { ...amount, amountMinor: "0" }, grossTotal: amount };
+  const fetchImpl = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(Response.json({ invoiceUuid: "invoice", status: "open", totals }))
+    .mockResolvedValueOnce(Response.json({ eligible: true }))
+    .mockResolvedValueOnce(Response.json({ setOffUuid: "set-off", amount }));
+  const client = new CustdClient({ baseUrl: "https://store.example", getToken: () => "buyer-token", fetch: fetchImpl });
+  await expect(client.storefronts.issueStorefrontInvoice("shop", "quote")).resolves.toMatchObject({ totals });
+  await expect(client.storefronts.getStorefrontSetOffEligibility("shop", "invoice")).resolves.toEqual({
+    eligible: true,
+  });
+  await expect(client.storefronts.applyStorefrontSetOff("shop", "invoice")).resolves.toMatchObject({ amount });
+  const base = "https://store.example/api/v1/storefronts/shop";
+  expect(fetchImpl.mock.calls.map(([url, init]) => [String(url), init?.method, init?.body])).toEqual([
+    [`${base}/quotes/quote/invoice`, "POST", undefined],
+    [`${base}/purchases/invoice/set-off`, "GET", undefined],
+    [`${base}/purchases/invoice/set-off`, "POST", undefined],
+  ]);
+});
+
+it("preserves exact payout amounts and uses the partner payout cursor", async () => {
+  const amount = { currency: "ZAR", amountMinor: "9007199254740993" };
+  const payout = { externalReference: "transfer", amount, paidAt: "2026-11-28T00:00:00Z" };
+  const fetchImpl = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(Response.json({ payouts: [payout], nextBefore: "next" }))
+    .mockResolvedValueOnce(Response.json(payout));
+  const client = new CustdClient({
+    baseUrl: "https://store.example",
+    getToken: () => "seller-token",
+    fetch: fetchImpl,
+  });
+  await expect(
+    client.storefronts.listPartnerPayouts({ partnerCompanyUuid: "partner", before: "previous" }),
+  ).resolves.toEqual({
+    payouts: [payout],
+    nextBefore: "next",
+  });
+  await expect(client.storefronts.recordPartnerPayout("partner", payout)).resolves.toEqual(payout);
+  const path = "https://store.example/api/v1/billing/partners/partner/payouts";
+  expect(fetchImpl.mock.calls.map(([url, init]) => [String(url), init?.method, init?.body])).toEqual([
+    [`${path}?before=previous`, "GET", undefined],
+    [path, "POST", JSON.stringify(payout)],
+  ]);
+});
