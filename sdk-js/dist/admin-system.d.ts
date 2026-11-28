@@ -121,10 +121,16 @@ export type SystemStatus = {
     stages: SystemStageStatus[];
     topTenants: SystemTenantHotspot[];
 };
+/** A sanitized notification delivery retry category. */
+export type JobOutboxRetryReason = "provider_transient" | "authentication_rejected" | "tls_failure" | "connection_failure" | "sender_rejected" | "recipient_rejected" | "unclassified_retry";
 export type JobOutboxStatus = {
     name: string;
     pending: number;
     failed: number;
+    /** The oldest pending delivery in the notification outbox, when available. */
+    oldestPendingAt?: string;
+    /** The latest retry category in the notification outbox, when available. */
+    lastRetryReason?: JobOutboxRetryReason;
 };
 export type JobQueueCount = {
     queue: string;

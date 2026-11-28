@@ -33,6 +33,22 @@ pub struct OutboxStatus {
     pub failed: i64,
     pub name: String,
     pub pending: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub oldest_pending_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_retry_reason: Option<OutboxRetryReason>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OutboxRetryReason {
+    ProviderTransient,
+    AuthenticationRejected,
+    TlsFailure,
+    ConnectionFailure,
+    SenderRejected,
+    RecipientRejected,
+    UnclassifiedRetry,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

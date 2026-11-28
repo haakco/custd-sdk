@@ -136,9 +136,22 @@ class IngestClaimList(TypedDict):
     truncated: bool
 
 
+JobOutboxRetryReason = Literal[
+    "provider_transient",
+    "authentication_rejected",
+    "tls_failure",
+    "connection_failure",
+    "sender_rejected",
+    "recipient_rejected",
+    "unclassified_retry",
+]
+
+
 class JobOutboxStatus(TypedDict):
     failed: int
+    lastRetryReason: NotRequired[JobOutboxRetryReason]
     name: str
+    oldestPendingAt: NotRequired[str]
     pending: int
 
 
