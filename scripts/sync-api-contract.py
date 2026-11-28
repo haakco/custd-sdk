@@ -42,7 +42,7 @@ def exclusion(method: str, path: str, router_mount: bool = False) -> str | None:
         return "router mount prefix with no operation at this exact path"
     if method == "OPTIONS":
         return "browser CORS preflight"
-    if path == "/mcp" or path.startswith("/mcp/"):
+    if path in ("/mcp", "/mcp/tenant"):
         return "MCP protocol transport; application routes own the SDK calls"
     if INFRASTRUCTURE.match(path) or path == "/api/v1/health":
         return "infrastructure, debug or private internal transport"

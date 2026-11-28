@@ -18,6 +18,37 @@ export class AppMessageClient {
         requireBoolean(data, "importAllowed", context);
         return data;
     }
+    /** Read the signed-in archive owner's current connector status. */
+    async getConnector(options) {
+        return connectorStatus(await this.request("GET", `${root}/connector`, undefined, options));
+    }
+    /** Use a human tenant administrator token. The connector bearer is returned once. */
+    async enrollConnector(options) {
+        const data = requireRecord(await this.request("POST", `${root}/connector/enroll`, undefined, options), context);
+        return { status: connectorStatus(data.status), bearerToken: requireString(data, "bearerToken", context) };
+    }
+    async controlConnector(request, options) {
+        return connectorStatus(await this.request("POST", `${root}/connector/control`, request, options));
+    }
+    /** Verify a connector bearer and read its bound archive generation. */
+    async connectorSession(options) {
+        const data = requireRecord(await this.request("GET", `${root}/connector/session`, undefined, options), context);
+        requireString(data, "companySlug", context);
+        requireString(data, "principalId", context);
+        requireBoolean(data, "importAllowed", context);
+        requireInteger(data, "whatsappSourceGeneration", context);
+        return data;
+    }
+    /** Use the connector bearer to report connection state and pending media. */
+    async reportConnector(request, options) {
+        return connectorStatus(await this.request("POST", `${root}/connector/report`, request, options));
+    }
+    /** Apply native message edits or revocations with the connector bearer. */
+    async mutate(request, options) {
+        const data = requireRecord(await this.request("POST", `${root}/mutations`, request, options), context);
+        requireObjectList(data, "results", context);
+        return data;
+    }
     async import(request, options) {
         const data = requireRecord(await this.request("POST", `${root}/batch`, request, options), context);
         requireObjectList(data, "results", context);
@@ -47,7 +78,13 @@ export class AppMessageClient {
         if (upload.image.byteLength === 0 || upload.image.byteLength > maxMediaBytes) {
             throw new Error("custd: archive image must contain 1 byte to 10 MiB");
         }
-        const data = requireRecord(await this.request("PUT", `${messagePath(upload.messageUuid)}/media`, upload.image, options), context);
+        if (upload.sourceGeneration !== undefined &&
+            (!Number.isSafeInteger(upload.sourceGeneration) || upload.sourceGeneration < 1)) {
+            throw new Error("custd: archive source generation must be a positive safe integer");
+        }
+        const data = requireRecord(await this.request("PUT", `${messagePath(upload.messageUuid)}/media`, upload.image, options, upload.sourceGeneration === undefined
+            ? undefined
+            : { "X-Custd-Source-Generation": String(upload.sourceGeneration) }), context);
         requireString(data, "mediaUuid", context);
         requireString(data, "contentType", context);
         requireInteger(data, "byteCount", context);
@@ -68,4 +105,9 @@ export class AppMessageClient {
         }
         return { contentType, image };
     }
+}
+function connectorStatus(value) {
+    const data = requireRecord(value, context);
+    requireString(data, "state", context);
+    return data;
 }

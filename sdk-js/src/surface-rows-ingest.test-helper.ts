@@ -22,7 +22,7 @@ const plan = {
 
 export const ingestRows: RowArea = {
   rows: [
-    { id: "ingest-api ANY /api/v1/account/me", method: "GET", call: (c) => c.custd.ingestOperations.account() },
+    { id: "ingest-api GET /api/v1/account/me", call: (c) => c.custd.ingestOperations.account() },
     { id: "ingest-api POST /api/v1/admin/cleanup", call: (c) => c.custd.ingestOperations.cleanup() },
     {
       id: "ingest-api POST /api/v1/admin/integrity",

@@ -17,6 +17,61 @@ class AppMessageSession(TypedDict):
     companySlug: str
     principalId: str
     importAllowed: bool
+    whatsappSourceGeneration: NotRequired[int]
+
+
+AppMessageConnectorState = Literal["active", "paused", "stale", "disconnected"]
+AppMessageConnectorConnection = Literal["connecting", "importing_history", "syncing", "offline", "pair_again"]
+
+
+class AppMessageConnectorControl(TypedDict):
+    action: Literal["pause", "resume", "disconnect"]
+
+
+class AppMessageConnectorReport(TypedDict):
+    connectionState: AppMessageConnectorConnection
+    pendingMedia: int
+
+
+class AppMessageConnectorStatus(TypedDict):
+    state: AppMessageConnectorState
+    grantId: NotRequired[str]
+    sourceGeneration: NotRequired[int]
+    createdAt: NotRequired[str]
+    updatedAt: NotRequired[str]
+    lastReportAt: NotRequired[str]
+    pendingMedia: NotRequired[int]
+    connectionState: NotRequired[AppMessageConnectorConnection]
+
+
+class AppMessageConnectorEnrollment(TypedDict):
+    status: AppMessageConnectorStatus
+    bearerToken: str
+
+
+class AppMessageMutation(TypedDict):
+    externalId: str
+    operationId: str
+    kind: Literal["edit", "revoke"]
+    revision: int
+    text: NotRequired[str]
+
+
+class AppMessageMutationBatch(TypedDict):
+    source: Literal["whatsapp"]
+    mutations: list[AppMessageMutation]
+    sourceGeneration: int
+
+
+class AppMessageMutationResult(TypedDict):
+    externalId: str
+    operationId: str
+    status: str
+    errorCode: NotRequired[str]
+
+
+class AppMessageMutationBatchResponse(TypedDict):
+    results: list[AppMessageMutationResult]
 
 
 class AppMessageInput(TypedDict):
@@ -32,6 +87,7 @@ class AppMessageInput(TypedDict):
 class AppMessageBatchRequest(TypedDict):
     source: AppMessageSource
     messages: list[AppMessageInput]
+    sourceGeneration: NotRequired[int]
 
 
 class AppMessageImportResult(TypedDict):
@@ -94,11 +150,13 @@ class AppMessageReadResponse(TypedDict):
 class AppMessageDeleteSourceResponse(TypedDict):
     source: str
     deletedCount: int
+    sourceGeneration: NotRequired[int]
 
 
 class AppMessageMediaUpload(TypedDict):
     messageUuid: str
     image: bytes
+    sourceGeneration: NotRequired[int]
 
 
 class AppMessageMediaRef(TypedDict):
@@ -125,6 +183,29 @@ class AppMessageClient:
     def session(self) -> AppMessageSession:
         return self._request(AppMessageSession, "GET", "/session")
 
+    def get_connector(self) -> AppMessageConnectorStatus:
+        """Read the signed-in archive owner's connector status."""
+        return self._request(AppMessageConnectorStatus, "GET", "/connector")
+
+    def enroll_connector(self) -> AppMessageConnectorEnrollment:
+        """Use a human tenant administrator token. The connector bearer is returned once."""
+        return self._request(AppMessageConnectorEnrollment, "POST", "/connector/enroll")
+
+    def control_connector(self, request: AppMessageConnectorControl) -> AppMessageConnectorStatus:
+        return self._request(AppMessageConnectorStatus, "POST", "/connector/control", dict(request))
+
+    def connector_session(self) -> AppMessageSession:
+        """Verify a connector bearer and read its bound archive generation."""
+        return self._request(AppMessageSession, "GET", "/connector/session")
+
+    def report_connector(self, request: AppMessageConnectorReport) -> AppMessageConnectorStatus:
+        """Use the connector bearer to report connection state and pending media."""
+        return self._request(AppMessageConnectorStatus, "POST", "/connector/report", dict(request))
+
+    def mutate(self, request: AppMessageMutationBatch) -> AppMessageMutationBatchResponse:
+        """Apply native message edits or revocations with the connector bearer."""
+        return self._request(AppMessageMutationBatchResponse, "POST", "/mutations", dict(request))
+
     def import_batch(self, request: AppMessageBatchRequest) -> AppMessageBatchResponse:
         return self._request(AppMessageBatchResponse, "POST", "/batch", dict(request))
 
@@ -142,7 +223,10 @@ class AppMessageClient:
         if not 0 < len(image) <= MAX_MEDIA_BYTES:
             raise ValueError("custd: archive image must contain 1 byte to 10 MiB")
         path = f"/{quote_path(upload['messageUuid'])}/media"
-        return self._request(AppMessageMediaMetadata, "PUT", path, image)
+        generation = upload.get("sourceGeneration")
+        if generation is not None and not 0 < generation < (1 << 63):
+            raise ValueError("custd: archive source generation must be a positive int64")
+        return self._request(AppMessageMediaMetadata, "PUT", path, image, generation=generation)
 
     def download_media(self, ref: AppMessageMediaRef) -> AppMessageMedia:
         path = f"/{quote_path(ref['messageUuid'])}/media/{quote_path(ref['mediaUuid'])}"
@@ -159,15 +243,25 @@ class AppMessageClient:
         return {"contentType": cast(AppMessageImageType, content_type), "image": image}
 
     def _request(
-        self, dto: type[_DTO], method: str, path: str, payload: dict[str, object] | bytes | None = None
+        self,
+        dto: type[_DTO],
+        method: str,
+        path: str,
+        payload: dict[str, object] | bytes | None = None,
+        *,
+        generation: int | None = None,
     ) -> _DTO:
-        body = self._send(method, path, payload).get("body")
+        body = self._send(method, path, payload, generation=generation).get("body")
         return _decode_dto(dto, json.loads(body) if isinstance(body, str) else body)
 
-    def _send(self, method: str, path: str, payload: dict[str, object] | bytes | None = None) -> TransportResult:
+    def _send(
+        self, method: str, path: str, payload: dict[str, object] | bytes | None = None, *, generation: int | None = None
+    ) -> TransportResult:
         headers = self._client._headers()
         if isinstance(payload, bytes):
             headers["Content-Type"] = "application/octet-stream"
+        if generation is not None:
+            headers["X-Custd-Source-Generation"] = str(generation)
         result = self._transport(method, self._client.base_url + ROOT + path, payload, headers, self._client.timeout)
         status = result["status"]
         if not 200 <= status < 300:

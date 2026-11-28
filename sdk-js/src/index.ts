@@ -3216,7 +3216,7 @@ export class CustdClient {
       this.apiRequest(method, path, body, options),
     );
     this.appMessages = new AppMessageClient(
-      (method, path, body, options) => this.apiRequest(method, path, body, options),
+      (method, path, body, options, headers) => this.apiRequest(method, path, body, options, headers),
       async (path, options) => {
         const response = await this.apiDownloadResponse(path, options);
         if (options?.metadata) options.metadata.requestId = response.headers.get(REQUEST_ID_HEADER) ?? "";

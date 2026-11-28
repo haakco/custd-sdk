@@ -267,7 +267,7 @@ final class TypedClientRows
             ['admin-api POST /api/v1/admin/campaign-email-welcome/activation', 'POST', [], fn (CustdClient $c) => $c->adminCampaignEmail()->recordWelcomeActivation(new \HaakCo\Custd\Admin\CampaignEmail\CampaignWelcomeActivation(activatedAt: 'x', contactId: 'x'))],
             ['admin-api POST /api/v1/admin/campaign-email-welcome/confirmed-signup', 'POST', [], fn (CustdClient $c) => $c->adminCampaignEmail()->recordWelcomeSignup(new \HaakCo\Custd\Admin\CampaignEmail\CampaignWelcomeSignup(confirmedAt: 'x', contactId: 'x', email: 'x', evidenceRef: 'x', evidenceSource: 'x'))],
             ['admin-api GET /api/v1/admin/campaign-email-welcome/contacts/{contactId}', 'GET', ['contactId' => 'contactId-1'], fn (CustdClient $c) => $c->adminCampaignEmail()->getWelcomeEnrollment('contactId-1')],
-            ['ingest-api ANY /api/v1/account/me', 'GET', [], fn (CustdClient $c) => $c->ingestOperations()->getAccount()],
+            ['ingest-api GET /api/v1/account/me', 'GET', [], fn (CustdClient $c) => $c->ingestOperations()->getAccount()],
             ['ingest-api POST /api/v1/reprocess', 'POST', [], fn (CustdClient $c) => $c->ingestOperations()->reprocess()],
             ['ingest-api GET /api/v1/monitoring/summary', 'GET', [], fn (CustdClient $c) => $c->ingestOperations()->monitoringSummary()],
             ['ingest-api GET /api/v1/system/monitoring/summary', 'GET', [], fn (CustdClient $c) => $c->ingestOperations()->systemMonitoringSummary()],

@@ -12,6 +12,7 @@ final readonly class AppMessageSession
         public string $companySlug,
         public string $principalId,
         public bool $importAllowed,
+        public ?int $whatsappSourceGeneration = null,
     ) {
     }
 
@@ -21,6 +22,7 @@ final readonly class AppMessageSession
             Fields::string($payload, 'companySlug'),
             Fields::string($payload, 'principalId'),
             Fields::boolean($payload, 'importAllowed'),
+            Fields::optionalInteger($payload, 'whatsappSourceGeneration'),
         );
     }
 }
