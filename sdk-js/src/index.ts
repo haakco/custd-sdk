@@ -14,6 +14,7 @@ import { SiteDomainAdminClient } from "./admin-site-domains.js";
 import { SiteInsightsAdminClient } from "./admin-site-insights-tasks.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+import { AppMessageClient } from "./app-messages.js";
 import { type CustdDownloadStream, responseDownloadStream } from "./download-stream.js";
 import { isLocalHostname } from "./secure-url.js";
 import { StorefrontClient } from "./storefront.js";
@@ -3131,12 +3132,15 @@ export class LocalStorageQueueStorage implements QueueStorage {
   }
 }
 
+export * from "./app-messages.js";
+
 export class CustdClient {
   public readonly admin: AdminNamespace;
   public readonly provisioning: ProvisioningNamespace;
   public readonly reporting: ReportingNamespace;
   public readonly schemas: SchemaNamespace;
   public readonly analytics: AnalyticsEventClient;
+  public readonly appMessages: AppMessageClient;
   public readonly parsers: ParserClient;
   public readonly measurement: MeasurementClient;
   public readonly ingestOperations: IngestOperationsClient;
@@ -3208,6 +3212,15 @@ export class CustdClient {
     this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
     this.analytics = new AnalyticsEventClient((method, path, body, options) =>
       this.apiRequest(method, path, body, options),
+    );
+    this.appMessages = new AppMessageClient(
+      (method, path, body, options) => this.apiRequest(method, path, body, options),
+      async (path, options) => {
+        const response = await this.apiDownloadResponse(path, options);
+        if (options?.metadata) options.metadata.requestId = response.headers.get(REQUEST_ID_HEADER) ?? "";
+        if (!response.ok) throw await responseRequestError(response, "request_failed");
+        return response;
+      },
     );
     this.parsers = new ParserClient((method, path, body, options) => this.apiRequest(method, path, body, options));
     this.measurement = new MeasurementClient((method, path, body, options) =>
@@ -3752,13 +3765,21 @@ export class CustdClient {
     if (!response.ok) throw await responseRequestError(response, "request_failed");
   }
 
-  private async apiDownload(path: string, options?: RequestOptions): Promise<Uint8Array> {
+  private async apiDownloadResponse(path: string, options?: RequestOptions): Promise<Response> {
     const token = await this.getToken(options);
-    const response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
-      signal: options?.signal,
-    });
+    try {
+      return await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
+        signal: options?.signal,
+      });
+    } catch (error) {
+      throw transportRequestError(error);
+    }
+  }
+
+  private async apiDownload(path: string, options?: RequestOptions): Promise<Uint8Array> {
+    const response = await this.apiDownloadResponse(path, options);
     if (!response.ok) throw new Error(`custd: report export download failed with status ${response.status}`);
     const declared = Number(response.headers.get("content-length") ?? "0");
     if (declared > 64 * 1024 * 1024) throw new Error("custd: report export download exceeds 64 MiB");

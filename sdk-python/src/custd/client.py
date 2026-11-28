@@ -1022,6 +1022,9 @@ class CustdClient:
         from .analytics_events import AnalyticsEventClient
 
         self.analytics = AnalyticsEventClient(self, recorded_admin_transport)
+        from .app_messages import AppMessageClient
+
+        self.app_messages = AppMessageClient(self, recorded_admin_transport)
         from .parsers import ParserClient
 
         self.parsers = ParserClient(self, recorded_admin_transport)
@@ -2863,13 +2866,17 @@ def _send_admin(
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            is_binary = "/artifacts/" in url or (method == "GET" and url.endswith("/api/v1/app/profile/photo"))
+            archive_media = method == "GET" and "/api/v1/app/messages/" in url and "/media/" in url
+            is_binary = archive_media or "/artifacts/" in url or (
+                method == "GET" and url.endswith("/api/v1/app/profile/photo")
+            )
+            limit = 10 * 1024 * 1024 if archive_media else 64 * 1024 * 1024
             declared = response.headers.get("Content-Length") if is_binary else None
-            if declared is not None and declared.isdigit() and int(declared) > 64 * 1024 * 1024:
-                raise RequestError("custd: binary admin response exceeds 64 MiB")
-            raw = response.read(64 * 1024 * 1024 + 1) if is_binary else response.read()
-            if is_binary and len(raw) > 64 * 1024 * 1024:
-                raise RequestError("custd: binary admin response exceeds 64 MiB")
+            if declared is not None and declared.isdigit() and int(declared) > limit:
+                raise RequestError(f"custd: binary admin response exceeds {limit} bytes")
+            raw = response.read(limit + 1) if is_binary else response.read()
+            if is_binary and len(raw) > limit:
+                raise RequestError(f"custd: binary admin response exceeds {limit} bytes")
             body = raw if is_binary else raw.decode("utf-8")
             response_headers = {str(key): str(value) for key, value in response.headers.items()}
             return {"status": response.status, "body": body, "headers": response_headers}

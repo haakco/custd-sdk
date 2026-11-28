@@ -16,6 +16,7 @@ import {
 import { installBrowserGlobals } from "./browser-globals.test-helper";
 import { CustdClient, type SubjectInsightRequest } from "./index";
 import { auditFilter, type Clients, dto, type Row, type RowArea, usageWindow } from "./surface-conformance.test-helper";
+import { appMessageRows } from "./surface-rows-app-messages.test-helper";
 import { coreRows } from "./surface-rows-core.test-helper";
 import { ingestRows } from "./surface-rows-ingest.test-helper";
 import { measurementRows } from "./surface-rows-measurement.test-helper";
@@ -2322,6 +2323,7 @@ const baselineDecoded = [
 const areas: RowArea[] = [
   { rows: baselineRows, decoded: baselineDecoded },
   coreRows,
+  appMessageRows,
   ingestRows,
   measurementRows,
   notifyRows,

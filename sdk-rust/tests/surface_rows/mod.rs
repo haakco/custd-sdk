@@ -7,6 +7,7 @@ mod admin_users;
 mod analytics_events;
 mod analytics_reads;
 mod app_item_runs;
+mod app_messages;
 mod app_profile;
 mod audit_accounting;
 mod auth_project_directories;
@@ -145,6 +146,7 @@ pub fn admin_rows() -> Vec<Row> {
     rows.extend(auth_projects::rows());
     rows.extend(auth_project_domains::rows());
     rows.extend(app_profile::rows());
+    rows.extend(app_messages::rows());
     rows.extend(auth_project_directories::rows());
     rows.extend(auth_project_releases::rows());
     rows.extend(producers::rows());
