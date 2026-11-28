@@ -18,6 +18,7 @@ pub struct AppMessagesSession {
     pub company_slug: String,
     pub principal_id: String,
     pub import_allowed: bool,
+    pub whatsapp_source_generation: Option<i64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -53,6 +54,8 @@ pub struct AppMessageInput {
 pub struct AppMessagesBatchRequest {
     pub source: AppMessageSource,
     pub messages: Vec<AppMessageInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_generation: Option<i64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -105,6 +108,7 @@ pub struct AppMessageMutation {
 pub struct AppMessagesMutationRequest {
     pub source: AppMessageSource,
     pub mutations: Vec<AppMessageMutation>,
+    pub source_generation: i64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -179,6 +183,35 @@ impl CustdClient {
         message_uuid: &str,
         image: Vec<u8>,
     ) -> Result<AppMessageMedia> {
+        self.upload_app_message_media_inner(message_uuid, image, &[])
+    }
+
+    /// Attach native WhatsApp media to the pinned generation of the private source.
+    pub fn upload_app_message_media_with_generation(
+        &self,
+        message_uuid: &str,
+        image: Vec<u8>,
+        generation: i64,
+    ) -> Result<AppMessageMedia> {
+        if generation <= 0 {
+            return Err(Error::InvalidInput(
+                "archive source generation must be positive".to_owned(),
+            ));
+        }
+        let generation = generation.to_string();
+        self.upload_app_message_media_inner(
+            message_uuid,
+            image,
+            &[("X-Custd-Source-Generation", &generation)],
+        )
+    }
+
+    fn upload_app_message_media_inner(
+        &self,
+        message_uuid: &str,
+        image: Vec<u8>,
+        headers: &[(&'static str, &str)],
+    ) -> Result<AppMessageMedia> {
         if message_uuid.len() != 36
             || !message_uuid
                 .bytes()
@@ -193,9 +226,10 @@ impl CustdClient {
             ));
         }
         let path = format!("{ARCHIVE_PATH}/{message_uuid}/media");
-        let response = self.send_bytes(
+        let response = self.send_bytes_with_headers(
             Method::Put,
             &path,
+            headers,
             Some(("application/octet-stream", image)),
         )?;
         decode(&response.body)

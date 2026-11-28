@@ -21,7 +21,7 @@ fn imports_messages_and_uploads_the_original_to_the_acknowledged_message() {
     let server = FakeServer::start(vec![
         answer(
             200,
-            r#"{"companySlug":"acme","principalId":"person-1","importAllowed":true}"#,
+            r#"{"companySlug":"acme","principalId":"person-1","importAllowed":true,"whatsappSourceGeneration":3}"#,
         ),
         answer(200, &outcomes.to_string()),
         answer(
@@ -34,6 +34,7 @@ fn imports_messages_and_uploads_the_original_to_the_acknowledged_message() {
     assert_eq!(session.company_slug, "acme");
     assert_eq!(session.principal_id, "person-1");
     assert!(session.import_allowed);
+    assert_eq!(session.whatsapp_source_generation, Some(3));
 
     let message = AppMessageInput {
         external_id: "native-1".to_owned(),
@@ -46,6 +47,7 @@ fn imports_messages_and_uploads_the_original_to_the_acknowledged_message() {
     };
     let batch = client
         .import_app_messages_batch(&AppMessagesBatchRequest {
+            source_generation: Some(3),
             source: AppMessageSource::WhatsApp,
             messages: vec![
                 message.clone(),
@@ -79,9 +81,10 @@ fn imports_messages_and_uploads_the_original_to_the_acknowledged_message() {
         Err(Error::InvalidInput(_))
     ));
     let media = client
-        .upload_app_message_media(
+        .upload_app_message_media_with_generation(
             batch.results[0].message_uuid.as_deref().unwrap(),
             IMAGE.to_vec(),
+            3,
         )
         .unwrap();
     assert_eq!(media.media_uuid, "image-1");
@@ -102,6 +105,7 @@ fn imports_messages_and_uploads_the_original_to_the_acknowledged_message() {
     assert_eq!(batch.header("content-type"), Some("application/json"));
     let body: Value = serde_json::from_str(&batch.body).unwrap();
     assert_eq!(body["source"], "whatsapp");
+    assert_eq!(body["sourceGeneration"], 3);
     assert_eq!(
         body["messages"][0],
         json!({
@@ -112,6 +116,7 @@ fn imports_messages_and_uploads_the_original_to_the_acknowledged_message() {
     );
     assert_eq!(body["messages"][1]["externalId"], "native-2");
     assert_eq!(upload.method, "PUT");
+    assert_eq!(upload.header("x-custd-source-generation"), Some("3"));
     assert_eq!(
         upload.target,
         format!("/api/v1/app/messages/{MESSAGE_UUID}/media")
@@ -151,6 +156,7 @@ fn sends_ordered_archive_mutations_and_decodes_each_result() {
     };
     let response = client
         .mutate_app_messages(&AppMessagesMutationRequest {
+            source_generation: 3,
             source: AppMessageSource::WhatsApp,
             mutations: vec![
                 edit.clone(),
@@ -191,6 +197,7 @@ fn sends_ordered_archive_mutations_and_decodes_each_result() {
     assert_eq!(request.method, "POST");
     assert_eq!(request.target, "/api/v1/app/messages/mutations");
     let body: Value = serde_json::from_str(&request.body).unwrap();
+    assert_eq!(body["sourceGeneration"], 3);
     assert_eq!(body["source"], "whatsapp");
     assert_eq!(
         body["mutations"][0],
