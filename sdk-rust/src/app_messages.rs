@@ -22,6 +22,52 @@ pub struct AppMessagesSession {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AppMessageConnectorState {
+    Active,
+    Paused,
+    Stale,
+    Disconnected,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AppMessageConnectorConnection {
+    Connecting,
+    ImportingHistory,
+    Syncing,
+    Offline,
+    PairAgain,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppMessageConnectorStatus {
+    pub state: AppMessageConnectorState,
+    pub grant_id: Option<String>,
+    pub source_generation: Option<i64>,
+    pub connection_state: Option<AppMessageConnectorConnection>,
+    pub pending_media: Option<i64>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    pub last_report_at: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppMessageConnectorEnrollment {
+    pub status: AppMessageConnectorStatus,
+    pub bearer_token: String,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppMessageConnectorReport {
+    pub connection_state: AppMessageConnectorConnection,
+    pub pending_media: i64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AppMessageSource {
     Sms,
@@ -151,6 +197,36 @@ impl CustdClient {
     /// Verify the company, owner and import access granted by the current bearer token.
     pub fn get_app_messages_session(&self) -> Result<AppMessagesSession> {
         self.call(Method::Get, &format!("{ARCHIVE_PATH}/session"), NO_BODY)
+    }
+
+    /// Replace the owner's WhatsApp connector grant. Requires the human bearer.
+    pub fn enroll_app_message_connector(&self) -> Result<AppMessageConnectorEnrollment> {
+        self.call(
+            Method::Post,
+            &format!("{ARCHIVE_PATH}/connector/enroll"),
+            NO_BODY,
+        )
+    }
+
+    /// Verify the archive identity and generation for the scoped connector bearer.
+    pub fn get_app_message_connector_session(&self) -> Result<AppMessagesSession> {
+        self.call(
+            Method::Get,
+            &format!("{ARCHIVE_PATH}/connector/session"),
+            NO_BODY,
+        )
+    }
+
+    /// Report metadata-only connection and media progress using the scoped bearer.
+    pub fn report_app_message_connector(
+        &self,
+        report: &AppMessageConnectorReport,
+    ) -> Result<AppMessageConnectorStatus> {
+        self.call(
+            Method::Post,
+            &format!("{ARCHIVE_PATH}/connector/report"),
+            Some(report),
+        )
     }
 
     /// Import messages from one source and receive the outcome for each item in request order.

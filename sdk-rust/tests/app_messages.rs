@@ -1,6 +1,7 @@
 mod support;
 
 use custd_sdk::{
+    AppMessageConnectorConnection, AppMessageConnectorReport, AppMessageConnectorState,
     AppMessageDirection, AppMessageImportStatus, AppMessageInput, AppMessageMutation,
     AppMessageMutationKind, AppMessageMutationStatus, AppMessageSource, AppMessagesBatchRequest,
     AppMessagesMutationRequest, CustdClient, Error,
@@ -10,6 +11,56 @@ use support::{FakeServer, answer};
 
 const MESSAGE_UUID: &str = "0198a3b2-0000-7000-8000-000000000070";
 const IMAGE: &[u8] = b"\0synthetic image\r\n";
+
+#[test]
+fn enrolls_with_the_owner_and_reports_with_the_connector_bearer() {
+    let server = FakeServer::start(vec![
+        answer(
+            200,
+            r#"{"status":{"state":"active","grantId":"grant-1","sourceGeneration":3},"bearerToken":"scoped-token"}"#,
+        ),
+        answer(
+            200,
+            r#"{"companySlug":"acme","principalId":"person-1","importAllowed":true,"whatsappSourceGeneration":3}"#,
+        ),
+        answer(
+            200,
+            r#"{"state":"active","grantId":"grant-1","sourceGeneration":3,"connectionState":"syncing","pendingMedia":2}"#,
+        ),
+    ]);
+    let owner = CustdClient::new(&server.base_url, "owner-token");
+    let enrollment = owner.enroll_app_message_connector().unwrap();
+    assert_eq!(enrollment.status.state, AppMessageConnectorState::Active);
+    assert_eq!(enrollment.status.grant_id.as_deref(), Some("grant-1"));
+    assert_eq!(enrollment.status.source_generation, Some(3));
+    let connector = CustdClient::new(&server.base_url, enrollment.bearer_token);
+    let session = connector.get_app_message_connector_session().unwrap();
+    assert_eq!(session.principal_id, "person-1");
+    let result = connector
+        .report_app_message_connector(&AppMessageConnectorReport {
+            connection_state: AppMessageConnectorConnection::Syncing,
+            pending_media: 2,
+        })
+        .unwrap();
+    assert_eq!(result.pending_media, Some(2));
+
+    let [enroll, session, report] = [server.next(), server.next(), server.next()];
+    assert_eq!(enroll.target, "/api/v1/app/messages/connector/enroll");
+    assert_eq!(enroll.method, "POST");
+    assert!(enroll.body.is_empty());
+    assert_eq!(enroll.header("authorization"), Some("Bearer owner-token"));
+    assert_eq!(session.target, "/api/v1/app/messages/connector/session");
+    assert_eq!(session.method, "GET");
+    assert!(session.body.is_empty());
+    assert_eq!(session.header("authorization"), Some("Bearer scoped-token"));
+    assert_eq!(report.target, "/api/v1/app/messages/connector/report");
+    assert_eq!(report.method, "POST");
+    assert_eq!(report.header("authorization"), Some("Bearer scoped-token"));
+    assert_eq!(
+        serde_json::from_str::<Value>(&report.body).unwrap(),
+        json!({"connectionState":"syncing","pendingMedia":2})
+    );
+}
 
 #[test]
 fn imports_messages_and_uploads_the_original_to_the_acknowledged_message() {
