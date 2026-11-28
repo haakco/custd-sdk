@@ -21,13 +21,10 @@ fn batch() -> SendEventsRequest {
 
 pub fn rows() -> Vec<Row> {
     vec![
-        sends(
-            "GET",
-            bodiless(
-                "ingest-api ANY /api/v1/account/me",
-                "/api/v1/account/me",
-                |c| drop(c.custd.get_current_account()),
-            ),
+        bodiless(
+            "ingest-api GET /api/v1/account/me",
+            "/api/v1/account/me",
+            |c| drop(c.custd.get_current_account()),
         ),
         bodiless("ingest-api POST /api/v1/events", "/api/v1/events", |c| {
             drop(c.custd.send_event(&EventEnvelope::default()))

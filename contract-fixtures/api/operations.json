@@ -4,7 +4,7 @@
     "sha256": {
       "admin-api.openapi.yaml": "842678eb8f0cb690f18f231880bf9a4a5dab9c31e19ba5ee6b4e6c03ca0f381c",
       "analytics-api.openapi.yaml": "e521f61d1cffb8c8a9fdd7f4d50e2afbfad93f83e8a295b9dc6398dde3747997",
-      "api-operations.json": "bd8fcba58aff2dab79fde921075c488f32a5e8196403903f3962e27a9c2d4036"
+      "api-operations.json": "90309ef6488c0a8a477e7a03f6c52b1f8506d38f8097ec81b2f11d81d49c9f51"
     }
   },
   "operations": [
@@ -9155,13 +9155,6 @@
       "sdk": "required"
     },
     {
-      "id": "ingest-api ANY /api/v1/account/me",
-      "service": "ingest-api",
-      "method": "ANY",
-      "path": "/api/v1/account/me",
-      "sdk": "required"
-    },
-    {
       "id": "ingest-api ANY /api/v1/errors/api/{project}/envelope/",
       "service": "ingest-api",
       "method": "ANY",
@@ -9271,6 +9264,13 @@
       "path": "/readyz",
       "sdk": "excluded",
       "reason": "infrastructure, debug or private internal transport"
+    },
+    {
+      "id": "ingest-api GET /api/v1/account/me",
+      "service": "ingest-api",
+      "method": "GET",
+      "path": "/api/v1/account/me",
+      "sdk": "required"
     },
     {
       "id": "ingest-api GET /api/v1/admin/cleanup/plans",

@@ -2447,7 +2447,7 @@ ROUTES: dict[str, RouteCase] = {
     "ingest-api GET /api/v1/diagnostics/reporting": RouteCase(
         "/api/v1/diagnostics/reporting", lambda c: c.admin.ingest.diagnostics("reporting")
     ),
-    "ingest-api ANY /api/v1/account/me": RouteCase("/api/v1/account/me", lambda c: c.admin.get_account(), method="GET"),
+    "ingest-api GET /api/v1/account/me": RouteCase("/api/v1/account/me", lambda c: c.admin.get_account()),
     "ingest-api POST /api/v1/admin/cleanup": RouteCase("/api/v1/admin/cleanup", lambda c: c.admin.ingest.cleanup()),
     "ingest-api POST /api/v1/admin/integrity": RouteCase(
         "/api/v1/admin/integrity", lambda c: c.admin.ingest.check_integrity()
