@@ -278,6 +278,7 @@ export type StorefrontPurchaseHandoff = {
     expiresAt: string;
     invoiceUuid?: string;
     settled: boolean;
+    cancelled?: boolean;
 };
 export type BillingPartner = {
     partnerCompanyUuid: string;
@@ -414,6 +415,7 @@ export declare class StorefrontClient {
     constructor(request: StorefrontRequester);
     createPurchaseHandoff(storefront: string, input: CreateStorefrontPurchaseHandoff, options?: RequestOptions): Promise<StorefrontPurchaseHandoff>;
     getPurchaseHandoff(storefront: string, handoffUuid: string, options?: RequestOptions): Promise<StorefrontPurchaseHandoff>;
+    cancelPurchaseHandoff(storefront: string, handoffUuid: string, options?: RequestOptions): Promise<StorefrontPurchaseHandoff>;
     listBillingPartners(input: BillingPartnerPageRequest, options?: RequestOptions): Promise<BillingPartnerPage>;
     listBillingPartnerSellers(input: BillingPartnerPageRequest, options?: RequestOptions): Promise<BillingPartnerSellerPage>;
     getSellerSettlementPreference(sellerUuid: string, options?: RequestOptions): Promise<PartnerSettlementSelection>;

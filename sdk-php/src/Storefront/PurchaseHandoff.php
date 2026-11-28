@@ -17,6 +17,7 @@ final readonly class PurchaseHandoff
         public string $expiresAt,
         public ?string $invoiceUuid,
         public bool $settled,
+        public bool $cancelled = false,
     ) {
     }
 
@@ -31,6 +32,7 @@ final readonly class PurchaseHandoff
             Fields::string($payload, 'expiresAt'),
             Fields::optionalString($payload, 'invoiceUuid'),
             Fields::boolean($payload, 'settled'),
+            Fields::optionalBoolean($payload, 'cancelled') ?? false,
         );
     }
 }

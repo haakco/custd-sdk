@@ -294,6 +294,7 @@ export type StorefrontPurchaseHandoff = {
   expiresAt: string;
   invoiceUuid?: string;
   settled: boolean;
+  cancelled?: boolean;
 };
 
 const merchantPath = "/billing/merchant";
@@ -425,6 +426,21 @@ export class StorefrontClient {
     const handoff = await this.request<StorefrontPurchaseHandoff>(
       "GET",
       `/billing${storefrontPath(storefront, "purchase-handoffs", handoffUuid)}`,
+      undefined,
+      options,
+    );
+    validateMoney(handoff.amount);
+    return handoff;
+  }
+
+  async cancelPurchaseHandoff(
+    storefront: string,
+    handoffUuid: string,
+    options?: RequestOptions,
+  ): Promise<StorefrontPurchaseHandoff> {
+    const handoff = await this.request<StorefrontPurchaseHandoff>(
+      "POST",
+      `/billing${storefrontPath(storefront, "purchase-handoffs", handoffUuid, "cancel")}`,
       undefined,
       options,
     );

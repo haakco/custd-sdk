@@ -17,6 +17,11 @@ export class StorefrontClient {
         validateMoney(handoff.amount);
         return handoff;
     }
+    async cancelPurchaseHandoff(storefront, handoffUuid, options) {
+        const handoff = await this.request("POST", `/billing${storefrontPath(storefront, "purchase-handoffs", handoffUuid, "cancel")}`, undefined, options);
+        validateMoney(handoff.amount);
+        return handoff;
+    }
     listBillingPartners(input, options) {
         const query = input.after ? `?${new URLSearchParams({ after: input.after })}` : "";
         return this.request("GET", billingPartnersPath + query, undefined, options);

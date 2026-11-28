@@ -27,6 +27,11 @@ final class Client
         return PurchaseHandoff::fromPayload($this->http->object('GET', self::handoffPath($storefront) . '/' . rawurlencode($handoffUuid)));
     }
 
+    public function cancelPurchaseHandoff(string $storefront, string $handoffUuid): PurchaseHandoff
+    {
+        return PurchaseHandoff::fromPayload($this->http->object('POST', self::handoffPath($storefront) . '/' . rawurlencode($handoffUuid) . '/cancel'));
+    }
+
     private static function handoffPath(string $storefront): string
     {
         return '/api/v1/billing/storefronts/' . rawurlencode($storefront) . '/purchase-handoffs';
