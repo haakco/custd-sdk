@@ -18,6 +18,7 @@ func TestAppReleaseOperationsSendTheirRoutes(t *testing.T) {
 		method  string
 		url     string
 		content string
+		label   string
 	}{
 		{
 			name: "list", body: `{"releases":[{"releaseId":"r1","state":"verified","active":true,"fileCount":2,"totalBytes":10,"createdAt":"2026-11-17T00:00:00Z"}]}`,
@@ -36,10 +37,11 @@ func TestAppReleaseOperationsSendTheirRoutes(t *testing.T) {
 				_, err := c.CreateAppRelease(context.Background(), "project-1", "environment-1", AppReleaseCreateRequest{
 					Files:   []AppReleaseFile{{Path: "index.html", Size: 4, SHA256: "ab", ContentType: "text/html"}},
 					Routing: AppReleaseRouting{SPAFallbacks: []AppReleaseSPAFallback{{Prefix: "/", File: "index.html"}}},
+					Label:   "abc1234 Update Messages",
 				}, options)
 				return err
 			},
-			method: http.MethodPost, url: appReleasesURL, content: "application/json",
+			method: http.MethodPost, url: appReleasesURL, content: "application/json", label: "abc1234 Update Messages",
 		},
 		{
 			name: "upload", body: `{"path":"assets/a b.js","size":3,"sha256":"cd"}`,
@@ -89,6 +91,14 @@ func TestAppReleaseOperationsSendTheirRoutes(t *testing.T) {
 			}
 			if test.content != "" && req.Header("Content-Type") != test.content {
 				t.Fatalf("content type = %q, want %q", req.Header("Content-Type"), test.content)
+			}
+			if test.label != "" {
+				var body struct {
+					Label string `json:"label"`
+				}
+				if err := json.Unmarshal(req.Body, &body); err != nil || body.Label != test.label {
+					t.Fatalf("release label = %q, want %q (decode error: %v)", body.Label, test.label, err)
+				}
 			}
 		})
 	}
