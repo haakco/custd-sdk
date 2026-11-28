@@ -132,6 +132,15 @@ pub use app_meetings::{
     AppMeetingAllocationChange, AppMeetingBlock, AppMeetingBlockCreate, AppMeetingCreate,
     AppMeetingMinutes, AppMeetingMinutesUpdate, AppMeetingSummary, AppPlanMeetingSummary,
 };
+pub use app_messages::connector::{
+    APP_MESSAGES_MAX_BATCH_BYTES, APP_MESSAGES_MAX_BATCH_MESSAGES, AppMessageConnectorConnection,
+    AppMessageConnectorEnrollment, AppMessageConnectorImportResult, AppMessageConnectorInput,
+    AppMessageConnectorReport, AppMessageConnectorState, AppMessageConnectorStatus,
+    AppMessageDirection, AppMessageImportStatus, AppMessageMutation, AppMessageMutationKind,
+    AppMessageMutationResult, AppMessageMutationStatus, AppMessagesBatchRequest,
+    AppMessagesBatchResponse, AppMessagesMutationRequest, AppMessagesMutationResponse,
+    AppMessagesSession,
+};
 pub use app_messages::{
     AppMessage, AppMessageBatchRequest, AppMessageBatchResponse, AppMessageDeleteSourceResponse,
     AppMessageImportResult, AppMessageInput, AppMessageMedia, AppMessageMediaMetadata,

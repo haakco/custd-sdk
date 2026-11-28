@@ -1,4 +1,6 @@
 //! The signed-in tenant user's private message archive.
+pub(crate) mod connector;
+
 use std::io::Read;
 
 use serde::{Deserialize, Serialize};
@@ -206,15 +208,24 @@ impl CustdClient {
         &self,
         upload: AppMessageMediaUpload,
     ) -> Result<AppMessageMediaMetadata> {
+        self.upload_app_message_media_inner(upload, &[])
+    }
+
+    fn upload_app_message_media_inner(
+        &self,
+        upload: AppMessageMediaUpload,
+        headers: &[(&'static str, &str)],
+    ) -> Result<AppMessageMediaMetadata> {
         if upload.image.is_empty() || upload.image.len() > MAX_MEDIA_BYTES {
             return Err(Error::InvalidInput(
                 "archive image must contain 1 byte to 10 MiB".into(),
             ));
         }
         let path = format!("{ROOT}/{}/media", percent_encode(&upload.message_uuid));
-        let response = self.send_bytes(
+        let response = self.send_bytes_with_headers(
             Method::Put,
             &path,
+            headers,
             Some(("application/octet-stream", upload.image)),
         )?;
         decode(&response.body)
