@@ -11,7 +11,7 @@ final class CustdClient
      * equals VERSION and scripts/bump-version.sh updates it, so a release cannot
      * leave it behind.
      */
-    public const VERSION = "3.93.0";
+    public const VERSION = "3.94.0";
 
     /** Product named in X-Custd-Sdk. The Laravel and WordPress wrappers override it. */
     public const PRODUCT = "php";
@@ -458,6 +458,12 @@ final class CustdClient
     public function appProfile(string|callable $accessToken): App\AppProfileClient
     {
         return new App\AppProfileClient($this->baseUrl, $accessToken, $this->adminHttpClient);
+    }
+
+    /** The message archive of the tenant user authenticated by this client. */
+    public function appMessages(): App\AppMessageClient
+    {
+        return new App\AppMessageClient($this->baseUrl, $this->authToken(...), $this->adminHttpClient);
     }
 
     /** The routes that take no client credential, such as a hosted app's discovery document. */

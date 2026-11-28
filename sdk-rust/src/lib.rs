@@ -46,6 +46,7 @@ mod app_account_entry;
 mod app_alerts;
 mod app_item_runs;
 mod app_meetings;
+mod app_messages;
 mod app_models;
 mod app_profile;
 mod app_story;
@@ -129,6 +130,12 @@ pub use app_meetings::{
     APP_ITEM_MEETING_STEP_REFUSED, AppMeeting, AppMeetingAction, AppMeetingAdjustment,
     AppMeetingAllocationChange, AppMeetingBlock, AppMeetingBlockCreate, AppMeetingCreate,
     AppMeetingMinutes, AppMeetingMinutesUpdate, AppMeetingSummary, AppPlanMeetingSummary,
+};
+pub use app_messages::{
+    AppMessage, AppMessageBatchRequest, AppMessageBatchResponse, AppMessageDeleteSourceResponse,
+    AppMessageImportResult, AppMessageInput, AppMessageMedia, AppMessageMediaMetadata,
+    AppMessageMediaRef, AppMessageMediaUpload, AppMessageReadResponse, AppMessageSearchRequest,
+    AppMessageSearchResponse, AppMessageSession, AppMessageSource,
 };
 pub use app_models::{
     AppModelHistogram, AppModelPercentiles, AppModelQuantityError, AppModelQuantityResult,

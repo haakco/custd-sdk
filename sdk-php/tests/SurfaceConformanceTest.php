@@ -11,6 +11,7 @@ use HaakCo\Custd\Admin\ReportingPack as RP;
 use HaakCo\Custd\Admin\SiteDomain as SD;
 use HaakCo\Custd\Admin\TimePlan as TP;
 use HaakCo\Custd\Admin\WorkflowTiming as WT;
+use HaakCo\Custd\App as App;
 use HaakCo\Custd\App\AppProfilePhoto;
 use HaakCo\Custd\Analytics\RangeQueryRequest;
 use HaakCo\Custd\CustdClient;
@@ -239,6 +240,13 @@ final class SurfaceConformanceTest extends TestCase
         $saveParser = new SaveParserRequest('code', 'Name', 'regex', '^\S+', '2006-01-02T15:04:05Z07:00');
 
         $rows = [
+            ['admin-api GET /api/v1/app/messages/session', 'GET', [], fn (CustdClient $c) => $c->appMessages()->session()],
+            ['admin-api POST /api/v1/app/messages/batch', 'POST', [], fn (CustdClient $c) => $c->appMessages()->import(new App\AppMessageBatchRequest(App\AppMessageSource::Sms, []))],
+            ['admin-api POST /api/v1/app/messages/search', 'POST', [], fn (CustdClient $c) => $c->appMessages()->search(new App\AppMessageSearchRequest(query: 'test'))],
+            ['admin-api GET /api/v1/app/messages/{messageUuid}', 'GET', ['messageUuid' => self::A], fn (CustdClient $c) => $c->appMessages()->get(self::A)],
+            ['admin-api DELETE /api/v1/app/messages/sources/{source}', 'DELETE', ['source' => 'sms'], fn (CustdClient $c) => $c->appMessages()->deleteSource(App\AppMessageSource::Sms)],
+            ['admin-api PUT /api/v1/app/messages/{messageUuid}/media', 'PUT', ['messageUuid' => self::A], fn (CustdClient $c) => $c->appMessages()->uploadMedia(new App\AppMessageMediaUpload(self::A, 'jpeg'))],
+            ['admin-api GET /api/v1/app/messages/{messageUuid}/media/{mediaUuid}', 'GET', ['messageUuid' => self::A, 'mediaUuid' => self::B], fn (CustdClient $c) => $c->appMessages()->downloadMedia(new App\AppMessageMediaRef(self::A, self::B))],
             ['admin-api GET /api/v1/admin/site-insights/tasks', 'GET', [], fn (CustdClient $c) => $c->adminSiteDomains()->getSiteInsightsTasks()],
             ['admin-api GET /api/v1/site-domains', 'GET', [], fn (CustdClient $c) => $c->adminSiteDomains()->list()],
             ['admin-api GET /api/v1/site-domains/{domainUuid}', 'GET', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->get(self::A)],

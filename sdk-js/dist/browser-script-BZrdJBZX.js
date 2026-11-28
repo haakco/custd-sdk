@@ -57,57 +57,57 @@ function a() {
 function o(e, t, n) {
 	n !== void 0 && Number.isFinite(n) && n >= 0 && (e[t] = Math.round(n));
 }
+// src/response-lists.generated.ts
+var s = { "GET /api/v1/sites/{siteUuid}/config": ["allowedOrigins"] };
+// src/response-lists.ts
+function c(e) {
+	let t;
+	return function(n, r, i) {
+		t ??= u(e);
+		let [a = ""] = r.split("?", 1), o = t.find((e) => (e.method === n || e.method === "ANY") && e.pattern.test(a));
+		if (i === null && o?.fields.some((e) => e.length === 1 && e[0] === "[]")) return [];
+		for (let e of o?.fields ?? []) p(i, e, 0);
+		return i;
+	};
+}
+var l = /* @__PURE__ */ c(s);
+function u(e) {
+	return Object.entries(e).map(([e, t]) => {
+		let [n = "", r = ""] = e.split(" "), i = r.split("/").map((e) => /^\{[^}]+\}$/.test(e) ? "[^/]+" : f(e));
+		return {
+			method: n,
+			pattern: RegExp(`^${i.join("/")}$`),
+			parameters: i.filter((e) => e === "[^/]+").length,
+			fields: t.map((e) => e.split(".").flatMap(d))
+		};
+	}).sort((e, t) => e.parameters - t.parameters);
+}
+function d(e) {
+	let t = e.replace(/(\[\])+$/, ""), n = (e.length - t.length) / 2;
+	return [...t ? [t] : [], ...Array(n).fill("[]")];
+}
+function f(e) {
+	return e.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function p(e, t, n) {
+	let r = t[n];
+	if (r === "[]") {
+		if (Array.isArray(e)) for (let r of e) p(r, t, n + 1);
+		return;
+	}
+	if (r === void 0 || typeof e != "object" || !e || Array.isArray(e)) return;
+	let i = e;
+	n === t.length - 1 ? i[r] === null && (i[r] = []) : p(i[r], t, n + 1);
+}
 // src/secure-url.ts
-var s = [
+var m = [
 	"localhost",
 	"127.0.0.1",
 	"[::1]",
 	"host.docker.internal"
 ];
-function c(e) {
-	return s.includes(e);
-}
-// src/response-lists.generated.ts
-var l = { "GET /api/v1/sites/{siteUuid}/config": ["allowedOrigins"] };
-// src/response-lists.ts
-function u(e) {
-	let t;
-	return function(n, r, i) {
-		t ??= f(e);
-		let [a = ""] = r.split("?", 1), o = t.find((e) => (e.method === n || e.method === "ANY") && e.pattern.test(a));
-		if (i === null && o?.fields.some((e) => e.length === 1 && e[0] === "[]")) return [];
-		for (let e of o?.fields ?? []) m(i, e, 0);
-		return i;
-	};
-}
-var d = /* @__PURE__ */ u(l);
-function f(e) {
-	return Object.entries(e).map(([e, t]) => {
-		let [n = "", r = ""] = e.split(" "), i = r.split("/").map((e) => /^\{[^}]+\}$/.test(e) ? "[^/]+" : p(e));
-		return {
-			method: n,
-			pattern: RegExp(`^${i.join("/")}$`),
-			parameters: i.filter((e) => e === "[^/]+").length,
-			fields: t.map((e) => e.split(".").flatMap(ee))
-		};
-	}).sort((e, t) => e.parameters - t.parameters);
-}
 function ee(e) {
-	let t = e.replace(/(\[\])+$/, ""), n = (e.length - t.length) / 2;
-	return [...t ? [t] : [], ...Array(n).fill("[]")];
-}
-function p(e) {
-	return e.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function m(e, t, n) {
-	let r = t[n];
-	if (r === "[]") {
-		if (Array.isArray(e)) for (let r of e) m(r, t, n + 1);
-		return;
-	}
-	if (r === void 0 || typeof e != "object" || !e || Array.isArray(e)) return;
-	let i = e;
-	n === t.length - 1 ? i[r] === null && (i[r] = []) : m(i[r], t, n + 1);
+	return m.includes(e);
 }
 // src/index.ts
 var te = class {
@@ -490,7 +490,7 @@ async function pe(e) {
 async function me(e, t, n = (e, t) => globalThis.fetch(e, t)) {
 	let r = `/api/v1/sites/${encodeURIComponent(t)}/config`, i = await n(`${e.replace(/\/$/, "")}${r}`, { credentials: "omit" });
 	if (!i.ok) throw Error(`custd: site config request failed with status ${i.status}`);
-	return d("GET", r, await i.json());
+	return l("GET", r, await i.json());
 }
 function he(e) {
 	let t = {
@@ -700,7 +700,7 @@ function Le() {
 }
 function $(e, t) {
 	let n = new URL(e);
-	if (n.protocol !== "https:" && !(n.protocol === "http:" && c(n.hostname))) throw Error(`custd: ${t} must use https unless it targets localhost`);
+	if (n.protocol !== "https:" && !(n.protocol === "http:" && ee(n.hostname))) throw Error(`custd: ${t} must use https unless it targets localhost`);
 }
 function Re() {
 	return typeof crypto < "u" && typeof crypto.randomUUID == "function" ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (e) => (Number(e) ^ Math.random() * 16 >> Number(e) / 4).toString(16));

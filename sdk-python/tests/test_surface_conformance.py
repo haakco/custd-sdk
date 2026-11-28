@@ -207,6 +207,28 @@ def _track_in_batch() -> object:
 
 
 ROUTES: dict[str, RouteCase] = {
+    "admin-api GET /api/v1/app/messages/session": RouteCase(
+        "/api/v1/app/messages/session", lambda c: c.app_messages.session()
+    ),
+    "admin-api POST /api/v1/app/messages/batch": RouteCase(
+        "/api/v1/app/messages/batch", lambda c: c.app_messages.import_batch({"source": "sms", "messages": []})
+    ),
+    "admin-api POST /api/v1/app/messages/search": RouteCase(
+        "/api/v1/app/messages/search", lambda c: c.app_messages.search({"query": "test"})
+    ),
+    "admin-api GET /api/v1/app/messages/{messageUuid}": RouteCase(
+        f"/api/v1/app/messages/{U}", lambda c: c.app_messages.get(U)
+    ),
+    "admin-api DELETE /api/v1/app/messages/sources/{source}": RouteCase(
+        "/api/v1/app/messages/sources/sms", lambda c: c.app_messages.delete_source("sms")
+    ),
+    "admin-api PUT /api/v1/app/messages/{messageUuid}/media": RouteCase(
+        f"/api/v1/app/messages/{U}/media", lambda c: c.app_messages.upload_media({"messageUuid": U, "image": b"jpeg"})
+    ),
+    "admin-api GET /api/v1/app/messages/{messageUuid}/media/{mediaUuid}": RouteCase(
+        f"/api/v1/app/messages/{U}/media/{U}",
+        lambda c: c.app_messages.download_media({"messageUuid": U, "mediaUuid": U}),
+    ),
     "admin-api GET /api/v1/public-status-pages/{key}": RouteCase(
         "/api/v1/public-status-pages/page-key", lambda c: read_public_status_page(BASE_URL, "page-key")
     ),

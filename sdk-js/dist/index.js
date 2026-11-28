@@ -10,6 +10,7 @@ import { SiteDomainAdminClient } from "./admin-site-domains.js";
 import { SiteInsightsAdminClient } from "./admin-site-insights-tasks.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+import { AppMessageClient } from "./app-messages.js";
 import { responseDownloadStream } from "./download-stream.js";
 import { isLocalHostname } from "./secure-url.js";
 import { StorefrontClient } from "./storefront.js";
@@ -221,6 +222,7 @@ export class LocalStorageQueueStorage {
         localStorage.removeItem(this.key);
     }
 }
+export * from "./app-messages.js";
 export class CustdClient {
     constructor(config) {
         this.queue = [];
@@ -261,6 +263,14 @@ export class CustdClient {
         this.storefronts = new StorefrontClient((method, path, body, options) => this.apiRequest(method, path, body, options));
         this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
         this.analytics = new AnalyticsEventClient((method, path, body, options) => this.apiRequest(method, path, body, options));
+        this.appMessages = new AppMessageClient((method, path, body, options) => this.apiRequest(method, path, body, options), async (path, options) => {
+            const response = await this.apiDownloadResponse(path, options);
+            if (options?.metadata)
+                options.metadata.requestId = response.headers.get(REQUEST_ID_HEADER) ?? "";
+            if (!response.ok)
+                throw await responseRequestError(response, "request_failed");
+            return response;
+        });
         this.parsers = new ParserClient((method, path, body, options) => this.apiRequest(method, path, body, options));
         this.measurement = new MeasurementClient((method, path, body, options) => this.apiRequest(method, path, body, options));
         this.ingestOperations = new IngestOperationsClient((method, path, body, options, headers) => this.apiRequest(method, path, body, options, headers), this.actingCompanySlug);
@@ -736,13 +746,21 @@ export class CustdClient {
         if (!response.ok)
             throw await responseRequestError(response, "request_failed");
     }
-    async apiDownload(path, options) {
+    async apiDownloadResponse(path, options) {
         const token = await this.getToken(options);
-        const response = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
-            method: "GET",
-            headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
-            signal: options?.signal,
-        });
+        try {
+            return await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
+                method: "GET",
+                headers: { Authorization: `Bearer ${token}`, ...this.defaultHeaders },
+                signal: options?.signal,
+            });
+        }
+        catch (error) {
+            throw transportRequestError(error);
+        }
+    }
+    async apiDownload(path, options) {
+        const response = await this.apiDownloadResponse(path, options);
         if (!response.ok)
             throw new Error(`custd: report export download failed with status ${response.status}`);
         const declared = Number(response.headers.get("content-length") ?? "0");

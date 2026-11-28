@@ -1711,6 +1711,7 @@ export const APP_RESPONSE_LISTS: ResponseListTable = {
   "GET /api/v1/app/item/plan/forecast": ["missingParts", "observedProgress", "projectedProgress"],
   "GET /api/v1/app/item/runs": ["runs"],
   "GET /api/v1/app/items": ["items"],
+  "GET /api/v1/app/messages/{messageUuid}": ["message.media", "message.participants"],
   "GET /api/v1/app/models/latest": [
     "boundInputs",
     "information.inputs",
@@ -1953,6 +1954,8 @@ export const APP_RESPONSE_LISTS: ResponseListTable = {
     "item.uncertaintyModel.version.quantities",
     "item.uncertaintyModel.version.quantities[].input.samples",
   ],
+  "POST /api/v1/app/messages/batch": ["results"],
+  "POST /api/v1/app/messages/search": ["messages", "messages[].media", "messages[].participants"],
   "POST /api/v1/app/models/calculate": ["quantities", "quantities[].summary.histogram.counts"],
   "POST /api/v1/app/models/runs": [
     "boundInputs",

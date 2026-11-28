@@ -10,6 +10,7 @@ import { SiteDomainAdminClient } from "./admin-site-domains.js";
 import { SiteInsightsAdminClient } from "./admin-site-insights-tasks.js";
 import { SubjectExportClient } from "./admin-subject-exports.js";
 import { TenantStorageClient } from "./admin-tenant-storage.js";
+import { AppMessageClient } from "./app-messages.js";
 import { type CustdDownloadStream } from "./download-stream.js";
 import { StorefrontClient } from "./storefront.js";
 export { AUTH_PROJECT_DOMAIN_CONVERGENCES, AUTH_PROJECT_DOMAIN_IMAGE_COMPONENTS, AUTH_PROJECT_DOMAIN_IMAGE_SOURCES, AUTH_PROJECT_DOMAIN_LIFECYCLES, AUTH_PROJECT_DOMAIN_STATUSES, type AuthProjectAppLink, type AuthProjectAppLinkList, type AuthProjectBrandLogo, type AuthProjectDomainBinding, type AuthProjectDomainBindRequest, type AuthProjectDomainConvergence, type AuthProjectDomainDNSProof, type AuthProjectDomainImageComponent, type AuthProjectDomainImageOverride, type AuthProjectDomainImageOverrideRequest, type AuthProjectDomainImageSet, type AuthProjectDomainImageSource, type AuthProjectDomainImages, type AuthProjectDomainLifecycle, type AuthProjectDomainMintRequest, type AuthProjectDomainStatus, } from "./admin-auth-project-domain.js";
@@ -1891,12 +1892,14 @@ export declare class LocalStorageQueueStorage implements QueueStorage {
     save(events: EventEnvelope[]): void;
     clear(): void;
 }
+export * from "./app-messages.js";
 export declare class CustdClient {
     readonly admin: AdminNamespace;
     readonly provisioning: ProvisioningNamespace;
     readonly reporting: ReportingNamespace;
     readonly schemas: SchemaNamespace;
     readonly analytics: AnalyticsEventClient;
+    readonly appMessages: AppMessageClient;
     readonly parsers: ParserClient;
     readonly measurement: MeasurementClient;
     readonly ingestOperations: IngestOperationsClient;
@@ -1966,6 +1969,7 @@ export declare class CustdClient {
      */
     redeemSiteAIOwnerHandoff(handoff: SiteAIOwnerHandoff, hubOrigin: string, options?: RequestOptions): Promise<SiteAIOwnerSession>;
     private publicWrite;
+    private apiDownloadResponse;
     private apiDownload;
 }
 type AdminRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
