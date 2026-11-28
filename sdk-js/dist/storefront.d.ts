@@ -1,4 +1,6 @@
 import type { RequestOptions } from "./index.js";
+import type { EnrollUsageRequest, IssueUsageResult, PublishUsageTariffRequest, StorefrontUsagePageRequest, UsageCertificate, UsageEnrollment, UsageEnrollmentPage, UsageTariffPage, UsageTariffRevision } from "./storefront-usage.js";
+export type * from "./storefront-usage.js";
 type StorefrontRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 /** An exact signed minor-unit count encoded as a decimal string. */
 export type StorefrontMoney = {
@@ -228,6 +230,7 @@ export type StorefrontPartnerEarning = {
     remainder: StorefrontMoney;
 };
 export type StorefrontPurchase = {
+    usage?: UsageCertificate;
     activationStatus?: "pending" | "applied" | "review_required";
     refund?: StorefrontRefund;
     invoiceUuid: string;
@@ -239,6 +242,52 @@ export type StorefrontPurchase = {
     paymentUrl?: string;
     receipt?: StorefrontReceipt;
     creditNote?: StorefrontCreditNote;
+};
+export type BillingPartner = {
+    partnerCompanyUuid: string;
+    name: string;
+    active: boolean;
+};
+export type BillingPartnerPageRequest = {
+    after?: string;
+};
+export type BillingPartnerPage = {
+    partners: BillingPartner[];
+    nextAfter?: string;
+};
+export type BillingPartnerInvitation = {
+    code: string;
+    expiresAt: string;
+};
+export type AcceptBillingPartnerInvitationRequest = {
+    code: string;
+};
+export type AcceptedBillingPartnerInvitation = {
+    sellerCompanyName: string;
+};
+export type PublishPartnerProductTermsRequest = {
+    partnerCompanyUuid: string;
+    effectiveFrom: string;
+    agreementDate: string;
+    agreementReference: string;
+    signedAgreementAttested: boolean;
+    unitCost: string;
+    sellerCut: string;
+};
+export type PartnerProductTermsVersion = PublishPartnerProductTermsRequest & {
+    termsUuid: string;
+    recordedByUserUuid: string;
+    currency: string;
+    holdDays: number;
+};
+export type PartnerProductTermsPageRequest = {
+    storefront: string;
+    offerUuid: string;
+    before?: string;
+};
+export type PartnerProductTermsPage = {
+    versions: PartnerProductTermsVersion[];
+    nextBefore?: string;
 };
 export type StorefrontBinding = {
     slug: string;
@@ -262,6 +311,17 @@ export type SelectStorefrontReceiptTemplate = {
 export declare class StorefrontClient {
     private readonly request;
     constructor(request: StorefrontRequester);
+    listBillingPartners(input: BillingPartnerPageRequest, options?: RequestOptions): Promise<BillingPartnerPage>;
+    createBillingPartnerInvitation(options?: RequestOptions): Promise<BillingPartnerInvitation>;
+    listPartnerProductTerms(input: PartnerProductTermsPageRequest, options?: RequestOptions): Promise<PartnerProductTermsPage>;
+    publishPartnerProductTerms(storefront: string, offerUuid: string, input: PublishPartnerProductTermsRequest, options?: RequestOptions): Promise<PartnerProductTermsVersion>;
+    acceptBillingPartnerInvitation(input: AcceptBillingPartnerInvitationRequest, options?: RequestOptions): Promise<AcceptedBillingPartnerInvitation>;
+    getUsageTariff(storefront: string, revisionUuid: string, options?: RequestOptions): Promise<UsageTariffRevision>;
+    listUsageTariffs(input: StorefrontUsagePageRequest, options?: RequestOptions): Promise<UsageTariffPage>;
+    listUsageEnrollments(input: StorefrontUsagePageRequest, options?: RequestOptions): Promise<UsageEnrollmentPage>;
+    publishUsageTariff(storefront: string, input: PublishUsageTariffRequest, options?: RequestOptions): Promise<UsageTariffRevision>;
+    enrollUsage(storefront: string, input: EnrollUsageRequest, options?: RequestOptions): Promise<UsageEnrollment>;
+    issueUsageInvoice(storefront: string, enrollmentUuid: string, options?: RequestOptions): Promise<IssueUsageResult>;
     listSellerInvoices(input: SellerInvoiceListRequest, options?: RequestOptions): Promise<SellerInvoiceList>;
     getPartnerStatement(input: StorefrontPartnerStatementRequest, options?: RequestOptions): Promise<StorefrontPartnerStatement>;
     issueCreditNote(storefront: string, invoiceUuid: string, input: StorefrontAdjustmentRequest, options?: RequestOptions): Promise<StorefrontCreditNote>;
@@ -288,4 +348,3 @@ export declare class StorefrontClient {
     /** Resume or retry payment for the same invoice. */
     startPayment(storefront: string, invoiceUuid: string, options?: RequestOptions): Promise<StorefrontPurchase>;
 }
-export {};

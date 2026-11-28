@@ -1,4 +1,17 @@
 import type { RequestOptions } from "./index.js";
+import type {
+  EnrollUsageRequest,
+  IssueUsageResult,
+  PublishUsageTariffRequest,
+  StorefrontUsagePageRequest,
+  UsageCertificate,
+  UsageEnrollment,
+  UsageEnrollmentPage,
+  UsageTariffPage,
+  UsageTariffRevision,
+} from "./storefront-usage.js";
+
+export type * from "./storefront-usage.js";
 
 type StorefrontRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 
@@ -231,6 +244,7 @@ export type StorefrontPartnerEarning = {
 };
 
 export type StorefrontPurchase = {
+  usage?: UsageCertificate;
   activationStatus?: "pending" | "applied" | "review_required";
   refund?: StorefrontRefund;
   invoiceUuid: string;
@@ -246,6 +260,34 @@ export type StorefrontPurchase = {
 
 const merchantPath = "/billing/merchant";
 const storefrontRegistryPath = "/billing/storefronts";
+const billingPartnersPath = "/billing/partners";
+
+export type BillingPartner = { partnerCompanyUuid: string; name: string; active: boolean };
+export type BillingPartnerPageRequest = { after?: string };
+export type BillingPartnerPage = { partners: BillingPartner[]; nextAfter?: string };
+export type BillingPartnerInvitation = { code: string; expiresAt: string };
+export type AcceptBillingPartnerInvitationRequest = { code: string };
+export type AcceptedBillingPartnerInvitation = { sellerCompanyName: string };
+
+export type PublishPartnerProductTermsRequest = {
+  partnerCompanyUuid: string;
+  effectiveFrom: string;
+  agreementDate: string;
+  agreementReference: string;
+  signedAgreementAttested: boolean;
+  unitCost: string;
+  sellerCut: string;
+};
+
+export type PartnerProductTermsVersion = PublishPartnerProductTermsRequest & {
+  termsUuid: string;
+  recordedByUserUuid: string;
+  currency: string;
+  holdDays: number;
+};
+
+export type PartnerProductTermsPageRequest = { storefront: string; offerUuid: string; before?: string };
+export type PartnerProductTermsPage = { versions: PartnerProductTermsVersion[]; nextBefore?: string };
 
 export type StorefrontBinding = {
   slug: string;
@@ -268,6 +310,81 @@ export type SelectStorefrontReceiptTemplate = { revision: string };
 /** Browse a seller's offers and check out using the current buyer identity. */
 export class StorefrontClient {
   constructor(private readonly request: StorefrontRequester) {}
+
+  listBillingPartners(input: BillingPartnerPageRequest, options?: RequestOptions): Promise<BillingPartnerPage> {
+    const query = input.after ? `?${new URLSearchParams({ after: input.after })}` : "";
+    return this.request("GET", billingPartnersPath + query, undefined, options);
+  }
+
+  createBillingPartnerInvitation(options?: RequestOptions): Promise<BillingPartnerInvitation> {
+    return this.request("POST", `${billingPartnersPath}/invitations`, undefined, options);
+  }
+
+  listPartnerProductTerms(
+    input: PartnerProductTermsPageRequest,
+    options?: RequestOptions,
+  ): Promise<PartnerProductTermsPage> {
+    const path = storefrontPath(input.storefront, "offers", input.offerUuid, "partner-terms");
+    const query = input.before ? `?${new URLSearchParams({ before: input.before })}` : "";
+    return this.request("GET", `/billing${path}${query}`, undefined, options);
+  }
+
+  publishPartnerProductTerms(
+    storefront: string,
+    offerUuid: string,
+    input: PublishPartnerProductTermsRequest,
+    options?: RequestOptions,
+  ): Promise<PartnerProductTermsVersion> {
+    const path = storefrontPath(storefront, "offers", offerUuid, "partner-terms");
+    return this.request("POST", `/billing${path}`, input, options);
+  }
+
+  acceptBillingPartnerInvitation(
+    input: AcceptBillingPartnerInvitationRequest,
+    options?: RequestOptions,
+  ): Promise<AcceptedBillingPartnerInvitation> {
+    return this.request("POST", `${billingPartnersPath}/invitations/accept`, input, options);
+  }
+
+  getUsageTariff(storefront: string, revisionUuid: string, options?: RequestOptions): Promise<UsageTariffRevision> {
+    return this.request("GET", storefrontPath(storefront, "usage-tariffs", revisionUuid), undefined, options);
+  }
+
+  listUsageTariffs(input: StorefrontUsagePageRequest, options?: RequestOptions): Promise<UsageTariffPage> {
+    return this.request("GET", usagePagePath(input, "usage-tariffs"), undefined, options);
+  }
+
+  listUsageEnrollments(input: StorefrontUsagePageRequest, options?: RequestOptions): Promise<UsageEnrollmentPage> {
+    return this.request("GET", usagePagePath(input, "usage-enrollments"), undefined, options);
+  }
+
+  publishUsageTariff(
+    storefront: string,
+    input: PublishUsageTariffRequest,
+    options?: RequestOptions,
+  ): Promise<UsageTariffRevision> {
+    return this.request("POST", storefrontPath(storefront, "usage-tariffs"), input, options);
+  }
+
+  enrollUsage(storefront: string, input: EnrollUsageRequest, options?: RequestOptions): Promise<UsageEnrollment> {
+    return this.request("POST", storefrontPath(storefront, "usage-enrollments"), input, options);
+  }
+
+  async issueUsageInvoice(
+    storefront: string,
+    enrollmentUuid: string,
+    options?: RequestOptions,
+  ): Promise<IssueUsageResult> {
+    const result = await this.request<IssueUsageResult>(
+      "POST",
+      storefrontPath(storefront, "usage-enrollments", enrollmentUuid, "issue"),
+      undefined,
+      options,
+    );
+    validateUsageCertificate(result.usage);
+    if (result.status === "invoice_issued") validateTotals(result.invoice.totals);
+    return result;
+  }
 
   async listSellerInvoices(input: SellerInvoiceListRequest, options?: RequestOptions): Promise<SellerInvoiceList> {
     const path = `/billing${storefrontPath(input.storefront, "invoices")}`;
@@ -453,6 +570,22 @@ function storefrontPath(...parts: string[]): string {
   return `/storefronts/${segments.join("/")}`;
 }
 
+function usagePagePath(input: StorefrontUsagePageRequest, resource: string): string {
+  const path = storefrontPath(input.storefront, resource);
+  return input.before ? `${path}?${new URLSearchParams({ before: input.before })}` : path;
+}
+
+function validateUsageCertificate(usage: UsageCertificate): void {
+  const line = usage.line;
+  const isCount = (value: unknown): boolean => typeof value === "string" && /^(0|[1-9][0-9]{0,18})$/.test(value);
+  if (!isCount(line.quantity) || line.windows.some((day) => !isCount(day.quantity) || !isCount(day.sourceWatermark))) {
+    throw new Error("custd: invalid certified usage quantity");
+  }
+  validateMoney(line.netAmount);
+  validateMoney(line.taxAmount);
+  validateMoney(line.grossAmount);
+}
+
 function validateMoney(value: StorefrontMoney): void {
   if (
     typeof value?.currency !== "string" ||
@@ -485,6 +618,7 @@ function validateQuote(quote: StorefrontQuote): StorefrontQuote {
 }
 
 function validatePurchase(purchase: StorefrontPurchase): StorefrontPurchase {
+  if (purchase.usage) validateUsageCertificate(purchase.usage);
   validateTotals(purchase.totals);
   if (purchase.receipt) {
     validateMoney(purchase.receipt.amountReceived);

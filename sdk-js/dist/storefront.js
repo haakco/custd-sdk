@@ -1,9 +1,51 @@
 const merchantPath = "/billing/merchant";
 const storefrontRegistryPath = "/billing/storefronts";
+const billingPartnersPath = "/billing/partners";
 /** Browse a seller's offers and check out using the current buyer identity. */
 export class StorefrontClient {
     constructor(request) {
         this.request = request;
+    }
+    listBillingPartners(input, options) {
+        const query = input.after ? `?${new URLSearchParams({ after: input.after })}` : "";
+        return this.request("GET", billingPartnersPath + query, undefined, options);
+    }
+    createBillingPartnerInvitation(options) {
+        return this.request("POST", `${billingPartnersPath}/invitations`, undefined, options);
+    }
+    listPartnerProductTerms(input, options) {
+        const path = storefrontPath(input.storefront, "offers", input.offerUuid, "partner-terms");
+        const query = input.before ? `?${new URLSearchParams({ before: input.before })}` : "";
+        return this.request("GET", `/billing${path}${query}`, undefined, options);
+    }
+    publishPartnerProductTerms(storefront, offerUuid, input, options) {
+        const path = storefrontPath(storefront, "offers", offerUuid, "partner-terms");
+        return this.request("POST", `/billing${path}`, input, options);
+    }
+    acceptBillingPartnerInvitation(input, options) {
+        return this.request("POST", `${billingPartnersPath}/invitations/accept`, input, options);
+    }
+    getUsageTariff(storefront, revisionUuid, options) {
+        return this.request("GET", storefrontPath(storefront, "usage-tariffs", revisionUuid), undefined, options);
+    }
+    listUsageTariffs(input, options) {
+        return this.request("GET", usagePagePath(input, "usage-tariffs"), undefined, options);
+    }
+    listUsageEnrollments(input, options) {
+        return this.request("GET", usagePagePath(input, "usage-enrollments"), undefined, options);
+    }
+    publishUsageTariff(storefront, input, options) {
+        return this.request("POST", storefrontPath(storefront, "usage-tariffs"), input, options);
+    }
+    enrollUsage(storefront, input, options) {
+        return this.request("POST", storefrontPath(storefront, "usage-enrollments"), input, options);
+    }
+    async issueUsageInvoice(storefront, enrollmentUuid, options) {
+        const result = await this.request("POST", storefrontPath(storefront, "usage-enrollments", enrollmentUuid, "issue"), undefined, options);
+        validateUsageCertificate(result.usage);
+        if (result.status === "invoice_issued")
+            validateTotals(result.invoice.totals);
+        return result;
     }
     async listSellerInvoices(input, options) {
         const path = `/billing${storefrontPath(input.storefront, "invoices")}`;
@@ -110,6 +152,20 @@ function storefrontPath(...parts) {
     });
     return `/storefronts/${segments.join("/")}`;
 }
+function usagePagePath(input, resource) {
+    const path = storefrontPath(input.storefront, resource);
+    return input.before ? `${path}?${new URLSearchParams({ before: input.before })}` : path;
+}
+function validateUsageCertificate(usage) {
+    const line = usage.line;
+    const isCount = (value) => typeof value === "string" && /^(0|[1-9][0-9]{0,18})$/.test(value);
+    if (!isCount(line.quantity) || line.windows.some((day) => !isCount(day.quantity) || !isCount(day.sourceWatermark))) {
+        throw new Error("custd: invalid certified usage quantity");
+    }
+    validateMoney(line.netAmount);
+    validateMoney(line.taxAmount);
+    validateMoney(line.grossAmount);
+}
 function validateMoney(value) {
     if (typeof value?.currency !== "string" ||
         !/^[A-Z]{3}$/.test(value.currency) ||
@@ -137,6 +193,8 @@ function validateQuote(quote) {
     return quote;
 }
 function validatePurchase(purchase) {
+    if (purchase.usage)
+        validateUsageCertificate(purchase.usage);
     validateTotals(purchase.totals);
     if (purchase.receipt) {
         validateMoney(purchase.receipt.amountReceived);

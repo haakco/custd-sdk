@@ -1,6 +1,29 @@
 import { expect, it, vi } from "vitest";
 import { CustdClient } from "./index.js";
 
+it("keeps the certified usage quantity and no-amount-due outcome exact", async () => {
+  const zero = { currency: "ZAR", amountMinor: "0" };
+  const quantity = "9007199254740993";
+  const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(
+    Response.json({
+      status: "no_amount_due",
+      usage: {
+        enrollmentUuid: "enrollment",
+        line: { quantity, windows: [], netAmount: zero, taxAmount: zero, grossAmount: zero },
+      },
+    }),
+  );
+  const client = new CustdClient({ baseUrl: "https://store.example", getToken: () => "buyer-token", fetch: fetchImpl });
+  await expect(client.storefronts.issueUsageInvoice("shop", "enrollment")).resolves.toMatchObject({
+    status: "no_amount_due",
+    usage: { line: { quantity } },
+  });
+  expect(fetchImpl).toHaveBeenCalledWith(
+    "https://store.example/api/v1/storefronts/shop/usage-enrollments/enrollment/issue",
+    expect.objectContaining({ method: "POST", body: undefined }),
+  );
+});
+
 it("lists seller invoices with the previous page cursor", async () => {
   const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(Response.json({ invoices: [], nextBefore: "next" }));
   const client = new CustdClient({
