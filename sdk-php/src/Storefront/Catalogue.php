@@ -9,13 +9,12 @@ use HaakCo\Custd\Fields;
 final readonly class Catalogue
 {
     /**
-     * @param list<Offer> $offers
+     * @param  list<Offer>  $offers
      */
     public function __construct(
         public array $offers,
         public bool $canPublish,
-    ) {
-    }
+    ) {}
 
     public static function fromPayload(\stdClass $payload): self
     {

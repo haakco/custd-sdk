@@ -5,25 +5,48 @@ declare(strict_types=1);
 namespace HaakCo\Custd\Tests;
 
 use HaakCo\Custd\Admin\AuthProject as AP;
+use HaakCo\Custd\Admin\DataLabel\DataLabelDefinitionCreateRequest;
+use HaakCo\Custd\Admin\DataLabel\DataLabelDefinitionUpdateRequest;
+use HaakCo\Custd\Admin\DataLabel\DataLabelValueCreateRequest;
+use HaakCo\Custd\Admin\DataLabel\DataLabelValueUpdateRequest;
+use HaakCo\Custd\Admin\DataLabel\EventTypeDataLabelDefaultRequest;
+use HaakCo\Custd\Admin\DataLabel\SchemaFieldDataLabelAssignmentRequest;
 use HaakCo\Custd\Admin\DataScope as DS;
+use HaakCo\Custd\Admin\Measurement\MeasurementObservationRow;
+use HaakCo\Custd\Admin\Measurement\MeasurementProjectCreateRequest;
+use HaakCo\Custd\Admin\Measurement\MeasurementTargetCreateRequest;
 use HaakCo\Custd\Admin\Prediction\DurationEvaluationRequest;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionActivateRequest;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionDefinitionCreateRequest;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionDefinitionUpdateRequest;
+use HaakCo\Custd\Admin\Prediction\MeasurementPredictionVersionPublishRequest;
+use HaakCo\Custd\Admin\Prediction\MeasurementSignalSourceCreateRequest;
+use HaakCo\Custd\Admin\Privacy\PrivacyErasureCreateRequest;
+use HaakCo\Custd\Admin\Privacy\PrivacyErasureSelector;
 use HaakCo\Custd\Admin\ReportingPack as RP;
+use HaakCo\Custd\Admin\Retention\RetentionPolicyUpsertRequest;
 use HaakCo\Custd\Admin\SiteDomain as SD;
+use HaakCo\Custd\Admin\SubjectExport\SubjectExportCreateRequest;
 use HaakCo\Custd\Admin\TimePlan as TP;
 use HaakCo\Custd\Admin\WorkflowTiming as WT;
-use HaakCo\Custd\App as App;
-use HaakCo\Custd\App\AppProfilePhoto;
+use HaakCo\Custd\Analytics\AnalyticsEventsQueryRequest;
 use HaakCo\Custd\Analytics\RangeQueryRequest;
+use HaakCo\Custd\App;
+use HaakCo\Custd\App\AppProfilePhoto;
+use HaakCo\Custd\Awthy\AwthyAuditRedactionRequest;
 use HaakCo\Custd\CustdClient;
 use HaakCo\Custd\ErrorTracking as ET;
 use HaakCo\Custd\ErrorTracking\DeliveryRequest;
-use HaakCo\Custd\Awthy\AwthyAuditRedactionRequest;
-use HaakCo\Custd\RawIngest\RawIngestRequest;
-use HaakCo\Custd\Provisioning as PV;
-use HaakCo\Custd\Schemas as SC;
-use HaakCo\Custd\Storefront as SF;
 use HaakCo\Custd\Parsers\ParserPreviewRequest;
 use HaakCo\Custd\Parsers\SaveParserRequest;
+use HaakCo\Custd\Provisioning as PV;
+use HaakCo\Custd\RawIngest\RawIngestRequest;
+use HaakCo\Custd\Reporting\Data\ExportQueryParameters;
+use HaakCo\Custd\Reporting\Data\ReportExportCreateRequest;
+use HaakCo\Custd\Reporting\Data\ReportingQueryRequest;
+use HaakCo\Custd\Reporting\Data\SubjectInsightRequest;
+use HaakCo\Custd\Schemas as SC;
+use HaakCo\Custd\Storefront as SF;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -37,12 +60,18 @@ use PHPUnit\Framework\TestCase;
  */
 final class SurfaceConformanceTest extends TestCase
 {
-    private const API = __DIR__ . '/../../contract-fixtures/api/';
+    private const API = __DIR__.'/../../contract-fixtures/api/';
+
     private const BASE_URL = 'http://localhost:8080';
+
     private const A = '00000000-0000-4000-8000-000000000001';
+
     private const B = '00000000-0000-4000-8000-000000000002';
+
     private const C = '00000000-0000-4000-8000-000000000003';
+
     private const D = '00000000-0000-4000-8000-000000000004';
+
     private const DIGEST = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
     /**
@@ -67,7 +96,7 @@ final class SurfaceConformanceTest extends TestCase
         'admin-api PUT /api/v1/site-domains/{domainUuid}/browser-collector minimal' => 'custd: response field browserKey is required',
     ];
 
-    public function testCoverageFileListsExactlyTheTableOperations(): void
+    public function test_coverage_file_lists_exactly_the_table_operations(): void
     {
         $ids = array_map(static fn (array $row): string => $row[0], self::table());
         self::assertSame(array_unique($ids), $ids, 'each operation has one row');
@@ -79,11 +108,11 @@ final class SurfaceConformanceTest extends TestCase
     }
 
     /**
-     * @param array<string, string> $pathValues
-     * @param \Closure(CustdClient, \Closure(DeliveryRequest): int): mixed $call
+     * @param  array<string, string>  $pathValues
+     * @param  \Closure(CustdClient, \Closure(DeliveryRequest): int): mixed  $call
      */
     #[DataProvider('routes')]
-    public function testRouteSendsOperationMethodAndPath(string $id, string $method, array $pathValues, \Closure $call): void
+    public function test_route_sends_operation_method_and_path(string $id, string $method, array $pathValues, \Closure $call): void
     {
         $operation = self::operations()[$id] ?? null;
         self::assertNotNull($operation, "{$id} is not in operations.json");
@@ -105,7 +134,7 @@ final class SurfaceConformanceTest extends TestCase
 
         self::assertNotEmpty($calls, "{$id} sent no request");
         self::assertSame($method, $calls[0]['method']);
-        self::assertSame(self::BASE_URL . self::expandPath($operation['path'], $pathValues), strtok($calls[0]['url'], '?'));
+        self::assertSame(self::BASE_URL.self::expandPath($operation['path'], $pathValues), strtok($calls[0]['url'], '?'));
         parse_str((string) parse_url($calls[0]['url'], PHP_URL_QUERY), $sent);
         foreach ($operation['query'] ?? [] as $parameter) {
             if ($parameter['required']) {
@@ -116,10 +145,10 @@ final class SurfaceConformanceTest extends TestCase
 
     /** @param \Closure(CustdClient): mixed $call */
     #[DataProvider('decodes')]
-    public function testResponseExampleDecodes(string $id, string $variant, \Closure $call): void
+    public function test_response_example_decodes(string $id, string $variant, \Closure $call): void
     {
         $example = json_decode(
-            (string) file_get_contents(self::API . self::operations()[$id]['example']),
+            (string) file_get_contents(self::API.self::operations()[$id]['example']),
             false,
             512,
             JSON_THROW_ON_ERROR,
@@ -157,7 +186,8 @@ final class SurfaceConformanceTest extends TestCase
     }
 
     /**
-     * @param list<array{method: string, url: string}> $calls
+     * @param  list<array{method: string, url: string}>  $calls
+     *
      * @param-out list<array{method: string, url: string}> $calls
      */
     private static function client(?array &$calls, string $body): CustdClient
@@ -216,7 +246,7 @@ final class SurfaceConformanceTest extends TestCase
     private static function json(string $file): array
     {
         /** @var array<string, mixed> $decoded */
-        $decoded = json_decode((string) file_get_contents(self::API . $file), true, 512, JSON_THROW_ON_ERROR);
+        $decoded = json_decode((string) file_get_contents(self::API.$file), true, 512, JSON_THROW_ON_ERROR);
 
         return $decoded;
     }
@@ -244,6 +274,55 @@ final class SurfaceConformanceTest extends TestCase
             ['billing POST /api/v1/billing/storefronts/{storefront}/purchase-handoffs', 'POST', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->createPurchaseHandoff('shop', new SF\CreatePurchaseHandoffRequest('order-1', 'offer-1', new SF\Money('ZAR', '100')))],
             ['billing GET /api/v1/billing/storefronts/{storefront}/purchase-handoffs/{handoff}', 'GET', ['storefront' => 'shop', 'handoff' => 'handoff-1'], fn (CustdClient $c) => $c->storefronts()->getPurchaseHandoff('shop', 'handoff-1')],
             ['billing POST /api/v1/billing/storefronts/{storefront}/purchase-handoffs/{handoff}/cancel', 'POST', ['storefront' => 'shop', 'handoff' => 'handoff-1'], fn (CustdClient $c) => $c->storefronts()->cancelPurchaseHandoff('shop', 'handoff-1')],
+            ['billing DELETE /api/v1/billing/merchant', 'DELETE', [], fn (CustdClient $c) => $c->storefronts()->revokeMerchant(new SF\RevokeMerchant(expectedRevision: 1))],
+            ['billing DELETE /api/v1/billing/storefronts/{storefront}/analytics-destination', 'DELETE', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->disableAnalyticsDestination('shop')],
+            ['billing DELETE /api/v1/storefronts/{storefront}/usage-enrollments/{enrollment}/scheduled-issuance', 'DELETE', ['storefront' => 'shop', 'enrollment' => 'enrollment'], fn (CustdClient $c) => $c->storefronts()->cancelUsageSchedule('shop', 'enrollment')],
+            ['billing GET /api/v1/billing/accounting-export', 'GET', [], fn (CustdClient $c) => $c->storefronts()->readAccountingExport(new SF\AccountingExportRequest(month: '2026-11', businessTimeZone: 'UTC', after: 'sample-after'))],
+            ['billing GET /api/v1/billing/merchant', 'GET', [], fn (CustdClient $c) => $c->storefronts()->getMerchant()],
+            ['billing GET /api/v1/billing/partners', 'GET', [], fn (CustdClient $c) => $c->storefronts()->listBillingPartners(new SF\BillingPartnerPageRequest(after: 'sample-after'))],
+            ['billing GET /api/v1/billing/partners/referral-reviews', 'GET', [], fn (CustdClient $c) => $c->storefronts()->listReferralReviews(new SF\PartnerReferralPageRequest(before: 'sample-before'))],
+            ['billing GET /api/v1/billing/partners/sellers', 'GET', [], fn (CustdClient $c) => $c->storefronts()->listBillingPartnerSellers(new SF\BillingPartnerPageRequest(after: 'sample-after'))],
+            ['billing GET /api/v1/billing/partners/sellers/{seller}/settlement-preference', 'GET', ['seller' => 'seller'], fn (CustdClient $c) => $c->storefronts()->getSellerSettlementPreference('seller')],
+            ['billing GET /api/v1/billing/partners/sellers/{seller}/tax-disclosure', 'GET', ['seller' => 'seller'], fn (CustdClient $c) => $c->storefronts()->getSellerTaxDisclosure('seller')],
+            ['billing GET /api/v1/billing/partners/{partner}/fee-balance', 'GET', ['partner' => 'partner'], fn (CustdClient $c) => $c->storefronts()->getPartnerFeeBalance('partner', new SF\PartnerFeeBalanceRequest(asOf: '2026-11-01'))],
+            ['billing GET /api/v1/billing/partners/{partner}/payouts', 'GET', ['partner' => 'partner'], fn (CustdClient $c) => $c->storefronts()->listPartnerPayouts(new SF\PartnerPayoutPageRequest(partnerCompanyUuid: 'partner', before: 'sample-before'))],
+            ['billing GET /api/v1/billing/partners/{partner}/referral-terms', 'GET', ['partner' => 'partner'], fn (CustdClient $c) => $c->storefronts()->listPartnerReferralTerms('partner', new SF\PartnerReferralPageRequest(before: 'sample-before'))],
+            ['billing GET /api/v1/billing/partners/{partner}/settlement-preference', 'GET', ['partner' => 'partner'], fn (CustdClient $c) => $c->storefronts()->getPartnerSettlementPreference('partner')],
+            ['billing GET /api/v1/billing/partners/{partner}/tax-disclosure', 'GET', ['partner' => 'partner'], fn (CustdClient $c) => $c->storefronts()->getPartnerTaxDisclosure('partner')],
+            ['billing GET /api/v1/billing/storefronts', 'GET', [], fn (CustdClient $c) => $c->storefronts()->listOwnedStorefronts()],
+            ['billing GET /api/v1/billing/storefronts/{storefront}/analytics-destination', 'GET', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->getAnalyticsDestination('shop')],
+            ['billing GET /api/v1/billing/storefronts/{storefront}/invoices', 'GET', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->listSellerInvoices(new SF\SellerInvoiceListRequest(storefront: 'shop', before: 'sample-before'))],
+            ['billing GET /api/v1/billing/storefronts/{storefront}/offers/{offer}/partner-terms', 'GET', ['storefront' => 'shop', 'offer' => 'offer'], fn (CustdClient $c) => $c->storefronts()->listPartnerProductTerms(new SF\PartnerProductTermsPageRequest(storefront: 'shop', offerUuid: 'offer', before: 'sample-before'))],
+            ['billing GET /api/v1/billing/storefronts/{storefront}/partners/{partner}/statement', 'GET', ['storefront' => 'shop', 'partner' => 'partner'], fn (CustdClient $c) => $c->storefronts()->getPartnerStatement(new SF\PartnerStatementRequest(storefront: 'shop', partnerCompanyUuid: 'partner', month: '2026-11', cursor: 'sample-cursor'))],
+            ['billing GET /api/v1/billing/storefronts/{storefront}/receipt-template', 'GET', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->getReceiptTemplate('shop')],
+            ['billing GET /api/v1/storefronts/{storefront}/purchases/{invoice}/set-off', 'GET', ['storefront' => 'shop', 'invoice' => 'invoice'], fn (CustdClient $c) => $c->storefronts()->getStorefrontSetOffEligibility('shop', 'invoice')],
+            ['billing GET /api/v1/storefronts/{storefront}/usage-enrollments', 'GET', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->listUsageEnrollments(new SF\UsagePageRequest(storefront: 'shop', before: 'sample-before'))],
+            ['billing GET /api/v1/storefronts/{storefront}/usage-enrollments/{enrollment}/scheduled-issuance', 'GET', ['storefront' => 'shop', 'enrollment' => 'enrollment'], fn (CustdClient $c) => $c->storefronts()->getUsageSchedule('shop', 'enrollment')],
+            ['billing GET /api/v1/storefronts/{storefront}/usage-tariffs', 'GET', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->listUsageTariffs(new SF\UsagePageRequest(storefront: 'shop', before: 'sample-before'))],
+            ['billing GET /api/v1/storefronts/{storefront}/usage-tariffs/{revision}', 'GET', ['storefront' => 'shop', 'revision' => 'revision'], fn (CustdClient $c) => $c->storefronts()->getUsageTariff('shop', 'revision')],
+            ['billing POST /api/v1/billing/merchant/test', 'POST', [], fn (CustdClient $c) => $c->storefronts()->verifyMerchant(new SF\VerifyMerchant(appUuid: 'example', invoiceUuid: 'example'))],
+            ['billing POST /api/v1/billing/partners/invitations', 'POST', [], fn (CustdClient $c) => $c->storefronts()->createBillingPartnerInvitation()],
+            ['billing POST /api/v1/billing/partners/invitations/accept', 'POST', [], fn (CustdClient $c) => $c->storefronts()->acceptBillingPartnerInvitation(new SF\AcceptBillingPartnerInvitationRequest(code: 'example'))],
+            ['billing POST /api/v1/billing/partners/referral-reviews/{attribution}/retry', 'POST', ['attribution' => 'attribution'], fn (CustdClient $c) => $c->storefronts()->retryReferralReview('attribution')],
+            ['billing POST /api/v1/billing/partners/sellers/{seller}/settlement-preference', 'POST', ['seller' => 'seller'], fn (CustdClient $c) => $c->storefronts()->recordPartnerSettlementPreference('seller', new SF\RecordPartnerSettlementPreferenceRequest(preferenceUuid: 'example', mode: SF\PartnerSettlementMode::Payout))],
+            ['billing POST /api/v1/billing/partners/sellers/{seller}/tax-disclosure', 'POST', ['seller' => 'seller'], fn (CustdClient $c) => $c->storefronts()->recordPartnerTaxDisclosure('seller', new SF\RecordPartnerTaxDisclosureRequest(disclosureUuid: 'example', status: SF\PartnerTaxStatus::Registered, jurisdiction: 'example'))],
+            ['billing POST /api/v1/billing/partners/{partner}/payouts', 'POST', ['partner' => 'partner'], fn (CustdClient $c) => $c->storefronts()->recordPartnerPayout('partner', new SF\RecordPartnerPayoutRequest(externalReference: 'example', amount: new SF\Money('ZAR', '9007199254740993'), paidAt: '2026-11-01T00:00:00Z'))],
+            ['billing POST /api/v1/billing/partners/{partner}/referral-terms', 'POST', ['partner' => 'partner'], fn (CustdClient $c) => $c->storefronts()->publishPartnerReferralTerms('partner', new SF\PublishReferralTerms(code: 'example', effectiveFrom: 'example', agreementDate: 'example', agreementReference: 'example', signedAgreementAttested: true, share: 'example', months: 1, holdDays: 1))],
+            ['billing POST /api/v1/billing/storefronts', 'POST', [], fn (CustdClient $c) => $c->storefronts()->registerStorefront(new SF\RegisterStorefront(slug: 'example', appUuid: 'example'))],
+            ['billing POST /api/v1/billing/storefronts/{storefront}/capacity-offers', 'POST', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->publishCapacityOffer('shop', new SF\PublishStorefrontCapacityOffer(offerUuid: 'example', name: 'example', billingInterval: 'example', unitPrice: new SF\UnitPrice('ZAR', '25.50'), taxRate: 'example', taxLabel: 'example', dataSpaceCapacity: new SF\DataSpaceCapacity(extraSpacesPerUnit: 1, extraProducersPerSpacePerUnit: 1)))],
+            ['billing POST /api/v1/billing/storefronts/{storefront}/offers/{offer}/partner-terms', 'POST', ['storefront' => 'shop', 'offer' => 'offer'], fn (CustdClient $c) => $c->storefronts()->publishPartnerProductTerms('shop', 'offer', new SF\PublishPartnerProductTermsRequest(partnerCompanyUuid: 'example', effectiveFrom: 'example', agreementDate: 'example', agreementReference: 'example', signedAgreementAttested: true, unitCost: 'example', sellerCut: 'example'))],
+            ['billing POST /api/v1/storefronts/{storefront}/invoices/{invoice}/refund', 'POST', ['storefront' => 'shop', 'invoice' => 'invoice'], fn (CustdClient $c) => $c->storefronts()->requestRefund('shop', 'invoice', new SF\AdjustmentRequest(reason: 'example'))],
+            ['billing POST /api/v1/storefronts/{storefront}/invoices/{invoice}/refund/reconcile', 'POST', ['storefront' => 'shop', 'invoice' => 'invoice'], fn (CustdClient $c) => $c->storefronts()->reconcileRefund('shop', 'invoice')],
+            ['billing POST /api/v1/storefronts/{storefront}/purchase-handoffs/{handoff}/redeem', 'POST', ['storefront' => 'shop', 'handoff' => 'handoff'], fn (CustdClient $c) => $c->storefronts()->redeemPurchaseHandoff('shop', 'handoff')],
+            ['billing POST /api/v1/storefronts/{storefront}/purchases/{invoice}/set-off', 'POST', ['storefront' => 'shop', 'invoice' => 'invoice'], fn (CustdClient $c) => $c->storefronts()->applyStorefrontSetOff('shop', 'invoice')],
+            ['billing POST /api/v1/storefronts/{storefront}/quotes/{quote}/invoice', 'POST', ['storefront' => 'shop', 'quote' => 'quote'], fn (CustdClient $c) => $c->storefronts()->issueStorefrontInvoice('shop', 'quote')],
+            ['billing POST /api/v1/storefronts/{storefront}/usage-enrollments', 'POST', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->enrollUsage('shop', new SF\EnrollUsageRequest(tariffRevisionUuid: 'example', periodStart: '2026-11-01T00:00:00Z', closeNotBefore: '2026-11-01T00:00:00Z'))],
+            ['billing POST /api/v1/storefronts/{storefront}/usage-enrollments/{enrollment}/issue', 'POST', ['storefront' => 'shop', 'enrollment' => 'enrollment'], fn (CustdClient $c) => $c->storefronts()->issueUsageInvoice('shop', 'enrollment')],
+            ['billing POST /api/v1/storefronts/{storefront}/usage-enrollments/{enrollment}/scheduled-issuance', 'POST', ['storefront' => 'shop', 'enrollment' => 'enrollment'], fn (CustdClient $c) => $c->storefronts()->scheduleUsageInvoice('shop', 'enrollment', new SF\UsageInvoiceOptIn(invoiceOnlyAttested: true))],
+            ['billing POST /api/v1/storefronts/{storefront}/usage-tariffs', 'POST', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->publishUsageTariff('shop', new SF\PublishUsageTariffRequest(tariffRevisionUuid: 'example', productUuid: 'example', description: 'example', meter: new SF\UsageMeter(slug: 'example', version: 1, unit: 'example'), effectiveFrom: '2026-11-01T00:00:00Z', rate: new SF\UsageRate(currency: 'example', majorAmount: 'example', perUnits: 'example'), tax: new SF\UsageTax(label: 'example', rate: 'example')))],
+            ['billing PUT /api/v1/billing/merchant', 'PUT', [], fn (CustdClient $c) => $c->storefronts()->configureMerchant(new SF\ConfigureMerchant(merchantId: 'example', expectedRevision: 1, businessTimeZone: 'example', refundsEnabled: true, checkoutSecretKey: 'example', paymentsReadToken: 'example'))],
+            ['billing PUT /api/v1/billing/storefronts/{storefront}/analytics-destination', 'PUT', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->selectAnalyticsDestination('shop', new SF\SelectStorefrontAnalyticsDestination(siteUuid: 'example'))],
+            ['billing PUT /api/v1/billing/storefronts/{storefront}/receipt-template', 'PUT', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->selectReceiptTemplate('shop', new SF\SelectStorefrontReceiptTemplate(revision: 'example'))],
             ['billing GET /api/v1/storefronts/{storefront}/offers', 'GET', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->listOffers('shop')],
             ['billing POST /api/v1/storefronts/{storefront}/offers', 'POST', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->publishOffer('shop', new SF\PublishOffer('Starter', 'month', new SF\UnitPrice('ZAR', '15.25'), '0.15', 'VAT'))],
             ['billing POST /api/v1/storefronts/{storefront}/carts', 'POST', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->createCart('shop')],
@@ -311,10 +390,10 @@ final class SurfaceConformanceTest extends TestCase
             ['admin-api GET /api/v1/site-domains/{domainUuid}/report-shares', 'GET', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->listReportShares(self::A)],
             ['admin-api DELETE /api/v1/site-domains/{domainUuid}/report-shares/{shareUuid}', 'DELETE', ['domainUuid' => self::A, 'shareUuid' => self::B], fn (CustdClient $c) => $c->adminSiteDomains()->revokeReportShare(self::A, self::B)],
             ['admin-api DELETE /api/v1/site-domains/{domainUuid}', 'DELETE', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->delete(self::A)],
-            ['admin-api POST /api/v1/admin/measurement/projects', 'POST', [], fn (CustdClient $c) => $c->adminMeasurementProjects()->create(new \HaakCo\Custd\Admin\Measurement\MeasurementProjectCreateRequest(kind: 'x', name: 'x', projectCode: 'x', series: [], target: new \HaakCo\Custd\Admin\Measurement\MeasurementTargetCreateRequest(name: 'x', state: 'x', targetCode: 'x', targetValue: 1.0)))],
+            ['admin-api POST /api/v1/admin/measurement/projects', 'POST', [], fn (CustdClient $c) => $c->adminMeasurementProjects()->create(new MeasurementProjectCreateRequest(kind: 'x', name: 'x', projectCode: 'x', series: [], target: new MeasurementTargetCreateRequest(name: 'x', state: 'x', targetCode: 'x', targetValue: 1.0)))],
             ['admin-api GET /api/v1/admin/measurement/projects', 'GET', [], fn (CustdClient $c) => $c->adminMeasurementProjects()->list()],
             ['admin-api GET /api/v1/admin/measurement/projects/{projectUuid}', 'GET', ['projectUuid' => self::A], fn (CustdClient $c) => $c->adminMeasurementProjects()->get(self::A)],
-            ['admin-api POST /api/v1/admin/measurement/projects/{projectUuid}/observations:bulk', 'POST', ['projectUuid' => self::A], fn (CustdClient $c) => $c->adminMeasurementProjects()->submitObservation(self::A, new \HaakCo\Custd\Admin\Measurement\MeasurementObservationRow(observedAt: 'x', seriesUuid: 'x', value: 1.0))],
+            ['admin-api POST /api/v1/admin/measurement/projects/{projectUuid}/observations:bulk', 'POST', ['projectUuid' => self::A], fn (CustdClient $c) => $c->adminMeasurementProjects()->submitObservation(self::A, new MeasurementObservationRow(observedAt: 'x', seriesUuid: 'x', value: 1.0))],
             ['admin-api POST /api/v1/admin/measurement/projects/{projectUuid}/observations:csv', 'POST', ['projectUuid' => self::A], fn (CustdClient $c) => $c->adminMeasurementProjects()->importCSVString(self::A, self::B, 1)],
             ['admin-api GET /api/v1/admin/workflow-timings/definitions', 'GET', [], fn (CustdClient $c) => $c->adminWorkflowTimings()->listDefinitions(self::A)],
             ['admin-api GET /api/v1/admin/workflow-timings/definitions/{workflowKey}', 'GET', ['workflowKey' => self::B], fn (CustdClient $c) => $c->adminWorkflowTimings()->getDefinition(self::A, self::B)],
@@ -326,11 +405,11 @@ final class SurfaceConformanceTest extends TestCase
             ['admin-api POST /api/v1/admin/workflow-timings/runs/{runUuid}/rebuild', 'POST', ['runUuid' => self::B], fn (CustdClient $c) => $c->adminWorkflowTimings()->rebuild(self::A, self::B)],
             ['admin-api GET /api/v1/admin/measurement/predictions/definitions', 'GET', [], fn (CustdClient $c) => $c->adminMeasurementPredictions()->listDefinitions(self::A)],
             ['admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}', 'GET', ['definitionUuid' => self::B], fn (CustdClient $c) => $c->adminMeasurementPredictions()->getDefinition(self::A, self::B)],
-            ['admin-api POST /api/v1/admin/measurement/predictions/definitions', 'POST', [], fn (CustdClient $c) => $c->adminMeasurementPredictions()->createDefinition(self::A, new \HaakCo\Custd\Admin\Prediction\MeasurementPredictionDefinitionCreateRequest(definitionKey: 'x', displayName: 'x'))],
-            ['admin-api PATCH /api/v1/admin/measurement/predictions/definitions/{definitionUuid}', 'PATCH', ['definitionUuid' => self::B], fn (CustdClient $c) => $c->adminMeasurementPredictions()->updateDefinition(self::A, self::B, new \HaakCo\Custd\Admin\Prediction\MeasurementPredictionDefinitionUpdateRequest(definitionKey: 'x', revision: 1))],
+            ['admin-api POST /api/v1/admin/measurement/predictions/definitions', 'POST', [], fn (CustdClient $c) => $c->adminMeasurementPredictions()->createDefinition(self::A, new MeasurementPredictionDefinitionCreateRequest(definitionKey: 'x', displayName: 'x'))],
+            ['admin-api PATCH /api/v1/admin/measurement/predictions/definitions/{definitionUuid}', 'PATCH', ['definitionUuid' => self::B], fn (CustdClient $c) => $c->adminMeasurementPredictions()->updateDefinition(self::A, self::B, new MeasurementPredictionDefinitionUpdateRequest(definitionKey: 'x', revision: 1))],
             ['admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/versions/{versionUuid}', 'GET', ['definitionUuid' => self::B, 'versionUuid' => self::C], fn (CustdClient $c) => $c->adminMeasurementPredictions()->getVersion(self::A, self::B, self::C)],
-            ['admin-api POST /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/publish', 'POST', ['definitionUuid' => self::B], fn (CustdClient $c) => $c->adminMeasurementPredictions()->publishVersion(self::A, self::B, new \HaakCo\Custd\Admin\Prediction\MeasurementPredictionVersionPublishRequest(createdBy: 'x'))],
-            ['admin-api POST /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/activate', 'POST', ['definitionUuid' => self::B], fn (CustdClient $c) => $c->adminMeasurementPredictions()->activateVersion(self::A, self::B, new \HaakCo\Custd\Admin\Prediction\MeasurementPredictionActivateRequest(versionUuid: 'x'))],
+            ['admin-api POST /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/publish', 'POST', ['definitionUuid' => self::B], fn (CustdClient $c) => $c->adminMeasurementPredictions()->publishVersion(self::A, self::B, new MeasurementPredictionVersionPublishRequest(createdBy: 'x'))],
+            ['admin-api POST /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/activate', 'POST', ['definitionUuid' => self::B], fn (CustdClient $c) => $c->adminMeasurementPredictions()->activateVersion(self::A, self::B, new MeasurementPredictionActivateRequest(versionUuid: 'x'))],
             ['admin-api POST /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/pause', 'POST', ['definitionUuid' => self::B], fn (CustdClient $c) => $c->adminMeasurementPredictions()->pauseDefinition(self::A, self::B)],
             ['admin-api POST /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/resume', 'POST', ['definitionUuid' => self::B], fn (CustdClient $c) => $c->adminMeasurementPredictions()->resumeDefinition(self::A, self::B)],
             ['admin-api POST /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/archive', 'POST', ['definitionUuid' => self::B], fn (CustdClient $c) => $c->adminMeasurementPredictions()->archiveDefinition(self::A, self::B)],
@@ -341,7 +420,7 @@ final class SurfaceConformanceTest extends TestCase
             ['admin-api GET /api/v1/admin/measurement/predictions/definitions/{definitionUuid}/threshold-events', 'GET', ['definitionUuid' => self::B], fn (CustdClient $c) => $c->adminMeasurementPredictions()->listThresholdEvents(self::A, self::B)],
             ['admin-api GET /api/v1/admin/measurement/predictions/sources', 'GET', [], fn (CustdClient $c) => $c->adminMeasurementPredictions()->listSignalSources(self::A)],
             ['admin-api GET /api/v1/admin/measurement/predictions/sources/{sourceUuid}', 'GET', ['sourceUuid' => self::B], fn (CustdClient $c) => $c->adminMeasurementPredictions()->getSignalSource(self::A, self::B)],
-            ['admin-api POST /api/v1/admin/measurement/predictions/sources', 'POST', [], fn (CustdClient $c) => $c->adminMeasurementPredictions()->createSignalSource(self::A, new \HaakCo\Custd\Admin\Prediction\MeasurementSignalSourceCreateRequest(displayName: 'x', sourceKey: 'x', sourceMode: 'x'))],
+            ['admin-api POST /api/v1/admin/measurement/predictions/sources', 'POST', [], fn (CustdClient $c) => $c->adminMeasurementPredictions()->createSignalSource(self::A, new MeasurementSignalSourceCreateRequest(displayName: 'x', sourceKey: 'x', sourceMode: 'x'))],
             ['admin-api POST /api/v1/admin/measurement/predictions/sources/{sourceUuid}/activate', 'POST', ['sourceUuid' => self::B], fn (CustdClient $c) => $c->adminMeasurementPredictions()->activateSignalSource(self::A, self::B)],
             ['admin-api POST /api/v1/admin/measurement/predictions/sources/{sourceUuid}/archive', 'POST', ['sourceUuid' => self::B], fn (CustdClient $c) => $c->adminMeasurementPredictions()->archiveSignalSource(self::A, self::B)],
             ['admin-api GET /api/v1/admin/offboarding/requests/{requestUuid}/download', 'GET', ['requestUuid' => self::A], fn (CustdClient $c) => $c->adminOffboarding()->download(self::A, fopen('php://memory', 'w+b'))],
@@ -402,11 +481,11 @@ final class SurfaceConformanceTest extends TestCase
             ['analytics-api GET /api/v1/reporting/exports/{exportID}', 'GET', ['exportID' => self::A], fn (CustdClient $c) => $c->reporting()->getExport(self::A)],
             ['analytics-api POST /api/v1/reporting/exports/{exportID}/cancel', 'POST', ['exportID' => self::A], fn (CustdClient $c) => $c->reporting()->cancelExport(self::A)],
             ['analytics-api GET /api/v1/reporting/exports/{exportID}/artifacts/{artifactID}', 'GET', ['exportID' => self::A, 'artifactID' => self::B], fn (CustdClient $c) => $c->reporting()->downloadExport(self::A, self::B)],
-            ['analytics-api POST /api/v1/reporting/query', 'POST', [], fn (CustdClient $c) => $c->reporting()->query(new \HaakCo\Custd\Reporting\Data\ReportingQueryRequest(metrics: ['m'], template: 't'))],
+            ['analytics-api POST /api/v1/reporting/query', 'POST', [], fn (CustdClient $c) => $c->reporting()->query(new ReportingQueryRequest(metrics: ['m'], template: 't'))],
             ['analytics-api GET /api/v1/processing/{receiptUuid}', 'GET', ['receiptUuid' => self::A], fn (CustdClient $c) => $c->reporting()->receipt(self::A)],
             ['analytics-api GET /api/v1/reporting/outputs', 'GET', [], fn (CustdClient $c) => $c->reporting()->outputs()],
             ['analytics-api GET /api/v1/reporting/outputs/{outputUuid}', 'GET', ['outputUuid' => self::A], fn (CustdClient $c) => $c->reporting()->output(self::A)],
-            ['analytics-api POST /api/v1/reporting/outputs/{outputUuid}/query', 'POST', ['outputUuid' => self::A], fn (CustdClient $c) => $c->reporting()->queryOutput(self::A, new \HaakCo\Custd\Reporting\Data\ReportingQueryRequest(metrics: ['m'], template: 't'))],
+            ['analytics-api POST /api/v1/reporting/outputs/{outputUuid}/query', 'POST', ['outputUuid' => self::A], fn (CustdClient $c) => $c->reporting()->queryOutput(self::A, new ReportingQueryRequest(metrics: ['m'], template: 't'))],
             ['schema-registry GET /api/v1/parsers/presets', 'GET', [], fn (CustdClient $c) => $c->parsers()->listPresets()],
             ['schema-registry GET /api/v1/parsers', 'GET', [], fn (CustdClient $c) => $c->parsers()->list()],
             ['schema-registry DELETE /api/v1/parsers/{uuid}', 'DELETE', ['uuid' => self::A], fn (CustdClient $c) => $c->parsers()->delete(self::A)],
@@ -448,10 +527,10 @@ final class SurfaceConformanceTest extends TestCase
             ['admin-api POST /api/v1/site-domains/{domainUuid}/page-check', 'POST', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->checkPage(self::A, new SD\SitePageCheckRequest('https://example.com/', '<html></html>'))],
             ['admin-api POST /api/v1/site-domains/{domainUuid}/wording-compare', 'POST', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->compareWording(self::A, new SD\SiteWordingCompareRequest('one', 'two'))],
             ['admin-api POST /api/v1/site-domains/{domainUuid}/robots-test', 'POST', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->testRobots(self::A, new SD\SiteRobotsTestRequest('https://example.com/', 'Googlebot'))],
-            ['admin-api PUT /api/v1/site-domains/project-context', 'PUT', [], fn (CustdClient $c) => $c->adminSiteDomains()->setProjectContext(self::A, new SD\SiteProjectContextRequest())],
+            ['admin-api PUT /api/v1/site-domains/project-context', 'PUT', [], fn (CustdClient $c) => $c->adminSiteDomains()->setProjectContext(self::A, new SD\SiteProjectContextRequest)],
             ['admin-api POST /api/v1/site-domains/{domainUuid}/saved-reports', 'POST', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->saveReport(self::A, new SD\SavedSiteReportRequest('Weekly'))],
             ['admin-api PUT /api/v1/site-domains/{domainUuid}/saved-reports/{reportUuid}', 'PUT', ['domainUuid' => self::A, 'reportUuid' => self::B], fn (CustdClient $c) => $c->adminSiteDomains()->replaceSavedReport(self::A, self::B, new SD\SavedSiteReportRequest('Weekly'))],
-            ['admin-api POST /api/v1/site-domains/{domainUuid}/report-shares', 'POST', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->createReportShare(self::A, new SD\SiteReportShareRequest())],
+            ['admin-api POST /api/v1/site-domains/{domainUuid}/report-shares', 'POST', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->createReportShare(self::A, new SD\SiteReportShareRequest)],
             ['admin-api PUT /api/v1/admin/workflow-timings/definitions/{workflowKey}', 'PUT', ['workflowKey' => 'wf'], fn (CustdClient $c) => $c->adminWorkflowTimings()->reconcile(self::A, new WT\WorkflowDeclaration('wf', 'Workflow'))],
             ['admin-api POST /api/v1/admin/workflow-timings/observations', 'POST', [], fn (CustdClient $c) => $c->adminWorkflowTimings()->append(self::A, $obs)],
             ['admin-api POST /api/v1/admin/workflow-timings/corrections', 'POST', [], fn (CustdClient $c) => $c->adminWorkflowTimings()->correct(self::A, $obs)],
@@ -502,9 +581,9 @@ final class SurfaceConformanceTest extends TestCase
             ['admin-api POST /api/v1/admin/auth-projects/{projectId}/delete', 'POST', ['projectId' => self::A], fn (CustdClient $c) => $c->adminAuthProjects()->deleteProject(self::A, new AP\ProjectDeletionRequest('app'), $key)],
             ['admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/delete', 'POST', ['projectId' => self::A, 'environmentId' => self::B], fn (CustdClient $c) => $c->adminAuthProjects()->deleteEnvironment(self::A, self::B, new AP\EnvironmentDeletionRequest('staging'), $key)],
             ['admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/offboard', 'POST', ['projectId' => self::A, 'environmentId' => self::B], fn (CustdClient $c) => $c->adminAuthProjects()->offboardEnvironment(self::A, self::B, new AP\EnvironmentOffboardRequest('staging'), $key)],
-            ['analytics-api POST /api/v1/reporting/exports', 'POST', [], fn (CustdClient $c) => $c->reporting()->createExport(new \HaakCo\Custd\Reporting\Data\ReportExportCreateRequest('executive', ['csv'], new \HaakCo\Custd\Reporting\Data\ExportQueryParameters()))],
-            ['analytics-api POST /api/v1/reporting/insights/subject', 'POST', [], fn (CustdClient $c) => $c->reporting()->subjectInsight(new \HaakCo\Custd\Reporting\Data\SubjectInsightRequest(subject: 'subject-1', template: 'learning_subject', rangeDays: 30))],
-            ['analytics-api POST /api/v1/analytics/query', 'POST', [], fn (CustdClient $c) => $c->analytics()->query(new \HaakCo\Custd\Analytics\AnalyticsEventsQueryRequest('2026-09-14'))],
+            ['analytics-api POST /api/v1/reporting/exports', 'POST', [], fn (CustdClient $c) => $c->reporting()->createExport(new ReportExportCreateRequest('executive', ['csv'], new ExportQueryParameters))],
+            ['analytics-api POST /api/v1/reporting/insights/subject', 'POST', [], fn (CustdClient $c) => $c->reporting()->subjectInsight(new SubjectInsightRequest(subject: 'subject-1', template: 'learning_subject', rangeDays: 30))],
+            ['analytics-api POST /api/v1/analytics/query', 'POST', [], fn (CustdClient $c) => $c->analytics()->query(new AnalyticsEventsQueryRequest('2026-09-14'))],
             ['analytics-api POST /api/v1/analytics/query-range', 'POST', [], fn (CustdClient $c) => $c->analytics()->queryRange(new RangeQueryRequest('2026-09-14', '2026-09-15'))],
             ['schema-registry POST /api/v1/parsers', 'POST', [], fn (CustdClient $c) => $c->parsers()->create($saveParser)],
             ['schema-registry PUT /api/v1/parsers/{uuid}', 'PUT', ['uuid' => self::A], fn (CustdClient $c) => $c->parsers()->update(self::A, $saveParser)],
@@ -544,7 +623,7 @@ final class SurfaceConformanceTest extends TestCase
             ['admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/domain/retry', 'POST', ['projectId' => self::A, 'environmentId' => self::B], fn (CustdClient $c) => $c->adminAuthProjects()->retryEnvironmentAuthDomain(self::A, self::B)],
             ['admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/domain/disable', 'POST', ['projectId' => self::A, 'environmentId' => self::B], fn (CustdClient $c) => $c->adminAuthProjects()->disableEnvironmentAuthDomain(self::A, self::B)],
             ['admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/domain/release', 'POST', ['projectId' => self::A, 'environmentId' => self::B], fn (CustdClient $c) => $c->adminAuthProjects()->releaseEnvironmentAuthDomain(self::A, self::B)],
-            ['admin-api PUT /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/domain/image-override', 'PUT', ['projectId' => self::A, 'environmentId' => self::B], fn (CustdClient $c) => $c->adminAuthProjects()->setEnvironmentAuthDomainImageOverride(self::A, self::B, new AP\AuthDomainImageOverrideRequest('hydra', 'sha256:' . self::DIGEST, 'INC-1', '2026-12-01T00:00:00Z'))],
+            ['admin-api PUT /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/domain/image-override', 'PUT', ['projectId' => self::A, 'environmentId' => self::B], fn (CustdClient $c) => $c->adminAuthProjects()->setEnvironmentAuthDomainImageOverride(self::A, self::B, new AP\AuthDomainImageOverrideRequest('hydra', 'sha256:'.self::DIGEST, 'INC-1', '2026-12-01T00:00:00Z'))],
             ['admin-api DELETE /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/domain/image-override', 'DELETE', ['projectId' => self::A, 'environmentId' => self::B], fn (CustdClient $c) => $c->adminAuthProjects()->clearEnvironmentAuthDomainImageOverride(self::A, self::B)],
             ['admin-api GET /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/app-links', 'GET', ['projectId' => self::A, 'environmentId' => self::B], fn (CustdClient $c) => $c->adminAuthProjects()->listEnvironmentAppLinks(self::A, self::B)],
             ['admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/brand/logo', 'POST', ['projectId' => self::A, 'environmentId' => self::B], fn (CustdClient $c) => $c->adminAuthProjects()->setEnvironmentBrandLogo(self::A, self::B, 'logo.png', 'png-bytes')],
@@ -558,7 +637,7 @@ final class SurfaceConformanceTest extends TestCase
             ['ingest-api POST /api/v1/events/batch', 'POST', [], fn (CustdClient $c) => $c->track(self::event())],
             ['ingest-api POST /api/v1/raw', 'POST', [], fn (CustdClient $c) => $c->ingestRawLines(new RawIngestRequest("line\n", self::A))],
             ['ingest-api POST /api/v1/managed-audit/redactions', 'POST', [], fn (CustdClient $c) => $c->redactAwthyAuditEvents(AwthyAuditRedactionRequest::fromArray('store-1', ['redactionId' => self::A, 'reason' => 'privacy_erasure', 'events' => [['localAuditEventId' => 'evt-1', 'fields' => ['actor']]]]))],
-            ['ingest-api ANY /api/v1/errors/api/{project}/envelope/', 'POST', ['project' => '1'], fn (CustdClient $c, \Closure $deliver) => (new ET\Client(new ET\Config(self::BASE_URL, 'site_pk_' . str_repeat('a', 32), 'test'), $deliver))->captureException(new ET\CaptureRequest(new \RuntimeException('boom')))],
+            ['ingest-api ANY /api/v1/errors/api/{project}/envelope/', 'POST', ['project' => '1'], fn (CustdClient $c, \Closure $deliver) => (new ET\Client(new ET\Config(self::BASE_URL, 'site_pk_'.str_repeat('a', 32), 'test'), $deliver))->captureException(new ET\CaptureRequest(new \RuntimeException('boom')))],
             ['schema-registry GET /api/v1/schemas', 'GET', [], fn (CustdClient $c) => $c->schemas()->list()],
             ['schema-registry GET /api/v1/schemas/{eventType}/versions', 'GET', ['eventType' => 'page.view'], fn (CustdClient $c) => $c->schemas()->listVersions('page.view')],
             ['schema-registry GET /api/v1/schemas/{eventType}/{version}', 'GET', ['eventType' => 'page.view', 'version' => '1.0.0'], fn (CustdClient $c) => $c->schemas()->get('page.view', '1.0.0')],
@@ -570,19 +649,19 @@ final class SurfaceConformanceTest extends TestCase
             ['schema-registry PUT /api/v1/schemas/{eventType}/{version}/enabled', 'PUT', ['eventType' => 'page.view', 'version' => '1.0.0'], fn (CustdClient $c) => $c->schemas()->enable('page.view', '1.0.0')],
             ['schema-registry DELETE /api/v1/schemas/{eventType}/{version}/enabled', 'DELETE', ['eventType' => 'page.view', 'version' => '1.0.0'], fn (CustdClient $c) => $c->schemas()->disable('page.view', '1.0.0')],
             ['schema-registry DELETE /api/v1/schemas/{eventType}', 'DELETE', ['eventType' => 'page.view'], fn (CustdClient $c) => $c->schemas()->disableEventType('page.view')],
-            ['admin-api POST /api/v1/admin/subject-exports', 'POST', [], fn (CustdClient $c) => $c->adminSubjectExports()->create(new \HaakCo\Custd\Admin\SubjectExport\SubjectExportCreateRequest(idempotencyKey: 'x', opaqueSubjectId: 'x', scope: 'access'))],
+            ['admin-api POST /api/v1/admin/subject-exports', 'POST', [], fn (CustdClient $c) => $c->adminSubjectExports()->create(new SubjectExportCreateRequest(idempotencyKey: 'x', opaqueSubjectId: 'x', scope: 'access'))],
             ['admin-api GET /api/v1/admin/subject-exports', 'GET', [], fn (CustdClient $c) => $c->adminSubjectExports()->list()],
             ['admin-api GET /api/v1/admin/subject-exports/{requestId}', 'GET', ['requestId' => self::A], fn (CustdClient $c) => $c->adminSubjectExports()->get(self::A)],
             ['admin-api POST /api/v1/admin/subject-exports/{requestId}/cancel', 'POST', ['requestId' => self::A], fn (CustdClient $c) => $c->adminSubjectExports()->cancel(self::A)],
             ['admin-api GET /api/v1/admin/subject-exports/{requestId}/download', 'GET', ['requestId' => self::A], fn (CustdClient $c) => $c->adminSubjectExports()->download(self::A, 'access')],
             ['admin-api POST /api/v1/admin/subject-exports/{requestId}/force', 'POST', ['requestId' => self::A], fn (CustdClient $c) => $c->adminSubjectExports()->force(self::A, 'acme')],
-            ['admin-api POST /api/v1/admin/privacy/erasures', 'POST', [], fn (CustdClient $c) => $c->adminPrivacyErasures()->create(new \HaakCo\Custd\Admin\Privacy\PrivacyErasureCreateRequest(companySlug: 'acme', forceNow: false, reason: 'x', redactionId: 'x', selector: new \HaakCo\Custd\Admin\Privacy\PrivacyErasureSelector(type: 'x', value: 'x')))],
+            ['admin-api POST /api/v1/admin/privacy/erasures', 'POST', [], fn (CustdClient $c) => $c->adminPrivacyErasures()->create(new PrivacyErasureCreateRequest(companySlug: 'acme', forceNow: false, reason: 'x', redactionId: 'x', selector: new PrivacyErasureSelector(type: 'x', value: 'x')))],
             ['admin-api GET /api/v1/admin/privacy/erasures', 'GET', [], fn (CustdClient $c) => $c->adminPrivacyErasures()->list()],
             ['admin-api GET /api/v1/admin/privacy/erasures/{requestUuid}', 'GET', ['requestUuid' => self::A], fn (CustdClient $c) => $c->adminPrivacyErasures()->get(self::A)],
             ['admin-api POST /api/v1/admin/privacy/erasures/{requestUuid}/force', 'POST', ['requestUuid' => self::A], fn (CustdClient $c) => $c->adminPrivacyErasures()->force(self::A)],
             ['admin-api GET /api/v1/admin/retention/policies', 'GET', [], fn (CustdClient $c) => $c->adminRetention()->list()],
             ['admin-api GET /api/v1/admin/retention/policies/{tenantSlug}', 'GET', ['tenantSlug' => self::A], fn (CustdClient $c) => $c->adminRetention()->get(self::A)],
-            ['admin-api PUT /api/v1/admin/retention/policies/{tenantSlug}', 'PUT', ['tenantSlug' => self::A], fn (CustdClient $c) => $c->adminRetention()->upsert(self::A, new \HaakCo\Custd\Admin\Retention\RetentionPolicyUpsertRequest(legalHold: false, maxAgeSeconds: 1, precedence: 1, retentionClass: 'archive', scope: 'tenant'))],
+            ['admin-api PUT /api/v1/admin/retention/policies/{tenantSlug}', 'PUT', ['tenantSlug' => self::A], fn (CustdClient $c) => $c->adminRetention()->upsert(self::A, new RetentionPolicyUpsertRequest(legalHold: false, maxAgeSeconds: 1, precedence: 1, retentionClass: 'archive', scope: 'tenant'))],
             ['admin-api DELETE /api/v1/admin/retention/policies/{tenantSlug}', 'DELETE', ['tenantSlug' => self::A], fn (CustdClient $c) => $c->adminRetention()->delete(self::A)],
             ['admin-api POST /api/v1/admin/retention/policies/{tenantSlug}/preview', 'POST', ['tenantSlug' => self::A], fn (CustdClient $c) => $c->adminRetention()->preview(self::A)],
             ['admin-api POST /api/v1/admin/retention/policies/{tenantSlug}/apply', 'POST', ['tenantSlug' => self::A], fn (CustdClient $c) => $c->adminRetention()->apply(self::A)],
@@ -590,17 +669,17 @@ final class SurfaceConformanceTest extends TestCase
             ['admin-api GET /api/v1/admin/data-labels', 'GET', [], fn (CustdClient $c) => $c->adminDataLabels()->list()],
             ['admin-api GET /api/v1/admin/data-labels/catalogue', 'GET', [], fn (CustdClient $c) => $c->adminDataLabels()->catalogue()],
             ['admin-api GET /api/v1/admin/data-labels/{definitionUuid}', 'GET', ['definitionUuid' => self::A], fn (CustdClient $c) => $c->adminDataLabels()->get(self::A)],
-            ['admin-api POST /api/v1/admin/data-labels', 'POST', [], fn (CustdClient $c) => $c->adminDataLabels()->create(new \HaakCo\Custd\Admin\DataLabel\DataLabelDefinitionCreateRequest(allowedScopes: [], description: 'x', displayName: 'x', intendedUse: 'x', key: 'x', propagationPolicy: 'event_type_to_event', sensitivity: 'internal', synonyms: []))],
-            ['admin-api PATCH /api/v1/admin/data-labels/{definitionUuid}', 'PATCH', ['definitionUuid' => self::A], fn (CustdClient $c) => $c->adminDataLabels()->update(self::A, new \HaakCo\Custd\Admin\DataLabel\DataLabelDefinitionUpdateRequest(allowedScopes: [], description: 'x', displayName: 'x', intendedUse: 'x', propagationPolicy: 'event_type_to_event', sensitivity: 'internal', synonyms: []))],
+            ['admin-api POST /api/v1/admin/data-labels', 'POST', [], fn (CustdClient $c) => $c->adminDataLabels()->create(new DataLabelDefinitionCreateRequest(allowedScopes: [], description: 'x', displayName: 'x', intendedUse: 'x', key: 'x', propagationPolicy: 'event_type_to_event', sensitivity: 'internal', synonyms: []))],
+            ['admin-api PATCH /api/v1/admin/data-labels/{definitionUuid}', 'PATCH', ['definitionUuid' => self::A], fn (CustdClient $c) => $c->adminDataLabels()->update(self::A, new DataLabelDefinitionUpdateRequest(allowedScopes: [], description: 'x', displayName: 'x', intendedUse: 'x', propagationPolicy: 'event_type_to_event', sensitivity: 'internal', synonyms: []))],
             ['admin-api POST /api/v1/admin/data-labels/{definitionUuid}/disable', 'POST', ['definitionUuid' => self::A], fn (CustdClient $c) => $c->adminDataLabels()->disable(self::A)],
-            ['admin-api POST /api/v1/admin/data-labels/{definitionUuid}/values', 'POST', ['definitionUuid' => self::A], fn (CustdClient $c) => $c->adminDataLabels()->createValue(self::A, new \HaakCo\Custd\Admin\DataLabel\DataLabelValueCreateRequest(description: 'x', displayName: 'x', value: 'x'))],
-            ['admin-api PATCH /api/v1/admin/data-label-values/{valueUuid}', 'PATCH', ['valueUuid' => self::A], fn (CustdClient $c) => $c->adminDataLabels()->updateValue(self::A, new \HaakCo\Custd\Admin\DataLabel\DataLabelValueUpdateRequest(description: 'x', displayName: 'x'))],
+            ['admin-api POST /api/v1/admin/data-labels/{definitionUuid}/values', 'POST', ['definitionUuid' => self::A], fn (CustdClient $c) => $c->adminDataLabels()->createValue(self::A, new DataLabelValueCreateRequest(description: 'x', displayName: 'x', value: 'x'))],
+            ['admin-api PATCH /api/v1/admin/data-label-values/{valueUuid}', 'PATCH', ['valueUuid' => self::A], fn (CustdClient $c) => $c->adminDataLabels()->updateValue(self::A, new DataLabelValueUpdateRequest(description: 'x', displayName: 'x'))],
             ['admin-api POST /api/v1/admin/data-label-values/{valueUuid}/disable', 'POST', ['valueUuid' => self::A], fn (CustdClient $c) => $c->adminDataLabels()->disableValue(self::A)],
             ['admin-api GET /api/v1/admin/data-labels/usage', 'GET', [], fn (CustdClient $c) => $c->adminDataLabels()->listUsage()],
             ['admin-api GET /api/v1/admin/data-label-assignments', 'GET', [], fn (CustdClient $c) => $c->adminDataLabels()->listAssignments()],
-            ['admin-api PUT /api/v1/admin/event-types/{slug}/data-label-defaults/{definitionUuid}', 'PUT', ['slug' => self::A, 'definitionUuid' => self::B], fn (CustdClient $c) => $c->adminDataLabels()->setEventTypeDefault(self::A, self::B, new \HaakCo\Custd\Admin\DataLabel\EventTypeDataLabelDefaultRequest(valueUuid: 'x'))],
+            ['admin-api PUT /api/v1/admin/event-types/{slug}/data-label-defaults/{definitionUuid}', 'PUT', ['slug' => self::A, 'definitionUuid' => self::B], fn (CustdClient $c) => $c->adminDataLabels()->setEventTypeDefault(self::A, self::B, new EventTypeDataLabelDefaultRequest(valueUuid: 'x'))],
             ['admin-api DELETE /api/v1/admin/event-types/{slug}/data-label-defaults/{definitionUuid}', 'DELETE', ['slug' => self::A, 'definitionUuid' => self::B], fn (CustdClient $c) => $c->adminDataLabels()->removeEventTypeDefault(self::A, self::B)],
-            ['admin-api PUT /api/v1/admin/event-schemas/{schemaUuid}/field-data-labels', 'PUT', ['schemaUuid' => self::A], fn (CustdClient $c) => $c->adminDataLabels()->setSchemaFieldAssignment(self::A, new \HaakCo\Custd\Admin\DataLabel\SchemaFieldDataLabelAssignmentRequest(definitionUuid: 'x', fieldPath: 'x', valueUuid: 'x'))],
+            ['admin-api PUT /api/v1/admin/event-schemas/{schemaUuid}/field-data-labels', 'PUT', ['schemaUuid' => self::A], fn (CustdClient $c) => $c->adminDataLabels()->setSchemaFieldAssignment(self::A, new SchemaFieldDataLabelAssignmentRequest(definitionUuid: 'x', fieldPath: 'x', valueUuid: 'x'))],
             ['admin-api DELETE /api/v1/admin/data-label-assignments/schema-fields/{assignmentUuid}', 'DELETE', ['assignmentUuid' => self::A], fn (CustdClient $c) => $c->adminDataLabels()->removeSchemaFieldAssignment(self::A)],
         ];
 
@@ -615,7 +694,7 @@ final class SurfaceConformanceTest extends TestCase
      */
     private static function handRows(): array
     {
-        $png = "\x89PNG\r\n\x1a\n" . str_repeat("\0", 8);
+        $png = "\x89PNG\r\n\x1a\n".str_repeat("\0", 8);
         $pack = new RP\PackDefinition('pack', 'Pack', 'owner', 1, true, [], [], [], [], new RP\TrustDiagnostics([], []), new RP\ProofProfile('proof', [], [], [], 'table'));
 
         return [
@@ -635,10 +714,10 @@ final class SurfaceConformanceTest extends TestCase
             ['admin-api POST /api/v1/public-status-pages/{key}/subscribe', 'POST', ['key' => 'page-key'], fn (CustdClient $c) => $c->publicReads()->subscribeToStatusPage('page-key', 'owner@example.com')],
             ['admin-api POST /api/v1/public-status-pages/{key}/confirm-subscription', 'POST', ['key' => 'page-key'], fn (CustdClient $c) => $c->publicReads()->confirmStatusPageSubscription('page-key', 'token-1')],
             ['admin-api POST /api/v1/public-status-pages/{key}/unsubscribe', 'POST', ['key' => 'page-key'], fn (CustdClient $c) => $c->publicReads()->unsubscribeFromStatusPage('page-key', 'token-1')],
-            ['admin-api POST /api/v1/site-heartbeat-reports/{companySlug}/{monitorUuid}', 'POST', ['companySlug' => 'acme', 'monitorUuid' => self::A], fn (CustdClient $c) => $c->publicReads()->submitSiteHeartbeat('/api/v1/site-heartbeat-reports/acme/' . self::A, self::DIGEST, new SD\SiteHeartbeatReport('2026-01-01T00:00:00Z', SD\SiteHeartbeatOutcome::SUCCEEDED))],
-            ['admin-api POST /api/v1/site-private-uptime-reports/{companySlug}/{monitorUuid}', 'POST', ['companySlug' => 'acme', 'monitorUuid' => self::A], fn (CustdClient $c) => $c->publicReads()->submitPrivateUptime('/api/v1/site-private-uptime-reports/acme/' . self::A, self::DIGEST, new SD\PrivateUptimeReport(self::B, '2026-01-01T00:00:00Z', 12, 200))],
-            ['admin-api GET /api/v1/site-private-uptime-reports/{companySlug}/{monitorUuid}', 'GET', ['companySlug' => 'acme', 'monitorUuid' => self::A], fn (CustdClient $c) => $c->publicReads()->getPrivateUptimeWork('/api/v1/site-private-uptime-reports/acme/' . self::A, self::DIGEST)],
-            ['admin-api POST /api/v1/site-ai-owner/redeem', 'POST', [], fn (CustdClient $c) => $c->publicReads()->redeemSiteAIOwnerHandoff(new SD\SiteAIOwnerHandoff('code-1', self::BASE_URL . '/api/v1/site-ai-owner/redeem'), 'https://hub.example.com')],
+            ['admin-api POST /api/v1/site-heartbeat-reports/{companySlug}/{monitorUuid}', 'POST', ['companySlug' => 'acme', 'monitorUuid' => self::A], fn (CustdClient $c) => $c->publicReads()->submitSiteHeartbeat('/api/v1/site-heartbeat-reports/acme/'.self::A, self::DIGEST, new SD\SiteHeartbeatReport('2026-01-01T00:00:00Z', SD\SiteHeartbeatOutcome::SUCCEEDED))],
+            ['admin-api POST /api/v1/site-private-uptime-reports/{companySlug}/{monitorUuid}', 'POST', ['companySlug' => 'acme', 'monitorUuid' => self::A], fn (CustdClient $c) => $c->publicReads()->submitPrivateUptime('/api/v1/site-private-uptime-reports/acme/'.self::A, self::DIGEST, new SD\PrivateUptimeReport(self::B, '2026-01-01T00:00:00Z', 12, 200))],
+            ['admin-api GET /api/v1/site-private-uptime-reports/{companySlug}/{monitorUuid}', 'GET', ['companySlug' => 'acme', 'monitorUuid' => self::A], fn (CustdClient $c) => $c->publicReads()->getPrivateUptimeWork('/api/v1/site-private-uptime-reports/acme/'.self::A, self::DIGEST)],
+            ['admin-api POST /api/v1/site-ai-owner/redeem', 'POST', [], fn (CustdClient $c) => $c->publicReads()->redeemSiteAIOwnerHandoff(new SD\SiteAIOwnerHandoff('code-1', self::BASE_URL.'/api/v1/site-ai-owner/redeem'), 'https://hub.example.com')],
             ['admin-api GET /api/v1/site-ai-owner/settings', 'GET', [], fn (CustdClient $c) => $c->publicReads()->resumeSiteAIOwnerSession(self::BASE_URL, 'handle-1')->getSettings()],
             ['admin-api PUT /api/v1/site-ai-owner/settings', 'PUT', [], fn (CustdClient $c) => $c->publicReads()->resumeSiteAIOwnerSession(self::BASE_URL, 'handle-1', 'binding-1')->setSettings(new SD\SiteAISettingsRequest(SD\SiteAIMode::OFF, 0))],
             ['admin-api PUT /api/v1/site-ai-owner/consent', 'PUT', [], fn (CustdClient $c) => $c->publicReads()->resumeSiteAIOwnerSession(self::BASE_URL, 'handle-1', 'binding-1')->setConsent(SD\SiteAIConsentRequest::revoke())],

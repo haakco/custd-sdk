@@ -12,8 +12,7 @@ final readonly class Totals
         public Money $netTotal,
         public Money $taxTotal,
         public Money $grossTotal,
-    ) {
-    }
+    ) {}
 
     public static function fromPayload(\stdClass $payload): self
     {
