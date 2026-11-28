@@ -159,7 +159,7 @@ class FieldWalk:
                 self.exemptions_used.add(owner)
             else:
                 self.report(path, f"declared {hint!r} but the server sends {value!r}")
-        elif isinstance(value, (dict, list)):
+        elif isinstance(value, dict | list):
             self.report(path, f"declared {hint!r} but the server sends a {type(value).__name__}")
 
     def walk_union(self, hint: Any, value: Any, path: str, owner: str) -> None:
