@@ -239,3 +239,59 @@ it("uses explicit invoice-only consent and supports reading and cancelling the s
     { method: "DELETE", path, body: undefined },
   ]);
 });
+
+it("uses separate seller and partner routes for settlement preferences", async () => {
+  const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => Response.json({ mode: "set_off" }));
+  const client = new CustdClient({
+    baseUrl: "https://store.example",
+    getToken: () => "partner-token",
+    fetch: fetchImpl,
+  });
+  await client.storefronts.listBillingPartnerSellers({ after: "previous" });
+  await client.storefronts.getSellerSettlementPreference("seller");
+  await client.storefronts.getPartnerSettlementPreference("partner");
+  await expect(
+    client.storefronts.recordPartnerSettlementPreference("seller", { preferenceUuid: "revision", mode: "set_off" }),
+  ).resolves.toMatchObject({ mode: "set_off" });
+  const calls = fetchImpl.mock.calls.map(([url, init]) => [String(url), init?.method, init?.body]);
+  const base = "https://store.example/api/v1/billing/partners";
+  expect(calls).toEqual([
+    [`${base}/sellers?after=previous`, "GET", undefined],
+    [`${base}/sellers/seller/settlement-preference`, "GET", undefined],
+    [`${base}/partner/settlement-preference`, "GET", undefined],
+    [`${base}/sellers/seller/settlement-preference`, "POST", '{"preferenceUuid":"revision","mode":"set_off"}'],
+  ]);
+});
+
+it("preserves an absent tax disclosure and sends explicit non-registration only to the seller route", async () => {
+  const fetchImpl = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(Response.json({ sellerCompanyUuid: "seller", partnerCompanyUuid: "partner" }))
+    .mockResolvedValueOnce(Response.json({ sellerCompanyUuid: "seller", partnerCompanyUuid: "partner" }))
+    .mockResolvedValueOnce(Response.json({ status: "not_registered", jurisdiction: "ZA" }));
+  const client = new CustdClient({
+    baseUrl: "https://store.example",
+    getToken: () => "partner-token",
+    fetch: fetchImpl,
+  });
+  const selection = await client.storefronts.getSellerTaxDisclosure("seller");
+  expect(selection.current).toBeUndefined();
+  await client.storefronts.getPartnerTaxDisclosure("partner");
+  await expect(
+    client.storefronts.recordPartnerTaxDisclosure("seller", {
+      disclosureUuid: "revision",
+      status: "not_registered",
+      jurisdiction: "ZA",
+    }),
+  ).resolves.toMatchObject({ status: "not_registered", jurisdiction: "ZA" });
+  const base = "https://store.example/api/v1/billing/partners";
+  expect(fetchImpl.mock.calls.map(([url, init]) => [String(url), init?.method, init?.body])).toEqual([
+    [`${base}/sellers/seller/tax-disclosure`, "GET", undefined],
+    [`${base}/partner/tax-disclosure`, "GET", undefined],
+    [
+      `${base}/sellers/seller/tax-disclosure`,
+      "POST",
+      '{"disclosureUuid":"revision","status":"not_registered","jurisdiction":"ZA"}',
+    ],
+  ]);
+});

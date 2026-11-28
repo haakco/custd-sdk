@@ -267,6 +267,43 @@ const billingPartnersPath = "/billing/partners";
 export type BillingPartner = { partnerCompanyUuid: string; name: string; active: boolean };
 export type BillingPartnerPageRequest = { after?: string };
 export type BillingPartnerPage = { partners: BillingPartner[]; nextAfter?: string };
+export type BillingPartnerSeller = { sellerCompanyUuid: string; name: string; active: boolean };
+export type BillingPartnerSellerPage = { sellers: BillingPartnerSeller[]; nextAfter?: string };
+export type PartnerSettlementMode = "payout" | "set_off";
+export type PartnerSettlementPreference = {
+  preferenceUuid: string;
+  mode: PartnerSettlementMode;
+  effectiveFrom: string;
+  recordedAt: string;
+};
+export type PartnerSettlementSelection = {
+  sellerCompanyUuid: string;
+  partnerCompanyUuid: string;
+  current?: PartnerSettlementPreference;
+  next?: PartnerSettlementPreference;
+};
+export type RecordPartnerSettlementPreferenceRequest = {
+  preferenceUuid: string;
+  mode: PartnerSettlementMode;
+  effectiveFrom?: string;
+};
+export type RecordPartnerTaxDisclosureRequest = {
+  disclosureUuid: string;
+  status: "registered" | "not_registered";
+  jurisdiction: string;
+  registrationNumber?: string;
+  effectiveFrom?: string;
+};
+export type PartnerTaxDisclosure = RecordPartnerTaxDisclosureRequest & {
+  effectiveFrom: string;
+  recordedAt: string;
+};
+export type PartnerTaxDisclosureSelection = {
+  sellerCompanyUuid: string;
+  partnerCompanyUuid: string;
+  current?: PartnerTaxDisclosure;
+  next?: PartnerTaxDisclosure;
+};
 export type BillingPartnerInvitation = { code: string; expiresAt: string };
 export type AcceptBillingPartnerInvitationRequest = { code: string };
 export type AcceptedBillingPartnerInvitation = { sellerCompanyName: string };
@@ -316,6 +353,76 @@ export class StorefrontClient {
   listBillingPartners(input: BillingPartnerPageRequest, options?: RequestOptions): Promise<BillingPartnerPage> {
     const query = input.after ? `?${new URLSearchParams({ after: input.after })}` : "";
     return this.request("GET", billingPartnersPath + query, undefined, options);
+  }
+
+  listBillingPartnerSellers(
+    input: BillingPartnerPageRequest,
+    options?: RequestOptions,
+  ): Promise<BillingPartnerSellerPage> {
+    const query = input.after ? `?${new URLSearchParams({ after: input.after })}` : "";
+    return this.request("GET", `${billingPartnersPath}/sellers${query}`, undefined, options);
+  }
+
+  getSellerSettlementPreference(sellerUuid: string, options?: RequestOptions): Promise<PartnerSettlementSelection> {
+    return this.request(
+      "GET",
+      `${billingPartnersPath}/sellers/${encodeURIComponent(sellerUuid)}/settlement-preference`,
+      undefined,
+      options,
+    );
+  }
+
+  getPartnerSettlementPreference(partnerUuid: string, options?: RequestOptions): Promise<PartnerSettlementSelection> {
+    return this.request(
+      "GET",
+      `${billingPartnersPath}/${encodeURIComponent(partnerUuid)}/settlement-preference`,
+      undefined,
+      options,
+    );
+  }
+
+  recordPartnerSettlementPreference(
+    sellerUuid: string,
+    input: RecordPartnerSettlementPreferenceRequest,
+    options?: RequestOptions,
+  ): Promise<PartnerSettlementPreference> {
+    return this.request(
+      "POST",
+      `${billingPartnersPath}/sellers/${encodeURIComponent(sellerUuid)}/settlement-preference`,
+      input,
+      options,
+    );
+  }
+
+  getSellerTaxDisclosure(sellerUuid: string, options?: RequestOptions): Promise<PartnerTaxDisclosureSelection> {
+    return this.request(
+      "GET",
+      `${billingPartnersPath}/sellers/${encodeURIComponent(sellerUuid)}/tax-disclosure`,
+      undefined,
+      options,
+    );
+  }
+
+  getPartnerTaxDisclosure(partnerUuid: string, options?: RequestOptions): Promise<PartnerTaxDisclosureSelection> {
+    return this.request(
+      "GET",
+      `${billingPartnersPath}/${encodeURIComponent(partnerUuid)}/tax-disclosure`,
+      undefined,
+      options,
+    );
+  }
+
+  recordPartnerTaxDisclosure(
+    sellerUuid: string,
+    input: RecordPartnerTaxDisclosureRequest,
+    options?: RequestOptions,
+  ): Promise<PartnerTaxDisclosure> {
+    return this.request(
+      "POST",
+      `${billingPartnersPath}/sellers/${encodeURIComponent(sellerUuid)}/tax-disclosure`,
+      input,
+      options,
+    );
   }
 
   createBillingPartnerInvitation(options?: RequestOptions): Promise<BillingPartnerInvitation> {

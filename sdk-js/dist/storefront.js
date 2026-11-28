@@ -10,6 +10,28 @@ export class StorefrontClient {
         const query = input.after ? `?${new URLSearchParams({ after: input.after })}` : "";
         return this.request("GET", billingPartnersPath + query, undefined, options);
     }
+    listBillingPartnerSellers(input, options) {
+        const query = input.after ? `?${new URLSearchParams({ after: input.after })}` : "";
+        return this.request("GET", `${billingPartnersPath}/sellers${query}`, undefined, options);
+    }
+    getSellerSettlementPreference(sellerUuid, options) {
+        return this.request("GET", `${billingPartnersPath}/sellers/${encodeURIComponent(sellerUuid)}/settlement-preference`, undefined, options);
+    }
+    getPartnerSettlementPreference(partnerUuid, options) {
+        return this.request("GET", `${billingPartnersPath}/${encodeURIComponent(partnerUuid)}/settlement-preference`, undefined, options);
+    }
+    recordPartnerSettlementPreference(sellerUuid, input, options) {
+        return this.request("POST", `${billingPartnersPath}/sellers/${encodeURIComponent(sellerUuid)}/settlement-preference`, input, options);
+    }
+    getSellerTaxDisclosure(sellerUuid, options) {
+        return this.request("GET", `${billingPartnersPath}/sellers/${encodeURIComponent(sellerUuid)}/tax-disclosure`, undefined, options);
+    }
+    getPartnerTaxDisclosure(partnerUuid, options) {
+        return this.request("GET", `${billingPartnersPath}/${encodeURIComponent(partnerUuid)}/tax-disclosure`, undefined, options);
+    }
+    recordPartnerTaxDisclosure(sellerUuid, input, options) {
+        return this.request("POST", `${billingPartnersPath}/sellers/${encodeURIComponent(sellerUuid)}/tax-disclosure`, input, options);
+    }
     createBillingPartnerInvitation(options) {
         return this.request("POST", `${billingPartnersPath}/invitations`, undefined, options);
     }

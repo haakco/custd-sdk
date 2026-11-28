@@ -255,6 +255,50 @@ export type BillingPartnerPage = {
     partners: BillingPartner[];
     nextAfter?: string;
 };
+export type BillingPartnerSeller = {
+    sellerCompanyUuid: string;
+    name: string;
+    active: boolean;
+};
+export type BillingPartnerSellerPage = {
+    sellers: BillingPartnerSeller[];
+    nextAfter?: string;
+};
+export type PartnerSettlementMode = "payout" | "set_off";
+export type PartnerSettlementPreference = {
+    preferenceUuid: string;
+    mode: PartnerSettlementMode;
+    effectiveFrom: string;
+    recordedAt: string;
+};
+export type PartnerSettlementSelection = {
+    sellerCompanyUuid: string;
+    partnerCompanyUuid: string;
+    current?: PartnerSettlementPreference;
+    next?: PartnerSettlementPreference;
+};
+export type RecordPartnerSettlementPreferenceRequest = {
+    preferenceUuid: string;
+    mode: PartnerSettlementMode;
+    effectiveFrom?: string;
+};
+export type RecordPartnerTaxDisclosureRequest = {
+    disclosureUuid: string;
+    status: "registered" | "not_registered";
+    jurisdiction: string;
+    registrationNumber?: string;
+    effectiveFrom?: string;
+};
+export type PartnerTaxDisclosure = RecordPartnerTaxDisclosureRequest & {
+    effectiveFrom: string;
+    recordedAt: string;
+};
+export type PartnerTaxDisclosureSelection = {
+    sellerCompanyUuid: string;
+    partnerCompanyUuid: string;
+    current?: PartnerTaxDisclosure;
+    next?: PartnerTaxDisclosure;
+};
 export type BillingPartnerInvitation = {
     code: string;
     expiresAt: string;
@@ -312,6 +356,13 @@ export declare class StorefrontClient {
     private readonly request;
     constructor(request: StorefrontRequester);
     listBillingPartners(input: BillingPartnerPageRequest, options?: RequestOptions): Promise<BillingPartnerPage>;
+    listBillingPartnerSellers(input: BillingPartnerPageRequest, options?: RequestOptions): Promise<BillingPartnerSellerPage>;
+    getSellerSettlementPreference(sellerUuid: string, options?: RequestOptions): Promise<PartnerSettlementSelection>;
+    getPartnerSettlementPreference(partnerUuid: string, options?: RequestOptions): Promise<PartnerSettlementSelection>;
+    recordPartnerSettlementPreference(sellerUuid: string, input: RecordPartnerSettlementPreferenceRequest, options?: RequestOptions): Promise<PartnerSettlementPreference>;
+    getSellerTaxDisclosure(sellerUuid: string, options?: RequestOptions): Promise<PartnerTaxDisclosureSelection>;
+    getPartnerTaxDisclosure(partnerUuid: string, options?: RequestOptions): Promise<PartnerTaxDisclosureSelection>;
+    recordPartnerTaxDisclosure(sellerUuid: string, input: RecordPartnerTaxDisclosureRequest, options?: RequestOptions): Promise<PartnerTaxDisclosure>;
     createBillingPartnerInvitation(options?: RequestOptions): Promise<BillingPartnerInvitation>;
     listPartnerProductTerms(input: PartnerProductTermsPageRequest, options?: RequestOptions): Promise<PartnerProductTermsPage>;
     publishPartnerProductTerms(storefront: string, offerUuid: string, input: PublishPartnerProductTermsRequest, options?: RequestOptions): Promise<PartnerProductTermsVersion>;
