@@ -11,6 +11,7 @@ final readonly class AppMessageDeleteSourceResponse
     public function __construct(
         public string $source,
         public int $deletedCount,
+        public ?int $sourceGeneration = null,
     ) {
     }
 
@@ -19,6 +20,7 @@ final readonly class AppMessageDeleteSourceResponse
         return new self(
             Fields::string($payload, 'source'),
             Fields::integer($payload, 'deletedCount'),
+            Fields::optionalInteger($payload, 'sourceGeneration'),
         );
     }
 }

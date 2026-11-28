@@ -12,15 +12,21 @@ final readonly class AppMessageBatchRequest
     public function __construct(
         public AppMessageSource $source,
         public array $messages,
+        public ?int $sourceGeneration = null,
     ) {
     }
 
     /** @return array<string, mixed> */
     public function serialise(): array
     {
-        return [
+        $payload = [
             'source' => $this->source->value,
             'messages' => array_map(static fn (AppMessageInput $item): array => $item->serialise(), $this->messages),
         ];
+        if ($this->sourceGeneration !== null) {
+            $payload['sourceGeneration'] = $this->sourceGeneration;
+        }
+
+        return $payload;
     }
 }

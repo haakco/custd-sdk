@@ -14,6 +14,60 @@ export interface AppMessageSession {
   companySlug: string;
   principalId: string;
   importAllowed: boolean;
+  whatsappSourceGeneration?: number;
+}
+
+export type AppMessageConnectorState = "active" | "paused" | "stale" | "disconnected";
+export type AppMessageConnectorConnection = "connecting" | "importing_history" | "syncing" | "offline" | "pair_again";
+
+export interface AppMessageConnectorControl {
+  action: "pause" | "resume" | "disconnect";
+}
+
+export interface AppMessageConnectorReport {
+  connectionState: AppMessageConnectorConnection;
+  pendingMedia: number;
+}
+
+export interface AppMessageConnectorStatus {
+  state: AppMessageConnectorState;
+  grantId?: string;
+  sourceGeneration?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  lastReportAt?: string;
+  pendingMedia?: number;
+  connectionState?: AppMessageConnectorConnection;
+}
+
+export interface AppMessageConnectorEnrollment {
+  status: AppMessageConnectorStatus;
+  bearerToken: string;
+}
+
+export interface AppMessageMutation {
+  externalId: string;
+  operationId: string;
+  kind: "edit" | "revoke";
+  revision: number;
+  text?: string;
+}
+
+export interface AppMessageMutationBatch {
+  source: "whatsapp";
+  mutations: AppMessageMutation[];
+  sourceGeneration: number;
+}
+
+export interface AppMessageMutationResult {
+  externalId: string;
+  operationId: string;
+  status: string;
+  errorCode?: string;
+}
+
+export interface AppMessageMutationBatchResponse {
+  results: AppMessageMutationResult[];
 }
 
 export interface AppMessageInput {
@@ -29,6 +83,7 @@ export interface AppMessageInput {
 export interface AppMessageBatchRequest {
   source: AppMessageSource;
   messages: AppMessageInput[];
+  sourceGeneration?: number;
 }
 
 export interface AppMessageImportResult {
@@ -86,11 +141,13 @@ export interface AppMessageReadResponse {
 export interface AppMessageDeleteSourceResponse {
   source: string;
   deletedCount: number;
+  sourceGeneration?: number;
 }
 
 export interface AppMessageMediaUpload {
   messageUuid: string;
   image: Uint8Array;
+  sourceGeneration?: number;
 }
 
 export interface AppMessageMediaRef {
@@ -103,7 +160,13 @@ export interface AppMessageMedia {
   image: Uint8Array;
 }
 
-type Request = (method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<unknown>;
+type Request = (
+  method: string,
+  path: string,
+  body?: unknown,
+  options?: RequestOptions,
+  headers?: Record<string, string>,
+) => Promise<unknown>;
 type Download = (path: string, options?: RequestOptions) => Promise<Response>;
 
 const root = "/app/messages";
@@ -126,6 +189,49 @@ export class AppMessageClient {
     requireString(data, "principalId", context);
     requireBoolean(data, "importAllowed", context);
     return data as unknown as AppMessageSession;
+  }
+
+  /** Read the signed-in archive owner's current connector status. */
+  async getConnector(options?: RequestOptions): Promise<AppMessageConnectorStatus> {
+    return connectorStatus(await this.request("GET", `${root}/connector`, undefined, options));
+  }
+
+  /** Use a human tenant administrator token. The connector bearer is returned once. */
+  async enrollConnector(options?: RequestOptions): Promise<AppMessageConnectorEnrollment> {
+    const data = requireRecord(await this.request("POST", `${root}/connector/enroll`, undefined, options), context);
+    return { status: connectorStatus(data.status), bearerToken: requireString(data, "bearerToken", context) };
+  }
+
+  async controlConnector(
+    request: AppMessageConnectorControl,
+    options?: RequestOptions,
+  ): Promise<AppMessageConnectorStatus> {
+    return connectorStatus(await this.request("POST", `${root}/connector/control`, request, options));
+  }
+
+  /** Verify a connector bearer and read its bound archive generation. */
+  async connectorSession(options?: RequestOptions): Promise<AppMessageSession> {
+    const data = requireRecord(await this.request("GET", `${root}/connector/session`, undefined, options), context);
+    requireString(data, "companySlug", context);
+    requireString(data, "principalId", context);
+    requireBoolean(data, "importAllowed", context);
+    requireInteger(data, "whatsappSourceGeneration", context);
+    return data as unknown as AppMessageSession;
+  }
+
+  /** Use the connector bearer to report connection state and pending media. */
+  async reportConnector(
+    request: AppMessageConnectorReport,
+    options?: RequestOptions,
+  ): Promise<AppMessageConnectorStatus> {
+    return connectorStatus(await this.request("POST", `${root}/connector/report`, request, options));
+  }
+
+  /** Apply native message edits or revocations with the connector bearer. */
+  async mutate(request: AppMessageMutationBatch, options?: RequestOptions): Promise<AppMessageMutationBatchResponse> {
+    const data = requireRecord(await this.request("POST", `${root}/mutations`, request, options), context);
+    requireObjectList(data, "results", context);
+    return data as unknown as AppMessageMutationBatchResponse;
   }
 
   async import(request: AppMessageBatchRequest, options?: RequestOptions): Promise<AppMessageBatchResponse> {
@@ -164,8 +270,22 @@ export class AppMessageClient {
     if (upload.image.byteLength === 0 || upload.image.byteLength > maxMediaBytes) {
       throw new Error("custd: archive image must contain 1 byte to 10 MiB");
     }
+    if (
+      upload.sourceGeneration !== undefined &&
+      (!Number.isSafeInteger(upload.sourceGeneration) || upload.sourceGeneration < 1)
+    ) {
+      throw new Error("custd: archive source generation must be a positive safe integer");
+    }
     const data = requireRecord(
-      await this.request("PUT", `${messagePath(upload.messageUuid)}/media`, upload.image, options),
+      await this.request(
+        "PUT",
+        `${messagePath(upload.messageUuid)}/media`,
+        upload.image,
+        options,
+        upload.sourceGeneration === undefined
+          ? undefined
+          : { "X-Custd-Source-Generation": String(upload.sourceGeneration) },
+      ),
       context,
     );
     requireString(data, "mediaUuid", context);
@@ -194,4 +314,10 @@ export class AppMessageClient {
     }
     return { contentType, image };
   }
+}
+
+function connectorStatus(value: unknown): AppMessageConnectorStatus {
+  const data = requireRecord(value, context);
+  requireString(data, "state", context);
+  return data as unknown as AppMessageConnectorStatus;
 }

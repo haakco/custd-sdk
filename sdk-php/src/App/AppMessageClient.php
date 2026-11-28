@@ -25,6 +25,41 @@ final class AppMessageClient
         return AppMessageSession::fromPayload($this->object('GET', '/session'));
     }
 
+    /** Read the signed-in archive owner's connector. */
+    public function getConnector(): AppMessageConnectorStatus
+    {
+        return AppMessageConnectorStatus::fromPayload($this->object('GET', '/connector'));
+    }
+
+    /** Use a human tenant administrator token. The connector bearer is returned once. */
+    public function enrollConnector(): AppMessageConnectorEnrollment
+    {
+        return AppMessageConnectorEnrollment::fromPayload($this->object('POST', '/connector/enroll'));
+    }
+
+    public function controlConnector(AppMessageConnectorControl $request): AppMessageConnectorStatus
+    {
+        return AppMessageConnectorStatus::fromPayload($this->object('POST', '/connector/control', $request->serialise()));
+    }
+
+    /** Verify the connector bearer and return its bound archive generation. */
+    public function connectorSession(): AppMessageSession
+    {
+        return AppMessageSession::fromPayload($this->object('GET', '/connector/session'));
+    }
+
+    /** Use the connector bearer to report connection state and pending media. */
+    public function reportConnector(AppMessageConnectorReport $request): AppMessageConnectorStatus
+    {
+        return AppMessageConnectorStatus::fromPayload($this->object('POST', '/connector/report', $request->serialise()));
+    }
+
+    /** Apply native edits or revocations using the connector bearer. */
+    public function mutate(AppMessageMutationBatch $request): AppMessageMutationBatchResponse
+    {
+        return AppMessageMutationBatchResponse::fromPayload($this->object('POST', '/mutations', $request->serialise()));
+    }
+
     public function import(AppMessageBatchRequest $request): AppMessageBatchResponse
     {
         return AppMessageBatchResponse::fromPayload($this->object('POST', '/batch', $request->serialise()));
@@ -50,13 +85,20 @@ final class AppMessageClient
         if ($upload->image === '' || strlen($upload->image) > self::MAX_MEDIA_BYTES) {
             throw new \InvalidArgumentException('custd: archive image must contain 1 byte to 10 MiB');
         }
+        $headers = ['Content-Type' => 'application/octet-stream'];
+        if ($upload->sourceGeneration !== null) {
+            if ($upload->sourceGeneration < 1) {
+                throw new \InvalidArgumentException('custd: archive source generation must be positive');
+            }
+            $headers['X-Custd-Source-Generation'] = (string) $upload->sourceGeneration;
+        }
         $payload = $this->http->object(
             'PUT',
             self::ROOT . '/' . rawurlencode($upload->messageUuid) . '/media',
             [],
             $upload->image,
             ($this->token)(),
-            ['Content-Type' => 'application/octet-stream'],
+            $headers,
         );
 
         return AppMessageMediaMetadata::fromPayload($payload);

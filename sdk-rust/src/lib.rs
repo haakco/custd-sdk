@@ -133,10 +133,15 @@ pub use app_meetings::{
     AppMeetingMinutes, AppMeetingMinutesUpdate, AppMeetingSummary, AppPlanMeetingSummary,
 };
 pub use app_messages::{
-    AppMessage, AppMessageBatchRequest, AppMessageBatchResponse, AppMessageDeleteSourceResponse,
-    AppMessageImportResult, AppMessageInput, AppMessageMedia, AppMessageMediaMetadata,
-    AppMessageMediaRef, AppMessageMediaUpload, AppMessageReadResponse, AppMessageSearchRequest,
-    AppMessageSearchResponse, AppMessageSession, AppMessageSource,
+    AppMessage, AppMessageBatchRequest, AppMessageBatchResponse, AppMessageConnectorAction,
+    AppMessageConnectorBatch, AppMessageConnectorConnection, AppMessageConnectorControl,
+    AppMessageConnectorEnrollment, AppMessageConnectorReport, AppMessageConnectorState,
+    AppMessageConnectorStatus, AppMessageDeleteSourceResponse, AppMessageImportResult,
+    AppMessageInput, AppMessageMedia, AppMessageMediaMetadata, AppMessageMediaRef,
+    AppMessageMediaUpload, AppMessageMutation, AppMessageMutationBatch,
+    AppMessageMutationBatchResponse, AppMessageMutationKind, AppMessageMutationResult,
+    AppMessageReadResponse, AppMessageSearchRequest, AppMessageSearchResponse, AppMessageSession,
+    AppMessageSource,
 };
 pub use app_models::{
     AppModelHistogram, AppModelPercentiles, AppModelQuantityError, AppModelQuantityResult,

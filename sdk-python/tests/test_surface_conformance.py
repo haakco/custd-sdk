@@ -547,6 +547,26 @@ ROUTES: dict[str, RouteCase] = {
         "/api/v1/storefronts/shop/invoices/invoice-1/credit-note",
         lambda c: c.storefronts.issue_credit_note("shop", "invoice-1", {"reason": "Duplicate sale"}),
     ),
+    "admin-api GET /api/v1/app/messages/connector": RouteCase(
+        "/api/v1/app/messages/connector", lambda c: c.app_messages.get_connector()
+    ),
+    "admin-api POST /api/v1/app/messages/connector/control": RouteCase(
+        "/api/v1/app/messages/connector/control", lambda c: c.app_messages.control_connector({"action": "pause"})
+    ),
+    "admin-api POST /api/v1/app/messages/connector/enroll": RouteCase(
+        "/api/v1/app/messages/connector/enroll", lambda c: c.app_messages.enroll_connector()
+    ),
+    "admin-api POST /api/v1/app/messages/connector/report": RouteCase(
+        "/api/v1/app/messages/connector/report",
+        lambda c: c.app_messages.report_connector({"connectionState": "syncing", "pendingMedia": 0}),
+    ),
+    "admin-api GET /api/v1/app/messages/connector/session": RouteCase(
+        "/api/v1/app/messages/connector/session", lambda c: c.app_messages.connector_session()
+    ),
+    "admin-api POST /api/v1/app/messages/mutations": RouteCase(
+        "/api/v1/app/messages/mutations",
+        lambda c: c.app_messages.mutate({"source": "whatsapp", "sourceGeneration": 2, "mutations": []}),
+    ),
     "admin-api GET /api/v1/app/messages/session": RouteCase(
         "/api/v1/app/messages/session", lambda c: c.app_messages.session()
     ),

@@ -1,7 +1,10 @@
 use custd_sdk::{
-    AppMessageBatchRequest, AppMessageBatchResponse, AppMessageDeleteSourceResponse,
-    AppMessageMediaMetadata, AppMessageMediaRef, AppMessageMediaUpload, AppMessageReadResponse,
-    AppMessageSearchRequest, AppMessageSearchResponse, AppMessageSession, AppMessageSource,
+    AppMessageBatchRequest, AppMessageBatchResponse, AppMessageConnectorAction,
+    AppMessageConnectorConnection, AppMessageConnectorControl, AppMessageConnectorEnrollment,
+    AppMessageConnectorReport, AppMessageConnectorStatus, AppMessageDeleteSourceResponse,
+    AppMessageMediaMetadata, AppMessageMediaRef, AppMessageMediaUpload, AppMessageMutationBatch,
+    AppMessageMutationBatchResponse, AppMessageReadResponse, AppMessageSearchRequest,
+    AppMessageSearchResponse, AppMessageSession, AppMessageSource,
 };
 
 use super::round_trip;
@@ -78,6 +81,63 @@ pub fn rows() -> Vec<Row> {
                     media_uuid: MEDIA.into(),
                 });
             },
+        ),
+        row(
+            "admin-api GET /api/v1/app/messages/connector",
+            "/api/v1/app/messages/connector",
+            |c| drop(c.custd.get_app_message_connector()),
+            round_trip::<AppMessageConnectorStatus>,
+        ),
+        row(
+            "admin-api POST /api/v1/app/messages/connector/control",
+            "/api/v1/app/messages/connector/control",
+            |c| {
+                drop(
+                    c.custd
+                        .control_app_message_connector(&AppMessageConnectorControl {
+                            action: AppMessageConnectorAction::Pause,
+                        }),
+                )
+            },
+            round_trip::<AppMessageConnectorStatus>,
+        ),
+        row(
+            "admin-api POST /api/v1/app/messages/connector/enroll",
+            "/api/v1/app/messages/connector/enroll",
+            |c| drop(c.custd.enroll_app_message_connector()),
+            round_trip::<AppMessageConnectorEnrollment>,
+        ),
+        row(
+            "admin-api POST /api/v1/app/messages/connector/report",
+            "/api/v1/app/messages/connector/report",
+            |c| {
+                drop(
+                    c.custd
+                        .report_app_message_connector(&AppMessageConnectorReport {
+                            connection_state: AppMessageConnectorConnection::Syncing,
+                            pending_media: 0,
+                        }),
+                )
+            },
+            round_trip::<AppMessageConnectorStatus>,
+        ),
+        row(
+            "admin-api GET /api/v1/app/messages/connector/session",
+            "/api/v1/app/messages/connector/session",
+            |c| drop(c.custd.app_message_connector_session()),
+            round_trip::<AppMessageSession>,
+        ),
+        row(
+            "admin-api POST /api/v1/app/messages/mutations",
+            "/api/v1/app/messages/mutations",
+            |c| {
+                drop(c.custd.mutate_app_messages(&AppMessageMutationBatch {
+                    source: AppMessageSource::WhatsApp,
+                    source_generation: 2,
+                    mutations: vec![],
+                }))
+            },
+            round_trip::<AppMessageMutationBatchResponse>,
         ),
     ]
 }

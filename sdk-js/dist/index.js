@@ -263,7 +263,7 @@ export class CustdClient {
         this.storefronts = new StorefrontClient((method, path, body, options) => this.apiRequest(method, path, body, options));
         this.schemas = new SchemaNamespace((method, path, body) => this.apiRequest(method, path, body));
         this.analytics = new AnalyticsEventClient((method, path, body, options) => this.apiRequest(method, path, body, options));
-        this.appMessages = new AppMessageClient((method, path, body, options) => this.apiRequest(method, path, body, options), async (path, options) => {
+        this.appMessages = new AppMessageClient((method, path, body, options, headers) => this.apiRequest(method, path, body, options, headers), async (path, options) => {
             const response = await this.apiDownloadResponse(path, options);
             if (options?.metadata)
                 options.metadata.requestId = response.headers.get(REQUEST_ID_HEADER) ?? "";

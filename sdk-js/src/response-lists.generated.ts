@@ -1957,6 +1957,7 @@ export const APP_RESPONSE_LISTS: ResponseListTable = {
     "item.uncertaintyModel.version.quantities[].input.samples",
   ],
   "POST /api/v1/app/messages/batch": ["results"],
+  "POST /api/v1/app/messages/mutations": ["results"],
   "POST /api/v1/app/messages/search": ["messages", "messages[].media", "messages[].participants"],
   "POST /api/v1/app/models/calculate": ["quantities", "quantities[].summary.histogram.counts"],
   "POST /api/v1/app/models/runs": [
