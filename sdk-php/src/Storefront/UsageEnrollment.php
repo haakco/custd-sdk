@@ -10,7 +10,8 @@ final readonly class UsageEnrollment
 {
     public function __construct(
         public string $enrollmentUuid,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

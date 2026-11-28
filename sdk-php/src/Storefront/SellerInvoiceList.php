@@ -14,7 +14,8 @@ final readonly class SellerInvoiceList
     public function __construct(
         public array $invoices,
         public ?string $nextBefore = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

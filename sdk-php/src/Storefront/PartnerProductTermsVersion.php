@@ -20,7 +20,8 @@ final readonly class PartnerProductTermsVersion
         public string $recordedByUserUuid,
         public string $currency,
         public int $holdDays,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

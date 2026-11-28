@@ -15,7 +15,8 @@ final readonly class AccountingRefund
         public string $provider,
         public string $providerReference,
         public ?string $providerAccountUuid = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

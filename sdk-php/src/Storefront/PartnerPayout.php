@@ -18,7 +18,8 @@ final readonly class PartnerPayout
         public string $recordedAt,
         public string $preferenceUuid,
         public string $taxDisclosureUuid,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

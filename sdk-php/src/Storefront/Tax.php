@@ -14,7 +14,8 @@ final readonly class Tax
         public string $rounding,
         public string $roundingPoint,
         public Money $amount,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

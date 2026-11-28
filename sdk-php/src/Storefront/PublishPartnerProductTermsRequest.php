@@ -14,7 +14,8 @@ final readonly class PublishPartnerProductTermsRequest
         public bool $signedAgreementAttested,
         public string $unitCost,
         public string $sellerCut,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

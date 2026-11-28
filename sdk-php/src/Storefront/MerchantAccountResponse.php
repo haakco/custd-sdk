@@ -10,7 +10,8 @@ final readonly class MerchantAccountResponse
 {
     public function __construct(
         public ?MerchantAccount $account = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

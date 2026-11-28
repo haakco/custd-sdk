@@ -14,7 +14,8 @@ final readonly class OwnedStorefronts
     public function __construct(
         public string $sellerCompanyUuid,
         public array $storefronts,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

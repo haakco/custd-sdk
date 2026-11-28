@@ -24,7 +24,8 @@ final readonly class CreditNote
         public ?string $sellerName,
         public ?string $reason,
         public ?array $lines,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

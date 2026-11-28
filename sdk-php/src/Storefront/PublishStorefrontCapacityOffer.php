@@ -15,7 +15,8 @@ final readonly class PublishStorefrontCapacityOffer
         public string $taxLabel,
         public DataSpaceCapacity $dataSpaceCapacity,
         public ?string $effectiveFrom = null,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

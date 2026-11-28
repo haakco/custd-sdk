@@ -11,7 +11,8 @@ final readonly class UsagePeriod
     public function __construct(
         public string $start,
         public string $endExclusive,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

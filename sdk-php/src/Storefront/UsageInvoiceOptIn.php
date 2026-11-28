@@ -8,7 +8,8 @@ final readonly class UsageInvoiceOptIn
 {
     public function __construct(
         public bool $invoiceOnlyAttested,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

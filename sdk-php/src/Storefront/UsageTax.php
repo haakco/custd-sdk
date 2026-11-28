@@ -11,7 +11,8 @@ final readonly class UsageTax
     public function __construct(
         public string $label,
         public string $rate,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

@@ -9,7 +9,8 @@ final readonly class VerifyMerchant
     public function __construct(
         public string $appUuid,
         public string $invoiceUuid,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

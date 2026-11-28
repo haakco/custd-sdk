@@ -9,5 +9,6 @@ final readonly class UsagePageRequest
     public function __construct(
         public string $storefront,
         public ?string $before = null,
-    ) {}
+    ) {
+    }
 }

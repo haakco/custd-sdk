@@ -11,5 +11,6 @@ final readonly class PartnerStatementRequest
         public string $partnerCompanyUuid,
         public string $month,
         public ?string $cursor = null,
-    ) {}
+    ) {
+    }
 }

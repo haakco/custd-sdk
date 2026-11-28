@@ -12,7 +12,8 @@ final readonly class UsageMeter
         public string $slug,
         public int $version,
         public string $unit,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

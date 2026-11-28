@@ -12,7 +12,8 @@ final readonly class RecordPartnerTaxDisclosureRequest
         public string $jurisdiction,
         public ?string $registrationNumber = null,
         public ?string $effectiveFrom = null,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

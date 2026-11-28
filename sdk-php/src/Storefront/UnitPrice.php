@@ -11,7 +11,8 @@ final readonly class UnitPrice
     public function __construct(
         public string $currency,
         public string $amount,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

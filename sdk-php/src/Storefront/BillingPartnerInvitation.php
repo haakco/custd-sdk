@@ -11,7 +11,8 @@ final readonly class BillingPartnerInvitation
     public function __construct(
         public string $code,
         public string $expiresAt,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

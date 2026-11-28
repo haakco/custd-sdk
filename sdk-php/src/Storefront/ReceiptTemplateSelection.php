@@ -11,7 +11,8 @@ final readonly class ReceiptTemplateSelection
     public function __construct(
         public ?string $revision = null,
         public ?string $selectedAt = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

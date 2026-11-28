@@ -12,7 +12,8 @@ final readonly class ReceiptDelivery
         public string $channel,
         public string $notificationSourceKey,
         public string $status,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

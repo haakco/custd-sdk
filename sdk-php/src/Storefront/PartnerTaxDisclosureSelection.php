@@ -13,7 +13,8 @@ final readonly class PartnerTaxDisclosureSelection
         public string $partnerCompanyUuid,
         public ?PartnerTaxDisclosure $current = null,
         public ?PartnerTaxDisclosure $next = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

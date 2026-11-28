@@ -14,7 +14,8 @@ final readonly class ReferralReviewRetry
         public int $requeuedCount,
         public bool $hasMore,
         public ?string $failureCode = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

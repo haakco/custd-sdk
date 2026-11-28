@@ -16,7 +16,8 @@ final readonly class PartnerFeeBalance
         public string $partnerCompanyUuid,
         public string $asOf,
         public array $currencies,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

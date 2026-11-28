@@ -12,7 +12,8 @@ final readonly class PartnerFeeBalanceCurrency
         public Money $held,
         public Money $available,
         public Money $negative,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

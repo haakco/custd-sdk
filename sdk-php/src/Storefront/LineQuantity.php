@@ -8,7 +8,8 @@ final readonly class LineQuantity
 {
     public function __construct(
         public string $quantity,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

@@ -13,7 +13,8 @@ final readonly class ConfigureMerchant
         public bool $refundsEnabled,
         public string $checkoutSecretKey,
         public string $paymentsReadToken,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

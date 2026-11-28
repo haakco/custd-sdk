@@ -16,7 +16,8 @@ final readonly class AccountingPayment
         public AccountingPostingBasis $postingBasis,
         public ?string $providerReceivedAt = null,
         public ?string $providerAccountUuid = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

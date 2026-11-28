@@ -19,7 +19,8 @@ final readonly class AccountingPayout
         public string $preferenceUuid,
         public string $taxDisclosureUuid,
         public array $allocations,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

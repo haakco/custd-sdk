@@ -15,7 +15,8 @@ final readonly class PublishReferralTerms
         public string $share,
         public int $months,
         public int $holdDays,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

@@ -10,5 +10,6 @@ final readonly class AccountingExportRequest
         public string $month,
         public string $businessTimeZone,
         public ?string $after = null,
-    ) {}
+    ) {
+    }
 }

@@ -11,7 +11,8 @@ final readonly class InvoiceNotice
     public function __construct(
         public InvoiceNoticeStatus $status,
         public ?InvoiceNoticeReason $reason = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

@@ -15,7 +15,8 @@ final readonly class UsageEnrollmentPage
         public bool $canSchedule,
         public array $enrollments,
         public ?string $nextBefore = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

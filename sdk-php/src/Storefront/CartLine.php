@@ -12,7 +12,8 @@ final readonly class CartLine
         public string $offerUuid,
         public string $priceRevisionUuid,
         public string $quantity,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

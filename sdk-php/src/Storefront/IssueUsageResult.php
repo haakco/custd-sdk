@@ -12,7 +12,8 @@ final readonly class IssueUsageResult
         public UsageIssuanceStatus $status,
         public UsageCertificate $usage,
         public ?UsageIssuedInvoice $invoice = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

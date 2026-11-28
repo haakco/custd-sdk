@@ -18,7 +18,8 @@ final readonly class UsageIssuedInvoice
         public string $issuedAt,
         public Totals $totals,
         public array $lines,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

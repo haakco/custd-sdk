@@ -11,7 +11,8 @@ final readonly class SetOffReversal
     public function __construct(
         public string $creditNoteUuid,
         public string $reversedAt,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

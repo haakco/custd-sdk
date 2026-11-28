@@ -11,7 +11,8 @@ final readonly class EnrollUsageRequest
         public string $periodStart,
         public string $closeNotBefore,
         public ?string $dataSpaceCompanyUuid = null,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

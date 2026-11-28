@@ -16,7 +16,8 @@ final readonly class PriceRevision
         public string $taxRate,
         public string $taxLabel,
         public string $effectiveFrom,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

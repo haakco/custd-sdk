@@ -19,7 +19,8 @@ final readonly class UsageTariffRevision
         public string $sellerCompanyUuid,
         public string $appUuid,
         public ?string $effectiveTo = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

@@ -16,7 +16,8 @@ final readonly class Refund
         public ?string $paymentUuid = null,
         public ?string $requestedAt = null,
         public ?string $processedAt = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

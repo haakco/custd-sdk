@@ -18,7 +18,8 @@ final readonly class MerchantAccount
         public bool $refundsEnabled,
         public string $businessTimeZone,
         public string $updatedAt,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

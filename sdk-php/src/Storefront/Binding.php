@@ -13,7 +13,8 @@ final readonly class Binding
         public string $sellerCompanyUuid,
         public string $appUuid,
         public string $createdAt,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

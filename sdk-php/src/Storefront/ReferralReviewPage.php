@@ -14,7 +14,8 @@ final readonly class ReferralReviewPage
     public function __construct(
         public array $reviews,
         public ?string $nextBefore = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

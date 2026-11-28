@@ -8,7 +8,8 @@ final readonly class SelectStorefrontAnalyticsDestination
 {
     public function __construct(
         public string $siteUuid,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

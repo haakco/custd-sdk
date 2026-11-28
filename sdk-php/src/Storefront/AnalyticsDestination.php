@@ -11,7 +11,8 @@ final readonly class AnalyticsDestination
     public function __construct(
         public bool $enabled,
         public ?string $siteUuid = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

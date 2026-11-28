@@ -18,7 +18,8 @@ final readonly class Cart
         public string $currency,
         public string $createdAt,
         public array $lines,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

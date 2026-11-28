@@ -10,5 +10,6 @@ final readonly class PartnerProductTermsPageRequest
         public string $storefront,
         public string $offerUuid,
         public ?string $before = null,
-    ) {}
+    ) {
+    }
 }

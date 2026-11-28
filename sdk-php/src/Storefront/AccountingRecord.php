@@ -23,7 +23,8 @@ final readonly class AccountingRecord
         public ?AccountingPayout $partnerPayout = null,
         public ?AccountingSetOff $partnerSetOff = null,
         public ?AccountingProjectionGap $partnerProjectionGap = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

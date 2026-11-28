@@ -9,5 +9,6 @@ final readonly class PartnerPayoutPageRequest
     public function __construct(
         public string $partnerCompanyUuid,
         public ?string $before = null,
-    ) {}
+    ) {
+    }
 }

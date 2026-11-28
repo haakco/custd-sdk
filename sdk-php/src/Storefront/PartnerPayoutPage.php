@@ -14,7 +14,8 @@ final readonly class PartnerPayoutPage
     public function __construct(
         public array $payouts,
         public ?string $nextBefore = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

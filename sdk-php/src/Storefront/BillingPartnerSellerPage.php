@@ -14,7 +14,8 @@ final readonly class BillingPartnerSellerPage
     public function __construct(
         public array $sellers,
         public ?string $nextAfter = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

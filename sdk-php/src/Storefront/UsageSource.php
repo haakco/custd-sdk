@@ -12,7 +12,8 @@ final readonly class UsageSource
         public string $accountCompanyUuid,
         public UsageMeter $meter,
         public ?string $dataSpaceCompanyUuid = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

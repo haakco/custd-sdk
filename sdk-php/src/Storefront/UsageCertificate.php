@@ -12,7 +12,8 @@ final readonly class UsageCertificate
         public string $enrollmentUuid,
         public string $closedAt,
         public UsagePricedLine $line,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

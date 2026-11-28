@@ -16,7 +16,8 @@ final readonly class AccountingDocument
         public string $issuedAt,
         public array $lines,
         public Totals $totals,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

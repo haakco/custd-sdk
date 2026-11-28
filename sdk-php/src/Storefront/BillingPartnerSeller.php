@@ -12,7 +12,8 @@ final readonly class BillingPartnerSeller
         public string $sellerCompanyUuid,
         public string $name,
         public bool $active,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

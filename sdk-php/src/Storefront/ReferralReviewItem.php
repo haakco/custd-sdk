@@ -19,7 +19,8 @@ final readonly class ReferralReviewItem
         public string $reviewedAt,
         public bool $retryEligible,
         public ?string $firstReceivedOn = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

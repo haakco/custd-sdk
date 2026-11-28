@@ -10,7 +10,8 @@ final readonly class VerifyMerchantResult
 {
     public function __construct(
         public bool $verified,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

@@ -10,7 +10,8 @@ final readonly class RecordPartnerPayoutRequest
         public string $externalReference,
         public Money $amount,
         public string $paidAt,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

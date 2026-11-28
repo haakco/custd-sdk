@@ -9,7 +9,8 @@ final readonly class RegisterStorefront
     public function __construct(
         public string $slug,
         public string $appUuid,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

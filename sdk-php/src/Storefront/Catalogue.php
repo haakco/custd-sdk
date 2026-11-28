@@ -14,7 +14,8 @@ final readonly class Catalogue
     public function __construct(
         public array $offers,
         public bool $canPublish,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

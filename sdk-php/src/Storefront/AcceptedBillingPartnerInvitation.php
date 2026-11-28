@@ -10,7 +10,8 @@ final readonly class AcceptedBillingPartnerInvitation
 {
     public function __construct(
         public string $sellerCompanyName,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

@@ -10,7 +10,8 @@ final readonly class SetOffEligibility
 {
     public function __construct(
         public bool $eligible,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

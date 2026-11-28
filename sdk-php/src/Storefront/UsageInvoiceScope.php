@@ -12,7 +12,8 @@ final readonly class UsageInvoiceScope
         public string $sellerCompanyUuid,
         public string $appUuid,
         public string $buyerCompanyUuid,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

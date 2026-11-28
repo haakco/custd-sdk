@@ -15,7 +15,8 @@ final readonly class PublishUsageTariffRequest
         public UsageRate $rate,
         public UsageTax $tax,
         public ?string $effectiveTo = null,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

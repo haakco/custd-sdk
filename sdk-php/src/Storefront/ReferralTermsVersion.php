@@ -17,7 +17,8 @@ final readonly class ReferralTermsVersion
         public string $share,
         public int $months,
         public int $holdDays,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

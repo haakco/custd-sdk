@@ -19,7 +19,8 @@ final readonly class Quote
         public string $expiresAt,
         public array $lines,
         public Totals $totals,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

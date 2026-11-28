@@ -8,7 +8,8 @@ final readonly class RevokeMerchant
 {
     public function __construct(
         public int $expectedRevision,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

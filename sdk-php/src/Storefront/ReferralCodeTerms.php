@@ -16,7 +16,8 @@ final readonly class ReferralCodeTerms
         public ?string $code = null,
         public ?string $businessTimeZone = null,
         public ?string $nextBefore = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

@@ -13,7 +13,8 @@ final readonly class PartnerSettlementSelection
         public string $partnerCompanyUuid,
         public ?PartnerSettlementPreference $current = null,
         public ?PartnerSettlementPreference $next = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

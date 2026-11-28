@@ -10,7 +10,8 @@ final readonly class RecordPartnerSettlementPreferenceRequest
         public string $preferenceUuid,
         public PartnerSettlementMode $mode,
         public ?string $effectiveFrom = null,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

@@ -15,7 +15,8 @@ final readonly class PartnerTaxDisclosure
         public string $effectiveFrom,
         public string $recordedAt,
         public ?string $registrationNumber = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

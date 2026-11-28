@@ -20,7 +20,8 @@ final readonly class QuoteLine
         public Money $netAmount,
         public Tax $tax,
         public Money $grossAmount,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

@@ -14,7 +14,8 @@ final readonly class UsageTariffPage
     public function __construct(
         public array $tariffs,
         public ?string $nextBefore = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

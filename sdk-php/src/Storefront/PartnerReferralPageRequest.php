@@ -8,5 +8,6 @@ final readonly class PartnerReferralPageRequest
 {
     public function __construct(
         public ?string $before = null,
-    ) {}
+    ) {
+    }
 }

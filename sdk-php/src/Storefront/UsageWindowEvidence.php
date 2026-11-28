@@ -15,7 +15,8 @@ final readonly class UsageWindowEvidence
         public string $sourceWatermark,
         public int $correctionGeneration,
         public int $calculationVersion,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

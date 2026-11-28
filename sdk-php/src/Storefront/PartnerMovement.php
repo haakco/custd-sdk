@@ -22,7 +22,8 @@ final readonly class PartnerMovement
         public Money $sellerCutDelta,
         public ?string $originalMovementUuid = null,
         public ?PartnerEarning $earning = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

@@ -12,7 +12,8 @@ final readonly class UsageRate
         public string $currency,
         public string $majorAmount,
         public string $perUnits,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

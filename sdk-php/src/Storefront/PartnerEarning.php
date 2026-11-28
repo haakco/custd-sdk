@@ -14,7 +14,8 @@ final readonly class PartnerEarning
         public Money $net,
         public Money $costToProvide,
         public Money $remainder,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

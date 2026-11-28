@@ -8,7 +8,8 @@ final readonly class SelectStorefrontReceiptTemplate
 {
     public function __construct(
         public string $revision,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function serialise(): array

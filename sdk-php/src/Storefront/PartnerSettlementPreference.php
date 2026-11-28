@@ -13,7 +13,8 @@ final readonly class PartnerSettlementPreference
         public PartnerSettlementMode $mode,
         public string $effectiveFrom,
         public string $recordedAt,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

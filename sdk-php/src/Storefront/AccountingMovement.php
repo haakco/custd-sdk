@@ -18,7 +18,8 @@ final readonly class AccountingMovement
         public Money $partnerDelta,
         public Money $sellerCutDelta,
         public ?string $originalMovementUuid = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

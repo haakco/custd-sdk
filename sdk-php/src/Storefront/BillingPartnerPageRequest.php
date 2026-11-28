@@ -8,5 +8,6 @@ final readonly class BillingPartnerPageRequest
 {
     public function __construct(
         public ?string $after = null,
-    ) {}
+    ) {
+    }
 }

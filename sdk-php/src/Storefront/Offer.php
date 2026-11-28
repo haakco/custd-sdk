@@ -15,7 +15,8 @@ final readonly class Offer
         public PriceRevision $priceRevision,
         public ?DataSpaceCapacity $dataSpaceCapacity,
         public ?string $complementaryForOfferUuid,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

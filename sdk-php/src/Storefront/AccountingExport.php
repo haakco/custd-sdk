@@ -19,7 +19,8 @@ final readonly class AccountingExport
         public array $records,
         public array $sourceGaps,
         public ?string $nextAfter = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

@@ -23,7 +23,8 @@ final readonly class Purchase
         public ?UsageCertificate $usage = null,
         public ?string $activationStatus = null,
         public ?Refund $refund = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

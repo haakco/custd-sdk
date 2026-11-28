@@ -8,5 +8,6 @@ final readonly class PartnerFeeBalanceRequest
 {
     public function __construct(
         public string $asOf,
-    ) {}
+    ) {
+    }
 }

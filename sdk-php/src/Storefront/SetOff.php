@@ -17,7 +17,8 @@ final readonly class SetOff
         public string $preferenceUuid,
         public string $taxDisclosureUuid,
         public ?SetOffReversal $reversal = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

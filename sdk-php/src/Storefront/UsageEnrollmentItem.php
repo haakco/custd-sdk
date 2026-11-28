@@ -18,7 +18,8 @@ final readonly class UsageEnrollmentItem
         public ?string $dataSpaceCompanyUuid = null,
         public ?string $closedAt = null,
         public ?string $invoiceUuid = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

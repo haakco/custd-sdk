@@ -20,7 +20,8 @@ final readonly class AccountingSetOff
         public string $taxDisclosureUuid,
         public array $allocations,
         public ?string $creditNoteUuid = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

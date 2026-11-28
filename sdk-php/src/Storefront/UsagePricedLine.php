@@ -22,7 +22,8 @@ final readonly class UsagePricedLine
         public Money $netAmount,
         public Money $taxAmount,
         public Money $grossAmount,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

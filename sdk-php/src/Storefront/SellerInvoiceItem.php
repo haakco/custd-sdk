@@ -18,7 +18,8 @@ final readonly class SellerInvoiceItem
         public ?CheckoutState $checkoutState = null,
         public ?string $refundStatus = null,
         public ?string $creditNoteUuid = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

@@ -18,7 +18,8 @@ final readonly class UsageSchedule
         public ?string $completedAt = null,
         public ?string $invoiceUuid = null,
         public ?string $reason = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

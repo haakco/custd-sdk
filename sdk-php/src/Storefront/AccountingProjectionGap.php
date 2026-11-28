@@ -11,7 +11,8 @@ final readonly class AccountingProjectionGap
     public function __construct(
         public string $outcome,
         public ?string $failureCode = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

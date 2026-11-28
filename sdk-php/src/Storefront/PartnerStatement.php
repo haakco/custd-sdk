@@ -18,7 +18,8 @@ final readonly class PartnerStatement
         public string $month,
         public array $movements,
         public ?string $nextCursor = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

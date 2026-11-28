@@ -11,7 +11,8 @@ final readonly class AccountingEarningAllocation
     public function __construct(
         public string $earningMovementUuid,
         public string $amountMinor,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {

@@ -14,7 +14,8 @@ final readonly class PartnerProductTermsPage
     public function __construct(
         public array $versions,
         public ?string $nextBefore = null,
-    ) {}
+    ) {
+    }
 
     public static function fromPayload(\stdClass $payload): self
     {
