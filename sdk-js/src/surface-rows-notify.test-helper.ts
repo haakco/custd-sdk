@@ -103,6 +103,11 @@ export const notifyRows: RowArea = {
       call: (c) => c.custd.admin.campaignEmail.renderRevision("revision-1", { slots: {} }),
     },
     {
+      id: "admin-api POST /api/v1/admin/campaign-email-revisions/{revision}/preview",
+      params: { revision: "revision-1" },
+      call: (c) => c.custd.admin.campaignEmail.previewRevision("revision-1", { slots: {} }),
+    },
+    {
       id: "admin-api POST /api/v1/admin/campaign-email-runs",
       query: acme,
       call: (c) => c.custd.admin.campaignEmail.startRun(dto(), "acme"),

@@ -104,6 +104,7 @@ export declare class CampaignEmailAdminClient {
     createRevision(body: CampaignEmailRevisionPublishRequest, companySlug?: string): Promise<CampaignEmailRevision>;
     getRevision(revision: string, companySlug?: string): Promise<CampaignEmailRevision>;
     renderRevision(revision: string, body: CampaignEmailRenderRequest): Promise<CampaignEmailRenderResult>;
+    previewRevision(revision: string, body: CampaignEmailRenderRequest, companySlug?: string): Promise<CampaignEmailRenderResult>;
     startRun(body: CampaignEmailRunScheduleRequest, companySlug?: string): Promise<CampaignEmailRunStatus>;
     getRun(runId: string, companySlug?: string): Promise<CampaignEmailRunStatus>;
     cancelRun(runId: string, companySlug?: string): Promise<CampaignEmailRunStatus>;

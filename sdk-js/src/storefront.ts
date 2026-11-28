@@ -1,4 +1,12 @@
 import type { RequestOptions } from "./index.js";
+import type { AccountingExport, AccountingExportRequest } from "./storefront-accounting.js";
+import type {
+  PartnerReferralPageRequest,
+  PublishReferralTerms,
+  ReferralCodeTerms,
+  ReferralReviewPage,
+  ReferralReviewRetry,
+} from "./storefront-referrals.js";
 import type {
   EnrollUsageRequest,
   InvoiceNotice,
@@ -14,6 +22,8 @@ import type {
   UsageTariffRevision,
 } from "./storefront-usage.js";
 
+export type * from "./storefront-accounting.js";
+export type * from "./storefront-referrals.js";
 export type * from "./storefront-usage.js";
 
 type StorefrontRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
@@ -60,6 +70,11 @@ export type StorefrontPublishOffer = {
   taxRate: string;
   taxLabel: string;
   effectiveFrom?: string;
+};
+
+export type PublishStorefrontCapacityOffer = Omit<StorefrontPublishOffer, "offerUuid" | "complementaryForOfferUuid"> & {
+  offerUuid: string;
+  dataSpaceCapacity: StorefrontDataSpaceCapacity;
 };
 
 export type StorefrontCartLine = {
@@ -304,6 +319,19 @@ export type StorefrontPurchaseHandoff = {
   cancelled?: boolean;
 };
 
+export type PartnerFeeBalanceRequest = { asOf: string };
+export type PartnerFeeBalance = {
+  sellerCompanyUuid: string;
+  partnerCompanyUuid: string;
+  asOf: string;
+  currencies: PartnerFeeBalanceCurrency[] | null;
+};
+export type PartnerFeeBalanceCurrency = {
+  held: StorefrontMoney;
+  available: StorefrontMoney;
+  negative: StorefrontMoney;
+};
+
 const merchantPath = "/billing/merchant";
 const storefrontRegistryPath = "/billing/storefronts";
 const billingPartnersPath = "/billing/partners";
@@ -413,6 +441,90 @@ export type SelectStorefrontAnalyticsDestination = { siteUuid: string };
 /** Browse a seller's offers and check out using the current buyer identity. */
 export class StorefrontClient {
   constructor(private readonly request: StorefrontRequester) {}
+
+  readAccountingExport(input: AccountingExportRequest, options?: RequestOptions): Promise<AccountingExport> {
+    const query = new URLSearchParams({ month: input.month, businessTimeZone: input.businessTimeZone });
+    if (input.after) query.set("after", input.after);
+    return this.request("GET", `/billing/accounting-export?${query}`, undefined, options);
+  }
+
+  getPartnerFeeBalance(
+    partnerUuid: string,
+    input: PartnerFeeBalanceRequest,
+    options?: RequestOptions,
+  ): Promise<PartnerFeeBalance> {
+    const query = new URLSearchParams({ asOf: input.asOf });
+    return this.request(
+      "GET",
+      `${billingPartnersPath}/${encodeURIComponent(partnerUuid)}/fee-balance?${query}`,
+      undefined,
+      options,
+    );
+  }
+
+  listPartnerReferralTerms(
+    partnerUuid: string,
+    input: PartnerReferralPageRequest,
+    options?: RequestOptions,
+  ): Promise<ReferralCodeTerms> {
+    const query = input.before ? `?${new URLSearchParams({ before: input.before })}` : "";
+    return this.request(
+      "GET",
+      `${billingPartnersPath}/${encodeURIComponent(partnerUuid)}/referral-terms${query}`,
+      undefined,
+      options,
+    );
+  }
+
+  publishPartnerReferralTerms(
+    partnerUuid: string,
+    input: PublishReferralTerms,
+    options?: RequestOptions,
+  ): Promise<ReferralCodeTerms> {
+    return this.request(
+      "POST",
+      `${billingPartnersPath}/${encodeURIComponent(partnerUuid)}/referral-terms`,
+      input,
+      options,
+    );
+  }
+
+  listReferralReviews(input: PartnerReferralPageRequest, options?: RequestOptions): Promise<ReferralReviewPage> {
+    const query = input.before ? `?${new URLSearchParams({ before: input.before })}` : "";
+    return this.request("GET", `${billingPartnersPath}/referral-reviews${query}`, undefined, options);
+  }
+
+  retryReferralReview(attributionUuid: string, options?: RequestOptions): Promise<ReferralReviewRetry> {
+    return this.request(
+      "POST",
+      `${billingPartnersPath}/referral-reviews/${encodeURIComponent(attributionUuid)}/retry`,
+      undefined,
+      options,
+    );
+  }
+
+  publishCapacityOffer(
+    storefront: string,
+    input: PublishStorefrontCapacityOffer,
+    options?: RequestOptions,
+  ): Promise<StorefrontOffer> {
+    return this.request("POST", `/billing${storefrontPath(storefront, "capacity-offers")}`, input, options);
+  }
+
+  async redeemPurchaseHandoff(
+    storefront: string,
+    handoffUuid: string,
+    options?: RequestOptions,
+  ): Promise<StorefrontQuote> {
+    return validateQuote(
+      await this.request(
+        "POST",
+        storefrontPath(storefront, "purchase-handoffs", handoffUuid, "redeem"),
+        undefined,
+        options,
+      ),
+    );
+  }
 
   async createPurchaseHandoff(
     storefront: string,

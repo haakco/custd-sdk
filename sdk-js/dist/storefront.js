@@ -6,6 +6,36 @@ export class StorefrontClient {
     constructor(request) {
         this.request = request;
     }
+    readAccountingExport(input, options) {
+        const query = new URLSearchParams({ month: input.month, businessTimeZone: input.businessTimeZone });
+        if (input.after)
+            query.set("after", input.after);
+        return this.request("GET", `/billing/accounting-export?${query}`, undefined, options);
+    }
+    getPartnerFeeBalance(partnerUuid, input, options) {
+        const query = new URLSearchParams({ asOf: input.asOf });
+        return this.request("GET", `${billingPartnersPath}/${encodeURIComponent(partnerUuid)}/fee-balance?${query}`, undefined, options);
+    }
+    listPartnerReferralTerms(partnerUuid, input, options) {
+        const query = input.before ? `?${new URLSearchParams({ before: input.before })}` : "";
+        return this.request("GET", `${billingPartnersPath}/${encodeURIComponent(partnerUuid)}/referral-terms${query}`, undefined, options);
+    }
+    publishPartnerReferralTerms(partnerUuid, input, options) {
+        return this.request("POST", `${billingPartnersPath}/${encodeURIComponent(partnerUuid)}/referral-terms`, input, options);
+    }
+    listReferralReviews(input, options) {
+        const query = input.before ? `?${new URLSearchParams({ before: input.before })}` : "";
+        return this.request("GET", `${billingPartnersPath}/referral-reviews${query}`, undefined, options);
+    }
+    retryReferralReview(attributionUuid, options) {
+        return this.request("POST", `${billingPartnersPath}/referral-reviews/${encodeURIComponent(attributionUuid)}/retry`, undefined, options);
+    }
+    publishCapacityOffer(storefront, input, options) {
+        return this.request("POST", `/billing${storefrontPath(storefront, "capacity-offers")}`, input, options);
+    }
+    async redeemPurchaseHandoff(storefront, handoffUuid, options) {
+        return validateQuote(await this.request("POST", storefrontPath(storefront, "purchase-handoffs", handoffUuid, "redeem"), undefined, options));
+    }
     async createPurchaseHandoff(storefront, input, options) {
         validateMoney(input.amount);
         const handoff = await this.request("POST", `/billing${storefrontPath(storefront, "purchase-handoffs")}`, input, options);

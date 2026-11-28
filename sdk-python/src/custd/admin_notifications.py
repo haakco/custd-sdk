@@ -63,12 +63,19 @@ class EmailRelayView(TypedDict):
     relay: EmailRelay | None
 
 
+class NotificationHostingAcceptance(TypedDict):
+    acceptedAt: str
+    messageId: str
+    recipientIds: list[str]
+
+
 class NotificationDeliveryStatus(TypedDict):
     attemptCount: int
     channel: str
     createdAt: str
     deliveryUuid: str
     failureReason: NotRequired[str]
+    hostingAcceptance: NotRequired[NotificationHostingAcceptance]
     lastErrorClass: NotRequired[str]
     messageUuid: str
     nextAction: NotRequired[str]

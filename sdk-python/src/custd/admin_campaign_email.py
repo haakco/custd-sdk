@@ -234,6 +234,21 @@ class CampaignEmailAdminClient:
             ),
         )
 
+    def preview_revision(
+        self, revision: str, body: CampaignRenderRequest, *, company_slug: str | None = None
+    ) -> CampaignRenderResult:
+        """Preview a published email campaign revision without sending."""
+        return decode(
+            CampaignRenderResult,
+            request(
+                self._admin,
+                "POST",
+                f"/api/v1/admin/campaign-email-revisions/{quote_path(revision)}/preview",
+                query={"companySlug": company_slug},
+                body=dict(body),
+            ),
+        )
+
     def start_run(self, body: CampaignRunScheduleRequest, *, company_slug: str | None = None) -> CampaignRunStatus:
         """Schedule a pinned campaign run."""
         return decode(

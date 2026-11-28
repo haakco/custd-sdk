@@ -40,6 +40,12 @@ final class CampaignEmailClient
         return CampaignEmailRevision::fromPayload($this->http->object('GET', '/api/v1/admin/campaign-email-revisions/' . rawurlencode($revision), ['companySlug' => $companySlug], null));
     }
 
+    /** @param array<string, string> $slots */
+    public function previewRevision(string $revision, array $slots, ?string $companySlug = null): CampaignEmailRenderResult
+    {
+        return CampaignEmailRenderResult::fromPayload((array) $this->http->object('POST', '/api/v1/admin/campaign-email-revisions/' . rawurlencode($revision) . '/preview', ['companySlug' => $companySlug], ['slots' => (object) $slots]));
+    }
+
     /**
      * Publish a trusted-build email campaign artifact.
      */

@@ -118,3 +118,5 @@ export type AppSignInRequest = {
     expectedRevision: number;
 };
 export declare function appPath(slug: string): string;
+export type PurchaseHandoffCredential = AppDeployCredential;
+export type PurchaseHandoffCredentialList = AppDeployCredentialList;

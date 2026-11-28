@@ -1093,6 +1093,8 @@ __all__ = [
     "AppDeployCredential",
     "AppDeployCredentialList",
     "AppDeployCredentialSummary",
+    "PurchaseHandoffCredential",
+    "PurchaseHandoffCredentialList",
     "AppListResponse",
     "AppOverview",
     "AppReason",
@@ -1445,6 +1447,7 @@ __all__ = [
     "EmailRelayView",
     "EmailRelayWriteRequest",
     "NotificationDeliveryStatus",
+    "NotificationHostingAcceptance",
     "NotificationDestination",
     "NotificationDestinationAdminClient",
     "NotificationDestinationRequest",
@@ -1743,6 +1746,8 @@ from .admin_auth_project_hosting import (
     AuthProjectAppLink,
     AuthProjectAppLinkList,
     AuthProjectBrandLogo,
+    PurchaseHandoffCredential,
+    PurchaseHandoffCredentialList,
 )
 from .admin_auth_projects import (
     AUTH_PROJECT_DIRECTORY_ACTIONS,
@@ -1921,6 +1926,7 @@ from .admin_notifications import (
     NotificationDestinationEventSlug,
     NotificationDestinationRequest,
     NotificationEventSlug,
+    NotificationHostingAcceptance,
     NotificationWebhookAdminClient,
     NotificationWebhookCreateRequest,
     NotificationWebhookEnabledRequest,

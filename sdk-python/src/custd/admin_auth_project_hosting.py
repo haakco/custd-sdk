@@ -299,3 +299,7 @@ class AppSignInRequest(TypedDict):
 
     mode: AppSignInMode
     expectedRevision: int
+
+
+PurchaseHandoffCredential = AppDeployCredential
+PurchaseHandoffCredentialList = AppDeployCredentialList

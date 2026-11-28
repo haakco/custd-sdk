@@ -130,6 +130,14 @@ pub struct NotificationWebhookEnabledRequest {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct NotificationHostingAcceptance {
+    pub accepted_at: String,
+    pub message_id: String,
+    pub recipient_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NotificationDeliveryStatus {
     pub attempt_count: i64,
     pub channel: String,
@@ -137,6 +145,8 @@ pub struct NotificationDeliveryStatus {
     pub delivery_uuid: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failure_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hosting_acceptance: Option<NotificationHostingAcceptance>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_error_class: Option<String>,
     pub message_uuid: String,

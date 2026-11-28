@@ -26,6 +26,8 @@ import {
   type AppSignInRequest,
   type AppSummary,
   appPath,
+  type PurchaseHandoffCredential,
+  type PurchaseHandoffCredentialList,
 } from "./admin-apps.js";
 import type {
   AuthProjectAppLinkList,
@@ -1171,6 +1173,23 @@ export class AuthProjectAdminClient {
     return { credentials: list.credentials ?? [] };
   }
 
+  /** Create a credential that can create purchase handoffs for this app. Its secret is shown once. */
+  createPurchaseHandoffCredential(slug: string, options?: RequestOptions): Promise<PurchaseHandoffCredential> {
+    return this.request<PurchaseHandoffCredential>(
+      "POST",
+      `${appPath(slug)}/purchase-handoff-credentials`,
+      undefined,
+      options,
+    );
+  }
+
+  /** List the app's purchase handoff credentials, newest first. */
+  async listPurchaseHandoffCredentials(slug: string, options?: RequestOptions): Promise<PurchaseHandoffCredentialList> {
+    const path = `${appPath(slug)}/purchase-handoff-credentials`;
+    const list = await this.request<PurchaseHandoffCredentialList>("GET", path, undefined, options);
+    return { credentials: list.credentials ?? [] };
+  }
+
   /** Take the app offline, keeping its releases and data. The Idempotency-Key finishes an incomplete pause. */
   pauseApp(slug: string, options?: RequestOptions): Promise<AppSummary> {
     return this.request<AppSummary>("POST", `${appPath(slug)}/pause`, undefined, requireIdempotencyKey(options));
@@ -1194,6 +1213,12 @@ export class AuthProjectAdminClient {
   /** Remove a deploy credential. Repeating a delete that failed part-way finishes it. */
   async deleteAppDeployCredential(slug: string, clientId: string, options?: RequestOptions): Promise<void> {
     const path = `${appPath(slug)}/deploy-credentials/${encodeURIComponent(clientId)}`;
+    await this.request<null>("DELETE", path, undefined, options);
+  }
+
+  /** Remove a purchase handoff credential. Repeating a delete that failed part-way finishes it. */
+  async deletePurchaseHandoffCredential(slug: string, clientId: string, options?: RequestOptions): Promise<void> {
+    const path = `${appPath(slug)}/purchase-handoff-credentials/${encodeURIComponent(clientId)}`;
     await this.request<null>("DELETE", path, undefined, options);
   }
 

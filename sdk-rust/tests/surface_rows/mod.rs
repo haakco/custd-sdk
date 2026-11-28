@@ -47,6 +47,7 @@ mod site_reports;
 mod site_search;
 mod site_web_data;
 mod storage_usage;
+mod storefront;
 mod subject_exports;
 mod support_access;
 mod system_operations;
@@ -147,6 +148,7 @@ pub fn admin_rows() -> Vec<Row> {
     rows.extend(auth_project_domains::rows());
     rows.extend(app_profile::rows());
     rows.extend(app_messages::rows());
+    rows.extend(storefront::rows());
     rows.extend(auth_project_directories::rows());
     rows.extend(auth_project_releases::rows());
     rows.extend(producers::rows());

@@ -29,97 +29,67 @@ pub fn rows() -> Vec<Row> {
                 |c| drop(c.custd.get_current_account()),
             ),
         ),
-        sends(
-            "POST",
-            bodiless("ingest-api ANY /api/v1/events", "/api/v1/events", |c| {
-                drop(c.custd.send_event(&EventEnvelope::default()))
-            }),
+        bodiless("ingest-api POST /api/v1/events", "/api/v1/events", |c| {
+            drop(c.custd.send_event(&EventEnvelope::default()))
+        }),
+        bodiless(
+            "ingest-api POST /api/v1/events/batch",
+            "/api/v1/events/batch",
+            |c| drop(c.custd.send_events(&batch())),
         ),
-        sends(
-            "POST",
-            bodiless(
-                "ingest-api ANY /api/v1/events/batch",
-                "/api/v1/events/batch",
-                |c| drop(c.custd.send_events(&batch())),
-            ),
+        bodiless(
+            "ingest-api POST /api/v1/raw",
+            "/api/v1/raw?subClient=s-1&resource=r-1",
+            |c| {
+                let request = RawIngestRequest {
+                    content: "line".to_owned(),
+                    parser_uuid: "p-1".to_owned(),
+                    target: Some(custd_sdk::RawSourceTarget {
+                        sub_client: "s-1".to_owned(),
+                        resource: "r-1".to_owned(),
+                    }),
+                    idempotency_key: None,
+                };
+                drop(c.custd.ingest_raw_lines(&request))
+            },
         ),
-        sends(
-            "POST",
-            bodiless(
-                "ingest-api ANY /api/v1/raw",
-                "/api/v1/raw?subClient=s-1&resource=r-1",
-                |c| {
-                    let request = RawIngestRequest {
-                        content: "line".to_owned(),
-                        parser_uuid: "p-1".to_owned(),
-                        target: Some(custd_sdk::RawSourceTarget {
-                            sub_client: "s-1".to_owned(),
-                            resource: "r-1".to_owned(),
-                        }),
-                        idempotency_key: None,
-                    };
-                    drop(c.custd.ingest_raw_lines(&request))
-                },
-            ),
+        bodiless(
+            "ingest-api POST /api/v1/reprocess",
+            "/api/v1/reprocess",
+            |c| drop(c.custd.reprocess_rejected_events()),
         ),
-        sends(
-            "POST",
-            bodiless(
-                "ingest-api ANY /api/v1/reprocess",
-                "/api/v1/reprocess",
-                |c| drop(c.custd.reprocess_rejected_events()),
-            ),
+        bodiless(
+            "ingest-api POST /api/v1/managed-audit/redactions",
+            "/api/v1/managed-audit/redactions",
+            |c| {
+                let request = ManagedAuditRedactionRequest::default();
+                drop(c.custd.redact_managed_audit_events(&request))
+            },
         ),
-        sends(
-            "POST",
-            bodiless(
-                "ingest-api ANY /api/v1/managed-audit/redactions",
-                "/api/v1/managed-audit/redactions",
-                |c| {
-                    let request = ManagedAuditRedactionRequest::default();
-                    drop(c.custd.redact_managed_audit_events(&request))
-                },
-            ),
+        bodiless(
+            "ingest-api GET /api/v1/monitoring/summary",
+            "/api/v1/monitoring/summary",
+            |c| drop(c.custd.get_ingest_monitoring_summary()),
         ),
-        sends(
-            "GET",
-            bodiless(
-                "ingest-api ANY /api/v1/monitoring/summary",
-                "/api/v1/monitoring/summary",
-                |c| drop(c.custd.get_ingest_monitoring_summary()),
-            ),
+        bodiless(
+            "ingest-api GET /api/v1/monitoring/alerts",
+            "/api/v1/monitoring/alerts",
+            |c| drop(c.custd.list_ingest_monitoring_alerts()),
         ),
-        sends(
-            "GET",
-            bodiless(
-                "ingest-api ANY /api/v1/monitoring/alerts",
-                "/api/v1/monitoring/alerts",
-                |c| drop(c.custd.list_ingest_monitoring_alerts()),
-            ),
+        bodiless(
+            "ingest-api GET /api/v1/system/monitoring/summary",
+            "/api/v1/system/monitoring/summary",
+            |c| drop(c.custd.get_system_monitoring_summary()),
         ),
-        sends(
-            "GET",
-            bodiless(
-                "ingest-api ANY /api/v1/system/monitoring/summary",
-                "/api/v1/system/monitoring/summary",
-                |c| drop(c.custd.get_system_monitoring_summary()),
-            ),
+        bodiless(
+            "ingest-api POST /api/v1/admin/cleanup",
+            "/api/v1/admin/cleanup",
+            |c| drop(c.custd.run_ingest_cleanup()),
         ),
-        sends(
-            "POST",
-            bodiless(
-                "ingest-api ANY /api/v1/admin/cleanup",
-                "/api/v1/admin/cleanup",
-                |c| drop(c.custd.run_ingest_cleanup()),
-            ),
-        ),
-        sends(
-            "POST",
-            bodiless(
-                "ingest-api ANY /api/v1/admin/integrity",
-                "/api/v1/admin/integrity",
-                |c| drop(c.custd.check_ingest_integrity()),
-            ),
+        bodiless(
+            "ingest-api POST /api/v1/admin/integrity",
+            "/api/v1/admin/integrity",
+            |c| drop(c.custd.check_ingest_integrity()),
         ),
         bodiless(
             "ingest-api GET /api/v1/admin/cleanup/plans",
@@ -195,70 +165,55 @@ pub fn rows() -> Vec<Row> {
                 },
             ),
         ),
-        sends(
-            "GET",
-            bodiless(
-                "ingest-api ANY /api/v1/diagnostics/ingest",
-                "/api/v1/diagnostics/ingest",
-                |c| {
-                    drop(
-                        c.custd
-                            .get_ingest_diagnostics(IngestDiagnosticsSection::Ingest),
-                    )
-                },
-            ),
+        bodiless(
+            "ingest-api GET /api/v1/diagnostics/ingest",
+            "/api/v1/diagnostics/ingest",
+            |c| {
+                drop(
+                    c.custd
+                        .get_ingest_diagnostics(IngestDiagnosticsSection::Ingest),
+                )
+            },
         ),
-        sends(
-            "GET",
-            bodiless(
-                "ingest-api ANY /api/v1/diagnostics/buffers",
-                "/api/v1/diagnostics/buffers",
-                |c| {
-                    drop(
-                        c.custd
-                            .get_ingest_diagnostics(IngestDiagnosticsSection::Buffers),
-                    )
-                },
-            ),
+        bodiless(
+            "ingest-api GET /api/v1/diagnostics/buffers",
+            "/api/v1/diagnostics/buffers",
+            |c| {
+                drop(
+                    c.custd
+                        .get_ingest_diagnostics(IngestDiagnosticsSection::Buffers),
+                )
+            },
         ),
-        sends(
-            "GET",
-            bodiless(
-                "ingest-api ANY /api/v1/diagnostics/database",
-                "/api/v1/diagnostics/database",
-                |c| {
-                    drop(
-                        c.custd
-                            .get_ingest_diagnostics(IngestDiagnosticsSection::Database),
-                    )
-                },
-            ),
+        bodiless(
+            "ingest-api GET /api/v1/diagnostics/database",
+            "/api/v1/diagnostics/database",
+            |c| {
+                drop(
+                    c.custd
+                        .get_ingest_diagnostics(IngestDiagnosticsSection::Database),
+                )
+            },
         ),
-        sends(
-            "GET",
-            bodiless(
-                "ingest-api ANY /api/v1/diagnostics/segments",
-                "/api/v1/diagnostics/segments",
-                |c| {
-                    drop(
-                        c.custd
-                            .get_ingest_diagnostics(IngestDiagnosticsSection::Segments),
-                    )
-                },
-            ),
+        bodiless(
+            "ingest-api GET /api/v1/diagnostics/segments",
+            "/api/v1/diagnostics/segments",
+            |c| {
+                drop(
+                    c.custd
+                        .get_ingest_diagnostics(IngestDiagnosticsSection::Segments),
+                )
+            },
         ),
-        sends(
-            "GET",
-            bodiless(
-                "ingest-api ANY /api/v1/diagnostics/reporting",
-                "/api/v1/diagnostics/reporting",
-                |c| {
-                    drop(
-                        c.custd
-                            .get_ingest_diagnostics(IngestDiagnosticsSection::Reporting),
-                    )
-                },
-            ),
+        bodiless(
+            "ingest-api GET /api/v1/diagnostics/reporting",
+            "/api/v1/diagnostics/reporting",
+            |c| {
+                drop(
+                    c.custd
+                        .get_ingest_diagnostics(IngestDiagnosticsSection::Reporting),
+                )
+            },
         ),
     ]
 }

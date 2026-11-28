@@ -76,6 +76,30 @@ final class AppClient
     }
 
     /**
+     * List an app's purchase handoff credentials.
+     */
+    public function listPurchaseHandoffCredentials(string $slug): AppDeployCredentialList
+    {
+        return AppDeployCredentialList::fromPayload($this->http->object('GET', '/api/v1/admin/apps/' . rawurlencode($slug) . '/purchase-handoff-credentials', [], null));
+    }
+
+    /**
+     * Create a purchase handoff credential for an app.
+     */
+    public function createPurchaseHandoffCredential(string $slug): DeployCredential
+    {
+        return DeployCredential::fromPayload($this->http->object('POST', '/api/v1/admin/apps/' . rawurlencode($slug) . '/purchase-handoff-credentials', [], null));
+    }
+
+    /**
+     * Delete an app's purchase handoff credential.
+     */
+    public function deletePurchaseHandoffCredential(string $slug, string $clientId): void
+    {
+        $this->http->none('DELETE', '/api/v1/admin/apps/' . rawurlencode($slug) . '/purchase-handoff-credentials/' . rawurlencode($clientId), [], null);
+    }
+
+    /**
      * Pause an app.
      */
     public function pause(string $slug, string $idempotencyKey): AppSummary

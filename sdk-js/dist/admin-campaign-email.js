@@ -15,6 +15,9 @@ export class CampaignEmailAdminClient {
     renderRevision(revision, body) {
         return this.request("POST", `${revisionPath(revision)}/render`, body);
     }
+    previewRevision(revision, body, companySlug) {
+        return this.request("POST", scoped(`${revisionPath(revision)}/preview`, companySlug), body);
+    }
     startRun(body, companySlug) {
         return this.run("POST", "/campaign-email-runs", companySlug, body);
     }

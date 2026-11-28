@@ -328,4 +328,52 @@ impl CustdClient {
         );
         self.call(Method::Delete, &path, NO_BODY)
     }
+    /// List an app's purchase handoff credentials.
+    pub fn list_purchase_handoff_credentials(
+        &self,
+        slug: &str,
+    ) -> Result<PurchaseHandoffCredentialList> {
+        let path = api_path(
+            format!(
+                "/api/v1/admin/apps/{}/purchase-handoff-credentials",
+                percent_encode(slug)
+            ),
+            &[],
+            None,
+        );
+        self.call(Method::Get, &path, NO_BODY)
+    }
+
+    /// Create a purchase handoff credential for an app.
+    pub fn create_purchase_handoff_credential(
+        &self,
+        slug: &str,
+    ) -> Result<PurchaseHandoffCredential> {
+        let path = api_path(
+            format!(
+                "/api/v1/admin/apps/{}/purchase-handoff-credentials",
+                percent_encode(slug)
+            ),
+            &[],
+            None,
+        );
+        self.call(Method::Post, &path, NO_BODY)
+    }
+
+    /// Delete an app's purchase handoff credential.
+    pub fn delete_purchase_handoff_credential(&self, slug: &str, client_id: &str) -> Result<()> {
+        let path = api_path(
+            format!(
+                "/api/v1/admin/apps/{}/purchase-handoff-credentials/{}",
+                percent_encode(slug),
+                percent_encode(client_id)
+            ),
+            &[],
+            None,
+        );
+        self.call(Method::Delete, &path, NO_BODY)
+    }
 }
+
+pub type PurchaseHandoffCredential = AppDeployCredential;
+pub type PurchaseHandoffCredentialList = AppDeployCredentialList;
