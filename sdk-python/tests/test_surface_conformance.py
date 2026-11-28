@@ -207,6 +207,300 @@ def _track_in_batch() -> object:
 
 
 ROUTES: dict[str, RouteCase] = {
+    "billing DELETE /api/v1/billing/merchant": RouteCase(
+        "/api/v1/billing/merchant",
+        lambda c: c.storefronts.revoke_merchant({"expectedRevision": 1}),
+    ),
+    "billing DELETE /api/v1/billing/storefronts/{storefront}/analytics-destination": RouteCase(
+        "/api/v1/billing/storefronts/shop/analytics-destination",
+        lambda c: c.storefronts.disable_analytics_destination("shop"),
+    ),
+    "billing DELETE /api/v1/storefronts/{storefront}/usage-enrollments/{enrollment}/scheduled-issuance": RouteCase(
+        "/api/v1/storefronts/shop/usage-enrollments/enrollment/scheduled-issuance",
+        lambda c: c.storefronts.cancel_usage_schedule("shop", "enrollment"),
+    ),
+    "billing GET /api/v1/billing/accounting-export": RouteCase(
+        "/api/v1/billing/accounting-export",
+        lambda c: c.storefronts.read_accounting_export(
+            {"month": "2026-11", "businessTimeZone": "UTC", "after": "sample-after"}
+        ),
+    ),
+    "billing GET /api/v1/billing/merchant": RouteCase(
+        "/api/v1/billing/merchant",
+        lambda c: c.storefronts.get_merchant(),
+    ),
+    "billing GET /api/v1/billing/partners": RouteCase(
+        "/api/v1/billing/partners",
+        lambda c: c.storefronts.list_billing_partners({"after": "sample-after"}),
+    ),
+    "billing GET /api/v1/billing/partners/referral-reviews": RouteCase(
+        "/api/v1/billing/partners/referral-reviews",
+        lambda c: c.storefronts.list_referral_reviews({"before": "sample-before"}),
+    ),
+    "billing GET /api/v1/billing/partners/sellers": RouteCase(
+        "/api/v1/billing/partners/sellers",
+        lambda c: c.storefronts.list_billing_partner_sellers({"after": "sample-after"}),
+    ),
+    "billing GET /api/v1/billing/partners/sellers/{seller}/settlement-preference": RouteCase(
+        "/api/v1/billing/partners/sellers/seller/settlement-preference",
+        lambda c: c.storefronts.get_seller_settlement_preference("seller"),
+    ),
+    "billing GET /api/v1/billing/partners/sellers/{seller}/tax-disclosure": RouteCase(
+        "/api/v1/billing/partners/sellers/seller/tax-disclosure",
+        lambda c: c.storefronts.get_seller_tax_disclosure("seller"),
+    ),
+    "billing GET /api/v1/billing/partners/{partner}/fee-balance": RouteCase(
+        "/api/v1/billing/partners/partner/fee-balance",
+        lambda c: c.storefronts.get_partner_fee_balance("partner", {"asOf": "2026-11-01"}),
+    ),
+    "billing GET /api/v1/billing/partners/{partner}/payouts": RouteCase(
+        "/api/v1/billing/partners/partner/payouts",
+        lambda c: c.storefronts.list_partner_payouts({"partnerCompanyUuid": "partner", "before": "sample-before"}),
+    ),
+    "billing GET /api/v1/billing/partners/{partner}/referral-terms": RouteCase(
+        "/api/v1/billing/partners/partner/referral-terms",
+        lambda c: c.storefronts.list_partner_referral_terms("partner", {"before": "sample-before"}),
+    ),
+    "billing GET /api/v1/billing/partners/{partner}/settlement-preference": RouteCase(
+        "/api/v1/billing/partners/partner/settlement-preference",
+        lambda c: c.storefronts.get_partner_settlement_preference("partner"),
+    ),
+    "billing GET /api/v1/billing/partners/{partner}/tax-disclosure": RouteCase(
+        "/api/v1/billing/partners/partner/tax-disclosure",
+        lambda c: c.storefronts.get_partner_tax_disclosure("partner"),
+    ),
+    "billing GET /api/v1/billing/storefronts": RouteCase(
+        "/api/v1/billing/storefronts",
+        lambda c: c.storefronts.list_owned_storefronts(),
+    ),
+    "billing GET /api/v1/billing/storefronts/{storefront}/analytics-destination": RouteCase(
+        "/api/v1/billing/storefronts/shop/analytics-destination",
+        lambda c: c.storefronts.get_analytics_destination("shop"),
+    ),
+    "billing GET /api/v1/billing/storefronts/{storefront}/invoices": RouteCase(
+        "/api/v1/billing/storefronts/shop/invoices",
+        lambda c: c.storefronts.list_seller_invoices({"storefront": "shop", "before": "sample-before"}),
+    ),
+    "billing GET /api/v1/billing/storefronts/{storefront}/offers/{offer}/partner-terms": RouteCase(
+        "/api/v1/billing/storefronts/shop/offers/offer/partner-terms",
+        lambda c: c.storefronts.list_partner_product_terms(
+            {"storefront": "shop", "offerUuid": "offer", "before": "sample-before"}
+        ),
+    ),
+    "billing GET /api/v1/billing/storefronts/{storefront}/partners/{partner}/statement": RouteCase(
+        "/api/v1/billing/storefronts/shop/partners/partner/statement",
+        lambda c: c.storefronts.get_partner_statement(
+            {"storefront": "shop", "partnerCompanyUuid": "partner", "month": "2026-11", "cursor": "sample-cursor"}
+        ),
+    ),
+    "billing GET /api/v1/billing/storefronts/{storefront}/purchase-handoffs/{handoff}": RouteCase(
+        "/api/v1/billing/storefronts/shop/purchase-handoffs/handoff",
+        lambda c: c.storefronts.get_purchase_handoff("shop", "handoff"),
+    ),
+    "billing GET /api/v1/billing/storefronts/{storefront}/receipt-template": RouteCase(
+        "/api/v1/billing/storefronts/shop/receipt-template",
+        lambda c: c.storefronts.get_receipt_template("shop"),
+    ),
+    "billing GET /api/v1/storefronts/{storefront}/purchases/{invoice}/set-off": RouteCase(
+        "/api/v1/storefronts/shop/purchases/invoice/set-off",
+        lambda c: c.storefronts.get_storefront_set_off_eligibility("shop", "invoice"),
+    ),
+    "billing GET /api/v1/storefronts/{storefront}/usage-enrollments": RouteCase(
+        "/api/v1/storefronts/shop/usage-enrollments",
+        lambda c: c.storefronts.list_usage_enrollments({"storefront": "shop", "before": "sample-before"}),
+    ),
+    "billing GET /api/v1/storefronts/{storefront}/usage-enrollments/{enrollment}/scheduled-issuance": RouteCase(
+        "/api/v1/storefronts/shop/usage-enrollments/enrollment/scheduled-issuance",
+        lambda c: c.storefronts.get_usage_schedule("shop", "enrollment"),
+    ),
+    "billing GET /api/v1/storefronts/{storefront}/usage-tariffs": RouteCase(
+        "/api/v1/storefronts/shop/usage-tariffs",
+        lambda c: c.storefronts.list_usage_tariffs({"storefront": "shop", "before": "sample-before"}),
+    ),
+    "billing GET /api/v1/storefronts/{storefront}/usage-tariffs/{revision}": RouteCase(
+        "/api/v1/storefronts/shop/usage-tariffs/revision",
+        lambda c: c.storefronts.get_usage_tariff("shop", "revision"),
+    ),
+    "billing POST /api/v1/billing/merchant/test": RouteCase(
+        "/api/v1/billing/merchant/test",
+        lambda c: c.storefronts.verify_merchant({"appUuid": "example", "invoiceUuid": "example"}),
+    ),
+    "billing POST /api/v1/billing/partners/invitations": RouteCase(
+        "/api/v1/billing/partners/invitations",
+        lambda c: c.storefronts.create_billing_partner_invitation(),
+    ),
+    "billing POST /api/v1/billing/partners/invitations/accept": RouteCase(
+        "/api/v1/billing/partners/invitations/accept",
+        lambda c: c.storefronts.accept_billing_partner_invitation({"code": "example"}),
+    ),
+    "billing POST /api/v1/billing/partners/referral-reviews/{attribution}/retry": RouteCase(
+        "/api/v1/billing/partners/referral-reviews/attribution/retry",
+        lambda c: c.storefronts.retry_referral_review("attribution"),
+    ),
+    "billing POST /api/v1/billing/partners/sellers/{seller}/settlement-preference": RouteCase(
+        "/api/v1/billing/partners/sellers/seller/settlement-preference",
+        lambda c: c.storefronts.record_partner_settlement_preference(
+            "seller", {"preferenceUuid": "example", "mode": "payout"}
+        ),
+    ),
+    "billing POST /api/v1/billing/partners/sellers/{seller}/tax-disclosure": RouteCase(
+        "/api/v1/billing/partners/sellers/seller/tax-disclosure",
+        lambda c: c.storefronts.record_partner_tax_disclosure(
+            "seller", {"disclosureUuid": "example", "status": "registered", "jurisdiction": "example"}
+        ),
+    ),
+    "billing POST /api/v1/billing/partners/{partner}/payouts": RouteCase(
+        "/api/v1/billing/partners/partner/payouts",
+        lambda c: c.storefronts.record_partner_payout(
+            "partner",
+            {
+                "externalReference": "example",
+                "amount": {"currency": "ZAR", "amountMinor": "9007199254740993"},
+                "paidAt": "2026-11-01T00:00:00Z",
+            },
+        ),
+    ),
+    "billing POST /api/v1/billing/partners/{partner}/referral-terms": RouteCase(
+        "/api/v1/billing/partners/partner/referral-terms",
+        lambda c: c.storefronts.publish_partner_referral_terms(
+            "partner",
+            {
+                "code": "example",
+                "effectiveFrom": "example",
+                "agreementDate": "example",
+                "agreementReference": "example",
+                "signedAgreementAttested": True,
+                "share": "example",
+                "months": 1,
+                "holdDays": 1,
+            },
+        ),
+    ),
+    "billing POST /api/v1/billing/storefronts": RouteCase(
+        "/api/v1/billing/storefronts",
+        lambda c: c.storefronts.register_storefront({"slug": "example", "appUuid": "example"}),
+    ),
+    "billing POST /api/v1/billing/storefronts/{storefront}/capacity-offers": RouteCase(
+        "/api/v1/billing/storefronts/shop/capacity-offers",
+        lambda c: c.storefronts.publish_capacity_offer(
+            "shop",
+            {
+                "offerUuid": "example",
+                "name": "example",
+                "billingInterval": "example",
+                "unitPrice": {"currency": "ZAR", "amount": "25.50"},
+                "taxRate": "example",
+                "taxLabel": "example",
+                "dataSpaceCapacity": {"extraSpacesPerUnit": 1, "extraProducersPerSpacePerUnit": 1},
+            },
+        ),
+    ),
+    "billing POST /api/v1/billing/storefronts/{storefront}/offers/{offer}/partner-terms": RouteCase(
+        "/api/v1/billing/storefronts/shop/offers/offer/partner-terms",
+        lambda c: c.storefronts.publish_partner_product_terms(
+            "shop",
+            "offer",
+            {
+                "partnerCompanyUuid": "example",
+                "effectiveFrom": "example",
+                "agreementDate": "example",
+                "agreementReference": "example",
+                "signedAgreementAttested": True,
+                "unitCost": "example",
+                "sellerCut": "example",
+            },
+        ),
+    ),
+    "billing POST /api/v1/billing/storefronts/{storefront}/purchase-handoffs": RouteCase(
+        "/api/v1/billing/storefronts/shop/purchase-handoffs",
+        lambda c: c.storefronts.create_purchase_handoff(
+            "shop",
+            {
+                "orderReference": "example",
+                "offerUuid": "example",
+                "amount": {"currency": "ZAR", "amountMinor": "9007199254740993"},
+            },
+        ),
+    ),
+    "billing POST /api/v1/billing/storefronts/{storefront}/purchase-handoffs/{handoff}/cancel": RouteCase(
+        "/api/v1/billing/storefronts/shop/purchase-handoffs/handoff/cancel",
+        lambda c: c.storefronts.cancel_purchase_handoff("shop", "handoff"),
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/invoices/{invoice}/refund": RouteCase(
+        "/api/v1/storefronts/shop/invoices/invoice/refund",
+        lambda c: c.storefronts.request_refund("shop", "invoice", {"reason": "example"}),
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/invoices/{invoice}/refund/reconcile": RouteCase(
+        "/api/v1/storefronts/shop/invoices/invoice/refund/reconcile",
+        lambda c: c.storefronts.reconcile_refund("shop", "invoice"),
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/purchase-handoffs/{handoff}/redeem": RouteCase(
+        "/api/v1/storefronts/shop/purchase-handoffs/handoff/redeem",
+        lambda c: c.storefronts.redeem_purchase_handoff("shop", "handoff"),
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/purchases/{invoice}/set-off": RouteCase(
+        "/api/v1/storefronts/shop/purchases/invoice/set-off",
+        lambda c: c.storefronts.apply_storefront_set_off("shop", "invoice"),
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/quotes/{quote}/invoice": RouteCase(
+        "/api/v1/storefronts/shop/quotes/quote/invoice",
+        lambda c: c.storefronts.issue_storefront_invoice("shop", "quote"),
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/usage-enrollments": RouteCase(
+        "/api/v1/storefronts/shop/usage-enrollments",
+        lambda c: c.storefronts.enroll_usage(
+            "shop",
+            {
+                "tariffRevisionUuid": "example",
+                "periodStart": "2026-11-01T00:00:00Z",
+                "closeNotBefore": "2026-11-01T00:00:00Z",
+            },
+        ),
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/usage-enrollments/{enrollment}/issue": RouteCase(
+        "/api/v1/storefronts/shop/usage-enrollments/enrollment/issue",
+        lambda c: c.storefronts.issue_usage_invoice("shop", "enrollment"),
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/usage-enrollments/{enrollment}/scheduled-issuance": RouteCase(
+        "/api/v1/storefronts/shop/usage-enrollments/enrollment/scheduled-issuance",
+        lambda c: c.storefronts.schedule_usage_invoice("shop", "enrollment", {"invoiceOnlyAttested": True}),
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/usage-tariffs": RouteCase(
+        "/api/v1/storefronts/shop/usage-tariffs",
+        lambda c: c.storefronts.publish_usage_tariff(
+            "shop",
+            {
+                "tariffRevisionUuid": "example",
+                "productUuid": "example",
+                "description": "example",
+                "meter": {"slug": "example", "version": 1, "unit": "example"},
+                "effectiveFrom": "2026-11-01T00:00:00Z",
+                "rate": {"currency": "example", "majorAmount": "example", "perUnits": "example"},
+                "tax": {"label": "example", "rate": "example"},
+            },
+        ),
+    ),
+    "billing PUT /api/v1/billing/merchant": RouteCase(
+        "/api/v1/billing/merchant",
+        lambda c: c.storefronts.configure_merchant(
+            {
+                "merchantId": "example",
+                "expectedRevision": 1,
+                "businessTimeZone": "example",
+                "refundsEnabled": True,
+                "checkoutSecretKey": "example",
+                "paymentsReadToken": "example",
+            }
+        ),
+    ),
+    "billing PUT /api/v1/billing/storefronts/{storefront}/analytics-destination": RouteCase(
+        "/api/v1/billing/storefronts/shop/analytics-destination",
+        lambda c: c.storefronts.select_analytics_destination("shop", {"siteUuid": "example"}),
+    ),
+    "billing PUT /api/v1/billing/storefronts/{storefront}/receipt-template": RouteCase(
+        "/api/v1/billing/storefronts/shop/receipt-template",
+        lambda c: c.storefronts.select_receipt_template("shop", {"revision": "example"}),
+    ),
     "billing GET /api/v1/storefronts/{storefront}/offers": RouteCase(
         "/api/v1/storefronts/shop/offers", lambda c: c.storefronts.list_offers("shop")
     ),

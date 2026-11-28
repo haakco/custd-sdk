@@ -9,7 +9,7 @@ use HaakCo\Custd\Fields;
 final readonly class Cart
 {
     /**
-     * @param list<CartLine> $lines
+     * @param  list<CartLine>  $lines
      */
     public function __construct(
         public string $cartUuid,
@@ -18,8 +18,7 @@ final readonly class Cart
         public string $currency,
         public string $createdAt,
         public array $lines,
-    ) {
-    }
+    ) {}
 
     public static function fromPayload(\stdClass $payload): self
     {

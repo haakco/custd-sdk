@@ -12,8 +12,7 @@ final readonly class BillingContact
         public string $companyUuid,
         public string $name,
         public string $email,
-    ) {
-    }
+    ) {}
 
     public static function fromPayload(\stdClass $payload): self
     {

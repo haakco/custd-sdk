@@ -15,8 +15,7 @@ final readonly class PublishOffer
         public ?string $offerUuid = null,
         public ?string $effectiveFrom = null,
         public ?string $complementaryForOfferUuid = null,
-    ) {
-    }
+    ) {}
 
     /** @return array<string, mixed> */
     public function serialise(): array

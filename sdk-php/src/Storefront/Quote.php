@@ -9,7 +9,7 @@ use HaakCo\Custd\Fields;
 final readonly class Quote
 {
     /**
-     * @param list<QuoteLine> $lines
+     * @param  list<QuoteLine>  $lines
      */
     public function __construct(
         public string $quoteUuid,
@@ -19,8 +19,7 @@ final readonly class Quote
         public string $expiresAt,
         public array $lines,
         public Totals $totals,
-    ) {
-    }
+    ) {}
 
     public static function fromPayload(\stdClass $payload): self
     {

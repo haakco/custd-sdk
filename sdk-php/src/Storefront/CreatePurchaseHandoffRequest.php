@@ -10,8 +10,7 @@ final readonly class CreatePurchaseHandoffRequest
         public string $orderReference,
         public string $offerUuid,
         public Money $amount,
-    ) {
-    }
+    ) {}
 
     /** @return array{orderReference:string, offerUuid:string, amount:array{currency:string, amountMinor:string}} */
     public function serialise(): array

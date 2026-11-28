@@ -18,8 +18,7 @@ final readonly class PurchaseHandoff
         public ?string $invoiceUuid,
         public bool $settled,
         public bool $cancelled = false,
-    ) {
-    }
+    ) {}
 
     public static function fromPayload(\stdClass $payload): self
     {

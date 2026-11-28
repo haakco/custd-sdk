@@ -9,7 +9,7 @@ use HaakCo\Custd\Fields;
 final readonly class CreditNote
 {
     /**
-     * @param list<QuoteLine>|null $lines
+     * @param  list<QuoteLine>|null  $lines
      */
     public function __construct(
         public string $creditNoteUuid,
@@ -24,8 +24,7 @@ final readonly class CreditNote
         public ?string $sellerName,
         public ?string $reason,
         public ?array $lines,
-    ) {
-    }
+    ) {}
 
     public static function fromPayload(\stdClass $payload): self
     {

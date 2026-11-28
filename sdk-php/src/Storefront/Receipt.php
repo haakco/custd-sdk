@@ -16,8 +16,7 @@ final readonly class Receipt
         public string $issuedAt,
         public Money $amountReceived,
         public ReceiptDelivery $delivery,
-    ) {
-    }
+    ) {}
 
     public static function fromPayload(\stdClass $payload): self
     {
