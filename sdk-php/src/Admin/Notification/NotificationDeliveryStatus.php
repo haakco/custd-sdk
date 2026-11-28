@@ -23,11 +23,14 @@ final readonly class NotificationDeliveryStatus
         public ?string $providerMessageId = null,
         public ?string $sentAt = null,
         public ?string $terminalAt = null,
+        public ?NotificationHostingAcceptance $hostingAcceptance = null,
     ) {
     }
 
     public static function fromPayload(\stdClass $payload): self
     {
+        $acceptance = Fields::optionalObject($payload, 'hostingAcceptance');
+
         return new self(
             Fields::integer($payload, 'attemptCount'),
             Fields::string($payload, 'channel'),
@@ -43,6 +46,7 @@ final readonly class NotificationDeliveryStatus
             Fields::optionalString($payload, 'providerMessageId'),
             Fields::optionalString($payload, 'sentAt'),
             Fields::optionalString($payload, 'terminalAt'),
+            $acceptance === null ? null : NotificationHostingAcceptance::fromPayload($acceptance),
         );
     }
 }

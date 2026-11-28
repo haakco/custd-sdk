@@ -6,6 +6,7 @@ export const API_RESPONSE_LISTS: ResponseListTable = {
   "GET /api/v1/admin/accounting/evidence": ["evidence"],
   "GET /api/v1/admin/apps": ["apps"],
   "GET /api/v1/admin/apps/{slug}/deploy-credentials": ["credentials"],
+  "GET /api/v1/admin/apps/{slug}/purchase-handoff-credentials": ["credentials"],
   "GET /api/v1/admin/audit/events": ["events", "events[].actorRoles", "events[].changes"],
   "GET /api/v1/admin/audit/events/{eventId}": ["actorRoles", "changes"],
   "GET /api/v1/admin/audit/events/export": ["events", "events[].actorRoles", "events[].changes"],
@@ -97,6 +98,7 @@ export const API_RESPONSE_LISTS: ResponseListTable = {
   ],
   "GET /api/v1/admin/measurement/projects/{projectUuid}/estimates": ["estimates"],
   "GET /api/v1/admin/measurement/projects/{projectUuid}/imports/{importUuid}": ["results"],
+  "GET /api/v1/admin/notification-deliveries/{uuid}": ["hostingAcceptance.recipientIds"],
   "GET /api/v1/admin/notification-webhooks": ["subscriptions"],
   "GET /api/v1/admin/oauth-client-admissions": [
     "admissions",

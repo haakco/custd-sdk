@@ -78,12 +78,12 @@ pub fn rows() -> Vec<Row> {
         ),
         row(
             "admin-api POST /api/v1/admin/campaign-email-revisions/{revision}/preview",
-            "/api/v1/admin/campaign-email-revisions/r-1/preview",
+            "/api/v1/admin/campaign-email-revisions/r-1/preview?companySlug=acme",
             |c| {
                 drop(c.custd.preview_campaign_email_revision(
                     "r-1",
                     &body::<CampaignRenderRequest>(r#"{"slots":{}}"#),
-                    None,
+                    Some("acme"),
                 ))
             },
             round_trip::<CampaignRenderResult>,

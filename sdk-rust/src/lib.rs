@@ -506,10 +506,11 @@ pub use measurement_reads::{
 pub use notifications::{
     EmailRelay, EmailRelayEffectiveSender, EmailRelayTestSendRequest, EmailRelayTestSendResult,
     EmailRelayView, EmailRelayWriteRequest, NotificationDeliveryStatus,
-    NotificationDestinationEventSlug, NotificationWebhookCreateRequest,
-    NotificationWebhookEnabledRequest, NotificationWebhookListResponse, NotificationWebhookSecret,
-    NotificationWebhookSubscription, NotificationWebhookSubscriptionKind, TenantDestination,
-    TenantDestinationChannel, TenantDestinationEventSlug, TenantDestinationRequest,
+    NotificationDestinationEventSlug, NotificationHostingAcceptance,
+    NotificationWebhookCreateRequest, NotificationWebhookEnabledRequest,
+    NotificationWebhookListResponse, NotificationWebhookSecret, NotificationWebhookSubscription,
+    NotificationWebhookSubscriptionKind, TenantDestination, TenantDestinationChannel,
+    TenantDestinationEventSlug, TenantDestinationRequest,
 };
 pub use oauth_clients::{
     OAuthClient, OAuthClientAdmission, OAuthClientAdmissionApproveRequest,
