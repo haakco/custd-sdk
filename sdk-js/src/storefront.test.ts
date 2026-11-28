@@ -136,6 +136,55 @@ it("registers a storefront using the authenticated seller", async () => {
   );
 });
 
+it("reads explicitly configured offer capacity without adding it to other offers", async () => {
+  const capacity = { extraSpacesPerUnit: 2, extraProducersPerSpacePerUnit: 4 };
+  const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(
+    Response.json({
+      offers: [{ offerUuid: "bundle", dataSpaceCapacity: capacity }, { offerUuid: "standard" }],
+    }),
+  );
+  const client = new CustdClient({ baseUrl: "https://store.example", getToken: () => "buyer-token", fetch: fetchImpl });
+  const { offers } = await client.storefronts.listOffers("shop");
+  expect(offers.map((offer) => offer.dataSpaceCapacity)).toEqual([capacity, undefined]);
+});
+
+it("reads, selects and disables the analytics destination using the seller identity", async () => {
+  const siteUuid = "0193a000-0000-7000-8000-000000000080";
+  const selected = { siteUuid, enabled: true };
+  const disabled = { siteUuid, enabled: false };
+  const fetchImpl = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(Response.json({ enabled: false }))
+    .mockResolvedValueOnce(Response.json(selected))
+    .mockResolvedValueOnce(Response.json(disabled));
+  const client = new CustdClient({
+    baseUrl: "https://store.example",
+    getToken: () => "seller-token",
+    fetch: fetchImpl,
+  });
+  await expect(client.storefronts.getAnalyticsDestination("shop")).resolves.toEqual({ enabled: false });
+  await expect(client.storefronts.selectAnalyticsDestination("shop", { siteUuid })).resolves.toEqual(selected);
+  await expect(client.storefronts.disableAnalyticsDestination("shop")).resolves.toEqual(disabled);
+
+  const endpoint = "https://store.example/api/v1/billing/storefronts/shop/analytics-destination";
+  const headers = expect.objectContaining({ Authorization: "Bearer seller-token" });
+  expect(fetchImpl).toHaveBeenNthCalledWith(
+    1,
+    endpoint,
+    expect.objectContaining({ method: "GET", headers, body: undefined }),
+  );
+  expect(fetchImpl).toHaveBeenNthCalledWith(
+    2,
+    endpoint,
+    expect.objectContaining({ method: "PUT", headers, body: JSON.stringify({ siteUuid }) }),
+  );
+  expect(fetchImpl).toHaveBeenNthCalledWith(
+    3,
+    endpoint,
+    expect.objectContaining({ method: "DELETE", headers, body: undefined }),
+  );
+});
+
 it("uses buyer authorization and preserves server-issued minor-unit strings", async () => {
   const money = { currency: "ZAR", amountMinor: "9007199254740993" };
   const totals = { netTotal: money, taxTotal: money, grossTotal: money };

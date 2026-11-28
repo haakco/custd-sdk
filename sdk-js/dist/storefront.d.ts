@@ -20,7 +20,13 @@ export type StorefrontPriceRevision = {
     taxLabel: string;
     effectiveFrom: string;
 };
+/** Platforms may configure per-unit capacity that buyers can read on an offer. */
+export type StorefrontDataSpaceCapacity = {
+    extraSpacesPerUnit: number;
+    extraProducersPerSpacePerUnit: number;
+};
 export type StorefrontOffer = {
+    dataSpaceCapacity?: StorefrontDataSpaceCapacity;
     complementaryForOfferUuid?: string;
     offerUuid: string;
     name: string;
@@ -409,6 +415,14 @@ export type StorefrontReceiptTemplateSelection = {
 export type SelectStorefrontReceiptTemplate = {
     revision: string;
 };
+/** The seller's analytics site selection and delivery state. */
+export type StorefrontAnalyticsDestination = {
+    siteUuid?: string;
+    enabled: boolean;
+};
+export type SelectStorefrontAnalyticsDestination = {
+    siteUuid: string;
+};
 /** Browse a seller's offers and check out using the current buyer identity. */
 export declare class StorefrontClient {
     private readonly request;
@@ -448,6 +462,9 @@ export declare class StorefrontClient {
     registerStorefront(input: RegisterStorefront, options?: RequestOptions): Promise<StorefrontBinding>;
     getReceiptTemplate(slug: string, options?: RequestOptions): Promise<StorefrontReceiptTemplateSelection>;
     selectReceiptTemplate(slug: string, input: SelectStorefrontReceiptTemplate, options?: RequestOptions): Promise<StorefrontReceiptTemplateSelection>;
+    getAnalyticsDestination(slug: string, options?: RequestOptions): Promise<StorefrontAnalyticsDestination>;
+    selectAnalyticsDestination(slug: string, input: SelectStorefrontAnalyticsDestination, options?: RequestOptions): Promise<StorefrontAnalyticsDestination>;
+    disableAnalyticsDestination(slug: string, options?: RequestOptions): Promise<StorefrontAnalyticsDestination>;
     getMerchant(options?: RequestOptions): Promise<MerchantAccountResponse>;
     configureMerchant(input: ConfigureMerchant, options?: RequestOptions): Promise<MerchantAccountResponse>;
     revokeMerchant(input: RevokeMerchant, options?: RequestOptions): Promise<MerchantAccountResponse>;

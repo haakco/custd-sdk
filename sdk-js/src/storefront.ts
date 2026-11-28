@@ -33,7 +33,14 @@ export type StorefrontPriceRevision = {
   effectiveFrom: string;
 };
 
+/** Platforms may configure per-unit capacity that buyers can read on an offer. */
+export type StorefrontDataSpaceCapacity = {
+  extraSpacesPerUnit: number;
+  extraProducersPerSpacePerUnit: number;
+};
+
 export type StorefrontOffer = {
+  dataSpaceCapacity?: StorefrontDataSpaceCapacity;
   complementaryForOfferUuid?: string;
   offerUuid: string;
   name: string;
@@ -398,6 +405,11 @@ export type StorefrontReceiptTemplateSelection = { revision?: string; selectedAt
 
 export type SelectStorefrontReceiptTemplate = { revision: string };
 
+/** The seller's analytics site selection and delivery state. */
+export type StorefrontAnalyticsDestination = { siteUuid?: string; enabled: boolean };
+
+export type SelectStorefrontAnalyticsDestination = { siteUuid: string };
+
 /** Browse a seller's offers and check out using the current buyer identity. */
 export class StorefrontClient {
   constructor(private readonly request: StorefrontRequester) {}
@@ -745,6 +757,22 @@ export class StorefrontClient {
     options?: RequestOptions,
   ): Promise<StorefrontReceiptTemplateSelection> {
     return this.request("PUT", `/billing${storefrontPath(slug, "receipt-template")}`, input, options);
+  }
+
+  getAnalyticsDestination(slug: string, options?: RequestOptions): Promise<StorefrontAnalyticsDestination> {
+    return this.request("GET", `/billing${storefrontPath(slug, "analytics-destination")}`, undefined, options);
+  }
+
+  selectAnalyticsDestination(
+    slug: string,
+    input: SelectStorefrontAnalyticsDestination,
+    options?: RequestOptions,
+  ): Promise<StorefrontAnalyticsDestination> {
+    return this.request("PUT", `/billing${storefrontPath(slug, "analytics-destination")}`, input, options);
+  }
+
+  disableAnalyticsDestination(slug: string, options?: RequestOptions): Promise<StorefrontAnalyticsDestination> {
+    return this.request("DELETE", `/billing${storefrontPath(slug, "analytics-destination")}`, undefined, options);
   }
 
   getMerchant(options?: RequestOptions): Promise<MerchantAccountResponse> {

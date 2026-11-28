@@ -28,6 +28,12 @@ export type NotificationWebhookCreateRequest = {
     enabled: boolean;
     kind?: NotificationWebhookKind;
 };
+/** Hosting accepted the submission. Remote outcomes are reported separately. */
+export type NotificationHostingAcceptance = {
+    messageId: string;
+    acceptedAt: string;
+    recipientIds: string[] | null;
+};
 /** One notification delivery's current state. */
 export type NotificationDeliveryStatus = {
     messageUuid: string;
@@ -44,6 +50,7 @@ export type NotificationDeliveryStatus = {
     updatedAt: string;
     sentAt?: string;
     terminalAt?: string;
+    hostingAcceptance?: NotificationHostingAcceptance;
 };
 /** Why an operator replays a delivery; it lands in the audit stream. At most 255 characters. */
 export type NotificationDeliveryReplayRequest = {

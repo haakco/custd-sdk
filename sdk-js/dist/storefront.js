@@ -158,6 +158,15 @@ export class StorefrontClient {
     selectReceiptTemplate(slug, input, options) {
         return this.request("PUT", `/billing${storefrontPath(slug, "receipt-template")}`, input, options);
     }
+    getAnalyticsDestination(slug, options) {
+        return this.request("GET", `/billing${storefrontPath(slug, "analytics-destination")}`, undefined, options);
+    }
+    selectAnalyticsDestination(slug, input, options) {
+        return this.request("PUT", `/billing${storefrontPath(slug, "analytics-destination")}`, input, options);
+    }
+    disableAnalyticsDestination(slug, options) {
+        return this.request("DELETE", `/billing${storefrontPath(slug, "analytics-destination")}`, undefined, options);
+    }
     getMerchant(options) {
         return this.request("GET", merchantPath, undefined, options);
     }
