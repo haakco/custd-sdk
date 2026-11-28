@@ -1,7 +1,33 @@
+const merchantPath = "/billing/merchant";
+const storefrontRegistryPath = "/billing/storefronts";
 /** Browse a seller's offers and check out using the current buyer identity. */
 export class StorefrontClient {
     constructor(request) {
         this.request = request;
+    }
+    listOwnedStorefronts(options) {
+        return this.request("GET", storefrontRegistryPath, undefined, options);
+    }
+    registerStorefront(input, options) {
+        return this.request("POST", storefrontRegistryPath, input, options);
+    }
+    getReceiptTemplate(slug, options) {
+        return this.request("GET", `/billing${storefrontPath(slug, "receipt-template")}`, undefined, options);
+    }
+    selectReceiptTemplate(slug, input, options) {
+        return this.request("PUT", `/billing${storefrontPath(slug, "receipt-template")}`, input, options);
+    }
+    getMerchant(options) {
+        return this.request("GET", merchantPath, undefined, options);
+    }
+    configureMerchant(input, options) {
+        return this.request("PUT", merchantPath, input, options);
+    }
+    revokeMerchant(input, options) {
+        return this.request("DELETE", merchantPath, input, options);
+    }
+    verifyMerchant(input, options) {
+        return this.request("POST", `${merchantPath}/test`, input, options);
     }
     listOffers(storefront, options) {
         return this.request("GET", storefrontPath(storefront, "offers"), undefined, options);
@@ -75,6 +101,9 @@ function validatePurchase(purchase) {
     validateTotals(purchase.totals);
     if (purchase.receipt) {
         validateMoney(purchase.receipt.amountReceived);
+    }
+    if (purchase.refund) {
+        validateMoney(purchase.refund.amount);
     }
     if (purchase.creditNote) {
         validateTotals(purchase.creditNote.totals);

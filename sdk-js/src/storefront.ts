@@ -120,7 +120,42 @@ export type StorefrontCreditNote = {
   totals: StorefrontTotals;
 };
 
+export type MerchantAccount = {
+  accountUuid: string;
+  sellerCompanyUuid: string;
+  merchantId: string;
+  mode: "test" | "live";
+  revision: number;
+  status: "active" | "revoked";
+  refundsEnabled: boolean;
+  businessTimeZone: string;
+  updatedAt: string;
+};
+
+export type MerchantAccountResponse = { account?: MerchantAccount };
+
+export type ConfigureMerchant = {
+  merchantId: string;
+  expectedRevision: number;
+  businessTimeZone: string;
+  refundsEnabled: boolean;
+  checkoutSecretKey: string;
+  paymentsReadToken: string;
+};
+
+export type RevokeMerchant = { expectedRevision: number };
+export type VerifyMerchant = { appUuid: string; invoiceUuid: string };
+export type VerifyMerchantResult = { verified: boolean };
+
+export type StorefrontRefund = {
+  refundUuid: string;
+  status: "submitting" | "pending" | "succeeded" | "review_required";
+  amount: StorefrontMoney;
+};
+
 export type StorefrontPurchase = {
+  activationStatus?: "pending" | "applied" | "review_required";
+  refund?: StorefrontRefund;
   invoiceUuid: string;
   invoiceNumber: string;
   status: StorefrontInvoiceStatus;
@@ -132,9 +167,66 @@ export type StorefrontPurchase = {
   creditNote?: StorefrontCreditNote;
 };
 
+const merchantPath = "/billing/merchant";
+const storefrontRegistryPath = "/billing/storefronts";
+
+export type StorefrontBinding = {
+  slug: string;
+  sellerCompanyUuid: string;
+  appUuid: string;
+  createdAt: string;
+};
+
+export type OwnedStorefronts = {
+  sellerCompanyUuid: string;
+  storefronts: StorefrontBinding[];
+};
+
+export type RegisterStorefront = Pick<StorefrontBinding, "slug" | "appUuid">;
+
+export type StorefrontReceiptTemplateSelection = { revision?: string; selectedAt?: string };
+
+export type SelectStorefrontReceiptTemplate = { revision: string };
+
 /** Browse a seller's offers and check out using the current buyer identity. */
 export class StorefrontClient {
   constructor(private readonly request: StorefrontRequester) {}
+
+  listOwnedStorefronts(options?: RequestOptions): Promise<OwnedStorefronts> {
+    return this.request("GET", storefrontRegistryPath, undefined, options);
+  }
+
+  registerStorefront(input: RegisterStorefront, options?: RequestOptions): Promise<StorefrontBinding> {
+    return this.request("POST", storefrontRegistryPath, input, options);
+  }
+
+  getReceiptTemplate(slug: string, options?: RequestOptions): Promise<StorefrontReceiptTemplateSelection> {
+    return this.request("GET", `/billing${storefrontPath(slug, "receipt-template")}`, undefined, options);
+  }
+
+  selectReceiptTemplate(
+    slug: string,
+    input: SelectStorefrontReceiptTemplate,
+    options?: RequestOptions,
+  ): Promise<StorefrontReceiptTemplateSelection> {
+    return this.request("PUT", `/billing${storefrontPath(slug, "receipt-template")}`, input, options);
+  }
+
+  getMerchant(options?: RequestOptions): Promise<MerchantAccountResponse> {
+    return this.request("GET", merchantPath, undefined, options);
+  }
+
+  configureMerchant(input: ConfigureMerchant, options?: RequestOptions): Promise<MerchantAccountResponse> {
+    return this.request("PUT", merchantPath, input, options);
+  }
+
+  revokeMerchant(input: RevokeMerchant, options?: RequestOptions): Promise<MerchantAccountResponse> {
+    return this.request("DELETE", merchantPath, input, options);
+  }
+
+  verifyMerchant(input: VerifyMerchant, options?: RequestOptions): Promise<VerifyMerchantResult> {
+    return this.request("POST", `${merchantPath}/test`, input, options);
+  }
 
   listOffers(storefront: string, options?: RequestOptions): Promise<StorefrontCatalogue> {
     return this.request("GET", storefrontPath(storefront, "offers"), undefined, options);
@@ -245,6 +337,9 @@ function validatePurchase(purchase: StorefrontPurchase): StorefrontPurchase {
   validateTotals(purchase.totals);
   if (purchase.receipt) {
     validateMoney(purchase.receipt.amountReceived);
+  }
+  if (purchase.refund) {
+    validateMoney(purchase.refund.amount);
   }
   if (purchase.creditNote) {
     validateTotals(purchase.creditNote.totals);

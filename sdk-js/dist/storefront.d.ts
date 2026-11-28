@@ -114,7 +114,46 @@ export type StorefrontCreditNote = {
     creditNoteNumber: string;
     totals: StorefrontTotals;
 };
+export type MerchantAccount = {
+    accountUuid: string;
+    sellerCompanyUuid: string;
+    merchantId: string;
+    mode: "test" | "live";
+    revision: number;
+    status: "active" | "revoked";
+    refundsEnabled: boolean;
+    businessTimeZone: string;
+    updatedAt: string;
+};
+export type MerchantAccountResponse = {
+    account?: MerchantAccount;
+};
+export type ConfigureMerchant = {
+    merchantId: string;
+    expectedRevision: number;
+    businessTimeZone: string;
+    refundsEnabled: boolean;
+    checkoutSecretKey: string;
+    paymentsReadToken: string;
+};
+export type RevokeMerchant = {
+    expectedRevision: number;
+};
+export type VerifyMerchant = {
+    appUuid: string;
+    invoiceUuid: string;
+};
+export type VerifyMerchantResult = {
+    verified: boolean;
+};
+export type StorefrontRefund = {
+    refundUuid: string;
+    status: "submitting" | "pending" | "succeeded" | "review_required";
+    amount: StorefrontMoney;
+};
 export type StorefrontPurchase = {
+    activationStatus?: "pending" | "applied" | "review_required";
+    refund?: StorefrontRefund;
     invoiceUuid: string;
     invoiceNumber: string;
     status: StorefrontInvoiceStatus;
@@ -125,10 +164,36 @@ export type StorefrontPurchase = {
     receipt?: StorefrontReceipt;
     creditNote?: StorefrontCreditNote;
 };
+export type StorefrontBinding = {
+    slug: string;
+    sellerCompanyUuid: string;
+    appUuid: string;
+    createdAt: string;
+};
+export type OwnedStorefronts = {
+    sellerCompanyUuid: string;
+    storefronts: StorefrontBinding[];
+};
+export type RegisterStorefront = Pick<StorefrontBinding, "slug" | "appUuid">;
+export type StorefrontReceiptTemplateSelection = {
+    revision?: string;
+    selectedAt?: string;
+};
+export type SelectStorefrontReceiptTemplate = {
+    revision: string;
+};
 /** Browse a seller's offers and check out using the current buyer identity. */
 export declare class StorefrontClient {
     private readonly request;
     constructor(request: StorefrontRequester);
+    listOwnedStorefronts(options?: RequestOptions): Promise<OwnedStorefronts>;
+    registerStorefront(input: RegisterStorefront, options?: RequestOptions): Promise<StorefrontBinding>;
+    getReceiptTemplate(slug: string, options?: RequestOptions): Promise<StorefrontReceiptTemplateSelection>;
+    selectReceiptTemplate(slug: string, input: SelectStorefrontReceiptTemplate, options?: RequestOptions): Promise<StorefrontReceiptTemplateSelection>;
+    getMerchant(options?: RequestOptions): Promise<MerchantAccountResponse>;
+    configureMerchant(input: ConfigureMerchant, options?: RequestOptions): Promise<MerchantAccountResponse>;
+    revokeMerchant(input: RevokeMerchant, options?: RequestOptions): Promise<MerchantAccountResponse>;
+    verifyMerchant(input: VerifyMerchant, options?: RequestOptions): Promise<VerifyMerchantResult>;
     listOffers(storefront: string, options?: RequestOptions): Promise<StorefrontCatalogue>;
     publishOffer(storefront: string, offer: StorefrontPublishOffer, options?: RequestOptions): Promise<StorefrontOffer>;
     createCart(storefront: string, options?: RequestOptions): Promise<StorefrontCart>;

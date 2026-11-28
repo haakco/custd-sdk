@@ -3,8 +3,8 @@
  * VERSION and scripts/bump-version.sh updates it, so a release cannot leave it
  * behind.
  */
-export declare const SDK_VERSION = "3.78.1";
+export declare const SDK_VERSION = "3.79.0";
 /** Product named in X-Custd-Sdk, so Custd can report which callers use which release. */
 export declare const SDK_PRODUCT = "js";
 /** Value sent in the X-Custd-Sdk header. */
-export declare const SDK_IDENTITY = "js/3.78.1";
+export declare const SDK_IDENTITY = "js/3.79.0";
