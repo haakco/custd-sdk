@@ -136,7 +136,9 @@ pub use app_meetings::{
 pub use app_messages::{
     APP_MESSAGES_MAX_BATCH_BYTES, APP_MESSAGES_MAX_BATCH_MESSAGES, AppMessageDirection,
     AppMessageImportResult, AppMessageImportStatus, AppMessageInput, AppMessageMedia,
-    AppMessageSource, AppMessagesBatchRequest, AppMessagesBatchResponse, AppMessagesSession,
+    AppMessageMutation, AppMessageMutationKind, AppMessageMutationResult, AppMessageMutationStatus,
+    AppMessageSource, AppMessagesBatchRequest, AppMessagesBatchResponse,
+    AppMessagesMutationRequest, AppMessagesMutationResponse, AppMessagesSession,
 };
 pub use app_models::{
     AppModelHistogram, AppModelPercentiles, AppModelQuantityError, AppModelQuantityResult,

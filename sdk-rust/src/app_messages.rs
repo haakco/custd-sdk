@@ -60,6 +60,8 @@ pub struct AppMessagesBatchRequest {
 pub enum AppMessageImportStatus {
     Accepted,
     AlreadyAccepted,
+    /// An archive mutation superseded the source message. No message UUID is returned.
+    Suppressed,
     Invalid,
 }
 
@@ -78,6 +80,56 @@ pub struct AppMessageImportResult {
 #[serde(rename_all = "camelCase")]
 pub struct AppMessagesBatchResponse {
     pub results: Vec<AppMessageImportResult>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AppMessageMutationKind {
+    Edit,
+    Revoke,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppMessageMutation {
+    pub external_id: String,
+    pub operation_id: String,
+    pub kind: AppMessageMutationKind,
+    pub revision: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppMessagesMutationRequest {
+    pub source: AppMessageSource,
+    pub mutations: Vec<AppMessageMutation>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AppMessageMutationStatus {
+    Applied,
+    AlreadyApplied,
+    Superseded,
+    Invalid,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppMessageMutationResult {
+    pub external_id: String,
+    pub operation_id: String,
+    pub status: AppMessageMutationStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppMessagesMutationResponse {
+    pub results: Vec<AppMessageMutationResult>,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -105,6 +157,18 @@ impl CustdClient {
         self.call(
             Method::Post,
             &format!("{ARCHIVE_PATH}/batch"),
+            Some(request),
+        )
+    }
+
+    /// Apply edits and revocations to messages from one source in the owner's archive.
+    pub fn mutate_app_messages(
+        &self,
+        request: &AppMessagesMutationRequest,
+    ) -> Result<AppMessagesMutationResponse> {
+        self.call(
+            Method::Post,
+            &format!("{ARCHIVE_PATH}/mutations"),
             Some(request),
         )
     }
