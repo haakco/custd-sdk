@@ -47,6 +47,15 @@ export class StorefrontClient {
             validateTotals(result.invoice.totals);
         return result;
     }
+    getUsageSchedule(storefront, enrollmentUuid, options) {
+        return this.request("GET", storefrontPath(storefront, "usage-enrollments", enrollmentUuid, "scheduled-issuance"), undefined, options);
+    }
+    scheduleUsageInvoice(storefront, enrollmentUuid, input, options) {
+        return this.request("POST", storefrontPath(storefront, "usage-enrollments", enrollmentUuid, "scheduled-issuance"), input, options);
+    }
+    cancelUsageSchedule(storefront, enrollmentUuid, options) {
+        return this.request("DELETE", storefrontPath(storefront, "usage-enrollments", enrollmentUuid, "scheduled-issuance"), undefined, options);
+    }
     async listSellerInvoices(input, options) {
         const path = `/billing${storefrontPath(input.storefront, "invoices")}`;
         const query = input.before ? `?${new URLSearchParams({ before: input.before })}` : "";

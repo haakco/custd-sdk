@@ -215,3 +215,27 @@ it("scopes merchant revocation and payment verification to the authenticated acc
     }),
   );
 });
+
+it("uses explicit invoice-only consent and supports reading and cancelling the schedule", async () => {
+  const calls: Array<{ method: string; path: string; body: unknown }> = [];
+  const fetchImpl: typeof fetch = async (url, init) => {
+    const path = new URL(String(url)).pathname;
+    const method = init?.method ?? "GET";
+    calls.push({ method, path, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+    return Response.json({ enrollmentUuid: "enrollment", state: method === "DELETE" ? "cancelled" : "scheduled" });
+  };
+  const client = new CustdClient({ baseUrl: "https://store.example", getToken: () => "buyer-token", fetch: fetchImpl });
+  await client.storefronts.scheduleUsageInvoice("shop", "enrollment", { invoiceOnlyAttested: true });
+  await expect(client.storefronts.getUsageSchedule("shop", "enrollment")).resolves.toMatchObject({
+    state: "scheduled",
+  });
+  await expect(client.storefronts.cancelUsageSchedule("shop", "enrollment")).resolves.toMatchObject({
+    state: "cancelled",
+  });
+  const path = "/api/v1/storefronts/shop/usage-enrollments/enrollment/scheduled-issuance";
+  expect(calls).toEqual([
+    { method: "POST", path, body: { invoiceOnlyAttested: true } },
+    { method: "GET", path, body: undefined },
+    { method: "DELETE", path, body: undefined },
+  ]);
+});

@@ -1,5 +1,5 @@
 import type { RequestOptions } from "./index.js";
-import type { EnrollUsageRequest, IssueUsageResult, PublishUsageTariffRequest, StorefrontUsagePageRequest, UsageCertificate, UsageEnrollment, UsageEnrollmentPage, UsageTariffPage, UsageTariffRevision } from "./storefront-usage.js";
+import type { EnrollUsageRequest, IssueUsageResult, PublishUsageTariffRequest, StorefrontUsagePageRequest, UsageCertificate, UsageEnrollment, UsageEnrollmentPage, UsageInvoiceOptIn, UsageSchedule, UsageTariffPage, UsageTariffRevision } from "./storefront-usage.js";
 export type * from "./storefront-usage.js";
 type StorefrontRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 /** An exact signed minor-unit count encoded as a decimal string. */
@@ -322,6 +322,9 @@ export declare class StorefrontClient {
     publishUsageTariff(storefront: string, input: PublishUsageTariffRequest, options?: RequestOptions): Promise<UsageTariffRevision>;
     enrollUsage(storefront: string, input: EnrollUsageRequest, options?: RequestOptions): Promise<UsageEnrollment>;
     issueUsageInvoice(storefront: string, enrollmentUuid: string, options?: RequestOptions): Promise<IssueUsageResult>;
+    getUsageSchedule(storefront: string, enrollmentUuid: string, options?: RequestOptions): Promise<UsageSchedule>;
+    scheduleUsageInvoice(storefront: string, enrollmentUuid: string, input: UsageInvoiceOptIn, options?: RequestOptions): Promise<UsageSchedule>;
+    cancelUsageSchedule(storefront: string, enrollmentUuid: string, options?: RequestOptions): Promise<UsageSchedule>;
     listSellerInvoices(input: SellerInvoiceListRequest, options?: RequestOptions): Promise<SellerInvoiceList>;
     getPartnerStatement(input: StorefrontPartnerStatementRequest, options?: RequestOptions): Promise<StorefrontPartnerStatement>;
     issueCreditNote(storefront: string, invoiceUuid: string, input: StorefrontAdjustmentRequest, options?: RequestOptions): Promise<StorefrontCreditNote>;

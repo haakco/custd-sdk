@@ -7,6 +7,8 @@ import type {
   UsageCertificate,
   UsageEnrollment,
   UsageEnrollmentPage,
+  UsageInvoiceOptIn,
+  UsageSchedule,
   UsageTariffPage,
   UsageTariffRevision,
 } from "./storefront-usage.js";
@@ -384,6 +386,38 @@ export class StorefrontClient {
     validateUsageCertificate(result.usage);
     if (result.status === "invoice_issued") validateTotals(result.invoice.totals);
     return result;
+  }
+
+  getUsageSchedule(storefront: string, enrollmentUuid: string, options?: RequestOptions): Promise<UsageSchedule> {
+    return this.request(
+      "GET",
+      storefrontPath(storefront, "usage-enrollments", enrollmentUuid, "scheduled-issuance"),
+      undefined,
+      options,
+    );
+  }
+
+  scheduleUsageInvoice(
+    storefront: string,
+    enrollmentUuid: string,
+    input: UsageInvoiceOptIn,
+    options?: RequestOptions,
+  ): Promise<UsageSchedule> {
+    return this.request(
+      "POST",
+      storefrontPath(storefront, "usage-enrollments", enrollmentUuid, "scheduled-issuance"),
+      input,
+      options,
+    );
+  }
+
+  cancelUsageSchedule(storefront: string, enrollmentUuid: string, options?: RequestOptions): Promise<UsageSchedule> {
+    return this.request(
+      "DELETE",
+      storefrontPath(storefront, "usage-enrollments", enrollmentUuid, "scheduled-issuance"),
+      undefined,
+      options,
+    );
   }
 
   async listSellerInvoices(input: SellerInvoiceListRequest, options?: RequestOptions): Promise<SellerInvoiceList> {

@@ -28,12 +28,13 @@ export type UsageTariffPage = { tariffs: UsageTariffRevision[]; nextBefore?: str
 
 export type UsageEnrollmentItem = EnrollUsageRequest &
   UsageEnrollment & {
+    tariffDescription: string;
     status: "awaiting_cutoff" | "awaiting_closure" | "certified" | "invoice_issued";
     closedAt?: string;
     invoiceUuid?: string;
   };
 
-export type UsageEnrollmentPage = { enrollments: UsageEnrollmentItem[]; nextBefore?: string };
+export type UsageEnrollmentPage = { canSchedule: boolean; enrollments: UsageEnrollmentItem[]; nextBefore?: string };
 
 export type UsagePeriod = { start: string; endExclusive: string };
 
@@ -73,3 +74,18 @@ export type UsageIssuedInvoice = {
 export type IssueUsageResult =
   | { status: "invoice_issued"; invoice: UsageIssuedInvoice; usage: UsageCertificate }
   | { status: "no_amount_due"; usage: UsageCertificate };
+
+export type UsageScheduleState = "scheduled" | "cancelled" | "invoice_issued" | "no_amount_due" | "review_required";
+
+export type UsageSchedule = {
+  enrollmentUuid: string;
+  state: UsageScheduleState;
+  consentedAt: string;
+  attempts: number;
+  nextAttemptAt?: string;
+  completedAt?: string;
+  invoiceUuid?: string;
+  reason?: "coverage_pending" | "billing_unavailable" | "contact_unavailable";
+};
+
+export type UsageInvoiceOptIn = { invoiceOnlyAttested: boolean };
