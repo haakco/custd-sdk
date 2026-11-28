@@ -279,6 +279,23 @@ export type StorefrontPurchase = {
   creditNote?: StorefrontCreditNote;
 };
 
+export type CreateStorefrontPurchaseHandoff = {
+  orderReference: string;
+  offerUuid: string;
+  amount: StorefrontMoney;
+};
+
+export type StorefrontPurchaseHandoff = {
+  handoffUuid: string;
+  orderReference: string;
+  offerUuid: string;
+  amount: StorefrontMoney;
+  checkoutPath: string;
+  expiresAt: string;
+  invoiceUuid?: string;
+  settled: boolean;
+};
+
 const merchantPath = "/billing/merchant";
 const storefrontRegistryPath = "/billing/storefronts";
 const billingPartnersPath = "/billing/partners";
@@ -383,6 +400,37 @@ export type SelectStorefrontReceiptTemplate = { revision: string };
 /** Browse a seller's offers and check out using the current buyer identity. */
 export class StorefrontClient {
   constructor(private readonly request: StorefrontRequester) {}
+
+  async createPurchaseHandoff(
+    storefront: string,
+    input: CreateStorefrontPurchaseHandoff,
+    options?: RequestOptions,
+  ): Promise<StorefrontPurchaseHandoff> {
+    validateMoney(input.amount);
+    const handoff = await this.request<StorefrontPurchaseHandoff>(
+      "POST",
+      `/billing${storefrontPath(storefront, "purchase-handoffs")}`,
+      input,
+      options,
+    );
+    validateMoney(handoff.amount);
+    return handoff;
+  }
+
+  async getPurchaseHandoff(
+    storefront: string,
+    handoffUuid: string,
+    options?: RequestOptions,
+  ): Promise<StorefrontPurchaseHandoff> {
+    const handoff = await this.request<StorefrontPurchaseHandoff>(
+      "GET",
+      `/billing${storefrontPath(storefront, "purchase-handoffs", handoffUuid)}`,
+      undefined,
+      options,
+    );
+    validateMoney(handoff.amount);
+    return handoff;
+  }
 
   listBillingPartners(input: BillingPartnerPageRequest, options?: RequestOptions): Promise<BillingPartnerPage> {
     const query = input.after ? `?${new URLSearchParams({ after: input.after })}` : "";

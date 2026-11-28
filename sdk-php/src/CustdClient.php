@@ -11,7 +11,7 @@ final class CustdClient
      * equals VERSION and scripts/bump-version.sh updates it, so a release cannot
      * leave it behind.
      */
-    public const VERSION = "3.86.0";
+    public const VERSION = "3.87.0";
 
     /** Product named in X-Custd-Sdk. The Laravel and WordPress wrappers override it. */
     public const PRODUCT = "php";
@@ -390,6 +390,11 @@ final class CustdClient
     public function adminSystemUsage(): Admin\SystemUsageClient
     {
         return new Admin\SystemUsageClient($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
+    }
+
+    public function storefronts(): Storefront\Client
+    {
+        return new Storefront\Client($this->baseUrl, fn (): string => $this->authToken(), $this->adminHttpClient);
     }
 
     public function adminEmailRelay(): Admin\EmailRelayClient

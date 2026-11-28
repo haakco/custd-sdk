@@ -6,6 +6,17 @@ export class StorefrontClient {
     constructor(request) {
         this.request = request;
     }
+    async createPurchaseHandoff(storefront, input, options) {
+        validateMoney(input.amount);
+        const handoff = await this.request("POST", `/billing${storefrontPath(storefront, "purchase-handoffs")}`, input, options);
+        validateMoney(handoff.amount);
+        return handoff;
+    }
+    async getPurchaseHandoff(storefront, handoffUuid, options) {
+        const handoff = await this.request("GET", `/billing${storefrontPath(storefront, "purchase-handoffs", handoffUuid)}`, undefined, options);
+        validateMoney(handoff.amount);
+        return handoff;
+    }
     listBillingPartners(input, options) {
         const query = input.after ? `?${new URLSearchParams({ after: input.after })}` : "";
         return this.request("GET", billingPartnersPath + query, undefined, options);

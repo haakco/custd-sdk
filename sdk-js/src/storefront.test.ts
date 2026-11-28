@@ -343,3 +343,35 @@ it("preserves exact payout amounts and uses the partner payout cursor", async ()
     [path, "POST", JSON.stringify(payout)],
   ]);
 });
+
+it("creates and reads a seller purchase handoff with exact money", async () => {
+  const amount = { currency: "ZAR", amountMinor: "9007199254740993" };
+  const input = { orderReference: "order-123", offerUuid: "offer", amount };
+  const handoff = {
+    ...input,
+    handoffUuid: "handoff",
+    checkoutPath: "/store?handoffUuid=handoff&storefront=shop",
+    expiresAt: "2026-11-28T10:30:00Z",
+    settled: false,
+  };
+  const settled = { ...handoff, invoiceUuid: "invoice", settled: true };
+  const fetchImpl = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(Response.json(handoff))
+    .mockResolvedValueOnce(Response.json(settled));
+  const client = new CustdClient({
+    baseUrl: "https://store.example",
+    getToken: () => "seller-token",
+    fetch: fetchImpl,
+  });
+  const path = "https://store.example/api/v1/billing/storefronts/shop/purchase-handoffs";
+
+  await expect(client.storefronts.createPurchaseHandoff("shop", input)).resolves.toEqual(handoff);
+  await expect(client.storefronts.getPurchaseHandoff("shop", "handoff")).resolves.toEqual(settled);
+  expect(fetchImpl).toHaveBeenNthCalledWith(
+    1,
+    path,
+    expect.objectContaining({ method: "POST", body: JSON.stringify(input) }),
+  );
+  expect(fetchImpl).toHaveBeenNthCalledWith(2, `${path}/handoff`, expect.objectContaining({ method: "GET" }));
+});

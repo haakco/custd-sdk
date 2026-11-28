@@ -264,6 +264,21 @@ export type StorefrontPurchase = {
     receipt?: StorefrontReceipt;
     creditNote?: StorefrontCreditNote;
 };
+export type CreateStorefrontPurchaseHandoff = {
+    orderReference: string;
+    offerUuid: string;
+    amount: StorefrontMoney;
+};
+export type StorefrontPurchaseHandoff = {
+    handoffUuid: string;
+    orderReference: string;
+    offerUuid: string;
+    amount: StorefrontMoney;
+    checkoutPath: string;
+    expiresAt: string;
+    invoiceUuid?: string;
+    settled: boolean;
+};
 export type BillingPartner = {
     partnerCompanyUuid: string;
     name: string;
@@ -397,6 +412,8 @@ export type SelectStorefrontReceiptTemplate = {
 export declare class StorefrontClient {
     private readonly request;
     constructor(request: StorefrontRequester);
+    createPurchaseHandoff(storefront: string, input: CreateStorefrontPurchaseHandoff, options?: RequestOptions): Promise<StorefrontPurchaseHandoff>;
+    getPurchaseHandoff(storefront: string, handoffUuid: string, options?: RequestOptions): Promise<StorefrontPurchaseHandoff>;
     listBillingPartners(input: BillingPartnerPageRequest, options?: RequestOptions): Promise<BillingPartnerPage>;
     listBillingPartnerSellers(input: BillingPartnerPageRequest, options?: RequestOptions): Promise<BillingPartnerSellerPage>;
     getSellerSettlementPreference(sellerUuid: string, options?: RequestOptions): Promise<PartnerSettlementSelection>;
