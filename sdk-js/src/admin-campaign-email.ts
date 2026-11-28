@@ -108,6 +108,14 @@ export class CampaignEmailAdminClient {
     return this.request("POST", `${revisionPath(revision)}/render`, body);
   }
 
+  previewRevision(
+    revision: string,
+    body: CampaignEmailRenderRequest,
+    companySlug?: string,
+  ): Promise<CampaignEmailRenderResult> {
+    return this.request("POST", scoped(`${revisionPath(revision)}/preview`, companySlug), body);
+  }
+
   startRun(body: CampaignEmailRunScheduleRequest, companySlug?: string): Promise<CampaignEmailRunStatus> {
     return this.run("POST", "/campaign-email-runs", companySlug, body);
   }

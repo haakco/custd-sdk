@@ -78,5 +78,22 @@ pub fn rows() -> Vec<Row> {
             "/api/v1/admin/apps/s-1/deploy-credentials/c-1",
             |c| drop(c.custd.delete_app_deploy_credential("s-1", "c-1")),
         ),
+        row(
+            "admin-api GET /api/v1/admin/apps/{slug}/purchase-handoff-credentials",
+            "/api/v1/admin/apps/s-1/purchase-handoff-credentials",
+            |c| drop(c.custd.list_purchase_handoff_credentials("s-1")),
+            round_trip::<AppDeployCredentialList>,
+        ),
+        row(
+            "admin-api POST /api/v1/admin/apps/{slug}/purchase-handoff-credentials",
+            "/api/v1/admin/apps/s-1/purchase-handoff-credentials",
+            |c| drop(c.custd.create_purchase_handoff_credential("s-1")),
+            round_trip::<AppDeployCredential>,
+        ),
+        bodiless(
+            "admin-api DELETE /api/v1/admin/apps/{slug}/purchase-handoff-credentials/{clientId}",
+            "/api/v1/admin/apps/s-1/purchase-handoff-credentials/c-1",
+            |c| drop(c.custd.delete_purchase_handoff_credential("s-1", "c-1")),
+        ),
     ]
 }

@@ -114,3 +114,6 @@ export type AppSignInRequest = { mode: AppSignInMode; expectedRevision: number }
 export function appPath(slug: string): string {
   return `/apps/${encodeURIComponent(slug)}`;
 }
+
+export type PurchaseHandoffCredential = AppDeployCredential;
+export type PurchaseHandoffCredentialList = AppDeployCredentialList;

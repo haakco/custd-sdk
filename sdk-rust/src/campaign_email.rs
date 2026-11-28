@@ -264,6 +264,24 @@ impl CustdClient {
         self.call(Method::Post, &path, Some(request))
     }
 
+    /// Preview a published email campaign revision without sending.
+    pub fn preview_campaign_email_revision(
+        &self,
+        revision: &str,
+        request: &CampaignRenderRequest,
+        company_slug: Option<&str>,
+    ) -> Result<CampaignRenderResult> {
+        let path = api_path(
+            format!(
+                "/api/v1/admin/campaign-email-revisions/{}/preview",
+                percent_encode(revision)
+            ),
+            &[],
+            company_slug,
+        );
+        self.call(Method::Post, &path, Some(request))
+    }
+
     /// Schedule a pinned campaign run.
     pub fn schedule_campaign_email_run(
         &self,

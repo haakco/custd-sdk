@@ -34,6 +34,8 @@ from .admin_auth_project_hosting import (
     AuthDomainMintRequest,
     AuthProjectAppLinkList,
     AuthProjectBrandLogo,
+    PurchaseHandoffCredential,
+    PurchaseHandoffCredentialList,
 )
 from .client import AdminClient, AdminRequestOptions
 
@@ -1602,6 +1604,27 @@ class AuthProjectAdminClient:
         self, slug: str, client_id: str, options: AdminRequestOptions | None = None
     ) -> None:
         path = f"{_app_path(slug)}/deploy-credentials/{urllib.parse.quote(client_id, safe='')}"
+        self._admin.request("DELETE", path, None, options)
+
+    def create_purchase_handoff_credential(
+        self, slug: str, options: AdminRequestOptions | None = None
+    ) -> PurchaseHandoffCredential:
+        """Mint a credential for the app's purchase handoffs; store its secret now."""
+        return cast(
+            PurchaseHandoffCredential,
+            self._admin.request("POST", f"{_app_path(slug)}/purchase-handoff-credentials", None, options),
+        )
+
+    def list_purchase_handoff_credentials(
+        self, slug: str, options: AdminRequestOptions | None = None
+    ) -> PurchaseHandoffCredentialList:
+        response = self._admin.request("GET", f"{_app_path(slug)}/purchase-handoff-credentials", None, options)
+        return PurchaseHandoffCredentialList(credentials=response.get("credentials") or [])
+
+    def delete_purchase_handoff_credential(
+        self, slug: str, client_id: str, options: AdminRequestOptions | None = None
+    ) -> None:
+        path = f"{_app_path(slug)}/purchase-handoff-credentials/{urllib.parse.quote(client_id, safe='')}"
         self._admin.request("DELETE", path, None, options)
 
     def pause_app(self, slug: str, options: AdminRequestOptions | None = None) -> AppSummary:

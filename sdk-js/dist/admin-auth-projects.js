@@ -186,6 +186,16 @@ export class AuthProjectAdminClient {
         const list = await this.request("GET", path, undefined, options);
         return { credentials: list.credentials ?? [] };
     }
+    /** Create a credential that can create purchase handoffs for this app. Its secret is shown once. */
+    createPurchaseHandoffCredential(slug, options) {
+        return this.request("POST", `${appPath(slug)}/purchase-handoff-credentials`, undefined, options);
+    }
+    /** List the app's purchase handoff credentials, newest first. */
+    async listPurchaseHandoffCredentials(slug, options) {
+        const path = `${appPath(slug)}/purchase-handoff-credentials`;
+        const list = await this.request("GET", path, undefined, options);
+        return { credentials: list.credentials ?? [] };
+    }
     /** Take the app offline, keeping its releases and data. The Idempotency-Key finishes an incomplete pause. */
     pauseApp(slug, options) {
         return this.request("POST", `${appPath(slug)}/pause`, undefined, requireIdempotencyKey(options));
@@ -205,6 +215,11 @@ export class AuthProjectAdminClient {
     /** Remove a deploy credential. Repeating a delete that failed part-way finishes it. */
     async deleteAppDeployCredential(slug, clientId, options) {
         const path = `${appPath(slug)}/deploy-credentials/${encodeURIComponent(clientId)}`;
+        await this.request("DELETE", path, undefined, options);
+    }
+    /** Remove a purchase handoff credential. Repeating a delete that failed part-way finishes it. */
+    async deletePurchaseHandoffCredential(slug, clientId, options) {
+        const path = `${appPath(slug)}/purchase-handoff-credentials/${encodeURIComponent(clientId)}`;
         await this.request("DELETE", path, undefined, options);
     }
     /** Read the environment's authentication hostname, its state and the DNS records it needs. */

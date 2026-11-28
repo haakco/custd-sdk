@@ -1025,6 +1025,9 @@ class CustdClient:
         from .app_messages import AppMessageClient
 
         self.app_messages = AppMessageClient(self, recorded_admin_transport)
+        from .storefront import StorefrontClient
+
+        self.storefronts = StorefrontClient(self, recorded_admin_transport)
         from .parsers import ParserClient
 
         self.parsers = ParserClient(self, recorded_admin_transport)

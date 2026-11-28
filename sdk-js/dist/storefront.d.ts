@@ -1,5 +1,9 @@
 import type { RequestOptions } from "./index.js";
+import type { AccountingExport, AccountingExportRequest } from "./storefront-accounting.js";
+import type { PartnerReferralPageRequest, PublishReferralTerms, ReferralCodeTerms, ReferralReviewPage, ReferralReviewRetry } from "./storefront-referrals.js";
 import type { EnrollUsageRequest, InvoiceNotice, IssueUsageResult, PublishUsageTariffRequest, StorefrontUsagePageRequest, UsageCertificate, UsageEnrollment, UsageEnrollmentPage, UsageInvoiceOptIn, UsageSchedule, UsageTariffPage, UsageTariffRevision } from "./storefront-usage.js";
+export type * from "./storefront-accounting.js";
+export type * from "./storefront-referrals.js";
 export type * from "./storefront-usage.js";
 type StorefrontRequester = <T>(method: string, path: string, body?: unknown, options?: RequestOptions) => Promise<T>;
 /** An exact signed minor-unit count encoded as a decimal string. */
@@ -47,6 +51,10 @@ export type StorefrontPublishOffer = {
     taxRate: string;
     taxLabel: string;
     effectiveFrom?: string;
+};
+export type PublishStorefrontCapacityOffer = Omit<StorefrontPublishOffer, "offerUuid" | "complementaryForOfferUuid"> & {
+    offerUuid: string;
+    dataSpaceCapacity: StorefrontDataSpaceCapacity;
 };
 export type StorefrontCartLine = {
     offerUuid: string;
@@ -286,6 +294,20 @@ export type StorefrontPurchaseHandoff = {
     settled: boolean;
     cancelled?: boolean;
 };
+export type PartnerFeeBalanceRequest = {
+    asOf: string;
+};
+export type PartnerFeeBalance = {
+    sellerCompanyUuid: string;
+    partnerCompanyUuid: string;
+    asOf: string;
+    currencies: PartnerFeeBalanceCurrency[] | null;
+};
+export type PartnerFeeBalanceCurrency = {
+    held: StorefrontMoney;
+    available: StorefrontMoney;
+    negative: StorefrontMoney;
+};
 export type BillingPartner = {
     partnerCompanyUuid: string;
     name: string;
@@ -427,6 +449,14 @@ export type SelectStorefrontAnalyticsDestination = {
 export declare class StorefrontClient {
     private readonly request;
     constructor(request: StorefrontRequester);
+    readAccountingExport(input: AccountingExportRequest, options?: RequestOptions): Promise<AccountingExport>;
+    getPartnerFeeBalance(partnerUuid: string, input: PartnerFeeBalanceRequest, options?: RequestOptions): Promise<PartnerFeeBalance>;
+    listPartnerReferralTerms(partnerUuid: string, input: PartnerReferralPageRequest, options?: RequestOptions): Promise<ReferralCodeTerms>;
+    publishPartnerReferralTerms(partnerUuid: string, input: PublishReferralTerms, options?: RequestOptions): Promise<ReferralCodeTerms>;
+    listReferralReviews(input: PartnerReferralPageRequest, options?: RequestOptions): Promise<ReferralReviewPage>;
+    retryReferralReview(attributionUuid: string, options?: RequestOptions): Promise<ReferralReviewRetry>;
+    publishCapacityOffer(storefront: string, input: PublishStorefrontCapacityOffer, options?: RequestOptions): Promise<StorefrontOffer>;
+    redeemPurchaseHandoff(storefront: string, handoffUuid: string, options?: RequestOptions): Promise<StorefrontQuote>;
     createPurchaseHandoff(storefront: string, input: CreateStorefrontPurchaseHandoff, options?: RequestOptions): Promise<StorefrontPurchaseHandoff>;
     getPurchaseHandoff(storefront: string, handoffUuid: string, options?: RequestOptions): Promise<StorefrontPurchaseHandoff>;
     cancelPurchaseHandoff(storefront: string, handoffUuid: string, options?: RequestOptions): Promise<StorefrontPurchaseHandoff>;

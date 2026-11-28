@@ -98,6 +98,7 @@ mod site_search;
 mod site_status_page;
 mod site_web_data;
 mod storage_usage;
+mod storefront;
 mod subject_exports;
 mod support_access;
 mod system_operations;
@@ -277,6 +278,7 @@ pub use admin_apps::{
     AppCreateRequest, AppCreation, AppDeployCredential, AppDeployCredentialList,
     AppDeployCredentialSummary, AppListResponse, AppOverview, AppReason, AppReleaseSummary,
     AppReleaseSummaryState, AppSignInRequest, AppSignInRequestMode, AppSummary, AppSummaryStatus,
+    PurchaseHandoffCredential, PurchaseHandoffCredentialList,
 };
 pub use admin_sites::{
     Site, SiteConfigResponse, SiteCreateRequest, SiteCreateResponse, SiteIdentityMode,
@@ -749,3 +751,12 @@ pub const SDK_IDENTITY: &str = concat!("rust/", env!("CARGO_PKG_VERSION"));
 
 /// The result of a request, or the error that stopped it.
 pub type Result<T> = std::result::Result<T, Error>;
+
+pub use storefront::{
+    StorefrontAdjustmentRequest, StorefrontBillingContact, StorefrontCart, StorefrontCartLine,
+    StorefrontCatalogue, StorefrontCreditNote, StorefrontDataSpaceCapacity, StorefrontLineQuantity,
+    StorefrontMoney, StorefrontOffer, StorefrontPriceRevision, StorefrontPublishOffer,
+    StorefrontPurchase, StorefrontQuote, StorefrontQuoteLine, StorefrontReceipt,
+    StorefrontReceiptDelivery, StorefrontServicePeriod, StorefrontTax, StorefrontTotals,
+    StorefrontUnitPrice,
+};

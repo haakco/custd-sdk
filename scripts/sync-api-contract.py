@@ -23,13 +23,13 @@ from pathlib import Path
 
 import yaml
 
-SERVICES = ("admin-api", "analytics-api", "ingest-api", "schema-registry")
+SERVICES = ("admin-api", "analytics-api", "billing", "ingest-api", "schema-registry")
 OPENAPI = {
     "admin-api": "admin-api.openapi.yaml",
     "analytics-api": "analytics-api.openapi.yaml",
 }
 OPERATIONS = "api-operations.json"
-INFRASTRUCTURE = re.compile(r"^/(debug|internal|metrics|health|healthz|readyz|ready|mcp)(/|$)")
+INFRASTRUCTURE = re.compile(r"^/(debug|internal|metrics|health|healthz|readyz|ready)(/|$)")
 METHODS = ("get", "post", "put", "patch", "delete")
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "contract-fixtures" / "api"
@@ -42,6 +42,8 @@ def exclusion(method: str, path: str, router_mount: bool = False) -> str | None:
         return "router mount prefix with no operation at this exact path"
     if method == "OPTIONS":
         return "browser CORS preflight"
+    if path == "/mcp" or path.startswith("/mcp/"):
+        return "MCP protocol transport; application routes own the SDK calls"
     if INFRASTRUCTURE.match(path) or path == "/api/v1/health":
         return "infrastructure, debug or private internal transport"
     if path.startswith(("/oauth/", "/admin/identities")):

@@ -1,5 +1,5 @@
 import type { AppRelease, AppReleaseCreateRequest, AppReleaseList, AppReleasePromotion, AppReleaseUploadedFile } from "./admin-app-releases.js";
-import { type AppCreateRequest, type AppCreation, type AppDeployCredential, type AppDeployCredentialList, type AppListResponse, type AppOverview, type AppSignInRequest, type AppSummary } from "./admin-apps.js";
+import { type AppCreateRequest, type AppCreation, type AppDeployCredential, type AppDeployCredentialList, type AppListResponse, type AppOverview, type AppSignInRequest, type AppSummary, type PurchaseHandoffCredential, type PurchaseHandoffCredentialList } from "./admin-apps.js";
 import type { AuthProjectAppLinkList, AuthProjectBrandLogo, AuthProjectDomainBinding, AuthProjectDomainBindRequest, AuthProjectDomainImageOverrideRequest, AuthProjectDomainMintRequest } from "./admin-auth-project-domain.js";
 import type { RequestOptions } from "./index.js";
 /** How an environment's identity boundary is shared. Custd owns both values. */
@@ -894,6 +894,10 @@ export declare class AuthProjectAdminClient {
     createAppDeployCredential(slug: string, options?: RequestOptions): Promise<AppDeployCredential>;
     /** List the app's deploy credentials, newest first. */
     listAppDeployCredentials(slug: string, options?: RequestOptions): Promise<AppDeployCredentialList>;
+    /** Create a credential that can create purchase handoffs for this app. Its secret is shown once. */
+    createPurchaseHandoffCredential(slug: string, options?: RequestOptions): Promise<PurchaseHandoffCredential>;
+    /** List the app's purchase handoff credentials, newest first. */
+    listPurchaseHandoffCredentials(slug: string, options?: RequestOptions): Promise<PurchaseHandoffCredentialList>;
     /** Take the app offline, keeping its releases and data. The Idempotency-Key finishes an incomplete pause. */
     pauseApp(slug: string, options?: RequestOptions): Promise<AppSummary>;
     /** Serve the app again, with its newest verified release when none is active. */
@@ -904,6 +908,8 @@ export declare class AuthProjectAdminClient {
     setAppSignIn(slug: string, body: AppSignInRequest, options?: RequestOptions): Promise<AppSummary>;
     /** Remove a deploy credential. Repeating a delete that failed part-way finishes it. */
     deleteAppDeployCredential(slug: string, clientId: string, options?: RequestOptions): Promise<void>;
+    /** Remove a purchase handoff credential. Repeating a delete that failed part-way finishes it. */
+    deletePurchaseHandoffCredential(slug: string, clientId: string, options?: RequestOptions): Promise<void>;
     /** Read the environment's authentication hostname, its state and the DNS records it needs. */
     getEnvironmentAuthDomain(projectId: string, environmentId: string, options?: RequestOptions): Promise<AuthProjectDomainBinding>;
     /** Reserve a verified hostname for the environment. */

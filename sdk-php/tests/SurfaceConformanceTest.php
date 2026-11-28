@@ -21,6 +21,7 @@ use HaakCo\Custd\Awthy\AwthyAuditRedactionRequest;
 use HaakCo\Custd\RawIngest\RawIngestRequest;
 use HaakCo\Custd\Provisioning as PV;
 use HaakCo\Custd\Schemas as SC;
+use HaakCo\Custd\Storefront as SF;
 use HaakCo\Custd\Parsers\ParserPreviewRequest;
 use HaakCo\Custd\Parsers\SaveParserRequest;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -240,6 +241,20 @@ final class SurfaceConformanceTest extends TestCase
         $saveParser = new SaveParserRequest('code', 'Name', 'regex', '^\S+', '2006-01-02T15:04:05Z07:00');
 
         $rows = [
+            ['billing POST /api/v1/billing/storefronts/{storefront}/purchase-handoffs', 'POST', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->createPurchaseHandoff('shop', new SF\CreatePurchaseHandoffRequest('order-1', 'offer-1', new SF\Money('ZAR', '100')))],
+            ['billing GET /api/v1/billing/storefronts/{storefront}/purchase-handoffs/{handoff}', 'GET', ['storefront' => 'shop', 'handoff' => 'handoff-1'], fn (CustdClient $c) => $c->storefronts()->getPurchaseHandoff('shop', 'handoff-1')],
+            ['billing POST /api/v1/billing/storefronts/{storefront}/purchase-handoffs/{handoff}/cancel', 'POST', ['storefront' => 'shop', 'handoff' => 'handoff-1'], fn (CustdClient $c) => $c->storefronts()->cancelPurchaseHandoff('shop', 'handoff-1')],
+            ['billing GET /api/v1/storefronts/{storefront}/offers', 'GET', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->listOffers('shop')],
+            ['billing POST /api/v1/storefronts/{storefront}/offers', 'POST', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->publishOffer('shop', new SF\PublishOffer('Starter', 'month', new SF\UnitPrice('ZAR', '15.25'), '0.15', 'VAT'))],
+            ['billing POST /api/v1/storefronts/{storefront}/carts', 'POST', ['storefront' => 'shop'], fn (CustdClient $c) => $c->storefronts()->createCart('shop')],
+            ['billing GET /api/v1/storefronts/{storefront}/carts/{cart}', 'GET', ['storefront' => 'shop', 'cart' => 'cart-1'], fn (CustdClient $c) => $c->storefronts()->getCart('shop', 'cart-1')],
+            ['billing PUT /api/v1/storefronts/{storefront}/carts/{cart}/lines/{offer}', 'PUT', ['storefront' => 'shop', 'cart' => 'cart-1', 'offer' => 'offer-1'], fn (CustdClient $c) => $c->storefronts()->updateLine('shop', 'cart-1', 'offer-1', new SF\LineQuantity('2.50'))],
+            ['billing POST /api/v1/storefronts/{storefront}/carts/{cart}/quotes', 'POST', ['storefront' => 'shop', 'cart' => 'cart-1'], fn (CustdClient $c) => $c->storefronts()->createQuote('shop', 'cart-1')],
+            ['billing GET /api/v1/storefronts/{storefront}/quotes/{quote}', 'GET', ['storefront' => 'shop', 'quote' => 'quote-1'], fn (CustdClient $c) => $c->storefronts()->getQuote('shop', 'quote-1')],
+            ['billing POST /api/v1/storefronts/{storefront}/quotes/{quote}/checkout', 'POST', ['storefront' => 'shop', 'quote' => 'quote-1'], fn (CustdClient $c) => $c->storefronts()->checkout('shop', 'quote-1')],
+            ['billing GET /api/v1/storefronts/{storefront}/purchases/{invoice}', 'GET', ['storefront' => 'shop', 'invoice' => 'invoice-1'], fn (CustdClient $c) => $c->storefronts()->getPurchase('shop', 'invoice-1')],
+            ['billing POST /api/v1/storefronts/{storefront}/purchases/{invoice}/payment', 'POST', ['storefront' => 'shop', 'invoice' => 'invoice-1'], fn (CustdClient $c) => $c->storefronts()->startPayment('shop', 'invoice-1')],
+            ['billing POST /api/v1/storefronts/{storefront}/invoices/{invoice}/credit-note', 'POST', ['storefront' => 'shop', 'invoice' => 'invoice-1'], fn (CustdClient $c) => $c->storefronts()->issueCreditNote('shop', 'invoice-1', new SF\AdjustmentRequest('Duplicate sale'))],
             ['admin-api GET /api/v1/app/messages/session', 'GET', [], fn (CustdClient $c) => $c->appMessages()->session()],
             ['admin-api POST /api/v1/app/messages/batch', 'POST', [], fn (CustdClient $c) => $c->appMessages()->import(new App\AppMessageBatchRequest(App\AppMessageSource::Sms, []))],
             ['admin-api POST /api/v1/app/messages/search', 'POST', [], fn (CustdClient $c) => $c->appMessages()->search(new App\AppMessageSearchRequest(query: 'test'))],
@@ -427,6 +442,7 @@ final class SurfaceConformanceTest extends TestCase
             ['admin-api DELETE /api/v1/site-domains/keyword-lists', 'DELETE', [], fn (CustdClient $c) => $c->adminSiteDomains()->webData()->deleteKeywordList(self::A)],
             ['admin-api GET /api/v1/site-domains/keyword-clusters', 'GET', [], fn (CustdClient $c) => $c->adminSiteDomains()->webData()->getKeywordClusters(self::A)],
             ['admin-api POST /api/v1/admin/campaign-email-revisions/{revision}/render', 'POST', ['revision' => self::DIGEST], fn (CustdClient $c) => $c->adminCampaignEmailRevisions()->render(self::DIGEST, [])],
+            ['admin-api POST /api/v1/admin/campaign-email-revisions/{revision}/preview', 'POST', ['revision' => self::DIGEST], fn (CustdClient $c) => $c->adminCampaignEmail()->previewRevision(self::DIGEST, [])],
             ['admin-api POST /api/v1/site-domains', 'POST', [], fn (CustdClient $c) => $c->adminSiteDomains()->create(new SD\CreateSiteDomainRequest(self::A, 'example.com'))],
             ['admin-api PUT /api/v1/site-domains/{domainUuid}/browser-collector', 'PUT', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->convergeBrowserCollector(self::A, SD\SiteBrowserCollectorRequest::enable('production'))],
             ['admin-api POST /api/v1/site-domains/{domainUuid}/page-check', 'POST', ['domainUuid' => self::A], fn (CustdClient $c) => $c->adminSiteDomains()->checkPage(self::A, new SD\SitePageCheckRequest('https://example.com/', '<html></html>'))],
@@ -492,7 +508,7 @@ final class SurfaceConformanceTest extends TestCase
             ['analytics-api POST /api/v1/analytics/query-range', 'POST', [], fn (CustdClient $c) => $c->analytics()->queryRange(new RangeQueryRequest('2026-09-14', '2026-09-15'))],
             ['schema-registry POST /api/v1/parsers', 'POST', [], fn (CustdClient $c) => $c->parsers()->create($saveParser)],
             ['schema-registry PUT /api/v1/parsers/{uuid}', 'PUT', ['uuid' => self::A], fn (CustdClient $c) => $c->parsers()->update(self::A, $saveParser)],
-            ['ingest-api ANY /api/v1/parser-preview', 'POST', [], fn (CustdClient $c) => $c->parsers()->preview(new ParserPreviewRequest('code', 'Name', 'regex', '^\\S+', '2006-01-02T15:04:05Z07:00', [], 'line', 20))],
+            ['ingest-api POST /api/v1/parser-preview', 'POST', [], fn (CustdClient $c) => $c->parsers()->preview(new ParserPreviewRequest('code', 'Name', 'regex', '^\\S+', '2006-01-02T15:04:05Z07:00', [], 'line', 20))],
             ['admin-api PUT /api/v1/site-domains/ai-settings', 'PUT', [], fn (CustdClient $c) => $c->adminSiteDomains()->ai()->setSettings(new SD\SiteAISettingsRequest(SD\SiteAIMode::OFF, 0))],
             ['admin-api PUT /api/v1/site-domains/ai-settings/consent', 'PUT', [], fn (CustdClient $c) => $c->adminSiteDomains()->ai()->setConsent(SD\SiteAIConsentRequest::grant('2026-01'))],
             ['admin-api POST /api/v1/site-domains/ai-owner-handoffs', 'POST', [], fn (CustdClient $c) => $c->adminSiteDomains()->ai()->createOwnerHandoff(new SD\SiteAIOwnerHandoffRequest('acme', 'owner-1'))],
@@ -538,10 +554,10 @@ final class SurfaceConformanceTest extends TestCase
             ['admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/releases/{releaseId}/files', 'POST', ['projectId' => self::A, 'environmentId' => self::B, 'releaseId' => self::C], fn (CustdClient $c) => $c->adminAuthProjects()->releases()->uploadFile(self::A, self::B, self::C, 'index.html', 'abc')],
             ['admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/releases/{releaseId}/verify', 'POST', ['projectId' => self::A, 'environmentId' => self::B, 'releaseId' => self::C], fn (CustdClient $c) => $c->adminAuthProjects()->releases()->verify(self::A, self::B, self::C)],
             ['admin-api POST /api/v1/admin/auth-projects/{projectId}/environments/{environmentId}/releases/{releaseId}/promote', 'POST', ['projectId' => self::A, 'environmentId' => self::B, 'releaseId' => self::C], fn (CustdClient $c) => $c->adminAuthProjects()->releases()->promote(self::A, self::B, self::C)],
-            ['ingest-api ANY /api/v1/events', 'POST', [], fn (CustdClient $c) => $c->ingestEvent(self::event())],
-            ['ingest-api ANY /api/v1/events/batch', 'POST', [], fn (CustdClient $c) => $c->track(self::event())],
-            ['ingest-api ANY /api/v1/raw', 'POST', [], fn (CustdClient $c) => $c->ingestRawLines(new RawIngestRequest("line\n", self::A))],
-            ['ingest-api ANY /api/v1/managed-audit/redactions', 'POST', [], fn (CustdClient $c) => $c->redactAwthyAuditEvents(AwthyAuditRedactionRequest::fromArray('store-1', ['redactionId' => self::A, 'reason' => 'privacy_erasure', 'events' => [['localAuditEventId' => 'evt-1', 'fields' => ['actor']]]]))],
+            ['ingest-api POST /api/v1/events', 'POST', [], fn (CustdClient $c) => $c->ingestEvent(self::event())],
+            ['ingest-api POST /api/v1/events/batch', 'POST', [], fn (CustdClient $c) => $c->track(self::event())],
+            ['ingest-api POST /api/v1/raw', 'POST', [], fn (CustdClient $c) => $c->ingestRawLines(new RawIngestRequest("line\n", self::A))],
+            ['ingest-api POST /api/v1/managed-audit/redactions', 'POST', [], fn (CustdClient $c) => $c->redactAwthyAuditEvents(AwthyAuditRedactionRequest::fromArray('store-1', ['redactionId' => self::A, 'reason' => 'privacy_erasure', 'events' => [['localAuditEventId' => 'evt-1', 'fields' => ['actor']]]]))],
             ['ingest-api ANY /api/v1/errors/api/{project}/envelope/', 'POST', ['project' => '1'], fn (CustdClient $c, \Closure $deliver) => (new ET\Client(new ET\Config(self::BASE_URL, 'site_pk_' . str_repeat('a', 32), 'test'), $deliver))->captureException(new ET\CaptureRequest(new \RuntimeException('boom')))],
             ['schema-registry GET /api/v1/schemas', 'GET', [], fn (CustdClient $c) => $c->schemas()->list()],
             ['schema-registry GET /api/v1/schemas/{eventType}/versions', 'GET', ['eventType' => 'page.view'], fn (CustdClient $c) => $c->schemas()->listVersions('page.view')],
@@ -611,7 +627,7 @@ final class SurfaceConformanceTest extends TestCase
             ['admin-api POST /api/v1/admin/offboarding/requests/{requestUuid}/execute', 'POST', ['requestUuid' => self::A], fn (CustdClient $c) => $c->adminOffboarding()->execute(self::A)],
             ['admin-api GET /api/v1/admin/usage', 'GET', [], fn (CustdClient $c) => $c->adminSystemUsage()->list(companySlug: 'acme')],
             ['admin-api GET /api/v1/admin/usage/export', 'GET', [], fn (CustdClient $c) => $c->adminSystemUsage()->export(companySlug: 'acme')],
-            ['ingest-api ANY /api/v1/monitoring/alerts', 'GET', [], fn (CustdClient $c) => $c->ingestOperations()->monitoringAlerts()],
+            ['ingest-api GET /api/v1/monitoring/alerts', 'GET', [], fn (CustdClient $c) => $c->ingestOperations()->monitoringAlerts()],
             ['analytics-api POST /api/v1/reporting/draft-preview', 'POST', [], fn (CustdClient $c) => $c->reporting()->previewDraft(new RP\ReportingPackPreviewRequest($pack, 'acme', new RP\QueryHint('t', ['m'])))],
             ['ingest-api POST /api/v1/collect/events', 'POST', [], fn (CustdClient $c) => $c->collectEvent(self::event(), 'site_pk_test', 'https://example.com')],
             ['ingest-api POST /api/v1/collect/events/batch', 'POST', [], fn (CustdClient $c) => $c->collectEvents([self::event()], 'site_pk_test', 'https://example.com')],

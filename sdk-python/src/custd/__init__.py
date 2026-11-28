@@ -1093,6 +1093,8 @@ __all__ = [
     "AppDeployCredential",
     "AppDeployCredentialList",
     "AppDeployCredentialSummary",
+    "PurchaseHandoffCredential",
+    "PurchaseHandoffCredentialList",
     "AppListResponse",
     "AppOverview",
     "AppReason",
@@ -1743,6 +1745,8 @@ from .admin_auth_project_hosting import (
     AuthProjectAppLink,
     AuthProjectAppLinkList,
     AuthProjectBrandLogo,
+    PurchaseHandoffCredential,
+    PurchaseHandoffCredentialList,
 )
 from .admin_auth_projects import (
     AUTH_PROJECT_DIRECTORY_ACTIONS,

@@ -207,6 +207,52 @@ def _track_in_batch() -> object:
 
 
 ROUTES: dict[str, RouteCase] = {
+    "billing GET /api/v1/storefronts/{storefront}/offers": RouteCase(
+        "/api/v1/storefronts/shop/offers", lambda c: c.storefronts.list_offers("shop")
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/offers": RouteCase(
+        "/api/v1/storefronts/shop/offers",
+        lambda c: c.storefronts.publish_offer(
+            "shop",
+            {
+                "name": "Starter",
+                "billingInterval": "month",
+                "unitPrice": {"currency": "ZAR", "amount": "15.25"},
+                "taxRate": "0.15",
+                "taxLabel": "VAT",
+            },
+        ),
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/carts": RouteCase(
+        "/api/v1/storefronts/shop/carts", lambda c: c.storefronts.create_cart("shop")
+    ),
+    "billing GET /api/v1/storefronts/{storefront}/carts/{cart}": RouteCase(
+        "/api/v1/storefronts/shop/carts/cart-1", lambda c: c.storefronts.get_cart("shop", "cart-1")
+    ),
+    "billing PUT /api/v1/storefronts/{storefront}/carts/{cart}/lines/{offer}": RouteCase(
+        "/api/v1/storefronts/shop/carts/cart-1/lines/offer-1",
+        lambda c: c.storefronts.update_line("shop", "cart-1", "offer-1", {"quantity": "2.50"}),
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/carts/{cart}/quotes": RouteCase(
+        "/api/v1/storefronts/shop/carts/cart-1/quotes", lambda c: c.storefronts.create_quote("shop", "cart-1")
+    ),
+    "billing GET /api/v1/storefronts/{storefront}/quotes/{quote}": RouteCase(
+        "/api/v1/storefronts/shop/quotes/quote-1", lambda c: c.storefronts.get_quote("shop", "quote-1")
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/quotes/{quote}/checkout": RouteCase(
+        "/api/v1/storefronts/shop/quotes/quote-1/checkout", lambda c: c.storefronts.checkout("shop", "quote-1")
+    ),
+    "billing GET /api/v1/storefronts/{storefront}/purchases/{invoice}": RouteCase(
+        "/api/v1/storefronts/shop/purchases/invoice-1", lambda c: c.storefronts.get_purchase("shop", "invoice-1")
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/purchases/{invoice}/payment": RouteCase(
+        "/api/v1/storefronts/shop/purchases/invoice-1/payment",
+        lambda c: c.storefronts.start_payment("shop", "invoice-1"),
+    ),
+    "billing POST /api/v1/storefronts/{storefront}/invoices/{invoice}/credit-note": RouteCase(
+        "/api/v1/storefronts/shop/invoices/invoice-1/credit-note",
+        lambda c: c.storefronts.issue_credit_note("shop", "invoice-1", {"reason": "Duplicate sale"}),
+    ),
     "admin-api GET /api/v1/app/messages/session": RouteCase(
         "/api/v1/app/messages/session", lambda c: c.app_messages.session()
     ),
@@ -1036,9 +1082,7 @@ ROUTES: dict[str, RouteCase] = {
     "admin-api POST /api/v1/admin/retention/policies/{tenantSlug}/preview": RouteCase(
         "/api/v1/admin/retention/policies/acme/preview", lambda c: c.admin.retention.preview("acme")
     ),
-    "admin-api POST /api/v1/admin/tenants": RouteCase(
-        "/api/v1/admin/tenants", lambda c: c.admin.tenants.create({})
-    ),
+    "admin-api POST /api/v1/admin/tenants": RouteCase("/api/v1/admin/tenants", lambda c: c.admin.tenants.create({})),
     "admin-api POST /api/v1/admin/time-plans/preview": RouteCase(
         "/api/v1/admin/time-plans/preview", lambda c: c.admin.time_plans.preview("acme", {})
     ),
@@ -1450,17 +1494,13 @@ ROUTES: dict[str, RouteCase] = {
         f"/api/v1/admin/auth-projects/{U}/environments/{U}/brand/logo",
         lambda c: c.admin.auth_projects.clear_brand_logo(U, U),
     ),
-    "ingest-api ANY /api/v1/events/batch": RouteCase(
-        "/api/v1/events/batch", lambda c: _track_in_batch(), method="POST"
+    "ingest-api POST /api/v1/events/batch": RouteCase("/api/v1/events/batch", lambda c: _track_in_batch()),
+    "ingest-api POST /api/v1/events": RouteCase("/api/v1/events", lambda c: c.ingest_event(EVENT)),
+    "ingest-api POST /api/v1/parser-preview": RouteCase(
+        "/api/v1/parser-preview", lambda c: c.parsers.preview({"parser": PARSER, "sample": "line", "maxLines": 1})
     ),
-    "ingest-api ANY /api/v1/events": RouteCase("/api/v1/events", lambda c: c.ingest_event(EVENT), method="POST"),
-    "ingest-api ANY /api/v1/parser-preview": RouteCase(
-        "/api/v1/parser-preview",
-        lambda c: c.parsers.preview({"parser": PARSER, "sample": "line", "maxLines": 1}),
-        method="POST",
-    ),
-    "ingest-api ANY /api/v1/raw": RouteCase(
-        "/api/v1/raw", lambda c: c.ingest_raw_lines({"content": "line\n", "parserUuid": U}), method="POST"
+    "ingest-api POST /api/v1/raw": RouteCase(
+        "/api/v1/raw", lambda c: c.ingest_raw_lines({"content": "line\n", "parserUuid": U})
     ),
     "admin-api GET /api/v1/app/item": RouteCase("/api/v1/app/item", lambda c: _link().read()),
     "admin-api PATCH /api/v1/app/item": RouteCase(
@@ -1590,13 +1630,25 @@ ROUTES: dict[str, RouteCase] = {
         "/api/v1/admin/apps/done-when/deploy-credentials",
         lambda c: c.admin.auth_projects.list_app_deploy_credentials("done-when"),
     ),
+    "admin-api GET /api/v1/admin/apps/{slug}/purchase-handoff-credentials": RouteCase(
+        "/api/v1/admin/apps/done-when/purchase-handoff-credentials",
+        lambda c: c.admin.auth_projects.list_purchase_handoff_credentials("done-when"),
+    ),
     "admin-api POST /api/v1/admin/apps/{slug}/deploy-credentials": RouteCase(
         "/api/v1/admin/apps/done-when/deploy-credentials",
         lambda c: c.admin.auth_projects.create_app_deploy_credential("done-when"),
     ),
+    "admin-api POST /api/v1/admin/apps/{slug}/purchase-handoff-credentials": RouteCase(
+        "/api/v1/admin/apps/done-when/purchase-handoff-credentials",
+        lambda c: c.admin.auth_projects.create_purchase_handoff_credential("done-when"),
+    ),
     "admin-api DELETE /api/v1/admin/apps/{slug}/deploy-credentials/{clientId}": RouteCase(
         "/api/v1/admin/apps/done-when/deploy-credentials/client-1",
         lambda c: c.admin.auth_projects.delete_app_deploy_credential("done-when", "client-1"),
+    ),
+    "admin-api DELETE /api/v1/admin/apps/{slug}/purchase-handoff-credentials/{clientId}": RouteCase(
+        "/api/v1/admin/apps/done-when/purchase-handoff-credentials/client-1",
+        lambda c: c.admin.auth_projects.delete_purchase_handoff_credential("done-when", "client-1"),
     ),
     "admin-api POST /api/v1/admin/apps/{slug}/pause": RouteCase(
         "/api/v1/admin/apps/done-when/pause", lambda c: c.admin.auth_projects.pause_app("done-when", OPT)
@@ -2066,42 +2118,38 @@ ROUTES: dict[str, RouteCase] = {
     "schema-registry POST /api/v1/schemas/infer": RouteCase(
         "/api/v1/schemas/infer", lambda c: c.admin.schemas.infer({"samples": [{}]})
     ),
-    "ingest-api ANY /api/v1/diagnostics/ingest": RouteCase(
-        "/api/v1/diagnostics/ingest", lambda c: c.admin.ingest.diagnostics("ingest"), method="GET"
+    "ingest-api GET /api/v1/diagnostics/ingest": RouteCase(
+        "/api/v1/diagnostics/ingest", lambda c: c.admin.ingest.diagnostics("ingest")
     ),
-    "ingest-api ANY /api/v1/diagnostics/buffers": RouteCase(
-        "/api/v1/diagnostics/buffers", lambda c: c.admin.ingest.diagnostics("buffers"), method="GET"
+    "ingest-api GET /api/v1/diagnostics/buffers": RouteCase(
+        "/api/v1/diagnostics/buffers", lambda c: c.admin.ingest.diagnostics("buffers")
     ),
-    "ingest-api ANY /api/v1/diagnostics/database": RouteCase(
-        "/api/v1/diagnostics/database", lambda c: c.admin.ingest.diagnostics("database"), method="GET"
+    "ingest-api GET /api/v1/diagnostics/database": RouteCase(
+        "/api/v1/diagnostics/database", lambda c: c.admin.ingest.diagnostics("database")
     ),
-    "ingest-api ANY /api/v1/diagnostics/segments": RouteCase(
-        "/api/v1/diagnostics/segments", lambda c: c.admin.ingest.diagnostics("segments"), method="GET"
+    "ingest-api GET /api/v1/diagnostics/segments": RouteCase(
+        "/api/v1/diagnostics/segments", lambda c: c.admin.ingest.diagnostics("segments")
     ),
-    "ingest-api ANY /api/v1/diagnostics/reporting": RouteCase(
-        "/api/v1/diagnostics/reporting", lambda c: c.admin.ingest.diagnostics("reporting"), method="GET"
+    "ingest-api GET /api/v1/diagnostics/reporting": RouteCase(
+        "/api/v1/diagnostics/reporting", lambda c: c.admin.ingest.diagnostics("reporting")
     ),
     "ingest-api ANY /api/v1/account/me": RouteCase("/api/v1/account/me", lambda c: c.admin.get_account(), method="GET"),
-    "ingest-api ANY /api/v1/admin/cleanup": RouteCase(
-        "/api/v1/admin/cleanup", lambda c: c.admin.ingest.cleanup(), method="POST"
+    "ingest-api POST /api/v1/admin/cleanup": RouteCase("/api/v1/admin/cleanup", lambda c: c.admin.ingest.cleanup()),
+    "ingest-api POST /api/v1/admin/integrity": RouteCase(
+        "/api/v1/admin/integrity", lambda c: c.admin.ingest.check_integrity()
     ),
-    "ingest-api ANY /api/v1/admin/integrity": RouteCase(
-        "/api/v1/admin/integrity", lambda c: c.admin.ingest.check_integrity(), method="POST"
+    "ingest-api POST /api/v1/managed-audit/redactions": RouteCase(
+        "/api/v1/managed-audit/redactions", lambda c: c.admin.ingest.redact_managed_audit({})
     ),
-    "ingest-api ANY /api/v1/managed-audit/redactions": RouteCase(
-        "/api/v1/managed-audit/redactions", lambda c: c.admin.ingest.redact_managed_audit({}), method="POST"
+    "ingest-api GET /api/v1/monitoring/alerts": RouteCase(
+        "/api/v1/monitoring/alerts", lambda c: c.admin.ingest.monitoring_alerts()
     ),
-    "ingest-api ANY /api/v1/monitoring/alerts": RouteCase(
-        "/api/v1/monitoring/alerts", lambda c: c.admin.ingest.monitoring_alerts(), method="GET"
+    "ingest-api GET /api/v1/monitoring/summary": RouteCase(
+        "/api/v1/monitoring/summary", lambda c: c.admin.ingest.monitoring_summary()
     ),
-    "ingest-api ANY /api/v1/monitoring/summary": RouteCase(
-        "/api/v1/monitoring/summary", lambda c: c.admin.ingest.monitoring_summary(), method="GET"
-    ),
-    "ingest-api ANY /api/v1/reprocess": RouteCase(
-        "/api/v1/reprocess", lambda c: c.admin.ingest.reprocess(), method="POST"
-    ),
-    "ingest-api ANY /api/v1/system/monitoring/summary": RouteCase(
-        "/api/v1/system/monitoring/summary", lambda c: c.admin.ingest.system_monitoring_summary(), method="GET"
+    "ingest-api POST /api/v1/reprocess": RouteCase("/api/v1/reprocess", lambda c: c.admin.ingest.reprocess()),
+    "ingest-api GET /api/v1/system/monitoring/summary": RouteCase(
+        "/api/v1/system/monitoring/summary", lambda c: c.admin.ingest.system_monitoring_summary()
     ),
     "ingest-api ANY /api/v1/errors/api/{project}/envelope/": RouteCase(
         "/api/v1/errors/api/1/envelope/", lambda c: _error_capture().capture_event(ERROR_EVENT), method="POST"
@@ -2279,6 +2327,9 @@ ROUTES: dict[str, RouteCase] = {
     ),
     "admin-api POST /api/v1/admin/campaign-email-revisions/{revision}/render": RouteCase(
         "/api/v1/admin/campaign-email-revisions/a1/render", lambda c: c.admin.campaign_email.render_revision("a1", {})
+    ),
+    "admin-api POST /api/v1/admin/campaign-email-revisions/{revision}/preview": RouteCase(
+        "/api/v1/admin/campaign-email-revisions/a1/preview", lambda c: c.admin.campaign_email.preview_revision("a1", {})
     ),
     "admin-api POST /api/v1/admin/campaign-email-runs": RouteCase(
         "/api/v1/admin/campaign-email-runs", lambda c: c.admin.campaign_email.start_run({})

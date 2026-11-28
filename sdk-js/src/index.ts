@@ -201,6 +201,8 @@ export {
   type AppStatus,
   type AppSummary,
   type AppTrafficReporting,
+  type PurchaseHandoffCredential,
+  type PurchaseHandoffCredentialList,
 } from "./admin-apps.js";
 export {
   type ApplicationIdentityTrait,

@@ -23,6 +23,7 @@ import { measurementRows } from "./surface-rows-measurement.test-helper";
 import { notifyRows } from "./surface-rows-notify.test-helper";
 import { operatorRows } from "./surface-rows-operator.test-helper";
 import { publicRows } from "./surface-rows-public.test-helper";
+import { storefrontRows } from "./surface-rows-storefront.test-helper";
 
 type Operation = {
   id: string;
@@ -181,6 +182,11 @@ const baselineRows: Row[] = [
     id: "admin-api DELETE /api/v1/admin/apps/{slug}/deploy-credentials/{clientId}",
     params: { slug: "slug-1", clientId: "clientId-1" },
     call: (c) => c.custd.admin.authProjects.deleteAppDeployCredential("slug-1", "clientId-1"),
+  },
+  {
+    id: "admin-api DELETE /api/v1/admin/apps/{slug}/purchase-handoff-credentials/{clientId}",
+    params: { slug: "slug-1", clientId: "clientId-1" },
+    call: (c) => c.custd.admin.authProjects.deletePurchaseHandoffCredential("slug-1", "clientId-1"),
   },
   {
     id: "admin-api DELETE /api/v1/admin/data-label-assignments/schema-fields/{assignmentUuid}",
@@ -1004,6 +1010,11 @@ const baselineRows: Row[] = [
     id: "admin-api POST /api/v1/admin/apps/{slug}/deploy-credentials",
     params: { slug: "slug-1" },
     call: (c) => c.custd.admin.authProjects.createAppDeployCredential("slug-1"),
+  },
+  {
+    id: "admin-api POST /api/v1/admin/apps/{slug}/purchase-handoff-credentials",
+    params: { slug: "slug-1" },
+    call: (c) => c.custd.admin.authProjects.createPurchaseHandoffCredential("slug-1"),
   },
   {
     id: "admin-api POST /api/v1/admin/auth-projects/{projectId}/company-binding",
@@ -1870,15 +1881,13 @@ const baselineRows: Row[] = [
     call: (c) => c.custd.analytics.queryRange({ from: "2026-09-14", to: "2026-09-15" }),
   },
   {
-    id: "ingest-api ANY /api/v1/parser-preview",
-    method: "POST",
+    id: "ingest-api POST /api/v1/parser-preview",
     call: (c) => c.custd.parsers.preview(dto({ parser: {} })),
   },
-  { id: "ingest-api ANY /api/v1/events", method: "POST", call: (c) => c.custd.ingestEvent(event) },
-  { id: "ingest-api ANY /api/v1/events/batch", method: "POST", call: (c) => batchClient(c).flush() },
+  { id: "ingest-api POST /api/v1/events", call: (c) => c.custd.ingestEvent(event) },
+  { id: "ingest-api POST /api/v1/events/batch", call: (c) => batchClient(c).flush() },
   {
-    id: "ingest-api ANY /api/v1/raw",
-    method: "POST",
+    id: "ingest-api POST /api/v1/raw",
     response: () => json({ success: true, processed: 1, failed: 0 }),
     call: (c) => c.custd.ingestRawLines({ content: "line\n", parserUuid: uuid }),
   },
@@ -1930,6 +1939,11 @@ const baselineRows: Row[] = [
     id: "admin-api GET /api/v1/admin/apps/{slug}/deploy-credentials",
     params: { slug: "slug-1" },
     call: (c) => c.custd.admin.authProjects.listAppDeployCredentials("slug-1"),
+  },
+  {
+    id: "admin-api GET /api/v1/admin/apps/{slug}/purchase-handoff-credentials",
+    params: { slug: "slug-1" },
+    call: (c) => c.custd.admin.authProjects.listPurchaseHandoffCredentials("slug-1"),
   },
   {
     id: "admin-api POST /api/v1/admin/apps/{slug}/pause",
@@ -2324,6 +2338,7 @@ const areas: RowArea[] = [
   { rows: baselineRows, decoded: baselineDecoded },
   coreRows,
   appMessageRows,
+  storefrontRows,
   ingestRows,
   measurementRows,
   notifyRows,

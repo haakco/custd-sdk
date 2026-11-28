@@ -6,7 +6,7 @@ use custd_sdk::{
 };
 
 use super::body;
-use crate::{Row, bodiless, sends};
+use crate::{Row, bodiless};
 
 fn parser() -> ParserSaveRequest {
     body(r#"{"code":"c","name":"n","parserType":"regex","pattern":null,"timestampFormat":"t"}"#)
@@ -114,18 +114,15 @@ pub fn rows() -> Vec<Row> {
             "/api/v1/parsers/p-1",
             |c| drop(c.custd.delete_parser("p-1")),
         ),
-        sends(
-            "POST",
-            bodiless(
-                "ingest-api ANY /api/v1/parser-preview",
-                "/api/v1/parser-preview",
-                |c| {
-                    let request = body::<ParserPreviewRequest>(
-                        r#"{"parser":{"code":"c","name":"n","parserType":"json","pattern":null,"timestampFormat":"t"},"sample":"{}","maxLines":1}"#,
-                    );
-                    drop(c.custd.preview_parser(&request))
-                },
-            ),
+        bodiless(
+            "ingest-api POST /api/v1/parser-preview",
+            "/api/v1/parser-preview",
+            |c| {
+                let request = body::<ParserPreviewRequest>(
+                    r#"{"parser":{"code":"c","name":"n","parserType":"json","pattern":null,"timestampFormat":"t"},"sample":"{}","maxLines":1}"#,
+                );
+                drop(c.custd.preview_parser(&request))
+            },
         ),
     ]
 }
