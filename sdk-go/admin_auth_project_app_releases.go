@@ -103,11 +103,12 @@ type AppReleaseShareableRoute struct {
 	CardTemplate string `json:"cardTemplate"`
 }
 
-// AppReleaseCreateRequest is a new release's files and routing. The server
+// AppReleaseCreateRequest is a new release's files, routing and optional label. The server
 // assigns the release identifier and creation time.
 type AppReleaseCreateRequest struct {
 	Files   []AppReleaseFile  `json:"files"`
 	Routing AppReleaseRouting `json:"routing"`
+	Label   string            `json:"label,omitempty"`
 }
 
 // AppReleaseManifest is the stored manifest of one release.
