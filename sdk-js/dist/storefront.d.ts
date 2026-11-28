@@ -21,6 +21,7 @@ export type StorefrontPriceRevision = {
     effectiveFrom: string;
 };
 export type StorefrontOffer = {
+    complementaryForOfferUuid?: string;
     offerUuid: string;
     name: string;
     billingInterval: string;
@@ -31,6 +32,8 @@ export type StorefrontCatalogue = {
     canPublish: boolean;
 };
 export type StorefrontPublishOffer = {
+    /** Omit to preserve the relationship, or pass an empty string to clear it. */
+    complementaryForOfferUuid?: string;
     offerUuid?: string;
     name: string;
     billingInterval: "" | "month";
