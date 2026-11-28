@@ -117,7 +117,22 @@ export type StorefrontReceipt = {
 export type StorefrontCreditNote = {
   creditNoteUuid: string;
   creditNoteNumber: string;
+  invoiceUuid?: string;
+  invoiceNumber?: string;
+  invoiceIssuedAt?: string;
+  issuedAt?: string;
+  status?: string;
+  billTo?: StorefrontBillingContact;
+  sellerName?: string;
+  reason?: string;
+  lines?: StorefrontQuoteLine[];
   totals: StorefrontTotals;
+};
+
+export type StorefrontBillingContact = {
+  companyUuid: string;
+  name: string;
+  email: string;
 };
 
 export type MerchantAccount = {
@@ -151,6 +166,68 @@ export type StorefrontRefund = {
   refundUuid: string;
   status: "submitting" | "pending" | "succeeded" | "review_required";
   amount: StorefrontMoney;
+  invoiceUuid?: string;
+  paymentUuid?: string;
+  requestedAt?: string;
+  processedAt?: string;
+};
+
+export type StorefrontAdjustmentRequest = { reason: string };
+
+export type SellerInvoiceListRequest = { storefront: string; before?: string };
+
+export type SellerInvoiceList = { invoices: SellerInvoiceItem[]; nextBefore?: string };
+
+export type SellerInvoiceItem = {
+  invoiceUuid: string;
+  invoiceNumber: string;
+  issuedAt: string;
+  totals: StorefrontTotals;
+  status: StorefrontInvoiceStatus;
+  paymentStatus?: StorefrontPaymentStatus;
+  checkoutState?: StorefrontCheckoutState;
+  refundStatus?: StorefrontRefund["status"];
+  creditNoteUuid?: string;
+};
+
+export type StorefrontPartnerStatementRequest = {
+  storefront: string;
+  partnerCompanyUuid: string;
+  month: string;
+  cursor?: string;
+};
+
+export type StorefrontPartnerStatement = {
+  sellerCompanyUuid: string;
+  appUuid: string;
+  partnerCompanyUuid: string;
+  month: string;
+  movements: StorefrontPartnerMovement[];
+  nextCursor?: string;
+};
+
+export type StorefrontPartnerMovement = {
+  movementUuid: string;
+  kind: "accrual" | "reversal";
+  originalMovementUuid?: string;
+  termsUuid: string;
+  buyerCompanyUuid: string;
+  invoiceUuid: string;
+  paymentUuid: string;
+  lineNumber: number;
+  postedOn: string;
+  availableOn: string;
+  partnerDelta: StorefrontMoney;
+  sellerCutDelta: StorefrontMoney;
+  earning?: StorefrontPartnerEarning;
+};
+
+export type StorefrontPartnerEarning = {
+  gross: StorefrontMoney;
+  tax: StorefrontMoney;
+  net: StorefrontMoney;
+  costToProvide: StorefrontMoney;
+  remainder: StorefrontMoney;
 };
 
 export type StorefrontPurchase = {
@@ -191,6 +268,80 @@ export type SelectStorefrontReceiptTemplate = { revision: string };
 /** Browse a seller's offers and check out using the current buyer identity. */
 export class StorefrontClient {
   constructor(private readonly request: StorefrontRequester) {}
+
+  async listSellerInvoices(input: SellerInvoiceListRequest, options?: RequestOptions): Promise<SellerInvoiceList> {
+    const path = `/billing${storefrontPath(input.storefront, "invoices")}`;
+    const query = input.before ? `?${new URLSearchParams({ before: input.before })}` : "";
+    const page = await this.request<SellerInvoiceList>("GET", path + query, undefined, options);
+    for (const invoice of page.invoices) validateTotals(invoice.totals);
+    return page;
+  }
+
+  async getPartnerStatement(
+    input: StorefrontPartnerStatementRequest,
+    options?: RequestOptions,
+  ): Promise<StorefrontPartnerStatement> {
+    const query = new URLSearchParams({ month: input.month });
+    if (input.cursor) query.set("cursor", input.cursor);
+    const path = storefrontPath(input.storefront, "partners", input.partnerCompanyUuid, "statement");
+    const statement = await this.request<StorefrontPartnerStatement>(
+      "GET",
+      `/billing${path}?${query}`,
+      undefined,
+      options,
+    );
+    for (const movement of statement.movements) {
+      validateMoney(movement.partnerDelta);
+      validateMoney(movement.sellerCutDelta);
+      if (movement.earning) {
+        for (const amount of Object.values(movement.earning)) validateMoney(amount);
+      }
+    }
+    return statement;
+  }
+
+  async issueCreditNote(
+    storefront: string,
+    invoiceUuid: string,
+    input: StorefrontAdjustmentRequest,
+    options?: RequestOptions,
+  ): Promise<StorefrontCreditNote> {
+    const note = await this.request<StorefrontCreditNote>(
+      "POST",
+      storefrontPath(storefront, "invoices", invoiceUuid, "credit-note"),
+      input,
+      options,
+    );
+    validateTotals(note.totals);
+    return note;
+  }
+
+  async requestRefund(
+    storefront: string,
+    invoiceUuid: string,
+    input: StorefrontAdjustmentRequest,
+    options?: RequestOptions,
+  ): Promise<StorefrontRefund> {
+    const refund = await this.request<StorefrontRefund>(
+      "POST",
+      storefrontPath(storefront, "invoices", invoiceUuid, "refund"),
+      input,
+      options,
+    );
+    validateMoney(refund.amount);
+    return refund;
+  }
+
+  async reconcileRefund(storefront: string, invoiceUuid: string, options?: RequestOptions): Promise<StorefrontRefund> {
+    const refund = await this.request<StorefrontRefund>(
+      "POST",
+      storefrontPath(storefront, "invoices", invoiceUuid, "refund", "reconcile"),
+      undefined,
+      options,
+    );
+    validateMoney(refund.amount);
+    return refund;
+  }
 
   listOwnedStorefronts(options?: RequestOptions): Promise<OwnedStorefronts> {
     return this.request("GET", storefrontRegistryPath, undefined, options);

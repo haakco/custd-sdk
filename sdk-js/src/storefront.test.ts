@@ -1,6 +1,82 @@
 import { expect, it, vi } from "vitest";
 import { CustdClient } from "./index.js";
 
+it("lists seller invoices with the previous page cursor", async () => {
+  const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(Response.json({ invoices: [], nextBefore: "next" }));
+  const client = new CustdClient({
+    baseUrl: "https://store.example",
+    getToken: () => "seller-token",
+    fetch: fetchImpl,
+  });
+  await expect(client.storefronts.listSellerInvoices({ storefront: "shop", before: "previous" })).resolves.toEqual({
+    invoices: [],
+    nextBefore: "next",
+  });
+  expect(fetchImpl).toHaveBeenCalledWith(
+    "https://store.example/api/v1/billing/storefronts/shop/invoices?before=previous",
+    expect.objectContaining({ method: "GET" }),
+  );
+});
+
+it("encodes the partner statement cursor and validates negative exact amounts", async () => {
+  const delta = { currency: "ZAR", amountMinor: "-9007199254740993" };
+  const fetchImpl = vi
+    .fn<typeof fetch>()
+    .mockImplementation(async () => Response.json({ movements: [{ partnerDelta: delta, sellerCutDelta: delta }] }));
+  const client = new CustdClient({
+    baseUrl: "https://store.example",
+    getToken: () => "seller-token",
+    fetch: fetchImpl,
+  });
+  const result = await client.storefronts.getPartnerStatement({
+    storefront: "shop",
+    partnerCompanyUuid: "partner",
+    month: "2026-12",
+    cursor: "2026-12-01/entry",
+  });
+  expect(result.movements[0].partnerDelta).toEqual(delta);
+  expect(fetchImpl).toHaveBeenCalledWith(
+    "https://store.example/api/v1/billing/storefronts/shop/partners/partner/statement?month=2026-12&cursor=2026-12-01%2Fentry",
+    expect.objectContaining({ method: "GET" }),
+  );
+});
+
+it("uses the seller's invoice routes and preserves exact adjustment amounts", async () => {
+  const amount = { currency: "ZAR", amountMinor: "9007199254740993" };
+  const totals = { netTotal: amount, taxTotal: amount, grossTotal: amount };
+  const fetchImpl = vi
+    .fn<typeof fetch>()
+    .mockImplementation(async () => Response.json({ refundUuid: "refund", creditNoteUuid: "credit", amount, totals }));
+  const client = new CustdClient({
+    baseUrl: "https://store.example",
+    getToken: () => "seller-token",
+    fetch: fetchImpl,
+  });
+  const endpoint = "https://store.example/api/v1/storefronts/shop/invoices/invoice/refund";
+  await expect(client.storefronts.requestRefund("shop", "invoice", { reason: "Cancelled" })).resolves.toMatchObject({
+    amount,
+  });
+  await expect(client.storefronts.reconcileRefund("shop", "invoice")).resolves.toMatchObject({ amount });
+  await expect(client.storefronts.issueCreditNote("shop", "invoice", { reason: "Cancelled" })).resolves.toMatchObject({
+    totals,
+  });
+  expect(fetchImpl).toHaveBeenNthCalledWith(
+    1,
+    endpoint,
+    expect.objectContaining({ method: "POST", body: '{"reason":"Cancelled"}' }),
+  );
+  expect(fetchImpl).toHaveBeenNthCalledWith(
+    2,
+    `${endpoint}/reconcile`,
+    expect.objectContaining({ method: "POST", body: undefined }),
+  );
+  expect(fetchImpl).toHaveBeenNthCalledWith(
+    3,
+    "https://store.example/api/v1/storefronts/shop/invoices/invoice/credit-note",
+    expect.objectContaining({ method: "POST", body: '{"reason":"Cancelled"}' }),
+  );
+});
+
 it("registers a storefront using the authenticated seller", async () => {
   const binding = { slug: "shop", appUuid: "app", sellerCompanyUuid: "seller", createdAt: "2026-11-28T00:00:00Z" };
   const fetchImpl = vi

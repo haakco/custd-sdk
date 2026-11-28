@@ -112,7 +112,21 @@ export type StorefrontReceipt = {
 export type StorefrontCreditNote = {
     creditNoteUuid: string;
     creditNoteNumber: string;
+    invoiceUuid?: string;
+    invoiceNumber?: string;
+    invoiceIssuedAt?: string;
+    issuedAt?: string;
+    status?: string;
+    billTo?: StorefrontBillingContact;
+    sellerName?: string;
+    reason?: string;
+    lines?: StorefrontQuoteLine[];
     totals: StorefrontTotals;
+};
+export type StorefrontBillingContact = {
+    companyUuid: string;
+    name: string;
+    email: string;
 };
 export type MerchantAccount = {
     accountUuid: string;
@@ -150,6 +164,68 @@ export type StorefrontRefund = {
     refundUuid: string;
     status: "submitting" | "pending" | "succeeded" | "review_required";
     amount: StorefrontMoney;
+    invoiceUuid?: string;
+    paymentUuid?: string;
+    requestedAt?: string;
+    processedAt?: string;
+};
+export type StorefrontAdjustmentRequest = {
+    reason: string;
+};
+export type SellerInvoiceListRequest = {
+    storefront: string;
+    before?: string;
+};
+export type SellerInvoiceList = {
+    invoices: SellerInvoiceItem[];
+    nextBefore?: string;
+};
+export type SellerInvoiceItem = {
+    invoiceUuid: string;
+    invoiceNumber: string;
+    issuedAt: string;
+    totals: StorefrontTotals;
+    status: StorefrontInvoiceStatus;
+    paymentStatus?: StorefrontPaymentStatus;
+    checkoutState?: StorefrontCheckoutState;
+    refundStatus?: StorefrontRefund["status"];
+    creditNoteUuid?: string;
+};
+export type StorefrontPartnerStatementRequest = {
+    storefront: string;
+    partnerCompanyUuid: string;
+    month: string;
+    cursor?: string;
+};
+export type StorefrontPartnerStatement = {
+    sellerCompanyUuid: string;
+    appUuid: string;
+    partnerCompanyUuid: string;
+    month: string;
+    movements: StorefrontPartnerMovement[];
+    nextCursor?: string;
+};
+export type StorefrontPartnerMovement = {
+    movementUuid: string;
+    kind: "accrual" | "reversal";
+    originalMovementUuid?: string;
+    termsUuid: string;
+    buyerCompanyUuid: string;
+    invoiceUuid: string;
+    paymentUuid: string;
+    lineNumber: number;
+    postedOn: string;
+    availableOn: string;
+    partnerDelta: StorefrontMoney;
+    sellerCutDelta: StorefrontMoney;
+    earning?: StorefrontPartnerEarning;
+};
+export type StorefrontPartnerEarning = {
+    gross: StorefrontMoney;
+    tax: StorefrontMoney;
+    net: StorefrontMoney;
+    costToProvide: StorefrontMoney;
+    remainder: StorefrontMoney;
 };
 export type StorefrontPurchase = {
     activationStatus?: "pending" | "applied" | "review_required";
@@ -186,6 +262,11 @@ export type SelectStorefrontReceiptTemplate = {
 export declare class StorefrontClient {
     private readonly request;
     constructor(request: StorefrontRequester);
+    listSellerInvoices(input: SellerInvoiceListRequest, options?: RequestOptions): Promise<SellerInvoiceList>;
+    getPartnerStatement(input: StorefrontPartnerStatementRequest, options?: RequestOptions): Promise<StorefrontPartnerStatement>;
+    issueCreditNote(storefront: string, invoiceUuid: string, input: StorefrontAdjustmentRequest, options?: RequestOptions): Promise<StorefrontCreditNote>;
+    requestRefund(storefront: string, invoiceUuid: string, input: StorefrontAdjustmentRequest, options?: RequestOptions): Promise<StorefrontRefund>;
+    reconcileRefund(storefront: string, invoiceUuid: string, options?: RequestOptions): Promise<StorefrontRefund>;
     listOwnedStorefronts(options?: RequestOptions): Promise<OwnedStorefronts>;
     registerStorefront(input: RegisterStorefront, options?: RequestOptions): Promise<StorefrontBinding>;
     getReceiptTemplate(slug: string, options?: RequestOptions): Promise<StorefrontReceiptTemplateSelection>;

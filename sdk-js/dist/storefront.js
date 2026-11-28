@@ -5,6 +5,45 @@ export class StorefrontClient {
     constructor(request) {
         this.request = request;
     }
+    async listSellerInvoices(input, options) {
+        const path = `/billing${storefrontPath(input.storefront, "invoices")}`;
+        const query = input.before ? `?${new URLSearchParams({ before: input.before })}` : "";
+        const page = await this.request("GET", path + query, undefined, options);
+        for (const invoice of page.invoices)
+            validateTotals(invoice.totals);
+        return page;
+    }
+    async getPartnerStatement(input, options) {
+        const query = new URLSearchParams({ month: input.month });
+        if (input.cursor)
+            query.set("cursor", input.cursor);
+        const path = storefrontPath(input.storefront, "partners", input.partnerCompanyUuid, "statement");
+        const statement = await this.request("GET", `/billing${path}?${query}`, undefined, options);
+        for (const movement of statement.movements) {
+            validateMoney(movement.partnerDelta);
+            validateMoney(movement.sellerCutDelta);
+            if (movement.earning) {
+                for (const amount of Object.values(movement.earning))
+                    validateMoney(amount);
+            }
+        }
+        return statement;
+    }
+    async issueCreditNote(storefront, invoiceUuid, input, options) {
+        const note = await this.request("POST", storefrontPath(storefront, "invoices", invoiceUuid, "credit-note"), input, options);
+        validateTotals(note.totals);
+        return note;
+    }
+    async requestRefund(storefront, invoiceUuid, input, options) {
+        const refund = await this.request("POST", storefrontPath(storefront, "invoices", invoiceUuid, "refund"), input, options);
+        validateMoney(refund.amount);
+        return refund;
+    }
+    async reconcileRefund(storefront, invoiceUuid, options) {
+        const refund = await this.request("POST", storefrontPath(storefront, "invoices", invoiceUuid, "refund", "reconcile"), undefined, options);
+        validateMoney(refund.amount);
+        return refund;
+    }
     listOwnedStorefronts(options) {
         return this.request("GET", storefrontRegistryPath, undefined, options);
     }
