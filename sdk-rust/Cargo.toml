@@ -1,6 +1,6 @@
 [package]
 name = "custd-sdk"
-version = "3.91.0"
+version = "3.92.0"
 edition = "2024"
 description = "Typed, blocking Custd API client: the Admin, Analytics, ingest and schema-registry routes, app item links and device-code login."
 license = "MIT"
